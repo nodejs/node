@@ -41,9 +41,13 @@ This function is implemented as a macro.
 
 L<ssl(7)>, L<EVP_PKEY_free(3)>
 
+=head1 HISTORY
+
+SSL_get_peer_tmp_key(), SSL_get_tmp_key() were added in OpenSSL 1.1.1a.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

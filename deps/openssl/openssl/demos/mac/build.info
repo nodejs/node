@@ -1,0 +1,26 @@
+#
+# To run the demos when linked with a shared library (default) ensure
+# that libcrypto is on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./gmac
+
+PROGRAMS{noinst} = gmac \
+                   hmac-sha512 \
+                   cmac-aes256 \
+                   poly1305
+
+INCLUDE[gmac]=../../include
+SOURCE[gmac]=gmac.c
+DEPEND[gmac]=../../libcrypto
+
+INCLUDE[hmac-sha512]=../../include
+SOURCE[hmac-sha512]=hmac-sha512.c
+DEPEND[hmac-sha512]=../../libcrypto
+
+INCLUDE[cmac-aes256]=../../include
+SOURCE[cmac-aes256]=cmac-aes256.c
+DEPEND[cmac-aes256]=../../libcrypto
+
+INCLUDE[poly1305]=../../include
+SOURCE[poly1305]=poly1305.c
+DEPEND[poly1305]=../../libcrypto

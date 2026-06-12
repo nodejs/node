@@ -14,16 +14,7 @@
 #ifndef OSSL_CRYPTO_CRMF_LOCAL_H
 # define OSSL_CRYPTO_CRMF_LOCAL_H
 
-# include <openssl/crmf.h>
-# include <openssl/cms.h> /* for CMS_EnvelopedData and CMS_SignedData */
-# include <openssl/err.h>
-# include "internal/crmf.h" /* for ossl_crmf_attributetypeandvalue_st */
-
-/* explicit #includes not strictly needed since implied by the above: */
-# include <openssl/types.h>
-# include <openssl/safestack.h>
-# include <openssl/x509.h>
-# include <openssl/x509v3.h>
+# include "internal/crmf.h"
 
 /*-
  * EncryptedValue ::= SEQUENCE {

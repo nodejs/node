@@ -545,8 +545,8 @@ int ossl_quic_wire_get_pkt_hdr_dst_conn_id(const unsigned char *buf,
  * function returns non-zero does not guarantee that
  * ossl_quic_wire_encode_pkt_hdr() will succeed.
  */
-int ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
-                                           const QUIC_PKT_HDR *hdr);
+size_t ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
+                                              const QUIC_PKT_HDR *hdr);
 
 /*
  * Packet Number Encoding

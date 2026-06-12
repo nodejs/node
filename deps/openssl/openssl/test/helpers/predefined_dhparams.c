@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -53,11 +53,11 @@ static EVP_PKEY *get_dh_from_pg(OSSL_LIB_CTX *libctx, const char *type,
     EVP_PKEY *dhpkey = NULL;
     BIGNUM *p = NULL, *g = NULL, *q = NULL;
 
-    p = BN_bin2bn(pdata, plen, NULL);
-    g = BN_bin2bn(gdata, glen, NULL);
+    p = BN_bin2bn(pdata, (int)plen, NULL);
+    g = BN_bin2bn(gdata, (int)glen, NULL);
     if (p == NULL || g == NULL)
         goto err;
-    if (qdata != NULL && (q = BN_bin2bn(qdata, qlen, NULL)) == NULL)
+    if (qdata != NULL && (q = BN_bin2bn(qdata, (int)qlen, NULL)) == NULL)
         goto err;
 
     dhpkey = get_dh_from_pg_bn(libctx, type, p, g, q);

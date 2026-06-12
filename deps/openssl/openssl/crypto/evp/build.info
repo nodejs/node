@@ -3,7 +3,8 @@ $COMMON=digest.c evp_enc.c evp_lib.c evp_fetch.c evp_utils.c \
         mac_lib.c mac_meth.c keymgmt_meth.c keymgmt_lib.c kdf_lib.c kdf_meth.c \
         skeymgmt_meth.c \
         pmeth_lib.c signature.c p_lib.c s_lib.c pmeth_gn.c exchange.c \
-        evp_rand.c asymcipher.c kem.c dh_support.c ec_support.c pmeth_check.c
+        evp_rand.c asymcipher.c kem.c dh_support.c ec_support.c pmeth_check.c \
+        evp_pkey_type.c
 
 SOURCE[../../libcrypto]=$COMMON\
         encode.c evp_key.c evp_cnf.c \

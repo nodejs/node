@@ -101,6 +101,9 @@ struct ossl_encoder_ctx_st {
 
     /* For any function that needs a passphrase reader */
     struct ossl_passphrase_data_st pwdata;
+
+    /* Flag that the structure is ready for use */
+    int finalized;
 };
 
 struct ossl_decoder_instance_st {
@@ -162,6 +165,9 @@ struct ossl_decoder_ctx_st {
 
     /* Signal that further processing should not continue. */
     int harderr;
+
+    /* Flag that the structure is ready for use */
+    int finalized;
 };
 
 const OSSL_PROPERTY_LIST *

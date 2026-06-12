@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -194,7 +194,7 @@ static int process_pci_value(CONF_VALUE *val,
                 goto err;
             }
         } else if (CHECK_AND_SKIP_PREFIX(valp, "text:")) {
-            val_len = strlen(valp);
+            val_len = (int)strlen(valp);
             tmp_data = OPENSSL_realloc((*policy)->data,
                                        (*policy)->length + val_len + 1);
             if (tmp_data) {

@@ -40,6 +40,12 @@ DEPEND[man/man1/openssl-cms.1]=man1/openssl-cms.pod
 GENERATE[man/man1/openssl-cms.1]=man1/openssl-cms.pod
 DEPEND[man1/openssl-cms.pod]{pod}=man1/openssl-cms.pod.in
 GENERATE[man1/openssl-cms.pod]=man1/openssl-cms.pod.in
+DEPEND[html/man1/openssl-configutl.html]=man1/openssl-configutl.pod
+GENERATE[html/man1/openssl-configutl.html]=man1/openssl-configutl.pod
+DEPEND[man/man1/openssl-configutl.1]=man1/openssl-configutl.pod
+GENERATE[man/man1/openssl-configutl.1]=man1/openssl-configutl.pod
+DEPEND[man1/openssl-configutl.pod]{pod}=man1/openssl-configutl.pod.in
+GENERATE[man1/openssl-configutl.pod]=man1/openssl-configutl.pod.in
 DEPEND[html/man1/openssl-crl.html]=man1/openssl-crl.pod
 GENERATE[html/man1/openssl-crl.html]=man1/openssl-crl.pod
 DEPEND[man/man1/openssl-crl.1]=man1/openssl-crl.pod
@@ -360,6 +366,7 @@ html/man1/openssl-ciphers.html \
 html/man1/openssl-cmds.html \
 html/man1/openssl-cmp.html \
 html/man1/openssl-cms.html \
+html/man1/openssl-configutl.html \
 html/man1/openssl-crl.html \
 html/man1/openssl-crl2pkcs7.html \
 html/man1/openssl-dgst.html \
@@ -421,6 +428,7 @@ man/man1/openssl-ciphers.1 \
 man/man1/openssl-cmds.1 \
 man/man1/openssl-cmp.1 \
 man/man1/openssl-cms.1 \
+man/man1/openssl-configutl.1 \
 man/man1/openssl-crl.1 \
 man/man1/openssl-crl2pkcs7.1 \
 man/man1/openssl-dgst.1 \
@@ -803,6 +811,10 @@ DEPEND[html/man3/CMS_EncryptedData_encrypt.html]=man3/CMS_EncryptedData_encrypt.
 GENERATE[html/man3/CMS_EncryptedData_encrypt.html]=man3/CMS_EncryptedData_encrypt.pod
 DEPEND[man/man3/CMS_EncryptedData_encrypt.3]=man3/CMS_EncryptedData_encrypt.pod
 GENERATE[man/man3/CMS_EncryptedData_encrypt.3]=man3/CMS_EncryptedData_encrypt.pod
+DEPEND[html/man3/CMS_EncryptedData_set1_key.html]=man3/CMS_EncryptedData_set1_key.pod
+GENERATE[html/man3/CMS_EncryptedData_set1_key.html]=man3/CMS_EncryptedData_set1_key.pod
+DEPEND[man/man3/CMS_EncryptedData_set1_key.3]=man3/CMS_EncryptedData_set1_key.pod
+GENERATE[man/man3/CMS_EncryptedData_set1_key.3]=man3/CMS_EncryptedData_set1_key.pod
 DEPEND[html/man3/CMS_EnvelopedData_create.html]=man3/CMS_EnvelopedData_create.pod
 GENERATE[html/man3/CMS_EnvelopedData_create.html]=man3/CMS_EnvelopedData_create.pod
 DEPEND[man/man3/CMS_EnvelopedData_create.3]=man3/CMS_EnvelopedData_create.pod
@@ -2651,6 +2663,10 @@ DEPEND[html/man3/SSL_get_handshake_rtt.html]=man3/SSL_get_handshake_rtt.pod
 GENERATE[html/man3/SSL_get_handshake_rtt.html]=man3/SSL_get_handshake_rtt.pod
 DEPEND[man/man3/SSL_get_handshake_rtt.3]=man3/SSL_get_handshake_rtt.pod
 GENERATE[man/man3/SSL_get_handshake_rtt.3]=man3/SSL_get_handshake_rtt.pod
+DEPEND[html/man3/SSL_get_peer_addr.html]=man3/SSL_get_peer_addr.pod
+GENERATE[html/man3/SSL_get_peer_addr.html]=man3/SSL_get_peer_addr.pod
+DEPEND[man/man3/SSL_get_peer_addr.3]=man3/SSL_get_peer_addr.pod
+GENERATE[man/man3/SSL_get_peer_addr.3]=man3/SSL_get_peer_addr.pod
 DEPEND[html/man3/SSL_get_peer_cert_chain.html]=man3/SSL_get_peer_cert_chain.pod
 GENERATE[html/man3/SSL_get_peer_cert_chain.html]=man3/SSL_get_peer_cert_chain.pod
 DEPEND[man/man3/SSL_get_peer_cert_chain.3]=man3/SSL_get_peer_cert_chain.pod
@@ -3246,6 +3262,7 @@ html/man3/BUF_MEM_new.html \
 html/man3/CMAC_CTX.html \
 html/man3/CMS_EncryptedData_decrypt.html \
 html/man3/CMS_EncryptedData_encrypt.html \
+html/man3/CMS_EncryptedData_set1_key.html \
 html/man3/CMS_EnvelopedData_create.html \
 html/man3/CMS_add0_cert.html \
 html/man3/CMS_add1_recipient_cert.html \
@@ -3708,6 +3725,7 @@ html/man3/SSL_get_event_timeout.html \
 html/man3/SSL_get_extms_support.html \
 html/man3/SSL_get_fd.html \
 html/man3/SSL_get_handshake_rtt.html \
+html/man3/SSL_get_peer_addr.html \
 html/man3/SSL_get_peer_cert_chain.html \
 html/man3/SSL_get_peer_certificate.html \
 html/man3/SSL_get_peer_signature_nid.html \
@@ -3918,6 +3936,7 @@ man/man3/BUF_MEM_new.3 \
 man/man3/CMAC_CTX.3 \
 man/man3/CMS_EncryptedData_decrypt.3 \
 man/man3/CMS_EncryptedData_encrypt.3 \
+man/man3/CMS_EncryptedData_set1_key.3 \
 man/man3/CMS_EnvelopedData_create.3 \
 man/man3/CMS_add0_cert.3 \
 man/man3/CMS_add1_recipient_cert.3 \
@@ -4380,6 +4399,7 @@ man/man3/SSL_get_event_timeout.3 \
 man/man3/SSL_get_extms_support.3 \
 man/man3/SSL_get_fd.3 \
 man/man3/SSL_get_handshake_rtt.3 \
+man/man3/SSL_get_peer_addr.3 \
 man/man3/SSL_get_peer_cert_chain.3 \
 man/man3/SSL_get_peer_certificate.3 \
 man/man3/SSL_get_peer_signature_nid.3 \
@@ -4799,6 +4819,10 @@ DEPEND[html/man7/EVP_PKEY-HMAC.html]=man7/EVP_PKEY-HMAC.pod
 GENERATE[html/man7/EVP_PKEY-HMAC.html]=man7/EVP_PKEY-HMAC.pod
 DEPEND[man/man7/EVP_PKEY-HMAC.7]=man7/EVP_PKEY-HMAC.pod
 GENERATE[man/man7/EVP_PKEY-HMAC.7]=man7/EVP_PKEY-HMAC.pod
+DEPEND[html/man7/EVP_PKEY-LMS.html]=man7/EVP_PKEY-LMS.pod
+GENERATE[html/man7/EVP_PKEY-LMS.html]=man7/EVP_PKEY-LMS.pod
+DEPEND[man/man7/EVP_PKEY-LMS.7]=man7/EVP_PKEY-LMS.pod
+GENERATE[man/man7/EVP_PKEY-LMS.7]=man7/EVP_PKEY-LMS.pod
 DEPEND[html/man7/EVP_PKEY-ML-DSA.html]=man7/EVP_PKEY-ML-DSA.pod
 GENERATE[html/man7/EVP_PKEY-ML-DSA.html]=man7/EVP_PKEY-ML-DSA.pod
 DEPEND[man/man7/EVP_PKEY-ML-DSA.7]=man7/EVP_PKEY-ML-DSA.pod
@@ -4871,6 +4895,10 @@ DEPEND[html/man7/EVP_SIGNATURE-HMAC.html]=man7/EVP_SIGNATURE-HMAC.pod
 GENERATE[html/man7/EVP_SIGNATURE-HMAC.html]=man7/EVP_SIGNATURE-HMAC.pod
 DEPEND[man/man7/EVP_SIGNATURE-HMAC.7]=man7/EVP_SIGNATURE-HMAC.pod
 GENERATE[man/man7/EVP_SIGNATURE-HMAC.7]=man7/EVP_SIGNATURE-HMAC.pod
+DEPEND[html/man7/EVP_SIGNATURE-LMS.html]=man7/EVP_SIGNATURE-LMS.pod
+GENERATE[html/man7/EVP_SIGNATURE-LMS.html]=man7/EVP_SIGNATURE-LMS.pod
+DEPEND[man/man7/EVP_SIGNATURE-LMS.7]=man7/EVP_SIGNATURE-LMS.pod
+GENERATE[man/man7/EVP_SIGNATURE-LMS.7]=man7/EVP_SIGNATURE-LMS.pod
 DEPEND[html/man7/EVP_SIGNATURE-ML-DSA.html]=man7/EVP_SIGNATURE-ML-DSA.pod
 GENERATE[html/man7/EVP_SIGNATURE-ML-DSA.html]=man7/EVP_SIGNATURE-ML-DSA.pod
 DEPEND[man/man7/EVP_SIGNATURE-ML-DSA.7]=man7/EVP_SIGNATURE-ML-DSA.pod
@@ -5231,6 +5259,7 @@ html/man7/EVP_PKEY-DSA.html \
 html/man7/EVP_PKEY-EC.html \
 html/man7/EVP_PKEY-FFC.html \
 html/man7/EVP_PKEY-HMAC.html \
+html/man7/EVP_PKEY-LMS.html \
 html/man7/EVP_PKEY-ML-DSA.html \
 html/man7/EVP_PKEY-ML-KEM.html \
 html/man7/EVP_PKEY-RSA.html \
@@ -5249,6 +5278,7 @@ html/man7/EVP_SIGNATURE-DSA.html \
 html/man7/EVP_SIGNATURE-ECDSA.html \
 html/man7/EVP_SIGNATURE-ED25519.html \
 html/man7/EVP_SIGNATURE-HMAC.html \
+html/man7/EVP_SIGNATURE-LMS.html \
 html/man7/EVP_SIGNATURE-ML-DSA.html \
 html/man7/EVP_SIGNATURE-RSA.html \
 html/man7/EVP_SIGNATURE-SLH-DSA.html \
@@ -5388,6 +5418,7 @@ man/man7/EVP_PKEY-DSA.7 \
 man/man7/EVP_PKEY-EC.7 \
 man/man7/EVP_PKEY-FFC.7 \
 man/man7/EVP_PKEY-HMAC.7 \
+man/man7/EVP_PKEY-LMS.7 \
 man/man7/EVP_PKEY-ML-DSA.7 \
 man/man7/EVP_PKEY-ML-KEM.7 \
 man/man7/EVP_PKEY-RSA.7 \
@@ -5406,6 +5437,7 @@ man/man7/EVP_SIGNATURE-DSA.7 \
 man/man7/EVP_SIGNATURE-ECDSA.7 \
 man/man7/EVP_SIGNATURE-ED25519.7 \
 man/man7/EVP_SIGNATURE-HMAC.7 \
+man/man7/EVP_SIGNATURE-LMS.7 \
 man/man7/EVP_SIGNATURE-ML-DSA.7 \
 man/man7/EVP_SIGNATURE-RSA.7 \
 man/man7/EVP_SIGNATURE-SLH-DSA.7 \

@@ -18,6 +18,7 @@
 #include <openssl/rand.h>
 #include "internal/e_os.h"
 #include "internal/fips.h"
+#include "internal/threads_common.h"
 #include "internal/tsan_assist.h"
 #include "prov/providercommon.h"
 #include "crypto/rand.h"
@@ -173,6 +174,7 @@ DEP_INIT_ATTRIBUTE void init(void)
 DEP_FINI_ATTRIBUTE void cleanup(void)
 {
     CRYPTO_THREAD_lock_free(self_test_lock);
+    CRYPTO_THREAD_clean_local();
 }
 #endif
 
@@ -379,7 +381,7 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
         goto end;
     }
 
-    if (!SELF_TEST_kats(ev, st->libctx)) {
+    if (!SELF_TEST_kats(ev, st->libctx, on_demand_test)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_SELF_TEST_KAT_FAILURE);
         goto end;
     }

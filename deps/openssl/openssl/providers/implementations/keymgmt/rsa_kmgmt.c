@@ -235,7 +235,7 @@ static int rsa_export(void *keydata, int selection,
     }
 
     ok = param_callback(params, cbarg);
-    OSSL_PARAM_free(params);
+    OSSL_PARAM_clear_free(params);
 err:
     OSSL_PARAM_BLD_free(tmpl);
     return ok;
@@ -344,6 +344,9 @@ static int rsa_get_params(void *key, OSSL_PARAM params[])
     if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE)) != NULL
         && (empty || !OSSL_PARAM_set_int(p, RSA_size(rsa))))
         return 0;
+    if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_SECURITY_CATEGORY)) != NULL)
+        if (!OSSL_PARAM_set_int(p, 0))
+            return 0;
 
     /*
      * For restricted RSA-PSS keys, we ignore the default digest request.
@@ -379,6 +382,7 @@ static const OSSL_PARAM rsa_params[] = {
     OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
+    OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_CATEGORY, NULL),
     OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_DEFAULT_DIGEST, NULL, 0),
     RSA_KEY_TYPES()
     OSSL_PARAM_END
@@ -435,6 +439,7 @@ struct rsa_gen_ctx {
     /* ACVP test parameters */
     OSSL_PARAM *acvp_test_params;
 #endif
+    uint32_t a, b;
 };
 
 static int rsa_gencb(int p, int n, BN_GENCB *cb)
@@ -522,6 +527,25 @@ static int rsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E)) != NULL
         && !OSSL_PARAM_get_BN(p, &gctx->pub_exp))
         return 0;
+    if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_A)) != NULL) {
+        if (!OSSL_PARAM_get_uint32(p, &gctx->a))
+            return 0;
+        /* a is an optional value that should be one of (0, 1, 3, 5, 7) */
+        if (gctx->a != 0 && (gctx->a > 7 || (gctx->a & 1) == 0)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DATA);
+            return 0;
+        }
+    }
+    if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_B)) != NULL) {
+        if (!OSSL_PARAM_get_uint32(p, &gctx->b))
+            return 0;
+        /* b is an optional value that should be one of (0, 1, 3, 5, 7) */
+        if (gctx->b != 0 && (gctx->b > 7 || (gctx->b & 1) == 0)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DATA);
+            return 0;
+        }
+    }
+
     /* Only attempt to get PSS parameters when generating an RSA-PSS key */
     if (gctx->rsa_type == RSA_FLAG_TYPE_RSASSAPSS
         && !pss_params_fromdata(&gctx->pss_params, &gctx->pss_defaults_set, params,
@@ -538,8 +562,9 @@ static int rsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
 #define rsa_gen_basic                                           \
     OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_BITS, NULL),          \
     OSSL_PARAM_size_t(OSSL_PKEY_PARAM_RSA_PRIMES, NULL),        \
-    OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, NULL, 0)
-
+    OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, NULL, 0),              \
+    OSSL_PARAM_uint32(OSSL_PKEY_PARAM_RSA_A, NULL),             \
+    OSSL_PARAM_uint32(OSSL_PKEY_PARAM_RSA_B, NULL)
 /*
  * The following must be kept in sync with ossl_rsa_pss_params_30_fromdata()
  * in crypto/rsa/rsa_backend.c
@@ -616,9 +641,10 @@ static void *rsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     }
 #endif
 
-    if (!RSA_generate_multi_prime_key(rsa_tmp,
-                                      (int)gctx->nbits, (int)gctx->primes,
-                                      gctx->pub_exp, gencb))
+    if (!ossl_rsa_generate_multi_prime_key(rsa_tmp,
+                                           (int)gctx->nbits, (int)gctx->primes,
+                                           gctx->pub_exp, gencb,
+                                           gctx->a, gctx->b))
         goto err;
 
     if (!ossl_rsa_pss_params_30_copy(ossl_rsa_get0_pss_params_30(rsa_tmp),

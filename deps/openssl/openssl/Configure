@@ -27,7 +27,7 @@ use OpenSSL::config;
 my $orig_death_handler = $SIG{__DIE__};
 $SIG{__DIE__} = \&death_handler;
 
-my $usage="Usage: Configure [no-<feature> ...] [enable-<feature> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]thread-pool] [[no-]default-thread-pool] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
+my $usage="Usage: Configure [no-<feature> ...] [enable-<feature> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]thread-pool] [[no-]default-thread-pool] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] [--help] os/compiler[:flags]\n";
 
 my $banner = <<"EOF";
 
@@ -450,6 +450,7 @@ my @disablables = (
     "cms",
     "comp",
     "crypto-mdebug",
+    "allocfail-tests",
     "ct",
     "default-thread-pool",
     "demos",
@@ -489,6 +490,7 @@ my @disablables = (
     "jitter",
     "ktls",
     "legacy",
+    "lms",
     "loadereng",
     "makedepend",
     "md2",
@@ -592,6 +594,7 @@ our %disabled = ( # "what"         => "comment"
                   "brotli-dynamic"      => "default",
                   "buildtest-c++"       => "default",
                   "crypto-mdebug"       => "default",
+                  "allocfail-tests"     => "default",
                   "crypto-mdebug-backtrace" => "default",
                   "demos"               => "default",
                   "h3demo"              => "default",
@@ -605,6 +608,7 @@ our %disabled = ( # "what"         => "comment"
                   "pie"                 => "default",
                   "jitter"              => "default",
                   "ktls"                => "default",
+                  "lms"                 => "default",
                   "md2"                 => "default",
                   "msan"                => "default",
                   "rc5"                 => "default",
@@ -627,18 +631,18 @@ our %disabled = ( # "what"         => "comment"
 my @disable_cascades = (
     # "what"            => [ "cascade", ... ]
     "bulk"              => [ "shared", "dso",
-                             "aria", "async", "atexit", "autoload-config",
+                             "argon2", "aria", "async", "atexit", "autoload-config",
                              "blake2", "bf", "camellia", "cast", "chacha",
                              "cmac", "cms", "cmp", "comp", "ct",
                              "des", "dgram", "dh", "dsa",
                              "ec", "engine",
                              "filenames",
-                             "idea", "ktls",
+                             "idea", "ktls", "lms",
                              "md4", "ml-dsa", "ml-kem", "multiblock",
                              "nextprotoneg", "ocsp", "ocb", "poly1305", "psk",
                              "rc2", "rc4", "rmd160",
-                             "seed", "siphash", "siv",
-                             "sm3", "sm4", "srp",
+                             "scrypt", "seed", "siphash", "siv",
+                             "slh-dsa", "sm3", "sm4", "srp",
                              "srtp", "ssl3-method", "ssl-trace",
                              "tfo",
                              "ts", "ui-console", "whirlpool",
@@ -665,7 +669,7 @@ my @disable_cascades = (
     "tls1_3"            => [ "quic" ],
     "quic"              => [ "unstable-qlog" ],
 
-    "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
+    "crypto-mdebug"     => [ "crypto-mdebug-backtrace", "allocfail-tests" ],
 
     "module"            => [ "dynamic-engine", "fips" ],
 
@@ -1017,6 +1021,10 @@ while (@argvcopy)
                 {
                 $config{build_type} = "release";
                 }
+        elsif (/^--pgo$/)
+                {
+                $config{build_type} = "pgo";
+                }
         elsif (/^386$/)
                 { $config{processor}=386; }
         elsif (/^rsaref$/)
@@ -1153,6 +1161,10 @@ while (@argvcopy)
                         {
                         push @{$useradd{CPPFLAGS}}, $1;
                         }
+                elsif (/^--help$/)
+                        {
+                        &usage;
+                        }
                 else    # common if (/^[-+]/), just pass down...
                         {
                         # Treat %xx as an ASCII code (e.g. replace %20 by a space character).
@@ -1161,6 +1173,15 @@ while (@argvcopy)
                         $_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
                         push @{$useradd{CFLAGS}}, $_;
                         push @{$useradd{CXXFLAGS}}, $_;
+                        if (/^--(no|with|without|enable|disable)-(\S+)/)
+                                {
+                                # Ideally this would also cover cascades, but I lack Perl-fu.
+                                if (grep ($_ eq $2, @disablables) or exists $deprecated_disablables{$2})
+                                        {
+                                        print STDERR "NOTE: Flag --$1-$2 will be passed to the compiler.  It looks similar to a Configure\n";
+                                        print STDERR "      option, though.  If the latter is what you meant to do, drop the leading '--'.\n";
+                                        }
+                                }
                         }
                 }
         elsif (m|^/|)
@@ -3357,33 +3378,74 @@ sub usage
         {
         print STDERR $usage;
         print STDERR "\npick os/compiler from:\n";
-        my $j=0;
         my $i;
         my $k=0;
+        print STDERR "  ";
         foreach $i (sort keys %table)
                 {
                 next if $table{$i}->{template};
                 next if $i =~ /^debug/;
-                $k += length($i) + 1;
+                $k += length($i);
                 if ($k > 78)
                         {
-                        print STDERR "\n";
-                        $k=length($i);
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
                         }
+                $k += 1;
                 print STDERR $i . " ";
                 }
         foreach $i (sort keys %table)
                 {
                 next if $table{$i}->{template};
                 next if $i !~ /^debug/;
-                $k += length($i) + 1;
+                $k += length($i);
                 if ($k > 78)
                         {
-                        print STDERR "\n";
-                        $k=length($i);
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
                         }
+                $k += 1;
                 print STDERR $i . " ";
                 }
+        print STDERR "\n";
+
+        disable();
+
+        # Do some color wizardry.  Ideally, this would be done by a library and
+        # would use proper termcap/terminfo, but we would rather avoid external
+        # dependencies.  It's disabled by default unless you define CLICOLOR in
+        # your env.  (We approximate ls(1)'s behavior in BSD in this regard.)
+        my $en_color="";
+        my $dis_color="";
+        my $reset_color="";
+        my $this_color;
+        if ( defined $ENV{'CLICOLOR'} and (defined $ENV{'CLICOLOR_FORCE'} or -t 2) )
+                {
+                $en_color="\e[1;32m";  # bold green
+                $dis_color="\e[3;2m";  # dim italic
+                $reset_color="\e[0;0m";
+                }
+
+        print STDERR "The following ${en_color}ENABLED${reset_color} and ${dis_color}disabled${reset_color} flags are available:\n  ";
+        $k = 2;
+        foreach $i (sort @disablables)
+                {
+                $this_color=$dis_color;
+                $k += length($i);
+                if (not exists $disabled{$i})
+                        {
+                        $this_color=$en_color;
+                        $i = uc $i;
+                        }
+                if ($k > 78)
+                        {
+                        print STDERR "\n  ";
+                        $k=length($i) + 2;
+                        }
+                $k += 1;
+                print STDERR "${this_color}${i}${reset_color} ";
+                }
+        print STDERR "\n";
         exit(1);
         }
 

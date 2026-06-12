@@ -645,6 +645,16 @@ void *app_malloc(size_t sz, const char *what)
     return vp;
 }
 
+void *app_malloc_array(size_t n, size_t sz, const char *what)
+{
+    void *vp = OPENSSL_malloc_array(n, sz);
+
+    if (vp == NULL)
+        app_bail_out("%s: Could not allocate %zu*%zu bytes for %s\n",
+                     opt_getprog(), n, sz, what);
+    return vp;
+}
+
 char *next_item(char *opt) /* in list separated by comma and/or space */
 {
     /* advance to separator (comma or whitespace), if any */
@@ -673,6 +683,12 @@ static void warn_cert(const char *uri, X509 *cert, int warn_EE,
                       X509_VERIFY_PARAM *vpm)
 {
     uint32_t ex_flags = X509_get_extension_flags(cert);
+    /*
+     * This should not be used as as example for how to verify
+     * certificates. This treats an invalid not before or an invalid
+     * not after time in the certificate as infinitely valid, which
+     * you don't want outside of a toy testing function like this.
+     */
     int res = X509_cmp_timeframe(vpm, X509_get0_notBefore(cert),
                                  X509_get0_notAfter(cert));
 
@@ -922,7 +938,7 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
     SET_EXPECT1(pparams, OSSL_STORE_INFO_PARAMS);
     SET_EXPECT1(pcert, OSSL_STORE_INFO_CERT);
     /*
-     * Up to here, the follwing holds.
+     * Up to here, the following holds.
      * If just one of the ppkey, ppubkey, pparams, and pcert function parameters
      * is nonzero, expect > 0 indicates which type of credential is expected.
      * If expect == 0, more than one of them is nonzero (multiple types expected).
@@ -1546,7 +1562,7 @@ int save_serial(const char *serialfile, const char *suffix,
     BIO *out = NULL;
     int ret = 0;
     ASN1_INTEGER *ai = NULL;
-    int j;
+    size_t j;
 
     if (suffix == NULL)
         j = strlen(serialfile);
@@ -1594,7 +1610,7 @@ int rotate_serial(const char *serialfile, const char *new_suffix,
                   const char *old_suffix)
 {
     char buf[2][BSIZE];
-    int i, j;
+    size_t i, j;
 
     i = strlen(serialfile) + strlen(old_suffix);
     j = strlen(serialfile) + strlen(new_suffix);
@@ -1758,7 +1774,7 @@ int save_index(const char *dbfile, const char *suffix, CA_DB *db)
     BIO *out;
     int j;
 
-    j = strlen(dbfile) + strlen(suffix);
+    j = (int)(strlen(dbfile) + strlen(suffix));
     if (j + 6 >= BSIZE) {
         BIO_printf(bio_err, "File name too long\n");
         goto err;
@@ -1803,7 +1819,7 @@ int rotate_index(const char *dbfile, const char *new_suffix,
                  const char *old_suffix)
 {
     char buf[5][BSIZE];
-    int i, j;
+    size_t i, j;
 
     i = strlen(dbfile) + strlen(old_suffix);
     j = strlen(dbfile) + strlen(new_suffix);
@@ -1990,7 +2006,7 @@ X509_NAME *parse_name(const char *cp, int chtype, int canmulti,
             continue;
         }
         if (!X509_NAME_add_entry_by_NID(n, nid, chtype,
-                                        valstr, strlen((char *)valstr),
+                                        valstr, (int)strlen((char *)valstr),
                                         -1, ismulti ? -1 : 0)) {
             ERR_print_errors(bio_err);
             BIO_printf(bio_err,
@@ -2715,12 +2731,12 @@ static int WIN32_rename(const char *from, const char *to)
             goto err;
         tto = tfrom + flen;
 # if !defined(_WIN32_WCE) || _WIN32_WCE >= 101
-        if (!MultiByteToWideChar(CP_ACP, 0, from, flen, (WCHAR *)tfrom, flen))
+        if (!MultiByteToWideChar(CP_ACP, 0, from, (int)flen, (WCHAR *)tfrom, (int)flen))
 # endif
             for (i = 0; i < flen; i++)
                 tfrom[i] = (TCHAR)from[i];
 # if !defined(_WIN32_WCE) || _WIN32_WCE >= 101
-        if (!MultiByteToWideChar(CP_ACP, 0, to, tlen, (WCHAR *)tto, tlen))
+        if (!MultiByteToWideChar(CP_ACP, 0, to, (int)tlen, (WCHAR *)tto, (int)tlen))
 # endif
             for (i = 0; i < tlen; i++)
                 tto[i] = (TCHAR)to[i];
@@ -2998,21 +3014,18 @@ BIO *dup_bio_out(int format)
 {
     BIO *b = BIO_new_fp(stdout,
                         BIO_NOCLOSE | (FMT_istext(format) ? BIO_FP_TEXT : 0));
-    void *prefix = NULL;
-
-    if (b == NULL)
-        return NULL;
 
 #ifdef OPENSSL_SYS_VMS
-    if (FMT_istext(format))
-        b = BIO_push(BIO_new(BIO_f_linebuffer()), b);
-#endif
+    if (b != NULL && FMT_istext(format)) {
+        BIO *btmp = BIO_new(BIO_f_linebuffer());
 
-    if (FMT_istext(format)
-        && (prefix = getenv("HARNESS_OSSL_PREFIX")) != NULL) {
-        b = BIO_push(BIO_new(BIO_f_prefix()), b);
-        BIO_set_prefix(b, prefix);
+        if (btmp == NULL) {
+            BIO_free(b);
+            return NULL;
+        }
+        b = BIO_push(btmp, b);
     }
+#endif
 
     return b;
 }
@@ -3023,8 +3036,15 @@ BIO *dup_bio_err(int format)
                         BIO_NOCLOSE | (FMT_istext(format) ? BIO_FP_TEXT : 0));
 
 #ifdef OPENSSL_SYS_VMS
-    if (b != NULL && FMT_istext(format))
-        b = BIO_push(BIO_new(BIO_f_linebuffer()), b);
+    if (b != NULL && FMT_istext(format)) {
+        BIO *btmp = BIO_new(BIO_f_linebuffer());
+
+        if (btmp == NULL) {
+            BIO_free(b);
+            return NULL;
+        }
+        b = BIO_push(btmp, b);
+    }
 #endif
     return b;
 }
@@ -3207,7 +3227,7 @@ int mem_bio_to_file(BIO *in, const char *filename, int format, int private)
     out = bio_open_owner(filename, format, private);
     if (out == NULL)
         goto end;
-    rv = BIO_write(out, mem_buffer->data, mem_buffer->length);
+    rv = BIO_write(out, mem_buffer->data, (int)mem_buffer->length);
     if (rv < 0 || (size_t)rv != mem_buffer->length)
         BIO_printf(bio_err, "Error writing to output file: '%s'\n", filename);
     else
@@ -3233,7 +3253,7 @@ void wait_for_async(SSL *s)
         return;
     if (numfds == 0)
         return;
-    fds = app_malloc(sizeof(OSSL_ASYNC_FD) * numfds, "allocate async fds");
+    fds = app_malloc_array(numfds, sizeof(*fds), "allocate async fds");
     if (!SSL_get_all_async_fds(s, fds, &numfds)) {
         OPENSSL_free(fds);
         return;
@@ -3408,7 +3428,7 @@ OSSL_PARAM *app_params_new_from_opts(STACK_OF(OPENSSL_STRING) *opts,
     if (opts == NULL)
         return NULL;
 
-    params = OPENSSL_zalloc(sizeof(OSSL_PARAM) * (sz + 1));
+    params = OPENSSL_calloc(sz + 1, sizeof(OSSL_PARAM));
     if (params == NULL)
         return NULL;
 
@@ -3498,4 +3518,158 @@ int opt_legacy_okay(void)
     if (provider_options || libctx)
         return 0;
     return 1;
+}
+
+#define MAX_KEY_SIZE 2048 /* Hope nobody needs mac key longer than 2048 bytes */
+
+/*
+ * Implementations of mac algorithms only support getting a key via the
+ * key and hexkey parameters. This function processes additional parameters
+ * for reading a key from an environment variable or from a file or stdin
+ * and forms a key or hexkey parameter with the read key.
+ * Leaves other parameters unchanged.
+ * Allocates a string with a new parameter and returns a pointer to this
+ * string, the calling code must free this string by calling OPENSSL_clear_free.
+ * Returns NULL in case of an error.
+ */
+char *process_additional_mac_key_arguments(const char *arg)
+{
+    static BIO *keybio = NULL;
+    char *val = NULL, *inbuf = NULL, *outbuf = NULL;
+    int total_read = 0;
+    int n;
+    char dummy;
+    int too_long;
+
+    if (CHECK_AND_SKIP_PREFIX(arg, "keyenv:")) {
+        if (strlen(arg) == 0) {
+            BIO_printf(bio_err, "Empty environment variable name\n");
+            return NULL;
+        }
+        val = getenv(arg);
+        if (val == NULL) {
+            BIO_printf(bio_err, "No environment variable %s\n", arg);
+            return NULL;
+        }
+        outbuf = app_malloc(strlen("key:") + strlen(val) + 1, "MACOPT KEYENV");
+        strcpy(outbuf, "key:");
+        strcat(outbuf, val);
+        return outbuf;
+    }
+
+    if (CHECK_AND_SKIP_PREFIX(arg, "keyenvhex:")) {
+        if (strlen(arg) == 0) {
+            BIO_printf(bio_err, "Empty environment variable name\n");
+            return NULL;
+        }
+        val = getenv(arg);
+        if (val == NULL) {
+            BIO_printf(bio_err, "No environment variable %s\n", arg);
+            return NULL;
+        }
+        outbuf = app_malloc(strlen("hexkey:") + strlen(val) + 1, "MACOPT KEYENVHEX");
+        strcpy(outbuf, "hexkey:");
+        strcat(outbuf, val);
+        return outbuf;
+    }
+
+    if (CHECK_AND_SKIP_PREFIX(arg, "keyfile:")) {
+        if (strlen(arg) == 0) {
+            BIO_printf(bio_err, "Empty key file name\n");
+            return NULL;
+        }
+        keybio = BIO_new_file(arg, "rb");
+        if (keybio == NULL) {
+            BIO_printf(bio_err, "Can't open file %s\n", arg);
+            return NULL;
+        }
+        inbuf = app_malloc(MAX_KEY_SIZE, "MACOPT KEYFILE");
+        while (total_read < MAX_KEY_SIZE) {
+            n = BIO_read(keybio, inbuf + total_read, MAX_KEY_SIZE - total_read);
+            if (n < 0) {
+                BIO_printf(bio_err, "Can't read file %s\n", arg);
+                OPENSSL_clear_free(inbuf, MAX_KEY_SIZE);
+                BIO_free(keybio);
+                return NULL;
+            }
+            if (n == 0) /* EOF */
+                break;
+            total_read += n;
+        }
+        too_long = (total_read == MAX_KEY_SIZE && BIO_read(keybio, &dummy, 1) > 0);
+        BIO_free(keybio);
+        if (total_read == 0 || too_long) {
+            /* File is empty or longer than MAX_KEY_SIZE */
+            BIO_printf(bio_err, (too_long) ? "File %s is too long\n" : "File %s is empty\n", arg);
+            OPENSSL_clear_free(inbuf, MAX_KEY_SIZE);
+            return NULL;
+        }
+        outbuf = app_malloc(strlen("hexkey:") + total_read * 2 + 1, "MACOPT KEYFILE");
+        strcpy(outbuf, "hexkey:");
+        OPENSSL_buf2hexstr_ex(outbuf + strlen("hexkey:"), total_read * 2 + 1,
+                              NULL, (unsigned char *)inbuf, total_read, '\0');
+        OPENSSL_clear_free(inbuf, MAX_KEY_SIZE);
+        return outbuf;
+    }
+
+    if (strcmp(arg, "keystdin") == 0) {
+        inbuf = get_str_from_file(NULL);
+        if (inbuf == NULL)
+            return NULL;
+        if (strlen(inbuf) == 0) {
+            BIO_printf(bio_err, "Empty key\n");
+            clear_free(inbuf);
+            return NULL;
+        }
+        outbuf = app_malloc(strlen("key:") + strlen(inbuf) + 1, "MACOPT KEYSTDIN");
+        strcpy(outbuf, "key:");
+        strcat(outbuf, inbuf);
+        clear_free(inbuf);
+        return outbuf;
+    }
+
+    return OPENSSL_strdup(arg);
+}
+
+/*
+ * Read one line from file.
+ * Allocates a string with the data read and returns a pointer to this
+ * string, the calling code must free this string.
+ * If filename == NULL, read from standard input.
+ * Returns NULL in case of any error.
+ */
+char *get_str_from_file(const char *filename)
+{
+    static BIO *bio = NULL;
+    int n;
+    char *buf = NULL;
+    char *tmp;
+
+    if (filename == NULL) {
+        unbuffer(stdin);
+        bio = dup_bio_in(FORMAT_TEXT);
+        if (bio == NULL) {
+            BIO_printf(bio_err, "Can't open BIO for stdin\n");
+            return NULL;
+        }
+    } else {
+        bio = BIO_new_file(filename, "r");
+        if (bio == NULL) {
+            BIO_printf(bio_err, "Can't open file %s\n", filename);
+            return NULL;
+        }
+    }
+    buf = app_malloc(MAX_KEY_SIZE, "get_str_from_file");
+    memset(buf, 0, MAX_KEY_SIZE);
+    n = BIO_gets(bio, buf, MAX_KEY_SIZE - 1);
+    BIO_free_all(bio);
+    bio = NULL;
+    if (n <= 0) {
+        BIO_printf(bio_err, "Error reading from %s\n", filename);
+        return NULL;
+    }
+    tmp = strchr(buf, '\n');
+    if (tmp != NULL)
+        *tmp = 0;
+    return buf;
 }

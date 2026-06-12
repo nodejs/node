@@ -59,6 +59,14 @@ The X509_STORE_CTX_verify() behaves like X509_verify_cert() except that its
 target certificate is the first element of the list of untrusted certificates
 in I<ctx> unless a target certificate is set explicitly.
 
+When the verification target is a raw public key, rather than a certificate,
+both functions validate the target raw public key.
+In that case the number of possible checks is significantly reduced.
+The raw public key can be authenticated only via DANE TLSA records, either
+locally synthesised or obtained by the application from DNS.
+Raw public key DANE TLSA records may be added via L<SSL_add_expected_rpk(3)> or
+L<SSL_dane_tlsa_add(3)>.
+
 =head1 RETURN VALUES
 
 X509_build_chain() returns NULL on error, else a stack of certificates.
@@ -80,7 +88,12 @@ X509_V_OK, likely because a verification callback function has waived the error.
 
 =head1 SEE ALSO
 
-L<X509_STORE_CTX_new(3)>, L<X509_STORE_CTX_init(3)>,
+L<SSL_add_expected_rpk(3)>,
+L<SSL_CTX_dane_enable(3)>,
+L<SSL_dane_tlsa_add(3)>,
+L<X509_STORE_CTX_new(3)>,
+L<X509_STORE_CTX_init(3)>,
+L<X509_STORE_CTX_init_rpk(3)>,
 L<X509_STORE_CTX_get_error(3)>
 
 =head1 HISTORY
@@ -89,7 +102,7 @@ X509_build_chain() and X509_STORE_CTX_verify() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

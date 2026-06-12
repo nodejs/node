@@ -50,7 +50,7 @@
 /*
  * Return whether a value that can only be 0 or 1 is non-zero, in constant time
  * in practice!  The return value is a mask that is all ones if true, and all
- * zeros otherwise (twos-complement arithmentic assumed for unsigned values).
+ * zeros otherwise (twos-complement arithmetic assumed for unsigned values).
  *
  * Although this is used in constant-time selects, we omit a value barrier
  * here.  Value barriers impede auto-vectorization (likely because it forces
@@ -94,27 +94,31 @@ typedef struct ossl_ml_kem_scalar_st {
 } scalar;
 
 /* Key material allocation layout */
-#define DECLARE_ML_KEM_KEYDATA(name, rank, private_sz) \
+#define DECLARE_ML_KEM_PUBKEYDATA(name, rank) \
     struct name##_alloc { \
         /* Public vector |t| */ \
         scalar tbuf[(rank)]; \
         /* Pre-computed matrix |m| (FIPS 203 |A| transpose) */ \
-        scalar mbuf[(rank)*(rank)] \
-        /* optional private key data */ \
-        private_sz \
+        scalar mbuf[(rank)*(rank)]; \
+    }
+
+#define DECLARE_ML_KEM_PRVKEYDATA(name, rank) \
+    struct name##_alloc { \
+        scalar sbuf[rank]; \
+        uint8_t zbuf[2 * ML_KEM_RANDOM_BYTES]; \
     }
 
 /* Declare variant-specific public and private storage */
 #define DECLARE_ML_KEM_VARIANT_KEYDATA(bits) \
-    DECLARE_ML_KEM_KEYDATA(pubkey_##bits, ML_KEM_##bits##_RANK,;); \
-    DECLARE_ML_KEM_KEYDATA(prvkey_##bits, ML_KEM_##bits##_RANK,;\
-        scalar sbuf[ML_KEM_##bits##_RANK]; \
-        uint8_t zbuf[2 * ML_KEM_RANDOM_BYTES];)
+    DECLARE_ML_KEM_PUBKEYDATA(pubkey_##bits, ML_KEM_##bits##_RANK); \
+    DECLARE_ML_KEM_PRVKEYDATA(prvkey_##bits, ML_KEM_##bits##_RANK)
+
 DECLARE_ML_KEM_VARIANT_KEYDATA(512);
 DECLARE_ML_KEM_VARIANT_KEYDATA(768);
 DECLARE_ML_KEM_VARIANT_KEYDATA(1024);
 #undef DECLARE_ML_KEM_VARIANT_KEYDATA
-#undef DECLARE_ML_KEM_KEYDATA
+#undef DECLARE_ML_KEM_PUBKEYDATA
+#undef DECLARE_ML_KEM_PRVKEYDATA
 
 typedef __owur
 int (*CBD_FUNC)(scalar *out, uint8_t in[ML_KEM_RANDOM_BYTES + 1],
@@ -193,7 +197,8 @@ static const ML_KEM_VINFO vinfo_map[3] = {
         ML_KEM_512_RANK,
         ML_KEM_512_DU,
         ML_KEM_512_DV,
-        ML_KEM_512_SECBITS
+        ML_KEM_512_SECBITS,
+        ML_KEM_512_SECURITY_CATEGORY
     },
     {
         "ML-KEM-768",
@@ -209,7 +214,8 @@ static const ML_KEM_VINFO vinfo_map[3] = {
         ML_KEM_768_RANK,
         ML_KEM_768_DU,
         ML_KEM_768_DV,
-        ML_KEM_768_SECBITS
+        ML_KEM_768_SECBITS,
+        ML_KEM_768_SECURITY_CATEGORY
     },
     {
         "ML-KEM-1024",
@@ -225,7 +231,8 @@ static const ML_KEM_VINFO vinfo_map[3] = {
         ML_KEM_1024_RANK,
         ML_KEM_1024_DU,
         ML_KEM_1024_DV,
-        ML_KEM_1024_SECBITS
+        ML_KEM_1024_SECBITS,
+        ML_KEM_1024_SECURITY_CATEGORY
     }
 };
 
@@ -499,7 +506,7 @@ static void scalar_mult_const(scalar *s, uint16_t a)
 }
 
 /*-
- * FIPS 203, Section 4.3, Algoritm 9: "NTT".
+ * FIPS 203, Section 4.3, Algorithm 9: "NTT".
  * In-place number theoretic transform of a given scalar.  Note that ML-KEM's
  * kPrime 3329 does not have a 512th root of unity, so this transform leaves
  * off the last iteration of the usual FFT code, with the 128 relevant roots of
@@ -532,7 +539,7 @@ static void scalar_ntt(scalar *s)
 }
 
 /*-
- * FIPS 203, Section 4.3, Algoritm 10: "NTT^(-1)".
+ * FIPS 203, Section 4.3, Algorithm 10: "NTT^(-1)".
  * In-place inverse number theoretic transform of a given scalar, with pairs of
  * entries of s->v being interpreted as elements of GF(3329^2). Just as with
  * the number theoretic transform, this leaves off the first step of the normal
@@ -589,7 +596,7 @@ static void scalar_sub(scalar *lhs, const scalar *rhs)
  * GF(3329)[X]/(X^2 - 17^(2*bitreverse(i)+1)).
  *
  * The value of 17^(2*bitreverse(i)+1) mod 3329 is stored in the precomputed
- * ModRoots table. Note that our Barrett transform only allows us to multipy
+ * ModRoots table. Note that our Barrett transform only allows us to multiply
  * two reduced numbers together, so we need some intermediate reduction steps,
  * even if an uint64_t could hold 3 multiplied numbers.
  */
@@ -1531,26 +1538,35 @@ int decap(uint8_t secret[ML_KEM_SHARED_SECRET_BYTES],
 /*
  * After allocating storage for public or private key data, update the key
  * component pointers to reference that storage.
+ *
+ * The caller should only store private data in `priv` *after* a successful
+ * (non-zero) return from this function.
  */
 static __owur
-int add_storage(scalar *p, int private, ML_KEM_KEY *key)
+int add_storage(scalar *pub, scalar *priv, int private, ML_KEM_KEY *key)
 {
     int rank = key->vinfo->rank;
 
-    if (p == NULL)
+    if (pub == NULL || (private && priv == NULL)) {
+        /*
+         * One of these could be allocated correctly. It is legal to call free with a NULL
+         * pointer, so always attempt to free both allocations here
+         */
+        OPENSSL_free(pub);
+        OPENSSL_secure_free(priv);
         return 0;
+    }
 
     /*
-     * We're adding key material, the seed buffer will now hold |rho| and
-     * |pkhash|.
+     * We're adding key material, set up rho and pkhash to point to the rho_pkhash buffer
      */
-    memset(key->seedbuf, 0, sizeof(key->seedbuf));
-    key->rho = key->seedbuf;
-    key->pkhash = key->seedbuf + ML_KEM_RANDOM_BYTES;
+    memset(key->rho_pkhash, 0, sizeof(key->rho_pkhash));
+    key->rho = key->rho_pkhash;
+    key->pkhash = key->rho_pkhash + ML_KEM_RANDOM_BYTES;
     key->d = key->z = NULL;
 
     /* A public key needs space for |t| and |m| */
-    key->m = (key->t = p) + rank;
+    key->m = (key->t = pub) + rank;
 
     /*
      * A private key also needs space for |s| and |z|.
@@ -1560,7 +1576,7 @@ int add_storage(scalar *p, int private, ML_KEM_KEY *key)
      * non-NULL |d| pointer.
      */
     if (private)
-        key->z = (uint8_t *)(rank + (key->s = key->m + rank * rank));
+        key->z = (uint8_t *)(rank + (key->s = priv));
     return 1;
 }
 
@@ -1571,20 +1587,29 @@ int add_storage(scalar *p, int private, ML_KEM_KEY *key)
 void
 ossl_ml_kem_key_reset(ML_KEM_KEY *key)
 {
-    if (key->t == NULL)
-        return;
+    /*
+     * seedbuf can be allocated and contain |z| and |d| if the key is
+     * being created from a private key encoding.  Similarly a pending
+     * serialised (encoded) private key may be queued up to load.
+     * Clear and free that data now.
+     */
+    if (key->seedbuf != NULL)
+        OPENSSL_secure_clear_free(key->seedbuf, ML_KEM_SEED_BYTES);
+    if (ossl_ml_kem_have_dkenc(key))
+        OPENSSL_secure_clear_free(key->encoded_dk, key->vinfo->prvkey_bytes);
+
     /*-
      * Cleanse any sensitive data:
      * - The private vector |s| is immediately followed by the FO failure
      *   secret |z|, and seed |d|, we can cleanse all three in one call.
-     *
-     * - Otherwise, when key->d is set, cleanse the stashed seed.
      */
-    if (ossl_ml_kem_have_prvkey(key))
-        OPENSSL_cleanse(key->s,
-                        key->vinfo->rank * sizeof(scalar) + 2 * ML_KEM_RANDOM_BYTES);
-    OPENSSL_free(key->t);
-    key->d = key->z = (uint8_t *)(key->s = key->m = key->t = NULL);
+    if (key->t != NULL) {
+        if (ossl_ml_kem_have_prvkey(key))
+            OPENSSL_secure_clear_free(key->s, key->vinfo->prvalloc);
+        OPENSSL_free(key->t);
+    }
+    key->d = key->z = key->seedbuf = key->encoded_dk =
+        (uint8_t *)(key->s = key->m = key->t = NULL);
 }
 
 /*
@@ -1630,7 +1655,7 @@ ML_KEM_KEY *ossl_ml_kem_key_new(OSSL_LIB_CTX *libctx, const char *properties,
     key->shake256_md = EVP_MD_fetch(libctx, "SHAKE256", properties);
     key->sha3_256_md = EVP_MD_fetch(libctx, "SHA3-256", properties);
     key->sha3_512_md = EVP_MD_fetch(libctx, "SHA3-512", properties);
-    key->d = key->z = key->rho = key->pkhash = key->encoded_dk = NULL;
+    key->d = key->z = key->rho = key->pkhash = key->encoded_dk = key->seedbuf = NULL;
     key->s = key->m = key->t = NULL;
 
     if (key->shake128_md != NULL
@@ -1650,7 +1675,11 @@ ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection)
 {
     int ok = 0;
     ML_KEM_KEY *ret;
+    void *tmp_pub;
+    void *tmp_priv;
 
+    if (key == NULL)
+        return NULL;
     /*
      * Partially decoded keys, not yet imported or loaded, should never be
      * duplicated.
@@ -1658,9 +1687,9 @@ ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection)
     if (ossl_ml_kem_decoded_key(key))
         return NULL;
 
-    if (key == NULL
-        || (ret = OPENSSL_memdup(key, sizeof(*key))) == NULL)
+    else if ((ret = OPENSSL_memdup(key, sizeof(*key))) == NULL)
         return NULL;
+
     ret->d = ret->z = ret->rho = ret->pkhash = NULL;
     ret->s = ret->m = ret->t = NULL;
 
@@ -1675,12 +1704,19 @@ ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection)
         ok = 1;
         break;
     case OSSL_KEYMGMT_SELECT_PUBLIC_KEY:
-        ok = add_storage(OPENSSL_memdup(key->t, key->vinfo->puballoc), 0, ret);
-        ret->rho = ret->seedbuf;
-        ret->pkhash = ret->rho + ML_KEM_RANDOM_BYTES;
+        ok = add_storage(OPENSSL_memdup(key->t, key->vinfo->puballoc), NULL, 0, ret);
         break;
     case OSSL_KEYMGMT_SELECT_PRIVATE_KEY:
-        ok = add_storage(OPENSSL_memdup(key->t, key->vinfo->prvalloc), 1, ret);
+        tmp_pub = OPENSSL_memdup(key->t, key->vinfo->puballoc);
+        if (tmp_pub == NULL)
+            break;
+        tmp_priv = OPENSSL_secure_malloc(key->vinfo->prvalloc);
+        if (tmp_priv == NULL) {
+            OPENSSL_free(tmp_pub);
+            break;
+        }
+        if ((ok = add_storage(tmp_pub, tmp_priv, 1, ret)) != 0)
+            memcpy(tmp_priv, key->s, key->vinfo->prvalloc);
         /* Duplicated keys retain |d|, if available */
         if (key->d != NULL)
             ret->d = ret->z + ML_KEM_RANDOM_BYTES;
@@ -1710,13 +1746,6 @@ void ossl_ml_kem_key_free(ML_KEM_KEY *key)
     EVP_MD_free(key->sha3_256_md);
     EVP_MD_free(key->sha3_512_md);
 
-    if (ossl_ml_kem_decoded_key(key)) {
-        OPENSSL_cleanse(key->seedbuf, sizeof(key->seedbuf));
-        if (ossl_ml_kem_have_dkenc(key)) {
-            OPENSSL_cleanse(key->encoded_dk, key->vinfo->prvkey_bytes);
-            OPENSSL_free(key->encoded_dk);
-        }
-    }
     ossl_ml_kem_key_reset(key);
     OPENSSL_free(key);
 }
@@ -1770,10 +1799,13 @@ ML_KEM_KEY *ossl_ml_kem_set_seed(const uint8_t *seed, size_t seedlen, ML_KEM_KEY
         || ossl_ml_kem_have_seed(key)
         || seedlen != ML_KEM_SEED_BYTES)
         return NULL;
-    /*
-     * With no public or private key material on hand, we can use the seed
-     * buffer for |z| and |d|, in that order.
-     */
+
+    if (key->seedbuf == NULL) {
+        key->seedbuf = OPENSSL_secure_malloc(seedlen);
+        if (key->seedbuf == NULL)
+            return NULL;
+    }
+
     key->z = key->seedbuf;
     key->d = key->z + ML_KEM_RANDOM_BYTES;
     memcpy(key->d, seed, ML_KEM_RANDOM_BYTES);
@@ -1800,7 +1832,7 @@ int ossl_ml_kem_parse_public_key(const uint8_t *in, size_t len, ML_KEM_KEY *key)
         || (mdctx = EVP_MD_CTX_new()) == NULL)
         return 0;
 
-    if (add_storage(OPENSSL_malloc(vinfo->puballoc), 0, key))
+    if (add_storage(OPENSSL_malloc(vinfo->puballoc), NULL, 0, key))
         ret = parse_pubkey(in, mdctx, key);
 
     if (!ret)
@@ -1828,7 +1860,8 @@ int ossl_ml_kem_parse_private_key(const uint8_t *in, size_t len,
         || (mdctx = EVP_MD_CTX_new()) == NULL)
         return 0;
 
-    if (add_storage(OPENSSL_malloc(vinfo->prvalloc), 1, key))
+    if (add_storage(OPENSSL_malloc(vinfo->puballoc),
+                    OPENSSL_secure_malloc(vinfo->prvalloc), 1, key))
         ret = parse_prvkey(in, mdctx, key);
 
     if (!ret)
@@ -1857,10 +1890,10 @@ int ossl_ml_kem_genkey(uint8_t *pubenc, size_t publen, ML_KEM_KEY *key)
     if (pubenc != NULL && publen != vinfo->pubkey_bytes)
         return 0;
 
-    if (ossl_ml_kem_have_seed(key)) {
+    if (key->seedbuf != NULL) {
         if (!ossl_ml_kem_encode_seed(seed, sizeof(seed), key))
             return 0;
-        key->d = key->z = NULL;
+        ossl_ml_kem_key_reset(key);
     } else if (RAND_priv_bytes_ex(key->libctx, seed, sizeof(seed),
                                   key->vinfo->secbits) <= 0) {
         return 0;
@@ -1875,7 +1908,8 @@ int ossl_ml_kem_genkey(uint8_t *pubenc, size_t publen, ML_KEM_KEY *key)
      */
     CONSTTIME_SECRET(seed, ML_KEM_SEED_BYTES);
 
-    if (add_storage(OPENSSL_malloc(vinfo->prvalloc), 1, key))
+    if (add_storage(OPENSSL_malloc(vinfo->puballoc),
+                    OPENSSL_secure_malloc(vinfo->prvalloc), 1, key))
         ret = genkey(seed, mdctx, pubenc, key);
     OPENSSL_cleanse(seed, sizeof(seed));
 

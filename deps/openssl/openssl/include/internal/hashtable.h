@@ -50,10 +50,11 @@ typedef struct ht_value_list_st {
 typedef struct ht_config_st {
     OSSL_LIB_CTX *ctx;
     void (*ht_free_fn)(HT_VALUE *obj);
-    uint64_t (*ht_hash_fn)(uint8_t *key, size_t keylen);
+    uint64_t (*ht_hash_fn)(HT_KEY *key);
     size_t init_neighborhoods;
     uint32_t collision_check;
     uint32_t lockless_reads;
+    uint32_t no_rcu;
 } HT_CONFIG;
 
 /*
@@ -153,7 +154,7 @@ memset((key), 0, sizeof(*(key))); \
 
 /* Same as HT_SET_KEY_STRING_CASE but also takes length of the string. */
 #define HT_SET_KEY_STRING_CASE_N(key, member, value, len) do { \
-    if (len < sizeof((key)->keyfields.member)) \
+    if ((size_t)len < sizeof((key)->keyfields.member)) \
         ossl_ht_strcase((key)->keyfields.member, value, len); \
     else \
         ossl_ht_strcase((key)->keyfields.member, value, sizeof((key)->keyfields.member) - 1); \
@@ -199,7 +200,7 @@ pfx ossl_unused int ossl_ht_##name##_##vtype##_insert(HT *h, HT_KEY *key,      \
     inval.type_id = &name##_##vtype##_id;                                      \
     rc = ossl_ht_insert(h, key, &inval, olddata == NULL ? NULL : &oval);       \
     if (oval != NULL)                                                          \
-        *olddata = (vtype *)oval->value;                                       \
+        *olddata = (vtype *)ossl_ht_inner_value(h, oval);                      \
     return rc;                                                                 \
 }                                                                              \
                                                                                \
@@ -221,7 +222,7 @@ pfx ossl_unused vtype *ossl_unused ossl_ht_##name##_##vtype##_get(HT *h,       \
     vv = ossl_ht_get(h, key);                                                  \
     if (vv == NULL)                                                            \
         return NULL;                                                           \
-    *v = ossl_rcu_deref(&vv);                                                  \
+    *v = ossl_ht_deref_value(h, &vv);                                          \
     return ossl_ht_##name##_##vtype##_from_value(*v);                          \
 }                                                                              \
                                                                                \
@@ -280,7 +281,7 @@ void ossl_ht_free(HT *htable);
 /*
  * Lock the table for reading
  */
-void ossl_ht_read_lock(HT *htable);
+int ossl_ht_read_lock(HT *htable);
 
 /*
  * Lock the table for writing
@@ -351,5 +352,50 @@ void ossl_ht_value_list_free(HT_VALUE_LIST *list);
  * on key.  Returns NULL if the element was not found.
  */
 HT_VALUE *ossl_ht_get(HT *htable, HT_KEY *key);
+
+/**
+ * ossl_ht_deref_value - Dereference a value stored in a hash table entry
+ * @h:   The hash table handle
+ * @val: Pointer to the value pointer inside the hash table
+ *
+ * This helper returns the actual value stored in a hash table entry,
+ * with awareness of whether the table is configured for RCU (Read-Copy-Update)
+ * safe lookups.
+ *
+ * If the hash table is configured to use RCU lookups, the function
+ * calls ossl_rcu_deref() to safely read the value under RCU protection.
+ * This ensures that the caller sees a consistent pointer in concurrent environments.
+ *
+ * If RCU is not enabled (i.e. `h->config.no_rcu` is true), the function
+ * simply dereferences @val directly.
+ *
+ * Return:
+ * A pointer to the dereferenced hash table value (`HT_VALUE *`), or NULL if
+ * the underlying pointer is NULL.
+ */
+HT_VALUE *ossl_ht_deref_value(HT *p, HT_VALUE **val);
+
+/**
+ * ossl_ht_inner_value - Extract the user payload from a hash table value
+ * @h: The hash table handle
+ * @v: The hash table value wrapper (HT_VALUE)
+ *
+ * This helper returns the user-provided payload stored inside a
+ * hash table value container. The behavior differs depending on
+ * whether the hash table is configured to use RCU (Read-Copy-Update)
+ * for concurrency control.
+ *
+ * - If RCU is enabled, the function simply returns `v->value` without
+ *   modifying or freeing the container.
+ *
+ * - If RCU is disabled the container structure `v` is no longer needed once
+ *   the inner pointer has been extracted. In this case, the function frees
+ *   `v` and returns the inner `value` pointer directly.
+ *
+ * Return:
+ * A pointer to the user payload (`void *`) contained in the hash table
+ * value wrapper.
+ */
+void *ossl_ht_inner_value(HT *h, HT_VALUE *v);
 
 #endif

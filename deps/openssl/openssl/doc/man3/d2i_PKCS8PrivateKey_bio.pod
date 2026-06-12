@@ -41,9 +41,12 @@ corresponding B<PEM> function as described in L<PEM_read_PrivateKey(3)>.
 
 These functions are currently the only way to store encrypted private keys using DER format.
 
-Currently all the functions use BIOs or FILE pointers, there are no functions which
-work directly on memory: this can be readily worked around by converting the buffers
-to memory BIOs, see L<BIO_s_mem(3)> for details.
+Currently all the functions use BIOs or FILE pointers, there are no functions
+which support password-protection and work directly on memory: this can be
+readily worked around by converting the buffers to memory BIOs, see
+L<BIO_s_mem(3)> for details.
+If password-protection is not required, the L<i2d_PKCS8PrivateKey(3)> function
+encodes a private key to an unencrypted DER B<PKCS#8> form.
 
 These functions make no assumption regarding the pass phrase received from the
 password callback.
@@ -59,12 +62,17 @@ and i2d_PKCS8PrivateKey_nid_fp() return 1 on success or 0 on error.
 
 =head1 SEE ALSO
 
+L<i2d_PKCS8PrivateKey(3)>,
 L<PEM_read_PrivateKey(3)>,
 L<passphrase-encoding(7)>
 
+=head1 HISTORY
+
+L<i2d_PKCS8PrivateKey(3)> was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,10 +17,12 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #include "crypto/sm2.h"
+#include "internal/cryptlib.h"
 #include "prov/provider_ctx.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_util.h"
+#include "providers/implementations/asymciphers/sm2_enc.inc"
 
 static OSSL_FUNC_asym_cipher_newctx_fn sm2_newctx;
 static OSSL_FUNC_asym_cipher_encrypt_init_fn sm2_init;
@@ -157,61 +159,47 @@ static void *sm2_dupctx(void *vpsm2ctx)
 static int sm2_get_ctx_params(void *vpsm2ctx, OSSL_PARAM *params)
 {
     PROV_SM2_CTX *psm2ctx = (PROV_SM2_CTX *)vpsm2ctx;
-    OSSL_PARAM *p;
+    struct sm2_get_ctx_params_st p;
 
-    if (vpsm2ctx == NULL)
+    if (psm2ctx == NULL || !sm2_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_ASYM_CIPHER_PARAM_DIGEST);
-    if (p != NULL) {
+    if (p.digest != NULL) {
         const EVP_MD *md = ossl_prov_digest_md(&psm2ctx->md);
 
-        if (!OSSL_PARAM_set_utf8_string(p, md == NULL ? ""
-                                                      : EVP_MD_get0_name(md)))
+        if (!OSSL_PARAM_set_utf8_string(p.digest,
+                                        md == NULL ? "" : EVP_MD_get0_name(md)))
             return 0;
     }
 
     return 1;
 }
 
-static const OSSL_PARAM known_gettable_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_DIGEST, NULL, 0),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *sm2_gettable_ctx_params(ossl_unused void *vpsm2ctx,
                                                  ossl_unused void *provctx)
 {
-    return known_gettable_ctx_params;
+    return sm2_get_ctx_params_list;
 }
 
 static int sm2_set_ctx_params(void *vpsm2ctx, const OSSL_PARAM params[])
 {
     PROV_SM2_CTX *psm2ctx = (PROV_SM2_CTX *)vpsm2ctx;
+    struct sm2_set_ctx_params_st p;
 
-    if (psm2ctx == NULL)
+    if (psm2ctx == NULL || !sm2_set_ctx_params_decoder(params, &p))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    if (!ossl_prov_digest_load_from_params(&psm2ctx->md, params,
-                                           psm2ctx->libctx))
+    if (!ossl_prov_digest_load(&psm2ctx->md, p.digest, p.propq, p.engine,
+                               psm2ctx->libctx))
         return 0;
 
     return 1;
 }
 
-static const OSSL_PARAM known_settable_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_DIGEST, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_PROPERTIES, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_ASYM_CIPHER_PARAM_ENGINE, NULL, 0),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *sm2_settable_ctx_params(ossl_unused void *vpsm2ctx,
                                                  ossl_unused void *provctx)
 {
-    return known_settable_ctx_params;
+    return sm2_set_ctx_params_list;
 }
 
 const OSSL_DISPATCH ossl_sm2_asym_cipher_functions[] = {

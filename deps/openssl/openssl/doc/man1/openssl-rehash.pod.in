@@ -10,6 +10,7 @@ openssl-rehash, c_rehash - Create symbolic links to files named by the hash
 values
 
 =head1 SYNOPSIS
+=for openssl duplicate options
 
 B<openssl>
 B<rehash>
@@ -132,6 +133,13 @@ By default, this command only lists each directory as it is processed.
 The path to an executable to use to generate hashes and
 fingerprints (see above).
 
+=item B<PATH>
+
+List of paths, separated by colons (or semicolons, on Windows platforms),
+where the B<openssl> executable is searched in case the path to the hash
+generating executable is not provided in the B<OPENSSL> environment variable
+or it is not usable (that is, does not exist or is not executable).
+
 =item B<SSL_CERT_DIR>
 
 Colon separated list of directories to operate on.
@@ -147,7 +155,7 @@ L<openssl-x509(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

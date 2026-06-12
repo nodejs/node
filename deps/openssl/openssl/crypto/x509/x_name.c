@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -225,7 +225,7 @@ static int x509_name_ex_i2d(const ASN1_VALUE **val, unsigned char **out,
         if (!ret)
             return -1;
     }
-    ret = a->bytes->length;
+    ret = (int)a->bytes->length;
     if (out != NULL) {
         memcpy(*out, a->bytes->data, ret);
         *out += ret;
@@ -462,7 +462,7 @@ static int asn1_string_canon(ASN1_STRING *out, const ASN1_STRING *in)
         }
     }
 
-    out->length = to - out->data;
+    out->length = (int)(to - out->data);
 
     return 1;
 
@@ -521,7 +521,7 @@ int X509_NAME_print(BIO *bp, const X509_NAME *name, int obase)
                                 (ossl_isupper(s[2]) && (s[3] == '='))
               ))) || (*s == '\0'))
         {
-            i = s - c;
+            i = (int)(s - c);
             if (BIO_write(bp, c, i) != i)
                 goto err;
             c = s + 1;          /* skip following slash */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -118,7 +118,7 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
     }
     wb = &rl->wbuf[0];
 
-    mb_param.interleave = numtempl;
+    mb_param.interleave = (unsigned int)numtempl;
     memcpy(aad, rl->sequence, 8);
     aad[8] = templates[0].type;
     aad[9] = (unsigned char)(templates[0].version >> 8);

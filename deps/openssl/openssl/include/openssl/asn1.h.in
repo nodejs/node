@@ -212,7 +212,7 @@ struct asn1_string_table_st {
     generate_stack_macros("ASN1_STRING_TABLE");
 -}
 
-/* size limits: this stuff is taken straight from RFC2459 */
+/* size limits: this stuff is taken straight from RFC 5280 */
 
 # define ub_name                         32768
 # define ub_common_name                  64

@@ -83,7 +83,7 @@ static int slh_sign_internal(SLH_DSA_HASH_CTX *hctx,
     if (!WPACKET_init_static_len(wpkt, sig, sig_len_expected, 0))
         return 0;
     if (!PACKET_buf_init(rpkt, m_digest, params->m))
-        return 0;
+        goto err;
 
     pk_seed = SLH_DSA_PK_SEED(priv);
     sk_seed = SLH_DSA_SK_SEED(priv);

@@ -1,0 +1,34 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('sshkdf_set_ctx_params',
+                         (['OSSL_KDF_PARAM_PROPERTIES',          'propq',    'utf8_string'],
+                          ['OSSL_ALG_PARAM_ENGINE',              'engine',   'utf8_string', 'hidden'],
+                          ['OSSL_KDF_PARAM_DIGEST',              'digest',   'utf8_string'],
+                          ['OSSL_KDF_PARAM_SECRET',              'secret',   'octet_string'],
+                          ['OSSL_KDF_PARAM_KEY',                 'secret',   'octet_string'],
+                          ['OSSL_KDF_PARAM_UKM',                 'uinfo',    'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_ACVPINFO',       'acvp',     'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_PARTYUINFO',     'uinfo',    'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_PARTYVINFO',     'vinfo',    'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_SUPP_PUBINFO',   'pub',      'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_SUPP_PRIVINFO',  'priv',     'octet_string'],
+                          ['OSSL_KDF_PARAM_X942_USE_KEYBITS',    'kbits',    'int'],
+                          ['OSSL_KDF_PARAM_CEK_ALG',             'cekalg',   'utf8_string'],
+                          ['OSSL_KDF_PARAM_FIPS_KEY_CHECK',      'ind_k',    'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('sshkdf_get_ctx_params',
+                         (['OSSL_KDF_PARAM_SIZE',                    'size', 'size_t'],
+                          ['OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR', 'ind',  'int', 'fips'],
+                         )); -}

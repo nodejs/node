@@ -155,6 +155,8 @@ static const ERR_STRING_DATA EVP_str_reasons[] = {
      "provider asym cipher failure"},
     {ERR_PACK(ERR_LIB_EVP, 0, EVP_R_PROVIDER_ASYM_CIPHER_NOT_SUPPORTED),
      "provider asym cipher not supported"},
+    {ERR_PACK(ERR_LIB_EVP, 0, EVP_R_PROVIDER_GET_CTX_PARAMS_NOT_SUPPORTED),
+     "provider get ctx params not supported"},
     {ERR_PACK(ERR_LIB_EVP, 0, EVP_R_PROVIDER_KEYMGMT_FAILURE),
      "provider keymgmt failure"},
     {ERR_PACK(ERR_LIB_EVP, 0, EVP_R_PROVIDER_KEYMGMT_NOT_SUPPORTED),

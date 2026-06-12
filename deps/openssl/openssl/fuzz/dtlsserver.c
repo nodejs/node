@@ -609,7 +609,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     DSA *dsakey = NULL;
 #endif
 
-    if (len < 2)
+    if (len < 2 || len > INT_MAX)
         return 0;
 
     /* This only fuzzes the initial flow from the client so far. */
@@ -699,7 +699,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     SSL_set_bio(server, in, out);
     SSL_set_accept_state(server);
 
-    OPENSSL_assert((size_t)BIO_write(in, buf, len) == len);
+    OPENSSL_assert((size_t)BIO_write(in, buf, (int)len) == len);
 
     if (SSL_do_handshake(server) == 1) {
         /* Keep reading application data until error or EOF. */

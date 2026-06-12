@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,6 +20,7 @@
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <stddef.h>
 #include "uplink.h"
 void OPENSSL_showfatal(const char *, ...);
 
@@ -89,7 +90,7 @@ void OPENSSL_Uplink(volatile void **table, int index)
         } else
             p = applinktable;
 
-        if (index > (int)p[0])
+        if (index > (intptr_t)p[0])
             break;
 
         if (p[index])

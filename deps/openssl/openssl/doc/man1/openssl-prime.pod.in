@@ -10,6 +10,7 @@ openssl-prime - compute prime numbers
 B<openssl prime>
 [B<-help>]
 [B<-hex>]
+[B<-in>]
 [B<-generate>]
 [B<-bits> I<num>]
 [B<-safe>]
@@ -35,7 +36,11 @@ Display an option summary.
 
 =item B<-hex>
 
-Generate hex output.
+Enable hex format for output from prime generation or input to primality checking.
+
+=item B<-in>
+
+Provide file names containing numbers for primality checking.
 
 =item B<-generate>
 
@@ -60,7 +65,7 @@ This parameter is ignored.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

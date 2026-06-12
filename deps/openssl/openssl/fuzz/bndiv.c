@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,9 +69,9 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         ++buf;
         l2 = len - l1;
     }
-    OPENSSL_assert(BN_bin2bn(buf, l1, b1) == b1);
+    OPENSSL_assert(BN_bin2bn(buf, (int)l1, b1) == b1);
     BN_set_negative(b1, s1);
-    OPENSSL_assert(BN_bin2bn(buf + l1, l2, b2) == b2);
+    OPENSSL_assert(BN_bin2bn(buf + l1, (int)l2, b2) == b2);
     BN_set_negative(b2, s2);
 
     /* divide by 0 is an error */

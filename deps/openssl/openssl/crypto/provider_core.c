@@ -371,8 +371,8 @@ int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
     if (!CRYPTO_THREAD_write_lock(store->lock))
         return 0;
     if (store->provinfosz == 0) {
-        store->provinfo = OPENSSL_zalloc(sizeof(*store->provinfo)
-                                         * BUILTINS_BLOCK_SIZE);
+        store->provinfo = OPENSSL_calloc(BUILTINS_BLOCK_SIZE,
+                                         sizeof(*store->provinfo));
         if (store->provinfo == NULL)
             goto err;
         store->provinfosz = BUILTINS_BLOCK_SIZE;
@@ -380,8 +380,8 @@ int ossl_provider_info_add_to_store(OSSL_LIB_CTX *libctx,
         OSSL_PROVIDER_INFO *tmpbuiltins;
         size_t newsz = store->provinfosz + BUILTINS_BLOCK_SIZE;
 
-        tmpbuiltins = OPENSSL_realloc(store->provinfo,
-                                      sizeof(*store->provinfo) * newsz);
+        tmpbuiltins = OPENSSL_realloc_array(store->provinfo,
+                                            newsz, sizeof(*store->provinfo));
         if (tmpbuiltins == NULL)
             goto err;
         store->provinfo = tmpbuiltins;
@@ -418,9 +418,15 @@ OSSL_PROVIDER *ossl_provider_find(OSSL_LIB_CTX *libctx, const char *name,
 #endif
 
         tmpl.name = (char *)name;
-        if (!CRYPTO_THREAD_write_lock(store->lock))
+        if (!CRYPTO_THREAD_read_lock(store->lock))
             return NULL;
-        sk_OSSL_PROVIDER_sort(store->providers);
+        if (!sk_OSSL_PROVIDER_is_sorted(store->providers)) {
+            CRYPTO_THREAD_unlock(store->lock);
+            if (!CRYPTO_THREAD_write_lock(store->lock))
+                return NULL;
+            if (!sk_OSSL_PROVIDER_is_sorted(store->providers))
+                sk_OSSL_PROVIDER_sort(store->providers);
+        }
         if ((i = sk_OSSL_PROVIDER_find(store->providers, &tmpl)) != -1)
             prov = sk_OSSL_PROVIDER_value(store->providers, i);
         CRYPTO_THREAD_unlock(store->lock);
@@ -1038,7 +1044,7 @@ static int provider_init(OSSL_PROVIDER *prov)
 #ifndef FIPS_MODULE
     OSSL_TRACE_BEGIN(PROVIDER) {
         BIO_printf(trc_out,
-                   "(provider %s) initalizing\n", prov->name);
+                   "(provider %s) initializing\n", prov->name);
     } OSSL_TRACE_END(PROVIDER);
 #endif
 
@@ -1121,7 +1127,7 @@ static int provider_init(OSSL_PROVIDER *prov)
 
         /* Allocate one extra item for the "library" name */
         prov->error_strings =
-            OPENSSL_zalloc(sizeof(ERR_STRING_DATA) * (cnt + 1));
+            OPENSSL_calloc(cnt + 1, sizeof(ERR_STRING_DATA));
         if (prov->error_strings == NULL)
             goto end;
 

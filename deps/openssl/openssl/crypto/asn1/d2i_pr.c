@@ -49,7 +49,7 @@ d2i_PrivateKey_decoder(int keytype, EVP_PKEY **a, const unsigned char **pp,
 
     /* This is just a probe. It might fail, so we ignore errors */
     ERR_set_mark();
-    p8info = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, len);
+    p8info = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, length);
     ERR_pop_to_mark();
     if (p8info != NULL) {
         int64_t v;

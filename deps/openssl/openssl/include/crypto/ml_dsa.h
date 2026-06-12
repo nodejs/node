@@ -22,6 +22,8 @@
 
 # define ML_DSA_ENTROPY_LEN 32
 
+# define ML_DSA_MU_BYTES 64 /* Size of the Hash for the message representative */
+
 /* See FIPS 204 Section 4 Table 1 & Table 2 */
 # define ML_DSA_44_PRIV_LEN 2560
 # define ML_DSA_44_PUB_LEN 1312
@@ -97,6 +99,7 @@ int ossl_ml_dsa_set_prekey(ML_DSA_KEY *key, int flags_set, int flags_clr,
                            const uint8_t *seed, size_t seed_len,
                            const uint8_t *sk, size_t sk_len);
 __owur size_t ossl_ml_dsa_key_get_collision_strength_bits(const ML_DSA_KEY *key);
+__owur int ossl_ml_dsa_key_get_security_category(const ML_DSA_KEY *key);
 __owur size_t ossl_ml_dsa_key_get_sig_len(const ML_DSA_KEY *key);
 __owur int ossl_ml_dsa_key_matches(const ML_DSA_KEY *key, int evp_type);
 __owur const char *ossl_ml_dsa_key_get_name(const ML_DSA_KEY *key);
@@ -105,6 +108,11 @@ OSSL_LIB_CTX *ossl_ml_dsa_key_get0_libctx(const ML_DSA_KEY *key);
 __owur int ossl_ml_dsa_key_public_from_private(ML_DSA_KEY *key);
 __owur int ossl_ml_dsa_pk_decode(ML_DSA_KEY *key, const uint8_t *in, size_t in_len);
 __owur int ossl_ml_dsa_sk_decode(ML_DSA_KEY *key, const uint8_t *in, size_t in_len);
+
+EVP_MD_CTX *ossl_ml_dsa_mu_init(const ML_DSA_KEY *key, int encode,
+                                const uint8_t *ctx, size_t ctx_len);
+__owur int ossl_ml_dsa_mu_update(EVP_MD_CTX *md_ctx, const uint8_t *msg, size_t msg_len);
+__owur int ossl_ml_dsa_mu_finalize(EVP_MD_CTX *md_ctx, uint8_t *mu, size_t mu_len);
 
 __owur int ossl_ml_dsa_sign(const ML_DSA_KEY *priv, int msg_is_mu,
                             const uint8_t *msg, size_t msg_len,

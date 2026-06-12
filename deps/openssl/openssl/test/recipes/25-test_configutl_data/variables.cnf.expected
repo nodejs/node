@@ -1,0 +1,26 @@
+openssl_conf = openssl_init
+default_var = ABC
+nested = \${default_var}
+
+[othersection]
+
+[test]
+0.recipient = ABC
+1.recipient = ABC
+2.recipient = ABC
+3.recipient = ABC
+4.recipient = ABC
+5.recipient = ABC
+
+[test2]
+default_var = GHI
+0.recipient = GHI
+1.recipient = GHI
+
+[test3]
+0.recipient = literal\$default_var
+1.recipient = expandedABC
+2.recipient = expandedABC
+
+[test4]
+recipient = literal\$nested

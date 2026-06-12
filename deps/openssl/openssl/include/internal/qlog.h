@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 # define OSSL_QLOG_H
 
 # include <openssl/ssl.h>
+# include <stdbool.h>
 # include "internal/quic_types.h"
 # include "internal/time.h"
 
@@ -110,7 +111,7 @@ void ossl_qlog_str_len(QLOG *qlog, const char *name,
                        const char *value, size_t value_len);
 void ossl_qlog_u64(QLOG *qlog, const char *name, uint64_t value);
 void ossl_qlog_i64(QLOG *qlog, const char *name, int64_t value);
-void ossl_qlog_bool(QLOG *qlog, const char *name, int value);
+void ossl_qlog_bool(QLOG *qlog, const char *name, bool value);
 void ossl_qlog_bin(QLOG *qlog, const char *name,
                    const void *value, size_t value_len);
 

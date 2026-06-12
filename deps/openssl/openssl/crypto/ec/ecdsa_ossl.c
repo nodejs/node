@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -198,13 +198,11 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
 
             if (dgst != NULL) {
                 if (nonce_type == 1) {
-#ifndef FIPS_MODULE
                     res = ossl_gen_deterministic_nonce_rfc6979(k, order,
                                                                priv_key,
                                                                dgst, dlen,
                                                                digestname,
                                                                libctx, propq);
-#endif
                 } else {
                     res = ossl_bn_gen_dsa_nonce_fixed_top(k, order, priv_key,
                                                           dgst, dlen, ctx);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -265,7 +265,7 @@ static int ecx_set_priv_key(EVP_PKEY *pkey, const unsigned char *priv,
     if (pkey->keymgmt != NULL)
         libctx = ossl_provider_libctx(EVP_KEYMGMT_get0_provider(pkey->keymgmt));
 
-    ecx = ossl_ecx_key_op(NULL, priv, len, pkey->ameth->pkey_id,
+    ecx = ossl_ecx_key_op(NULL, priv, (int)len, pkey->ameth->pkey_id,
                           KEY_OP_PRIVATE, libctx, NULL);
 
     if (ecx != NULL) {
@@ -283,7 +283,7 @@ static int ecx_set_pub_key(EVP_PKEY *pkey, const unsigned char *pub, size_t len)
     if (pkey->keymgmt != NULL)
         libctx = ossl_provider_libctx(EVP_KEYMGMT_get0_provider(pkey->keymgmt));
 
-    ecx = ossl_ecx_key_op(NULL, pub, len, pkey->ameth->pkey_id,
+    ecx = ossl_ecx_key_op(NULL, pub, (int)len, pkey->ameth->pkey_id,
                           KEY_OP_PUBLIC, libctx, NULL);
 
     if (ecx != NULL) {
@@ -388,13 +388,15 @@ static int ecx_generic_import_from(const OSSL_PARAM params[], void *vpctx,
     EVP_PKEY *pkey = EVP_PKEY_CTX_get0_pkey(pctx);
     ECX_KEY *ecx = ossl_ecx_key_new(pctx->libctx, KEYNID2TYPE(keytype), 0,
                                     pctx->propquery);
+    const OSSL_PARAM *pub = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
+    const OSSL_PARAM *priv = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
 
     if (ecx == NULL) {
         ERR_raise(ERR_LIB_DH, ERR_R_EC_LIB);
         return 0;
     }
 
-    if (!ossl_ecx_key_fromdata(ecx, params, 1)
+    if (!ossl_ecx_key_fromdata(ecx, pub, priv, 1)
         || !EVP_PKEY_assign(pkey, keytype, ecx)) {
         ossl_ecx_key_free(ecx);
         return 0;

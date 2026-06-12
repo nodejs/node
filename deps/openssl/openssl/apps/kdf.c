@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,7 +75,7 @@ int kdf_main(int argc, char **argv)
     char *prog, *hexout = NULL;
     const char *outfile = NULL;
     unsigned char *dkm_bytes = NULL;
-    size_t dkm_len = 0;
+    int dkm_len = 0;
     BIO *out = NULL;
     EVP_KDF *kdf = NULL;
     EVP_KDF_CTX *ctx = NULL;
@@ -96,7 +96,7 @@ opthelp:
             out_bin = 1;
             break;
         case OPT_KEYLEN:
-            dkm_len = (size_t)atoi(opt_arg());
+            dkm_len = atoi(opt_arg());
             break;
         case OPT_OUT:
             outfile = opt_arg();

@@ -259,8 +259,9 @@ unsigned char *EVP_Q_mac(OSSL_LIB_CTX *libctx,
                          unsigned char *out, size_t outsize, size_t *outlen)
 {
     EVP_MAC *mac = EVP_MAC_fetch(libctx, name, propq);
-    OSSL_PARAM subalg_param[] = { OSSL_PARAM_END, OSSL_PARAM_END };
-    EVP_MAC_CTX *ctx  = NULL;
+    OSSL_PARAM subalg_param[3];
+    OSSL_PARAM *p = subalg_param;
+    EVP_MAC_CTX *ctx = NULL;
     size_t len = 0;
     unsigned char *res = NULL;
 
@@ -284,9 +285,26 @@ unsigned char *EVP_Q_mac(OSSL_LIB_CTX *libctx,
                 goto err;
             }
         }
-        subalg_param[0] =
-            OSSL_PARAM_construct_utf8_string(param_name, (char *)subalg, 0);
+        *p++ = OSSL_PARAM_construct_utf8_string(param_name, (char *)subalg, 0);
     }
+
+    /*
+     * If we passed in a property query, make sure the underlying algorithm uses it.
+     * Compound algorithms may fetch other underlying algorithms (i.e. a MAC algorithm
+     * may use a digest algorithm as part of its internal work), and the MAC decides which
+     * implementation of the underlying digest to use based on the
+     * OSSL_ALG_PARAM_PROPERTIES parameter, rather than the propq value passed in the
+     * EVP_MAC_fetch call above.
+     * If we don't set this parameter, then the MAC alg may use the default provider
+     * to allocate an underlying digest, rather than the one that we would have gotten
+     * by using the propq value here.
+     */
+    if (propq != NULL)
+        *p++ = OSSL_PARAM_construct_utf8_string(OSSL_ALG_PARAM_PROPERTIES,
+                                                (char *)propq, 0);
+
+    *p = OSSL_PARAM_construct_end();
+
     /* Single-shot - on NULL key input, set dummy key value for EVP_MAC_Init. */
     if (key == NULL && keylen == 0)
         key = data;

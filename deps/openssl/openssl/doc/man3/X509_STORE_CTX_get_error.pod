@@ -31,19 +31,20 @@ These functions are typically called after certificate or chain verification
 using L<X509_verify_cert(3)> or L<X509_STORE_CTX_verify(3)> has indicated
 an error or in a verification callback to determine the nature of an error.
 
-X509_STORE_CTX_get_error() returns the error code of I<ctx>.
+X509_STORE_CTX_get_error() returns the error code of I<ctx>. I<ctx> B<MUST NOT> be NULL.
 See the L</ERROR CODES> section for a full description of all error codes.
 It may return a code != X509_V_OK even if X509_verify_cert() did not indicate
 an error, likely because a verification callback function has waived the error.
 
 X509_STORE_CTX_set_error() sets the error code of I<ctx> to I<s>. For example
 it might be used in a verification callback to set an error based on additional
-checks.
+checks. I<ctx> B<MUST NOT> be NULL.
 
 X509_STORE_CTX_get_error_depth() returns the I<depth> of the error. This is a
 nonnegative integer representing where in the certificate chain the error
 occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
+I<ctx> B<MUST NOT> be NULL.
 
 X509_STORE_CTX_set_error_depth() sets the error I<depth>.
 This can be used in combination with X509_STORE_CTX_set_error() to set the
@@ -67,14 +68,15 @@ Once such a I<saved> certificate is no longer needed it can be freed with
 L<X509_free(3)>.
 
 X509_STORE_CTX_get0_cert() retrieves an internal pointer to the
-certificate being verified by the I<ctx>.
+certificate being verified by the I<ctx>. It may be NULL if a raw public
+key is being verified.
 
 X509_STORE_CTX_get1_chain() returns a complete validate chain if a previous
 verification is successful. Otherwise the returned chain may be incomplete or
 invalid.  The returned chain persists after the I<ctx> structure is freed.
 When it is no longer needed it should be free up using:
 
- sk_X509_pop_free(chain, X509_free);
+ OSSL_STACK_OF_X509_free(chain);
 
 X509_verify_cert_error_string() returns a human readable error string for
 verification error I<n>.
@@ -438,6 +440,32 @@ Returned by the verify callback to indicate OCSP verification failed.
 Returned by the verify callback to indicate that the certificate is not
 recognized by the OCSP responder.
 
+=item B<X509_V_ERR_OCSP_RESP_INVALID: OCSP response(s) invalid>
+
+Returned by the verify callback to indicate that one or more OCSP
+responses are invalid.
+
+=item B<X509_V_ERR_OCSP_SIGNATURE_FAILURE: OCSP response signature failure>
+
+Returned by the verify callback to indicate OCSP response signature
+verification failed.
+
+=item B<X509_V_ERR_OCSP_NOT_YET_VALID: OCSP response not yet valid>
+OCSP response not yet valid (contains a date in the future)>
+
+Returned by the verify callback to indicate that OCSP response has a
+I<thisUpdate> date in the future.
+
+=item B<X509_V_ERR_OCSP_HAS_EXPIRED: OCSP response has expired>
+
+Returned by the verify callback to indicate that the OCSP response has expired.
+
+=item B<X509_V_ERR_OCSP_NO_RESPONSE:
+no OCSP response available for certificate>
+
+Returned by the verify callback to indicate that no OCSP response is available
+for the certificate.
+
 =item B<X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM:
 unsupported signature algorithm>
 
@@ -459,6 +487,11 @@ The algorithm given in the certificate info is inconsistent
 
 A CA certificate is invalid. Either it is not a CA or its extensions are not
 consistent with the supplied purpose.
+
+=item B<X509_V_ERR_RPK_UNTRUSTED: raw public key untrusted, no trusted keys configured>
+
+No TLS records were configured to validate the raw public key, or DANE was not
+enabled on the connection.
 
 =back
 
@@ -490,7 +523,7 @@ L<X509_free(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

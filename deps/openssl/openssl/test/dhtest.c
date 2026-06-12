@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -208,17 +208,17 @@ static int dh_test(void)
 
     alen = DH_size(a);
     if (!TEST_ptr(abuf = OPENSSL_malloc(alen))
-            || !TEST_true((aout = DH_compute_key(abuf, bpub_key, a)) != -1))
+            || !TEST_int_gt((aout = DH_compute_key(abuf, bpub_key, a)), 0))
         goto err3;
 
     blen = DH_size(b);
     if (!TEST_ptr(bbuf = OPENSSL_malloc(blen))
-            || !TEST_true((bout = DH_compute_key(bbuf, apub_key, b)) != -1))
+            || !TEST_int_gt((bout = DH_compute_key(bbuf, apub_key, b)), 0))
         goto err3;
 
     clen = DH_size(c);
     if (!TEST_ptr(cbuf = OPENSSL_malloc(clen))
-            || !TEST_true((cout = DH_compute_key(cbuf, apub_key, c)) != -1))
+            || !TEST_int_gt((cout = DH_compute_key(cbuf, apub_key, c)), 0))
         goto err3;
 
     if (!TEST_true(aout >= 20)
@@ -593,14 +593,14 @@ static int rfc5114_test(void)
                 || !TEST_ptr(dhB = td->get_param()))
             goto bad_err;
 
-        if (!TEST_ptr(priv_key = BN_bin2bn(td->xA, td->xA_len, NULL))
-                || !TEST_ptr(pub_key = BN_bin2bn(td->yA, td->yA_len, NULL))
+        if (!TEST_ptr(priv_key = BN_bin2bn(td->xA, (int)td->xA_len, NULL))
+                || !TEST_ptr(pub_key = BN_bin2bn(td->yA, (int)td->yA_len, NULL))
                 || !TEST_true(DH_set0_key(dhA, pub_key, priv_key)))
             goto bad_err;
 
-        if (!TEST_ptr(priv_key = BN_bin2bn(td->xB, td->xB_len, NULL))
-                || !TEST_ptr(pub_key = BN_bin2bn(td->yB, td->yB_len, NULL))
-                || !TEST_true( DH_set0_key(dhB, pub_key, priv_key)))
+        if (!TEST_ptr(priv_key = BN_bin2bn(td->xB, (int)td->xB_len, NULL))
+                || !TEST_ptr(pub_key = BN_bin2bn(td->yB, (int)td->yB_len, NULL))
+                || !TEST_true(DH_set0_key(dhB, pub_key, priv_key)))
             goto bad_err;
         priv_key = pub_key = NULL;
 
@@ -694,12 +694,12 @@ static int rfc7919_test(void)
 
     alen = DH_size(a);
     if (!TEST_int_gt(alen, 0) || !TEST_ptr(abuf = OPENSSL_malloc(alen))
-            || !TEST_true((aout = DH_compute_key(abuf, bpub_key, a)) != -1))
+            || !TEST_int_gt((aout = DH_compute_key(abuf, bpub_key, a)), 0))
         goto err;
 
     blen = DH_size(b);
     if (!TEST_int_gt(blen, 0) || !TEST_ptr(bbuf = OPENSSL_malloc(blen))
-            || !TEST_true((bout = DH_compute_key(bbuf, apub_key, b)) != -1))
+            || !TEST_int_gt((bout = DH_compute_key(bbuf, apub_key, b)), 0))
         goto err;
 
     if (!TEST_true(aout >= 20)

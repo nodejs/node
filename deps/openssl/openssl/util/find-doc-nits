@@ -13,6 +13,7 @@ use strict;
 
 use Carp qw(:DEFAULT cluck);
 use Pod::Checker;
+use Cwd qw(realpath);
 use File::Find;
 use File::Basename;
 use File::Spec::Functions;
@@ -42,11 +43,13 @@ our($opt_u);
 our($opt_v);
 our($opt_c);
 our($opt_i);
+our($opt_a);
 
 # Print usage message and exit.
 sub help {
     print <<EOF;
 Find small errors (nits) in documentation.  Options:
+    -a List undocumented env vars
     -c List undocumented commands, undocumented options and unimplemented options.
     -d Detailed list of undocumented (implies -u)
     -e Detailed list of new undocumented (implies -v)
@@ -55,14 +58,14 @@ Find small errors (nits) in documentation.  Options:
     -m Name(s) of manuals to focus on. Default: man1,man3,man5,man7
     -n Print nits in POD pages
     -o Causes -e/-v to count symbols added since 1.1.1 as new (implies -v)
-    -i Checks for history entries available for symbols added since 3.0.0 as new
+    -i Checks for history entries available for symbols added since 4.0.0 as new
     -u Count undocumented functions
     -v Count new undocumented functions
 EOF
     exit;
 }
 
-getopts('cdehlm:noiuv');
+getopts('acdehlm:noiuv');
 
 help() if $opt_h;
 $opt_u = 1 if $opt_d;
@@ -74,8 +77,8 @@ die "Cannot use both -d and -e"
 
 # We only need to check c, l, n, u and v.
 # Options d, e, o imply one of the above.
-die "Need one of -[cdehlnouv] flags.\n"
-    unless $opt_c or $opt_l or $opt_n or $opt_u or $opt_v;
+die "Need one of -[acdehlnouv] flags.\n"
+    unless $opt_a or $opt_c or $opt_l or $opt_n or $opt_u or $opt_v;
 
 
 my $temp = '/tmp/docnits.txt';
@@ -111,6 +114,61 @@ my $ignored = qr/(?| ^i2d_
                  |   ^OSSL_HTO[BL]E(16|32|64)   # undefed
                  |   ^OSSL_[BL]E(16|32|64)TOH   # undefed
                  )/x;
+
+# There are macro functions added before version 1.1.1 we don't want to track
+# in the history sections.
+my %exclude_macro_history = map { $_ => 1 } qw(
+        BIO_append_filename BIO_ctrl_dgram_connect BIO_ctrl_set_connected
+        BIO_destroy_bio_pair BIO_dgram_get_mtu BIO_dgram_get_mtu_overhead
+        BIO_dgram_get_peer BIO_dgram_recv_timedout BIO_dgram_send_timedout
+        BIO_dgram_set_peer BIO_do_accept BIO_do_connect BIO_do_handshake BIO_eof
+        BIO_flush BIO_get_accept_ip_family BIO_get_accept_name
+        BIO_get_accept_port BIO_get_app_data BIO_get_bind_mode
+        BIO_get_buffer_num_lines BIO_get_cipher_ctx BIO_get_cipher_status
+        BIO_get_close BIO_get_conn_hostname BIO_get_conn_ip_family
+        BIO_get_conn_port BIO_get_ex_new_index BIO_get_fd BIO_get_fp
+        BIO_get_info_callback BIO_get_mem_data BIO_get_mem_ptr
+        BIO_get_num_renegotiates BIO_get_peer_name BIO_get_peer_port
+        BIO_get_read_request BIO_get_ssl BIO_get_write_buf_size
+        BIO_get_write_guarantee BIO_make_bio_pair BIO_pending BIO_read_filename
+        BIO_reset BIO_rw_filename BIO_seek BIO_set_accept_bios
+        BIO_set_accept_ip_family BIO_set_accept_name BIO_set_accept_port
+        BIO_set_app_data BIO_set_bind_mode BIO_set_buffer_read_data
+        BIO_set_buffer_size BIO_set_close BIO_set_conn_hostname
+        BIO_set_conn_ip_family BIO_set_conn_port BIO_set_fd BIO_set_fp
+        BIO_set_info_callback BIO_set_md BIO_set_mem_buf BIO_set_mem_eof_return
+        BIO_set_nbio BIO_set_nbio_accept BIO_set_read_buffer_size BIO_set_ssl
+        BIO_set_ssl_mode BIO_set_ssl_renegotiate_bytes
+        BIO_set_ssl_renegotiate_timeout BIO_set_write_buf_size
+        BIO_set_write_buffer_size BIO_shutdown_wr BIO_tell BIO_wpending
+        BIO_write_filename BN_mod BN_num_bytes BN_one EVP_OpenUpdate
+        EVP_SealUpdate OPENSSL_clear_free OPENSSL_clear_realloc OPENSSL_free
+        OPENSSL_malloc OPENSSL_malloc_init OPENSSL_memdup OPENSSL_realloc
+        OPENSSL_strdup OPENSSL_strndup OPENSSL_zalloc
+        SSL_CTX_add_extra_chain_cert SSL_CTX_clear_extra_chain_certs
+        SSL_CTX_clear_mode SSL_CTX_disable_ct SSL_CTX_get_default_read_ahead
+        SSL_CTX_get_extra_chain_certs SSL_CTX_get_extra_chain_certs_only
+        SSL_CTX_get_max_cert_list SSL_CTX_get_mode SSL_CTX_get_read_ahead
+        SSL_CTX_get_session_cache_mode SSL_CTX_sess_accept
+        SSL_CTX_sess_accept_good SSL_CTX_sess_accept_renegotiate
+        SSL_CTX_sess_cache_full SSL_CTX_sess_cb_hits SSL_CTX_sess_connect
+        SSL_CTX_sess_connect_good SSL_CTX_sess_connect_renegotiate
+        SSL_CTX_sess_get_cache_size SSL_CTX_sess_hits SSL_CTX_sess_misses
+        SSL_CTX_sess_number SSL_CTX_sess_set_cache_size SSL_CTX_sess_timeouts
+        SSL_CTX_set_dh_auto SSL_CTX_set_ecdh_auto SSL_CTX_set_max_cert_list
+        SSL_CTX_set_mode SSL_CTX_set_msg_callback_arg SSL_CTX_set_read_ahead
+        SSL_CTX_set_session_cache_mode SSL_CTX_set_tlsext_servername_arg
+        SSL_CTX_set_tlsext_servername_callback SSL_CTX_set_tmp_dh
+        SSL_CTX_set_tmp_ecdh SSL_clear_mode SSL_disable_ct SSL_get_cipher
+        SSL_get_cipher_bits SSL_get_cipher_name SSL_get_cipher_version
+        SSL_get_extms_support SSL_get_max_cert_list SSL_get_mode
+        SSL_get_peer_signature_nid SSL_get_secure_renegotiation_support
+        SSL_get_server_tmp_key SSL_get_time SSL_get_timeout SSL_in_accept_init
+        SSL_in_connect_init SSL_set_dh_auto SSL_set_ecdh_auto
+        SSL_set_max_cert_list SSL_set_mode SSL_set_msg_callback_arg SSL_set_time
+        SSL_set_timeout SSL_set_tlsext_host_name SSL_set_tmp_dh SSL_set_tmp_ecdh
+        SSL_want_async SSL_want_async_job SSL_want_nothing SSL_want_read
+        SSL_want_write SSL_want_x509_lookup X509_LOOKUP_add_dir);
 
 # A common regexp for C symbol names
 my $C_symbol = qr/\b[[:alpha:]][_[:alnum:]]*\b/;
@@ -882,10 +940,11 @@ my %name_map = ();
 # 'other' : belongs in libcrypto or libssl (loaded from other.syms)
 # 'internal' : Internal
 # 'public' : Public (generic name or external documentation)
+# 'macro_functions' : Used to check history of macro functions
 # Any of these values except 'public' may be prefixed with 'missing_'
 # to indicate that they are known to be missing.
 my %state;
-# history contains the same as state above for entries with version info != 3_0_0
+# history contains the same as state above for entries with version info != 4_0_0
 my %history;
 # %missing is affected by loading util/missing*.txt.  Values may be one of:
 # 'crypto' : belongs in libcrypto (loaded from libcrypto.num)
@@ -893,6 +952,13 @@ my %history;
 # 'other' : belongs in libcrypto or libssl (loaded from other.syms)
 # 'internal' : Internal
 my %missing;
+# A list of definitions which may be function names.
+# This reads util/other.syms to get the public names and checks which of them
+# are functions in `checkmacros` function
+my @history_maybe_macro_functions;
+# The list of macros found by checking defines in our header files
+# Saves the filename for error handling purposes
+my %macros_maybe_undocumented;
 
 # Parse libcrypto.num, etc., and return sorted list of what's there.
 sub loadnum ($;$) {
@@ -909,9 +975,13 @@ sub loadnum ($;$) {
         my @fields = split();
         if ($type && ($type eq "crypto" || $type eq "ssl")) {
             # 3rd field is version
-            if (not $fields[2] eq "3_0_0") {
+            if (not $fields[2] eq "4_0_0") {
                 $history{$fields[0].'(3)'} = $type.$fields[2];
             }
+        }
+        if ($type && $type eq "other" && $fields[1] eq "define" &&
+            scalar @fields == 2) {
+            push(@history_maybe_macro_functions, $fields[0]);
         }
         die "Malformed line $. in $file: $_"
             if scalar @fields != 2 && scalar @fields != 4;
@@ -963,12 +1033,9 @@ sub checkstate () {
     }
 }
 
-# Check for undocumented macros; ignore those in the "missing" file
-# and do simple check for #define in our header files.
+# Check for undocumented and history of macros; ignore those in the
+# "missing" file and do simple check for #define in our header files.
 sub checkmacros {
-    my $count = 0;
-    my %seen;
-
     foreach my $f ( files(TAGS => 'public_header') ) {
         # Skip some internals we don't want to document yet.
         my $b = basename($f);
@@ -980,18 +1047,36 @@ sub checkmacros {
         while ( <IN> ) {
             next unless /^#\s*define\s*(\S+)\(/;
             my $macro = "$1(3)"; # We know they're all in section 3
-            next if defined $name_map{$macro}
-                || defined $missing{$macro}
-                || defined $seen{$macro}
+
+            next if defined $missing{$macro}
+                || exists $exclude_macro_history{$1}
                 || $macro =~ /$ignored/;
 
-            err("$f:", "macro $macro undocumented")
-                if $opt_d || $opt_e;
-            $count++;
-            $seen{$macro} = 1;
+            if ($opt_i && grep {$_ eq $1} @history_maybe_macro_functions) {
+                $history{$macro} = "macro_functions";
+                $state{$macro} = "macro_functions";
+            }
+
+            next if defined $macros_maybe_undocumented{$macro};
+
+            $macros_maybe_undocumented{$macro} = $f;
         }
         close(IN);
     }
+}
+
+# Check remaining macros against $name_map
+# This function has to be called after checkmacros
+sub checkmacros_undocumented {
+    my $count = 0;
+
+    foreach my $m ( keys %macros_maybe_undocumented ) {
+        next if defined $name_map{$m};
+        err("$macros_maybe_undocumented{$m}:", "macro $m undocumented")
+            if $opt_d || $opt_e;
+        $count++;
+    }
+
     err("# $count macros undocumented (count is approximate)")
         if $count > 0;
 }
@@ -1193,6 +1278,169 @@ sub checkflags {
     }
 }
 
+sub check_env_vars {
+    # initialized with the list of "untracable" variables
+    my %env_list = ("SSL_CERT_FILE" => 1);
+    my @env_files;
+    my @except_dirs = (
+        "$config{sourcedir}/demos",
+        "$config{sourcedir}/test",
+    );
+    my @except_env_files = (
+        "$config{sourcedir}/providers/implementations/kem/template_kem.c",
+        # The following files are generated, and are therefore found in the
+        # build directory rather than the source directory
+        "$config{builddir}/providers/implementations/keymgmt/template_kmgmt.c",
+        "$config{builddir}/Makefile.in",
+    );
+    my @env_headers;
+    my @env_macro;
+
+    # Add submodules to the except_dirs
+    my $git_ok = 0;
+    open my $gs_pipe, '-|', "git config get --all "
+                            . "--file \"$config{sourcedir}/.gitmodules\" "
+                            . "--regexp '.*.path\$'";
+    while (<$gs_pipe>) {
+        $git_ok = 1;
+        s/\R$//; # better chomp
+        print STDERR "DEBUG[check_env_vars]: adding \"$config{sourcedir}/$_\""
+                     . " to except_dirs\n"
+            if $debug;
+        push @except_dirs, "$config{sourcedir}/$_";
+    }
+    close $gs_pipe;
+    # git call has failed, trying to parse .gitmodules manually
+    if (!$git_ok) {
+        print STDERR "DEBUG[check_env_vars]: .gitmodules parsing fallback\n"
+            if $debug;
+        if (open my $gs_file, '<', "$config{sourcedir}/.gitmodules") {
+            while (<$gs_file>) {
+                s/\R$//; # better chomp
+                if ($_ =~ /\s*path\s*=\s*(.*)$/) {
+                    print STDERR "DEBUG[check_env_vars]: adding "
+                                 . "\"$config{sourcedir}/$1\" to except_dirs\n"
+                        if $debug;
+                    push @except_dirs, "$config{sourcedir}/$1";
+                }
+            }
+        }
+    }
+
+    # Because we compare against them, make sure that all elements in
+    # @except_dirs and @except_env_files are real paths.  Otherwise,
+    # we may get false positives because relative paths to the same
+    # file could look different.
+    # For example, './foo.c' == '../dir/foo.c', but turning them into
+    # real paths will have them actually look the same.
+    @except_dirs = map { realpath($_) } @except_dirs;
+    @except_env_files = map { realpath($_) } @except_env_files;
+
+    # look for source files
+    $git_ok = 0;
+    open my $glf_pipe, '-|', "git ls-files -- \"$config{sourcedir}\"";
+    while (<$glf_pipe>) {
+        $git_ok = 1;
+        s/\R$//; # better chomp
+        push @env_files, $_ if /\.c$|\.in$/;
+    }
+    close $glf_pipe;
+    # git call has failed, trying to find files manually
+    if (!$git_ok) {
+        find(sub { push @env_files, $File::Find::name if /\.c$|\.in$/; },
+             $config{sourcedir});
+    }
+
+    foreach my $filename (@env_files) {
+        my $realfilename = realpath($filename);
+        next if (grep { $realfilename =~ /^$_\// } @except_dirs)
+                || grep { $_ eq $realfilename } @except_env_files;
+
+        open my $fh, '<', $filename or die "Can't open $filename: $!";
+        while (my $line = <$fh>) {
+            # for windows
+            # for .in files
+            push @{$env_list{$1}}, "${filename}:$."
+                if ($line =~ /GetEnvironmentVariableW\([\s\S]*"([^"]+)",/
+                    || $line =~ /\$ENV\{([^}"']+)\}/);
+            # this also handles ossl_safe_getenv
+            if ($line =~ /getenv\(([^()\s]+)\)/) {
+                my $env1 = $1;
+                if ($env1 =~ /"([^"]+)"/) {
+                    push @{$env_list{$1}}, "${filename}:$.";
+                } elsif ($env1 =~ /([A-Z0-9_])/) {
+                    push(@env_macro, $env1);
+                }
+            }
+            # match ternary operators; $1 - true, $2 - false
+            if ($line =~ /env\(\s*[^?]+\?\s*([^:( ]+)\s*:\s*([^(]+)\s*\)/) {
+                my ($env1, $env2) = ($1, $2);
+                # if it's a string just add to the list
+                # otherwise look for the constant value later
+                if ($env1 =~ /"([^"]+)"/) {
+                    push @{$env_list{$1}}, "${filename}:$.";
+                } else {
+                    push(@env_macro, $env1);
+                }
+                if ($env2 =~ /"([^"]+)"/) {
+                    push @{$env_list{$1}}, "${filename}:$.";
+                } else {
+                    push(@env_macro, $env2);
+                }
+            }
+        }
+        close $fh;
+    }
+
+    # look for constants in header files
+    find(sub { push @env_headers, $File::Find::name if /\.h$/; },
+         $config{sourcedir});
+
+    foreach my $filename (@env_headers) {
+        open my $fh, '<', $filename or die "Can't open $filename: $!";
+        while (my $line = <$fh>) {
+            foreach my $em (@env_macro) {
+                push @{$env_list{$1}}, "${filename}:$."
+                    if ($line =~ /define\s+\Q$em\E\s+"(\S+)"/);
+            }
+        }
+    }
+
+    # need to save the value before starting to delete from the hash
+    my $number_of_env = scalar keys %env_list;
+
+    # check for env vars in pod files
+    foreach ( files(TAGS => [ 'manual' ]) ) {
+        my %podinfo = extract_pod_info($_, { debug => $debug });
+        my $contents = $podinfo{contents};
+
+        # openssl-env.pod does not have ENVIRONMENT section, but the whole file
+        # is about environment variables
+        if ( $contents =~ /=head1 ENVIRONMENT(.*)=head1/ms ) {
+            $contents = $1;
+        } elsif ( $_ !~ /openssl-env.pod/ ) {
+            next;
+        }
+
+        for my $env_name (keys %env_list) {
+            delete($env_list{$env_name}) if $contents =~ $env_name;
+        }
+    }
+
+    print "Number of env vars found:".$number_of_env."\n" if $debug;
+    $number_of_env = scalar keys %env_list;
+    if ($number_of_env != 0) {
+        print "Undocumented environment variables:\n";
+        foreach my $env_name (sort keys %env_list) {
+            print $env_name;
+            print " (found in '", join("', '", @{$env_list{$env_name}}), "')"
+                if ref $env_list{$env_name} eq 'ARRAY';
+            print "\n";
+        }
+        err("Total:".$number_of_env."\n");
+    }
+}
+
 ##
 ##  MAIN()
 ##  Do the work requested by the various getopt flags.
@@ -1256,6 +1504,12 @@ if ( $opt_o ) {
     loadmissing('util/missingssl-internal.txt');
 }
 
+# Load the list of macros that are missing from history section
+# and save the remaining macros for checking of undocumentation
+if ( $opt_u || $opt_v) {
+    checkmacros();
+}
+
 if ( $opt_n || $opt_l || $opt_u || $opt_v ) {
     my @files_to_read = ( $opt_n && @ARGV ) ? @ARGV : files(TAGS => 'manual');
 
@@ -1285,12 +1539,17 @@ if ( $opt_n ) {
     }
 }
 
+if ( $opt_a ) {
+    check_env_vars();
+}
+
 checkstate();
 
 if ( $opt_u || $opt_v) {
     printem('crypto');
     printem('ssl');
-    checkmacros();
+    checkmacros_undocumented();
+    printem('macro_functions');
 }
 
 exit $status;

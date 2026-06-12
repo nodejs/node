@@ -249,7 +249,7 @@ static int ch_init(QUIC_CHANNEL *ch)
     if (!ossl_quic_stream_map_init(&ch->qsm, get_stream_limit, ch,
                                    &ch->max_streams_bidi_rxfc,
                                    &ch->max_streams_uni_rxfc,
-                                   ch->is_server))
+                                   ch))
         goto err;
 
     ch->have_qsm = 1;
@@ -398,8 +398,12 @@ static void ch_cleanup(QUIC_CHANNEL *ch)
              ++pn_space)
             ossl_ackm_on_pkt_space_discarded(ch->ackm, pn_space);
 
-    ossl_quic_lcidm_cull(ch->lcidm, ch);
-    ossl_quic_srtm_cull(ch->srtm, ch);
+    if (ch->lcidm != NULL)
+        ossl_quic_lcidm_cull(ch->lcidm, ch);
+
+    if (ch->srtm != NULL)
+        ossl_quic_srtm_cull(ch->srtm, ch);
+
     ossl_quic_tx_packetiser_free(ch->txp);
     ossl_quic_txpim_free(ch->txpim);
     ossl_quic_cfq_free(ch->cfq);
@@ -647,6 +651,45 @@ int ossl_quic_channel_is_term_any(const QUIC_CHANNEL *ch)
 {
     return ossl_quic_channel_is_terminating(ch)
         || ossl_quic_channel_is_terminated(ch);
+}
+
+int ossl_quic_channel_is_server(const QUIC_CHANNEL *ch)
+{
+    return ch->is_server;
+}
+
+void ossl_quic_channel_notify_flush_done(QUIC_CHANNEL *ch)
+{
+    ch_record_state_transition(ch, ch->terminate_cause.remote
+                                   ? QUIC_CHANNEL_STATE_TERMINATING_DRAINING
+                                   : QUIC_CHANNEL_STATE_TERMINATING_CLOSING);
+    /*
+     * RFC 9000 s. 10.2 Immediate Close
+     *  These states SHOULD persist for at least three times
+     *  the current PTO interval as defined in [QUIC-RECOVERY].
+     */
+    ch->terminate_deadline
+        = ossl_time_add(get_time(ch),
+                        ossl_time_multiply(ossl_ackm_get_pto_duration(ch->ackm), 3));
+    if (!ch->terminate_cause.remote) {
+        OSSL_QUIC_FRAME_CONN_CLOSE f = {0};
+
+        /* best effort */
+        f.error_code = ch->terminate_cause.error_code;
+        f.frame_type = ch->terminate_cause.frame_type;
+        f.is_app     = ch->terminate_cause.app;
+        f.reason     = (char *)ch->terminate_cause.reason;
+        f.reason_len = ch->terminate_cause.reason_len;
+        ossl_quic_tx_packetiser_schedule_conn_close(ch->txp, &f);
+        /*
+         * RFC 9000 s. 10.2.2 Draining Connection State:
+         *  An endpoint that receives a CONNECTION_CLOSE frame MAY
+         *  send a single packet containing a CONNECTION_CLOSE
+         *  frame before entering the draining state, using a
+         *  NO_ERROR code if appropriate
+         */
+        ch->conn_close_queued = 1;
+    }
 }
 
 const QUIC_TERMINATE_CAUSE *
@@ -1333,6 +1376,11 @@ static int ch_on_transport_params(const unsigned char *params,
     QUIC_PREFERRED_ADDR pfa;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(ch->tls);
 
+    if (sc == NULL) {
+        ossl_quic_channel_raise_protocol_error(ch, OSSL_QUIC_ERR_INTERNAL_ERROR, 0,
+                                               "could not get ssl connection");
+        return 0;
+    }
     /*
      * When HRR happens the client sends the transport params in the new client
      * hello again. Reset the transport params here and load them again.
@@ -2430,7 +2478,7 @@ static void ch_rx_handle_packet(QUIC_CHANNEL *ch, int channel_only)
         while (PACKET_remaining(&vpkt) > 0) {
             /*
              * We only support quic version 1 at the moment, so
-             * look to see if thats offered
+             * look to see if that's offered
              */
             if (!PACKET_get_net_4(&vpkt, &supported_ver))
                 return;
@@ -3151,13 +3199,16 @@ int ossl_quic_channel_on_handshake_confirmed(QUIC_CHANNEL *ch)
 static void copy_tcause(QUIC_TERMINATE_CAUSE *dst,
                         const QUIC_TERMINATE_CAUSE *src)
 {
+    /*
+     * do not override reason once it got set.
+     */
+    if (dst->reason != NULL)
+        return;
+
     dst->error_code = src->error_code;
     dst->frame_type = src->frame_type;
     dst->app        = src->app;
     dst->remote     = src->remote;
-
-    dst->reason     = NULL;
-    dst->reason_len = 0;
 
     if (src->reason != NULL && src->reason_len > 0) {
         size_t l = src->reason_len;
@@ -3177,6 +3228,18 @@ static void copy_tcause(QUIC_TERMINATE_CAUSE *dst,
         r[l]  = '\0';
         dst->reason_len = l;
     }
+}
+
+void ossl_quic_channel_set_tcause(QUIC_CHANNEL *ch, uint64_t app_error_code,
+                                  const char *app_reason)
+{
+    QUIC_TERMINATE_CAUSE tcause = {0};
+
+    tcause.app          = 1;
+    tcause.error_code   = app_error_code;
+    tcause.reason       = app_reason;
+    tcause.reason_len   = app_reason != NULL ? strlen(app_reason) : 0;
+    copy_tcause(&ch->terminate_cause, &tcause);
 }
 
 static void ch_start_terminating(QUIC_CHANNEL *ch,
@@ -3200,38 +3263,7 @@ static void ch_start_terminating(QUIC_CHANNEL *ch,
         ossl_qlog_event_connectivity_connection_closed(ch_get_qlog(ch), tcause);
 
         if (!force_immediate) {
-            ch_record_state_transition(ch, tcause->remote
-                                           ? QUIC_CHANNEL_STATE_TERMINATING_DRAINING
-                                           : QUIC_CHANNEL_STATE_TERMINATING_CLOSING);
-            /*
-             * RFC 9000 s. 10.2 Immediate Close
-             *  These states SHOULD persist for at least three times
-             *  the current PTO interval as defined in [QUIC-RECOVERY].
-             */
-            ch->terminate_deadline
-                = ossl_time_add(get_time(ch),
-                                ossl_time_multiply(ossl_ackm_get_pto_duration(ch->ackm),
-                                                   3));
-
-            if (!tcause->remote) {
-                OSSL_QUIC_FRAME_CONN_CLOSE f = {0};
-
-                /* best effort */
-                f.error_code = ch->terminate_cause.error_code;
-                f.frame_type = ch->terminate_cause.frame_type;
-                f.is_app     = ch->terminate_cause.app;
-                f.reason     = (char *)ch->terminate_cause.reason;
-                f.reason_len = ch->terminate_cause.reason_len;
-                ossl_quic_tx_packetiser_schedule_conn_close(ch->txp, &f);
-                /*
-                 * RFC 9000 s. 10.2.2 Draining Connection State:
-                 *  An endpoint that receives a CONNECTION_CLOSE frame MAY
-                 *  send a single packet containing a CONNECTION_CLOSE
-                 *  frame before entering the draining state, using a
-                 *  NO_ERROR code if appropriate
-                 */
-                ch->conn_close_queued = 1;
-            }
+            ossl_quic_channel_notify_flush_done(ch);
         } else {
             ch_on_terminating_timeout(ch);
         }
@@ -3686,7 +3718,7 @@ static int ch_on_new_conn_common(QUIC_CHANNEL *ch, const BIO_ADDR *peer,
                                  const QUIC_CONN_ID *peer_odcid)
 {
     /* Note our newly learnt peer address and CIDs. */
-    if (!BIO_ADDR_copy(&ch->cur_peer_addr, peer))
+    if (!ossl_quic_channel_set_peer_addr(ch, peer))
         return 0;
 
     ch->init_dcid       = *peer_dcid;
@@ -3783,9 +3815,10 @@ int ossl_quic_bind_channel(QUIC_CHANNEL *ch, const BIO_ADDR *peer,
     if (!ossl_assert(ch->state == QUIC_CHANNEL_STATE_IDLE && ch->is_server))
         return 0;
 
-    ch->cur_local_cid = *peer_dcid;
     if (!ossl_quic_lcidm_bind_channel(ch->lcidm, ch, peer_dcid))
         return 0;
+
+    ch->cur_local_cid = *peer_dcid;
 
     /*
      * peer_odcid <=> is initial dst conn id chosen by peer in its

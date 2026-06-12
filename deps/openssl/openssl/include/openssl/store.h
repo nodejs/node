@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -279,6 +279,8 @@ void OSSL_STORE_LOADER_do_all_provided(OSSL_LIB_CTX *libctx,
 int OSSL_STORE_LOADER_names_do_all(const OSSL_STORE_LOADER *loader,
                                    void (*fn)(const char *name, void *data),
                                    void *data);
+const OSSL_PARAM *
+OSSL_STORE_LOADER_settable_ctx_params(const OSSL_STORE_LOADER *loader);
 
 /*-
  *  Function to register a loader for the given URI scheme.

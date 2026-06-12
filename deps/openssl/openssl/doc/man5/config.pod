@@ -265,8 +265,19 @@ Specifies the pathname of the module (typically a shared library) to load.
 
 =item B<activate>
 
-If present, the module is activated. The value assigned to this name is not
-significant.
+If present and set to one of the values yes, on, true or 1, then the associated
+provider will be activated. Conversely, setting this value to no, off, false, or
+0 will prevent the provider from being activated. Settings can be given in lower
+or uppercase. Setting activate to any other setting, or omitting a setting
+value will result in an error.
+
+= item B<soft_load>
+
+If enabled, informs the library to clear the error stack on failure to activate
+requested provider.  A value of 1, yes, true or on (in lower or uppercase) will
+activate this setting, while a value of 0, no, false, or off (again in lower or
+uppercase) will disable this setting.  Any other value will produce an error.
+Note this setting defaults to off if not provided
 
 =back
 
@@ -467,6 +478,12 @@ to access the same randomness sources from outside the validated boundary.
 
 This sets the property query used when fetching the randomness source.
 
+=item B<random_provider>
+
+This sets the provider to use for the L<RAND_bytes(3)> calls instead of the built-in
+entropy sources.  It defaults to "fips".  If the named provider is not loaded, the
+built-in entropy sources will be used.
+
 =back
 
 =head1 EXAMPLES
@@ -570,12 +587,13 @@ L<ASN1_generate_nconf(3)>,
 L<EVP_set_default_properties(3)>,
 L<CONF_modules_load(3)>,
 L<CONF_modules_load_file(3)>,
+L<RAND_bytes(3)>,
 L<fips_config(5)>, and
 L<x509v3_config(5)>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

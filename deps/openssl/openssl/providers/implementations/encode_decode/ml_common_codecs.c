@@ -11,7 +11,7 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/proverr.h>
-#include "ml_common_codecs.h"
+#include "prov/ml_common_codecs.h"
 
 static int pref_cmp(const void *va, const void *vb)
 {
@@ -42,7 +42,7 @@ ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
     const char *sep = "\t ,";
 
     /* Reserve an extra terminal slot with fmt == NULL */
-    if ((ret = OPENSSL_zalloc((NUM_PKCS8_FORMATS + 1) * sizeof(*ret))) == NULL)
+    if ((ret = OPENSSL_calloc(NUM_PKCS8_FORMATS + 1, sizeof(*ret))) == NULL)
         return NULL;
 
     /* Entries that match a format will get a non-zero preference. */
@@ -57,7 +57,7 @@ ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
 
     /*
      * Formats are case-insensitive, separated by spaces, tabs or commas.
-     * Duplicate formats are allowed, the first occurence determines the order.
+     * Duplicate formats are allowed, the first occurrence determines the order.
      */
     do {
         if (*(fmt += strspn(fmt, sep)) == '\0')

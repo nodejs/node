@@ -261,7 +261,7 @@ int BIO_get_accept_socket(char *host, int bind_mode)
     if (BIO_sock_init() != 1)
         goto err;
 
-    if (BIO_lookup(h, p, BIO_LOOKUP_SERVER, AF_UNSPEC, SOCK_STREAM, &res) != 0)
+    if (BIO_lookup(h, p, BIO_LOOKUP_SERVER, AF_UNSPEC, SOCK_STREAM, &res) == 0)
         goto err;
 
     if ((s = BIO_socket(BIO_ADDRINFO_family(res), BIO_ADDRINFO_socktype(res),

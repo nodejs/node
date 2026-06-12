@@ -5,7 +5,7 @@
 OSSL_METHOD_STORE, ossl_method_store_new, ossl_method_store_free,
 ossl_method_store_init, ossl_method_store_cleanup,
 ossl_method_store_add, ossl_method_store_fetch,
-ossl_method_store_remove, ossl_method_store_remove_all_provided, 
+ossl_method_store_remove, ossl_method_store_remove_all_provided,
 ossl_method_store_cache_get, ossl_method_store_cache_set,
 ossl_method_store_cache_flush_all
 - implementation method store and query

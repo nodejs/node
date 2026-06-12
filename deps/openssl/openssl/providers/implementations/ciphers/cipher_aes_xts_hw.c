@@ -22,13 +22,13 @@
     size_t bits = bytes * 8;                                                   \
                                                                                \
     if (ctx->enc) {                                                            \
-        fn_set_enc_key(key, bits, &xctx->ks1.ks);                              \
+        fn_set_enc_key(key, (int)bits, &xctx->ks1.ks);                         \
         xctx->xts.block1 = (block128_f)fn_block_enc;                           \
     } else {                                                                   \
-        fn_set_dec_key(key, bits, &xctx->ks1.ks);                              \
+        fn_set_dec_key(key, (int)bits, &xctx->ks1.ks);                         \
         xctx->xts.block1 = (block128_f)fn_block_dec;                           \
     }                                                                          \
-    fn_set_enc_key(key + bytes, bits, &xctx->ks2.ks);                          \
+    fn_set_enc_key(key + bytes, (int)bits, &xctx->ks2.ks);                     \
     xctx->xts.block2 = (block128_f)fn_block_enc;                               \
     xctx->xts.key1 = &xctx->ks1;                                               \
     xctx->xts.key2 = &xctx->ks2;                                               \

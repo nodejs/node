@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -681,7 +681,7 @@ static int do_decode_custom(const TEST_CUSTOM_DATA *custom_data,
     if (encoding_length == 0)
         return -1;
 
-    ret = do_decode(encoding, encoding_length, expected, expected_size,
+    ret = do_decode(encoding, (long)encoding_length, expected, expected_size,
                     package);
     OPENSSL_free(encoding);
 
@@ -738,8 +738,7 @@ static int test_intern(const TEST_PACKAGE *package)
     /* Do decode_custom checks */
     nelems = package->encode_expectations_size
         / package->encode_expectations_elem_size;
-    OPENSSL_assert(nelems ==
-                   sizeof(test_custom_data) / sizeof(test_custom_data[0]));
+    OPENSSL_assert(nelems == OSSL_NELEM(test_custom_data));
     for (i = 0; i < nelems; i++) {
         size_t pos = i * package->encode_expectations_elem_size;
         EXPECTED *expected
@@ -798,7 +797,8 @@ static int test_intern(const TEST_PACKAGE *package)
         EXPECTED *expected
             = (EXPECTED *)&((unsigned char *)package->encdec_data)[pos];
 
-        switch (do_enc_dec(expected, package->encdec_data_elem_size, package)) {
+        switch (do_enc_dec(expected, (long)package->encdec_data_elem_size,
+                           package)) {
         case -1:
             if (expected->success) {
                 TEST_error("Failed encode/decode round trip %u of %s",

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@ my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 
 plan tests =>
     ($no_fips ? 0 : 2)          # FIPS related tests
-    + 11;
+    + 18;
 
 ok(run(app([ 'openssl', 'genpkey', '-genparam',
              '-algorithm', 'DSA',
@@ -107,6 +107,51 @@ ok(!run(app([ 'openssl', 'genpkey',
               '-algorithm', 'DSA'])),
    "genpkey DSA with no params should fail");
 
+ok(run(app(["openssl", "gendsa", "-verbose",
+            'dsagen.pem'])),
+    "gendsa with -verbose option and dsagen parameter");
+
+ok(!run(app(["openssl", "gendsa",
+             'dsagen.pem', "-verbose"])),
+   "gendsa with extra parameter (at end) should fail");
+
+# test key generation with dsaparam tool
+ok(run(app([ 'openssl', 'dsaparam',
+             '-genkey',
+             '-text',
+             '1024',
+             ])),
+   "dsaparam -genkey DSA 1024 with default qbits");
+
+ok(run(app([ 'openssl', 'dsaparam',
+             '-genkey',
+             '-text',
+             '2048',
+             ])),
+   "dsaparam -genkey DSA 2048 with default qbits");
+
+ok(run(app([ 'openssl', 'dsaparam',
+             '-genkey',
+             '-text',
+             '1024', '160',
+             ])),
+   "dsaparam -genkey DSA 1024 with 160 qbits");
+
+ok(run(app([ 'openssl', 'dsaparam',
+             '-genkey',
+             '-text',
+             '2048', '224',
+             ])),
+   "dsaparam -genkey DSA 2048 with 224 qbits");
+
+ok(run(app([ 'openssl', 'dsaparam',
+             '-genkey',
+             '-text',
+             '2048', '256',
+             ])),
+   "dsaparam -genkey DSA 2048 with 256 qbits");
+# genkey test for 3072 bits keys were removed to speed up the tests
+
 unless ($no_fips) {
     my $provconf = srctop_file("test", "fips-and-base.cnf");
     my $provpath = bldtop_dir("providers");
@@ -115,22 +160,28 @@ unless ($no_fips) {
 
     $ENV{OPENSSL_TEST_LIBCTX} = "1";
 
+    # DSA signing/keygen is not approved in FIPS 140-3
+    run(test(["fips_version_test", "-config", $provconf, "<3.4.0"]),
+             capture => 1, statusvar => \my $dsasignpass);
+
     # Generate params
-    ok(run(app(['openssl', 'genpkey',
+    is(run(app(['openssl', 'genpkey',
                 @prov,
                '-genparam',
                '-algorithm', 'DSA',
                '-pkeyopt', 'pbits:3072',
                '-pkeyopt', 'qbits:256',
                '-out', 'gendsatest3072params.pem'])),
+       $dsasignpass,
        "Generating 3072-bit DSA params");
 
     # Generate keypair
-    ok(run(app(['openssl', 'genpkey',
+    is(run(app(['openssl', 'genpkey',
                 @prov,
                '-paramfile', 'gendsatest3072params.pem',
                '-text',
                '-out', 'gendsatest3072.pem'])),
+       $dsasignpass,
        "Generating 3072-bit DSA keypair");
 
 }

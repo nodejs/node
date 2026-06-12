@@ -70,6 +70,7 @@ CMS_ContentInfo *CMS_ContentInfo_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
 # define CMS_RECIPINFO_KEK               2
 # define CMS_RECIPINFO_PASS              3
 # define CMS_RECIPINFO_OTHER             4
+# define CMS_RECIPINFO_KEM               5
 
 /* S/MIME related flags */
 
@@ -104,6 +105,7 @@ const ASN1_OBJECT *CMS_get0_type(const CMS_ContentInfo *cms);
 
 BIO *CMS_dataInit(CMS_ContentInfo *cms, BIO *icont);
 int CMS_dataFinal(CMS_ContentInfo *cms, BIO *bio);
+int CMS_dataFinal_ex(CMS_ContentInfo *cms, BIO *bio, BIO *data);
 
 ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms);
 int CMS_is_detached(CMS_ContentInfo *cms);
@@ -300,6 +302,7 @@ ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
 int CMS_SignerInfo_sign(CMS_SignerInfo *si);
 int CMS_SignerInfo_verify(CMS_SignerInfo *si);
 int CMS_SignerInfo_verify_content(CMS_SignerInfo *si, BIO *chain);
+int CMS_SignerInfo_verify_ex(CMS_SignerInfo *si, BIO *chain, BIO *data);
 BIO *CMS_SignedData_verify(CMS_SignedData *sd, BIO *detached_data,
                            STACK_OF(X509) *scerts, X509_STORE *store,
                            STACK_OF(X509) *extra, STACK_OF(X509_CRL) *crls,
@@ -400,6 +403,14 @@ int CMS_RecipientInfo_kari_decrypt(CMS_ContentInfo *cms,
 
 int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg,
                           ASN1_OCTET_STRING *ukm, int keylen);
+
+int CMS_RecipientInfo_kemri_cert_cmp(CMS_RecipientInfo *ri, X509 *cert);
+int CMS_RecipientInfo_kemri_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pk);
+EVP_CIPHER_CTX *CMS_RecipientInfo_kemri_get0_ctx(CMS_RecipientInfo *ri);
+X509_ALGOR *CMS_RecipientInfo_kemri_get0_kdf_alg(CMS_RecipientInfo *ri);
+int CMS_RecipientInfo_kemri_set_ukm(CMS_RecipientInfo *ri,
+                                    const unsigned char *ukm,
+                                    int ukmLength);
 
 /* Backward compatibility for spelling errors. */
 # define CMS_R_UNKNOWN_DIGEST_ALGORITM CMS_R_UNKNOWN_DIGEST_ALGORITHM

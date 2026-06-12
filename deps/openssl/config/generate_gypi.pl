@@ -76,8 +76,8 @@ copy_headers(@crypto_dir_headers, 'crypto');
 my @internal_dir_headers = shift @ARGV;
 copy_headers(@internal_dir_headers, 'internal');
 
-move("$src_dir/include/crypto/bn_conf.h",
-     "$base_dir/include/crypto/bn_conf.h") or die "Move failed: $!";
+#move("$src_dir/include/crypto/bn_conf.h",
+#     "$base_dir/include/crypto/bn_conf.h") or die "Move failed: $!";
 move("$src_dir/include/crypto/dso_conf.h",
      "$base_dir/include/crypto/dso_conf.h") or die "Move failed: $!";
 
@@ -88,8 +88,8 @@ move("$src_dir/$progs",
 copy("$src_dir/apps/progs.c",
      "$base_dir/apps") or die "Copy failed: $!";
 
-move("$src_dir/include/internal/param_names.h",
-     "$base_dir/include/internal/param_names.h") or die "Move failed: $!";
+#move("$src_dir/include/internal/param_names.h",
+#     "$base_dir/include/internal/param_names.h") or die "Move failed: $!";
 
 copy("$src_dir/providers/common/include/prov/der_dsa.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
@@ -373,7 +373,7 @@ close(CLGYPI);
 
 # Clean Up
 my $cmd2 ="cd $src_dir; make -f $makefile clean; make -f $makefile distclean;" .
-    "git clean -f $src_dir";
+    "git clean -f .";
 system($cmd2) == 0 or die "Error in system($cmd2)";
 
 

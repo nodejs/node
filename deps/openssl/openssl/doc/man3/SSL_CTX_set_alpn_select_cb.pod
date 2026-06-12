@@ -120,6 +120,11 @@ the client can request any protocol it chooses. The value returned from
 this function need not be a member of the list of supported protocols
 provided by the callback.
 
+NPN functionality cannot be used with QUIC SSL objects. Use of ALPN is mandatory
+when using QUIC SSL objects. SSL_CTX_set_next_protos_advertised_cb() and
+SSL_CTX_set_next_proto_select_cb() have no effect if called on a QUIC SSL
+context.
+
 =head1 NOTES
 
 The protocol-lists must be in wire-format, which is defined as a vector of

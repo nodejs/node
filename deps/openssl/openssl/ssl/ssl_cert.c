@@ -74,7 +74,7 @@ CERT *ssl_cert_new(size_t ssl_pkey_num)
         return NULL;
 
     ret->ssl_pkey_num = ssl_pkey_num;
-    ret->pkeys = OPENSSL_zalloc(ret->ssl_pkey_num * sizeof(CERT_PKEY));
+    ret->pkeys = OPENSSL_calloc(ret->ssl_pkey_num, sizeof(CERT_PKEY));
     if (ret->pkeys == NULL) {
         OPENSSL_free(ret);
         return NULL;
@@ -105,7 +105,7 @@ CERT *ssl_cert_dup(CERT *cert)
         return NULL;
 
     ret->ssl_pkey_num = cert->ssl_pkey_num;
-    ret->pkeys = OPENSSL_zalloc(ret->ssl_pkey_num * sizeof(CERT_PKEY));
+    ret->pkeys = OPENSSL_calloc(ret->ssl_pkey_num, sizeof(CERT_PKEY));
     if (ret->pkeys == NULL) {
         OPENSSL_free(ret);
         return NULL;
@@ -170,8 +170,8 @@ CERT *ssl_cert_dup(CERT *cert)
 
     /* Configured sigalgs copied across */
     if (cert->conf_sigalgs) {
-        ret->conf_sigalgs = OPENSSL_malloc(cert->conf_sigalgslen
-                                           * sizeof(*cert->conf_sigalgs));
+        ret->conf_sigalgs = OPENSSL_malloc_array(cert->conf_sigalgslen,
+                                                 sizeof(*cert->conf_sigalgs));
         if (ret->conf_sigalgs == NULL)
             goto err;
         memcpy(ret->conf_sigalgs, cert->conf_sigalgs,
@@ -181,8 +181,9 @@ CERT *ssl_cert_dup(CERT *cert)
         ret->conf_sigalgs = NULL;
 
     if (cert->client_sigalgs) {
-        ret->client_sigalgs = OPENSSL_malloc(cert->client_sigalgslen
-                                             * sizeof(*cert->client_sigalgs));
+        ret->client_sigalgs =
+            OPENSSL_malloc_array(cert->client_sigalgslen,
+                                 sizeof(*cert->client_sigalgs));
         if (ret->client_sigalgs == NULL)
             goto err;
         memcpy(ret->client_sigalgs, cert->client_sigalgs,
@@ -433,6 +434,9 @@ static int ssl_verify_internal(SSL_CONNECTION *s, STACK_OF(X509) *sk, EVP_PKEY *
     X509_STORE_CTX *ctx = NULL;
     X509_VERIFY_PARAM *param;
     SSL_CTX *sctx;
+#ifndef OPENSSL_NO_OCSP
+    SSL *ssl;
+#endif
 
     /* Something must be passed in */
     if ((sk == NULL || sk_X509_num(sk) == 0) && rpk == NULL)
@@ -485,6 +489,26 @@ static int ssl_verify_internal(SSL_CONNECTION *s, STACK_OF(X509) *sk, EVP_PKEY *
     /* Verify via DANE if enabled */
     if (DANETLS_ENABLED(&s->dane))
         X509_STORE_CTX_set0_dane(ctx, &s->dane);
+
+    /*
+     * Set OCSP Responses for verification:
+     * This function is called in the SERVER_CERTIFICATE message, in TLS 1.2
+     * the OCSP responses are sent in the CERT_STATUS message after that.
+     * Therefore the verification code currently only works in TLS 1.3.
+     */
+#ifndef OPENSSL_NO_OCSP
+    ssl = SSL_CONNECTION_GET_SSL(s);
+    /*
+     * TODO(DTLS-1.3): in future DTLS should also be considered
+     */
+    if (!SSL_is_dtls(ssl) && SSL_version(ssl) >= TLS1_3_VERSION) {
+        /* ignore status_request_v2 if TLS version < 1.3 */
+        int status = SSL_get_tlsext_status_type(ssl);
+
+        if (status == TLSEXT_STATUSTYPE_ocsp)
+            X509_STORE_CTX_set_ocsp_resp(ctx, s->ext.ocsp.resp_ex);
+    }
+#endif
 
     /*
      * We need to inherit the verify parameters. These can be determined by
@@ -555,7 +579,7 @@ int ssl_verify_cert_chain(SSL_CONNECTION *s, STACK_OF(X509) *sk)
 }
 
 static void set0_CA_list(STACK_OF(X509_NAME) **ca_list,
-                        STACK_OF(X509_NAME) *name_list)
+                         STACK_OF(X509_NAME) *name_list)
 {
     sk_X509_NAME_pop_free(*ca_list, X509_NAME_free);
     *ca_list = name_list;
@@ -1308,13 +1332,13 @@ int ssl_cert_lookup_by_nid(int nid, size_t *pidx, SSL_CTX *ctx)
     size_t i;
 
     for (i = 0; i < OSSL_NELEM(ssl_cert_info); i++) {
-        if (ssl_cert_info[i].nid == nid) {
+        if (ssl_cert_info[i].pkey_nid == nid) {
             *pidx = i;
             return 1;
         }
     }
     for (i = 0; i < ctx->sigalg_list_len; i++) {
-        if (ctx->ssl_cert_info[i].nid == nid) {
+        if (ctx->ssl_cert_info[i].pkey_nid == nid) {
             *pidx = SSL_PKEY_NUM + i;
             return 1;
         }
@@ -1330,8 +1354,8 @@ const SSL_CERT_LOOKUP *ssl_cert_lookup_by_pkey(const EVP_PKEY *pk, size_t *pidx,
     for (i = 0; i < OSSL_NELEM(ssl_cert_info); i++) {
         const SSL_CERT_LOOKUP *tmp_lu = &ssl_cert_info[i];
 
-        if (EVP_PKEY_is_a(pk, OBJ_nid2sn(tmp_lu->nid))
-            || EVP_PKEY_is_a(pk, OBJ_nid2ln(tmp_lu->nid))) {
+        if (EVP_PKEY_is_a(pk, OBJ_nid2sn(tmp_lu->pkey_nid))
+            || EVP_PKEY_is_a(pk, OBJ_nid2ln(tmp_lu->pkey_nid))) {
             if (pidx != NULL)
                 *pidx = i;
             return tmp_lu;
@@ -1341,8 +1365,8 @@ const SSL_CERT_LOOKUP *ssl_cert_lookup_by_pkey(const EVP_PKEY *pk, size_t *pidx,
     for (i = 0; i < ctx->sigalg_list_len; i++) {
         SSL_CERT_LOOKUP *tmp_lu = &(ctx->ssl_cert_info[i]);
 
-        if (EVP_PKEY_is_a(pk, OBJ_nid2sn(tmp_lu->nid))
-            || EVP_PKEY_is_a(pk, OBJ_nid2ln(tmp_lu->nid))) {
+        if (EVP_PKEY_is_a(pk, OBJ_nid2sn(tmp_lu->pkey_nid))
+            || EVP_PKEY_is_a(pk, OBJ_nid2ln(tmp_lu->pkey_nid))) {
             if (pidx != NULL)
                 *pidx = SSL_PKEY_NUM + i;
             return &ctx->ssl_cert_info[i];

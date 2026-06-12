@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,7 @@ typedef struct rcu_lock_st CRYPTO_RCU_LOCK;
 
 CRYPTO_RCU_LOCK *ossl_rcu_lock_new(int num_writers, OSSL_LIB_CTX *ctx);
 void ossl_rcu_lock_free(CRYPTO_RCU_LOCK *lock);
-void ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock);
+int ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock);
 void ossl_rcu_write_lock(CRYPTO_RCU_LOCK *lock);
 void ossl_rcu_write_unlock(CRYPTO_RCU_LOCK *lock);
 void ossl_rcu_read_unlock(CRYPTO_RCU_LOCK *lock);

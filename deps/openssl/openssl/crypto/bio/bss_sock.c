@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,17 +72,6 @@ BIO *BIO_new_socket(int fd, int close_flag)
     if (ret == NULL)
         return NULL;
     BIO_set_fd(ret, fd, close_flag);
-# ifndef OPENSSL_NO_KTLS
-    {
-        /*
-         * The new socket is created successfully regardless of ktls_enable.
-         * ktls_enable doesn't change any functionality of the socket, except
-         * changing the setsockopt to enable the processing of ktls_start.
-         * Thus, it is not a problem to call it for non-TLS sockets.
-         */
-        ktls_enable(fd);
-    }
-# endif
     return ret;
 }
 
@@ -286,10 +275,12 @@ static long sock_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static int sock_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = sock_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = sock_write(bp, str, (int)n);
     return ret;
 }
 
@@ -307,53 +298,23 @@ int BIO_sock_should_retry(int i)
 
 int BIO_sock_non_fatal_error(int err)
 {
-    switch (err) {
 # if defined(OPENSSL_SYS_WINDOWS)
-#  if defined(WSAEWOULDBLOCK)
-    case WSAEWOULDBLOCK:
+    return err == WSAEWOULDBLOCK
+        || err == WSAENOTCONN
+        || err == WSAEINTR
+        || err == WSAEINPROGRESS
+        || err == WSAEALREADY;
+# else /* POSIX.1-2001 */
+    return err == EWOULDBLOCK
+        || err == EAGAIN
+        || err == ENOTCONN
+        || err == EINTR
+#  if !defined(__DJGPP__) && !defined(OPENSSL_SYS_TANDEM)
+        || err == EPROTO
 #  endif
+        || err == EINPROGRESS
+        || err == EALREADY;
 # endif
-
-# ifdef EWOULDBLOCK
-#  ifdef WSAEWOULDBLOCK
-#   if WSAEWOULDBLOCK != EWOULDBLOCK
-    case EWOULDBLOCK:
-#   endif
-#  else
-    case EWOULDBLOCK:
-#  endif
-# endif
-
-# if defined(ENOTCONN)
-    case ENOTCONN:
-# endif
-
-# ifdef EINTR
-    case EINTR:
-# endif
-
-# ifdef EAGAIN
-#  if EWOULDBLOCK != EAGAIN
-    case EAGAIN:
-#  endif
-# endif
-
-# ifdef EPROTO
-    case EPROTO:
-# endif
-
-# ifdef EINPROGRESS
-    case EINPROGRESS:
-# endif
-
-# ifdef EALREADY
-    case EALREADY:
-# endif
-        return 1;
-    default:
-        break;
-    }
-    return 0;
 }
 
 #endif                          /* #ifndef OPENSSL_NO_SOCK */

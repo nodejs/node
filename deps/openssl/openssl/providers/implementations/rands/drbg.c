@@ -14,7 +14,7 @@
 #include <openssl/evp.h>
 #include "crypto/rand.h"
 #include <openssl/proverr.h>
-#include "drbg_local.h"
+#include "prov/drbg.h"
 #include "internal/thread_once.h"
 #include "crypto/cryptlib.h"
 #include "prov/seeding.h"
@@ -352,7 +352,8 @@ int ossl_prov_drbg_instantiate(PROV_DRBG *drbg, unsigned int strength,
 {
     unsigned char *nonce = NULL, *entropy = NULL;
     size_t noncelen = 0, entropylen = 0;
-    size_t min_entropy, min_entropylen, max_entropylen;
+    unsigned int min_entropy;
+    size_t min_entropylen, max_entropylen;
 
     if (strength > drbg->strength) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INSUFFICIENT_DRBG_STRENGTH);
@@ -628,9 +629,16 @@ int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
     int fork_id;
     int reseed_required = 0;
     int ret = 0;
+    time_t reseed_time_interval = drbg->reseed_time_interval;
+    time_t now = 0;
 
     if (!ossl_prov_is_running())
         return 0;
+
+    fork_id = openssl_get_fork_id();
+
+    if (reseed_time_interval > 0)
+        now = time(NULL);
 
     if (drbg->lock != NULL && !CRYPTO_THREAD_write_lock(drbg->lock))
         return 0;
@@ -662,8 +670,6 @@ int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
         goto err;
     }
 
-    fork_id = openssl_get_fork_id();
-
     if (drbg->fork_id != fork_id) {
         drbg->fork_id = fork_id;
         reseed_required = 1;
@@ -673,10 +679,9 @@ int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
         if (drbg->generate_counter >= drbg->reseed_interval)
             reseed_required = 1;
     }
-    if (drbg->reseed_time_interval > 0) {
-        time_t now = time(NULL);
+    if (reseed_time_interval > 0) {
         if (now < drbg->reseed_time
-            || now - drbg->reseed_time >= drbg->reseed_time_interval)
+            || now - drbg->reseed_time >= reseed_time_interval)
             reseed_required = 1;
     }
     if (drbg->parent != NULL
@@ -878,55 +883,54 @@ void ossl_rand_drbg_free(PROV_DRBG *drbg)
  * Helper function called by internal DRBG implementations. Assumes that at
  * least a read lock has been taken on drbg->lock
  */
-int ossl_drbg_get_ctx_params(PROV_DRBG *drbg, OSSL_PARAM params[])
+int ossl_drbg_get_ctx_params(PROV_DRBG *drbg,
+                             const struct drbg_get_ctx_params_st *p)
 {
-    OSSL_PARAM *p;
-
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STATE);
-    if (p != NULL && !OSSL_PARAM_set_int(p, drbg->state))
+    if (p->state != NULL && !OSSL_PARAM_set_int(p->state, drbg->state))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STRENGTH);
-    if (p != NULL && !OSSL_PARAM_set_int(p, drbg->strength))
+    if (p->str != NULL && !OSSL_PARAM_set_int(p->str, drbg->strength))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MIN_ENTROPYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->min_entropylen))
+    if (p->minentlen != NULL
+            && !OSSL_PARAM_set_size_t(p->minentlen, drbg->min_entropylen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAX_ENTROPYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->max_entropylen))
+    if (p->maxentlen != NULL
+            && !OSSL_PARAM_set_size_t(p->maxentlen, drbg->max_entropylen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MIN_NONCELEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->min_noncelen))
+    if (p->minnonlen != NULL
+            && !OSSL_PARAM_set_size_t(p->minnonlen, drbg->min_noncelen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAX_NONCELEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->max_noncelen))
+    if (p->maxnonlen != NULL
+            && !OSSL_PARAM_set_size_t(p->maxnonlen, drbg->max_noncelen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAX_PERSLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->max_perslen))
+    if (p->maxperlen != NULL
+            && !OSSL_PARAM_set_size_t(p->maxperlen, drbg->max_perslen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_MAX_ADINLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, drbg->max_adinlen))
+    if (p->maxadlen != NULL
+            && !OSSL_PARAM_set_size_t(p->maxadlen, drbg->max_adinlen))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_RESEED_REQUESTS);
-    if (p != NULL && !OSSL_PARAM_set_uint(p, drbg->reseed_interval))
+    if (p->reseed_req != NULL
+            && !OSSL_PARAM_set_uint(p->reseed_req, drbg->reseed_interval))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_RESEED_TIME);
-    if (p != NULL && !OSSL_PARAM_set_time_t(p, drbg->reseed_time))
+    if (p->reseed_time != NULL
+            && !OSSL_PARAM_set_time_t(p->reseed_time, drbg->reseed_time))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL);
-    if (p != NULL && !OSSL_PARAM_set_time_t(p, drbg->reseed_time_interval))
+    if (p->reseed_int != NULL
+            && !OSSL_PARAM_set_time_t(p->reseed_int, drbg->reseed_time_interval))
         return 0;
-    if (!OSSL_FIPS_IND_GET_CTX_PARAM(drbg, params))
+
+    if (!OSSL_FIPS_IND_GET_CTX_FROM_PARAM(drbg, p->ind))
         return 0;
+
     return 1;
 }
 
@@ -934,16 +938,15 @@ int ossl_drbg_get_ctx_params(PROV_DRBG *drbg, OSSL_PARAM params[])
  * Helper function to get certain params that require no lock to obtain. Sets
  * *complete to 1 if all the params were processed, or 0 otherwise
  */
-int ossl_drbg_get_ctx_params_no_lock(PROV_DRBG *drbg, OSSL_PARAM params[],
-                                     int *complete)
+int ossl_drbg_get_ctx_params_no_lock(PROV_DRBG *drbg,
+                                     const struct drbg_get_ctx_params_st *p,
+                                     const OSSL_PARAM params[], int *complete)
 {
     size_t cnt = 0;
-    OSSL_PARAM *p;
 
     /* This value never changes once set */
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
-    if (p != NULL) {
-        if (!OSSL_PARAM_set_size_t(p, drbg->max_request))
+    if (p->maxreq != NULL) {
+        if (!OSSL_PARAM_set_size_t(p->maxreq, drbg->max_request))
             return 0;
         cnt++;
     }
@@ -952,9 +955,8 @@ int ossl_drbg_get_ctx_params_no_lock(PROV_DRBG *drbg, OSSL_PARAM params[],
      * Can be changed by multiple threads, but we tolerate inaccuracies in this
      * value.
      */
-    p = OSSL_PARAM_locate(params, OSSL_DRBG_PARAM_RESEED_COUNTER);
-    if (p != NULL) {
-        if (!OSSL_PARAM_set_uint(p, tsan_load(&drbg->reseed_counter)))
+    if (p->reseed_cnt != NULL) {
+        if (!OSSL_PARAM_set_uint(p->reseed_cnt, tsan_load(&drbg->reseed_counter)))
             return 0;
         cnt++;
     }
@@ -967,19 +969,15 @@ int ossl_drbg_get_ctx_params_no_lock(PROV_DRBG *drbg, OSSL_PARAM params[],
     return 1;
 }
 
-int ossl_drbg_set_ctx_params(PROV_DRBG *drbg, const OSSL_PARAM params[])
+int ossl_drbg_set_ctx_params(PROV_DRBG *drbg,
+                             const struct drbg_set_ctx_params_st *p)
 {
-    const OSSL_PARAM *p;
-
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    p = OSSL_PARAM_locate_const(params, OSSL_DRBG_PARAM_RESEED_REQUESTS);
-    if (p != NULL && !OSSL_PARAM_get_uint(p, &drbg->reseed_interval))
+    if (p->reseed_req != NULL
+            && !OSSL_PARAM_get_uint(p->reseed_req, &drbg->reseed_interval))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL);
-    if (p != NULL && !OSSL_PARAM_get_time_t(p, &drbg->reseed_time_interval))
+    if (p->reseed_time != NULL
+            && !OSSL_PARAM_get_time_t(p->reseed_time, &drbg->reseed_time_interval))
         return 0;
 
     return 1;

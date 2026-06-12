@@ -92,9 +92,9 @@ void gcm_ghash_p8(u64 Xi[2],const u128 Htable[16],const u8 *inp, size_t len);
 #   endif /* OPENSSL_SYS_AIX || OPENSSL_SYS_MACOSX */
 #  endif /* PPC */
 
-#  if (defined(__arm__) || defined(__arm) || defined(__aarch64__) || defined(_M_ARM64)) 
-#   include "arm_arch.h"
-#   if __ARM_MAX_ARCH__>=7
+#  if (defined(__arm__) || defined(__arm) || defined(__aarch64__) || defined(_M_ARM64))
+#   include "crypto/arm_arch.h"
+#   if __ARM_MAX_ARCH__ >= 7
 #    if defined(BSAES_ASM)
 #     define BSAES_CAPABLE (OPENSSL_armcap_P & ARMV7_NEON)
 #    endif
@@ -112,6 +112,15 @@ void gcm_ghash_p8(u64 Xi[2],const u128 Htable[16],const u8 *inp, size_t len);
 #     define ARMv8_HWAES_CAPABLE (OPENSSL_armcap_P & ARMV8_AES)
 #     define HWAES_xts_encrypt aes_v8_xts_encrypt
 #     define HWAES_xts_decrypt aes_v8_xts_decrypt
+#     define HWAES_CBC_HMAC_SHA1_ETM_CAPABLE (HWAES_CAPABLE && \
+                                              (OPENSSL_armcap_P & ARMV8_SHA1))
+#     define HWAES_CBC_HMAC_SHA256_ETM_CAPABLE (HWAES_CAPABLE && \
+                                                (OPENSSL_armcap_P & ARMV8_SHA256))
+#     define HWAES_CBC_HMAC_SHA512_ETM_CAPABLE (HWAES_CAPABLE && \
+                                                (OPENSSL_armcap_P & ARMV8_SHA512))
+#     ifndef __AARCH64EB__
+#      define AES_CBC_HMAC_SHA_ETM_CAPABLE 1
+#     endif
 #    endif
 #    define HWAES_ctr32_encrypt_blocks aes_v8_ctr32_encrypt_blocks
 #    define HWAES_ctr32_encrypt_blocks_unroll12_eor3 aes_v8_ctr32_encrypt_blocks_unroll12_eor3
@@ -198,6 +207,14 @@ int aesni_set_encrypt_key(const unsigned char *userKey, int bits,
                           AES_KEY *key);
 int aesni_set_decrypt_key(const unsigned char *userKey, int bits,
                           AES_KEY *key);
+
+void ossl_aes_cfb128_vaes_enc(const unsigned char *in, unsigned char *out,
+                              size_t len, const AES_KEY *ks,
+                              const unsigned char ivec[16], ossl_ssize_t *num);
+void ossl_aes_cfb128_vaes_dec(const unsigned char *in, unsigned char *out,
+                              size_t len, const AES_KEY *ks,
+                              const unsigned char ivec[16], ossl_ssize_t *num);
+int ossl_aes_cfb128_vaes_eligible(void);
 
 void aesni_encrypt(const unsigned char *in, unsigned char *out,
                    const AES_KEY *key);

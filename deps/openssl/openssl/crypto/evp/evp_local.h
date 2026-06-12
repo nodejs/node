@@ -156,6 +156,7 @@ struct evp_keyexch_st {
     OSSL_FUNC_keyexch_settable_ctx_params_fn *settable_ctx_params;
     OSSL_FUNC_keyexch_get_ctx_params_fn *get_ctx_params;
     OSSL_FUNC_keyexch_gettable_ctx_params_fn *gettable_ctx_params;
+    OSSL_FUNC_keyexch_derive_skey_fn *derive_skey;
 } /* EVP_KEYEXCH */;
 
 struct evp_signature_st {

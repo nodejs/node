@@ -541,7 +541,7 @@ static int qtx_encrypt_into_txe(OSSL_QTX *qtx, struct iovec_cur *cur, TXE *txe,
     }
 
     /* Feed AAD data. */
-    if (EVP_CipherUpdate(cctx, NULL, &l, hdr, hdr_len) != 1) {
+    if (EVP_CipherUpdate(cctx, NULL, &l, hdr, (int)hdr_len) != 1) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         return 0;
     }
@@ -556,7 +556,7 @@ static int qtx_encrypt_into_txe(OSSL_QTX *qtx, struct iovec_cur *cur, TXE *txe,
             break;
 
         if (EVP_CipherUpdate(cctx, txe_data(txe) + txe->data_len,
-                             &l, src, src_len) != 1) {
+                             &l, src, (int)src_len) != 1) {
             ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
             return 0;
         }

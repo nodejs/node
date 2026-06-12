@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -34,6 +34,32 @@ our @tests = (
         server => {
             extra => {
                 "CertStatus" => "BadResponse",
+            },
+        },
+        client => {},
+        test => {
+            "Method" => "TLS",
+            "ExpectedResult" => "ClientFail"
+        }
+    },
+    {
+        name => "certstatus-good-ext",
+        server => {
+            extra => {
+                "CertStatus" => "GoodResponseExt",
+            },
+        },
+        client => {},
+        test => {
+            "Method" => "TLS",
+            "ExpectedResult" => "Success"
+        }
+    },
+    {
+        name => "certstatus-bad-ext",
+        server => {
+            extra => {
+                "CertStatus" => "BadResponseExt",
             },
         },
         client => {},

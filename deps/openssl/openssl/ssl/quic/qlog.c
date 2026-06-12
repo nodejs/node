@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <stdbool.h>
 #include "internal/qlog.h"
 #include "internal/json_enc.h"
 #include "internal/common.h"
@@ -492,7 +493,7 @@ void ossl_qlog_i64(QLOG *qlog, const char *name, int64_t value)
     ossl_json_i64(&qlog->json, value);
 }
 
-void ossl_qlog_bool(QLOG *qlog, const char *name, int value)
+void ossl_qlog_bool(QLOG *qlog, const char *name, bool value)
 {
     if (name != NULL)
         ossl_json_key(&qlog->json, name);

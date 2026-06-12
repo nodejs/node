@@ -128,6 +128,7 @@ int s_time_main(int argc, char **argv)
     long bytes_read = 0, finishtime = 0;
     OPTION_CHOICE o;
     int min_version = 0, max_version = 0, ver, buf_len, fd;
+    int want_verify = 0;
     size_t buf_size;
 
     meth = TLS_client_method();
@@ -155,6 +156,7 @@ int s_time_main(int argc, char **argv)
             break;
         case OPT_VERIFY:
             verify_args.depth = opt_int_arg();
+            want_verify = 1;
             BIO_printf(bio_err, "%s: verify depth is %d\n",
                        prog, verify_args.depth);
             break;
@@ -263,6 +265,15 @@ int s_time_main(int argc, char **argv)
         ERR_print_errors(bio_err);
         goto end;
     }
+
+    if (want_verify) {
+        X509_VERIFY_PARAM *vpm;
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+        vpm = SSL_CTX_get0_param(ctx);
+        if (vpm != NULL && verify_args.depth >= 0)
+            X509_VERIFY_PARAM_set_depth(vpm, verify_args.depth);
+    }
+
     if (!(perform & 1))
         goto next;
     printf("Collecting connection statistics for %d seconds\n", maxtime);
@@ -435,6 +446,16 @@ static SSL *doConnection(SSL *scon, const char *host, SSL_CTX *ctx)
         }
     } else {
         serverCon = scon;
+        /*
+         * Reset the SSL object before reusing it for a new connection.
+         * This clears prior handshake and I/O state while keeping
+         * configuration inherited from the SSL_CTX.
+         */
+        if (!SSL_clear(serverCon)) {
+            ERR_print_errors(bio_err);
+            BIO_free(conn);
+            return NULL;
+        }
         SSL_set_connect_state(serverCon);
     }
 

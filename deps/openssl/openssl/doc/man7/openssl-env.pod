@@ -6,10 +6,11 @@ openssl-env - OpenSSL environment variables
 
 =head1 DESCRIPTION
 
-The OpenSSL libraries use environment variables to override the
-compiled-in default paths for various data.
-To avoid security risks, the environment is usually not consulted when
-the executable is set-user-ID or set-group-ID.
+The OpenSSL libraries and commands use environment variables to override
+compiled-in defaults for various aspects of their behaviour.
+To avoid security risks, the environment is not consulted
+for security-sensitive environment variables when the executable
+is set-user-ID or set-group-ID.
 
 =over 4
 
@@ -18,11 +19,38 @@ the executable is set-user-ID or set-group-ID.
 Specifies the path to a certificate transparency log list.
 See L<CTLOG_STORE_new(3)>.
 
+This variable is considered a security-sensitive environment variable.
+
+=item B<HOME>, B<SYSTEMROOT>, B<USERPROFILE>
+
+Path which L<RAND_file_name(3)> uses as a directory for the random seed file
+name when the B<RANDFILE> environment variable is not set.
+B<HOME> is the only variable that is considered on Unix-like systems;
+B<USERPROFILE> and B<SYSTEMROOT> are used as fallbacks on Windows platforms.
+
+B<HOME> variable is considered a security-sensitive environment variable.
+
+=item B<HTTPS_PROXY>, B<HTTP_PROXY>, B<NO_PROXY>, B<https_proxy>, B<http_proxy>, B<no_proxy>
+
+Specify a proxy hostname.
+See L<OSSL_HTTP_parse_url(3)>.
+
+These variables are considered security-sensitive environment variables.
+
+=item B<LEGACY_GOST_PKCS12>
+
+Affects the way MAC is generated in PKCS#12 containers for GOST algorithms.
+See L<PKCS12_gen_mac(3)>.
+
+This variable is considered a security-sensitive environment variable.
+
 =item B<OPENSSL>
 
 Specifies the path to the B<openssl> executable. Used by
 the B<rehash> script (see L<openssl-rehash(1)/Script Configuration>)
 and by the B<CA.pl> script (see L<CA.pl(1)/NOTES>
+
+This variable is not considered security-sensitive.
 
 =item B<OPENSSL_CONF>, B<OPENSSL_CONF_INCLUDE>
 
@@ -30,26 +58,71 @@ Specifies the path to a configuration file and the directory for
 included files.
 See L<config(5)>.
 
+These variables are considered security-sensitive environment variables.
+
 =item B<OPENSSL_CONFIG>
 
 Specifies a configuration option and filename for the B<req> and B<ca>
 commands invoked by the B<CA.pl> script.
 See L<CA.pl(1)>.
 
+This variable is not considered security-sensitive.
+
+=item B<OPENSSL_DEBUG_DECC_INIT>
+
+On VMS only:  if this variable is set, enables verbose output of parsing
+of C<DECC$*> logical names, that contain C RTL features, during library
+initialisation (C<LIB$INITIALIZE>).  If the value of the variable is more
+than 1, outputs information about every processed feature.
+
+This variable is not considered security-sensitive.
+
 =item B<OPENSSL_ENGINES>
 
 Specifies the directory from which dynamic engines are loaded.
 See L<openssl-engine(1)>.
 
-=item B<OPENSSL_MALLOC_FD>, B<OPENSSL_MALLOC_FAILURES>
+This variable is considered a security-sensitive environment variable.
+
+=item B<OPENSSL_MALLOC_FAILURES>, B<OPENSSL_MALLOC_FD>, B<OPENSSL_MALLOC_SEED>
 
 If built with debugging, this allows memory allocation to fail.
 See L<OPENSSL_malloc(3)>.
+
+These variables are not considered security-sensitive.
 
 =item B<OPENSSL_MODULES>
 
 Specifies the directory from which cryptographic providers are loaded.
 Equivalently, the generic B<-provider-path> command-line option may be used.
+
+This variable is considered a security-sensitive environment variable.
+
+=item B<OPENSSL_SEC_MEM>
+
+Initializes the secure memory at the beginning of the application which makes
+the secure memory calls not to fall back to regular memory calls. The value
+indicates the B<size> parameter in bytes. The value can be expressed in
+binary, octal, decimal and hexadecimal. For formatting see B<strtol(3)>.
+For further restrictions see L<CRYPTO_secure_malloc_init(3)>.
+
+This variable is not considered security-sensitive.
+
+=item B<OPENSSL_SEC_MEM_MINSIZE>
+
+An optional variable used with B<OPENSSL_SEC_MEM>. The value indicates
+B<minsize> parameter in bytes. The same formatting applies as above.
+Default is 0. For more info see L<CRYPTO_secure_malloc_init(3)>.
+
+This variable is not considered security-sensitive.
+
+=item B<OPENSSL_TEST_LIBCTX>
+
+This test-only environment variable, that is recognised by the L<openssl(1)>
+command, when is set to "1", leads to creation of a nondefault library context
+by the command, for which the B<-config> option then takes effect.
+
+This variable is not considered security-sensitive.
 
 =item B<OPENSSL_TRACE>
 
@@ -61,58 +134,14 @@ Unless OpenSSL tracing support is generally disabled,
 enable trace output of specific parts of OpenSSL libraries, by name.
 This output usually makes sense only if you know OpenSSL internals well.
 
-The value of this environment varialble is a comma-separated list of names,
+The value of this environment variable is a comma-separated list of names,
 with the following available:
 
 =over 4
 
-=item B<TRACE>
+=item B<ALL>
 
-Traces the OpenSSL trace API itself.
-
-=item B<INIT>
-
-Traces OpenSSL library initialization and cleanup.
-
-=item B<TLS>
-
-Traces the TLS/SSL protocol.
-
-=item B<TLS_CIPHER>
-
-Traces the ciphers used by the TLS/SSL protocol.
-
-=item B<CONF>
-
-Show details about provider and engine configuration.
-
-=item B<ENGINE_TABLE>
-
-The function that is used by RSA, DSA (etc) code to select registered
-ENGINEs, cache defaults and functional references (etc), will generate
-debugging summaries.
-
-=item B<ENGINE_REF_COUNT>
-
-Reference counts in the ENGINE structure will be monitored with a line
-of generated for each change.
-
-=item B<PKCS5V2>
-
-Traces PKCS#5 v2 key generation.
-
-=item B<PKCS12_KEYGEN>
-
-Traces PKCS#12 key generation.
-
-=item B<PKCS12_DECRYPT>
-
-Traces PKCS#12 decryption.
-
-=item B<X509V3_POLICY>
-
-Generates the complete policy tree at various points during X.509 v3
-policy evaluation.
+Traces everything.
 
 =item B<BN_CTX>
 
@@ -122,9 +151,9 @@ Traces BIGNUM context operations.
 
 Traces CMP client and server activity.
 
-=item B<STORE>
+=item B<CONF>
 
-Traces STORE operations.
+Show details about provider and engine configuration.
 
 =item B<DECODER>
 
@@ -134,15 +163,80 @@ Traces decoder operations.
 
 Traces encoder operations.
 
-=item B<REF_COUNT>
+=item B<ENGINE_REF_COUNT>
 
-Traces decrementing certain ASN.1 structure references.
+Reference counts in the ENGINE structure will be monitored with a line
+of generated for each change.
+
+=item B<ENGINE_TABLE>
+
+The function that is used by RSA, DSA (etc) code to select registered
+ENGINEs, cache defaults and functional references (etc), will generate
+debugging summaries.
 
 =item B<HTTP>
 
 Traces the HTTP client and server, such as messages being sent and received.
 
+=item B<INIT>
+
+Traces OpenSSL library initialization and cleanup.
+
+=item B<PKCS12_DECRYPT>
+
+Traces PKCS#12 decryption.
+
+=item B<PKCS12_KEYGEN>
+
+Traces PKCS#12 key generation.
+
+=item B<PKCS5V2>
+
+Traces PKCS#5 v2 key generation.
+
+=item B<PROVIDER>
+
+Traces various operations that are performed on OpenSSL providers during their
+handling by the library (see L<provider(7)>), such as initialisation, tear down,
+parameter and capability retrieval, self-test, and so on.
+
+=item B<QUERY>
+
+Traces operation related to addition, removal, and fetching of methods
+in the so-called method store, that holds pointers to functions provided
+by various providers.
+
+=item B<REF_COUNT>
+
+Traces reference count changes in various structures,
+including C<BIO>, C<DH>, C<DSA>, C<EC_KEY>, C<ECX_KEY>,
+C<EVP_PKEY>, C<EVP_SKEY>, C<RSA>, C<SSL>, C<SSL_CTX>, C<SSL_SESSION>,
+C<X509_CRL>, C<X509_STORE>, C<X509>, and some others.
+
+=item B<STORE>
+
+Traces STORE operations.
+
+=item B<TLS>
+
+Traces the TLS/SSL protocol.
+
+=item B<TLS_CIPHER>
+
+Traces the ciphers used by the TLS/SSL protocol.
+
+=item B<TRACE>
+
+Traces the OpenSSL trace API itself.
+
+=item B<X509V3_POLICY>
+
+Generates the complete policy tree at various points during X.509 v3
+policy evaluation.
+
 =back
+
+This variable is not considered security-sensitive.
 
 =item B<OPENSSL_WIN32_UTF8>
 
@@ -152,39 +246,96 @@ the L<openssl(1)> program also transcodes the command-line parameters
 from the current code page to UTF-8.
 This environment variable is only checked on Microsoft Windows platforms.
 
+=item B<OPENSSL_armcap>, B<OPENSSL_ia32cap>, B<OPENSSL_ppccap>, B<OPENSSL_riscvcap>, B<OPENSSL_s390xcap>, B<OPENSSL_sparcv9cap>
+
+OpenSSL supports a number of different algorithm implementations for
+various machines and, by default, it determines which to use based on the
+processor capabilities and run time feature enquiry.  These environment
+variables can be used to exert more control over this selection process.
+See L<OPENSSL_ia32cap(3)>, L<OPENSSL_riscvcap(3)>, and L<OPENSSL_s390xcap(3)>.
+
+These variables are not considered security-sensitive.
+
+=item B<OSSL_QFILTER>
+
+Used to set a QUIC qlog filter specification. See L<openssl-qlog(7)>.
+
+This variable is considered a security-sensitive environment variable.
+
+=item B<QLOGDIR>
+
+Specifies a QUIC qlog output directory. See L<openssl-qlog(7)>.
+
+This variable is considered a security-sensitive environment variable.
+
 =item B<RANDFILE>
 
 The state file for the random number generator.
 This should not be needed in normal use.
 See L<RAND_load_file(3)>.
 
+This variable is considered a security-sensitive environment variable.
+
+=item B<SSLKEYLOGFILE>
+
+Used to produce the standard format output file for SSL key logging.  Optionally
+set this variable to a filename to log all secrets produced by SSL connections.
+Note, use of the environment variable is predicated on configuring OpenSSL at
+build time with the enable-sslkeylog feature.  The file format standard can be
+found at L<https://datatracker.ietf.org/doc/draft-ietf-tls-keylogfile/>.
+Note: the use of B<SSLKEYLOGFILE> poses an explicit security risk.  By recording
+the exchanged keys during an SSL session, it allows any available party with
+read access to the file to decrypt application traffic sent over that session.
+Use of this feature should be restricted to test and debug environments only.
+
+This variable is considered a security-sensitive environment variable.
+
 =item B<SSL_CERT_DIR>, B<SSL_CERT_FILE>
 
 Specify the default directory or file containing CA certificates.
 See L<SSL_CTX_load_verify_locations(3)>.
 
+These variables are considered security-sensitive environment variables,
+except in L<openssl-rehash(1)>, where B<SSL_CERT_DIR> is not considered
+security-sensitive.
+
+=item B<SSL_CIPHER>
+
+Used by L<openssl-s_time(1)> in case B<-cipher> option (that allows modifying
+TLSv1.2 and below cipher list sent by the client) is not provided,
+for specification of the aforementioned ciphers.
+
+This variable is not considered security-sensitive.
+
 =item B<TSGET>
 
 Additional arguments for the L<tsget(1)> command.
 
-=item B<OPENSSL_ia32cap>, B<OPENSSL_sparcv9cap>, B<OPENSSL_ppccap>, B<OPENSSL_armcap>, B<OPENSSL_s390xcap>
+This variable is not considered security-sensitive.
 
-OpenSSL supports a number of different algorithm implementations for
-various machines and, by default, it determines which to use based on the
-processor capabilities and run time feature enquiry.  These environment
-variables can be used to exert more control over this selection process.
-See L<OPENSSL_ia32cap(3)>, L<OPENSSL_s390xcap(3)>.
+=back
 
-=item B<NO_PROXY>, B<HTTPS_PROXY>, B<HTTP_PROXY>
+=head1 HISTORY
 
-Specify a proxy hostname.
-See L<OSSL_HTTP_parse_url(3)>.
+This section contains environment variables that are no longer considered
+by the OpenSSL libraries and commands.
+
+=over 4
+
+=item B<HARNESS_OSSL_PREFIX>
+
+This environment variable, existed in OpenSSL versions from 1.1.1 up to 3.5,
+allowed specification of a prefix prepended to each line sent to the I<stdout>
+by L<openssl(1)>, used by the test harness to avoid commingling the command
+under test output with the output for the TAP consumer.
+
+This variable was not considered security-sensitive.
 
 =back
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

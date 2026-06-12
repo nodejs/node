@@ -26,6 +26,9 @@ provider-kdf - The KDF library E<lt>-E<gt> provider functions
  int OSSL_FUNC_kdf_reset(void *kctx);
  int OSSL_FUNC_kdf_derive(void *kctx, unsigned char *key, size_t keylen,
                           const OSSL_PARAM params[]);
+ void *OSSL_FUNC_kdf_derive_skey(void *ctx, const char *key_type, void *provctx,
+                                 OSSL_FUNC_skeymgmt_import_fn *import,
+                                 size_t keylen, const OSSL_PARAM params[]);
 
  /* KDF parameter descriptors */
  const OSSL_PARAM *OSSL_FUNC_kdf_gettable_params(void *provctx);
@@ -36,6 +39,7 @@ provider-kdf - The KDF library E<lt>-E<gt> provider functions
  int OSSL_FUNC_kdf_get_params(OSSL_PARAM params[]);
  int OSSL_FUNC_kdf_get_ctx_params(void *kctx, OSSL_PARAM params[]);
  int OSSL_FUNC_kdf_set_ctx_params(void *kctx, const OSSL_PARAM params[]);
+ int OSSL_FUNC_kdf_set_skey(void *kctx, void *skeydata, const char *paramname);
 
 =head1 DESCRIPTION
 
@@ -71,6 +75,7 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_kdf_reset                OSSL_FUNC_KDF_RESET
  OSSL_FUNC_kdf_derive               OSSL_FUNC_KDF_DERIVE
+ OSSL_FUNC_kdf_derive_skey          OSSL_FUNC_KDF_DERIVE_SKEY
 
  OSSL_FUNC_kdf_get_params           OSSL_FUNC_KDF_GET_PARAMS
  OSSL_FUNC_kdf_get_ctx_params       OSSL_FUNC_KDF_GET_CTX_PARAMS
@@ -79,11 +84,13 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
  OSSL_FUNC_kdf_gettable_params      OSSL_FUNC_KDF_GETTABLE_PARAMS
  OSSL_FUNC_kdf_gettable_ctx_params  OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS
  OSSL_FUNC_kdf_settable_ctx_params  OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS
+ OSSL_FUNC_kdf_set_skey             OSSL_FUNC_KDF_SET_SKEY
 
 A KDF algorithm implementation may not implement all of these functions.
 In order to be a consistent set of functions, at least the following functions
 must be implemented: OSSL_FUNC_kdf_newctx(), OSSL_FUNC_kdf_freectx(),
-OSSL_FUNC_kdf_set_ctx_params(), OSSL_FUNC_kdf_derive().
+OSSL_FUNC_kdf_set_ctx_params(), and at least one of
+OSSL_FUNC_kdf_derive() or OSSL_FUNC_kdf_derive_skey().
 All other functions are optional.
 
 =head2 Context Management Functions
@@ -116,6 +123,13 @@ The resulting key of the desired I<keylen> should be written to I<key>.
 If the algorithm does not support the requested I<keylen> the function must
 return error.
 
+OSSL_FUNC_kdf_derive_skey() is similar to OSSL_FUNC_kdf_derive() but uses an
+opaque object for storing the derived key. It accepts I<key_type> parameter to
+give a hint to the provider what type of the key (e.g. generic or AES) would be
+generated and I<import> function from the B<EVP_SKEYMGMT> object to be
+associated with the key. The B<EVP_SKEYMGMT> object comes from the same
+provider as the KDF itself.
+
 =head2 KDF Parameters
 
 See L<OSSL_PARAM(3)> for further details on the parameters structure used by
@@ -143,6 +157,8 @@ with the provider side context I<kctx> in its current state if it is
 not NULL.  Otherwise, they return the parameters associated with the
 provider side algorithm I<provctx>.
 
+OSSL_FUNF_kdf_set_skey() sets the input key for KDF functions that take a
+key as input.
 
 Parameters currently recognised by built-in KDFs are as follows. Not all
 parameters are relevant to, or are understood by all KDFs:
@@ -325,9 +341,9 @@ It is defined as per RFC 7292 section B.3.
 OSSL_FUNC_kdf_newctx() and OSSL_FUNC_kdf_dupctx() should return the newly created
 provider side KDF context, or NULL on failure.
 
-OSSL_FUNC_kdf_derive(), OSSL_FUNC_kdf_get_params(),
-OSSL_FUNC_kdf_get_ctx_params() and OSSL_FUNC_kdf_set_ctx_params() should return 1 for
-success or 0 on error.
+OSSL_FUNC_kdf_derive(), OSSL_FUNC_kdf_derive_skey(), OSSL_FUNC_kdf_get_params(),
+OSSL_FUNC_kdf_get_ctx_params(), OSSL_FUNC_kdf_set_ctx_params() and
+OSSL_FUNC_kdf_set_skey() should return 1 for success or 0 on error.
 
 OSSL_FUNC_kdf_gettable_params(), OSSL_FUNC_kdf_gettable_ctx_params() and
 OSSL_FUNC_kdf_settable_ctx_params() should return a constant L<OSSL_PARAM(3)>
@@ -347,9 +363,11 @@ L<provider(7)>, L<life_cycle-kdf(7)>, L<EVP_KDF(3)>.
 
 The provider KDF interface was introduced in OpenSSL 3.0.
 
+OSSL_FUNC_kdf_derive_skey() and OSSL_FUNC_kdf_set_skey() were added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -283,3 +283,14 @@ of the generated `test/ssl-tests/*.cnf` correspond to expected outputs in with
 the default Configure options. To run `ssl_test` manually from the command line
 in a build with a different configuration, you may need to generate the right
 `*.cnf` file from the `*.cnf.in` input first.
+
+Running a test manually via make
+--------------------------------
+
+Individual tests may be run by adding the SSL_TESTS variable to the `make`
+command line. The SSL_TESTS variable is set to the list of input (or ".in")
+files. The values in SSL_TESTS are globbed.
+
+    $ make test TESTS=test_ssl_new SSL_TESTS="0*.cnf.in"
+
+    $ make test TESTS=test_ssl_new SSL_TESTS="01-simple.cnf.in 05-sni.cnf.in"

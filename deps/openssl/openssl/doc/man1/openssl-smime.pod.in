@@ -59,7 +59,9 @@ and verify S/MIME messages.
 
 =head1 OPTIONS
 
-There are six operation options that set the type of operation to be performed.
+There are six operation options that set the type of operation to be performed:
+B<-encrypt>, B<-decrypt>, B<-sign>, B<-resign>, B<-verify>, and B<-pk7out>.
+These are mutually exclusive.
 The meaning of the other options varies according to the operation type.
 
 =over 4
@@ -88,6 +90,10 @@ Sign mail using the supplied certificate and private key. Input file is
 the message to be signed. The signed message in MIME format is written
 to the output file.
 
+=item B<-resign>
+
+Resign a message: take an existing message and one or more new signers.
+
 =item B<-verify>
 
 Verify signed mail. Expects a signed mail message on input and outputs
@@ -96,10 +102,6 @@ the signed data. Both clear text and opaque signing is supported.
 =item B<-pk7out>
 
 Takes an input message and writes out a PEM encoded PKCS#7 structure.
-
-=item B<-resign>
-
-Resign a message: take an existing message and one or more new signers.
 
 =item B<-in> I<filename>
 
@@ -128,7 +130,7 @@ See L<openssl-format-options(1)> for details.
 The key format; unspecified by default.
 See L<openssl-format-options(1)> for details.
 
-=item B<-stream>, B<-indef>, B<-noindef>
+=item B<-stream>, B<-indef>
 
 The B<-stream> and B<-indef> options are equivalent and enable streaming I/O
 for encoding operations. This permits single pass processing of data without
@@ -165,13 +167,13 @@ default digest algorithm for the signing key will be used (usually SHA1).
 
 =item B<-I<cipher>>
 
-The encryption algorithm to use. For example DES  (56 bits) - B<-des>,
-triple DES (168 bits) - B<-des3>,
-EVP_get_cipherbyname() function) can also be used preceded by a dash, for
-example B<-aes-128-cbc>. See L<openssl-enc(1)> for list of ciphers
-supported by your version of OpenSSL.
+The encryption algorithm to use. For example, DES (56 bits) - B<-des>,
+triple DES (168 bits) - B<-des3>, or AES (256 bits) - B<-aes256>.
+Any standard algorithm name (as used by the EVP_get_cipherbyname() function)
+can also be used, preceded by a dash, for example B<-aes-128-cbc>.
+See L<openssl-enc(1)> for a list of ciphers supported by your version of OpenSSL.
 
-If not specified triple DES is used. Only used with B<-encrypt>.
+If not specified, AES-256-CBC is used as the default. Only used with B<-encrypt>.
 
 =item B<-nointern>
 
@@ -232,8 +234,9 @@ option is present B<CRLF> is used instead.
 =item B<-certfile> I<file>
 
 Allows additional certificates to be specified. When signing these will
-be included with the message. When verifying these will be searched for
-the signers certificates.
+be included with the message. When verifying, these will be searched for
+signer certificates and will be used for chain building.
+
 The input can be in PEM, DER, or PKCS#12 format.
 
 =item B<-signer> I<file>
@@ -465,6 +468,8 @@ L<ossl_store-file(7)>
 
 =head1 HISTORY
 
+The default encryption cipher was changed from 3DES to AES-256 in OpenSSL 3.5.
+
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
@@ -474,7 +479,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

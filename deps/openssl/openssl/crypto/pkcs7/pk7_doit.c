@@ -175,7 +175,7 @@ static int pkcs7_encode_rinfo(PKCS7_RECIP_INFO *ri,
     if (EVP_PKEY_encrypt(pctx, ek, &eklen, key, keylen) <= 0)
         goto err;
 
-    ASN1_STRING_set0(ri->enc_key, ek, eklen);
+    ASN1_STRING_set0(ri->enc_key, ek, (int)eklen);
     ek = NULL;
 
     ret = 1;
@@ -221,7 +221,7 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
 
     OPENSSL_clear_free(*pek, *peklen);
     *pek = ek;
-    *peklen = eklen;
+    *peklen = (int)eklen;
 
  err:
     EVP_PKEY_CTX_free(pctx);
@@ -990,7 +990,7 @@ int PKCS7_SIGNER_INFO_sign(PKCS7_SIGNER_INFO *si)
 
     EVP_MD_CTX_free(mctx);
 
-    ASN1_STRING_set0(si->enc_digest, abuf, siglen);
+    ASN1_STRING_set0(si->enc_digest, abuf, (int)siglen);
 
     return 1;
 

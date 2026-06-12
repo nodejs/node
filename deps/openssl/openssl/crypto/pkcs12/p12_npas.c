@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,8 @@ static int newpass_p12(PKCS12 *p12, const char *oldpass, const char *newpass)
     STACK_OF(PKCS7) *asafes = NULL, *newsafes = NULL;
     STACK_OF(PKCS12_SAFEBAG) *bags = NULL;
     int i, bagnid, pbe_nid = 0, pbe_iter = 0, pbe_saltlen = 0, cipherid = NID_undef;
-    PKCS7 *p7, *p7new;
+    PKCS7 *p7;
+    PKCS7 *p7new = NULL;
     ASN1_OCTET_STRING *p12_data_tmp = NULL, *macoct = NULL;
     unsigned char mac[EVP_MAX_MD_SIZE];
     unsigned int maclen;
@@ -99,8 +100,10 @@ static int newpass_p12(PKCS12 *p12, const char *oldpass, const char *newpass)
             p7new = PKCS12_pack_p7encdata_ex(pbe_nid, newpass, -1, NULL,
                                              pbe_saltlen, pbe_iter, bags,
                                              p7->ctx.libctx, p7->ctx.propq);
-        if (p7new == NULL || !sk_PKCS7_push(newsafes, p7new))
+        if (p7new == NULL || !sk_PKCS7_push(newsafes, p7new)) {
+            PKCS7_free(p7new);
             goto err;
+        }
         sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
         bags = NULL;
     }

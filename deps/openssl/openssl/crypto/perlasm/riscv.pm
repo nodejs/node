@@ -2,7 +2,7 @@
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #
-# Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License"). You can obtain
 # a copy in the file LICENSE in the source distribution or at
@@ -13,6 +13,7 @@
 # Copyright (c) 2023, Christoph Müllner <christoph.muellner@vrull.eu>
 # Copyright (c) 2023, Jerry Shih <jerry.shih@sifive.com>
 # Copyright (c) 2023, Phoebe Chen <phoebe.chen@sifive.com>
+# Copyright (c) 2025, Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -276,6 +277,27 @@ ___
     return $seq;
 }
 
+sub roriw_rv64i {
+    my (
+        $rd, $rs, $tmp1, $tmp2, $imm,
+    ) = @_;
+    my $code=<<___;
+    srliw $tmp1, $rs, $imm
+    slliw $tmp2, $rs, (32-$imm)
+    or $rd, $tmp1, $tmp2
+___
+    return $code;
+}
+
+sub orn_rv64i {
+    my ($rd, $rs1, $rs2) = @_;
+    my $code=<<___;
+    not $rd, $rs2
+    or $rd, $rd, $rs1
+___
+    return $code;
+}
+
 # Scalar crypto instructions
 
 sub aes64ds {
@@ -375,6 +397,16 @@ sub clmulh {
     return ".word ".($template | ($rs2 << 20) | ($rs1 << 15) | ($rd << 7));
 }
 
+sub orn {
+    # Encoding for orn rd, rs1, rs2
+    #               0100000 _ rs2 _ rs1 _110_ rd  _0110011
+    my $template = 0b0100000_00000_00000_110_00000_0110011;
+    my $rd = read_reg shift;
+    my $rs1 = read_reg shift;
+    my $rs2 = read_reg shift;
+    return ".word ".($template | ($rs2 << 20) | ($rs1 << 15) | ($rd << 7));
+}
+
 sub rev8 {
     # Encoding for rev8 rd, rs instruction on RV64
     #               XXXXXXXXXXXXX_ rs  _XXX_ rd  _XXXXXXX
@@ -382,6 +414,16 @@ sub rev8 {
     my $rd = read_reg shift;
     my $rs = read_reg shift;
     return ".word ".($template | ($rs << 15) | ($rd << 7));
+}
+
+sub rori {
+    # Encoding for rori rd, rs1, shamt instruction on RV64
+    #               XXXXXXX_ shamt _ rs1 _XXX_ rd  _XXXXXXX
+    my $template = 0b0110000_00000_00000_101_00000_0010011;
+    my $rd = read_reg shift;
+    my $rs1 = read_reg shift;
+    my $shamt = shift;
+    return ".word ".($template | ($shamt << 20) | ($rs1 << 15) | ($rd << 7));
 }
 
 sub roriw {

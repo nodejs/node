@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -301,7 +301,7 @@ int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
             ret = X509_ACERT_add1_attr_by_txt(acert, v->name,
                                               V_ASN1_OCTET_STRING,
                                               (unsigned char *)value,
-                                              strlen(value));
+                                              (int)strlen(value));
             if (!ret)
                 goto err;
         }

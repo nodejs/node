@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -78,7 +78,7 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
     }
     cnt = sk_CONF_VALUE_num(cmd_lists);
     ssl_module_free(md);
-    ssl_names = OPENSSL_zalloc(sizeof(*ssl_names) * cnt);
+    ssl_names = OPENSSL_calloc(cnt, sizeof(*ssl_names));
     if (ssl_names == NULL)
         goto err;
     ssl_names_count = cnt;
@@ -101,7 +101,7 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
         if (ssl_name->name == NULL)
             goto err;
         cnt = sk_CONF_VALUE_num(cmds);
-        ssl_name->cmds = OPENSSL_zalloc(cnt * sizeof(struct ssl_conf_cmd_st));
+        ssl_name->cmds = OPENSSL_calloc(cnt, sizeof(struct ssl_conf_cmd_st));
         if (ssl_name->cmds == NULL)
             goto err;
         ssl_name->cmd_count = cnt;

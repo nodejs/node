@@ -67,7 +67,8 @@ previously signed message.
 The SignedData structure includes several CMS signedAttributes including the
 signing time, the CMS content type and the supported list of ciphers in an
 SMIMECapabilities attribute. If B<CMS_NOATTR> is set then no signedAttributes
-will be used. If B<CMS_NOSMIMECAP> is set then just the SMIMECapabilities are
+will be used at all. If B<CMS_NOSMIMECAP> is set then the SMIMECapabilities
+will be omitted. If B<CMS_NO_SIGNING_TIME> is set then the signing time will be
 omitted.
 
 OpenSSL will by default identify signing certificates using issuer name
@@ -80,6 +81,12 @@ algorithms in preference order: 256 bit AES, Gost R3411-94, Gost 28147-89, 192
 bit AES, 128 bit AES, triple DES, 128 bit RC2, 64 bit RC2, DES and 40 bit RC2.
 If any of these algorithms is not available then it will not be included: for example the GOST algorithms will not be included if the GOST ENGINE is
 not loaded.
+
+Note that, in the case signedAttributes are not used, for some hash-less signing
+schemes the given hash B<md> will be ignored and a hash required by the signing
+scheme will be used. This is the case for EdDSA (RFC 8419). For SLH-DSA (RFC 9814)
+and ML-DSA (RFC 9882), the scheme-suggested hash will only be used if B<md> is
+NULL.
 
 CMS_add1_signer() returns an internal pointer to the CMS_SignerInfo
 structure just added, this can be used to set additional attributes
@@ -99,7 +106,7 @@ L<CMS_final(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

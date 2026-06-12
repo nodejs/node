@@ -1,0 +1,48 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "authors": [
+      {
+        "name": "@VCS_SBOM_AUTHORS@"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:github/openssl/openssl@@VCS_TAG@",
+      "cpe": "cpe:2.3:a:openssl:openssl:@VCS_TAG@:*:*:*:*:*:*:*",
+      "name": "OpenSSL",
+      "version": "@VCS_VERSION@",
+      "description": "TLS/SSL and crypto library",
+      "authors": [
+        {
+          "name": "@VCS_AUTHORS@",
+          "url": "https://raw.githubusercontent.com/openssl/openssl/refs/heads/master/AUTHORS.md"
+        }
+      ],
+      "supplier": {
+        "name": "The OpenSSL Project"
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.openssl.org/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/openssl/openssl"
+        }
+      ]
+    }
+  ]
+}

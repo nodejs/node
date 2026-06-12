@@ -36,6 +36,7 @@
 #define HTTP_STATUS_CODE_MOVED_PERMANENTLY 301
 #define HTTP_STATUS_CODE_FOUND             302
 #define HTTP_STATUS_CODES_NONFATAL_ERROR   400
+#define HTTP_STATUS_CODE_NOT_FOUND         404
 
 /* Stateful HTTP request code, supporting blocking and non-blocking I/O */
 
@@ -488,11 +489,12 @@ static int parse_http_line1(char *line, int *found_keep_alive)
     case HTTP_STATUS_CODE_FOUND:
         return retcode;
     default:
-        if (retcode < HTTP_STATUS_CODES_NONFATAL_ERROR) {
+        if (retcode == HTTP_STATUS_CODE_NOT_FOUND
+            || retcode < HTTP_STATUS_CODES_NONFATAL_ERROR) {
             ERR_raise_data(ERR_LIB_HTTP, HTTP_R_STATUS_CODE_UNSUPPORTED, "code=%s", code);
             if (*reason != '\0')
                 ERR_add_error_data(2, ", reason=", reason);
-        } /* must return content normally if status >= 400 */
+        } /* must return content normally if status >= 400, still tentatively raised error on 404 */
         return retcode;
     }
 
@@ -647,7 +649,7 @@ int OSSL_HTTP_REQ_CTX_nbio(OSSL_HTTP_REQ_CTX *rctx)
             if (rctx->state == OHS_WRITE_HDR1)
                 rctx->state = OHS_WRITE_HDR;
             rctx->pos += sz;
-            rctx->len_to_send -= sz;
+            rctx->len_to_send -= (long)sz;
             goto next_io;
         }
         if (rctx->state == OHS_WRITE_HDR) {
@@ -842,7 +844,7 @@ int OSSL_HTTP_REQ_CTX_nbio(OSSL_HTTP_REQ_CTX *rctx)
             if (*p != '\r' && *p != '\n')
                 break;
         }
-        if (*p != '\0') /* not end of headers or not end of error reponse content */
+        if (*p != '\0') /* not end of headers or not end of error response content */
             goto next_line;
 
         /* Found blank line(s) indicating end of headers */
@@ -1402,6 +1404,8 @@ static char *base64encode(const void *buf, size_t len)
     size_t outl;
     char *out;
 
+    if (len > INT_MAX)
+        return 0;
     /* Calculate size of encoded data */
     outl = (len / 3);
     if (len % 3 > 0)
@@ -1411,7 +1415,7 @@ static char *base64encode(const void *buf, size_t len)
     if (out == NULL)
         return 0;
 
-    i = EVP_EncodeBlock((unsigned char *)out, buf, len);
+    i = EVP_EncodeBlock((unsigned char *)out, buf, (int)len);
     if (!ossl_assert(0 <= i && (size_t)i <= outl)) {
         OPENSSL_free(out);
         return NULL;

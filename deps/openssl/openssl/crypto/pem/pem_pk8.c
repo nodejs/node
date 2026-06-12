@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -87,7 +87,7 @@ static int do_pk8pkey(BIO *bp, const EVP_PKEY *x, int isder, int nid,
     if (kstr == NULL && cb == NULL) {
         if (u != NULL) {
             kstr = u;
-            klen = strlen(u);
+            klen = (int)strlen(u);
         } else {
             cb = PEM_def_callback;
         }

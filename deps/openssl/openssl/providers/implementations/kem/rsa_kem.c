@@ -22,10 +22,12 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #include "crypto/rsa.h"
+#include "internal/cryptlib.h"
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/securitycheck.h"
+#include "providers/implementations/kem/rsa_kem.inc"
 
 static OSSL_FUNC_kem_newctx_fn rsakem_newctx;
 static OSSL_FUNC_kem_encapsulate_init_fn rsakem_encapsulate_init;
@@ -175,45 +177,39 @@ static int rsakem_decapsulate_init(void *vprsactx, void *vrsa,
 static int rsakem_get_ctx_params(void *vprsactx, OSSL_PARAM *params)
 {
     PROV_RSA_CTX *ctx = (PROV_RSA_CTX *)vprsactx;
+    struct rsakem_get_ctx_params_st p;
 
-    if (ctx == NULL)
+    if (ctx == NULL || !rsakem_get_ctx_params_decoder(params, &p))
         return 0;
 
-    if (!OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params))
+    if (!OSSL_FIPS_IND_GET_CTX_FROM_PARAM(ctx, p.ind))
         return 0;
     return 1;
 }
 
-static const OSSL_PARAM known_gettable_rsakem_ctx_params[] = {
-    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *rsakem_gettable_ctx_params(ossl_unused void *vprsactx,
                                                     ossl_unused void *provctx)
 {
-    return known_gettable_rsakem_ctx_params;
+    return rsakem_get_ctx_params_list;
 }
 
 static int rsakem_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
-    const OSSL_PARAM *p;
+    struct rsakem_set_ctx_params_st p;
     int op;
 
-    if (prsactx == NULL)
+    if (prsactx == NULL || !rsakem_set_ctx_params_decoder(params, &p))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    if (!OSSL_FIPS_IND_SET_CTX_PARAM(prsactx, OSSL_FIPS_IND_SETTABLE0, params,
-                                     OSSL_KEM_PARAM_FIPS_KEY_CHECK))
-        return  0;
-    p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_OPERATION);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (!OSSL_FIPS_IND_SET_CTX_FROM_PARAM(prsactx, OSSL_FIPS_IND_SETTABLE0,
+                                          p.ind_k))
+        return 0;
+
+    if (p.op != NULL) {
+        if (p.op->data_type != OSSL_PARAM_UTF8_STRING)
             return 0;
-        op = rsakem_opname2id(p->data);
+        op = rsakem_opname2id(p.op->data);
         if (op < 0)
             return 0;
         prsactx->op = op;
@@ -221,16 +217,10 @@ static int rsakem_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
     return 1;
 }
 
-static const OSSL_PARAM known_settable_rsakem_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_KEM_PARAM_OPERATION, NULL, 0),
-    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_KEM_PARAM_FIPS_KEY_CHECK)
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *rsakem_settable_ctx_params(ossl_unused void *vprsactx,
                                                     ossl_unused void *provctx)
 {
-    return known_settable_rsakem_ctx_params;
+    return rsakem_set_ctx_params_list;
 }
 
 /*
@@ -301,7 +291,7 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     /*
      * If outlen is specified, then it must report the length
      * of the out buffer on input so that we can confirm
-     * its size is sufficent for encapsulation
+     * its size is sufficient for encapsulation
      */
     if (outlen != NULL && *outlen < nlen) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
@@ -312,11 +302,12 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
      * Step (2): Generate a random byte string z of nlen bytes where
      *            1 < z < n - 1
      */
-    if (!rsasve_gen_rand_bytes(prsactx->rsa, secret, nlen))
+    if (!rsasve_gen_rand_bytes(prsactx->rsa, secret, (int)nlen))
         return 0;
 
     /* Step(3): out = RSAEP((n,e), z) */
-    ret = RSA_public_encrypt(nlen, secret, out, prsactx->rsa, RSA_NO_PADDING);
+    ret = RSA_public_encrypt((int)nlen, secret, out, prsactx->rsa,
+                             RSA_NO_PADDING);
     if (ret) {
         ret = 1;
         if (outlen != NULL)
@@ -332,7 +323,7 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
 /**
  * rsasve_recover - Recovers a secret value from ciphertext using an RSA
  * private key.  Once, recovered, the secret value is considered to be a
- * shared secret.  Algorithm is preformed as per
+ * shared secret.  Algorithm is performed as per
  * NIST SP 800-56B Rev 2
  * 7.2.1.3 RSASVE Recovery Operation (RSASVE.RECOVER).
  *
@@ -389,7 +380,7 @@ static int rsasve_recover(PROV_RSA_CTX *prsactx,
     }
 
     /* Step (3): out = RSADP((n,d), in) */
-    ret = RSA_private_decrypt(inlen, in, out, prsactx->rsa, RSA_NO_PADDING);
+    ret = RSA_private_decrypt((int)inlen, in, out, prsactx->rsa, RSA_NO_PADDING);
     if (ret > 0 && outlen != NULL)
         *outlen = ret;
     return ret > 0;

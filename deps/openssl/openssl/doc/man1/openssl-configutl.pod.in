@@ -1,0 +1,72 @@
+=pod
+{- OpenSSL::safe::output_do_not_edit_headers(); -}
+
+=head1 NAME
+
+openssl-configutl - openssl configuration file helper command
+
+=head1 SYNOPSIS
+
+B<openssl> B<configutl>
+[B<-help>]
+[B<-config> I<filename>]
+[B<-out> I<filename>]
+[B<-noheader>]
+
+=head1 DESCRIPTION
+
+Real world openssl configuration files with use of the B<.include> directive
+are quite complex, and there is a need to see the resulting system-wide configuration.
+
+This tool is designed for managing OpenSSL configuration files. Currently it
+processes a configuration file with possibly complex structure and dumps an effective
+resulting configuration file, to stdout by default.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-config> I<filename>
+
+The configuration file to deal with. If omitted, the compiled one or the one defined
+via the B<OPENSSL_CONF> environment variable is used.
+
+=item B<-out> I<filename>
+
+The output file to be used instead of stdout.
+
+=item B<-noheader>
+
+Don't print information about the original config file to be processed.
+
+=back
+
+=head1 EXAMPLES
+
+Dump the configuration file I<my.conf> processing all B<.include> directives to the
+file B<result.conf>
+
+ openssl configutl -config my.conf -out result.conf
+
+=head1 SEE ALSO
+
+L<config(5)>
+
+=head1 HISTORY
+
+The B<configutl> command was added in OpenSSL 3.6.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

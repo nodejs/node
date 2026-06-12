@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright Nokia 2007-2019
 # Copyright Siemens AG 2015-2019
 #
@@ -30,8 +30,10 @@ plan skip_all => "This test is not supported in a shared library build on Window
 plan tests => 2 + ($no_fips ? 0 : 1); #fips test
 
 my @basic_cmd = ("cmp_protect_test",
-                 data_file("server.pem"),
-                 data_file("IR_protected.der"),
+                 data_file("prot_RSA.pem"),
+                 data_file("IR_protected.der"), # signed using prot_RSA.pem
+                 data_file("prot_Ed.pem"), # test/certs/root-ed25519.privkey.pem
+                 data_file("GENM_protected_Ed.der"), # signed using prot_Ed.pem
                  data_file("IR_unprotected.der"),
                  data_file("IP_PBM.der"),
                  data_file("server.crt"),

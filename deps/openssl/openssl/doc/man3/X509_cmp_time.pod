@@ -61,13 +61,26 @@ X509_cmp_time() and X509_cmp_current_time() return -1 if I<asn1_time>
 is earlier than, or equal to, I<in_tm> (resp. current time), and 1
 otherwise. These methods return 0 on error.
 
-X509_cmp_timeframe() returns 0 if I<vpm> is not NULL and the verification
-parameters do not contain B<X509_V_FLAG_USE_CHECK_TIME>
-but do contain B<X509_V_FLAG_NO_CHECK_TIME>. Otherwise it returns
-1 if the end time is not NULL and the reference time (which has determined as
-stated above) is past the end time, -1 if the start time is not NULL and the
-reference time is before, else 0 to indicate that the reference time is in range
-(implying that the end time is not before the start time if both are present).
+X509_cmp_timeframe() compares a reference time to a start and end
+ASN1_TIME value range. The reference time is compared to the start
+value of the range inclusively, and to the end value of the range
+exclusively. The reference time used will retrieved from I<vpm> if the
+flag I<509_V_FLAG_USE_CHECK_TIME> is set in I<vpm>, otherwise it will
+be the current time. The start time used will be I<start> if it is non
+NULL, and a valid ASN1_TIME value, otherwise it will be infinitely in
+the past. The end time used will be I<end> if it is non NULL and a
+valid ASN1_TIME value, otherwise it will be infinitely in the
+future. 0 is returned unconditionally if the flag
+I<X509_V_FLAG_NO_CHECK_TIME> is set in I<vpm>. Otherwise 0 will be
+returned if the reference time is in the range of the start time and
+end time as described above. 1 is returned to indicate the reference
+time is after or equal to the end time. -1 is returned to indicate the
+reference time is before the start time. As this function treats
+invalid ASN1_TIME inputs as unlimited times, it should not be used to
+for temporal verification of certificates using untrusted inputs that
+have not been pre-validated to be correct ASN1_TIME values for a
+certificate as per RFC 5280, as invalid values will be accepted
+as valid forever.
 
 X509_time_adj(), X509_time_adj_ex() and X509_gmtime_adj() return a pointer to
 the updated ASN1_TIME structure, and NULL on error.
@@ -78,7 +91,7 @@ X509_cmp_timeframe() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

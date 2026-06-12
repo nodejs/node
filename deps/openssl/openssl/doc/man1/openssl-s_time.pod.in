@@ -134,6 +134,18 @@ See L<openssl(1)/TLS Version Options>.
 
 =back
 
+=head1 ENVIRONMENT
+
+=over 4
+
+=item B<SSL_CIPHER>
+
+If the B<-cipher> option is not specified, the contents of this environment
+variable are used to modify the TLSv1.2 and below cipher list sent
+by the client the same way the aforementioned option does.
+
+=back
+
 =head1 NOTES
 
 This command can be used to measure the performance of an SSL connection.
@@ -189,7 +201,7 @@ L<ossl_store-file(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

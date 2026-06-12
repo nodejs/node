@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -148,10 +148,13 @@ static int x509_pubkey_ex_d2i_ex(ASN1_VALUE **pval,
     }
 
     /* This ensures that |*in| advances properly no matter what */
-    if ((ret = ASN1_item_ex_d2i(pval, in, len,
-                                ASN1_ITEM_rptr(X509_PUBKEY_INTERNAL),
-                                tag, aclass, opt, ctx)) <= 0)
+    if ((ret = asn1_item_embed_d2i(pval, in, len,
+                                   ASN1_ITEM_rptr(X509_PUBKEY_INTERNAL),
+                                   tag, aclass, opt, ctx, 0,
+                                   NULL, NULL)) <= 0) {
+        x509_pubkey_ex_free(pval, it);
         return ret;
+    }
 
     publen = *in - in_saved;
     if (!ossl_assert(publen > 0)) {
@@ -579,7 +582,7 @@ int i2d_PUBKEY(const EVP_PKEY *a, unsigned char **pp)
             && out != NULL
             && OSSL_ENCODER_to_bio(ctx, out)
             && BIO_get_mem_ptr(out, &buf) > 0) {
-            ret = buf->length;
+            ret = (int)buf->length;
 
             if (pp != NULL) {
                 if (*pp == NULL) {

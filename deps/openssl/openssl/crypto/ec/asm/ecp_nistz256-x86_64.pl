@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2014, Intel Corporation. All Rights Reserved.
 # Copyright (c) 2015 CloudFlare, Inc.
 #
@@ -17,7 +17,7 @@
 # S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with
 #                          256 Bit Primes"
 
-# Further optimization by <appro@openssl.org>:
+# Further optimization by <https://github.com/dot-asm>:
 #
 #		this/original	with/without -DECP_NISTZ256_ASM(*)
 # Opteron	+15-49%		+150-195%
@@ -3051,7 +3051,7 @@ ___
 # reloading them, pointers, would create undesired dependencies on
 # effective addresses calculation paths. In other words it's too done
 # to favour out-of-order execution logic.
-#						<appro@openssl.org>
+#						<https://github.com/dot-asm>
 
 my ($r_ptr,$a_ptr,$b_org,$b_ptr)=("%rdi","%rsi","%rdx","%rbx");
 my ($acc0,$acc1,$acc2,$acc3,$acc4,$acc5,$acc6,$acc7)=map("%r$_",(8..15));

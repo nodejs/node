@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2021, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -48,7 +48,7 @@ static int vaes_gcm_setkey(PROV_GCM_CTX *ctx, const unsigned char *key,
     PROV_AES_GCM_CTX *actx = (PROV_AES_GCM_CTX *)ctx;
     AES_KEY *ks = &actx->ks.ks;
 
-    aesni_set_encrypt_key(key, keylen * 8, ks);
+    aesni_set_encrypt_key(key, (int)(keylen * 8), ks);
     memset(gcmctx, 0, sizeof(*gcmctx));
     gcmctx->key = ks;
     ctx->key_set = 1;
@@ -132,7 +132,7 @@ static int vaes_gcm_aadupdate(PROV_GCM_CTX *ctx,
 
     /* Add remaining AAD to the hash (note, the hash is stored reflected) */
     if (aad_len > 0) {
-        ares = aad_len;
+        ares = (unsigned int)aad_len;
         for (i = 0; i < aad_len; i++)
             gcmctx->Xi.c[15 - i] ^= aad[i];
     }

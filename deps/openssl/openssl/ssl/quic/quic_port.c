@@ -131,7 +131,7 @@ void ossl_quic_port_free(QUIC_PORT *port)
 static int port_init(QUIC_PORT *port)
 {
     size_t rx_short_dcid_len = (port->is_multi_conn ? INIT_DCID_LEN : 0);
-    int key_len;
+    int key_len = -1;
     EVP_CIPHER *cipher = NULL;
     unsigned char *token_key = NULL;
     int ret = 0;
@@ -174,14 +174,17 @@ static int port_init(QUIC_PORT *port)
         || !EVP_EncryptInit_ex(port->token_ctx, cipher, NULL, NULL, NULL)
         || (key_len = EVP_CIPHER_CTX_get_key_length(port->token_ctx)) <= 0
         || (token_key = OPENSSL_malloc(key_len)) == NULL
-        || !RAND_bytes_ex(port->engine->libctx, token_key, key_len, 0)
+        || !RAND_priv_bytes_ex(port->engine->libctx, token_key, key_len, 0)
         || !EVP_EncryptInit_ex(port->token_ctx, NULL, NULL, token_key, NULL))
         goto err;
 
     ret = 1;
 err:
     EVP_CIPHER_free(cipher);
-    OPENSSL_free(token_key);
+    if (key_len >= 1)
+        OPENSSL_clear_free(token_key, key_len);
+    else
+        OPENSSL_free(token_key);
     if (!ret)
         port_cleanup(port);
     return ret;
@@ -516,10 +519,10 @@ static QUIC_CHANNEL *port_make_channel(QUIC_PORT *port, SSL *tls, OSSL_QRX *qrx,
     args.is_tserver_ch = is_tserver;
 
     /*
-     * Creating a a new channel is made a bit tricky here as there is a
-     * bit of a circular dependency.  Initalizing a channel requires that
+     * Creating a new channel is made a bit tricky here as there is a
+     * bit of a circular dependency.  Initializing a channel requires that
      * the ch->tls and optionally the qlog_title be configured prior to
-     * initalization, but we need the channel at least partially configured
+     * initialization, but we need the channel at least partially configured
      * to create the new handshake layer, so we have to do this in a few steps.
      */
 
@@ -737,6 +740,9 @@ static void port_bind_channel(QUIC_PORT *port, const BIO_ADDR *peer,
     if (port->tserver_ch != NULL) {
         ch = port->tserver_ch;
         port->tserver_ch = NULL;
+        if (peer != NULL && BIO_ADDR_family(peer) != AF_UNSPEC)
+            ossl_quic_channel_set_peer_addr(ch, peer);
+
         ossl_quic_channel_bind_qrx(ch, qrx);
         ossl_qrx_set_msg_callback(ch->qrx, ch->msg_callback,
                                   ch->msg_callback_ssl);
@@ -897,7 +903,7 @@ static int marshal_validation_token(QUIC_VALIDATION_TOKEN *token,
     }
 
     if (!WPACKET_init(&wpkt, buf_mem)
-        || !WPACKET_memset(&wpkt, token->is_retry, 1)
+        || !WPACKET_put_bytes_u8(&wpkt, token->is_retry)
         || !WPACKET_memcpy(&wpkt, &token->timestamp,
                            sizeof(token->timestamp))
         || (token->is_retry
@@ -943,10 +949,10 @@ static int encrypt_validation_token(const QUIC_PORT *port,
                                     size_t *ct_len)
 {
     int iv_len, len, ret = 0;
-    size_t tag_len;
+    int tag_len;
     unsigned char *iv = ciphertext, *data, *tag;
 
-    if ((tag_len = EVP_CIPHER_CTX_get_tag_length(port->token_ctx)) == 0
+    if ((tag_len = EVP_CIPHER_CTX_get_tag_length(port->token_ctx)) <= 0
         || (iv_len = EVP_CIPHER_CTX_get_iv_length(port->token_ctx)) <= 0)
         goto err;
 
@@ -961,7 +967,7 @@ static int encrypt_validation_token(const QUIC_PORT *port,
 
     if (!RAND_bytes_ex(port->engine->libctx, ciphertext, iv_len, 0)
         || !EVP_EncryptInit_ex(port->token_ctx, NULL, NULL, NULL, iv)
-        || !EVP_EncryptUpdate(port->token_ctx, data, &len, plaintext, pt_len)
+        || !EVP_EncryptUpdate(port->token_ctx, data, &len, plaintext, (int)pt_len)
         || !EVP_EncryptFinal_ex(port->token_ctx, data + pt_len, &len)
         || !EVP_CIPHER_CTX_ctrl(port->token_ctx, EVP_CTRL_GCM_GET_TAG, tag_len, tag))
         goto err;
@@ -993,15 +999,15 @@ static int decrypt_validation_token(const QUIC_PORT *port,
                                     size_t *pt_len)
 {
     int iv_len, len = 0, ret = 0;
-    size_t tag_len;
+    int tag_len;
     const unsigned char *iv = ciphertext, *data, *tag;
 
-    if ((tag_len = EVP_CIPHER_CTX_get_tag_length(port->token_ctx)) == 0
+    if ((tag_len = EVP_CIPHER_CTX_get_tag_length(port->token_ctx)) <= 0
         || (iv_len = EVP_CIPHER_CTX_get_iv_length(port->token_ctx)) <= 0)
         goto err;
 
     /* Prevent decryption of a buffer that is not within reasonable bounds */
-    if (ct_len < (iv_len + tag_len) || ct_len > ENCRYPTED_TOKEN_MAX_LEN)
+    if (ct_len < (size_t)(iv_len + tag_len) || ct_len > ENCRYPTED_TOKEN_MAX_LEN)
         goto err;
 
     *pt_len = ct_len - iv_len - tag_len;
@@ -1015,7 +1021,7 @@ static int decrypt_validation_token(const QUIC_PORT *port,
 
     if (!EVP_DecryptInit_ex(port->token_ctx, NULL, NULL, NULL, iv)
         || !EVP_DecryptUpdate(port->token_ctx, plaintext, &len, data,
-                              ct_len - iv_len - tag_len)
+                              (int)(ct_len - iv_len - tag_len))
         || !EVP_CIPHER_CTX_ctrl(port->token_ctx, EVP_CTRL_GCM_SET_TAG, tag_len,
                                 (void *)tag)
         || !EVP_DecryptFinal_ex(port->token_ctx, plaintext + len, &len))
@@ -1030,7 +1036,7 @@ err:
 /**
  * @brief Parses contents of a buffer into a validation token.
  *
- * VALIDATION_TOKEN should already be initalized. Does some basic sanity checks.
+ * VALIDATION_TOKEN should already be initialized. Does some basic sanity checks.
  *
  * @param token   Validation token to fill data in.
  * @param buf     Buffer of previously marshaled validation token.
@@ -1288,7 +1294,7 @@ static void port_send_version_negotiation(QUIC_PORT *port, BIO_ADDR *peer,
 }
 
 /**
- * @brief defintions of token lifetimes
+ * @brief definitions of token lifetimes
  *
  * RETRY tokens are only valid for 10 seconds
  * NEW_TOKEN tokens have a lifetime of 3600 sec (1 hour)

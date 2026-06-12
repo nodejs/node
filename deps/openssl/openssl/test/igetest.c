@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -154,7 +154,7 @@ static int test_ige_vectors(int n)
     unsigned char iv[AES_BLOCK_SIZE * 2];
     int testresult = 1;
 
-    if (!TEST_int_le(v->length, MAX_VECTOR_SIZE))
+    if (!TEST_size_t_le(v->length, MAX_VECTOR_SIZE))
         return 0;
 
     if (v->encrypt == AES_ENCRYPT)
@@ -195,15 +195,15 @@ static int test_bi_ige_vectors(int n)
     AES_KEY key2;
     unsigned char buf[MAX_VECTOR_SIZE];
 
-        if (!TEST_int_le(v->length, MAX_VECTOR_SIZE))
+        if (!TEST_size_t_le(v->length, MAX_VECTOR_SIZE))
             return 0;
 
     if (v->encrypt == AES_ENCRYPT) {
-        AES_set_encrypt_key(v->key1, 8 * v->keysize, &key1);
-        AES_set_encrypt_key(v->key2, 8 * v->keysize, &key2);
+        AES_set_encrypt_key(v->key1, (int)(8 * v->keysize), &key1);
+        AES_set_encrypt_key(v->key2, (int)(8 * v->keysize), &key2);
     } else {
-        AES_set_decrypt_key(v->key1, 8 * v->keysize, &key1);
-        AES_set_decrypt_key(v->key2, 8 * v->keysize, &key2);
+        AES_set_decrypt_key(v->key1, (int)(8 * v->keysize), &key1);
+        AES_set_decrypt_key(v->key2, (int)(8 * v->keysize), &key2);
     }
 
     AES_bi_ige_encrypt(v->in, buf, v->length, &key1, &key2, v->iv,

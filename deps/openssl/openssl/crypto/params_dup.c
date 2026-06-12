@@ -10,6 +10,7 @@
 #include <string.h>
 #include <openssl/params.h>
 #include <openssl/param_build.h>
+#include "internal/mem_alloc_utils.h"
 #include "internal/param_build_set.h"
 
 #define OSSL_PARAM_ALLOCATED_END    127
@@ -34,7 +35,13 @@ size_t ossl_param_bytes_to_blocks(size_t bytes)
 static int ossl_param_buf_alloc(OSSL_PARAM_BUF *out, size_t extra_blocks,
                                 int is_secure)
 {
-    size_t sz = OSSL_PARAM_ALIGN_SIZE * (extra_blocks + out->blocks);
+    size_t num_blocks, sz = 0;
+
+    if (ossl_unlikely(!ossl_size_add(extra_blocks, out->blocks, &num_blocks,
+                                     OPENSSL_FILE, OPENSSL_LINE)
+                      || !ossl_size_mul(num_blocks, OSSL_PARAM_ALIGN_SIZE, &sz,
+                                        OPENSSL_FILE, OPENSSL_LINE)))
+        return 0;
 
     out->alloc = is_secure ? OPENSSL_secure_zalloc(sz) : OPENSSL_zalloc(sz);
     if (out->alloc == NULL)
@@ -132,6 +139,7 @@ OSSL_PARAM *OSSL_PARAM_dup(const OSSL_PARAM *src)
     /* Store the allocated secure memory buffer in the last param block */
     ossl_param_set_secure_block(last, buf[OSSL_PARAM_BUF_SECURE].alloc,
                                 buf[OSSL_PARAM_BUF_SECURE].alloc_sz);
+    last->return_size = buf[OSSL_PARAM_BUF_PUBLIC].alloc_sz;
     return dst;
 }
 
@@ -181,7 +189,7 @@ OSSL_PARAM *OSSL_PARAM_merge(const OSSL_PARAM *p1, const OSSL_PARAM *p2)
     qsort(list2, list2_sz, sizeof(OSSL_PARAM *), compare_params);
 
    /* Allocate enough space to store the merged parameters */
-    params = OPENSSL_zalloc((list1_sz + list2_sz + 1) * sizeof(*p1));
+    params = OPENSSL_calloc(list1_sz + list2_sz + 1, sizeof(*p1));
     if (params == NULL)
         return NULL;
     dst = params;
@@ -231,6 +239,21 @@ void OSSL_PARAM_free(OSSL_PARAM *params)
             ;
         if (p->data_type == OSSL_PARAM_ALLOCATED_END)
             OPENSSL_secure_clear_free(p->data, p->data_size);
+        OPENSSL_free(params);
+    }
+}
+
+void OSSL_PARAM_clear_free(OSSL_PARAM *params)
+{
+    if (params != NULL) {
+        OSSL_PARAM *p;
+
+        for (p = params; p->key != NULL; p++)
+            ;
+        if (p->data_type == OSSL_PARAM_ALLOCATED_END)
+            OPENSSL_secure_clear_free(p->data, p->data_size);
+        if (p->return_size > 0 && p->return_size != OSSL_PARAM_UNMODIFIED)
+            OPENSSL_cleanse(params, p->return_size);
         OPENSSL_free(params);
     }
 }

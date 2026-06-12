@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -120,7 +120,7 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
             BIO_puts(bp, "Error in encoding\n");
             goto end;
         }
-        hl = (p - op);
+        hl = (int)(p - op);
         length -= hl;
         /*
          * if j == 0x21 it is a constructed indefinite length object
@@ -141,12 +141,12 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
             if ((j == 0x21) && (len == 0)) {
                 for (;;) {
                     r = asn1_parse2(bp, &p, (long)(tot - p),
-                                    offset + (p - *pp), depth + 1,
+                                    offset + (int)(p - *pp), depth + 1,
                                     indent, dump);
                     if (r == 0)
                         goto end;
                     if ((r == 2) || (p >= tot)) {
-                        len = p - sp;
+                        len = (long)(p - sp);
                         break;
                     }
                 }
@@ -156,11 +156,11 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                 while (p < ep) {
                     sp = p;
                     r = asn1_parse2(bp, &p, tmp,
-                                    offset + (p - *pp), depth + 1,
+                                    offset + (int)(p - *pp), depth + 1,
                                     indent, dump);
                     if (r == 0)
                         goto end;
-                    tmp -= p - sp;
+                    tmp -= (long)(p - sp);
                 }
             }
         } else if (xclass != 0) {
@@ -366,7 +366,7 @@ const char *ASN1_tag2str(int tag)
         "NULL", "OBJECT", "OBJECT DESCRIPTOR", "EXTERNAL", "REAL",
         /* 10-13 */
         "ENUMERATED", "<ASN1 11>", "UTF8STRING", "<ASN1 13>",
-        /* 15-17 */
+        /* 14-17 */
         "<ASN1 14>", "<ASN1 15>", "SEQUENCE", "SET",
         /* 18-20 */
         "NUMERICSTRING", "PRINTABLESTRING", "T61STRING",

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -29,8 +29,9 @@ static unsigned char k[16] = {
     0x23, 0x45, 0x67, 0x89, 0x34, 0x56, 0x78, 0x9A
 };
 
-static unsigned char in[8] =
-    { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+static unsigned char in[8] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF
+};
 
 static int k_len[3] = { 16, 10, 5 };
 

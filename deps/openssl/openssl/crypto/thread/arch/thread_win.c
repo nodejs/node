@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -504,7 +504,7 @@ void ossl_crypto_condvar_broadcast(CRYPTO_CONDVAR *cv_)
     cv->closed     = 1;
 
     ossl_crypto_mutex_unlock(cv->int_m);
-    ReleaseSemaphore(cv->sema, num_wake, NULL);
+    ReleaseSemaphore(cv->sema, (LONG)num_wake, NULL);
 }
 
 void ossl_crypto_condvar_signal(CRYPTO_CONDVAR *cv_)

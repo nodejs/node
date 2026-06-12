@@ -16,8 +16,8 @@ OPENSSL_sk_dup, OPENSSL_sk_find, OPENSSL_sk_find_ex, OPENSSL_sk_find_all,
 OPENSSL_sk_free, OPENSSL_sk_insert, OPENSSL_sk_is_sorted, OPENSSL_sk_new,
 OPENSSL_sk_new_null, OPENSSL_sk_new_reserve, OPENSSL_sk_num, OPENSSL_sk_pop,
 OPENSSL_sk_pop_free, OPENSSL_sk_push, OPENSSL_sk_reserve, OPENSSL_sk_set,
-OPENSSL_sk_set_cmp_func, OPENSSL_sk_shift, OPENSSL_sk_sort,
-OPENSSL_sk_unshift, OPENSSL_sk_value, OPENSSL_sk_zero
+OPENSSL_sk_set_thunks, OPENSSL_sk_set_cmp_func, OPENSSL_sk_shift,
+OPENSSL_sk_sort, OPENSSL_sk_unshift, OPENSSL_sk_value, OPENSSL_sk_zero
 - stack container
 
 =head1 SYNOPSIS
@@ -52,9 +52,9 @@ OPENSSL_sk_unshift, OPENSSL_sk_value, OPENSSL_sk_zero
  void sk_TYPE_pop_free(STACK_OF(TYPE) *sk, sk_TYPE_freefunc freefunc);
  int sk_TYPE_insert(STACK_OF(TYPE) *sk, TYPE *ptr, int idx);
  TYPE *sk_TYPE_set(STACK_OF(TYPE) *sk, int idx, const TYPE *ptr);
- int sk_TYPE_find(STACK_OF(TYPE) *sk, TYPE *ptr);
- int sk_TYPE_find_ex(STACK_OF(TYPE) *sk, TYPE *ptr);
- int sk_TYPE_find_all(STACK_OF(TYPE) *sk, TYPE *ptr, int *pnum);
+ int sk_TYPE_find(const STACK_OF(TYPE) *sk, TYPE *ptr);
+ int sk_TYPE_find_ex(const STACK_OF(TYPE) *sk, TYPE *ptr);
+ int sk_TYPE_find_all(const STACK_OF(TYPE) *sk, TYPE *ptr, int *pnum);
  void sk_TYPE_sort(const STACK_OF(TYPE) *sk);
  int sk_TYPE_is_sorted(const STACK_OF(TYPE) *sk);
  STACK_OF(TYPE) *sk_TYPE_dup(const STACK_OF(TYPE) *sk);
@@ -170,18 +170,14 @@ B<sk_I<TYPE>_set>() sets element I<idx> of I<sk> to I<ptr> replacing the current
 element. The new element value is returned or NULL if an error occurred:
 this will only happen if I<sk> is NULL or I<idx> is out of range.
 
-B<sk_I<TYPE>_find>() searches I<sk> for the element I<ptr>.  In the case
-where no comparison function has been specified, the function performs
-a linear search for a pointer equal to I<ptr>. The index of the first
-matching element is returned or B<-1> if there is no match. In the case
-where a comparison function has been specified, I<sk> is sorted and
-B<sk_I<TYPE>_find>() returns the index of a matching element or B<-1> if there
-is no match. Note that, in this case the comparison function will usually
-compare the values pointed to rather than the pointers themselves and
-the order of elements in I<sk> can change. Note that because the stack may be
-sorted as the result of a B<sk_I<TYPE>_find>() call, if a lock is being used to
-synchronise access to the stack across multiple threads, then that lock must be
-a "write" lock.
+B<sk_I<TYPE>_find>() searches I<sk> for the element I<ptr>. In the
+case where no comparison function has been specified, the function
+performs a linear search for a pointer equal to I<ptr>. In the case
+where a comparison function has been specified, the function performs
+a search for a element that the comparison function indicates is a
+match. If the stack is sorted, a binary search is used, otherwise, a
+linear search is used. B<sk_I<TYPE>_find>() returns the index of a
+matching element or B<-1> if there is no match.
 
 B<sk_I<TYPE>_find_ex>() operates like B<sk_I<TYPE>_find>() except when a
 comparison function has been specified and no matching element is found.
@@ -244,8 +240,11 @@ OPENSSL_sk_free(), OPENSSL_sk_insert(), OPENSSL_sk_is_sorted(),
 OPENSSL_sk_new(), OPENSSL_sk_new_null(), OPENSSL_sk_new_reserve(),
 OPENSSL_sk_num(), OPENSSL_sk_pop(), OPENSSL_sk_pop_free(), OPENSSL_sk_push(),
 OPENSSL_sk_reserve(), OPENSSL_sk_set(), OPENSSL_sk_set_cmp_func(),
-OPENSSL_sk_shift(), OPENSSL_sk_sort(), OPENSSL_sk_unshift(),
-OPENSSL_sk_value(), OPENSSL_sk_zero().
+OPENSSL_sk_set_thunks(), OPENSSL_sk_shift(), OPENSSL_sk_sort(),
+OPENSSL_sk_unshift(), OPENSSL_sk_value(), OPENSSL_sk_zero().
+
+OPENSSL_sk_set_thunks(), while public by necessity, is actually an internal
+function and should not be used.
 
 =head1 RETURN VALUES
 
@@ -273,7 +272,6 @@ on error.
 
 B<sk_I<TYPE>_insert>(), B<sk_I<TYPE>_push>() and B<sk_I<TYPE>_unshift>() return
 the total number of elements in the stack and 0 if an error occurred.
-B<sk_I<TYPE>_push>() further returns -1 if I<sk> is NULL.
 
 B<sk_I<TYPE>_set>() returns a pointer to the replacement element or NULL on
 error.
@@ -295,9 +293,19 @@ and was not a public API.
 B<sk_I<TYPE>_reserve>() and B<sk_I<TYPE>_new_reserve>() were added in OpenSSL
 1.1.1.
 
+From OpenSSL 3.2.0, the B<sk_I<TYPE>_find>(), B<sk_I<TYPE>_find_ex>()
+and B<sk_I<TYPE>_find_all>() calls are read-only and do not sort the
+stack.  To avoid any performance implications this change introduces,
+B<sk_I<TYPE>_sort>() should be called before these find operations.
+
+Before OpenSSL 3.3.0 B<sk_I<TYPE>_push>() returned -1 if I<sk> was NULL. It
+was changed to return 0 in this condition as for other errors.
+
+OPENSSL_sk_set_thunks() was added in OpenSSL 3.6.0.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

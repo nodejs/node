@@ -1,0 +1,47 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('dsa_get_params',
+                         (['OSSL_PKEY_PARAM_BITS',               'bits',           'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_BITS',      'secbits',        'int'],
+                          ['OSSL_PKEY_PARAM_MAX_SIZE',           'maxsize',        'int'],
+                          ['OSSL_PKEY_PARAM_SECURITY_CATEGORY',  'seccat',         'int'],
+                          ['OSSL_PKEY_PARAM_DEFAULT_DIGEST',     'digest',         'utf8_string'],
+                          ['OSSL_PKEY_PARAM_FFC_P',              'ffp.p',          'BN'],
+                          ['OSSL_PKEY_PARAM_FFC_Q',              'ffp.q',          'BN'],
+                          ['OSSL_PKEY_PARAM_FFC_G',              'ffp.g',          'BN'],
+                          ['OSSL_PKEY_PARAM_FFC_COFACTOR',       'ffp.cofactor',   'BN'],
+                          ['OSSL_PKEY_PARAM_FFC_GINDEX',         'ffp.g_index',    'int'],
+                          ['OSSL_PKEY_PARAM_FFC_PCOUNTER',       'ffp.p_counter',  'int'],
+                          ['OSSL_PKEY_PARAM_FFC_H',              'ffp.h',          'int'],
+                          ['OSSL_PKEY_PARAM_FFC_SEED',           'ffp.seed',       'octet_string'],
+                          ['OSSL_PKEY_PARAM_PUB_KEY',            'pubkey',         'BN'],
+                          ['OSSL_PKEY_PARAM_PRIV_KEY',           'privkey',        'BN'],
+                         )); -}
+
+{- produce_param_decoder('dsa_gen_set_params',
+                         (['OSSL_PKEY_PARAM_FFC_TYPE',         'type',      'utf8_string'],
+                          ['OSSL_PKEY_PARAM_FFC_PBITS',        'pbits',     'size_t'],
+                          ['OSSL_PKEY_PARAM_FFC_QBITS',        'qbits',     'size_t'],
+                          ['OSSL_PKEY_PARAM_FFC_DIGEST',       'digest',    'utf8_string'],
+                          ['OSSL_PKEY_PARAM_FFC_DIGEST_PROPS', 'propq',     'utf8_string'],
+                          ['OSSL_PKEY_PARAM_FFC_GINDEX',       'g_index',   'int'],
+                          ['OSSL_PKEY_PARAM_FFC_SEED',         'seed',      'octet_string'],
+                          ['OSSL_PKEY_PARAM_FFC_PCOUNTER',     'p_counter', 'int'],
+                          ['OSSL_PKEY_PARAM_FFC_H',            'h',         'int'],
+                          ['OSSL_PKEY_PARAM_FIPS_SIGN_CHECK',  'ind_sign',  'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('dsa_gen_get_params',
+                         (['OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR', 'ind', 'int', 'fips'],
+                         )); -}

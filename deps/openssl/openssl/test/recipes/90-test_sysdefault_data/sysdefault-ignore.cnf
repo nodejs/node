@@ -1,0 +1,23 @@
+# Configuration file to test system default SSL configuration
+
+# We ignore configuration errors with config_diagnostics unset
+# config_diagnostics = 1
+
+openssl_conf = default_conf
+
+[ default_conf ]
+
+ssl_conf = ssl_sect
+oid_section = oid_sect
+
+[oid_sect]
+new-sig-oid = 1.1.1.1.1.1.1.1.1.1.1.1.1.1
+
+[ssl_sect]
+
+system_default = ssl_default_sect
+
+[ssl_default_sect]
+SignatureAlgorithms = RSA+SHA256:nonex
+MaxProtocol = TLSv1.2
+MinProtocol = TLSv1.2

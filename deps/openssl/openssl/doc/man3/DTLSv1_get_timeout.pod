@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+DTLSv1_get_timeout - determine when a DTLS or QUIC SSL object next needs a
+timeout event to be handled
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int DTLSv1_get_timeout(SSL *s, struct timeval *tv);
+
+=head1 DESCRIPTION
+
+DTLSv1_get_timeout() can be used on a DTLS or QUIC SSL object to determine when
+the SSL object next needs to perform internal processing due to the passage of
+time.
+
+Calling DTLSv1_get_timeout() results in I<*tv> being written with an amount of
+time left before the SSL object needs have DTLSv1_handle_timeout() called on it.
+If the SSL object needs to be ticked immediately, I<*tv> is zeroed and the
+function succeeds, returning 1. If no timeout is currently active, this function
+returns 0.
+
+This function is only applicable to DTLS and QUIC objects. It fails if called on
+any other kind of SSL object.
+
+Note that the value output by a call to DTLSv1_get_timeout() may change as a
+result of other calls to the SSL object.
+
+Once the timeout expires, DTLSv1_handle_timeout() should be called to handle any
+internal processing which is due; for more information, see
+L<DTLSv1_handle_timeout(3)>.
+
+L<SSL_get_event_timeout(3)> supersedes all use cases for this this function and
+may be used instead of it.
+
+=head1 RETURN VALUES
+
+On success, writes a duration to I<*tv> and returns 1.
+
+Returns 0 on failure, or if no timeout is currently active.
+
+=head1 SEE ALSO
+
+L<DTLSv1_handle_timeout(3)>, L<SSL_get_event_timeout(3)>, L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

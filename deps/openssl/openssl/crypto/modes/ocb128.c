@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -110,7 +110,7 @@ static OCB_BLOCK *ocb_lookup_l(OCB128_CONTEXT *ctx, size_t idx)
          * the index.
          */
         ctx->max_l_index += (idx - ctx->max_l_index + 4) & ~3;
-        tmp_ptr = OPENSSL_realloc(ctx->l, ctx->max_l_index * sizeof(OCB_BLOCK));
+        tmp_ptr = OPENSSL_realloc_array(ctx->l, ctx->max_l_index, sizeof(OCB_BLOCK));
         if (tmp_ptr == NULL) /* prevent ctx->l from being clobbered */
             return NULL;
         ctx->l = tmp_ptr;
@@ -155,7 +155,7 @@ int CRYPTO_ocb128_init(OCB128_CONTEXT *ctx, void *keyenc, void *keydec,
     memset(ctx, 0, sizeof(*ctx));
     ctx->l_index = 0;
     ctx->max_l_index = 5;
-    if ((ctx->l = OPENSSL_malloc(ctx->max_l_index * 16)) == NULL)
+    if ((ctx->l = OPENSSL_malloc_array(ctx->max_l_index, 16)) == NULL)
         return 0;
 
     /*
@@ -200,7 +200,7 @@ int CRYPTO_ocb128_copy_ctx(OCB128_CONTEXT *dest, OCB128_CONTEXT *src,
     if (keydec)
         dest->keydec = keydec;
     if (src->l) {
-        if ((dest->l = OPENSSL_malloc(src->max_l_index * 16)) == NULL)
+        if ((dest->l = OPENSSL_malloc_array(src->max_l_index, 16)) == NULL)
             return 0;
         memcpy(dest->l, src->l, (src->l_index + 1) * 16);
     }

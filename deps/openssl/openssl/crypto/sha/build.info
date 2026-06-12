@@ -18,6 +18,9 @@ IF[{- !$disabled{asm} -}]
   $SHA1ASM_alpha=sha1-alpha.S
   $SHA1DEF_alpha=SHA1_ASM
 
+  $SHA1ASM_loongarch64=sha256-loongarch64.S sha512-loongarch64.S
+  $SHA1DEF_loongarch64=SHA256_ASM SHA512_ASM
+
   $SHA1ASM_mips32=sha1-mips.S sha256-mips.S
   $SHA1DEF_mips32=SHA1_ASM SHA256_ASM
   $SHA1ASM_mips64=$SHA1ASM_mips32 sha512-mips.S
@@ -46,7 +49,7 @@ IF[{- !$disabled{asm} -}]
   $SHA1ASM_c64xplus=sha1-c64xplus.s sha256-c64xplus.s sha512-c64xplus.s
   $SHA1DEF_c64xplus=SHA1_ASM SHA256_ASM SHA512_ASM
 
-  $SHA1ASM_riscv64=sha_riscv.c sha256-riscv64-zvkb-zvknha_or_zvknhb.S sha512-riscv64-zvkb-zvknhb.S
+  $SHA1ASM_riscv64=sha_riscv.c sha256-riscv64.S sha256-riscv64-zbb.S sha256-riscv64-zvkb-zvknha_or_zvknhb.S sha512-riscv64-zbb.S sha512-riscv64-zvkb-zvknhb.S
   $SHA1DEF_riscv64=SHA256_ASM INCLUDE_C_SHA256 SHA512_ASM INCLUDE_C_SHA512
 
   # Now that we have defined all the arch specific variables, use the
@@ -133,6 +136,11 @@ GENERATE[sha1-parisc.s]=asm/sha1-parisc.pl
 GENERATE[sha256-parisc.s]=asm/sha512-parisc.pl
 GENERATE[sha512-parisc.s]=asm/sha512-parisc.pl
 
+GENERATE[sha256-loongarch64.S]=asm/sha256-loongarch64.pl
+INCLUDE[sha256-loongarch64.o]=..
+GENERATE[sha512-loongarch64.S]=asm/sha512-loongarch64.pl
+INCLUDE[sha512-loongarch64.o]=..
+
 GENERATE[sha1-mips.S]=asm/sha1-mips.pl
 INCLUDE[sha1-mips.o]=..
 GENERATE[sha256-mips.S]=asm/sha512-mips.pl
@@ -170,7 +178,10 @@ GENERATE[sha1-c64xplus.S]=asm/sha1-c64xplus.pl
 GENERATE[sha256-c64xplus.S]=asm/sha256-c64xplus.pl
 GENERATE[sha512-c64xplus.S]=asm/sha512-c64xplus.pl
 
+GENERATE[sha256-riscv64.S]=asm/sha256-riscv64-zbb.pl
+GENERATE[sha256-riscv64-zbb.S]=asm/sha256-riscv64-zbb.pl zbb
 GENERATE[sha256-riscv64-zvkb-zvknha_or_zvknhb.S]=asm/sha256-riscv64-zvkb-zvknha_or_zvknhb.pl
+GENERATE[sha512-riscv64-zbb.S]=asm/sha512-riscv64-zbb.pl
 GENERATE[sha512-riscv64-zvkb-zvknhb.S]=asm/sha512-riscv64-zvkb-zvknhb.pl
 
 # These are not yet used and do not support multi-squeeze

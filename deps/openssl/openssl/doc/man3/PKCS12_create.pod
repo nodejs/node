@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-PKCS12_create, PKCS12_create_ex - create a PKCS#12 structure
+PKCS12_create, PKCS12_create_ex, PKCS12_create_cb, PKCS12_create_ex2 - create a PKCS#12 structure
 
 =head1 SYNOPSIS
 
@@ -16,6 +16,13 @@ PKCS12_create, PKCS12_create_ex - create a PKCS#12 structure
                           int iter, int mac_iter, int keytype,
                           OSSL_LIB_CTX *ctx, const char *propq);
 
+ typedef int PKCS12_create_cb(PKCS12_SAFEBAG *bag, void *cbarg);
+
+ PKCS12 *PKCS12_create_ex2(const char *pass, const char *name, EVP_PKEY *pkey,
+                           X509 *cert, STACK_OF(X509) *ca, int nid_key, int nid_cert,
+                           int iter, int mac_iter, int keytype,
+                           OSSL_LIB_CTX *ctx, const char *propq,
+                           PKCS12_create_cb *cb, void *cbarg);
 =head1 DESCRIPTION
 
 PKCS12_create() creates a PKCS#12 structure.
@@ -33,6 +40,14 @@ I<keytype> is the type of key.
 
 PKCS12_create_ex() is identical to PKCS12_create() but allows for a library context
 I<ctx> and property query I<propq> to be used to select algorithm implementations.
+
+PKCS12_create_ex2() is identical to PKCS12_create_ex() but allows for a user defined
+callback I<cb> of type B<PKCS12_create_cb> to be specified and also allows for an
+optional argument I<cbarg> to be passed back to the callback.
+
+The I<cb> if specified will be called for every safebag added to the
+PKCS12 structure and allows for optional application processing on the associated
+safebag. For example one such use could be to add attributes to the safebag.
 
 =head1 NOTES
 
@@ -82,6 +97,9 @@ PKCS12_create() makes assumptions regarding the encoding of the given pass
 phrase.
 See L<passphrase-encoding(7)> for more information.
 
+If I<cb> is specified, then it should return 1 for success and -1 for a fatal error.
+A return of 0 is intended to mean to not add the bag after all.
+
 =head1 RETURN VALUES
 
 PKCS12_create() returns a valid B<PKCS12> structure or NULL if an error occurred.
@@ -100,6 +118,7 @@ L<passphrase-encoding(7)>
 =head1 HISTORY
 
 PKCS12_create_ex() was added in OpenSSL 3.0.
+PKCS12_create_ex2() was added in OpenSSL 3.2.
 
 The defaults for encryption algorithms, MAC algorithm, and the MAC key
 derivation iteration count were changed in OpenSSL 3.0 to more modern

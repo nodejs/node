@@ -165,7 +165,7 @@ slh_hmsg_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *r, const uint8_t *pk_seed,
     memcpy(seed + n, pk_seed, n);
     return digest_4(hctx->md_big_ctx, r, n, pk_seed, n, pk_root, n, msg, msg_len,
                     seed + 2 * n)
-        && (PKCS1_MGF1(out, m, seed, seed_len, hctx->key->md_big) == 0);
+        && (PKCS1_MGF1(out, (long)m, seed, (long)seed_len, hctx->key->md_big) == 0);
 }
 
 static int

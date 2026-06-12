@@ -134,8 +134,9 @@ static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
             return NULL;
         }
         ret = asn1_multi(asn1_tags.utype, asn1_tags.str, cnf, depth, perr);
-    } else
+    } else {
         ret = asn1_str2type(asn1_tags.str, asn1_tags.format, asn1_tags.utype);
+    }
 
     if (!ret)
         return NULL;
@@ -160,7 +161,7 @@ static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
         if (r & 0x80)
             goto err;
         /* Update copy length */
-        cpy_len -= cpy_start - orig_der;
+        cpy_len -= (int)(cpy_start - orig_der);
         /*
          * For IMPLICIT tagging the length should match the original length
          * and constructed flag should be consistent.
@@ -169,16 +170,20 @@ static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
             /* Indefinite length constructed */
             hdr_constructed = 2;
             hdr_len = 0;
-        } else
+        } else {
             /* Just retain constructed flag */
             hdr_constructed = r & V_ASN1_CONSTRUCTED;
+        }
         /*
          * Work out new length with IMPLICIT tag: ignore constructed because
          * it will mess up if indefinite length
          */
         len = ASN1_object_size(0, hdr_len, asn1_tags.imp_tag);
-    } else
+        if (len == -1)
+            goto err;
+    } else {
         len = cpy_len;
+    }
 
     /* Work out length in any EXPLICIT, starting from end */
 
@@ -189,6 +194,8 @@ static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
         etmp->exp_len = len;
         /* Total object length: length including new header */
         len = ASN1_object_size(0, len, etmp->exp_tag);
+        if (len == -1)
+            goto err;
     }
 
     /* Allocate buffer for new encoding */
@@ -255,8 +262,8 @@ static int asn1_cb(const char *elem, int len, void *bitstr)
         /* Look for the ':' in name value pairs */
         if (*p == ':') {
             vstart = p + 1;
-            vlen = len - (vstart - elem);
-            len = p - elem;
+            vlen = len - (int)(vstart - elem);
+            len = (int)(p - elem);
             break;
         }
     }
@@ -362,7 +369,7 @@ static int parse_tagging(const char *vstart, int vlen, int *ptag, int *pclass)
     *ptag = tag_num;
     /* If we have non numeric characters, parse them */
     if (eptr)
-        vlen -= eptr - vstart;
+        vlen -= (int)(eptr - vstart);
     else
         vlen = 0;
     if (vlen) {
@@ -562,7 +569,7 @@ static int asn1_str2tag(const char *tagstr, int len)
     };
 
     if (len == -1)
-        len = strlen(tagstr);
+        len = (int)strlen(tagstr);
 
     tntmp = tnst;
     for (i = 0; i < OSSL_NELEM(tnst); i++, tntmp++) {

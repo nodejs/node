@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+CMAC_CTX, CMAC_CTX_new, CMAC_CTX_cleanup, CMAC_CTX_free,
+CMAC_CTX_get0_cipher_ctx, CMAC_CTX_copy, CMAC_Init, CMAC_Update, CMAC_Final,
+CMAC_resume
+- create cipher-based message authentication codes
+
+=head1 SYNOPSIS
+
+ #include <openssl/cmac.h>
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+disabled entirely by defining B<OPENSSL_API_COMPAT> with a suitable version
+value, see L<openssl_user_macros(7)>.
+
+ typedef struct CMAC_CTX_st CMAC_CTX;
+
+ CMAC_CTX *CMAC_CTX_new(void);
+ void CMAC_CTX_cleanup(CMAC_CTX *ctx);
+ void CMAC_CTX_free(CMAC_CTX *ctx);
+ EVP_CIPHER_CTX *CMAC_CTX_get0_cipher_ctx(CMAC_CTX *ctx);
+ int CMAC_CTX_copy(CMAC_CTX *out, const CMAC_CTX *in);
+ int CMAC_Init(CMAC_CTX *ctx, const void *key, size_t keylen,
+               const EVP_CIPHER *cipher, ENGINE *impl);
+ int CMAC_Update(CMAC_CTX *ctx, const void *data, size_t dlen);
+ int CMAC_Final(CMAC_CTX *ctx, unsigned char *out, size_t *poutlen);
+ int CMAC_resume(CMAC_CTX *ctx);
+
+=head1 DESCRIPTION
+
+The low-level MAC functions documented on this page are deprecated.
+Applications should use the new L<EVP_MAC(3)> interface.
+Specifically, utilize the following functions for MAC operations:
+
+=over 4
+
+=item L<EVP_MAC_CTX_new(3)> to create a new MAC context.
+
+=item L<EVP_MAC_CTX_free(3)> to free the MAC context.
+
+=item L<EVP_MAC_init(3)> to initialize the MAC context.
+
+=item L<EVP_MAC_update(3)> to update the MAC with data.
+
+=item L<EVP_MAC_final(3)> to finalize the MAC and retrieve the output.
+
+=back
+
+Alternatively, for a single-step MAC computation, use the L<EVP_Q_mac(3)>
+function.
+
+The B<CMAC_CTX> type is a structure used for the provision of CMAC
+(Cipher-based Message Authentication Code) operations.
+
+CMAC_CTX_new() creates a new B<CMAC_CTX> structure and returns a pointer to it.
+
+CMAC_CTX_cleanup() resets the B<CMAC_CTX> structure, clearing any internal data
+but not freeing the structure itself.
+
+CMAC_CTX_free() frees the B<CMAC_CTX> structure and any associated resources.
+If the argument is NULL, no action is taken.
+
+CMAC_CTX_get0_cipher_ctx() returns a pointer to the internal B<EVP_CIPHER_CTX>
+structure within the B<CMAC_CTX>.
+
+CMAC_CTX_copy() copies the state from one B<CMAC_CTX> structure to another.
+
+CMAC_Init() initializes the B<CMAC_CTX> structure for a new CMAC calculation
+with the specified key, key length, and cipher type.
+Optionally, an B<ENGINE> can be provided.
+
+CMAC_Update() processes data to be included in the CMAC calculation.
+This function can be called multiple times to update the context with
+additional data.
+
+CMAC_Final() finalizes the CMAC calculation and retrieves the resulting
+MAC value. The output is stored in the provided buffer, and the length is
+stored in the variable pointed to by I<poutlen>. To determine the required
+buffer size, call with I<out> set to NULL, which stores only the length in
+I<poutlen>. Allocate a buffer of this size and call CMAC_Final() again with
+the allocated buffer to retrieve the MAC.
+
+CMAC_resume() resumes a previously finalized CMAC calculation, allowing
+additional data to be processed and a new MAC to be generated.
+
+=head1 RETURN VALUES
+
+CMAC_CTX_new() returns a pointer to a new B<CMAC_CTX> structure or NULL if
+an error occurs.
+
+CMAC_CTX_get0_cipher_ctx() returns a pointer to the internal
+B<EVP_CIPHER_CTX> structure, or NULL if an error occurs.
+
+CMAC_CTX_copy(), CMAC_Init(), CMAC_Update(), CMAC_Final() and CMAC_resume()
+return 1 for success or 0 if an error occurs.
+
+=head1 HISTORY
+
+All functions described here were deprecated in OpenSSL 3.0. For replacements,
+see L<EVP_MAC_CTX_new(3)>, L<EVP_MAC_CTX_free(3)>, L<EVP_MAC_init(3)>,
+L<EVP_MAC_update(3)>, and L<EVP_MAC_final(3)>.
+
+=head1 COPYRIGHT
+
+Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

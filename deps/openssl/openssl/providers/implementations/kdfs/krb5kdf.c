@@ -30,6 +30,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/provider_util.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/kdfs/krb5kdf.inc"
 
 /* KRB5 KDF defined in RFC 3961, Section 5.1 */
 
@@ -153,24 +154,24 @@ static int krb5kdf_derive(void *vctx, unsigned char *key, size_t keylen,
 
 static int krb5kdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
-    const OSSL_PARAM *p;
+    struct krb5kdf_set_ctx_params_st p;
     KRB5KDF_CTX *ctx = vctx;
-    OSSL_LIB_CTX *provctx = PROV_LIBCTX_OF(ctx->provctx);
+    OSSL_LIB_CTX *provctx;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!ossl_prov_cipher_load_from_params(&ctx->cipher, params, provctx))
+    if (ctx == NULL || !krb5kdf_set_ctx_params_decoder(params, &p))
         return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_KEY)) != NULL)
-        if (!krb5kdf_set_membuf(&ctx->key, &ctx->key_len, p))
-            return 0;
+    provctx = PROV_LIBCTX_OF(ctx->provctx);
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_CONSTANT))
-        != NULL)
-        if (!krb5kdf_set_membuf(&ctx->constant, &ctx->constant_len, p))
-            return 0;
+    if (!ossl_prov_cipher_load(&ctx->cipher, p.cipher, p.propq, p.engine, provctx))
+        return 0;
+
+    if (p.key != NULL && !krb5kdf_set_membuf(&ctx->key, &ctx->key_len, p.key))
+        return 0;
+
+    if (p.cnst != NULL
+            && !krb5kdf_set_membuf(&ctx->constant, &ctx->constant_len, p.cnst))
+        return 0;
 
     return 1;
 }
@@ -178,42 +179,36 @@ static int krb5kdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *krb5kdf_settable_ctx_params(ossl_unused void *ctx,
                                                      ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_CIPHER, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_KEY, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_CONSTANT, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return known_settable_ctx_params;
+     return krb5kdf_set_ctx_params_list;
 }
 
 static int krb5kdf_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
+    struct krb5kdf_get_ctx_params_st p;
     KRB5KDF_CTX *ctx = (KRB5KDF_CTX *)vctx;
-    const EVP_CIPHER *cipher;
-    size_t len;
-    OSSL_PARAM *p;
 
-    cipher = ossl_prov_cipher_cipher(&ctx->cipher);
-    if (cipher)
-        len = EVP_CIPHER_get_key_length(cipher);
-    else
-        len = EVP_MAX_KEY_LENGTH;
+    if (ctx == NULL || !krb5kdf_get_ctx_params_decoder(params, &p))
+        return 0;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_KDF_PARAM_SIZE)) != NULL)
-        return OSSL_PARAM_set_size_t(p, len);
-    return -2;
+    if (p.size != NULL) {
+        const EVP_CIPHER *cipher = ossl_prov_cipher_cipher(&ctx->cipher);
+        size_t len;
+
+        if (cipher != NULL)
+            len = EVP_CIPHER_get_key_length(cipher);
+        else
+            len = EVP_MAX_KEY_LENGTH;
+
+        if (!OSSL_PARAM_set_size_t(p.size, len))
+            return 0;
+    }
+    return 1;
 }
 
 static const OSSL_PARAM *krb5kdf_gettable_ctx_params(ossl_unused void *ctx,
                                                      ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
-        OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+    return krb5kdf_get_ctx_params_list;
 }
 
 const OSSL_DISPATCH ossl_kdf_krb5kdf_functions[] = {
@@ -284,7 +279,7 @@ static int fixup_des3_key(unsigned char *key)
  * finally add carry if any
  */
 static void n_fold(unsigned char *block, unsigned int blocksize,
-                   const unsigned char *constant, size_t constant_len)
+                   const unsigned char *constant, unsigned int constant_len)
 {
     unsigned int tmp, gcd, remainder, lcm, carry;
     int b, l;
@@ -356,7 +351,7 @@ static int cipher_init(EVP_CIPHER_CTX *ctx,
     /* set the key len for the odd variable key len cipher */
     klen = EVP_CIPHER_CTX_get_key_length(ctx);
     if (key_len != (size_t)klen) {
-        ret = EVP_CIPHER_CTX_set_key_length(ctx, key_len);
+        ret = EVP_CIPHER_CTX_set_key_length(ctx, (int)key_len);
         if (ret <= 0) {
             ret = 0;
             goto out;
@@ -431,7 +426,7 @@ static int KRB5KDF(const EVP_CIPHER *cipher, ENGINE *engine,
         goto out;
     }
 
-    n_fold(block, blocksize, constant, constant_len);
+    n_fold(block, (unsigned int)blocksize, constant, (unsigned int)constant_len);
     plainblock = block;
     cipherblock = block + EVP_MAX_BLOCK_LENGTH;
 
@@ -439,7 +434,7 @@ static int KRB5KDF(const EVP_CIPHER *cipher, ENGINE *engine,
         int olen;
 
         ret = EVP_EncryptUpdate(ctx, cipherblock, &olen,
-                                plainblock, blocksize);
+                                plainblock, (int)blocksize);
         if (!ret)
             goto out;
         cipherlen = olen;
@@ -494,4 +489,3 @@ out:
     OPENSSL_cleanse(block, EVP_MAX_BLOCK_LENGTH * 2);
     return ret;
 }
-

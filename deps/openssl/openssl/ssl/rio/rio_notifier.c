@@ -83,7 +83,7 @@ static int create_socket(int domain, int socktype, int protocol)
     /*
      * Its also possible that someone is building a binary on a newer windows
      * SDK, but running it on a runtime that doesn't support inheritance
-     * supression.  In that case the above will return INVALID_SOCKET, and
+     * suppression.  In that case the above will return INVALID_SOCKET, and
      * our response for those older platforms is to try the call again
      * without the flag
      */
@@ -142,7 +142,7 @@ static int create_socket(int domain, int socktype, int protocol)
  *
  * Win32 does not support socketpair(2), and Win32 pipes are not compatible with
  * Winsock select(2). This means our only means of making select(2) wakeable is
- * to artifically create a loopback TCP connection and send bytes to it.
+ * to artificially create a loopback TCP connection and send bytes to it.
  */
 int ossl_rio_notifier_init(RIO_NOTIFIER *nfy)
 {

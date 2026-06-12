@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -114,7 +114,7 @@ int sess_id_main(int argc, char **argv)
             goto end;
         }
         if (!SSL_SESSION_set1_id_context(x, (unsigned char *)context,
-                                         ctx_len)) {
+                                         (unsigned int)ctx_len)) {
             BIO_printf(bio_err, "Error setting id context\n");
             goto end;
         }

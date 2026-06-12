@@ -1,12 +1,12 @@
 Certificate Revocation List (CRL):
-        Version 2 (0x1)
-        Signature Algorithm: sha256WithRSAEncryption
-        Issuer: C=RU, ST=Москва, O=Я, OU=Я, CN=Дмитрий Белявский, emailAddress=beldmit@example.com
-        Last Update: Apr 24 13:25:31 2017 GMT
-        Next Update: May 24 13:25:31 2017 GMT
-        CRL extensions:
-            X509v3 CRL Number: 
-                1
+    Version 2 (0x1)
+    Signature Algorithm: sha256WithRSAEncryption
+    Issuer: C=RU, ST=Москва, O=Я, OU=Я, CN=Дмитрий Белявский, emailAddress=beldmit@example.com
+    Last Update: Apr 24 13:25:31 2017 GMT
+    Next Update: May 24 13:25:31 2017 GMT
+    CRL extensions:
+        X509v3 CRL Number: 
+            1
 No Revoked Certificates.
     Signature Algorithm: sha256WithRSAEncryption
     Signature Value:

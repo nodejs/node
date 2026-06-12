@@ -2,18 +2,13 @@
 
 =head1 NAME
 
-PEM_write, PEM_write_bio,
-PEM_read, PEM_read_bio, PEM_do_header, PEM_get_EVP_CIPHER_INFO
+PEM_read, PEM_read_bio, PEM_do_header, PEM_get_EVP_CIPHER_INFO, PEM_write,
+PEM_write_bio, PEM_ASN1_write, PEM_ASN1_write_bio, PEM_ASN1_write_bio_ctx
 - PEM encoding routines
 
 =head1 SYNOPSIS
 
  #include <openssl/pem.h>
-
- int PEM_write(FILE *fp, const char *name, const char *header,
-               const unsigned char *data, long len);
- int PEM_write_bio(BIO *bp, const char *name, const char *header,
-                   const unsigned char *data, long len);
 
  int PEM_read(FILE *fp, char **name, char **header,
               unsigned char **data, long *len);
@@ -23,6 +18,23 @@ PEM_read, PEM_read_bio, PEM_do_header, PEM_get_EVP_CIPHER_INFO
  int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cinfo);
  int PEM_do_header(EVP_CIPHER_INFO *cinfo, unsigned char *data, long *len,
                    pem_password_cb *cb, void *u);
+
+ int PEM_write(FILE *fp, const char *name, const char *header,
+               const unsigned char *data, long len);
+ int PEM_write_bio(BIO *bp, const char *name, const char *header,
+                   const unsigned char *data, long len);
+ int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp,
+                    const void *x, const EVP_CIPHER *enc,
+                    const unsigned char *kstr, int klen,
+                    pem_password_cb *callback, void *u);
+ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
+                        const void *x, const EVP_CIPHER *enc,
+                        const unsigned char *kstr, int klen,
+                        pem_password_cb *callback, void *u);
+ int PEM_ASN1_write_bio_ctx(OSSL_i2d_of_void_ctx *i2d, void *vctx,
+                            const char *name, BIO *bp, const void *x,
+                            const EVP_CIPHER *enc, const unsigned char *kstr,
+                            int klen, pem_password_cb *callback, void *u);
 
 =head1 DESCRIPTION
 
@@ -89,9 +101,9 @@ nor PEM_get_EVP_CIPHER_INFO() need be called.
 
 =head1 RETURN VALUES
 
-PEM_read() and PEM_read_bio() return 1 on success and 0 on failure, the latter
-includes the case when no more PEM objects remain in the input file.
-To distinguish end of file from more serious errors the caller must peek at the
+PEM_read(), and PEM_read_bio() return 1 on success and 0 on failure, the latter
+includes the case when no more PEM objects remain in the input file.  To
+distinguish end of file from more serious errors the caller must peek at the
 error stack and check for B<PEM_R_NO_START_LINE>, which indicates that no more
 PEM objects were found.  See L<ERR_peek_last_error(3)>, L<ERR_GET_REASON(3)>.
 
@@ -114,15 +126,26 @@ PEM_do_header() makes no assumption regarding the pass phrase received from the
 password callback.
 It will simply be treated as a byte sequence.
 
+PEM_write() and PEM_write_bio() return the number of encoded bytes (not
+counting the PEM header and end marker) written on success or 0 on failure.
+
+PEM_ASN1_write_bio(), and PEM_ASN1_write_bio_ctx() return 1 on success and 0 on
+failure.  The latter function passes an additional application-provided context
+value to the B<i2d> function that serialises the input ASN.1 object.
+
 =head1 SEE ALSO
 
 L<ERR_peek_last_error(3)>, L<ERR_GET_LIB(3)>,
 L<d2i_PKCS8PrivateKey_bio(3)>,
 L<passphrase-encoding(7)>
 
+=head1 HISTORY
+
+The PEM_ASN1_write_bio_ctx() function was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

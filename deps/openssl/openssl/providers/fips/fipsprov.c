@@ -16,6 +16,7 @@
 #include <openssl/rand.h> /* RAND_get0_public() */
 #include <openssl/proverr.h>
 #include <openssl/indicator.h>
+#include <openssl/self_test.h>
 #include "internal/cryptlib.h"
 #include "internal/provider.h"
 #include "prov/implementations.h"
@@ -29,6 +30,10 @@
 #include "crypto/context.h"
 #include "fipscommon.h"
 #include "internal/core.h"
+#include "internal/fips.h"
+#include "internal/mem_alloc_utils.h"
+#include "internal/thread_once.h"
+#include "internal/threads_common.h"
 
 static const char FIPS_DEFAULT_PROPERTIES[] = "provider=fips,fips=yes";
 static const char FIPS_UNAPPROVED_PROPERTIES[] = "provider=fips,fips=no";
@@ -119,8 +124,12 @@ void *ossl_fips_prov_ossl_ctx_new(OSSL_LIB_CTX *libctx)
     return fgbl;
 }
 
+static void deferred_deinit(void);
+
 void ossl_fips_prov_ossl_ctx_free(void *fgbl)
 {
+    /* Also free deferred variables when the FIPS Global context is killed */
+    deferred_deinit();
     OPENSSL_free(fgbl);
 }
 
@@ -270,27 +279,33 @@ static int fips_self_test(void *provctx)
  * NIST uses, or that are used for ASN.1 OBJECT IDENTIFIERs, or names
  * we have used historically.
  */
+
+#define FIPS_DIGESTS_COMMON()                                                  \
+    { PROV_NAMES_SHA1, FIPS_DEFAULT_PROPERTIES, ossl_sha1_functions },         \
+    { PROV_NAMES_SHA2_224, FIPS_DEFAULT_PROPERTIES, ossl_sha224_functions },   \
+    { PROV_NAMES_SHA2_256, FIPS_DEFAULT_PROPERTIES, ossl_sha256_functions },   \
+    { PROV_NAMES_SHA2_384, FIPS_DEFAULT_PROPERTIES, ossl_sha384_functions },   \
+    { PROV_NAMES_SHA2_512, FIPS_DEFAULT_PROPERTIES, ossl_sha512_functions },   \
+    { PROV_NAMES_SHA2_512_224, FIPS_DEFAULT_PROPERTIES,                        \
+      ossl_sha512_224_functions },                                             \
+    { PROV_NAMES_SHA2_512_256, FIPS_DEFAULT_PROPERTIES,                        \
+      ossl_sha512_256_functions },                                             \
+    { PROV_NAMES_SHA3_224, FIPS_DEFAULT_PROPERTIES, ossl_sha3_224_functions }, \
+    { PROV_NAMES_SHA3_256, FIPS_DEFAULT_PROPERTIES, ossl_sha3_256_functions }, \
+    { PROV_NAMES_SHA3_384, FIPS_DEFAULT_PROPERTIES, ossl_sha3_384_functions }, \
+    { PROV_NAMES_SHA3_512, FIPS_DEFAULT_PROPERTIES, ossl_sha3_512_functions }, \
+    { PROV_NAMES_SHAKE_128, FIPS_DEFAULT_PROPERTIES, ossl_shake_128_functions }, \
+    { PROV_NAMES_SHAKE_256, FIPS_DEFAULT_PROPERTIES, ossl_shake_256_functions }
+
 static const OSSL_ALGORITHM fips_digests[] = {
-    /* Our primary name:NiST name[:our older names] */
-    { PROV_NAMES_SHA1, FIPS_DEFAULT_PROPERTIES, ossl_sha1_functions },
-    { PROV_NAMES_SHA2_224, FIPS_DEFAULT_PROPERTIES, ossl_sha224_functions },
-    { PROV_NAMES_SHA2_256, FIPS_DEFAULT_PROPERTIES, ossl_sha256_functions },
-    { PROV_NAMES_SHA2_384, FIPS_DEFAULT_PROPERTIES, ossl_sha384_functions },
-    { PROV_NAMES_SHA2_512, FIPS_DEFAULT_PROPERTIES, ossl_sha512_functions },
-    { PROV_NAMES_SHA2_512_224, FIPS_DEFAULT_PROPERTIES,
-      ossl_sha512_224_functions },
-    { PROV_NAMES_SHA2_512_256, FIPS_DEFAULT_PROPERTIES,
-      ossl_sha512_256_functions },
-
-    /* We agree with NIST here, so one name only */
-    { PROV_NAMES_SHA3_224, FIPS_DEFAULT_PROPERTIES, ossl_sha3_224_functions },
-    { PROV_NAMES_SHA3_256, FIPS_DEFAULT_PROPERTIES, ossl_sha3_256_functions },
-    { PROV_NAMES_SHA3_384, FIPS_DEFAULT_PROPERTIES, ossl_sha3_384_functions },
-    { PROV_NAMES_SHA3_512, FIPS_DEFAULT_PROPERTIES, ossl_sha3_512_functions },
-
-    { PROV_NAMES_SHAKE_128, FIPS_DEFAULT_PROPERTIES, ossl_shake_128_functions },
-    { PROV_NAMES_SHAKE_256, FIPS_DEFAULT_PROPERTIES, ossl_shake_256_functions },
-
+    FIPS_DIGESTS_COMMON(),
+    { NULL, NULL, NULL }
+};
+static const OSSL_ALGORITHM fips_digests_internal[] = {
+    FIPS_DIGESTS_COMMON(),
+    /* Used by LMS/HSS */
+    { PROV_NAMES_SHA2_256_192, FIPS_DEFAULT_PROPERTIES,
+      ossl_sha256_192_internal_functions },
     /*
      * KECCAK-KMAC-128 and KECCAK-KMAC-256 as hashes are mostly useful for
      * KMAC128 and KMAC256.
@@ -356,6 +371,24 @@ static const OSSL_ALGORITHM_CAPABLE fips_ciphers[] = {
          ossl_cipher_capable_aes_cbc_hmac_sha256),
     ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA256, ossl_aes256cbc_hmac_sha256_functions,
          ossl_cipher_capable_aes_cbc_hmac_sha256),
+    ALGC(PROV_NAMES_AES_128_CBC_HMAC_SHA1_ETM, ossl_aes128cbc_hmac_sha1_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha1_etm),
+    ALGC(PROV_NAMES_AES_192_CBC_HMAC_SHA1_ETM, ossl_aes192cbc_hmac_sha1_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha1_etm),
+    ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA1_ETM, ossl_aes256cbc_hmac_sha1_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha1_etm),
+    ALGC(PROV_NAMES_AES_128_CBC_HMAC_SHA256_ETM, ossl_aes128cbc_hmac_sha256_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha256_etm),
+    ALGC(PROV_NAMES_AES_192_CBC_HMAC_SHA256_ETM, ossl_aes192cbc_hmac_sha256_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha256_etm),
+    ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA256_ETM, ossl_aes256cbc_hmac_sha256_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha256_etm),
+    ALGC(PROV_NAMES_AES_128_CBC_HMAC_SHA512_ETM, ossl_aes128cbc_hmac_sha512_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
+    ALGC(PROV_NAMES_AES_192_CBC_HMAC_SHA512_ETM, ossl_aes192cbc_hmac_sha512_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
+    ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA512_ETM, ossl_aes256cbc_hmac_sha512_etm_functions,
+         ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
 #ifndef OPENSSL_NO_DES
     ALG(PROV_NAMES_DES_EDE3_ECB, ossl_tdes_ede3_ecb_functions),
     ALG(PROV_NAMES_DES_EDE3_CBC, ossl_tdes_ede3_cbc_functions),
@@ -385,20 +418,33 @@ static const OSSL_ALGORITHM fips_macs_internal[] = {
     { NULL, NULL, NULL }
 };
 
+#define FIPS_KDFS_COMMON()                                                               \
+    { PROV_NAMES_HKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hkdf_functions },               \
+    { PROV_NAMES_HKDF_SHA256, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hkdf_sha256_functions }, \
+    { PROV_NAMES_HKDF_SHA384, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hkdf_sha384_functions }, \
+    { PROV_NAMES_HKDF_SHA512, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hkdf_sha512_functions }, \
+    { PROV_NAMES_TLS1_3_KDF, FIPS_DEFAULT_PROPERTIES,                                    \
+      ossl_kdf_tls1_3_kdf_functions },                                                   \
+    { PROV_NAMES_SSKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_sskdf_functions },             \
+    { PROV_NAMES_PBKDF2, FIPS_DEFAULT_PROPERTIES, ossl_kdf_pbkdf2_functions },           \
+    { PROV_NAMES_SSHKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_sshkdf_functions },           \
+    { PROV_NAMES_X963KDF, FIPS_DEFAULT_PROPERTIES,                                       \
+      ossl_kdf_x963_kdf_functions },                                                     \
+    { PROV_NAMES_X942KDF_ASN1, FIPS_DEFAULT_PROPERTIES,                                  \
+      ossl_kdf_x942_kdf_functions },                                                     \
+    { PROV_NAMES_TLS1_PRF, FIPS_DEFAULT_PROPERTIES,                                      \
+      ossl_kdf_tls1_prf_functions },                                                     \
+    { PROV_NAMES_KBKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_kbkdf_functions }
+
 static const OSSL_ALGORITHM fips_kdfs[] = {
-    { PROV_NAMES_HKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hkdf_functions },
-    { PROV_NAMES_TLS1_3_KDF, FIPS_DEFAULT_PROPERTIES,
-      ossl_kdf_tls1_3_kdf_functions },
-    { PROV_NAMES_SSKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_sskdf_functions },
-    { PROV_NAMES_PBKDF2, FIPS_DEFAULT_PROPERTIES, ossl_kdf_pbkdf2_functions },
-    { PROV_NAMES_SSHKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_sshkdf_functions },
-    { PROV_NAMES_X963KDF, FIPS_DEFAULT_PROPERTIES,
-      ossl_kdf_x963_kdf_functions },
-    { PROV_NAMES_X942KDF_ASN1, FIPS_DEFAULT_PROPERTIES,
-      ossl_kdf_x942_kdf_functions },
-    { PROV_NAMES_TLS1_PRF, FIPS_DEFAULT_PROPERTIES,
-      ossl_kdf_tls1_prf_functions },
-    { PROV_NAMES_KBKDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_kbkdf_functions },
+    FIPS_KDFS_COMMON(),
+    { NULL, NULL, NULL }
+};
+
+static const OSSL_ALGORITHM fips_kdfs_internal[] = {
+    FIPS_KDFS_COMMON(),
+    /* For deterministic ECDSA */
+    { PROV_NAMES_HMAC_DRBG_KDF, FIPS_DEFAULT_PROPERTIES, ossl_kdf_hmac_drbg_functions },
     { NULL, NULL, NULL }
 };
 
@@ -502,6 +548,9 @@ static const OSSL_ALGORITHM fips_signature[] = {
     { PROV_NAMES_CMAC, FIPS_DEFAULT_PROPERTIES,
       ossl_mac_legacy_cmac_signature_functions },
 #endif
+#ifndef OPENSSL_NO_LMS
+    { PROV_NAMES_LMS, FIPS_DEFAULT_PROPERTIES, ossl_lms_signature_functions },
+#endif
 #ifndef OPENSSL_NO_SLH_DSA
     { PROV_NAMES_SLH_DSA_SHA2_128S, FIPS_DEFAULT_PROPERTIES,
       ossl_slh_dsa_sha2_128s_signature_functions, PROV_DESCS_SLH_DSA_SHA2_128S },
@@ -601,6 +650,10 @@ static const OSSL_ALGORITHM fips_keymgmt[] = {
     { PROV_NAMES_CMAC, FIPS_DEFAULT_PROPERTIES,
       ossl_cmac_legacy_keymgmt_functions, PROV_DESCS_CMAC_SIGN },
 #endif
+#ifndef OPENSSL_NO_LMS
+    { PROV_NAMES_LMS, FIPS_DEFAULT_PROPERTIES, ossl_lms_keymgmt_functions,
+      PROV_DESCS_LMS },
+#endif
 #ifndef OPENSSL_NO_ML_KEM
     { PROV_NAMES_ML_KEM_512, FIPS_DEFAULT_PROPERTIES, ossl_ml_kem_512_keymgmt_functions,
       PROV_DESCS_ML_KEM_512 },
@@ -650,6 +703,14 @@ static const OSSL_ALGORITHM fips_keymgmt[] = {
     { NULL, NULL, NULL }
 };
 
+static const OSSL_ALGORITHM fips_skeymgmt[] = {
+    { PROV_NAMES_AES, FIPS_DEFAULT_PROPERTIES, ossl_aes_skeymgmt_functions,
+      PROV_DESCS_AES },
+    { PROV_NAMES_GENERIC, FIPS_DEFAULT_PROPERTIES, ossl_generic_skeymgmt_functions,
+      PROV_DESCS_GENERIC },
+    { NULL, NULL, NULL }
+};
+
 static const OSSL_ALGORITHM *fips_query(void *provctx, int operation_id,
                                         int *no_cache)
 {
@@ -679,6 +740,8 @@ static const OSSL_ALGORITHM *fips_query(void *provctx, int operation_id,
         return fips_asym_cipher;
     case OSSL_OP_KEM:
         return fips_asym_kem;
+    case OSSL_OP_SKEYMGMT:
+        return fips_skeymgmt;
     }
     return NULL;
 }
@@ -686,12 +749,20 @@ static const OSSL_ALGORITHM *fips_query(void *provctx, int operation_id,
 static const OSSL_ALGORITHM *fips_query_internal(void *provctx, int operation_id,
                                                  int *no_cache)
 {
-    if (operation_id == OSSL_OP_MAC) {
-        *no_cache = 0;
-        if (!ossl_prov_is_running())
-            return NULL;
+    *no_cache = 0;
+
+    if (!ossl_prov_is_running())
+        return NULL;
+
+    switch (operation_id) {
+    case OSSL_OP_DIGEST:
+        return fips_digests_internal;
+    case OSSL_OP_MAC:
         return fips_macs_internal;
+    case OSSL_OP_KDF:
+        return fips_kdfs_internal;
     }
+
     return fips_query(provctx, operation_id, no_cache);
 }
 
@@ -1121,7 +1192,7 @@ int CRYPTO_secure_allocated(const void *ptr)
 void *CRYPTO_aligned_alloc(size_t num, size_t align, void **freeptr,
                            const char *file, int line)
 {
-    return NULL;
+    return ossl_malloc_align(num, align, freeptr, file, line);
 }
 
 int BIO_snprintf(char *buf, size_t n, const char *format, ...)
@@ -1174,4 +1245,168 @@ void OSSL_INDICATOR_get_callback(OSSL_LIB_CTX *libctx,
         if (cb != NULL)
             *cb = NULL;
     }
+}
+
+/* Deferred test infrastructure */
+
+/* Guards access to deferred self-test */
+static CRYPTO_RWLOCK *deferred_lock;
+
+static CRYPTO_ONCE deferred_once = CRYPTO_ONCE_STATIC_INIT;
+static void deferred_init(void)
+{
+    if ((deferred_lock = CRYPTO_THREAD_lock_new()) == NULL)
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_CREATE_LOCK);
+}
+static void deferred_deinit(void)
+{
+    if (deferred_lock) {
+        CRYPTO_THREAD_lock_free(deferred_lock);
+        deferred_lock = NULL;
+    }
+}
+
+static int FIPS_kat_deferred(OSSL_LIB_CTX *libctx, FIPS_DEFERRED_TEST *test)
+{
+    int ret = FIPS_DEFERRED_TEST_FAILED;
+
+    if (!CRYPTO_THREAD_run_once(&deferred_once, deferred_init))
+        return FIPS_DEFERRED_TEST_FAILED;
+
+    if (deferred_lock == NULL)
+        return FIPS_DEFERRED_TEST_FAILED;
+
+    /*
+     * before we do anything, make sure a local test is not already in
+     * progress or we'll deadlock
+     */
+    if (CRYPTO_THREAD_get_local_ex(CRYPTO_THREAD_LOCAL_FIPS_DEFERRED_KEY,
+                                   libctx) != NULL)
+        return FIPS_DEFERRED_TEST_IN_PROGRESS;
+
+    if (CRYPTO_THREAD_write_lock(deferred_lock)) {
+        OSSL_SELF_TEST *ev = NULL;
+        bool unset_key = false;
+        OSSL_CALLBACK *cb = NULL;
+        void *cb_arg = NULL;
+
+        /*
+         * check again as another thread may have just performed this
+         * test and marked it as passed
+         */
+        if (test->state == FIPS_DEFERRED_TEST_PASSED) {
+            ret = FIPS_DEFERRED_TEST_PASSED;
+            goto done;
+        }
+
+        /*
+         * mark that we are executing a test on the local thread, does not
+         * matter what value, as long as it is not NULL, Cool?
+         */
+        if (!CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_FIPS_DEFERRED_KEY,
+                                        libctx, (void *)0xC001))
+            goto done;
+
+        unset_key = true;
+
+        if (c_stcbfn != NULL && c_get_libctx != NULL)
+            c_stcbfn(c_get_libctx(FIPS_get_core_handle(libctx)), &cb, &cb_arg);
+
+        if ((ev = OSSL_SELF_TEST_new(cb, cb_arg)) == NULL)
+            goto done;
+
+        /* Mark test as in progress */
+        test->state = FIPS_DEFERRED_TEST_IN_PROGRESS;
+
+        /* execute test */
+        if (SELF_TEST_kats_single(ev, libctx, test->category, test->algorithm))
+            ret = FIPS_DEFERRED_TEST_PASSED;
+
+    done:
+        /* Mark test as pass or fail */
+        test->state = ret;
+
+        if (ev)
+            OSSL_SELF_TEST_free(ev);
+        if (unset_key)
+            CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_FIPS_DEFERRED_KEY,
+                                       libctx, NULL);
+        CRYPTO_THREAD_unlock(deferred_lock);
+    }
+    return ret;
+}
+
+static void deferred_test_error(int category)
+{
+    const char *category_name = "Unknown Category Test";
+
+    switch (category) {
+    case FIPS_DEFERRED_KAT_CIPHER:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_CIPHER;
+        break;
+    case FIPS_DEFERRED_KAT_ASYM_CIPHER:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_ASYM_CIPHER;
+        break;
+    case FIPS_DEFERRED_KAT_ASYM_KEYGEN:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_ASYM_KEYGEN;
+        break;
+    case FIPS_DEFERRED_KAT_KEM:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_KEM;
+        break;
+    case FIPS_DEFERRED_KAT_DIGEST:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_DIGEST;
+        break;
+    case FIPS_DEFERRED_KAT_SIGNATURE:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_SIGNATURE;
+        break;
+    case FIPS_DEFERRED_KAT_KDF:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_KDF;
+        break;
+    case FIPS_DEFERRED_KAT_KA:
+        category_name = OSSL_SELF_TEST_TYPE_KAT_KA;
+        break;
+    case FIPS_DEFERRED_DRBG:
+        category_name = OSSL_SELF_TEST_TYPE_DRBG;
+        break;
+    }
+    ossl_set_error_state(category_name);
+}
+
+int FIPS_deferred_self_tests(OSSL_LIB_CTX *libctx, FIPS_DEFERRED_TEST tests[])
+{
+    int i;
+
+    /*
+     * NOTE: that the order in which we check the 'state' here is not important,
+     * if multiple threads are racing to check it the worst case scenario is
+     * that they will all try to run the tests. Proper locking for preventing
+     * concurrent tests runs and saving state from multiple threads is handled
+     * in FIPS_kat_deferred() so this race is of no real consequence.
+     */
+    for (i = 0; tests[i].algorithm != NULL; i++) {
+        if (tests[i].state != FIPS_DEFERRED_TEST_PASSED) {
+            int state;
+
+            /* any other threads that request a self test will lock and wait */
+            state = FIPS_kat_deferred(libctx, &tests[i]);
+            switch (state) {
+            case FIPS_DEFERRED_TEST_IN_PROGRESS:
+                /*
+                 * A self test is in progress for this thread so we let this
+                 * thread continue and perform the test while all other
+                 * threads wait for it to complete.
+                 */
+                return 1;
+            case FIPS_DEFERRED_TEST_PASSED:
+                /* success, move on to the next */
+                break;
+            default:
+                deferred_test_error(tests[i].category);
+                return 0;
+            }
+        }
+    }
+
+    /* all tests passed */
+    return 1;
 }

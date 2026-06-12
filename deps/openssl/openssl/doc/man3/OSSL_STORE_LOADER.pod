@@ -19,6 +19,7 @@ OSSL_STORE_LOADER_set_attach, OSSL_STORE_LOADER_set_ctrl,
 OSSL_STORE_LOADER_set_expect, OSSL_STORE_LOADER_set_find,
 OSSL_STORE_LOADER_set_load, OSSL_STORE_LOADER_set_eof,
 OSSL_STORE_LOADER_set_error, OSSL_STORE_LOADER_set_close,
+OSSL_STORE_LOADER_settable_ctx_params,
 OSSL_STORE_register_loader, OSSL_STORE_unregister_loader,
 OSSL_STORE_open_fn, OSSL_STORE_open_ex_fn,
 OSSL_STORE_attach_fn, OSSL_STORE_ctrl_fn,
@@ -51,6 +52,8 @@ unregister STORE loaders for different URI schemes
  int OSSL_STORE_LOADER_names_do_all(const OSSL_STORE_LOADER *loader,
                                     void (*fn)(const char *name, void *data),
                                     void *data);
+ const OSSL_PARAM *
+ OSSL_STORE_LOADER_settable_ctx_params(const OSSL_STORE_LOADER *loader);
 
 The following functions have been deprecated since OpenSSL 3.0, and can be
 hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
@@ -147,6 +150,11 @@ I<user_arg> as arguments.
 
 OSSL_STORE_LOADER_names_do_all() traverses all names for the given
 I<loader>, and calls I<fn> with each name and I<data>.
+
+OSSL_STORE_LOADER_settable_ctx_params() return a constant L<OSSL_PARAM(3)> array
+that describes the names and types of key parameters that can be passed to
+L<OSSL_STORE_open_ex(3)>.
+
 
 =head2 Legacy Types and Functions (deprecated)
 
@@ -383,9 +391,11 @@ OSSL_STORE_unregister_loader(), OSSL_STORE_open_fn(), OSSL_STORE_ctrl_fn(),
 OSSL_STORE_load_fn(), OSSL_STORE_eof_fn() and OSSL_STORE_close_fn()
 were added in OpenSSL 1.1.1, and became deprecated in OpenSSL 3.0.
 
+OSSL_STORE_LOADER_settable_ctx_params() was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

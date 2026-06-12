@@ -117,9 +117,11 @@ $code .= <<___;
 .globl sha256_block_data_order_zvkb_zvknha_or_zvknhb
 .type   sha256_block_data_order_zvkb_zvknha_or_zvknhb,\@function
 sha256_block_data_order_zvkb_zvknha_or_zvknhb:
-    @{[vsetivli "zero", 4, "e32", "m1", "ta", "ma"]}
 
-    @{[sha_256_load_constant]}
+    # Setup v0 mask for the vmerge to replace the first word (idx==0) in key-scheduling.
+    # The AVL is 4 in SHA, so we could use a single e8(8 element masking) for masking.
+    @{[vsetivli "zero", 1, "e8", "m1", "ta", "ma"]}
+    @{[vmv_v_i $V0, 0x01]}
 
     # H is stored as {a,b,c,d},{e,f,g,h}, but we need {f,e,b,a},{h,g,d,c}
     # The dst vtype is e32m1 and the index vtype is e8mf4.
@@ -141,12 +143,7 @@ sha256_block_data_order_zvkb_zvknha_or_zvknhb:
     @{[vluxei8_v $V6, $H, $V26]}
     @{[vluxei8_v $V7, $H2, $V26]}
 
-    # Setup v0 mask for the vmerge to replace the first word (idx==0) in key-scheduling.
-    # The AVL is 4 in SHA, so we could use a single e8(8 element masking) for masking.
-    @{[vsetivli "zero", 1, "e8", "m1", "ta", "ma"]}
-    @{[vmv_v_i $V0, 0x01]}
-
-    @{[vsetivli "zero", 4, "e32", "m1", "ta", "ma"]}
+    @{[sha_256_load_constant]}
 
 L_round_loop:
     # Decrement length by 1

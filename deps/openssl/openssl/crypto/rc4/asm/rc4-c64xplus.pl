@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # RC4 for C64x+.
@@ -182,7 +182,7 @@ _rc4_options:
 	.align	4
 rc4_options:
 	.cstring "rc4(sploop,char)"
-	.cstring "RC4 for C64+, CRYPTOGAMS by <appro\@openssl.org>"
+	.cstring "RC4 for C64+, CRYPTOGAMS by <https://github.com/dot-asm>"
 	.align	4
 ___
 

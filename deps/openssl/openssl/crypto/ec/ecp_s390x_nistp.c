@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -135,6 +135,7 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
     ECDSA_SIG *sig;
     const EC_GROUP *group;
     const BIGNUM *privkey;
+    BN_CTX *bn_ctx = NULL;
     int off;
 
     group = EC_KEY_get0_group(eckey);
@@ -189,8 +190,12 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
              goto ret;
          }
     } else {
+        bn_ctx = BN_CTX_secure_new_ex(ossl_ec_key_get_libctx(eckey));
+        if (bn_ctx == NULL)
+            goto ret;
+
         /* Reconstruct k = (k^-1)^-1. */
-        if (ossl_ec_group_do_inverse_ord(group, k, kinv, NULL) == 0
+        if (ossl_ec_group_do_inverse_ord(group, k, kinv, bn_ctx) == 0
             || BN_bn2binpad(k, param + S390X_OFF_RN(len), len) == -1) {
             ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto ret;
@@ -212,6 +217,7 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
 
     ok = 1;
 ret:
+    BN_CTX_free(bn_ctx);
     OPENSSL_cleanse(param, sizeof(param));
     if (ok != 1) {
         ECDSA_SIG_free(sig);

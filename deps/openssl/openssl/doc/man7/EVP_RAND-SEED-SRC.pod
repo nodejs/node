@@ -39,7 +39,7 @@ These parameters work as described in L<EVP_RAND(3)/PARAMETERS>.
 A context for the seed source can be obtained by calling:
 
  EVP_RAND *rand = EVP_RAND_fetch(NULL, "SEED-SRC", NULL);
- EVP_RAND_CTX *rctx = EVP_RAND_CTX_new(rand);
+ EVP_RAND_CTX *rctx = EVP_RAND_CTX_new(rand, NULL);
 
 =head1 EXAMPLES
 

@@ -15,7 +15,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
-static int verbose = 1;
+static int verbose = 0;
 
 static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
                             OSSL_LIB_CTX *libctx, const char *propq);
@@ -254,7 +254,7 @@ int genpkey_main(int argc, char **argv)
     EVP_PKEY_CTX_set_app_data(ctx, bio_err);
 
     pkey = do_param ? app_paramgen(ctx, algname)
-                    : app_keygen(ctx, algname, 0, 0 /* not verbose */);
+                    : app_keygen(ctx, algname, 0, verbose);
     if (pkey == NULL)
         goto end;
 
@@ -374,17 +374,21 @@ int init_gen_str(EVP_PKEY_CTX **pctx,
                  OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY_CTX *ctx = NULL;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     int pkey_id;
+#endif
 
     if (*pctx) {
         BIO_puts(bio_err, "Algorithm already set!\n");
         return 0;
     }
 
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     pkey_id = get_legacy_pkey_id(libctx, algname, e);
     if (pkey_id != NID_undef)
         ctx = EVP_PKEY_CTX_new_id(pkey_id, e);
     else
+#endif
         ctx = EVP_PKEY_CTX_new_from_name(libctx, algname, propq);
 
     if (ctx == NULL)

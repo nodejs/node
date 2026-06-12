@@ -3,7 +3,8 @@
 =head1 NAME
 
 X509_get_version, X509_set_version, X509_REQ_get_version, X509_REQ_set_version,
-X509_CRL_get_version, X509_CRL_set_version - get or set certificate,
+X509_ACERT_get_version, X509_ACERT_set_version, X509_CRL_get_version,
+X509_CRL_set_version - get or set certificate,
 certificate request or CRL version
 
 =head1 SYNOPSIS
@@ -19,21 +20,28 @@ certificate request or CRL version
  long X509_CRL_get_version(const X509_CRL *crl);
  int X509_CRL_set_version(X509_CRL *x, long version);
 
+ #include <openssl/x509_acert.h>
+
+ int X509_ACERT_set_version(X509_ACERT *x, long version);
+ long X509_ACERT_get_version(const X509_ACERT *x);
+
 =head1 DESCRIPTION
 
 X509_get_version() returns the numerical value of the version field of
-certificate B<x>. These correspond to the constants B<X509_VERSION_1>,
+certificate I<x>. These correspond to the constants B<X509_VERSION_1>,
 B<X509_VERSION_2>, and B<X509_VERSION_3>. Note: the values of these constants
 are defined by standards (X.509 et al) to be one less than the certificate
 version. So B<X509_VERSION_3> has value 2 and B<X509_VERSION_1> has value 0.
 
 X509_set_version() sets the numerical value of the version field of certificate
-B<x> to B<version>.
+I<x> to I<version>.
 
 Similarly X509_REQ_get_version(), X509_REQ_set_version(),
+X509_ACERT_get_version(), X509_ACERT_set_version(),
 X509_CRL_get_version() and X509_CRL_set_version() get and set the version
 number of certificate requests and CRLs. They use constants
-B<X509_REQ_VERSION_1>, B<X509_CRL_VERSION_1>, and B<X509_CRL_VERSION_2>.
+B<X509_REQ_VERSION_1>, B<X509_ACERT_VERSION_2>, B<X509_CRL_VERSION_1>,
+and B<X509_CRL_VERSION_2>.
 
 =head1 NOTES
 
@@ -73,9 +81,12 @@ L<X509_verify_cert(3)>
 X509_get_version(), X509_REQ_get_version() and X509_CRL_get_version() are
 functions in OpenSSL 1.1.0, in previous versions they were macros.
 
+X509_ACERT_get_version(), X509_ACERT_set_version()
+were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -436,7 +436,8 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
                                          BIO_PARSE_PRIO_SERV);
                 if (hold_serv != data->param_serv)
                     OPENSSL_free(hold_serv);
-                b->init = 1;
+                if (ret > 0)
+                    b->init = 1;
             } else if (num == 1) {
                 OPENSSL_free(data->param_serv);
                 if ((data->param_serv = OPENSSL_strdup(ptr)) == NULL)
@@ -554,10 +555,12 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static int acpt_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = acpt_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = acpt_write(bp, str, (int)n);
     return ret;
 }
 

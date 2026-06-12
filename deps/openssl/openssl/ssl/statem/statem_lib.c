@@ -506,7 +506,7 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL_CONNECTION *s, PACKET *pkt)
                  || EVP_PKEY_get_id(pkey) == NID_id_GostR3410_2012_256))
             || (PACKET_remaining(pkt) == 128
                 && EVP_PKEY_get_id(pkey) == NID_id_GostR3410_2012_512))) {
-        len = PACKET_remaining(pkt);
+        len = (unsigned int)PACKET_remaining(pkt);
     } else
 #endif
     if (!PACKET_get_net_2(pkt, &len)) {
@@ -1953,7 +1953,7 @@ static int is_tls13_capable(const SSL_CONNECTION *s)
         default:
             break;
         }
-        if (!ssl_has_cert(s, i))
+        if (!ssl_has_cert(s, (int)i))
             continue;
         if (i != SSL_PKEY_ECC)
             return 1;
@@ -2919,8 +2919,9 @@ MSG_PROCESS_RETURN tls13_process_compressed_certificate(SSL_CONNECTION *sc,
 
     if (!BUF_MEM_grow(buf, expected_length)
         || !PACKET_buf_init(tmppkt, (unsigned char *)buf->data, expected_length)
-        || COMP_expand_block(comp, (unsigned char *)buf->data, expected_length,
-                             (unsigned char*)PACKET_data(pkt), comp_length) != (int)expected_length) {
+        || COMP_expand_block(comp, (unsigned char *)buf->data, (int)expected_length,
+                             (unsigned char*)PACKET_data(pkt),
+                             (int)comp_length) != (int)expected_length) {
         SSLfatal(sc, SSL_AD_BAD_CERTIFICATE, SSL_R_BAD_DECOMPRESSION);
         goto err;
     }

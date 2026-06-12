@@ -170,14 +170,14 @@ There are two migration paths:
 =item *
 
 Replace
-b<d2i_I<TYPE>PrivateKey()> with L<d2i_PrivateKey(3)>,
-b<d2i_I<TYPE>PublicKey()> with L<d2i_PublicKey(3)>,
-b<d2i_I<TYPE>params()> with L<d2i_KeyParams(3)>,
-b<d2i_I<TYPE>_PUBKEY()> with L<d2i_PUBKEY(3)>,
-b<i2d_I<TYPE>PrivateKey()> with L<i2d_PrivateKey(3)>,
-b<i2d_I<TYPE>PublicKey()> with L<i2d_PublicKey(3)>,
-b<i2d_I<TYPE>params()> with L<i2d_KeyParams(3)>,
-b<i2d_I<TYPE>_PUBKEY()> with L<i2d_PUBKEY(3)>.
+B<d2i_I<TYPE>PrivateKey()> with L<d2i_PrivateKey(3)>,
+B<d2i_I<TYPE>PublicKey()> with L<d2i_PublicKey(3)>,
+B<d2i_I<TYPE>params()> with L<d2i_KeyParams(3)>,
+B<d2i_I<TYPE>_PUBKEY()> with L<d2i_PUBKEY(3)>,
+B<i2d_I<TYPE>PrivateKey()> with L<i2d_PrivateKey(3)>,
+B<i2d_I<TYPE>PublicKey()> with L<i2d_PublicKey(3)>,
+B<i2d_I<TYPE>params()> with L<i2d_KeyParams(3)>,
+B<i2d_I<TYPE>_PUBKEY()> with L<i2d_PUBKEY(3)>.
 A caveat is that L<i2d_PrivateKey(3)> may output a DER encoded PKCS#8
 outermost structure instead of the type specific structure, and that
 L<d2i_PrivateKey(3)> recognises and unpacks a PKCS#8 structures.
@@ -307,7 +307,7 @@ L<i2d_PUBKEY(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

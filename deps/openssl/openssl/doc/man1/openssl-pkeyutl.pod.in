@@ -3,7 +3,7 @@
 
 =head1 NAME
 
-openssl-pkeyutl - public key algorithm command
+openssl-pkeyutl - asymmetric key command
 
 =head1 SYNOPSIS
 
@@ -13,12 +13,11 @@ B<openssl> B<pkeyutl>
 [B<-rawin>]
 [B<-digest> I<algorithm>]
 [B<-out> I<file>]
+[B<-secret> I<file>]
 [B<-sigfile> I<file>]
 [B<-inkey> I<filename>|I<uri>]
 [B<-keyform> B<DER>|B<PEM>|B<P12>|B<ENGINE>]
 [B<-passin> I<arg>]
-[B<-peerkey> I<file>]
-[B<-peerform> B<DER>|B<PEM>|B<P12>|B<ENGINE>]
 [B<-pubin>]
 [B<-certin>]
 [B<-rev>]
@@ -28,8 +27,13 @@ B<openssl> B<pkeyutl>
 [B<-encrypt>]
 [B<-decrypt>]
 [B<-derive>]
+[B<-peerkey> I<file>]
+[B<-peerform> B<DER>|B<PEM>|B<P12>|B<ENGINE>]
+[B<-encap>]
+[B<-decap>]
 [B<-kdf> I<algorithm>]
 [B<-kdflen> I<length>]
+[B<-kemop> I<mode>]
 [B<-pkeyopt> I<opt>:I<value>]
 [B<-pkeyopt_passin> I<opt>[:I<passarg>]]
 [B<-hexdump>]
@@ -41,8 +45,8 @@ B<openssl> B<pkeyutl>
 
 =head1 DESCRIPTION
 
-This command can be used to perform low-level public key
-operations using any supported algorithm.
+This command can be used to perform low-level operations
+on asymmetric (public or private) keys using any supported algorithm.
 
 By default the signing operation (see B<-sign> option) is assumed.
 
@@ -66,10 +70,13 @@ which is not hashed by any message digest algorithm.
 Except with EdDSA,
 the user can specify a digest algorithm by using the B<-digest> option.
 For signature algorithms like RSA, DSA and ECDSA,
-the default digest algorithm is SHA-256. For SM2, it is SM3.
+the default digest algorithm is SHA256. For SM2, it is SM3.
 
 This option can only be used with B<-sign> and B<-verify>.
-For EdDSA (the Ed25519 and Ed448 algorithms) this option is required.
+For EdDSA (the Ed25519 and Ed448 algorithms) this option
+is implied since OpenSSL 3.5, and required in earlier versions.
+
+The B<-digest> option implies B<-rawin> since OpenSSL 3.5.
 
 =item B<-digest> I<algorithm>
 
@@ -80,19 +87,27 @@ if the signature algorithm does not require preprocessing the input through
 a pluggable hash function before signing (for instance, EdDSA). If this option
 is omitted but the signature algorithm requires one and the B<-rawin> option
 is given, a default value will be used (see B<-rawin> for details).
-If this option is present, then the B<-rawin> option is required.
+If this option is present, then the B<-rawin> option
+is implied since OpenSSL 3.5, and required in earlier versions.
 
 At this time, HashEdDSA (the ph or "prehash" variant of EdDSA) is not supported,
 so the B<-digest> option cannot be used with EdDSA.
 
 =item B<-out> I<filename>
 
-Specifies the output filename to write to or standard output by
-default.
+Specifies the output filename to write to or standard output by default.
+
+=item B<-secret> I<filename>
+
+Specifies the shared-secret output filename for when performing encapsulation
+via the B<-encap> option or decapsulation via the B<-decap> option.
+The B<-encap> option also produces a separate (public) ciphertext output which
+is by default written to standard output, but being I<binary> non-text data,
+is typically also redirected to a file selected via the I<-out> option.
 
 =item B<-sigfile> I<file>
 
-Signature file, required and allowed for B<-verify> operations only
+Signature file, required and allowed for B<-verify> operations only.
 
 =item B<-inkey> I<filename>|I<uri>
 
@@ -108,18 +123,11 @@ See L<openssl-format-options(1)> for details.
 The input key password source. For more information about the format of I<arg>
 see L<openssl-passphrase-options(1)>.
 
-=item B<-peerkey> I<file>
-
-The peer key file, used by key derivation (agreement) operations.
-
-=item B<-peerform> B<DER>|B<PEM>|B<P12>|B<ENGINE>
-
-The peer key format; unspecified by default.
-See L<openssl-format-options(1)> for details.
-
 =item B<-pubin>
 
-The input file is a public key.
+By default a private key is read from the key input.
+With this option a public key is read instead.
+If the input contains no public key but a private key, its public part is used.
 
 =item B<-certin>
 
@@ -175,7 +183,71 @@ Decrypt the input data using a private key.
 
 =item B<-derive>
 
-Derive a shared secret using the peer key.
+Derive a shared secret using own private (EC)DH key and peer key.
+
+=item B<-peerkey> I<file>
+
+File containing the peer public or private (EC)DH key
+to use with the key derivation (agreement) operation.
+Its type must match the type of the own private key given with B<-inkey>.
+
+=item B<-peerform> B<DER>|B<PEM>|B<P12>|B<ENGINE>
+
+The peer key format; unspecified by default.
+See L<openssl-format-options(1)> for details.
+
+=item B<-encap>
+
+Use a Key Encapsulation Mechanism (B<KEM>) to B<encapsulate> a shared-secret to
+a peer's B<public> key.
+The encapsulated result (or ciphertext, non-text binary data) is written to
+standard output by default, or else to the file specified with I<-out>.
+The I<-secret> option must also be provided to specify the output file for the
+derived shared-secret value generated in the encapsulation process.
+Encapsulation is supported with a number of public key algorithms, currently:
+L<ML-KEM|EVP_PKEY-ML-KEM(7)>,
+L<X25519|EVP_KEM-X25519(7)>,
+L<X449|EVP_KEM-X448(7)>,
+and
+L<EC|EVP_KEM-EC(7)>.
+The ECX and EC algorithms use the
+L<RFC9180|https://www.rfc-editor.org/rfc/rfc9180> DHKEM construction.
+Encapsulation is also supported with L<RSA|EVP_KEM-RSA(7)> keys via the
+B<RSASVE> construction.
+
+At the API level, encapsulation and decapsulation are also supported for a few
+hybrid ECDHE (no DHKEM) plus B<ML-KEM> algorithms, but these are intended
+primarily for use with TLS and should not be used standalone.
+There are in any case no standard public and private key formats for the hybrid
+algorithms, so it is not possible to provide the required key material.
+
+=item B<-decap>
+
+Decode an encapsulated secret, with the use of a B<-private> key, to derive the
+same shared-secret as that obtained when the secret was encapsulated to the
+corresponding public key.
+The encapsulated secret is by default read from the standard input, or else
+from the file specified with B<-in>.
+The derived shared-secret is written to the file specified with the B<-secret>
+option, which I<must> also be provided.
+Decapsulation is supported with a number of public key algorithms, currently:
+L<ML-KEM|EVP_PKEY-ML-KEM(7)>,
+L<X25519|EVP_KEM-X25519(7)>,
+L<X448|EVP_KEM-X448(7)>,
+and
+L<EC|EVP_KEM-EC(7)>.
+The ECX and EC algorithms use the
+L<RFC9180|https://www.rfc-editor.org/rfc/rfc9180> DHKEM construction.
+Decapsulation is also supported with L<RSA|EVP_KEM-RSA(7)> keys via the
+B<RSASVE> construction.
+
+=item B<-kemop> I<mode>
+
+This option is used with the I<-encap>/I<-decap> commands and specifies the KEM
+I<mode> specific for the key algorithm when there is no default way to
+encapsulate and decapsulate shared secrets with the chosen key type.
+All the supported algorithms presently support only their default I<mode>, and
+this option, though available, is not required.
 
 =item B<-kdf> I<algorithm>
 
@@ -208,8 +280,9 @@ hex dump the output data.
 =item B<-asn1parse>
 
 Parse the ASN.1 output data to check its DER encoding and print any errors.
-When combined with the B<-verifyrecover> option, this may be useful only in case
-an ASN.1 DER-encoded structure had been signed directly (without hashing it).
+When combined with the B<-verifyrecover> option, this may be useful in case
+an ASN.1 DER-encoded structure had been signed directly (without hashing it)
+and when checking a signature in PKCS#1 v1.5 format, which has a DER encoding.
 
 {- $OpenSSL::safe::opt_engine_item -}
 
@@ -233,25 +306,28 @@ engine I<id> for crypto operations.
 The operations and options supported vary according to the key algorithm
 and its implementation. The OpenSSL operations and options are indicated below.
 
-Unless otherwise mentioned, all algorithms support the B<digest:>I<alg> option,
+Unless otherwise mentioned, the B<-pkeyopt> option supports
+for all public-key types the C<digest:>I<alg> argument,
 which specifies the digest in use for the signing and verification operations.
 The value I<alg> should represent a digest name as used in the
-EVP_get_digestbyname() function for example B<sha1>. This value is not used to
+EVP_get_digestbyname() function for example B<sha256>. This value is not used to
 hash the input data. It is used (by some algorithms) for sanity-checking the
 lengths of data passed in and for creating the structures that make up the
-signature (e.g. B<DigestInfo> in RSASSA PKCS#1 v1.5 signatures).
+signature (e.g., B<DigestInfo> in RSASSA PKCS#1 v1.5 signatures).
 
-This command does not hash the input data (except where -rawin is used) but
-rather it will use the data directly as input to the signature algorithm.
+For instance,
+if the value of the B<-pkeyopt> option C<digest> argument is B<sha256>,
+the signature or verification input should be the 32 bytes long binary value
+of the SHA256 hash function output.
+
+Unless B<-rawin> is used or implied, this command does not hash the input data
+but rather it will use the data directly as input to the signature algorithm.
 Depending on the key type, signature type, and mode of padding, the maximum
-acceptable lengths of input data differ. The signed data can't be longer than
-the key modulus with RSA. In case of ECDSA and DSA the data shouldn't be longer
+sensible lengths of input data differ. With RSA the signed data cannot be longer
+than the key modulus. In case of ECDSA and DSA the data should not be longer
 than the field size, otherwise it will be silently truncated to the field size.
 In any event the input size must not be larger than the largest supported digest
-size.
-
-In other words, if the value of digest is B<sha1> the input should be the 20
-bytes long binary encoding of the SHA-1 hash function output.
+output size B<EVP_MAX_MD_SIZE>, which currently is 64 bytes.
 
 =head1 RSA ALGORITHM
 
@@ -272,6 +348,11 @@ In PKCS#1 padding, if the message digest is not set, then the supplied data is
 signed or verified directly instead of using a B<DigestInfo> structure. If a
 digest is set, then the B<DigestInfo> structure is used and its length
 must correspond to the digest type.
+
+Note, for B<pkcs1> padding, as a protection against the Bleichenbacher attack,
+the decryption will not fail in case of padding check failures. Use B<none>
+and manual inspection of the decrypted message to verify if the decrypted
+value has correct PKCS#1 v1.5 padding.
 
 For B<oaep> mode only encryption and decryption is supported.
 
@@ -298,7 +379,17 @@ explicitly set in PSS mode then the signing digest is used.
 =item B<rsa_oaep_md:>I<digest>
 
 Sets the digest used for the OAEP hash function. If not explicitly set then
-SHA1 is used.
+SHA256 is used.
+
+=item B<rsa_pkcs1_implicit_rejection:>I<flag>
+
+Disables (when set to 0) or enables (when set to 1) the use of implicit
+rejection with PKCS#1 v1.5 decryption. When enabled (the default), as a
+protection against Bleichenbacher attack, the library will generate a
+deterministic random plaintext that it will return to the caller in case
+of padding check failure.
+When disabled, it's the callers' responsibility to handle the returned
+errors in a side-channel free manner.
 
 =back
 
@@ -317,7 +408,7 @@ These have the same meaning as the B<RSA> algorithm with some additional
 restrictions. The padding mode can only be set to B<pss> which is the
 default value.
 
-If the key has parameter restrictions than the digest, MGF1
+If the key has parameter restrictions then the digest, MGF1
 digest and salt length are set to the values specified in the parameters.
 The digest and MG cannot be changed and the salt length cannot be set to a
 value less than the minimum restriction.
@@ -327,7 +418,7 @@ value less than the minimum restriction.
 =head1 DSA ALGORITHM
 
 The DSA algorithm supports signing and verification operations only. Currently
-there are no additional B<-pkeyopt> options other than B<digest>. The SHA1
+there are no additional B<-pkeyopt> options other than B<digest>. The SHA256
 digest is assumed by default.
 
 =head1 DH ALGORITHM
@@ -338,20 +429,134 @@ B<-pkeyopt> options.
 =head1 EC ALGORITHM
 
 The EC algorithm supports sign, verify and derive operations. The sign and
-verify operations use ECDSA and derive uses ECDH. SHA1 is assumed by default for
-the B<-pkeyopt> B<digest> option.
+verify operations use ECDSA and derive uses ECDH. SHA256 is assumed by default
+for the B<-pkeyopt> B<digest> option.
 
 =head1 X25519 AND X448 ALGORITHMS
 
 The X25519 and X448 algorithms support key derivation only. Currently there are
 no additional options.
 
+=head2 SLH-DSA ALGORITHMS
+
+The SLH-DSA algorithms (SLH-DSA-SHA2-128s, SLH-DSA-SHA2-128f, SLH-DSA-SHA2-192s, SLH-DSA-SHA2-192f, SLH-DSA-SHA2-256s, SLH-DSA-SHA2-256f) are post-quantum signature algorithms. When using SLH-DSA with pkeyutl, the following options are available:
+
+=over 4
+
+=item B<-sign>
+
+Sign the input data using an SLH-DSA private key. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey slhdsa.pem -out sig
+
+=item B<-verify>
+
+Verify the signature using an SLH-DSA public key. For example:
+
+  $ openssl pkeyutl -verify -in file.txt -inkey slhdsa.pem -sigfile sig
+
+=back
+
+See L<EVP_PKEY-SLH-DSA(7)> and L<EVP_SIGNATURE-SLH-DSA(7)> for additional details about the SLH-DSA algorithm and its implementation.
+
+=head1 ML-DSA-44, ML-DSA-65 AND ML-DSA-87 ALGORITHMS
+
+The ML-DSA algorithms are post-quantum signature algorithms that support signing and verification of "raw" messages.
+No preliminary hashing is performed. When using ML-DSA with pkeyutl, the following options are available:
+
+=over 4
+
+=item B<-sign>
+
+Sign the input data using an ML-DSA private key. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig
+
+=item B<-verify>
+
+Verify the signature using an ML-DSA public key. For example:
+
+  $ openssl pkeyutl -verify -in file.txt -inkey mldsa65.pem -sigfile sig
+
+=item B<-pkeyopt> I<opt>:I<value>
+
+Additional options for ML-DSA signing and verification:
+
+=over 4
+
+=item B<message-encoding>:I<value>
+
+Specifies the message encoding mode used for signing. This controls how the input message is processed before signing. Valid values are described in L<EVP_SIGNATURE-ML-DSA(7)>. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt message-encoding:1
+
+=item B<test-entropy>:I<value>
+
+Specifies a test entropy value for deterministic signing. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt test-entropy:abcdefghijklmnopqrstuvwxyz012345
+
+=item B<hextest-entropy>:I<value>
+
+Specifies a test entropy value in hex format. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt hextest-entropy:000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+
+=item B<deterministic>:I<value>
+
+Enables deterministic signing. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt deterministic:1
+
+=item B<mu>:I<value>
+
+Specifies the mu parameter. For example:
+
+  $ echo -n "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" >file.txt
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt mu:1
+
+=back
+
+=item B<context-string>:I<string>
+
+Specifies a context string for both signing and verification operations. The context string must be the same for verification to succeed. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt context-string:mycontext
+  $ openssl pkeyutl -verify -in file.txt -inkey mldsa65.pem -sigfile sig -pkeyopt context-string:mycontext
+
+=item B<hexcontext-string>:I<string>
+
+Specifies a context string in hex format, allowing binary control values. For example:
+
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt hexcontext-string:6d79636f6e74657874
+
+=back
+
+The signing operation supports a B<deterministic>:I<bool> option,
+with I<bool> set to C<1> if a deterministic signature is to be generated
+with a fixed all zero random input.
+By default, or if the I<bool> is C<0> a random entropy value is used.
+A deterministic result can also be obtained by specifying an explicit
+entropy value via the B<hextest-entropy>:I<value> parameter.
+Deterministic B<ML-DSA> signing should only be used in tests.
+
+See L<EVP_SIGNATURE-ML-DSA(7)> for additional details about the ML-DSA algorithms and their implementation.
+
+=head1 ML-KEM-512, ML-KEM-768 AND ML-KEM-1024 ALGORITHMS
+
+The ML-KEM algorithms support encapsulation and decapsulation only.
+The encapsulation operation supports a B<hexikme>:I<entropy> option,
+with I<entropy> the 64 hexadecimal digit encoding of a 32-byte value.
+This should only be used in tests, known or leaked values of the option may
+compromise the generated shared secret.
+
+See L<EVP_KEM-ML-KEM(7)> for additional detail.
+
 =head1 ED25519 AND ED448 ALGORITHMS
 
 These algorithms only support signing and verifying. OpenSSL only implements the
 "pure" variants of these algorithms so raw data can be passed directly to them
-without hashing them first. The option B<-rawin> must be used with these
-algorithms with no B<-digest> specified. Additionally OpenSSL only supports
+without hashing them first. OpenSSL only supports
 "oneshot" operation with these algorithms. This means that the entire file to
 be signed/verified must be read into memory before processing it. Signing or
 Verifying very large files should be avoided. Additionally the size of the file
@@ -434,6 +639,34 @@ Decrypt some data using a private key with OAEP padding using SHA256:
  openssl pkeyutl -decrypt -in file -inkey key.pem -out secret \
     -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
 
+Create an ML-DSA key pair and sign data with a specific context string:
+
+  $ openssl genpkey -algorithm ML-DSA-65 -out mldsa65.pem
+  $ openssl pkeyutl -sign -in file.txt -inkey mldsa65.pem -out sig -pkeyopt context-string:example
+
+Verify a signature using ML-DSA with the same context string:
+
+  $ openssl pkeyutl -verify -in file.txt -inkey mldsa65.pem -sigfile sig -pkeyopt context-string:example
+
+Generate an ML-KEM key pair and use it for encapsulation:
+
+  $ openssl genpkey -algorithm ML-KEM-768 -out mlkem768.pem
+  $ openssl pkey -in mlkem768.pem -pubout -out mlkem768_pub.pem
+  $ openssl pkeyutl -encap -inkey mlkem768_pub.pem -pubin -out ciphertext -secret shared_secret.bin
+
+Decapsulate a shared secret using an ML-KEM private key:
+
+  $ openssl pkeyutl -decap -inkey mlkem768.pem -in ciphertext -secret decapsulated_secret.bin
+
+Create an SLH-DSA key pair and sign data:
+
+  $ openssl genpkey -algorithm SLH-DSA-SHA2-128s -out slh-dsa.pem
+  $ openssl pkeyutl -sign -in file.txt -inkey slh-dsa.pem -out sig
+
+Verify a signature using SLH-DSA:
+
+  $ openssl pkeyutl -verify -in file.txt -inkey slh-dsa.pem -sigfile sig
+
 =head1 SEE ALSO
 
 L<openssl(1)>,
@@ -449,11 +682,18 @@ L<EVP_PKEY_CTX_set_tls1_prf_md(3)>,
 
 =head1 HISTORY
 
+Since OpenSSL 3.5,
+the B<-digest> option implies B<-rawin>, and these two options are
+no longer required when signing or verifying with an Ed25519 or Ed448 key.
+
+Also since OpenSSL 3.5, the B<-kemop> option is no longer required for any of
+the supported algorithms, the only supported B<mode> is now the default.
+
 The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

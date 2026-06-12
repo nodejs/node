@@ -13,20 +13,34 @@ I<command>
 
 =head1 DESCRIPTION
 
-There are many situations where X.509 certificates are verified
+There are many situations where X.509 public-key certificates are verified
 within the OpenSSL libraries and in various OpenSSL commands.
+For checking certificates, the term I<validation> would actually be more
+appropriate,
+but for historical reasons the term I<verification> is often used instead.
 
+In the sequel, the certificate to be validated is called I<target certificate>.
+Since it usually is an end-entity (EE) certificate, it is also known as
+"leaf" certificate (of a chain or tree), but it may also be a CA certificate.
 Certificate verification is implemented by L<X509_verify_cert(3)>.
-It is a complicated process consisting of a number of steps
-and depending on numerous options.
+The validation process involves several steps and depends on multiple options.
 The most important of them are detailed in the following sections.
 
-In a nutshell, a valid chain of certificates needs to be built up and verified
-starting from the I<target certificate> that is to be verified
-and ending in a certificate that due to some policy is trusted.
+In a nutshell, a valid chain of certificates needs to be constructed and checked
+starting from the I<target certificate> that is to be validated and ending in a
+trust anchor, which usually is a certificate that due to some policy is trusted.
 Certificate validation can be performed in the context of a I<purpose>, which
 is a high-level specification of the intended use of the target certificate,
-such as C<sslserver> for TLS servers, or (by default) for any purpose.
+such as C<sslserver> for (D)TLS servers, or (by default) for any purpose.
+
+All certificates in the chain except the target ceritificate must be CA
+certificates.
+An X.509v3 certificate is considered a CA certificate
+if it has a basicConstraints extension with the `CA` flag set.
+If a pathLenConstraint is included then the chain is checked to satisfy it.
+If a CA certificate has a keyUsage extension
+then the latter must include the keyCertSign bit, and for proxy certificates
+used for issuing a certificate it must include also the digitalSignature bit.
 
 The details of how each OpenSSL command handles errors
 are documented on the specific command page.
@@ -37,63 +51,69 @@ L<X509_VERIFY_PARAM_set_flags(3)>, and L<X509_check_host(3)>.
 
 =head2 Trust Anchors
 
-In general, according to RFC 4158 and RFC 5280, a I<trust anchor> is
-any public key and related subject distinguished name (DN) that
-for some reason is considered trusted
+In general, according to RFC 4158 and RFC 5280, a I<trust anchor> is just
+a public key (with algorithm and any parameters) and an associated subject name
+that in a suitable context is considered trusted for some purpose(s)
 and thus is acceptable as the root of a chain of certificates.
 
-In practice, trust anchors are given in the form of certificates,
-where their essential fields are the public key and the subject DN.
-In addition to the requirements in RFC 5280,
-OpenSSL checks the validity period of such certificates
-and makes use of some further fields.
-In particular, the subject key identifier extension, if present,
-is used for matching trust anchors during chain building.
+In practice, trust anchors are given in the form of certificates.
+Commonly they are self-signed root CA certificates.
+Their most essential fields are the subjectPublicKeyInfo and
+the subject distinguished name (DN), while the subject key identifier extension
+is generally optional but highly recommended to be included in CA certificates
+because they help chain building.
+In addition to the requirements given in RFC 5280 for trust anchor handling,
+OpenSSL performs on trust anchor certificates the same checks as on regular
+CA certificates, in particular those regarding the validity period
+and X.509v3 extensions like basic constraints and key usage.
+Depending on the given validation purpose, in part even the extended key usage
+is checked - for details see the L</Extended Key Usage> section below.
 
-In the most simple and common case, trust anchors are by default
-all self-signed "root" CA certificates that are placed in the I<trust store>,
-which is a collection of certificates that are trusted for certain uses.
+The most crucial input to certificate validation is a I<trust store>,
+which includes a collection of certificates and validation options.
 This is akin to what is used in the trust stores of Mozilla Firefox,
 or Apple's and Microsoft's certificate stores, ...
+By default all self-signed certificates in the trust store
+are considered to be trust anchors, for all or for specified purposes.
 
-From the OpenSSL perspective, a trust anchor is a certificate
-that should be augmented with an explicit designation for which
+Independent of any extended key usage (EKU) X.509v3 extension included,
+from the OpenSSL perspective a trust anchor certificate should be augmented
+with local trust attributes, giving an explicit designation for which
 uses of a target certificate the certificate may serve as a trust anchor.
-In PEM encoding, this is indicated by the C<TRUSTED CERTIFICATE> string.
+If this information is missing, it is by default trusted for all uses.
+In PEM encoding, the presence of trust attributes
+is indicated by the C<TRUSTED CERTIFICATE> string.
 Such a designation provides a set of positive trust attributes
-explicitly stating trust for the listed purposes
-and/or a set of negative trust attributes
-explicitly rejecting the use for the listed purposes.
-The purposes are encoded using the values defined for the extended key usages
-(EKUs) that may be given in X.509 extensions of end-entity certificates.
-See also the L</Extended Key Usage> section below.
-
-The currently recognized uses are
-B<clientAuth> (SSL client use), B<serverAuth> (SSL server use),
-B<emailProtection> (S/MIME email use), B<codeSigning> (object signer use),
-B<OCSPSigning> (OCSP responder use), B<OCSP> (OCSP request use),
-B<timeStamping> (TSA server use), and B<anyExtendedKeyUsage>.
-As of OpenSSL 1.1.0, the last of these blocks all uses when rejected or
-enables all uses when trusted.
+explicitly stating acceptance for the listed uses
+and/or a set of negative trust attributes explicitly rejecting the listed uses.
+These uses are encoded using the OID values defined for the extended key usages
+that may be included in X.509v3 certificate extensions.
+For the list of EKUs with currently predefined meaning
+see the L</Extended Key Usage> section below.
+The special EKU B<anyExtendedKeyUsage>
+enables all uses when trusted or blocks all uses when rejected.
 
 A certificate, which may be CA certificate or an end-entity certificate,
-is considered a trust anchor for the given use
+is considered a trust anchor for the intended use
 if and only if all the following conditions hold:
 
 =over 4
 
 =item *
 
-It is an an element of the trust store.
+It is an element of the trust store.
 
 =item *
 
-It does not have a negative trust attribute rejecting the given use.
+It does not have a negative trust attribute rejecting
+the EKU associated with the intended purpose.
 
 =item *
 
-It has a positive trust attribute accepting the given use
-or (by default) one of the following compatibility conditions apply:
+It has a positive trust attribute accepting
+the EKU associated with the intended purpose
+or it does not have any positive trust attribute
+and one of the following compatibility conditions apply:
 It is self-signed or the B<-partial_chain> option is given
 (which corresponds to the B<X509_V_FLAG_PARTIAL_CHAIN> flag being set).
 
@@ -103,16 +123,28 @@ It is self-signed or the B<-partial_chain> option is given
 
 First, a certificate chain is built up starting from the target certificate
 and ending in a trust anchor.
+The goal is that for each certificate in the chain, except for the final one,
+the subject of the successor is the issuer of the former certificate.
+Since it often happens that the subject and issuer Distinguished Names
+are not unique, the subject and issuer key identifier extensions,
+if present in the certificates, are used to disambiguate conflicts.
 
-The chain is built up iteratively, looking up in turn
-a certificate with suitable key usage that
+The chain is built up iteratively, looking up each certificate in turn that
 matches as an issuer of the current "subject" certificate as described below.
-If there is such a certificate, the first one found that is currently valid
-is taken, otherwise the one that expired most recently of all such certificates.
-For efficiency, no backtracking is performed, thus
+If there is more than one matching certificate, the algorithm uses
+the first certificate found that has a suitable validity period,
+otherwise the one with the latest expiration date of all matching certificates.
+For efficiency, the algorithm does not allow for backtracking, thus
 any further candidate issuer certificates that would match equally are ignored.
 
-When a self-signed certificate has been added, chain construction stops.
+Certificate extensions are available since X.509v3,
+and though many are optional, some are generally recommended or required.
+For certificate chain building
+the subjectKeyIdentifier and authorityKeyIdentifier extensions are very useful.
+The subject alternative names (SAN) and issuer alternative names given in
+subjectAltName or issuerAltName extensions are not relevant for chain building.
+
+Once a self-signed certificate has been added, chain construction stops.
 In this case it must fully match a trust anchor, otherwise chain building fails.
 
 A candidate issuer certificate matches a subject certificate
@@ -122,7 +154,8 @@ if all of the following conditions hold:
 
 =item *
 
-Its subject name matches the issuer name of the subject certificate.
+Its subject Distinguished Name (DN)
+matches the issuer DN of the subject certificate.
 
 =item *
 
@@ -136,6 +169,11 @@ as far as the respective fields are present in both certificates.
 The certificate signature algorithm used to sign the subject certificate
 is supported and
 equals the public key algorithm of the candidate issuer certificate.
+
+item *
+
+If the issuer certificate includes a key usage restriction,
+it must allow for certificate signing (keyCertSign).
 
 =back
 
@@ -153,7 +191,7 @@ Part of these checks are enabled only if the B<-x509_strict> option is given.
 
 The second step is to check the X.509v3 extensions of every certificate
 for consistency with the intended specific purpose, if any.
-If the B<-purpose> option is not given then no such checks are done except for
+If no purpose is given explicitly then no such checks are done except for
 CMS signature checking, where by default C<smimesign> is checked, and SSL/(D)TLS
 connection setup, where by default C<sslserver> or C<sslclient> are checked.
 The X.509v3 extensions of the target or "leaf" certificate
@@ -163,10 +201,10 @@ and possibly also further non-standard checks are performed.
 The precise extensions required are described in detail
 in the L</Certificate Extensions> section below.
 
-The third step is to check the trust settings on the last certificate
-(which typically is a self-signed root CA certificate).
-It must be trusted for the given use.
-For compatibility with previous versions of OpenSSL, a self-signed certificate
+The third step is to check the trust settings on the last certificate or
+trust anchor, which typically is given as a self-signed root CA certificate.
+If specified, it must be trusted for the given use.
+For compatibility, a self-signed certificate
 with no trust attributes is considered to be valid for all uses.
 
 The fourth, and final, step is to check the validity of the certificate chain.
@@ -204,8 +242,8 @@ can be specified using following options.
 
 =item B<-CAfile> I<file>
 
-Load the specified file which contains a certificate
-or several of them in case the input is in PEM or PKCS#12 format.
+Load the specified file which contains a trusted certificate in DER format
+or potentially several of them in case the input is in PEM format.
 PEM-encoded certificates may also have trust attributes set.
 
 =item B<-no-CAfile>
@@ -286,11 +324,11 @@ CA certificates must explicitly include the keyUsage extension.
 
 =item *
 
-If a pathlenConstraint is given the key usage keyCertSign must be allowed.
+If a pathLenConstraint is given the key usage keyCertSign must be allowed.
 
 =item *
 
-The pathlenConstraint must not be given for non-CA certificates.
+The pathLenConstraint must not be given for non-CA certificates.
 
 =item *
 
@@ -337,12 +375,12 @@ Ignored.
 
 =item B<-crl_check>
 
-Checks end entity certificate validity by attempting to look up a valid CRL.
+Checks end-entity certificate validity by attempting to look up a valid CRL.
 If a valid CRL cannot be found an error occurs.
 
 =item B<-crl_check_all>
 
-Checks the validity of B<all> certificates in the chain by attempting
+Checks the validity of I<all> certificates in the chain by attempting
 to look up valid CRLs.
 
 =item B<-use_deltas>
@@ -382,7 +420,7 @@ keys shorter than 1024 bits.
 
 Allow verification to succeed if an incomplete chain can be built.
 That is, a chain ending in a certificate that normally would not be trusted
-(because it has no matching positive trust attributes and is not self-signed)
+(because it is not self-signed and has no matching positive trust attributes)
 but is an element of the trust store.
 This certificate may be self-issued or belong to an intermediate CA.
 
@@ -400,7 +438,7 @@ Allow the verification of proxy certificates.
 
 =item B<-trusted_first>
 
-As of OpenSSL 1.1.0 this option is on by default and cannot be disabled.
+This option is on by default and cannot be disabled.
 
 When constructing the certificate chain, the trusted certificates specified
 via B<-CAfile>, B<-CApath>, B<-CAstore> or B<-trusted> are always used
@@ -408,8 +446,7 @@ before any certificates specified via B<-untrusted>.
 
 =item B<-no_alt_chains>
 
-As of OpenSSL 1.1.0, since B<-trusted_first> always on, this option has no
-effect.
+Since B<-trusted_first> is always on, this option has no effect.
 
 =item B<-trusted> I<file>
 
@@ -460,7 +497,7 @@ Set policy variable inhibit-policy-mapping (see RFC5280).
 A high-level specification of the intended use of the target certificate.
 Currently predefined purposes are C<sslclient>, C<sslserver>, C<nssslserver>,
 C<smimesign>, C<smimeencrypt>, C<crlsign>, C<ocsphelper>, C<timestampsign>,
-and C<any>.
+C<codesign> and C<any>.
 If peer certificate verification is enabled, by default the TLS implementation
 and thus the commands L<openssl-s_client(1)> and L<openssl-s_server(1)>
 check for consistency with
@@ -471,6 +508,8 @@ checks for consistency with S/MIME signing use (C<smimesign>).
 While IETF RFC 5280 says that B<id-kp-serverAuth> and B<id-kp-clientAuth>
 are only for WWW use, in practice they are used for all kinds of TLS clients
 and servers, and this is what OpenSSL assumes as well.
+
+For details on the checks performed see the L</Certificate Extensions> section.
 
 =item B<-verify_depth> I<num>
 
@@ -498,9 +537,9 @@ the subject certificate.
 
 Use a set of verification parameters, also known as verification method,
 identified by I<name>. The currently predefined methods are named C<ssl_client>,
-C<ssl_server>, C<smime_sign> with alias C<pkcs7>, and C<default>.
+C<ssl_server>, C<smime_sign> with alias C<pkcs7>, C<code_sign>, and C<default>.
 These mimic the combinations of purpose and trust settings used in SSL/(D)TLS,
-and CMS/PKCS7 (including S/MIME).
+CMS/PKCS7 (including S/MIME), and code signing.
 
 The verification parameters include the trust model, various flags that can
 partly be set also via other command-line options, and the verification purpose,
@@ -557,11 +596,15 @@ This option has no effect and is retained for backward compatibility only.
 Options like B<-purpose> and B<-verify_name> trigger the processing of specific
 certificate extensions, which determine what certificates can be used for.
 
+The following two subsections on the B<basicConstraints> and B<keyUsage>
+extensions and on X.509v1 certificates apply to I<all> CA certificates
+regardless of any required purpose.
+
 =head3 Basic Constraints
 
 The basicConstraints extension CA flag is used to determine whether the
 certificate can be used as a CA. If the CA flag is true then it is a CA,
-if the CA flag is false then it is not a CA. B<All> CAs should have the
+if the CA flag is false then it is not a CA. I<All> CAs should have the
 CA flag set to true.
 
 If the basicConstraints extension is absent,
@@ -574,14 +617,16 @@ is presently supported, but this could change in the future.
 =head3 Key Usage
 
 If the keyUsage extension is present then additional restraints are
-made on the uses of the certificate. A CA certificate B<must> have the
+made on the uses of the certificate. A CA certificate I<must> have the
 keyCertSign bit set if the keyUsage extension is present.
+Further restrictions are checked depending on the required purpose, if any;
+for details see the list given in the next subsection.
 
 =head3 Extended Key Usage
 
 The extKeyUsage (EKU) extension places additional restrictions on
 certificate use. If this extension is present (whether critical or not)
-in an end-entity certficiate, the key is allowed only for the uses specified,
+in an end-entity certificate, the key is allowed only for the uses specified,
 while the special EKU B<anyExtendedKeyUsage> allows for all uses.
 
 Note that according to RFC 5280 section 4.2.1.12,
@@ -639,7 +684,7 @@ This is used as a workaround if the basicConstraints extension is absent.
 =item B<Netscape SSL Server> (C<nssslserver>)
 
 In addition to what has been described for B<sslserver>, for a Netscape
-SSL client to connect to an SSL server, its EE certficate must have the
+SSL client to connect to an SSL server, its EE certificate must have the
 B<keyEncipherment> bit set if the keyUsage extension is present. This isn't
 always valid because some cipher suites use the key for digital signing.
 Otherwise it is the same as a normal SSL server.
@@ -660,19 +705,20 @@ This is used as a workaround if the basicConstraints extension is absent.
 
 =item B<S/MIME Signing> (C<smimesign>)
 
-In addition to the common S/MIME checks, for target certficiates
-the key usage must allow for C<digitalSignature> and/or B<nonRepudiation>.
+In addition to the common S/MIME checks, for target certificates
+the key usage must allow for C<digitalSignature> and/or B<nonRepudiation> (or
+its alias name B<contentCommitment>).
 
 =item B<S/MIME Encryption> (C<smimeencrypt>)
 
-In addition to the common S/MIME checks, for target certficiates
+In addition to the common S/MIME checks, for target certificates
 the key usage must allow for C<keyEncipherment>.
 
 =item B<CRL Signing> (C<crlsign>)
 
 For target certificates, the key usage must allow for C<cRLSign>.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 Except in this case the basicConstraints extension must be present.
 
 =item B<OCSP Helper> (C<ocsphelper>)
@@ -680,23 +726,34 @@ Except in this case the basicConstraints extension must be present.
 For target certificates, no checks are performed at this stage,
 but special checks apply; see L<OCSP_basic_verify(3)>.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
 
 =item B<Timestamp Signing> (C<timestampsign>)
 
 For target certificates, if the key usage extension is present, it must include
-C<digitalSignature> and/or C<nonRepudiation> and must not include other bits.
+C<digitalSignature> and/or C<nonRepudiation> (or its alias name
+C<contentCommitment>) and must not include other bits.
 The EKU extension must be present and contain C<timeStamping> only.
 Moreover, it must be marked as critical.
 
-For all other certifcates the normal CA checks apply.
+For all other certificates the normal CA checks apply.
+
+=item B<Code Signing> (C<codesign>)
+
+For target certificates,
+the key usage extension must be present and marked critical and
+include <digitalSignature>, but must not include C<keyCertSign> nor C<cRLSign>.
+The EKU extension must be present and contain C<codeSign>,
+but must not include C<anyExtendedKeyUsage> nor C<serverAuth>.
+
+For all other certificates the normal CA checks apply.
 
 =back
 
 =head1 BUGS
 
 The issuer checks still suffer from limitations in the underlying X509_LOOKUP
-API.  One consequence of this is that trusted certificates with matching
+API.  Trusted certificates with matching
 subject name must appear in a file (as specified by the B<-CAfile> option),
 a directory (as specified by B<-CApath>),
 or a store (as specified by B<-CAstore>).
@@ -718,11 +775,13 @@ L<openssl-cms(1)>
 
 =head1 HISTORY
 
+Since OpenSSL 1.1.0, the B<-trusted_first> option is always enabled.
+
 The checks enabled by B<-x509_strict> have been extended in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -535,12 +535,12 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 #endif
     uint8_t opt;
 
-    if (len < 2)
+    if (len < 2 || len > INT_MAX)
         return 0;
 
     /* This only fuzzes the initial flow from the client so far. */
     ctx = SSL_CTX_new(SSLv23_method());
-
+    OPENSSL_assert(ctx != NULL);
     ret = SSL_CTX_set_min_proto_version(ctx, 0);
     OPENSSL_assert(ret == 1);
     ret = SSL_CTX_set_cipher_list(ctx, "ALL:eNULL:@SECLEVEL=0");
@@ -552,6 +552,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     privkey = d2i_RSAPrivateKey(NULL, &bufp, sizeof(kRSAPrivateKeyDER));
     OPENSSL_assert(privkey != NULL);
     pkey = EVP_PKEY_new();
+    OPENSSL_assert(pkey != NULL);
     EVP_PKEY_assign_RSA(pkey, privkey);
     ret = SSL_CTX_use_PrivateKey(ctx, pkey);
     OPENSSL_assert(ret == 1);
@@ -569,18 +570,21 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 # ifndef OPENSSL_NO_DEPRECATED_3_0
     /* ECDSA */
     bio_buf = BIO_new(BIO_s_mem());
+    OPENSSL_assert(bio_buf != NULL);
     OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSAPrivateKeyPEM, sizeof(ECDSAPrivateKeyPEM)) == sizeof(ECDSAPrivateKeyPEM));
     ecdsakey = PEM_read_bio_ECPrivateKey(bio_buf, NULL, NULL, NULL);
     ERR_print_errors_fp(stderr);
     OPENSSL_assert(ecdsakey != NULL);
     BIO_free(bio_buf);
     pkey = EVP_PKEY_new();
+    OPENSSL_assert(pkey != NULL);
     EVP_PKEY_assign_EC_KEY(pkey, ecdsakey);
     ret = SSL_CTX_use_PrivateKey(ctx, pkey);
     OPENSSL_assert(ret == 1);
     EVP_PKEY_free(pkey);
 # endif
     bio_buf = BIO_new(BIO_s_mem());
+    OPENSSL_assert(bio_buf != NULL);
     OPENSSL_assert((size_t)BIO_write(bio_buf, ECDSACertPEM, sizeof(ECDSACertPEM)) == sizeof(ECDSACertPEM));
     cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
     OPENSSL_assert(cert != NULL);
@@ -593,18 +597,21 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 #if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DEPRECATED_3_0)
     /* DSA */
     bio_buf = BIO_new(BIO_s_mem());
+    OPENSSL_assert(bio_buf != NULL);
     OPENSSL_assert((size_t)BIO_write(bio_buf, DSAPrivateKeyPEM, sizeof(DSAPrivateKeyPEM)) == sizeof(DSAPrivateKeyPEM));
     dsakey = PEM_read_bio_DSAPrivateKey(bio_buf, NULL, NULL, NULL);
     ERR_print_errors_fp(stderr);
     OPENSSL_assert(dsakey != NULL);
     BIO_free(bio_buf);
     pkey = EVP_PKEY_new();
+    OPENSSL_assert(pkey != NULL);
     EVP_PKEY_assign_DSA(pkey, dsakey);
     ret = SSL_CTX_use_PrivateKey(ctx, pkey);
     OPENSSL_assert(ret == 1);
     EVP_PKEY_free(pkey);
 
     bio_buf = BIO_new(BIO_s_mem());
+    OPENSSL_assert(bio_buf != NULL);
     OPENSSL_assert((size_t)BIO_write(bio_buf, DSACertPEM, sizeof(DSACertPEM)) == sizeof(DSACertPEM));
     cert = PEM_read_bio_X509(bio_buf, NULL, NULL, NULL);
     OPENSSL_assert(cert != NULL);
@@ -616,14 +623,16 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
     server = SSL_new(ctx);
     in = BIO_new(BIO_s_mem());
+    OPENSSL_assert(in != NULL);
     out = BIO_new(BIO_s_mem());
+    OPENSSL_assert(out != NULL);
     SSL_set_bio(server, in, out);
     SSL_set_accept_state(server);
 
     opt = (uint8_t)buf[len-1];
     len--;
 
-    OPENSSL_assert((size_t)BIO_write(in, buf, len) == len);
+    OPENSSL_assert((size_t)BIO_write(in, buf, (int)len) == len);
 
     if ((opt & 0x01) != 0) {
         do {

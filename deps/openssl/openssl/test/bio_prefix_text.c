@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,13 +96,15 @@ static int setup_bio_chain(const char *progname)
     BIO *next = NULL;
     size_t n = amount;
 
-    chain = OPENSSL_zalloc(sizeof(*chain) * n);
+    chain = OPENSSL_calloc(n, sizeof(*chain));
 
     if (chain != NULL) {
         size_t i;
 
+        if (!BIO_up_ref(bio_out)) /* Protection against freeing */
+            goto err;
+
         next = bio_out;
-        BIO_up_ref(next);        /* Protection against freeing */
 
         for (i = 0; n > 0; i++, n--) {
             BIO *curr = BIO_new(BIO_f_prefix());

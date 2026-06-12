@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # ECP_NISTZ256 module for ARMv8.
@@ -115,7 +115,7 @@ $code.=<<___;
 .quad	0xf3b9cac2fc632551,0xbce6faada7179e84,0xffffffffffffffff,0xffffffff00000000
 .LordK:
 .quad	0xccd1c8aaee00bc4f
-.asciz	"ECP_NISTZ256 for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"ECP_NISTZ256 for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 
 .text
 

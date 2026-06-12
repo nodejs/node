@@ -554,6 +554,10 @@
                 'cflags': [ '-m64', '-march=z196' ],
                 'ldflags': [ '-m64', '-march=z196' ],
               }],
+	      [ 'host_arch=="riscv64"', {
+                'cflags': [ '-march=rv64gc', '-mabi=lp64d' ],
+                'ldflags': [ '-march=rv64gc', '-mabi=lp64d' ],
+              }],
             ],
           }],
           ['_toolset=="target"', {
@@ -582,6 +586,12 @@
               [ 'target_arch=="s390x" and OS=="linux"', {
                 'cflags': [ '-m64', '-march=z196' ],
                 'ldflags': [ '-m64', '-march=z196' ],
+              }],
+	      ['target_arch=="riscv64"', {
+                'variables': {
+                  'openssl_target%': 'linux64-riscv64',
+                  'openssl_config%': 'linux64-riscv64',
+                },
               }],
             ],
           }],

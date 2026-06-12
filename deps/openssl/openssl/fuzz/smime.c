@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ int FuzzerInitialize(int *argc, char ***argv)
 
 int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
-    BIO *b = BIO_new_mem_buf(buf, len);
+    BIO *b = BIO_new_mem_buf(buf, (int)len);
     PKCS7 *p7 = SMIME_read_PKCS7(b, NULL);
 
     if (p7 != NULL) {

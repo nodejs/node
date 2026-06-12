@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # Eternal question is what's wrong with compiler generated code? The
@@ -26,7 +26,7 @@ $output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
 
 $code=<<___;
 .ident  \"sha1-ia64.s, version 1.3\"
-.ident  \"IA-64 ISA artwork by Andy Polyakov <appro\@fy.chalmers.se>\"
+.ident  \"IA-64 ISA artwork by Andy Polyakov <https://github.com/dot-asm>\"
 .explicit
 
 ___
@@ -308,7 +308,7 @@ $code.=<<___;
 	mov	pr=r2,0x1ffff
 	br.ret.sptk.many	b0	};;
 .endp	sha1_block_data_order#
-stringz	"SHA1 block transform for IA64, CRYPTOGAMS by <appro\@openssl.org>"
+stringz	"SHA1 block transform for IA64, CRYPTOGAMS by <https://github.com/dot-asm>"
 ___
 
 open STDOUT,">$output" if $output;

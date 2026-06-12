@@ -97,7 +97,7 @@ static int update_index(CA_DB *db, char **row)
     char **irow;
     int i;
 
-    irow = app_malloc(sizeof(*irow) * (DB_NUMBER + 1), "row pointers");
+    irow = app_malloc_array(DB_NUMBER + 1, sizeof(*irow), "row pointers");
     for (i = 0; i < DB_NUMBER; i++)
         irow[i] = row[i];
     irow[DB_NUMBER] = NULL;

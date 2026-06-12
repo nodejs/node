@@ -22,6 +22,7 @@
 #include <openssl/core_names.h>
 #include "internal/cryptlib.h"
 #include "internal/ssl_unwrap.h"
+#include <openssl/ocsp.h>
 
 #define TLS13_NUM_CIPHERS       OSSL_NELEM(tls13_ciphers)
 #define SSL3_NUM_CIPHERS        OSSL_NELEM(ssl3_ciphers)
@@ -3534,6 +3535,10 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
 {
     int ret = 0;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+#ifndef OPENSSL_NO_OCSP
+    unsigned char *p = NULL;
+    OCSP_RESPONSE *resp = NULL;
+#endif
 
     if (sc == NULL)
         return ret;
@@ -3666,16 +3671,79 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         break;
 
     case SSL_CTRL_GET_TLSEXT_STATUS_REQ_OCSP_RESP:
-        *(unsigned char **)parg = sc->ext.ocsp.resp;
-        if (sc->ext.ocsp.resp_len == 0
-                || sc->ext.ocsp.resp_len > LONG_MAX)
-            return -1;
-        return (long)sc->ext.ocsp.resp_len;
+        *(unsigned char **)parg = NULL;
+        ret = -1;
+
+#ifndef OPENSSL_NO_OCSP
+        resp = sk_OCSP_RESPONSE_value(sc->ext.ocsp.resp_ex, 0);
+
+        if (resp != NULL) {
+            int resp_len = i2d_OCSP_RESPONSE(resp, &p);
+
+            if (resp_len > 0) {
+                OPENSSL_free(sc->ext.ocsp.resp);
+                *(unsigned char **)parg = sc->ext.ocsp.resp = p;
+                sc->ext.ocsp.resp_len = (size_t)resp_len;
+                ret = resp_len;
+            }
+        }
+#endif
+        break;
 
     case SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP:
-        OPENSSL_free(sc->ext.ocsp.resp);
-        sc->ext.ocsp.resp = parg;
-        sc->ext.ocsp.resp_len = larg;
+        ret = 1;
+#ifndef OPENSSL_NO_OCSP
+        /*
+         * cleanup single values, which might be set somewhere else
+         * we only use the extended values
+         */
+        if (sc->ext.ocsp.resp != NULL) {
+            OPENSSL_free(sc->ext.ocsp.resp);
+            sc->ext.ocsp.resp = NULL;
+            sc->ext.ocsp.resp_len = 0;
+        }
+
+        sk_OCSP_RESPONSE_pop_free(sc->ext.ocsp.resp_ex, OCSP_RESPONSE_free);
+        sc->ext.ocsp.resp_ex = NULL;
+
+        if (parg != NULL) {
+            sc->ext.ocsp.resp_ex = sk_OCSP_RESPONSE_new_reserve(NULL, 1);
+            if (sc->ext.ocsp.resp_ex == NULL)
+                return 0;
+
+            p = parg;
+            resp = d2i_OCSP_RESPONSE(NULL, (const unsigned char **)&p, larg);
+            if (resp != NULL)
+                sk_OCSP_RESPONSE_push(sc->ext.ocsp.resp_ex, resp);
+        }
+#endif
+        break;
+
+    case SSL_CTRL_GET_TLSEXT_STATUS_REQ_OCSP_RESP_EX:
+#ifndef OPENSSL_NO_OCSP
+        *(STACK_OF(OCSP_RESPONSE) **)parg = sc->ext.ocsp.resp_ex;
+        ret = sk_OCSP_RESPONSE_num(sc->ext.ocsp.resp_ex);
+#else
+        *(unsigned char **)parg = NULL;
+        ret = -1;
+#endif
+        break;
+
+    case SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP_EX:
+#ifndef OPENSSL_NO_OCSP
+        /*
+         * cleanup single values, which might be set somewhere else
+         * we only use the extended values
+         */
+        if (sc->ext.ocsp.resp != NULL) {
+            OPENSSL_free(sc->ext.ocsp.resp);
+            sc->ext.ocsp.resp = NULL;
+            sc->ext.ocsp.resp_len = 0;
+        }
+
+        sk_OCSP_RESPONSE_pop_free(sc->ext.ocsp.resp_ex, OCSP_RESPONSE_free);
+        sc->ext.ocsp.resp_ex = (STACK_OF(OCSP_RESPONSE) *)parg;
+#endif
         ret = 1;
         break;
 
@@ -3803,7 +3871,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
                 return 0;
             if (pctype)
                 *pctype = sc->s3.tmp.ctype;
-            return sc->s3.tmp.ctype_len;
+            return (long)sc->s3.tmp.ctype_len;
         }
 
     case SSL_CTRL_SET_CLIENT_CERT_TYPES:
@@ -4353,7 +4421,7 @@ const SSL_CIPHER *ssl3_choose_cipher(SSL_CONNECTION *s, STACK_OF(SSL_CIPHER) *cl
     if (tls1_suiteb(s)) {
         prio = srvr;
         allow = clnt;
-    } else if (s->options & SSL_OP_CIPHER_SERVER_PREFERENCE) {
+    } else if (s->options & SSL_OP_SERVER_PREFERENCE) {
         prio = srvr;
         allow = clnt;
 
@@ -4412,7 +4480,7 @@ const SSL_CIPHER *ssl3_choose_cipher(SSL_CONNECTION *s, STACK_OF(SSL_CIPHER) *cl
          * that.
          */
         if (s->psk_server_callback != NULL) {
-            for (j = 0; j < s->ssl_pkey_num && !ssl_has_cert(s, j); j++);
+            for (j = 0; j < s->ssl_pkey_num && !ssl_has_cert(s, (int)j); j++);
             if (j == s->ssl_pkey_num) {
                 /* There are no certificates */
                 prefer_sha256 = 1;

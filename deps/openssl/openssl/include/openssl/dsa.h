@@ -104,9 +104,9 @@ int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 /* typedef struct dsa_method DSA_METHOD; */
 
 #   define d2i_DSAparams_fp(fp, x) \
-        (DSA *)ASN1_d2i_fp((char *(*)())DSA_new, \
-                           (char *(*)())d2i_DSAparams, (fp), \
-                           (unsigned char **)(x))
+        (DSA *)ASN1_d2i_fp((void *(*)(void))DSA_new, \
+                           (d2i_of_void *)d2i_DSAparams, (fp), \
+                           (void **)(x))
 #   define i2d_DSAparams_fp(fp, x) \
         ASN1_i2d_fp(i2d_DSAparams, (fp), (unsigned char *)(x))
 #   define d2i_DSAparams_bio(bp, x) \

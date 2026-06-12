@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -308,7 +308,7 @@ int ossl_blake2b_final(unsigned char *md, BLAKE2B_CTX *c)
 {
     uint8_t outbuffer[BLAKE2B_OUTBYTES] = {0};
     uint8_t *target = outbuffer;
-    int iter = (c->outlen + 7) / 8;
+    int iter = (int)((c->outlen + 7) / 8);
     int i;
 
     /* Avoid writing to the temporary buffer if possible */

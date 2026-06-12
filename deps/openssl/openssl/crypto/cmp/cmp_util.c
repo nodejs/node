@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -55,7 +55,7 @@ static OSSL_CMP_severity parse_level(const char *level)
 
     if (HAS_PREFIX(level, OSSL_CMP_LOG_PREFIX))
         level += strlen(OSSL_CMP_LOG_PREFIX);
-    len = end_level - level;
+    len = (int)(end_level - level);
     if (len > max_level_len)
         return -1;
     OPENSSL_strlcpy(level_copy, level, len + 1);

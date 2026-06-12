@@ -558,7 +558,19 @@ static void alg_copy(ossl_uintmax_t idx, ALGORITHM *alg, void *arg)
 {
     STACK_OF(ALGORITHM) *newalg = arg;
 
+    alg = OPENSSL_memdup(alg, sizeof(ALGORITHM));
+    if (alg == NULL)
+        return;
+
+    alg->impls = sk_IMPLEMENTATION_dup(alg->impls);
+
     (void)sk_ALGORITHM_push(newalg, alg);
+}
+
+static void del_tmpalg(ALGORITHM *alg)
+{
+    sk_IMPLEMENTATION_free(alg->impls);
+    OPENSSL_free(alg);
 }
 
 void ossl_method_store_do_all(OSSL_METHOD_STORE *store,
@@ -574,9 +586,9 @@ void ossl_method_store_do_all(OSSL_METHOD_STORE *store,
 
         if (!ossl_property_read_lock(store))
             return;
-       
+
         tmpalgs = sk_ALGORITHM_new_reserve(NULL,
-                                           ossl_sa_ALGORITHM_num(store->algs));
+                                           (int)ossl_sa_ALGORITHM_num(store->algs));
         if (tmpalgs == NULL) {
             ossl_property_unlock(store);
             return;
@@ -591,7 +603,7 @@ void ossl_method_store_do_all(OSSL_METHOD_STORE *store,
             for (j = 0; j < numimps; j++)
                 alg_do_one(alg, sk_IMPLEMENTATION_value(alg->impls, j), fn, fnarg);
         }
-        sk_ALGORITHM_free(tmpalgs);
+        sk_ALGORITHM_pop_free(tmpalgs, del_tmpalg);
     }
 }
 
@@ -726,7 +738,7 @@ fin:
 #ifndef FIPS_MODULE
     OSSL_TRACE_BEGIN(QUERY) {
         char buf[512];
-        int size;
+        size_t size;
 
         size = ossl_property_list_to_string(NULL, pq, buf, 512);
         BIO_printf(trc_out, "method store query with properties %s "

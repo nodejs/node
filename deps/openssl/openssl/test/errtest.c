@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -334,6 +334,97 @@ static int test_clear_error(void)
     return res;
 }
 
+/*
+ * Test saving and restoring error state.
+ * Test 0: Save using OSSL_ERR_STATE_save()
+ * Test 1: Save using OSSL_ERR_STATE_save_to_mark()
+ */
+static int test_save_restore(int idx)
+{
+    ERR_STATE *es;
+    int res = 0, i, flags = -1;
+    unsigned long mallocfail, interr;
+    static const char testdata[] = "test data";
+    const char *data = NULL;
+
+    if (!TEST_ptr(es = OSSL_ERR_STATE_new()))
+        goto err;
+
+    ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    mallocfail = ERR_peek_last_error();
+    if (!TEST_ulong_gt(mallocfail, 0))
+        goto err;
+
+    if (idx == 1 && !TEST_int_eq(ERR_set_mark(), 1))
+        goto err;
+
+    ERR_raise_data(ERR_LIB_CRYPTO, ERR_R_INTERNAL_ERROR, testdata);
+    interr = ERR_peek_last_error();
+    if (!TEST_ulong_ne(mallocfail, ERR_peek_last_error()))
+        goto err;
+
+    if (idx == 0) {
+        OSSL_ERR_STATE_save(es);
+
+        if (!TEST_ulong_eq(ERR_peek_last_error(), 0))
+            goto err;
+    } else {
+        OSSL_ERR_STATE_save_to_mark(es);
+
+        if (!TEST_ulong_ne(ERR_peek_last_error(), 0))
+            goto err;
+    }
+
+    for (i = 0; i < 2; i++) {
+        OSSL_ERR_STATE_restore(es);
+
+        if (!TEST_ulong_eq(ERR_peek_last_error(), interr))
+            goto err;
+        ERR_peek_last_error_data(&data, &flags);
+        if (!TEST_str_eq(data, testdata)
+                || !TEST_int_eq(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+            goto err;
+
+        /* restore again to duplicate the entries */
+        OSSL_ERR_STATE_restore(es);
+
+        /* verify them all */
+        if (idx == 0 || i == 0) {
+            if (!TEST_ulong_eq(ERR_get_error_all(NULL, NULL, NULL,
+                                                 &data, &flags), mallocfail)
+                || !TEST_int_ne(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+                goto err;
+        }
+
+        if (!TEST_ulong_eq(ERR_get_error_all(NULL, NULL, NULL,
+                                             &data, &flags), interr)
+            || !TEST_str_eq(data, testdata)
+            || !TEST_int_eq(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+            goto err;
+
+        if (idx == 0) {
+            if (!TEST_ulong_eq(ERR_get_error_all(NULL, NULL, NULL,
+                                                 &data, &flags), mallocfail)
+                || !TEST_int_ne(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+                goto err;
+        }
+
+        if (!TEST_ulong_eq(ERR_get_error_all(NULL, NULL, NULL,
+                                             &data, &flags), interr)
+            || !TEST_str_eq(data, testdata)
+            || !TEST_int_eq(flags, ERR_TXT_STRING | ERR_TXT_MALLOCED))
+            goto err;
+
+        if (!TEST_ulong_eq(ERR_get_error(), 0))
+            goto err;
+    }
+
+    res = 1;
+ err:
+    OSSL_ERR_STATE_free(es);
+    return res;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(preserves_system_error);
@@ -343,6 +434,7 @@ int setup_tests(void)
     ADD_TEST(test_print_error_format);
 #endif
     ADD_TEST(test_marks);
+    ADD_ALL_TESTS(test_save_restore, 2);
     ADD_TEST(test_clear_error);
     return 1;
 }

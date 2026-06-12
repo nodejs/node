@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,8 +17,19 @@ int ASN1_BIT_STRING_name_print(BIO *out, ASN1_BIT_STRING *bs,
 {
     BIT_STRING_BITNAME *bnam;
     char first = 1;
+    int last_seen_bit = -1;
+
     BIO_printf(out, "%*s", indent, "");
     for (bnam = tbl; bnam->lname; bnam++) {
+        /*
+         * Skip duplicate entries for the same bit in the BIT_STRING_BITNAME
+         * table. Those are aliases, but we only want to print the first entry
+         * when converting to a string.
+         */
+        if (last_seen_bit == bnam->bitnum)
+            continue;
+        last_seen_bit = bnam->bitnum;
+
         if (ASN1_BIT_STRING_get_bit(bs, bnam->bitnum)) {
             if (!first)
                 BIO_puts(out, ", ");

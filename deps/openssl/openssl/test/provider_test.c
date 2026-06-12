@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <openssl/provider.h>
+#include <openssl/param_build.h>
 #include "testutil.h"
 
 extern OSSL_provider_init_fn PROVIDER_INIT_FUNCTION_NAME;
@@ -157,6 +158,63 @@ static int test_provider(OSSL_LIB_CTX **libctx, const char *name,
     return ok;
 }
 
+#ifndef NO_PROVIDER_MODULE
+static int test_provider_ex(OSSL_LIB_CTX **libctx, const char *name)
+{
+    OSSL_PROVIDER *prov = NULL;
+    const char *greeting = NULL;
+    int ok = 0;
+    long err;
+    const char custom_buf[] = "Custom greeting";
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(bld, "greeting", custom_buf,
+                                                      strlen(custom_buf)))
+        || !TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))) {
+        goto err;
+    }
+
+    if (!TEST_ptr(prov = OSSL_PROVIDER_load_ex(*libctx, name, params)))
+        goto err;
+
+    if (!TEST_true(OSSL_PROVIDER_get_params(prov, greeting_request))
+            || !TEST_ptr(greeting = greeting_request[0].data)
+            || !TEST_size_t_gt(greeting_request[0].data_size, 0)
+            || !TEST_str_eq(greeting, custom_buf))
+        goto err;
+
+    /* Make sure we got the error we were expecting */
+    err = ERR_peek_last_error();
+    if (!TEST_int_gt(err, 0)
+            || !TEST_int_eq(ERR_GET_REASON(err), 1))
+        goto err;
+
+    if (!TEST_true(OSSL_PROVIDER_unload(prov)))
+        goto err;
+    prov = NULL;
+
+    /*
+     * We must free the libctx to force the provider to really be unloaded from
+     * memory
+     */
+    OSSL_LIB_CTX_free(*libctx);
+    *libctx = NULL;
+
+    /* We print out all the data to make sure it can still be accessed */
+    ERR_print_errors_fp(stderr);
+    ok = 1;
+ err:
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params);
+    OSSL_PROVIDER_unload(prov);
+    OSSL_LIB_CTX_free(*libctx);
+    *libctx = NULL;
+    return ok;
+}
+#endif
+
 static int test_builtin_provider(void)
 {
     OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
@@ -212,12 +270,22 @@ static int test_loaded_provider(void)
 {
     OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
     const char *name = "p_test";
+    int res = 0;
 
     if (!TEST_ptr(libctx))
         return 0;
 
     /* test_provider will free libctx as part of the test */
-    return test_provider(&libctx, name, NULL);
+    res = test_provider(&libctx, name, NULL);
+
+    libctx = OSSL_LIB_CTX_new();
+    if (!TEST_ptr(libctx))
+        return 0;
+
+    /* test_provider_ex will free libctx as part of the test */
+    res = res && test_provider_ex(&libctx, name);
+
+    return res;
 }
 #endif
 

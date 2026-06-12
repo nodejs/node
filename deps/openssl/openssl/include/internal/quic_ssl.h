@@ -120,6 +120,7 @@ __owur int ossl_quic_set_value_uint(SSL *s, uint32_t class_, uint32_t id,
 __owur SSL *ossl_quic_accept_connection(SSL *ssl, uint64_t flags);
 __owur size_t ossl_quic_get_accept_connection_queue_len(SSL *ssl);
 __owur int ossl_quic_listen(SSL *ssl);
+__owur int ossl_quic_get_peer_addr(SSL *ssl, BIO_ADDR *peer_addr);
 
 __owur int ossl_quic_stream_reset(SSL *ssl,
                                   const SSL_STREAM_RESET_ARGS *args,

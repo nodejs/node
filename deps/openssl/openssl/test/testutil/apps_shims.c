@@ -29,6 +29,21 @@ void *app_malloc(size_t sz, const char *what)
     return vp;
 }
 
+void *app_malloc_array(size_t n, size_t sz, const char *what)
+{
+    void *vp;
+
+    /*
+     * Instead of exiting with a failure, abort() is called which makes sure
+     * that there will be a good stack trace for debugging purposes.
+     */
+    if (!TEST_ptr(vp = OPENSSL_malloc_array(n, sz))) {
+        TEST_info("Could not allocate %zu*%zu bytes for %s\n", n, sz, what);
+        abort();
+    }
+    return vp;
+}
+
 /* shim to prevent sucking in too much from apps */
 
 int opt_legacy_okay(void)

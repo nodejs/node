@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,7 @@
 #include "crypto/bn.h"
 #include "crypto/evp.h"
 #include "crypto/rsa.h"
+#include "crypto/sparse_array.h"
 #include "crypto/security_bits.h"
 #include "rsa_local.h"
 
@@ -91,6 +92,10 @@ static RSA *rsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
         OPENSSL_free(ret);
         return NULL;
     }
+
+    ret->blindings_sa = ossl_rsa_alloc_blinding();
+    if (ret->blindings_sa == NULL)
+        goto err;
 
     ret->libctx = libctx;
     ret->meth = RSA_get_default_method();
@@ -181,8 +186,7 @@ void RSA_free(RSA *r)
     RSA_PSS_PARAMS_free(r->pss);
     sk_RSA_PRIME_INFO_pop_free(r->prime_infos, ossl_rsa_multip_info_free);
 #endif
-    BN_BLINDING_free(r->blinding);
-    BN_BLINDING_free(r->mt_blinding);
+    ossl_rsa_free_blinding(r);
     OPENSSL_free(r);
 }
 
@@ -1380,4 +1384,5 @@ int EVP_PKEY_CTX_set_rsa_keygen_primes(EVP_PKEY_CTX *ctx, int primes)
 
     return evp_pkey_ctx_set_params_strict(ctx, params);
 }
+
 #endif

@@ -28,11 +28,11 @@ ASN1_STRING_to_UTF8 - ASN1_STRING utility functions
 
 These functions allow an B<ASN1_STRING> structure to be manipulated.
 
-ASN1_STRING_length() returns the length of the content of I<x>.
+ASN1_STRING_length() returns the length of the content of I<x>. I<x> B<MUST NOT> be NULL.
 
 ASN1_STRING_get0_data() returns an internal pointer to the data of I<x>.
 Since this is an internal pointer it should B<not> be freed or
-modified in any way.
+modified in any way. I<x> B<MUST NOT> be NULL.
 
 ASN1_STRING_data() is similar to ASN1_STRING_get0_data() except the
 returned value is not constant. This function is deprecated:

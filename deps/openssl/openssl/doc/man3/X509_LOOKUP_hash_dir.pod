@@ -26,8 +26,9 @@ X509_load_cert_crl_file_ex, X509_load_cert_crl_file
 
 =head1 DESCRIPTION
 
-B<X509_LOOKUP_hash_dir> and B<X509_LOOKUP_file> are two certificate
-lookup methods to use with B<X509_STORE>, provided by OpenSSL library.
+B<X509_LOOKUP_hash_dir> and B<X509_LOOKUP_file>, and B<X509_LOOKUP_store> are
+certificate and CRL lookup methods to use with B<X509_STORE>, provided by
+OpenSSL library.
 
 Users of the library typically do not need to create instances of these
 methods manually, they would be created automatically by
@@ -124,6 +125,9 @@ L<ossl_store(7)>.
 It works with the help of URIs, which can be direct references to
 certificates or CRLs, but can also be references to catalogues of such
 objects (that behave like directories).
+
+B<X509_LOOKUP_store> ignores in its input anything else besides certificates and
+CRLs since OpenSSL 4.0.
 
 This method overlaps the L</File Method> and L</Hashed Directory Method>
 because of the 'file:' scheme loader.

@@ -52,7 +52,7 @@ static int aes_siv_initkey(void *vctx, const unsigned char *key, size_t keylen)
      * klen is the length of the underlying cipher, not the input key,
      * which should be twice as long
      */
-    return ossl_siv128_init(sctx, key, klen, ctx->cbc, ctx->ctr, libctx,
+    return ossl_siv128_init(sctx, key, (int)klen, ctx->cbc, ctx->ctr, libctx,
                               propq);
 }
 

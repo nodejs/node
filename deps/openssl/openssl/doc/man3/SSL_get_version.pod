@@ -2,8 +2,8 @@
 
 =head1 NAME
 
-SSL_client_version, SSL_get_version, SSL_is_dtls, SSL_version - get the
-protocol information of a connection
+SSL_client_version, SSL_get_version, SSL_is_dtls, SSL_is_tls, SSL_is_quic,
+SSL_version - get the protocol information of a connection
 
 =head1 SYNOPSIS
 
@@ -14,21 +14,29 @@ protocol information of a connection
  const char *SSL_get_version(const SSL *ssl);
 
  int SSL_is_dtls(const SSL *ssl);
+ int SSL_is_tls(const SSL *ssl);
+ int SSL_is_quic(const SSL *ssl);
 
  int SSL_version(const SSL *s);
 
 =head1 DESCRIPTION
 
-SSL_client_version() returns the numeric protocol version advertised by the
-client in the legacy_version field of the ClientHello when initiating the
-connection. Note that, for TLS, this value will never indicate a version greater
-than TLSv1.2 even if TLSv1.3 is subsequently negotiated. SSL_get_version()
-returns the name of the protocol used for the connection. SSL_version() returns
-the numeric protocol version used for the connection. They should only be called
-after the initial handshake has been completed. Prior to that the results
-returned from these functions may be unreliable.
+For SSL, TLS and DTLS protocols SSL_client_version() returns the numeric
+protocol version advertised by the client in the legacy_version field of the
+ClientHello when initiating the connection. Note that, for TLS, this value
+will never indicate a version greater than TLSv1.2 even if TLSv1.3 is
+subsequently negotiated. For QUIC connections it returns OSSL_QUIC1_VERSION.
 
-SSL_is_dtls() returns one if the connection is using DTLS, zero if not.
+SSL_get_version() returns the name of the protocol used for the connection.
+SSL_version() returns the numeric protocol version used for the connection.
+They should only be called after the initial handshake has been completed.
+Prior to that the results returned from these functions may be unreliable.
+
+SSL_is_dtls() returns 1 if the connection is using DTLS or 0 if not.
+
+SSL_is_tls() returns 1 if the connection is using SSL/TLS or 0 if not.
+
+SSL_is_quic() returns 1 if the connection is using QUIC or 0 if not.
 
 =head1 RETURN VALUES
 
@@ -56,6 +64,22 @@ The connection uses the TLSv1.2 protocol.
 =item TLSv1.3
 
 The connection uses the TLSv1.3 protocol.
+
+=item DTLSv0.9
+
+The connection uses an obsolete pre-standardisation DTLS protocol
+
+=item DTLSv1
+
+The connection uses the DTLSv1 protocol
+
+=item DTLSv1.2
+
+The connection uses the DTLSv1.2 protocol
+
+=item QUICv1
+
+The connection uses the QUICv1 protocol.
 
 =item unknown
 
@@ -89,6 +113,22 @@ The connection uses the TLSv1.2 protocol.
 The connection uses the TLSv1.3 protocol (never returned for
 SSL_client_version()).
 
+=item  DTLS1_BAD_VER
+
+The connection uses an obsolete pre-standardisation DTLS protocol
+
+=item DTLS1_VERSION
+
+The connection uses the DTLSv1 protocol
+
+=item DTLS1_2_VERSION
+
+The connection uses the DTLSv1.2 protocol
+
+=item OSSL_QUIC1_VERSION
+
+The connection uses the QUICv1 protocol.
+
 =back
 
 =head1 SEE ALSO
@@ -97,11 +137,12 @@ L<ssl(7)>
 
 =head1 HISTORY
 
-The SSL_is_dtls() function was added in OpenSSL 1.1.0.
+The SSL_is_dtls() function was added in OpenSSL 1.1.0. The SSL_is_tls() and
+SSL_is_quic() functions were added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

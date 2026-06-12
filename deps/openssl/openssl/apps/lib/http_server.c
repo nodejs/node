@@ -92,7 +92,8 @@ void spawn_loop(const char *prog)
                   strerror(errno));
         exit(1);
     }
-    kidpids = app_malloc(n_responders * sizeof(*kidpids), "child PID array");
+    kidpids = app_malloc_array(n_responders, sizeof(*kidpids),
+                               "child PID array");
     for (i = 0; i < n_responders; ++i)
         kidpids[i] = 0;
 

@@ -14,12 +14,11 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
-#include "internal/nelem.h"
 #include <openssl/asn1.h>
 
 /*
  * Output a failed test first line.
- * All items are optional are generally not preinted if passed as NULL.
+ * All items are optional are generally not printed if passed as NULL.
  * The special cases are for prefix where "ERROR" is assumed and for left
  * and right where a non-failure message is produced if either is NULL.
  */
@@ -209,7 +208,7 @@ void test_openssl_errors(void)
  * The desc argument is a printf format string followed by its arguments and
  * this is included in the output if the condition being tested for is false.
  */
-#define DEFINE_COMPARISON(type, name, opname, op, fmt)                  \
+#define DEFINE_COMPARISON(type, name, opname, op, fmt, cast)            \
     int test_ ## name ## _ ## opname(const char *file, int line,        \
                                      const char *s1, const char *s2,    \
                                      const type t1, const type t2)      \
@@ -218,29 +217,31 @@ void test_openssl_errors(void)
             return 1;                                                   \
         test_fail_message(NULL, file, line, #type, s1, s2, #op,         \
                           "[" fmt "] compared to [" fmt "]",            \
-                          t1, t2);                                      \
+                          (cast)t1, (cast)t2);                          \
         return 0;                                                       \
     }
 
-#define DEFINE_COMPARISONS(type, name, fmt)                             \
-    DEFINE_COMPARISON(type, name, eq, ==, fmt)                          \
-    DEFINE_COMPARISON(type, name, ne, !=, fmt)                          \
-    DEFINE_COMPARISON(type, name, lt, <, fmt)                           \
-    DEFINE_COMPARISON(type, name, le, <=, fmt)                          \
-    DEFINE_COMPARISON(type, name, gt, >, fmt)                           \
-    DEFINE_COMPARISON(type, name, ge, >=, fmt)
+#define DEFINE_COMPARISONS(type, name, fmt, cast)                       \
+    DEFINE_COMPARISON(type, name, eq, ==, fmt, cast)                    \
+    DEFINE_COMPARISON(type, name, ne, !=, fmt, cast)                    \
+    DEFINE_COMPARISON(type, name, lt, <, fmt, cast)                     \
+    DEFINE_COMPARISON(type, name, le, <=, fmt, cast)                    \
+    DEFINE_COMPARISON(type, name, gt, >, fmt, cast)                     \
+    DEFINE_COMPARISON(type, name, ge, >=, fmt, cast)
 
-DEFINE_COMPARISONS(int, int, "%d")
-DEFINE_COMPARISONS(unsigned int, uint, "%u")
-DEFINE_COMPARISONS(char, char, "%c")
-DEFINE_COMPARISONS(unsigned char, uchar, "%u")
-DEFINE_COMPARISONS(long, long, "%ld")
-DEFINE_COMPARISONS(unsigned long, ulong, "%lu")
-DEFINE_COMPARISONS(size_t, size_t, "%zu")
-DEFINE_COMPARISONS(double, double, "%g")
+DEFINE_COMPARISONS(int, int, "%d", int)
+DEFINE_COMPARISONS(unsigned int, uint, "%u", unsigned int)
+DEFINE_COMPARISONS(char, char, "%c", char)
+DEFINE_COMPARISONS(unsigned char, uchar, "%u", unsigned char)
+DEFINE_COMPARISONS(long, long, "%ld", long)
+DEFINE_COMPARISONS(unsigned long, ulong, "%lu", unsigned long)
+DEFINE_COMPARISONS(int64_t, int64_t, "%lld", long long)
+DEFINE_COMPARISONS(uint64_t, uint64_t, "%llu", unsigned long long)
+DEFINE_COMPARISONS(size_t, size_t, "%zu", size_t)
+DEFINE_COMPARISONS(double, double, "%g", double)
 
-DEFINE_COMPARISON(void *, ptr, eq, ==, "%p")
-DEFINE_COMPARISON(void *, ptr, ne, !=, "%p")
+DEFINE_COMPARISON(void *, ptr, eq, ==, "%p", void *)
+DEFINE_COMPARISON(void *, ptr, ne, !=, "%p", void *)
 
 int test_ptr_null(const char *file, int line, const char *s, const void *p)
 {

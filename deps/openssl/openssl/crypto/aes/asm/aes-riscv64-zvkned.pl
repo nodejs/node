@@ -2,7 +2,7 @@
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #
-# Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License"). You can obtain
 # a copy in the file LICENSE in the source distribution or at
@@ -205,6 +205,88 @@ sub aes_128_decrypt {
     @{[vaesdm_vs $V24, $V3]}   # with round key w[ 8,11]
     @{[vaesdm_vs $V24, $V2]}   # with round key w[ 4, 7]
     @{[vaesdf_vs $V24, $V1]}   # with round key w[ 0, 3]
+___
+
+    return $code;
+}
+
+# aes-128 decryption with round keys v1-v11
+sub aes_128_decrypt_6 {
+    my $code=<<___;
+    @{[vaesz_vs $V24, $V11]}   # with round key w[40,43]
+    @{[vaesz_vs $V25, $V11]}   # with round key w[40,43]
+    @{[vaesz_vs $V26, $V11]}   # with round key w[40,43]
+    @{[vaesz_vs $V27, $V11]}   # with round key w[40,43]
+    @{[vaesz_vs $V28, $V11]}   # with round key w[40,43]
+    @{[vaesz_vs $V29, $V11]}   # with round key w[40,43]
+    @{[vaesdm_vs $V24, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V25, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V26, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V27, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V28, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V29, $V10]}  # with round key w[36,39]
+    @{[vaesdm_vs $V24, $V9]}   # with round key w[32,35]
+    @{[vaesdm_vs $V25, $V9]}   # with round key w[32,35]
+    @{[vaesdm_vs $V26, $V9]}   # with round key w[32,35]
+    @{[vaesdm_vs $V27, $V9]}   # with round key w[32,35]
+    @{[vaesdm_vs $V28, $V9]}   # with round key w[32,35]
+    @{[vaesdm_vs $V29, $V9]}   # with round key w[32,35]
+
+    @{[vaesdm_vs $V24, $V8]}   # with round key w[28,31]
+    @{[vaesdm_vs $V25, $V8]}   # with round key w[28,31]
+    @{[vaesdm_vs $V26, $V8]}   # with round key w[28,31]
+    @{[vaesdm_vs $V27, $V8]}   # with round key w[28,31]
+    @{[vaesdm_vs $V28, $V8]}   # with round key w[28,31]
+    @{[vaesdm_vs $V29, $V8]}   # with round key w[28,31]
+
+    @{[vaesdm_vs $V24, $V7]}   # with round key w[24,27]
+    @{[vaesdm_vs $V25, $V7]}   # with round key w[24,27]
+    @{[vaesdm_vs $V26, $V7]}   # with round key w[24,27]
+    @{[vaesdm_vs $V27, $V7]}   # with round key w[24,27]
+    @{[vaesdm_vs $V28, $V7]}   # with round key w[24,27]
+    @{[vaesdm_vs $V29, $V7]}   # with round key w[24,27]
+
+    @{[vaesdm_vs $V24, $V6]}   # with round key w[20,23]
+    @{[vaesdm_vs $V25, $V6]}   # with round key w[20,23]
+    @{[vaesdm_vs $V26, $V6]}   # with round key w[20,23]
+    @{[vaesdm_vs $V27, $V6]}   # with round key w[20,23]
+    @{[vaesdm_vs $V28, $V6]}   # with round key w[20,23]
+    @{[vaesdm_vs $V29, $V6]}   # with round key w[20,23]
+    
+    @{[vaesdm_vs $V24, $V5]}   # with round key w[16,19]
+    @{[vaesdm_vs $V25, $V5]}   # with round key w[16,19]
+    @{[vaesdm_vs $V26, $V5]}   # with round key w[16,19]
+    @{[vaesdm_vs $V27, $V5]}   # with round key w[16,19]
+    @{[vaesdm_vs $V28, $V5]}   # with round key w[16,19]
+    @{[vaesdm_vs $V29, $V5]}   # with round key w[16,19]
+
+    @{[vaesdm_vs $V24, $V4]}   # with round key w[12,15]
+    @{[vaesdm_vs $V25, $V4]}   # with round key w[12,15]
+    @{[vaesdm_vs $V26, $V4]}   # with round key w[12,15]
+    @{[vaesdm_vs $V27, $V4]}   # with round key w[12,15]
+    @{[vaesdm_vs $V28, $V4]}   # with round key w[12,15]
+    @{[vaesdm_vs $V29, $V4]}   # with round key w[12,15]
+
+    @{[vaesdm_vs $V24, $V3]}   # with round key w[ 8,11]
+    @{[vaesdm_vs $V25, $V3]}   # with round key w[ 8,11]
+    @{[vaesdm_vs $V26, $V3]}   # with round key w[ 8,11]
+    @{[vaesdm_vs $V27, $V3]}   # with round key w[ 8,11]
+    @{[vaesdm_vs $V28, $V3]}   # with round key w[ 8,11]
+    @{[vaesdm_vs $V29, $V3]}   # with round key w[ 8,11]
+
+    @{[vaesdm_vs $V24, $V2]}   # with round key w[ 4, 7]
+    @{[vaesdm_vs $V25, $V2]}   # with round key w[ 4, 7]
+    @{[vaesdm_vs $V26, $V2]}   # with round key w[ 4, 7]
+    @{[vaesdm_vs $V27, $V2]}   # with round key w[ 4, 7]
+    @{[vaesdm_vs $V28, $V2]}   # with round key w[ 4, 7]
+    @{[vaesdm_vs $V29, $V2]}   # with round key w[ 4, 7]
+
+    @{[vaesdf_vs $V24, $V1]}   # with round key w[ 0, 3]
+    @{[vaesdf_vs $V25, $V1]}   # with round key w[ 0, 3]
+    @{[vaesdf_vs $V26, $V1]}   # with round key w[ 0, 3]
+    @{[vaesdf_vs $V27, $V1]}   # with round key w[ 0, 3]
+    @{[vaesdf_vs $V28, $V1]}   # with round key w[ 0, 3]
+    @{[vaesdf_vs $V29, $V1]}   # with round key w[ 0, 3]
 ___
 
     return $code;
@@ -481,6 +563,61 @@ L_cbc_dec_128:
     # Load IV.
     @{[vle32_v $V16, $IVP]}
 
+    li $T1, 96
+3:
+    blt $LEN, $T1, L_small 
+
+    @{[vle32_v $V24, $INP]}
+    addi $INP, $INP, 16
+    @{[vle32_v $V25, $INP]}
+    addi $INP, $INP, 16
+    @{[vle32_v $V26, $INP]}
+    addi $INP, $INP, 16
+    @{[vle32_v $V27, $INP]}
+    addi $INP, $INP, 16
+    @{[vle32_v $V28, $INP]}
+    addi $INP, $INP, 16
+    @{[vle32_v $V29, $INP]}
+    addi $INP, $INP, 16
+    @{[vmv_v_v $V17, $V24]}  
+    @{[vmv_v_v $V18, $V25]}
+    @{[vmv_v_v $V19, $V26]} 
+    @{[vmv_v_v $V20, $V27]} 
+    @{[vmv_v_v $V21, $V28]} 
+    @{[vmv_v_v $V22, $V29]}  
+
+    @{[aes_128_decrypt_6]} 
+
+    @{[vxor_vv $V24, $V24, $V16]}  
+    @{[vxor_vv $V25, $V25, $V17]}
+    @{[vxor_vv $V26, $V26, $V18]}
+    @{[vxor_vv $V27, $V27, $V19]}
+    @{[vxor_vv $V28, $V28, $V20]}
+    @{[vxor_vv $V29, $V29, $V21]}
+
+    @{[vse32_v $V24, $OUTP]}
+    addi $OUTP, $OUTP, 16 
+    @{[vse32_v $V25, $OUTP]}
+    addi $OUTP, $OUTP, 16      
+    @{[vse32_v $V26, $OUTP]}
+    addi $OUTP, $OUTP, 16
+    @{[vse32_v $V27, $OUTP]}
+    addi $OUTP, $OUTP, 16   
+    @{[vse32_v $V28, $OUTP]}
+    addi $OUTP, $OUTP, 16
+    @{[vse32_v $V29, $OUTP]}
+    addi $OUTP, $OUTP, 16
+
+    @{[vmv_v_v $V16, $V22]}  
+
+    addi $LEN, $LEN, -96       
+    
+    bnez $LEN, 3b 
+    @{[vse32_v $V16, $IVP]} 
+
+    ret
+
+L_small:
     @{[vle32_v $V24, $INP]}
     @{[vmv_v_v $V17, $V24]}
     j 2f

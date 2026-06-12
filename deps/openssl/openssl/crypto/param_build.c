@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -331,9 +331,9 @@ static OSSL_PARAM *param_bld_convert(OSSL_PARAM_BLD *bld, OSSL_PARAM *param,
         if (pd->bn != NULL) {
             /* BIGNUM */
             if (pd->type == OSSL_PARAM_UNSIGNED_INTEGER)
-                BN_bn2nativepad(pd->bn, (unsigned char *)p, pd->size);
+                BN_bn2nativepad(pd->bn, (unsigned char *)p, (int)pd->size);
             else
-                BN_signed_bn2native(pd->bn, (unsigned char *)p, pd->size);
+                BN_signed_bn2native(pd->bn, (unsigned char *)p, (int)pd->size);
         } else if (pd->type == OSSL_PARAM_OCTET_PTR
                    || pd->type == OSSL_PARAM_UTF8_PTR) {
             /* PTR */
@@ -382,6 +382,7 @@ OSSL_PARAM *OSSL_PARAM_BLD_to_param(OSSL_PARAM_BLD *bld)
     blk = p_blks + (OSSL_PARAM_ALIGNED_BLOCK *)(params);
     last = param_bld_convert(bld, params, blk, s);
     ossl_param_set_secure_block(last, s, ss);
+    last->return_size = total;
 
     /* Reset builder for reuse */
     bld->total_blocks = 0;

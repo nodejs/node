@@ -1,0 +1,11 @@
+openssl_conf = openssl_init
+
+[test]
+0.recipient = /C=FI/O=Insta \# Demo/CN=Insta Demo CA
+1.recipient = /C=FI/O=Insta \n Demo/CN=Insta Demo CA
+2.recipient = /C=FI/O=Insta \b Demo/CN=Insta Demo CA
+3.recipient = /C=FI/O=Insta \r Demo/CN=Insta Demo CA
+4.recipient = /C=FI/O=Insta \t Demo/CN=Insta Demo CA
+5.recipient = /C=FI/O=Insta \' Demo/CN=Insta Demo CA
+6.recipient = /C=FI/O=Insta \" Demo/CN=Insta Demo CA
+7.recipient = /C=FI/O=Insta \\ Demo/CN=Insta Demo CA

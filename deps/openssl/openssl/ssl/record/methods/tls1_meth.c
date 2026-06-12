@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,7 @@ static int tls1_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
 {
     EVP_CIPHER_CTX *ciph_ctx;
     EVP_PKEY *mac_key;
+    OSSL_PARAM params[2], *p = params;
     int enc = (rl->direction == OSSL_RECORD_DIRECTION_WRITE) ? 1 : 0;
 
     if (level != OSSL_RECORD_PROTECTION_LEVEL_APPLICATION)
@@ -73,10 +74,21 @@ static int tls1_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
             mac_key = EVP_PKEY_new_mac_key(mactype, NULL, mackey,
                                            (int)mackeylen);
         }
+
+        /*
+         * We want the underlying mac to use our passed property query when allocating
+         * its internal digest as well
+         */
+        if (rl->propq != NULL)
+            *p++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_PROPERTIES,
+                                                    (char *)rl->propq, 0);
+
+        *p = OSSL_PARAM_construct_end();
+
         if (mac_key == NULL
             || EVP_DigestSignInit_ex(rl->md_ctx, NULL, EVP_MD_get0_name(md),
                                      rl->libctx, rl->propq, mac_key,
-                                     NULL) <= 0) {
+                                     params) <= 0) {
             EVP_PKEY_free(mac_key);
             ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
             return OSSL_RECORD_RETURN_FATAL;
@@ -534,7 +546,7 @@ static int tls1_mac(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec, unsigned char *md
         BIO_printf(trc_out, "seq:\n");
         BIO_dump_indent(trc_out, seq, 8, 4);
         BIO_printf(trc_out, "rec:\n");
-        BIO_dump_indent(trc_out, rec->data, rec->length, 4);
+        BIO_dump_indent(trc_out, rec->data, (int)rec->length, 4);
     } OSSL_TRACE_END(TLS);
 
     if (!rl->isdtls && !tls_increment_sequence_ctr(rl)) {
@@ -544,7 +556,7 @@ static int tls1_mac(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec, unsigned char *md
 
     OSSL_TRACE_BEGIN(TLS) {
         BIO_printf(trc_out, "md:\n");
-        BIO_dump_indent(trc_out, md, md_size, 4);
+        BIO_dump_indent(trc_out, md, (int)md_size, 4);
     } OSSL_TRACE_END(TLS);
     ret = 1;
  end:

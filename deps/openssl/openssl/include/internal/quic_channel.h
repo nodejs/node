@@ -345,6 +345,8 @@ int ossl_quic_channel_is_terminated(const QUIC_CHANNEL *ch);
 int ossl_quic_channel_is_active(const QUIC_CHANNEL *ch);
 int ossl_quic_channel_is_handshake_complete(const QUIC_CHANNEL *ch);
 int ossl_quic_channel_is_handshake_confirmed(const QUIC_CHANNEL *ch);
+int ossl_quic_channel_is_server(const QUIC_CHANNEL *ch);
+void ossl_quic_channel_notify_flush_done(QUIC_CHANNEL *ch);
 
 QUIC_PORT *ossl_quic_channel_get0_port(QUIC_CHANNEL *ch);
 QUIC_ENGINE *ossl_quic_channel_get0_engine(QUIC_CHANNEL *ch);
@@ -470,6 +472,8 @@ int ossl_quic_bind_channel(QUIC_CHANNEL *ch, const BIO_ADDR *peer,
                            const QUIC_CONN_ID *scid, const QUIC_CONN_ID *dcid,
                            const QUIC_CONN_ID *odcid);
 
+void ossl_quic_channel_set_tcause(QUIC_CHANNEL *ch, uint64_t app_error_code,
+                                  const char *app_reason);
 # endif
 
 #endif

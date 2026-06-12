@@ -19,6 +19,7 @@
 #include "cipher_aes_xts.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/ciphers/cipher_aes_xts.inc"
 
 #define AES_XTS_FLAGS PROV_CIPHER_FLAG_CUSTOM_IV
 #define AES_XTS_IV_BITS 128
@@ -241,30 +242,24 @@ static int aes_xts_stream_final(void *vctx, unsigned char *out, size_t *outl,
     return 1;
 }
 
-static const OSSL_PARAM aes_xts_known_settable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *aes_xts_settable_ctx_params(ossl_unused void *cctx,
                                                      ossl_unused void *provctx)
 {
-    return aes_xts_known_settable_ctx_params;
+    return aes_xts_set_ctx_params_list;
 }
 
 static int aes_xts_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_CIPHER_CTX *ctx = (PROV_CIPHER_CTX *)vctx;
-    const OSSL_PARAM *p;
+    struct aes_xts_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !aes_xts_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL) {
+    if (p.keylen != NULL) {
         size_t keylen;
 
-        if (!OSSL_PARAM_get_size_t(p, &keylen)) {
+        if (!OSSL_PARAM_get_size_t(p.keylen, &keylen)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }

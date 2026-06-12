@@ -1501,6 +1501,36 @@ static int quic_shutdown_peer_wait(void *arg)
     return ossl_quic_channel_is_term_any(qc->ch);
 }
 
+/*
+ * This function deals with local shutdown.
+ * Function must consider those scenarios:
+ *    - blocking mode (1)
+ *    - non-blocking mode (2)
+ *    - non-blocking mode with assistance from SSL_poll() (3)
+ * (1) The function completes shutdown then returns back to caller.
+ * To complete shutdown we must do:
+ *    - flush all streams, unless we got SSL_SHUTDOWN_FLAG_NO_STREAM_FLUSH,
+ *      which means the connection is closed without waiting for streams
+ *      to deliver data written by application.
+ *    - let remote peer know local application is going to close connection,
+ *      unless we got SSL_SHUTDOWN_FLAG_WAIT_PEER in which case we await
+ *      until remote peer closes the connection
+ *    - wait for peer to confirm connection close
+ *
+ * (2) The function does not block waiting for streams to be flushed
+ * nor for peer to close connection (when running with SSL_SHUTDOWN_FLAG_WAIT_PEER)
+ * Application is supposed to call SSL_shutdown() repeatedly as long as
+ * function returns 0 which indicates the operation is still in progress.
+ *
+ * (3) In this case application uses SSL_poll() to wait for completion
+ * of each step of shutdown process. Application calls SSL_shutdown()
+ * to start with connection shutdown. The function does not block.
+ * Application then uses SSL_poll() on connection object to monitor
+ * progress of shutdown. The SSL_poll() indicates progress by signaling
+ * SSL_POLL_EVENT_EC event. Application must check connection object
+ * for error. If no error is indicated, then application must call
+ * SSL_shutdown() to move to the next stop in shutdown process.
+ */
 QUIC_TAKES_LOCK
 int ossl_quic_conn_shutdown(SSL *s, uint64_t flags,
                             const SSL_SHUTDOWN_EX_ARGS *args,
@@ -1525,6 +1555,19 @@ int ossl_quic_conn_shutdown(SSL *s, uint64_t flags,
     if (ossl_quic_channel_is_terminated(ctx.qc->ch)) {
         qctx_unlock(&ctx);
         return 1;
+    }
+
+    if (!wait_peer) {
+        /*
+         * Set shutdown reason now when local application wants to do
+         * active close (does not waant to wait for peer to close th
+         * connection). The reason will be sent to peer with connection
+         * close notification as soon as streams will be flushed.
+         */
+        if (args != NULL) {
+            ossl_quic_channel_set_tcause(ctx.qc->ch, args->quic_error_code,
+                                         args->quic_reason);
+        }
     }
 
     /* Phase 1: Stream Flushing */
@@ -3163,10 +3206,11 @@ static size_t ossl_quic_pending_int(const SSL *s, int check_channel)
     }
 
     if (check_channel)
+        /* We care about boolean result here only */
         avail = ossl_quic_stream_recv_pending(ctx.xso->stream,
-                                              /*include_fin=*/1)
-             || ossl_quic_channel_has_pending(ctx.qc->ch)
-             || ossl_quic_channel_is_term_any(ctx.qc->ch);
+                                              /*include_fin=*/1) > 0
+              || ossl_quic_channel_has_pending(ctx.qc->ch)
+              || ossl_quic_channel_is_term_any(ctx.qc->ch);
     else
         avail = ossl_quic_stream_recv_pending(ctx.xso->stream,
                                               /*include_fin=*/0);
@@ -3899,7 +3943,15 @@ SSL *ossl_quic_accept_stream(SSL *s, uint64_t flags)
 
     qsm = ossl_quic_channel_get_qsm(ctx.qc->ch);
 
-    qs = ossl_quic_stream_map_peek_accept_queue(qsm);
+    if ((flags & SSL_ACCEPT_STREAM_UNI) && !(flags & SSL_ACCEPT_STREAM_BIDI)) {
+        qs = ossl_quic_stream_map_find_in_accept_queue(qsm, 1);
+    } else if ((flags & SSL_ACCEPT_STREAM_BIDI)
+               && !(flags & SSL_ACCEPT_STREAM_UNI)) {
+        qs = ossl_quic_stream_map_find_in_accept_queue(qsm, 0);
+    } else {
+        qs = ossl_quic_stream_map_peek_accept_queue(qsm);
+    }
+
     if (qs == NULL) {
         if (qctx_blocking(&ctx)
             && (flags & SSL_ACCEPT_STREAM_NO_BLOCK) == 0) {
@@ -4099,7 +4151,7 @@ static int quic_get_stream_error_code(SSL *ssl, int is_write,
     if (!expect_quic_with_stream_lock(ssl, /*remote_init=*/-1, /*io=*/0, &ctx))
         return -1;
 
-    quic_classify_stream(ctx.qc, ctx.xso->stream, /*is_write=*/0,
+    quic_classify_stream(ctx.qc, ctx.xso->stream, is_write,
                          &state, app_error_code);
 
     qctx_unlock(&ctx);
@@ -4677,7 +4729,6 @@ static QUIC_CONNECTION *create_qc_from_incoming_conn(QUIC_LISTENER *ql, QUIC_CHA
         goto err;
     }
 
-    ossl_quic_channel_get_peer_addr(ch, &qc->init_peer_addr); /* best effort */
     qc->pending                 = 1;
     qc->engine                  = ql->engine;
     qc->port                    = ql->port;
@@ -4942,9 +4993,25 @@ size_t ossl_quic_get_accept_connection_queue_len(SSL *ssl)
 
     qctx_lock(&ctx);
 
-    ret = ossl_quic_port_get_num_incoming_channels(ctx.ql->port);
+    ret = (int)ossl_quic_port_get_num_incoming_channels(ctx.ql->port);
 
     qctx_unlock(&ctx);
+    return ret;
+}
+
+QUIC_TAKES_LOCK
+int ossl_quic_get_peer_addr(SSL *ssl, BIO_ADDR *peer_addr)
+{
+    QCTX ctx;
+    int ret;
+
+    if (!expect_quic_cs(ssl, &ctx))
+        return 0;
+
+    qctx_lock(&ctx);
+    ret = ossl_quic_channel_get_peer_addr(ctx.qc->ch, peer_addr);
+    qctx_unlock(&ctx);
+
     return ret;
 }
 
@@ -5191,7 +5258,7 @@ QUIC_NEEDS_LOCK
 static int test_poll_event_is(QUIC_CONNECTION *qc, int is_uni)
 {
     return ossl_quic_stream_map_get_accept_queue_len(ossl_quic_channel_get_qsm(qc->ch),
-                                                     is_uni);
+                                                     is_uni) > 0;
 }
 
 /* Do we have the OS (outgoing: stream) condition? */

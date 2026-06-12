@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -168,7 +168,7 @@ int SXNET_add_id_INTEGER(SXNET **psx, ASN1_INTEGER *zone, const char *user,
         return 0;
     }
     if (userlen == -1)
-        userlen = strlen(user);
+        userlen = (int)strlen(user);
     if (userlen > 64) {
         ERR_raise(ERR_LIB_X509V3, X509V3_R_USER_TOO_LONG);
         return 0;

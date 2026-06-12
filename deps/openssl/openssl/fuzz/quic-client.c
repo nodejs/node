@@ -249,7 +249,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             break;
 
         if (size > 0)
-            BIO_write(in, buf+2, size);
+            BIO_write(in, buf+2, (int)size);
         len -= size + 2;
         buf += size + 2;
     }

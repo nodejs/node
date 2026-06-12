@@ -1144,8 +1144,8 @@ static char *wide_to_asc(LPCWSTR wstr)
     len_1 = wcslen(wstr) + 1;
 
     if (len_1 > INT_MAX) {
-	    CAPIerr(CAPI_F_WIDE_TO_ASC, CAPI_R_FUNCTION_NOT_SUPPORTED);
-	    return NULL;
+        CAPIerr(CAPI_F_WIDE_TO_ASC, CAPI_R_FUNCTION_NOT_SUPPORTED);
+        return NULL;
     }
 
     len_0 = (int)len_1; /* WideCharToMultiByte expects int */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,7 @@ ERR_STATE *OSSL_ERR_STATE_new(void)
 
 void OSSL_ERR_STATE_save(ERR_STATE *es)
 {
-    size_t i;
+    int i;
     ERR_STATE *thread_es;
 
     if (es == NULL)
@@ -45,7 +45,7 @@ void OSSL_ERR_STATE_save(ERR_STATE *es)
 
 void OSSL_ERR_STATE_save_to_mark(ERR_STATE *es)
 {
-    size_t i, j, count;
+    int i, j, count;
     int top;
     ERR_STATE *thread_es;
 
@@ -112,7 +112,7 @@ void OSSL_ERR_STATE_save_to_mark(ERR_STATE *es)
 
 void OSSL_ERR_STATE_restore(const ERR_STATE *es)
 {
-    size_t i;
+    int i;
     ERR_STATE *thread_es;
 
     if (es == NULL || es->bottom == es->top)
@@ -122,8 +122,8 @@ void OSSL_ERR_STATE_restore(const ERR_STATE *es)
     if (thread_es == NULL)
         return;
 
-    for (i = (size_t)es->bottom; i != (size_t)es->top;) {
-        size_t top;
+    for (i = es->bottom; i != es->top;) {
+        int top;
 
         i = (i + 1) % ERR_NUM_ERRORS;
         if ((es->err_flags[i] & ERR_FLAG_CLEAR) != 0)

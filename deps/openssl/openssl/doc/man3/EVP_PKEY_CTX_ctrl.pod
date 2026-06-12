@@ -270,8 +270,8 @@ EVP_PKEY_CTX_get_rsa_padding() gets the RSA padding mode for I<ctx>.
 
 EVP_PKEY_CTX_set_rsa_pss_saltlen() sets the RSA PSS salt length to I<saltlen>.
 As its name implies it is only supported for PSS padding. If this function is
-not called then the maximum salt length is used when signing and auto detection
-when verifying. Three special values are supported:
+not called then the salt length is maximized up to the digest length when
+signing and auto detection when verifying. Four special values are supported:
 
 =over 4
 
@@ -288,6 +288,13 @@ sets the salt length to the maximum permissible value.
 causes the salt length to be automatically determined based on the
 B<PSS> block structure when verifying.  When signing, it has the same
 meaning as B<RSA_PSS_SALTLEN_MAX>.
+
+=item B<RSA_PSS_SALTLEN_AUTO_DIGEST_MAX>
+
+causes the salt length to be automatically determined based on the B<PSS> block
+structure when verifying, like B<RSA_PSS_SALTLEN_AUTO>.  When signing, the salt
+length is maximized up to a maximum of the digest length to comply with FIPS
+186-4 section 5.5.
 
 =back
 
@@ -385,6 +392,16 @@ negotiated protocol version instead of the protocol version first requested. If
 this behaviour should be tolerated then
 OSSL_ASYM_CIPHER_PARAM_TLS_NEGOTIATED_VERSION should be set to the actual
 negotiated protocol version. Otherwise it should be left unset.
+
+Similarly to the B<RSA_PKCS1_WITH_TLS_PADDING> above, since OpenSSL version
+3.2.0, the use of B<RSA_PKCS1_PADDING> will return a randomly generated message
+instead of padding errors in case padding checks fail. Applications that
+want to remain secure while using earlier versions of OpenSSL, or a provider
+that doesn't implement the implicit rejection mechanism, still need to
+handle both the error code from the RSA decryption operation and the
+returned message in a side channel secure manner.
+This protection against Bleichenbacher attacks can be disabled by setting
+B<OSSL_ASYM_CIPHER_PARAM_IMPLICIT_REJECTION> (an unsigned integer) to 0.
 
 =head2 DSA parameters
 
@@ -634,10 +651,14 @@ returns the previously set ID value to caller in I<id>. The caller should
 allocate adequate memory space for the I<id> before calling EVP_PKEY_CTX_get1_id().
 
 EVP_PKEY_CTX_set_kem_op() sets the KEM operation to run. This can be set after
-EVP_PKEY_encapsulate_init() or EVP_PKEY_decapsulate_init() to select the
-kem operation. RSA is the only key type that supports encapsulation currently,
-and as there is no default operation for the RSA type, this function must be
-called before EVP_PKEY_encapsulate() or EVP_PKEY_decapsulate().
+EVP_PKEY_encapsulate_init() or EVP_PKEY_decapsulate_init() to select the kem
+operation. For the key types that support encapsulation and don't have the
+default operation, e.g. RSA, this function must be called before
+EVP_PKEY_encapsulate() or EVP_PKEY_decapsulate().
+
+The supported parameters for the built-in algorithms are documented in
+L<EVP_KEM-RSA(7)>, L<EVP_KEM-EC(7)>, L<EVP_KEM-X25519(7)>,
+L<EVP_KEM-X448(7)>, and L<EVP_KEM-ML-KEM(7)>.
 
 =head1 RETURN VALUES
 
@@ -680,7 +701,7 @@ and EVP_PKEY_CTX_get0_ecdh_kdf_ukm() were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

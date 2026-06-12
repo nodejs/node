@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -51,12 +51,21 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
     unsigned char *p;
     int nchar;
     int (*cpyfunc) (unsigned long, void *) = NULL;
-    if (len == -1)
-        len = strlen((const char *)in);
+    if (len == -1) {
+        size_t len_s = strlen((const char *)in);
+
+        if (len_s >= INT_MAX) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_STRING_TOO_LONG);
+            return -1;
+        }
+        len = (int)len_s;
+    }
     if (!mask)
         mask = DIRSTRING_TYPE;
-    if (len < 0)
+    if (len < 0) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_INVALID_ARGUMENT);
         return -1;
+    }
 
     /* First do a string check and work out the number of characters */
     switch (inform) {

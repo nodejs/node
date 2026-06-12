@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,8 +39,8 @@ COMP_METHOD *COMP_zstd(void);
 #  error Wrong (i.e. linux) zstd.h included.
 # endif
 
-# if ZSTD_VERSION_MAJOR != 1 && ZSTD_VERSION_MINOR < 4
-#  error Expecting version 1.4 or greater of ZSTD
+# if ZSTD_VERSION_MAJOR != 1 || ZSTD_VERSION_MINOR < 4
+#  error Expecting version 1.4 or greater of ZSTD 1.x
 # endif
 
 # ifndef ZSTD_SHARED
@@ -582,7 +582,11 @@ static int bio_zstd_read(BIO *b, char *out, int outl)
     ZSTD_outBuffer outBuf;
     BIO *next = BIO_next(b);
 
-    if (out == NULL || outl <= 0)
+    if (out == NULL) {
+        ERR_raise(ERR_LIB_COMP, ERR_R_PASSED_NULL_PARAMETER);
+        return -1;
+    }
+    if (outl <= 0)
         return 0;
 
     ctx = BIO_get_data(b);
@@ -591,7 +595,7 @@ static int bio_zstd_read(BIO *b, char *out, int outl)
         ctx->decompress.buffer = OPENSSL_malloc(ctx->decompress.bufsize);
         if (ctx->decompress.buffer == NULL) {
             ERR_raise(ERR_LIB_COMP, ERR_R_MALLOC_FAILURE);
-            return 0;
+            return -1;
         }
         ctx->decompress.inbuf.src = ctx->decompress.buffer;
         ctx->decompress.inbuf.size = 0;
@@ -613,19 +617,19 @@ static int bio_zstd_read(BIO *b, char *out, int outl)
             }
             /* No more output space */
             if (outBuf.pos == outBuf.size)
-                return outBuf.pos;
+                return (int)outBuf.pos;
         } while (ctx->decompress.inbuf.pos < ctx->decompress.inbuf.size);
 
         /*
          * No data in input buffer try to read some in, if an error then
          * return the total data read.
          */
-        ret = BIO_read(next, ctx->decompress.buffer, ctx->decompress.bufsize);
+        ret = BIO_read(next, ctx->decompress.buffer, (int)ctx->decompress.bufsize);
         if (ret <= 0) {
             BIO_copy_next_retry(b);
             if (ret < 0 && outBuf.pos == 0)
                 return ret;
-            return outBuf.pos;
+            return (int)outBuf.pos;
         }
         ctx->decompress.inbuf.size = ret;
         ctx->decompress.inbuf.pos = 0;
@@ -665,19 +669,19 @@ static int bio_zstd_write(BIO *b, const char *in, int inl)
         /* If data in output buffer write it first */
         while (ctx->compress.write_pos < ctx->compress.outbuf.pos) {
             ret = BIO_write(next, (unsigned char*)ctx->compress.outbuf.dst + ctx->compress.write_pos,
-                            ctx->compress.outbuf.pos - ctx->compress.write_pos);
+                            (int)(ctx->compress.outbuf.pos - ctx->compress.write_pos));
             if (ret <= 0) {
                 BIO_copy_next_retry(b);
                 if (ret < 0 && inBuf.pos == 0)
                     return ret;
-                return inBuf.pos;
+                return (int)inBuf.pos;
             }
             ctx->compress.write_pos += ret;
         }
 
         /* Have we consumed all supplied data? */
         if (done)
-            return inBuf.pos;
+            return (int)inBuf.pos;
 
         /* Reset buffer */
         ctx->compress.outbuf.pos = 0;
@@ -717,7 +721,7 @@ static int bio_zstd_flush(BIO *b)
         /* If data in output buffer write it first */
         while (ctx->compress.write_pos < ctx->compress.outbuf.pos) {
             ret = BIO_write(next, (unsigned char*)ctx->compress.outbuf.dst + ctx->compress.write_pos,
-                            ctx->compress.outbuf.pos - ctx->compress.write_pos);
+                            (int)(ctx->compress.outbuf.pos - ctx->compress.write_pos));
             if (ret <= 0) {
                 BIO_copy_next_retry(b);
                 return ret;
@@ -732,7 +736,7 @@ static int bio_zstd_flush(BIO *b)
         /* Compress some more */
         zret = ZSTD_flushStream(ctx->compress.state, &ctx->compress.outbuf);
         if (ZSTD_isError(zret)) {
-            ERR_raise(ERR_LIB_COMP, COMP_R_ZSTD_DECODE_ERROR);
+            ERR_raise(ERR_LIB_COMP, COMP_R_ZSTD_COMPRESS_ERROR);
             ERR_add_error_data(1, ZSTD_getErrorName(zret));
             return 0;
         }
@@ -755,8 +759,19 @@ static long bio_zstd_ctrl(BIO *b, int cmd, long num, void *ptr)
     switch (cmd) {
 
     case BIO_CTRL_RESET:
+        /* reset decompressor */
+        ctx->decompress.inbuf.size = 0;
+        ctx->decompress.inbuf.pos = 0;
+        if (ctx->decompress.state != NULL)
+            ZSTD_initDStream(ctx->decompress.state);
+
+        /* reset compressor */
         ctx->compress.write_pos = 0;
-        ctx->compress.bufsize = 0;
+        ctx->compress.outbuf.pos = 0;
+        if (ctx->compress.state != NULL)
+            ZSTD_initCStream(ctx->compress.state, ZSTD_CLEVEL_DEFAULT);
+
+        /* keep existing bufsize, do not set it to 0 */
         ret = 1;
         break;
 

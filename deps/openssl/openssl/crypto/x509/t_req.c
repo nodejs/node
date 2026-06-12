@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,7 +18,7 @@
 #include <openssl/dsa.h>
 
 #ifndef OPENSSL_NO_STDIO
-int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
+int X509_REQ_print_fp(FILE *fp, const X509_REQ *x)
 {
     BIO *b;
     int ret;
@@ -34,8 +34,7 @@ int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
 }
 #endif
 
-int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
-                      unsigned long cflag)
+int X509_REQ_print_ex(BIO *bp, const X509_REQ *x, unsigned long nmflags, unsigned long cflag)
 {
     long l;
     int i;
@@ -210,7 +209,7 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
     return 0;
 }
 
-int X509_REQ_print(BIO *bp, X509_REQ *x)
+int X509_REQ_print(BIO *bp, const X509_REQ *x)
 {
     return X509_REQ_print_ex(bp, x, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 }

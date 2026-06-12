@@ -1,0 +1,84 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_load_u16_le, OPENSSL_load_u16_be, OPENSSL_load_u32_le,
+OPENSSL_load_u32_be, OPENSSL_load_u64_le, OPENSSL_load_u64_be,
+OPENSSL_store_u16_le, OPENSSL_store_u16_be,
+OPENSSL_store_u32_le, OPENSSL_store_u32_be,
+OPENSSL_store_u64_le, OPENSSL_store_u64_be -
+Read and write unsigned 16, 32 and 64-bit integers in a specific byte order
+
+=head1 SYNOPSIS
+
+    #include <openssl/byteorder.h>
+
+    static ossl_inline unsigned char *OPENSSL_store_u16_le(
+        unsigned char *out, uint16_t val);
+    static ossl_inline unsigned char *OPENSSL_store_u16_be(
+        unsigned char *out, uint16_t val);
+    static ossl_inline unsigned char *OPENSSL_store_u32_le(
+        unsigned char *out, uint32_t val);
+    static ossl_inline unsigned char *OPENSSL_store_u32_be(
+        unsigned char *out, uint32_t val);
+    static ossl_inline unsigned char *OPENSSL_store_u64_le(
+        unsigned char *out, uint64_t val);
+    static ossl_inline unsigned char *OPENSSL_store_u64_be(
+        unsigned char *out, uint64_t val);
+    static ossl_inline const unsigned char *OPENSSL_load_u16_le(
+        uint16_t *val, const unsigned char *in);
+    static ossl_inline const unsigned char *OPENSSL_load_u16_be(
+        uint16_t *val, const unsigned char *in);
+    static ossl_inline const unsigned char *OPENSSL_load_u32_le(
+        uint32_t *val, const unsigned char *in);
+    static ossl_inline const unsigned char *OPENSSL_load_u32_be(
+        uint32_t *val, const unsigned char *in);
+    static ossl_inline const unsigned char *OPENSSL_load_u64_le(
+        uint64_t *val, const unsigned char *in);
+    static ossl_inline const unsigned char *OPENSSL_load_u64_be(
+        uint64_t *val, const unsigned char *in);
+
+=head1 DESCRIPTION
+
+These functions read and write 16, 32 and 64 bit unsigned integers in a
+specified byte order.
+The C<_be> functions use big-endian byte order, while the C<_le> functions use
+little-endian byte order.
+They're implemented directly in the header file, and declared static.  When the
+compiler supports inline functions, they're also declared inline.
+An optimising compiler will often convert these to just one or two machine
+instructions: a load or store with a possible byte swap.
+
+The C<load> functions write the decoded integer value at the address pointed to
+by I<val>, which must be a valid (possibly suitably aligned) address of an
+object of the appropriate type.
+The C<store> functions write the encoding of I<val> at the address pointed to
+by I<out>.
+
+For convenience, these functions return the updated input or output pointer,
+making it easy to continue reading or writing more data at the next memory
+location.
+
+No bounds checks are performed, the caller is responsible for making sure that
+the input or output buffers are sufficiently large for the requested read or
+write.
+
+=head1 RETURN VALUES
+
+All these functions return the next memory address following the last byte
+written or read.
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

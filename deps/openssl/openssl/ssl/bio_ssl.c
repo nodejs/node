@@ -433,10 +433,12 @@ static long ssl_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 
 static int ssl_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = BIO_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = BIO_write(bp, str, (int)n);
     return ret;
 }
 

@@ -149,4 +149,11 @@ X509_ALGOR *ossl_X509_ALGOR_from_nid(int nid, int ptype, void *pval);
 
 void ossl_asn1_string_set_bits_left(ASN1_STRING *str, unsigned int num);
 
+int asn1_item_embed_d2i(ASN1_VALUE **pval, const unsigned char **in,
+                        long len, const ASN1_ITEM *it, int tag, int aclass,
+                        char opt, ASN1_TLC *ctx, int depth,
+                        OSSL_LIB_CTX *libctx, const char *propq);
+
+ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type);
+
 #endif /* ndef OSSL_CRYPTO_ASN1_H */

@@ -1,0 +1,43 @@
+#
+# To run the demos when linked with a shared library (default) ensure that
+# libcrypto and libssl are on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./tls-client-block www.example.com 443
+
+PROGRAMS{noinst} = tls-client-block \
+                   quic-client-block \
+                   quic-multi-stream \
+                   tls-client-non-block \
+                   quic-client-non-block \
+                   quic-server-block \
+                   quic-server-non-block \
+                   quic-client-non-block \
+
+INCLUDE[tls-client-block]=../../include
+SOURCE[tls-client-block]=tls-client-block.c
+DEPEND[tls-client-block]=../../libcrypto ../../libssl
+
+INCLUDE[quic-client-block]=../../include
+SOURCE[quic-client-block]=quic-client-block.c
+DEPEND[quic-client-block]=../../libcrypto ../../libssl
+
+INCLUDE[quic-multi-stream]=../../include
+SOURCE[quic-multi-stream]=quic-multi-stream.c
+DEPEND[quic-multi-stream]=../../libcrypto ../../libssl
+
+INCLUDE[tls-client-non-block]=../../include
+SOURCE[tls-client-non-block]=tls-client-non-block.c
+DEPEND[tls-client-non-block]=../../libcrypto ../../libssl
+
+INCLUDE[quic-server-block]=../../include
+SOURCE[quic-server-block]=quic-server-block.c
+DEPEND[quic-server-block]=../../libcrypto ../../libssl
+
+INCLUDE[quic-server-non-block]=../../include
+SOURCE[quic-server-non-block]=quic-server-non-block.c
+DEPEND[quic-server-non-block]=../../libcrypto ../../libssl
+
+INCLUDE[quic-client-non-block]=../../include
+SOURCE[quic-client-non-block]=quic-client-non-block.c
+DEPEND[quic-client-non-block]=../../libcrypto ../../libssl
+

@@ -78,10 +78,12 @@ BIO_new_CMS().
 
 The recipients specified in B<certs> use a CMS KeyTransRecipientInfo info
 structure. KEKRecipientInfo is also supported using the flag B<CMS_PARTIAL>
-and CMS_add0_recipient_key().
+and CMS_add0_recipient_key(). KEMRecipientInfo is also supported using the
+flag B<CMS_PARTIAL> and CMS_add1_recipient().
 
 The parameter B<certs> may be NULL if B<CMS_PARTIAL> is set and recipients
-added later using CMS_add1_recipient_cert() or CMS_add0_recipient_key().
+are added later using CMS_add1_recipient() or CMS_add1_recipient_cert() with
+CMS_add0_recipient_key().
 
 CMS_encrypt() is similar to CMS_encrypt_ex() but uses default values
 of NULL for the library context I<libctx> and the property query I<propq>.
@@ -104,7 +106,7 @@ The B<CMS_STREAM> flag was first supported in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

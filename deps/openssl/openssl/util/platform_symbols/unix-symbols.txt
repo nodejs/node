@@ -160,4 +160,5 @@ __timezone
 uname
 usleep
 vfprintf
+vsnprintf
 __xpg_strerror_r

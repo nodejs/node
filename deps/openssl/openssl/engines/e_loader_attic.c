@@ -11,7 +11,9 @@
 
 /* This file has quite some overlap with providers/implementations/storemgmt/file_store.c */
 
-/* We need to use some engine deprecated APIs */
+/*
+ * We need to use some asn1_meth deprecated APIs
+ */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
 #include "internal/e_os.h" /* for stat */
@@ -71,7 +73,7 @@ static char *file_get_pass(const UI_METHOD *ui_method, char *pass,
         ATTICerr(0, ERR_R_UI_LIB);
         pass = NULL;
     } else if (UI_add_input_string(ui, prompt, UI_INPUT_FLAG_DEFAULT_PWD,
-                                    pass, 0, maxsize - 1) <= 0) {
+                                    pass, 0, (int)(maxsize - 1)) <= 0) {
         ATTICerr(0, ERR_R_UI_LIB);
         pass = NULL;
     } else {
@@ -122,7 +124,7 @@ static int file_get_pem_pass(char *buf, int num, int w, void *data)
                                pass_data->prompt_desc, pass_data->prompt_info,
                                pass_data->data);
 
-    return pass == NULL ? 0 : strlen(pass);
+    return pass == NULL ? 0 : (int)strlen(pass);
 }
 
 /*
@@ -133,8 +135,8 @@ static int file_get_pem_pass(char *buf, int num, int w, void *data)
  */
 static int check_suffix(const char *str, const char *suffix)
 {
-    int str_len = strlen(str);
-    int suffix_len = strlen(suffix) + 1;
+    int str_len = (int)strlen(str);
+    int suffix_len = (int)(strlen(suffix) + 1);
     const char *p = NULL;
 
     if (suffix_len >= str_len)
@@ -143,7 +145,7 @@ static int check_suffix(const char *str, const char *suffix)
     if (*p != ' '
         || strcmp(p + 1, suffix) != 0)
         return -1;
-    return p - str;
+    return (int)(p - str);
 }
 
 /*
@@ -307,11 +309,11 @@ static OSSL_STORE_INFO *try_decode_PKCS12(const char *pem_name,
         /* Initial parsing */
         PKCS12 *p12;
 
-        if (pem_name != NULL)
+        if (pem_name != NULL || len > LONG_MAX)
             /* No match, there is no PEM PKCS12 tag */
             return NULL;
 
-        if ((p12 = d2i_PKCS12(NULL, &blob, len)) != NULL) {
+        if ((p12 = d2i_PKCS12(NULL, &blob, (long)len)) != NULL) {
             char *pass = NULL;
             char tpass[PEM_BUFSIZE];
             EVP_PKEY *pkey = NULL;
@@ -331,7 +333,7 @@ static OSSL_STORE_INFO *try_decode_PKCS12(const char *pem_name,
                     ATTICerr(0, ATTIC_R_PASSPHRASE_CALLBACK_ERROR);
                     goto p12_end;
                 }
-                if (!PKCS12_verify_mac(p12, pass, strlen(pass))) {
+                if (!PKCS12_verify_mac(p12, pass, (int)strlen(pass))) {
                     ATTICerr(0, ATTIC_R_ERROR_VERIFYING_PKCS12_MAC);
                     goto p12_end;
                 }
@@ -452,7 +454,7 @@ static OSSL_STORE_INFO *try_decode_PKCS8Encrypted(const char *pem_name,
         *matchcount = 1;
     }
 
-    if ((p8 = d2i_X509_SIG(NULL, &blob, len)) == NULL)
+    if (len > LONG_MAX || (p8 = d2i_X509_SIG(NULL, &blob, (long)len)) == NULL)
         return NULL;
 
     *matchcount = 1;
@@ -470,7 +472,8 @@ static OSSL_STORE_INFO *try_decode_PKCS8Encrypted(const char *pem_name,
     }
 
     X509_SIG_get0(p8, &dalg, &doct);
-    if (!PKCS12_pbe_crypt(dalg, pass, strlen(pass), doct->data, doct->length,
+    if (!PKCS12_pbe_crypt(dalg, pass, (int)strlen(pass),
+                          doct->data, doct->length,
                           &new_data, &new_data_len, 0))
         goto nop8;
 
@@ -516,10 +519,12 @@ static OSSL_STORE_INFO *try_decode_PrivateKey(const char *pem_name,
     EVP_PKEY *pkey = NULL;
     const EVP_PKEY_ASN1_METHOD *ameth = NULL;
 
+    if (len > LONG_MAX)
+        return NULL;
     if (pem_name != NULL) {
         if (strcmp(pem_name, PEM_STRING_PKCS8INF) == 0) {
             PKCS8_PRIV_KEY_INFO *p8inf =
-                d2i_PKCS8_PRIV_KEY_INFO(NULL, &blob, len);
+                d2i_PKCS8_PRIV_KEY_INFO(NULL, &blob, (long)len);
 
             *matchcount = 1;
             if (p8inf != NULL)
@@ -535,7 +540,7 @@ static OSSL_STORE_INFO *try_decode_PrivateKey(const char *pem_name,
                 && EVP_PKEY_asn1_get0_info(&pkey_id, NULL, NULL, NULL, NULL,
                                            ameth)) {
                 *matchcount = 1;
-                pkey = d2i_PrivateKey_ex(pkey_id, NULL, &blob, len,
+                pkey = d2i_PrivateKey_ex(pkey_id, NULL, &blob, (long)len,
                                          libctx, propq);
             }
         }
@@ -567,7 +572,7 @@ static OSSL_STORE_INFO *try_decode_PrivateKey(const char *pem_name,
 
                     ERR_set_mark(); /* prevent flooding error queue */
                     tmp_pkey = d2i_PrivateKey_ex(pkey_id, NULL,
-                                                 &tmp_blob, len,
+                                                 &tmp_blob, (long)len,
                                                  libctx, propq);
                     if (tmp_pkey != NULL) {
                         if (pkey != NULL)
@@ -595,7 +600,7 @@ static OSSL_STORE_INFO *try_decode_PrivateKey(const char *pem_name,
                 continue;
 
             ERR_set_mark(); /* prevent flooding error queue */
-            tmp_pkey = d2i_PrivateKey_ex(pkey_id, NULL, &tmp_blob, len,
+            tmp_pkey = d2i_PrivateKey_ex(pkey_id, NULL, &tmp_blob, (long)len,
                                          libctx, propq);
             if (tmp_pkey != NULL) {
                 if (pkey != NULL)
@@ -651,7 +656,7 @@ static OSSL_STORE_INFO *try_decode_PUBKEY(const char *pem_name,
         *matchcount = 1;
     }
 
-    if ((pkey = d2i_PUBKEY(NULL, &blob, len)) != NULL) {
+    if (len > LONG_MAX || (pkey = d2i_PUBKEY(NULL, &blob, (long)len)) != NULL) {
         *matchcount = 1;
         store_info = OSSL_STORE_INFO_new_PUBKEY(pkey);
     }
@@ -681,6 +686,8 @@ static OSSL_STORE_INFO *try_decode_params(const char *pem_name,
     EVP_PKEY *pkey = NULL;
     const EVP_PKEY_ASN1_METHOD *ameth = NULL;
 
+    if (len > LONG_MAX)
+        return NULL;
     if (pem_name != NULL) {
         int slen;
         int pkey_id;
@@ -690,7 +697,7 @@ static OSSL_STORE_INFO *try_decode_params(const char *pem_name,
             && EVP_PKEY_asn1_get0_info(&pkey_id, NULL, NULL, NULL, NULL,
                                        ameth)) {
             *matchcount = 1;
-            pkey = d2i_KeyParams(pkey_id, NULL, &blob, len);
+            pkey = d2i_KeyParams(pkey_id, NULL, &blob, (long)len);
         }
     } else {
         int i;
@@ -708,7 +715,7 @@ static OSSL_STORE_INFO *try_decode_params(const char *pem_name,
 
             ERR_set_mark(); /* prevent flooding error queue */
 
-            tmp_pkey = d2i_KeyParams(pkey_id, NULL, &tmp_blob, len);
+            tmp_pkey = d2i_KeyParams(pkey_id, NULL, &tmp_blob, (long)len);
 
             if (tmp_pkey != NULL) {
                 if (pkey != NULL)
@@ -767,6 +774,8 @@ static OSSL_STORE_INFO *try_decode_X509Certificate(const char *pem_name,
      */
     int ignore_trusted = 1;
 
+    if (len > LONG_MAX)
+        return NULL;
     if (pem_name != NULL) {
         if (strcmp(pem_name, PEM_STRING_X509_TRUSTED) == 0)
             ignore_trusted = 0;
@@ -781,8 +790,8 @@ static OSSL_STORE_INFO *try_decode_X509Certificate(const char *pem_name,
     if (cert == NULL)
         return NULL;
 
-    if ((d2i_X509_AUX(&cert, &blob, len)) != NULL
-        || (ignore_trusted && (d2i_X509(&cert, &blob, len)) != NULL)) {
+    if ((d2i_X509_AUX(&cert, &blob, (long)len)) != NULL
+        || (ignore_trusted && (d2i_X509(&cert, &blob, (long)len)) != NULL)) {
         *matchcount = 1;
         store_info = OSSL_STORE_INFO_new_CERT(cert);
     }
@@ -814,6 +823,8 @@ static OSSL_STORE_INFO *try_decode_X509CRL(const char *pem_name,
     OSSL_STORE_INFO *store_info = NULL;
     X509_CRL *crl = NULL;
 
+    if (len > LONG_MAX)
+        return NULL;
     if (pem_name != NULL) {
         if (strcmp(pem_name, PEM_STRING_X509_CRL) != 0)
             /* No match */
@@ -821,7 +832,7 @@ static OSSL_STORE_INFO *try_decode_X509CRL(const char *pem_name,
         *matchcount = 1;
     }
 
-    if ((crl = d2i_X509_CRL(NULL, &blob, len)) != NULL) {
+    if ((crl = d2i_X509_CRL(NULL, &blob, (long)len)) != NULL) {
         *matchcount = 1;
         store_info = OSSL_STORE_INFO_new_CRL(crl);
     }
@@ -947,18 +958,14 @@ static OSSL_STORE_LOADER_CTX *file_open_ex
 {
     OSSL_STORE_LOADER_CTX *ctx = NULL;
     struct stat st;
-    struct {
-        const char *path;
-        unsigned int check_absolute:1;
-    } path_data[2];
+    const char *path_data[2];
     size_t path_data_n = 0, i;
     const char *path, *p = uri, *q;
 
     /*
      * First step, just take the URI as is.
      */
-    path_data[path_data_n].check_absolute = 0;
-    path_data[path_data_n++].path = uri;
+    path_data[path_data_n++] = uri;
 
     /*
      * Second step, if the URI appears to start with the "file" scheme,
@@ -971,48 +978,39 @@ static OSSL_STORE_LOADER_CTX *file_open_ex
         if (CHECK_AND_SKIP_PREFIX(q, "//")) {
             path_data_n--;           /* Invalidate using the full URI */
             if (CHECK_AND_SKIP_CASE_PREFIX(q, "localhost/")
-                    || CHECK_AND_SKIP_PREFIX(q, "/")) {
+                || CHECK_AND_SKIP_PREFIX(q, "/")) {
+                /*
+                 * In this case, we step back on char to ensure that the
+                 * first slash is preserved, making the path always absolute
+                 */
                 p = q - 1;
             } else {
                 ATTICerr(0, ATTIC_R_URI_AUTHORITY_UNSUPPORTED);
                 return NULL;
             }
         }
-
-        path_data[path_data_n].check_absolute = 1;
 #ifdef _WIN32
         /* Windows "file:" URIs with a drive letter start with a '/' */
         if (p[0] == '/' && p[2] == ':' && p[3] == '/') {
             char c = tolower((unsigned char)p[1]);
 
             if (c >= 'a' && c <= 'z') {
+                /* Skip past the slash, making the path a normal Windows path */
                 p++;
-                /* We know it's absolute, so no need to check */
-                path_data[path_data_n].check_absolute = 0;
             }
         }
 #endif
-        path_data[path_data_n++].path = p;
+        path_data[path_data_n++] = p;
     }
 
 
     for (i = 0, path = NULL; path == NULL && i < path_data_n; i++) {
-        /*
-         * If the scheme "file" was an explicit part of the URI, the path must
-         * be absolute.  So says RFC 8089
-         */
-        if (path_data[i].check_absolute && path_data[i].path[0] != '/') {
-            ATTICerr(0, ATTIC_R_PATH_MUST_BE_ABSOLUTE);
-            ERR_add_error_data(1, path_data[i].path);
-            return NULL;
-        }
-
-        if (stat(path_data[i].path, &st) < 0) {
+        if (stat(path_data[i], &st) < 0) {
             ERR_raise_data(ERR_LIB_SYS, errno,
                            "calling stat(%s)",
-                           path_data[i].path);
+                           path_data[i]);
         } else {
-            path = path_data[i].path;
+            path = path_data[i];
         }
     }
     if (path == NULL) {
@@ -1417,8 +1415,8 @@ static int file_name_to_uri(OSSL_STORE_LOADER_CTX *ctx, const char *name,
     assert(data != NULL);
     {
         const char *pathsep = ossl_ends_with_dirsep(ctx->uri) ? "" : "/";
-        long calculated_length = strlen(ctx->uri) + strlen(pathsep)
-            + strlen(name) + 1 /* \0 */;
+        long calculated_length = (long)(strlen(ctx->uri) + strlen(pathsep)
+            + strlen(name) + 1 /* \0 */);
 
         *data = OPENSSL_zalloc(calculated_length);
         if (*data == NULL)

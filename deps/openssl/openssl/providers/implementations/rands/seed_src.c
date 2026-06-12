@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,10 +17,12 @@
 #include <openssl/err.h>
 #include <openssl/randerr.h>
 #include <openssl/proverr.h>
+#include "internal/common.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "crypto/rand.h"
 #include "crypto/rand_pool.h"
+#include "providers/implementations/rands/seed_src.inc"
 
 static OSSL_FUNC_rand_newctx_fn seed_src_new;
 static OSSL_FUNC_rand_freectx_fn seed_src_free;
@@ -144,18 +146,18 @@ static int seed_src_reseed(void *vseed,
 static int seed_src_get_ctx_params(void *vseed, OSSL_PARAM params[])
 {
     PROV_SEED_SRC *s = (PROV_SEED_SRC *)vseed;
-    OSSL_PARAM *p;
+    struct seed_src_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STATE);
-    if (p != NULL && !OSSL_PARAM_set_int(p, s->state))
+    if (s == NULL || !seed_src_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STRENGTH);
-    if (p != NULL && !OSSL_PARAM_set_int(p, 1024))
+    if (p.state != NULL && !OSSL_PARAM_set_int(p.state, s->state))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, 128))
+    if (p.str != NULL && !OSSL_PARAM_set_uint(p.str, 1024))
+        return 0;
+
+    if (p.maxreq != NULL && !OSSL_PARAM_set_size_t(p.maxreq, 128))
         return 0;
     return 1;
 }
@@ -163,13 +165,7 @@ static int seed_src_get_ctx_params(void *vseed, OSSL_PARAM params[])
 static const OSSL_PARAM *seed_src_gettable_ctx_params(ossl_unused void *vseed,
                                                       ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_int(OSSL_RAND_PARAM_STATE, NULL),
-        OSSL_PARAM_uint(OSSL_RAND_PARAM_STRENGTH, NULL),
-        OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),
-        OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+    return seed_src_get_ctx_params_list;
 }
 
 static int seed_src_verify_zeroization(ossl_unused void *vseed)

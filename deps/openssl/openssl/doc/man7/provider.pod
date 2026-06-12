@@ -239,6 +239,15 @@ e.g., when no provider implementing the required functionality has been
 activated. In particular, provider initialization should not depend on other
 providers already having been initialized.
 
+=head3 Note on naming clashes
+
+It is possible to register the same algorithm name from within different
+providers. Users should note that if no property query is specified, or
+more than one implementation matches the property query then it is
+unspecified which implementation of a particular algorithm will be returned.
+Such naming clashes may also occur if algorithms only differ in
+capitalization as L</Algorithm naming> is case insensitive.
+
 =head1 OPENSSL PROVIDERS
 
 OpenSSL provides a number of its own providers. These are the default, base,

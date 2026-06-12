@@ -79,7 +79,7 @@ int setup_tests(void)
     }
 
     argc = test_get_argument_count();
-    switch(argc) {
+    switch (argc) {
     case 0:
         is_fips = 0;
         bad_fips = 0;

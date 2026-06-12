@@ -63,7 +63,7 @@ static ossl_inline void bn_select_words(BN_ULONG *r, BN_ULONG mask,
     size_t i;
 
     for (i = 0; i < num; i++) {
-        r[i] = constant_time_select_64(mask, a[i], b[i]);
+        r[i] = constant_time_select_bn(mask, a[i], b[i]);
     }
 }
 
@@ -72,7 +72,7 @@ static ossl_inline BN_ULONG bn_reduce_once_in_place(BN_ULONG *r,
                                                     const BN_ULONG *m,
                                                     BN_ULONG *tmp, size_t num)
 {
-    carry -= bn_sub_words(tmp, r, m, num);
+    carry -= bn_sub_words(tmp, r, m, (int)num);
     bn_select_words(r, carry, r /* tmp < 0 */, tmp /* tmp >= 0 */, num);
     return carry;
 }

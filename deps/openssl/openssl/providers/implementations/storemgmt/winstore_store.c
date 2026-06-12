@@ -6,6 +6,7 @@
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
 #include <openssl/store.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
@@ -23,11 +24,12 @@
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/bio.h"
-#include "file_store_local.h"
+#include "prov/file_store_local.h"
 #ifdef __CYGWIN__
 # include <windows.h>
 #endif
 #include <wincrypt.h>
+#include "providers/implementations/storemgmt/winstore_store.inc"
 
 enum {
     STATE_IDLE,
@@ -65,7 +67,7 @@ static void winstore_win_advance(struct winstore_ctx_st *ctx)
     if (ctx->state == STATE_EOF)
         return;
 
-    name.cbData = ctx->subject_len;
+    name.cbData = (DWORD)ctx->subject_len;
     name.pbData = ctx->subject;
 
     ctx->win_ctx = (name.cbData == 0 ? NULL :
@@ -106,38 +108,31 @@ static void *winstore_attach(void *provctx, OSSL_CORE_BIO *cin)
 
 static const OSSL_PARAM *winstore_settable_ctx_params(void *loaderctx, const OSSL_PARAM params[])
 {
-    static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_octet_string(OSSL_STORE_PARAM_SUBJECT, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_STORE_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return known_settable_ctx_params;
+    return winstore_set_ctx_params_list;
 }
 
 static int winstore_set_ctx_params(void *loaderctx, const OSSL_PARAM params[])
 {
     struct winstore_ctx_st *ctx = loaderctx;
-    const OSSL_PARAM *p;
+    struct winstore_set_ctx_params_st p;
     int do_reset = 0;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !winstore_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_PROPERTIES);
-    if (p != NULL) {
+    if (p.propq != NULL) {
         do_reset = 1;
         OPENSSL_free(ctx->propq);
         ctx->propq = NULL;
-        if (!OSSL_PARAM_get_utf8_string(p, &ctx->propq, 0))
+        if (!OSSL_PARAM_get_utf8_string(p.propq, &ctx->propq, 0))
             return 0;
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_SUBJECT);
-    if (p != NULL) {
+    if (p.sub != NULL) {
         const unsigned char *der = NULL;
         size_t der_len = 0;
 
-        if (!OSSL_PARAM_get_octet_string_ptr(p, (const void **)&der, &der_len))
+        if (!OSSL_PARAM_get_octet_string_ptr(p.sub, (const void **)&der, &der_len))
             return 0;
 
         do_reset = 1;

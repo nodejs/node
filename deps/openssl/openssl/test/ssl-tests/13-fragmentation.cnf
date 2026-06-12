@@ -12,18 +12,18 @@ test-6 = 6-medium-plus-app-data
 test-7 = 7-large-app-data
 test-8 = 8-large-app-data-large-fragment-size
 test-9 = 9-large-app-data-odd-fragment-size
-test-10 = 10-large-app-data-aes-sha1-multibuffer
-test-11 = 11-large-app-data-aes-sha2-multibuffer
-test-12 = 12-large-app-data-aes-sha1-multibuffer-odd-fragment
-test-13 = 13-large-app-data-aes-sha2-multibuffer-odd-fragment
-test-14 = 14-small-app-data-aes-sha1-multibuffer
-test-15 = 15-small-app-data-aes-sha2-multibuffer
-test-16 = 16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled
-test-17 = 17-Maximum Fragment Len extension equal FragmentSize to 2048
-test-18 = 18-Maximum Fragment Len extension 512 lower than FragmentSize 1024
-test-19 = 19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024
-test-20 = 20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048
-test-21 = 21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024
+test-10 = 10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled
+test-11 = 11-Maximum Fragment Len extension equal FragmentSize to 2048
+test-12 = 12-Maximum Fragment Len extension 512 lower than FragmentSize 1024
+test-13 = 13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024
+test-14 = 14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048
+test-15 = 15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024
+test-16 = 16-large-app-data-aes-sha1-multibuffer
+test-17 = 17-large-app-data-aes-sha2-multibuffer
+test-18 = 18-large-app-data-aes-sha1-multibuffer-odd-fragment
+test-19 = 19-large-app-data-aes-sha2-multibuffer-odd-fragment
+test-20 = 20-small-app-data-aes-sha1-multibuffer
+test-21 = 21-small-app-data-aes-sha2-multibuffer
 # ===========================================================
 
 [0-one-fragment-minus-app-data]
@@ -259,319 +259,319 @@ MaxFragmentSize = 5115
 
 # ===========================================================
 
-[10-large-app-data-aes-sha1-multibuffer]
-ssl_conf = 10-large-app-data-aes-sha1-multibuffer-ssl
+[10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled]
+ssl_conf = 10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-ssl
 
-[10-large-app-data-aes-sha1-multibuffer-ssl]
-server = 10-large-app-data-aes-sha1-multibuffer-server
-client = 10-large-app-data-aes-sha1-multibuffer-client
+[10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-ssl]
+server = 10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-server
+client = 10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client
 
-[10-large-app-data-aes-sha1-multibuffer-server]
+[10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[10-large-app-data-aes-sha1-multibuffer-client]
+[10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-10]
+ApplicationData = 3072
+MaxFragmentSize = 16384
+client = 10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client-extra
+
+[10-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client-extra]
+MaxFragmentLenExt = 1024
+
+
+# ===========================================================
+
+[11-Maximum Fragment Len extension equal FragmentSize to 2048]
+ssl_conf = 11-Maximum Fragment Len extension equal FragmentSize to 2048-ssl
+
+[11-Maximum Fragment Len extension equal FragmentSize to 2048-ssl]
+server = 11-Maximum Fragment Len extension equal FragmentSize to 2048-server
+client = 11-Maximum Fragment Len extension equal FragmentSize to 2048-client
+
+[11-Maximum Fragment Len extension equal FragmentSize to 2048-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[11-Maximum Fragment Len extension equal FragmentSize to 2048-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-11]
+ApplicationData = 3072
+MaxFragmentSize = 2048
+client = 11-Maximum Fragment Len extension equal FragmentSize to 2048-client-extra
+
+[11-Maximum Fragment Len extension equal FragmentSize to 2048-client-extra]
+MaxFragmentLenExt = 2048
+
+
+# ===========================================================
+
+[12-Maximum Fragment Len extension 512 lower than FragmentSize 1024]
+ssl_conf = 12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-ssl
+
+[12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-ssl]
+server = 12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-server
+client = 12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client
+
+[12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-12]
+ApplicationData = 3072
+MaxFragmentSize = 1024
+client = 12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client-extra
+
+[12-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client-extra]
+MaxFragmentLenExt = 512
+
+
+# ===========================================================
+
+[13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024]
+ssl_conf = 13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-ssl
+
+[13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-ssl]
+server = 13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-server
+client = 13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client
+
+[13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-13]
+ApplicationData = 3072
+MaxFragmentSize = 1024
+client = 13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client-extra
+
+[13-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client-extra]
+MaxFragmentLenExt = 2048
+
+
+# ===========================================================
+
+[14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048]
+ssl_conf = 14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-ssl
+
+[14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-ssl]
+server = 14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-server
+client = 14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client
+
+[14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-14]
+ApplicationData = 8196
+MaxFragmentSize = 2048
+client = 14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client-extra
+
+[14-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client-extra]
+MaxFragmentLenExt = 4096
+
+
+# ===========================================================
+
+[15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024]
+ssl_conf = 15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-ssl
+
+[15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-ssl]
+server = 15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-server
+client = 15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client
+
+[15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client]
+CipherString = DEFAULT
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-15]
+ApplicationData = 3072
+MaxFragmentSize = 1024
+client = 15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client-extra
+
+[15-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client-extra]
+MaxFragmentLenExt = 2048
+
+
+# ===========================================================
+
+[16-large-app-data-aes-sha1-multibuffer]
+ssl_conf = 16-large-app-data-aes-sha1-multibuffer-ssl
+
+[16-large-app-data-aes-sha1-multibuffer-ssl]
+server = 16-large-app-data-aes-sha1-multibuffer-server
+client = 16-large-app-data-aes-sha1-multibuffer-client
+
+[16-large-app-data-aes-sha1-multibuffer-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[16-large-app-data-aes-sha1-multibuffer-client]
 CipherString = AES128-SHA
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-10]
+[test-16]
 ApplicationData = 1048576
 MaxFragmentSize = 4096
 
 
 # ===========================================================
 
-[11-large-app-data-aes-sha2-multibuffer]
-ssl_conf = 11-large-app-data-aes-sha2-multibuffer-ssl
+[17-large-app-data-aes-sha2-multibuffer]
+ssl_conf = 17-large-app-data-aes-sha2-multibuffer-ssl
 
-[11-large-app-data-aes-sha2-multibuffer-ssl]
-server = 11-large-app-data-aes-sha2-multibuffer-server
-client = 11-large-app-data-aes-sha2-multibuffer-client
+[17-large-app-data-aes-sha2-multibuffer-ssl]
+server = 17-large-app-data-aes-sha2-multibuffer-server
+client = 17-large-app-data-aes-sha2-multibuffer-client
 
-[11-large-app-data-aes-sha2-multibuffer-server]
+[17-large-app-data-aes-sha2-multibuffer-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[11-large-app-data-aes-sha2-multibuffer-client]
+[17-large-app-data-aes-sha2-multibuffer-client]
 CipherString = AES128-SHA256
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-11]
+[test-17]
 ApplicationData = 1048576
 MaxFragmentSize = 4096
 
 
 # ===========================================================
 
-[12-large-app-data-aes-sha1-multibuffer-odd-fragment]
-ssl_conf = 12-large-app-data-aes-sha1-multibuffer-odd-fragment-ssl
+[18-large-app-data-aes-sha1-multibuffer-odd-fragment]
+ssl_conf = 18-large-app-data-aes-sha1-multibuffer-odd-fragment-ssl
 
-[12-large-app-data-aes-sha1-multibuffer-odd-fragment-ssl]
-server = 12-large-app-data-aes-sha1-multibuffer-odd-fragment-server
-client = 12-large-app-data-aes-sha1-multibuffer-odd-fragment-client
+[18-large-app-data-aes-sha1-multibuffer-odd-fragment-ssl]
+server = 18-large-app-data-aes-sha1-multibuffer-odd-fragment-server
+client = 18-large-app-data-aes-sha1-multibuffer-odd-fragment-client
 
-[12-large-app-data-aes-sha1-multibuffer-odd-fragment-server]
+[18-large-app-data-aes-sha1-multibuffer-odd-fragment-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[12-large-app-data-aes-sha1-multibuffer-odd-fragment-client]
+[18-large-app-data-aes-sha1-multibuffer-odd-fragment-client]
 CipherString = AES128-SHA
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-12]
+[test-18]
 ApplicationData = 1048579
 MaxFragmentSize = 5115
 
 
 # ===========================================================
 
-[13-large-app-data-aes-sha2-multibuffer-odd-fragment]
-ssl_conf = 13-large-app-data-aes-sha2-multibuffer-odd-fragment-ssl
+[19-large-app-data-aes-sha2-multibuffer-odd-fragment]
+ssl_conf = 19-large-app-data-aes-sha2-multibuffer-odd-fragment-ssl
 
-[13-large-app-data-aes-sha2-multibuffer-odd-fragment-ssl]
-server = 13-large-app-data-aes-sha2-multibuffer-odd-fragment-server
-client = 13-large-app-data-aes-sha2-multibuffer-odd-fragment-client
+[19-large-app-data-aes-sha2-multibuffer-odd-fragment-ssl]
+server = 19-large-app-data-aes-sha2-multibuffer-odd-fragment-server
+client = 19-large-app-data-aes-sha2-multibuffer-odd-fragment-client
 
-[13-large-app-data-aes-sha2-multibuffer-odd-fragment-server]
+[19-large-app-data-aes-sha2-multibuffer-odd-fragment-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[13-large-app-data-aes-sha2-multibuffer-odd-fragment-client]
+[19-large-app-data-aes-sha2-multibuffer-odd-fragment-client]
 CipherString = AES128-SHA256
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-13]
+[test-19]
 ApplicationData = 1048573
 MaxFragmentSize = 5125
 
 
 # ===========================================================
 
-[14-small-app-data-aes-sha1-multibuffer]
-ssl_conf = 14-small-app-data-aes-sha1-multibuffer-ssl
+[20-small-app-data-aes-sha1-multibuffer]
+ssl_conf = 20-small-app-data-aes-sha1-multibuffer-ssl
 
-[14-small-app-data-aes-sha1-multibuffer-ssl]
-server = 14-small-app-data-aes-sha1-multibuffer-server
-client = 14-small-app-data-aes-sha1-multibuffer-client
+[20-small-app-data-aes-sha1-multibuffer-ssl]
+server = 20-small-app-data-aes-sha1-multibuffer-server
+client = 20-small-app-data-aes-sha1-multibuffer-client
 
-[14-small-app-data-aes-sha1-multibuffer-server]
+[20-small-app-data-aes-sha1-multibuffer-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[14-small-app-data-aes-sha1-multibuffer-client]
+[20-small-app-data-aes-sha1-multibuffer-client]
 CipherString = AES128-SHA
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-14]
+[test-20]
 ApplicationData = 4096
 MaxFragmentSize = 4096
 
 
 # ===========================================================
 
-[15-small-app-data-aes-sha2-multibuffer]
-ssl_conf = 15-small-app-data-aes-sha2-multibuffer-ssl
+[21-small-app-data-aes-sha2-multibuffer]
+ssl_conf = 21-small-app-data-aes-sha2-multibuffer-ssl
 
-[15-small-app-data-aes-sha2-multibuffer-ssl]
-server = 15-small-app-data-aes-sha2-multibuffer-server
-client = 15-small-app-data-aes-sha2-multibuffer-client
+[21-small-app-data-aes-sha2-multibuffer-ssl]
+server = 21-small-app-data-aes-sha2-multibuffer-server
+client = 21-small-app-data-aes-sha2-multibuffer-client
 
-[15-small-app-data-aes-sha2-multibuffer-server]
+[21-small-app-data-aes-sha2-multibuffer-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
-[15-small-app-data-aes-sha2-multibuffer-client]
+[21-small-app-data-aes-sha2-multibuffer-client]
 CipherString = AES128-SHA256
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
-[test-15]
+[test-21]
 ApplicationData = 4096
 MaxFragmentSize = 4096
-
-
-# ===========================================================
-
-[16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled]
-ssl_conf = 16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-ssl
-
-[16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-ssl]
-server = 16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-server
-client = 16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client
-
-[16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-16]
-ApplicationData = 3072
-MaxFragmentSize = 16384
-client = 16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client-extra
-
-[16-Maximum Fragment Len extension set to 1024 w. FragmentSize disabled-client-extra]
-MaxFragmentLenExt = 1024
-
-
-# ===========================================================
-
-[17-Maximum Fragment Len extension equal FragmentSize to 2048]
-ssl_conf = 17-Maximum Fragment Len extension equal FragmentSize to 2048-ssl
-
-[17-Maximum Fragment Len extension equal FragmentSize to 2048-ssl]
-server = 17-Maximum Fragment Len extension equal FragmentSize to 2048-server
-client = 17-Maximum Fragment Len extension equal FragmentSize to 2048-client
-
-[17-Maximum Fragment Len extension equal FragmentSize to 2048-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[17-Maximum Fragment Len extension equal FragmentSize to 2048-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-17]
-ApplicationData = 3072
-MaxFragmentSize = 2048
-client = 17-Maximum Fragment Len extension equal FragmentSize to 2048-client-extra
-
-[17-Maximum Fragment Len extension equal FragmentSize to 2048-client-extra]
-MaxFragmentLenExt = 2048
-
-
-# ===========================================================
-
-[18-Maximum Fragment Len extension 512 lower than FragmentSize 1024]
-ssl_conf = 18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-ssl
-
-[18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-ssl]
-server = 18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-server
-client = 18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client
-
-[18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-18]
-ApplicationData = 3072
-MaxFragmentSize = 1024
-client = 18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client-extra
-
-[18-Maximum Fragment Len extension 512 lower than FragmentSize 1024-client-extra]
-MaxFragmentLenExt = 512
-
-
-# ===========================================================
-
-[19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024]
-ssl_conf = 19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-ssl
-
-[19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-ssl]
-server = 19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-server
-client = 19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client
-
-[19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-19]
-ApplicationData = 3072
-MaxFragmentSize = 1024
-client = 19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client-extra
-
-[19-Maximum Fragment Len extension 1024 lower than FragmentSize 1024-client-extra]
-MaxFragmentLenExt = 2048
-
-
-# ===========================================================
-
-[20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048]
-ssl_conf = 20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-ssl
-
-[20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-ssl]
-server = 20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-server
-client = 20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client
-
-[20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-20]
-ApplicationData = 8196
-MaxFragmentSize = 2048
-client = 20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client-extra
-
-[20-Maximum Fragment Len extension 4096 greater than FragmentSize 2048-client-extra]
-MaxFragmentLenExt = 4096
-
-
-# ===========================================================
-
-[21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024]
-ssl_conf = 21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-ssl
-
-[21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-ssl]
-server = 21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-server
-client = 21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client
-
-[21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-server]
-Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
-PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
-
-[21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client]
-CipherString = DEFAULT
-VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
-VerifyMode = Peer
-
-[test-21]
-ApplicationData = 3072
-MaxFragmentSize = 1024
-client = 21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client-extra
-
-[21-Maximum Fragment Len extension 2048 greater than FragmentSize 1024-client-extra]
-MaxFragmentLenExt = 2048
 
 

@@ -38,9 +38,8 @@ calling these functions multiple times and should consider using
 L<EVP_MD_fetch(3)> with L<EVP_MD-BLAKE2(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
-While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,
-this implementation outputs a digest of a fixed length (the maximum length
-supported), which is 512-bits for BLAKE2b and 256-bits for BLAKE2s.
+Both algorithms support a variable-length digest,
+but this is only available through L<EVP_MD-BLAKE2(7)>.
 
 =head1 RETURN VALUES
 

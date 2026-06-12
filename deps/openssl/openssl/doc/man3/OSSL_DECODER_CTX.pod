@@ -19,9 +19,11 @@ OSSL_DECODER_CLEANUP,
 OSSL_DECODER_CTX_set_construct,
 OSSL_DECODER_CTX_set_construct_data,
 OSSL_DECODER_CTX_set_cleanup,
+OSSL_DECODER_CTX_set_finalized,
 OSSL_DECODER_CTX_get_construct,
 OSSL_DECODER_CTX_get_construct_data,
 OSSL_DECODER_CTX_get_cleanup,
+OSSL_DECODER_CTX_get_finalized,
 OSSL_DECODER_export,
 OSSL_DECODER_INSTANCE_get_decoder,
 OSSL_DECODER_INSTANCE_get_decoder_ctx,
@@ -47,8 +49,8 @@ OSSL_DECODER_INSTANCE_get_input_structure
  int OSSL_DECODER_CTX_set_input_structure(OSSL_DECODER_CTX *ctx,
                                           const char *input_structure);
  int OSSL_DECODER_CTX_add_decoder(OSSL_DECODER_CTX *ctx, OSSL_DECODER *decoder);
- int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx, 
-                                OSSL_LIB_CTX *libctx, 
+ int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx,
+                                OSSL_LIB_CTX *libctx,
                                 const char *propq);
  int OSSL_DECODER_CTX_get_num_decoders(OSSL_DECODER_CTX *ctx);
 
@@ -76,6 +78,9 @@ OSSL_DECODER_INSTANCE_get_input_structure
  OSSL_DECODER_CONSTRUCT *OSSL_DECODER_CTX_get_construct(OSSL_DECODER_CTX *ctx);
  void *OSSL_DECODER_CTX_get_construct_data(OSSL_DECODER_CTX *ctx);
  OSSL_DECODER_CLEANUP *OSSL_DECODER_CTX_get_cleanup(OSSL_DECODER_CTX *ctx);
+
+ int OSSL_DECODER_CTX_set_finalized(OSSL_DECODER_CTX *ctx);
+ int OSSL_DECODER_CTX_get_finalized(OSSL_DECODER_CTX *ctx);
 
  int OSSL_DECODER_export(OSSL_DECODER_INSTANCE *decoder_inst,
                          void *reference, size_t reference_sz,
@@ -135,6 +140,8 @@ OSSL_DECODER_CTX_add_extra() finds decoders that generate input for already
 added decoders, and adds them as well.  This is used to build decoder
 chains.
 
+OSSL_DECODER_CTX_set_selection() sets what the input is expected to contain.
+
 OSSL_DECODER_CTX_set_input_type() sets the starting input type.  This limits
 the decoder chains to be considered, as explained in the general description
 above.
@@ -159,6 +166,15 @@ OSSL_DECODER_CTX_get_construct(), OSSL_DECODER_CTX_get_construct_data() and
 OSSL_DECODER_CTX_get_cleanup() return the values that have been set by
 OSSL_DECODER_CTX_set_construct(), OSSL_DECODER_CTX_set_construct_data() and
 OSSL_DECODER_CTX_set_cleanup() respectively.
+
+OSSL_DECODER_CTX_set_finalized() finalises the context. Functions
+OSSL_DECODER_CTX_set_selection(), OSSL_DECODER_CTX_set_output_type(),
+OSSL_DECODER_CTX_set_output_structure(), OSSL_DECODER_CTX_add_encoder(),
+OSSL_DECODER_CTX_add_extra(), OSSL_DECODER_CTX_set_construct(),
+OSSL_DECODER_CTX_set_construct_data() and OSSL_DECODER_CTX_set_cleanup()
+can't be used after the context is finalised.
+
+OSSL_DECODER_CTX_get_finalized() indicates if the context was finalised.
 
 OSSL_DECODER_export() is a fallback function for constructors that cannot
 use the data they get directly for diverse reasons.  It takes the same
@@ -221,13 +237,19 @@ OSSL_DECODER_CTX_set_params() returns 1 if all recognised parameters were
 valid, or 0 if one of them was invalid or caused some other failure in the
 implementation.
 
+OSSL_DECODER_CTX_set_selection(), OSSL_DECODER_CTX_set_input_type(),
+OSSL_DECODER_CTX_set_input_structure(),
 OSSL_DECODER_CTX_add_decoder(), OSSL_DECODER_CTX_add_extra(),
-OSSL_DECODER_CTX_set_construct(), OSSL_DECODER_CTX_set_construct_data() and
-OSSL_DECODER_CTX_set_cleanup() return 1 on success, or 0 on failure.
+OSSL_DECODER_CTX_set_construct(), OSSL_DECODER_CTX_set_construct_data(),
+OSSL_DECODER_CTX_set_cleanup() and OSSL_DECODER_CTX_set_finalized()
+return 1 on success, or 0 on failure.
 
 OSSL_DECODER_CTX_get_construct(), OSSL_DECODER_CTX_get_construct_data() and
 OSSL_DECODER_CTX_get_cleanup() return the current pointers to the
 constructor, the constructor data and the cleanup functions, respectively.
+
+OSSL_DECODER_CTX_get_finalized() returns 1 if I<ctx> was finalised,
+0 otherwise. It also returns 0 if I<ctx> is NULL.
 
 OSSL_DECODER_CTX_num_decoders() returns the current number of decoders.  It
 returns 0 if I<ctx> is NULL.
@@ -247,6 +269,9 @@ L<provider(7)>, L<OSSL_DECODER(3)>, L<OSSL_DECODER_from_bio(3)>
 =head1 HISTORY
 
 The functions described here were added in OpenSSL 3.0.
+
+OSSL_DECODER_CTX_set_finalized() and OSSL_DECODER_CTX_get_finalized()
+were added in OpenSSL 4.0.
 
 =head1 COPYRIGHT
 

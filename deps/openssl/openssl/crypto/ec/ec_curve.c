@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -3406,7 +3406,7 @@ int ossl_ec_curve_nid_from_params(const EC_GROUP *group, BN_CTX *ctx)
         param_len = len;
 
     /* Allocate space to store the padded data for (p, a, b, x, y, order)  */
-    param_bytes = OPENSSL_malloc(param_len * NUM_BN_FIELDS);
+    param_bytes = OPENSSL_malloc_array(NUM_BN_FIELDS, param_len);
     if (param_bytes == NULL)
         goto end;
 
@@ -3451,7 +3451,7 @@ int ossl_ec_curve_nid_from_params(const EC_GROUP *group, BN_CTX *ctx)
             && param_len == data->param_len
             && (nid <= 0 || nid == curve.nid)
             /* check the optional cofactor (ignore if its zero) */
-            && (BN_is_zero(cofactor)
+            && (cofactor == NULL || BN_is_zero(cofactor)
                 || BN_is_word(cofactor, (const BN_ULONG)curve.data->cofactor))
             /* Check the optional seed (ignore if its not set) */
             && (data->seed_len == 0 || seed_len == 0

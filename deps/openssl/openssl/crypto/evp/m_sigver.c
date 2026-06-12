@@ -302,7 +302,9 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
         type = evp_get_digestbyname_ex(locpctx->libctx, mdname);
 
     if (ctx->pctx->pmeth == NULL) {
-        ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+        ERR_raise_data(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE,
+                       ver ? "%s digest_verify_init" : "%s digest_sign_init",
+                       EVP_PKEY_get0_type_name(locpctx->pkey));
         return 0;
     }
 
@@ -436,6 +438,10 @@ int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize)
 
  legacy:
     if (pctx != NULL) {
+        if (pctx->pmeth == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+            return 0;
+        }
         /* do_sigver_init() checked that |digest_custom| is non-NULL */
         if (pctx->flag_call_digest_custom
             && !ctx->pctx->pmeth->digest_custom(ctx->pctx, ctx))
@@ -727,7 +733,7 @@ int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
         vctx = 0;
     if (ctx->flags & EVP_MD_CTX_FLAG_FINALISE) {
         if (vctx) {
-            r = pctx->pmeth->verifyctx(pctx, sig, siglen, ctx);
+            r = pctx->pmeth->verifyctx(pctx, sig, (int)siglen, ctx);
             ctx->flags |= EVP_MD_CTX_FLAG_FINALISED;
         } else
             r = EVP_DigestFinal_ex(ctx, md, &mdlen);
@@ -741,7 +747,7 @@ int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
         }
         if (vctx)
             r = tmp_ctx->pctx->pmeth->verifyctx(tmp_ctx->pctx,
-                                                sig, siglen, tmp_ctx);
+                                                sig, (int)siglen, tmp_ctx);
         else
             r = EVP_DigestFinal_ex(tmp_ctx, md, &mdlen);
         EVP_MD_CTX_free(tmp_ctx);

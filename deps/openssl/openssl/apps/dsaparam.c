@@ -239,6 +239,11 @@ int dsaparam_main(int argc, char **argv)
             i = i2d_PrivateKey_bio(out, pkey);
         else
             i = PEM_write_bio_PrivateKey(out, pkey, NULL, NULL, 0, NULL, NULL);
+        if (i <= 0) {
+            BIO_printf(bio_err,
+                       "Error, unable to write DSA private key\n");
+            goto end;
+        }
     }
     ret = 0;
  end:

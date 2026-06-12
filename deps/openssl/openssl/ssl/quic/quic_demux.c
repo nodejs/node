@@ -181,6 +181,9 @@ static QUIC_URXE *demux_resize_urxe(QUIC_DEMUX *demux, QUIC_URXE *e,
     prev = ossl_list_urxe_prev(e);
     ossl_list_urxe_remove(&demux->urx_free, e);
 
+    if (new_alloc_len >= SIZE_MAX - sizeof(QUIC_URXE))
+        return NULL;
+
     e2 = OPENSSL_realloc(e, sizeof(QUIC_URXE) + new_alloc_len);
     if (e2 == NULL) {
         /* Failed to resize, abort. */

@@ -103,6 +103,18 @@ static int crl_set_issuers(X509_CRL *crl)
         }
 
         if (gtmp != NULL) {
+            /*
+             * Validation to ensure Certificate Issuer extensions in CRL
+             * entries only appear when the Indirect CRL flag is TRUE in the
+             * Issuing Distribution Point (IDP) extension, as required by
+             * RFC 5280 section 5.3.3.
+             */
+            if (crl->idp == NULL || !crl->idp->indirectCRL) {
+                crl->flags |= EXFLAG_INVALID;
+                GENERAL_NAMES_free(gtmp);
+                return 0;
+            }
+
             if (crl->issuers == NULL) {
                 crl->issuers = sk_GENERAL_NAMES_new_null();
                 if (crl->issuers == NULL) {

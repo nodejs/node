@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ static int async_write(BIO *bio, const char *in, int inl)
 {
     struct async_ctrs *ctrs;
     int ret = 0;
-    size_t written = 0;
+    int written = 0;
     BIO *next = BIO_next(bio);
 
     if (inl <= 0)
@@ -238,7 +238,7 @@ static int async_write(BIO *bio, const char *in, int inl)
         }
         /* Write any data we have left after fragmenting */
         ret = 0;
-        if ((int)written < inl) {
+        if (written < inl) {
             ret = BIO_write(next, in + written, inl - written);
         }
 
@@ -281,7 +281,7 @@ static int async_gets(BIO *bio, char *buf, int size)
 
 static int async_puts(BIO *bio, const char *str)
 {
-    return async_write(bio, str, strlen(str));
+    return async_write(bio, str, (int)strlen(str));
 }
 
 #define MAX_ATTEMPTS    100

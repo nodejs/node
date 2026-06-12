@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
@@ -14,6 +13,7 @@
 #include "cipher_sm4_xts.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/ciphers/cipher_sm4_xts.inc"
 
 #define SM4_XTS_FLAGS PROV_CIPHER_FLAG_CUSTOM_IV
 #define SM4_XTS_IV_BITS 128
@@ -189,24 +189,19 @@ static int sm4_xts_stream_final(void *vctx, unsigned char *out, size_t *outl,
     return 1;
 }
 
-static const OSSL_PARAM sm4_xts_known_settable_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_CIPHER_PARAM_XTS_STANDARD, NULL, 0),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *sm4_xts_settable_ctx_params(ossl_unused void *cctx,
                                                      ossl_unused void *provctx)
 {
-    return sm4_xts_known_settable_ctx_params;
+    return sm4_xts_set_ctx_params_list;
 }
 
 static int sm4_xts_set_ctx_params(void *vxctx, const OSSL_PARAM params[])
 {
     PROV_SM4_XTS_CTX *xctx = (PROV_SM4_XTS_CTX *)vxctx;
-    const OSSL_PARAM *p;
+    struct sm4_xts_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (xctx == NULL || !sm4_xts_set_ctx_params_decoder(params, &p))
+        return 0;
 
     /*-
      * Sets the XTS standard to use with SM4-XTS algorithm.
@@ -215,15 +210,13 @@ static int sm4_xts_set_ctx_params(void *vxctx, const OSSL_PARAM params[])
      * "GB" means the GB/T 17964-2021 standard
      * "IEEE" means the IEEE Std 1619-2007 standard
      */
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_XTS_STANDARD);
-
-    if (p != NULL) {
+    if (p.std != NULL) {
         const char *xts_standard = NULL;
 
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
+        if (p.std->data_type != OSSL_PARAM_UTF8_STRING)
             return 0;
 
-        if (!OSSL_PARAM_get_utf8_string_ptr(p, &xts_standard)) {
+        if (!OSSL_PARAM_get_utf8_string_ptr(p.std, &xts_standard)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }

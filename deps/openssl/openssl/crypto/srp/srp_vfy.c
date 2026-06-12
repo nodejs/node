@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2004, EdelKey Project. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -84,11 +84,11 @@ static int t_fromb64(unsigned char *a, size_t alen, const char *src)
 
     /* Add any encoded padding that is required */
     if (padsize != 0
-            && EVP_DecodeUpdate(ctx, a, &outl, pad, padsize) < 0) {
+            && EVP_DecodeUpdate(ctx, a, &outl, pad, (int)padsize) < 0) {
         outl = -1;
         goto err;
     }
-    if (EVP_DecodeUpdate(ctx, a, &outl2, (const unsigned char *)src, size) < 0) {
+    if (EVP_DecodeUpdate(ctx, a, &outl2, (const unsigned char *)src, (int)size) < 0) {
         outl = -1;
         goto err;
     }
@@ -117,7 +117,7 @@ static int t_fromb64(unsigned char *a, size_t alen, const char *src)
          * from the encoded data as we added to the pre-encoded data.
          */
         memmove(a, a + padsize, outl - padsize);
-        outl -= padsize;
+        outl -= (int)padsize;
     }
 
  err:
@@ -135,7 +135,7 @@ static int t_tob64(char *dst, const unsigned char *src, int size)
     EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
     int outl = 0, outl2 = 0;
     unsigned char pad[2] = {0, 0};
-    size_t leadz = 0;
+    int leadz = 0;
 
     if (ctx == NULL)
         return 0;
@@ -681,9 +681,8 @@ char *SRP_create_verifier_ex(const char *user, const char *pass, char **salt,
     if (*salt == NULL) {
         char *tmp_salt;
 
-        if ((tmp_salt = OPENSSL_malloc(SRP_RANDOM_SALT_LEN * 2)) == NULL) {
+        if ((tmp_salt = OPENSSL_malloc_array(SRP_RANDOM_SALT_LEN, 2)) == NULL)
             goto err;
-        }
         if (!t_tob64(tmp_salt, tmp2, SRP_RANDOM_SALT_LEN)) {
             OPENSSL_free(tmp_salt);
             goto err;

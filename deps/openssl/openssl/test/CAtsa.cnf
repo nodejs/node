@@ -144,7 +144,7 @@ tsa_name		= yes	# Must the TSA name be included in the reply?
 ess_cert_id_chain	= yes	# Must the ESS cert id chain be included?
 				# (optional, default: no)
 ess_cert_id_alg		= sha256	# algorithm to compute certificate
-					# identifier (optional, default: sha1)
+					# identifier (optional, default: sha256)
 
 [ tsa_config2 ]
 

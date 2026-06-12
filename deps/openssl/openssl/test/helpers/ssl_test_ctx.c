@@ -1,11 +1,16 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * Because of *asn1_*
+ */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <string.h>
 
@@ -328,6 +333,7 @@ const char *ssl_session_id_name(ssl_session_id_t server)
 static const test_enum ssl_test_methods[] = {
     {"TLS", SSL_TEST_METHOD_TLS},
     {"DTLS", SSL_TEST_METHOD_DTLS},
+    {"QUIC", SSL_TEST_METHOD_QUIC}
 };
 
 __owur static int parse_test_method(SSL_TEST_CTX *test_ctx, const char *value)
@@ -445,6 +451,7 @@ const char *ssl_ct_validation_name(ssl_ct_validation_t mode)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, resumption_expected)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_SERVER_CONF, server, broken_session_ticket)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, use_sctp)
+IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, compress_certificates)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, enable_client_sctp_label_bug)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, enable_server_sctp_label_bug)
 
@@ -453,7 +460,9 @@ IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CTX, test, enable_server_sctp_label_bug)
 static const test_enum ssl_certstatus[] = {
     {"None", SSL_TEST_CERT_STATUS_NONE},
     {"GoodResponse", SSL_TEST_CERT_STATUS_GOOD_RESPONSE},
-    {"BadResponse", SSL_TEST_CERT_STATUS_BAD_RESPONSE}
+    {"BadResponse", SSL_TEST_CERT_STATUS_BAD_RESPONSE},
+    {"GoodResponseExt", SSL_TEST_CERT_STATUS_GOOD_RESPONSE_EXT},
+    {"BadResponseExt", SSL_TEST_CERT_STATUS_BAD_RESPONSE_EXT}
 };
 
 __owur static int parse_certstatus(SSL_TEST_SERVER_CONF *server_conf,
@@ -517,21 +526,55 @@ const char *ssl_max_fragment_len_name(int MFL_mode)
 __owur static int parse_expected_key_type(int *ptype, const char *value)
 {
     int nid;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     const EVP_PKEY_ASN1_METHOD *ameth;
+#endif
 
     if (value == NULL)
         return 0;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     ameth = EVP_PKEY_asn1_find_str(NULL, value, -1);
     if (ameth != NULL)
         EVP_PKEY_asn1_get0_info(&nid, NULL, NULL, NULL, NULL, ameth);
     else
         nid = OBJ_sn2nid(value);
-    if (nid == NID_undef)
+#else
+    /*
+     * These functions map the values differently than
+     * EVP_PKEY_asn1_find_str (which was used before) so use this hack
+     * to make it work
+     */
+    if (strcmp("RSA", value) == 0) {
+        nid = OBJ_ln2nid("rsaEncryption");
+    } else if (strcmp("RSA-PSS", value) == 0) {
+        nid = OBJ_ln2nid("rsassaPss");
+    } else if (strcmp("Ed448", value) == 0) {
+        nid = OBJ_sn2nid("ED448");
+    } else if (strcmp("Ed25519", value) == 0) {
+        nid = OBJ_sn2nid("ED25519");
+    } else if (strcmp("EC", value) == 0) {
+        nid = OBJ_sn2nid("id-ecPublicKey");
+    } else {
         nid = OBJ_ln2nid(value);
+    }
+#endif
+    if (nid == NID_undef)
+        nid = OBJ_sn2nid(value);
 #ifndef OPENSSL_NO_EC
     if (nid == NID_undef)
         nid = EC_curve_nist2nid(value);
 #endif
+    switch (nid) {
+    case NID_brainpoolP256r1tls13:
+        nid = NID_brainpoolP256r1;
+        break;
+    case NID_brainpoolP384r1tls13:
+        nid = NID_brainpoolP384r1;
+        break;
+    case NID_brainpoolP512r1tls13:
+        nid = NID_brainpoolP512r1;
+        break;
+    }
     if (nid == NID_undef)
         return 0;
     *ptype = nid;
@@ -639,6 +682,9 @@ IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CLIENT_CONF, client, enable_pha)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_SERVER_CONF, server, force_pha)
 IMPLEMENT_SSL_TEST_BOOL_OPTION(SSL_TEST_CLIENT_CONF, client, no_extms_on_reneg)
 
+/* FIPS provider version limiting */
+IMPLEMENT_SSL_TEST_STRING_OPTION(SSL_TEST_CTX, test, fips_version)
+
 /* Known test options and their corresponding parse methods. */
 
 /* Top-level options. */
@@ -674,10 +720,12 @@ static const ssl_test_ctx_option ssl_test_ctx_options[] = {
     { "ExpectedClientSignType", &parse_expected_client_sign_type },
     { "ExpectedClientCANames", &parse_expected_client_ca_names },
     { "UseSCTP", &parse_test_use_sctp },
+    { "CompressCertificates", &parse_test_compress_certificates },
     { "EnableClientSCTPLabelBug", &parse_test_enable_client_sctp_label_bug },
     { "EnableServerSCTPLabelBug", &parse_test_enable_server_sctp_label_bug },
     { "ExpectedCipher", &parse_test_expected_cipher },
     { "ExpectedSessionTicketAppData", &parse_test_expected_session_ticket_app_data },
+    { "FIPSversion", &parse_test_fips_version },
 };
 
 /* Nested client options. */
@@ -767,6 +815,7 @@ void SSL_TEST_CTX_free(SSL_TEST_CTX *ctx)
     sk_X509_NAME_pop_free(ctx->expected_server_ca_names, X509_NAME_free);
     sk_X509_NAME_pop_free(ctx->expected_client_ca_names, X509_NAME_free);
     OPENSSL_free(ctx->expected_cipher);
+    OPENSSL_free(ctx->fips_version);
     OPENSSL_free(ctx);
 }
 

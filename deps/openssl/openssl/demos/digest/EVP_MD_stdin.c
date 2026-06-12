@@ -31,17 +31,17 @@
  * a BIO created to read from stdin
  */
 
-int demonstrate_digest(BIO *input)
+static int demonstrate_digest(BIO *input)
 {
     OSSL_LIB_CTX *library_context = NULL;
-    int result = 0;
-    const char * option_properties = NULL;
+    int ret = 0;
+    const char *option_properties = NULL;
     EVP_MD *message_digest = NULL;
     EVP_MD_CTX *digest_context = NULL;
-    int digest_length;
+    unsigned int digest_length;
     unsigned char *digest_value = NULL;
     unsigned char buffer[512];
-    int ii;
+    unsigned int ii;
 
     library_context = OSSL_LIB_CTX_new();
     if (library_context == NULL) {
@@ -51,7 +51,7 @@ int demonstrate_digest(BIO *input)
 
     /*
      * Fetch a message digest by name
-     * The algorithm name is case insensitive. 
+     * The algorithm name is case insensitive.
      * See providers(7) for details about algorithm fetching
      */
     message_digest = EVP_MD_fetch(library_context,
@@ -85,7 +85,7 @@ int demonstrate_digest(BIO *input)
         goto cleanup;
     }
     /*
-     * Initialize the message digest context to use the fetched 
+     * Initialize the message digest context to use the fetched
      * digest provider
      */
     if (EVP_DigestInit(digest_context, message_digest) != 1) {
@@ -103,14 +103,14 @@ int demonstrate_digest(BIO *input)
         fprintf(stderr, "EVP_DigestFinal() failed.\n");
         goto cleanup;
     }
-    result = 1;
+    ret = 1;
     for (ii=0; ii<digest_length; ii++) {
         fprintf(stdout, "%02x", digest_value[ii]);
     }
     fprintf(stdout, "\n");
 
 cleanup:
-    if (result != 1)
+    if (ret != 1)
         ERR_print_errors_fp(stderr);
     /* OpenSSL free functions will ignore NULL arguments */
     EVP_MD_CTX_free(digest_context);
@@ -118,17 +118,19 @@ cleanup:
     EVP_MD_free(message_digest);
 
     OSSL_LIB_CTX_free(library_context);
-    return result;
+    return ret;
 }
 
 int main(void)
 {
-    int result = 1;
-    BIO *input = BIO_new_fd( fileno(stdin), 1 );
+    int ret = EXIT_FAILURE;
+    BIO *input = BIO_new_fd(fileno(stdin), 1);
 
     if (input != NULL) {
-        result = demonstrate_digest(input);
+        ret = (demonstrate_digest(input) ? EXIT_SUCCESS : EXIT_FAILURE);
         BIO_free(input);
     }
-    return result;
+    if (ret != EXIT_SUCCESS)
+        ERR_print_errors_fp(stderr);
+    return ret;
 }

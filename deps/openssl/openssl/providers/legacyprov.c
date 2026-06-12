@@ -167,6 +167,11 @@ static const OSSL_ALGORITHM legacy_kdfs[] = {
     { NULL, NULL, NULL }
 };
 
+static const OSSL_ALGORITHM legacy_skeymgmt[] = {
+    ALG(PROV_NAMES_GENERIC, ossl_generic_skeymgmt_functions),
+    { NULL, NULL, NULL }
+};
+
 static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
                                           int *no_cache)
 {
@@ -178,6 +183,8 @@ static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
         return legacy_ciphers;
     case OSSL_OP_KDF:
         return legacy_kdfs;
+    case OSSL_OP_SKEYMGMT:
+        return legacy_skeymgmt;
     }
     return NULL;
 }

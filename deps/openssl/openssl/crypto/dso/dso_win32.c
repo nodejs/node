@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -449,9 +449,9 @@ static char *win32_name_converter(DSO *dso, const char *filename)
                  (strstr(filename, ":") == NULL));
     /* If transform != 0, then we convert to %s.dll, else just dupe filename */
 
-    len = strlen(filename) + 1;
+    len = (int)strlen(filename) + 1;
     if (transform)
-        len += strlen(".dll");
+        len += (int)strlen(".dll");
     translated = OPENSSL_malloc(len);
     if (translated == NULL) {
         ERR_raise(ERR_LIB_DSO, DSO_R_NAME_TRANSLATION_FAILED);

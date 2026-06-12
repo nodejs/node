@@ -122,6 +122,23 @@ typedef struct ffc_params_st {
     int keylength;
 } FFC_PARAMS;
 
+typedef struct {
+    OSSL_PARAM *p;                  /* OSSL_PKEY_PARAM_FFC_P */
+    OSSL_PARAM *q;                  /* OSSL_PKEY_PARAM_FFC_Q */
+    OSSL_PARAM *g;                  /* OSSL_PKEY_PARAM_FFC_G */
+    OSSL_PARAM *cofactor;           /* OSSL_PKEY_PARAM_FFC_COFACTOR */
+    OSSL_PARAM *g_index;            /* OSSL_PKEY_PARAM_FFC_GINDEX */
+    OSSL_PARAM *p_counter;          /* OSSL_PKEY_PARAM_FFC_PCOUNTER */
+    OSSL_PARAM *h;                  /* OSSL_PKEY_PARAM_FFC_H */
+    OSSL_PARAM *seed;               /* OSSL_PKEY_PARAM_FFC_SEED */
+    OSSL_PARAM *group_name;         /* OSSL_PKEY_PARAM_GROUP_NAME */
+    OSSL_PARAM *validate_pq;        /* OSSL_PKEY_PARAM_FFC_VALIDATE_PQ */
+    OSSL_PARAM *validate_g;         /* OSSL_PKEY_PARAM_FFC_VALIDATE_G */
+    OSSL_PARAM *validate_legacy;    /* OSSL_PKEY_PARAM_FFC_VALIDATE_LEGACY */
+    OSSL_PARAM *digest;             /* OSSL_PKEY_PARAM_FFC_DIGEST */
+    OSSL_PARAM *propq;              /* OSSL_PKEY_PARAM_FFC_DIGEST_PROPS */
+} FFC_OSSL_PARAMS;
+
 void ossl_ffc_params_init(FFC_PARAMS *params);
 void ossl_ffc_params_cleanup(FFC_PARAMS *params);
 void ossl_ffc_params_set0_pqg(FFC_PARAMS *params, BIGNUM *p, BIGNUM *q,
@@ -199,7 +216,7 @@ int ossl_ffc_validate_private_key(const BIGNUM *upper, const BIGNUM *priv_key,
                                  int *ret);
 
 int ossl_ffc_params_todata(const FFC_PARAMS *ffc, OSSL_PARAM_BLD *tmpl,
-                           OSSL_PARAM params[]);
+                           const FFC_OSSL_PARAMS *pp);
 int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[]);
 
 typedef struct dh_named_group_st DH_NAMED_GROUP;

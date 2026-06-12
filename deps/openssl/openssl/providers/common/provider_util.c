@@ -48,31 +48,30 @@ int ossl_prov_cipher_copy(PROV_CIPHER *dst, const PROV_CIPHER *src)
     return 1;
 }
 
-static int load_common(const OSSL_PARAM params[], const char **propquery,
-                       ENGINE **engine)
+static int set_propq(const OSSL_PARAM *propq, const char **propquery)
 {
-    const OSSL_PARAM *p;
-
     *propquery = NULL;
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_PROPERTIES);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (propq != NULL) {
+        if (propq->data_type != OSSL_PARAM_UTF8_STRING)
             return 0;
-        *propquery = p->data;
+        *propquery = propq->data;
     }
+    return 1;
+}
 
+static int set_engine(const OSSL_PARAM *e, ENGINE **engine)
+{
 #if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
     ENGINE_finish(*engine);
 #endif
     *engine = NULL;
     /* Inside the FIPS module, we don't support legacy ciphers */
 #if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_ENGINE);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (e != NULL) {
+        if (e->data_type != OSSL_PARAM_UTF8_STRING)
             return 0;
         /* Get a structural reference */
-        *engine = ENGINE_by_id(p->data);
+        *engine = ENGINE_by_id(e->data);
         if (*engine == NULL)
             return 0;
         /* Get a functional reference */
@@ -88,36 +87,32 @@ static int load_common(const OSSL_PARAM params[], const char **propquery,
     return 1;
 }
 
-int ossl_prov_cipher_load_from_params(PROV_CIPHER *pc,
-                                      const OSSL_PARAM params[],
-                                      OSSL_LIB_CTX *ctx)
+int ossl_prov_cipher_load(PROV_CIPHER *pc, const OSSL_PARAM *cipher,
+                          const OSSL_PARAM *propq, const OSSL_PARAM *engine,
+                          OSSL_LIB_CTX *ctx)
 {
-    const OSSL_PARAM *p;
     const char *propquery;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!load_common(params, &propquery, &pc->engine))
+   if (!set_propq(propq, &propquery) || !set_engine(engine, &pc->engine))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_CIPHER);
-    if (p == NULL)
+    if (cipher == NULL)
         return 1;
-    if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (cipher->data_type != OSSL_PARAM_UTF8_STRING)
         return 0;
 
     EVP_CIPHER_free(pc->alloc_cipher);
     ERR_set_mark();
-    pc->cipher = pc->alloc_cipher = EVP_CIPHER_fetch(ctx, p->data, propquery);
+    pc->cipher = pc->alloc_cipher = EVP_CIPHER_fetch(ctx, cipher->data,
+                                                     propquery);
 #ifndef FIPS_MODULE /* Inside the FIPS module, we don't support legacy ciphers */
     if (pc->cipher == NULL) {
-        const EVP_CIPHER *cipher;
+        const EVP_CIPHER *evp_cipher;
 
-        cipher = EVP_get_cipherbyname(p->data);
+        evp_cipher = EVP_get_cipherbyname(cipher->data);
         /* Do not use global EVP_CIPHERs */
-        if (cipher != NULL && cipher->origin != EVP_ORIG_GLOBAL)
-            pc->cipher = cipher;
+        if (evp_cipher != NULL && evp_cipher->origin != EVP_ORIG_GLOBAL)
+            pc->cipher = evp_cipher;
     }
 #endif
     if (pc->cipher != NULL)
@@ -173,32 +168,27 @@ const EVP_MD *ossl_prov_digest_fetch(PROV_DIGEST *pd, OSSL_LIB_CTX *libctx,
     return pd->md;
 }
 
-int ossl_prov_digest_load_from_params(PROV_DIGEST *pd,
-                                      const OSSL_PARAM params[],
-                                      OSSL_LIB_CTX *ctx)
+int ossl_prov_digest_load(PROV_DIGEST *pd, const OSSL_PARAM *digest,
+                          const OSSL_PARAM *propq, const OSSL_PARAM *engine,
+                          OSSL_LIB_CTX *ctx)
 {
-    const OSSL_PARAM *p;
     const char *propquery;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!load_common(params, &propquery, &pd->engine))
+    if (!set_propq(propq, &propquery) || !set_engine(engine, &pd->engine))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
-    if (p == NULL)
+    if (digest == NULL)
         return 1;
-    if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (digest->data_type != OSSL_PARAM_UTF8_STRING)
         return 0;
 
     ERR_set_mark();
-    ossl_prov_digest_fetch(pd, ctx, p->data, propquery);
+    ossl_prov_digest_fetch(pd, ctx, digest->data, propquery);
 #ifndef FIPS_MODULE /* Inside the FIPS module, we don't support legacy digests */
     if (pd->md == NULL) {
         const EVP_MD *md;
 
-        md = EVP_get_digestbyname(p->data);
+        md = EVP_get_digestbyname(digest->data);
         /* Do not use global EVP_MDs */
         if (md != NULL && md->origin != EVP_ORIG_GLOBAL)
             pd->md = md;
@@ -228,43 +218,15 @@ ENGINE *ossl_prov_digest_engine(const PROV_DIGEST *pd)
 }
 
 int ossl_prov_set_macctx(EVP_MAC_CTX *macctx,
-                         const OSSL_PARAM params[],
                          const char *ciphername,
                          const char *mdname,
                          const char *engine,
                          const char *properties,
-                         const unsigned char *key,
-                         size_t keylen)
+                         const OSSL_PARAM param[])
 {
-    const OSSL_PARAM *p;
-    OSSL_PARAM mac_params[6], *mp = mac_params;
-
-    if (params != NULL) {
-        if (mdname == NULL) {
-            if ((p = OSSL_PARAM_locate_const(params,
-                                            OSSL_ALG_PARAM_DIGEST)) != NULL) {
-                if (p->data_type != OSSL_PARAM_UTF8_STRING)
-                    return 0;
-                mdname = p->data;
-            }
-        }
-        if (ciphername == NULL) {
-            if ((p = OSSL_PARAM_locate_const(params,
-                                            OSSL_ALG_PARAM_CIPHER)) != NULL) {
-                if (p->data_type != OSSL_PARAM_UTF8_STRING)
-                    return 0;
-                ciphername = p->data;
-            }
-        }
-        if (engine == NULL) {
-            if ((p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_ENGINE))
-                    != NULL) {
-                if (p->data_type != OSSL_PARAM_UTF8_STRING)
-                    return 0;
-                engine = p->data;
-            }
-        }
-    }
+    OSSL_PARAM mac_params[5], *mp = mac_params, *mergep;
+    int free_merge = 0;
+    int ret;
 
     if (mdname != NULL)
         *mp++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
@@ -282,39 +244,48 @@ int ossl_prov_set_macctx(EVP_MAC_CTX *macctx,
                                                  (char *) engine, 0);
 #endif
 
-    if (key != NULL)
-        *mp++ = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY,
-                                                  (unsigned char *)key,
-                                                  keylen);
-
     *mp = OSSL_PARAM_construct_end();
 
-    return EVP_MAC_CTX_set_params(macctx, mac_params);
+    /*
+     * OSSL_PARAM_merge returns NULL and sets an error if either
+     * list passed to it is NULL, and we aren't guaranteed that the
+     * passed in value of param is not NULL here.
+     * Given that we just want the union of the two lists, even if one
+     * is empty, we have to check for that case, and if param is NULL,
+     * just use the mac_params list.  In turn we only free the merge
+     * result if we actually did the merge
+     */
+    if (param == NULL) {
+        mergep = mac_params;
+    } else {
+        free_merge = 1;
+        mergep = OSSL_PARAM_merge(mac_params, param);
+        if (mergep == NULL)
+            return 0;
+    }
 
+    ret = EVP_MAC_CTX_set_params(macctx, mergep);
+
+    if (free_merge == 1)
+        OSSL_PARAM_free(mergep);
+    return ret;
 }
 
-int ossl_prov_macctx_load_from_params(EVP_MAC_CTX **macctx,
-                                      const OSSL_PARAM params[],
-                                      const char *macname,
-                                      const char *ciphername,
-                                      const char *mdname,
-                                      OSSL_LIB_CTX *libctx)
+int ossl_prov_macctx_load(EVP_MAC_CTX **macctx,
+                          const OSSL_PARAM *pmac, const OSSL_PARAM *pcipher,
+                          const OSSL_PARAM *pdigest, const OSSL_PARAM *propq,
+                          const OSSL_PARAM *pengine,
+                          const char *macname, const char *ciphername,
+                          const char *mdname, OSSL_LIB_CTX *libctx)
 {
-    const OSSL_PARAM *p;
     const char *properties = NULL;
+    const char *engine = NULL;
 
-    if (macname == NULL
-        && (p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_MAC)) != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
+    if (macname == NULL && pmac != NULL)
+        if (!OSSL_PARAM_get_utf8_string_ptr(pmac, &macname))
             return 0;
-        macname = p->data;
-    }
-    if ((p = OSSL_PARAM_locate_const(params,
-                                     OSSL_ALG_PARAM_PROPERTIES)) != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING)
-            return 0;
-        properties = p->data;
-    }
+    if (propq != NULL && !OSSL_PARAM_get_utf8_string_ptr(propq, &properties))
+        return 0;
 
     /* If we got a new mac name, we make a new EVP_MAC_CTX */
     if (macname != NULL) {
@@ -335,8 +306,16 @@ int ossl_prov_macctx_load_from_params(EVP_MAC_CTX **macctx,
     if (*macctx == NULL)
         return 1;
 
-    if (ossl_prov_set_macctx(*macctx, params, ciphername, mdname, NULL,
-                             properties, NULL, 0))
+    if (ciphername == NULL && pcipher != NULL)
+        if (!OSSL_PARAM_get_utf8_string_ptr(pcipher, &ciphername))
+            return 0;
+    if (mdname == NULL && pdigest != NULL)
+        if (!OSSL_PARAM_get_utf8_string_ptr(pdigest, &mdname))
+            return 0;
+    if (pengine != NULL && !OSSL_PARAM_get_utf8_string_ptr(pengine, &engine))
+        return 0;
+
+    if (ossl_prov_set_macctx(*macctx, ciphername, mdname, engine, properties, NULL))
         return 1;
 
     EVP_MAC_CTX_free(*macctx);

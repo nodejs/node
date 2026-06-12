@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # SHA2 block procedures for MIPS.
@@ -84,7 +84,7 @@ if ($flavour =~ /64|n32/i) {
 }
 $pf = ($flavour =~ /nubi/i) ? $t0 : $t2;
 #
-# <appro@openssl.org>
+# <https://github.com/dot-asm>
 #
 ######################################################################
 
@@ -517,7 +517,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-.asciiz	"SHA${label} for MIPS, CRYPTOGAMS by <appro\@openssl.org>"
+.asciiz	"SHA${label} for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	5
 
 ___

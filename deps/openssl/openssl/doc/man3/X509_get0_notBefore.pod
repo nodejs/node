@@ -4,6 +4,8 @@
 
 X509_get0_notBefore, X509_getm_notBefore, X509_get0_notAfter,
 X509_getm_notAfter, X509_set1_notBefore, X509_set1_notAfter,
+X509_ACERT_get0_notBefore, X509_ACERT_get0_notAfter,
+X509_ACERT_set1_notBefore, X509_ACERT_set1_notAfter,
 X509_CRL_get0_lastUpdate, X509_CRL_get0_nextUpdate, X509_CRL_set1_lastUpdate,
 X509_CRL_set1_nextUpdate - get or set certificate or CRL dates
 
@@ -20,6 +22,12 @@ X509_CRL_set1_nextUpdate - get or set certificate or CRL dates
  int X509_set1_notBefore(X509 *x, const ASN1_TIME *tm);
  int X509_set1_notAfter(X509 *x, const ASN1_TIME *tm);
 
+ const ASN1_GENERALIZEDTIME *X509_ACERT_get0_notBefore(const X509 *x);
+ const ASN1_GENERALIZEDTIME *X509_ACERT_get0_notAfter(const X509 *x);
+
+ int X509_ACERT_set1_notBefore(X509_ACERT *x, const ASN1_GENERALIZEDTIME *tm);
+ int X509_ACERT_set1_notAfter(X509_ACERT *x, const ASN1_GENERALIZEDTIME *tm);
+
  const ASN1_TIME *X509_CRL_get0_lastUpdate(const X509_CRL *crl);
  const ASN1_TIME *X509_CRL_get0_nextUpdate(const X509_CRL *crl);
 
@@ -29,9 +37,9 @@ X509_CRL_set1_nextUpdate - get or set certificate or CRL dates
 =head1 DESCRIPTION
 
 X509_get0_notBefore() and X509_get0_notAfter() return the B<notBefore>
-and B<notAfter> fields of certificate B<x> respectively. The value
+and B<notAfter> fields of certificate I<x> respectively. The value
 returned is an internal pointer which must not be freed up after
-the call.
+the call. I<x> B<MUST NOT> be NULL.
 
 X509_getm_notBefore() and X509_getm_notAfter() are similar to
 X509_get0_notBefore() and X509_get0_notAfter() except they return
@@ -39,20 +47,32 @@ non-constant mutable references to the associated date field of
 the certificate.
 
 X509_set1_notBefore() and X509_set1_notAfter() set the B<notBefore>
+and B<notAfter> fields of I<x> to I<tm>. Ownership of the passed
+parameter I<tm> is not transferred by these functions so it must
+be freed up after the call.
+
+X509_ACERT_get0_notBefore() and X509_ACERT_get0_notAfter() return
+the B<notBefore> and B<notAfter> fields of certificate B<x> respectively.
+returned is an internal pointer which must not be freed up after
+the call.
+
+X509_ACERT_set1_notBefore() and X509_ACERT_set1_notAfter() set the B<notBefore>
 and B<notAfter> fields of B<x> to B<tm>. Ownership of the passed
 parameter B<tm> is not transferred by these functions so it must
 be freed up after the call.
 
 X509_CRL_get0_lastUpdate() and X509_CRL_get0_nextUpdate() return the
-B<lastUpdate> and B<nextUpdate> fields of B<crl>. The value
+B<lastUpdate> and B<nextUpdate> fields of I<crl>. The value
 returned is an internal pointer which must not be freed up after
-the call. If the B<nextUpdate> field is absent from B<crl> then
-B<NULL> is returned.
+the call. If the B<nextUpdate> field is absent from I<crl> then
+NULL is returned.
 
 X509_CRL_set1_lastUpdate() and X509_CRL_set1_nextUpdate() set the B<lastUpdate>
-and B<nextUpdate> fields of B<crl> to B<tm>. Ownership of the passed parameter
-B<tm> is not transferred by these functions so it must be freed up after the
+and B<nextUpdate> fields of I<crl> to I<tm>. Ownership of the passed parameter
+I<tm> is not transferred by these functions so it must be freed up after the
 call.
+For X509_CRL_set1_nextUpdate() the I<tm> argument may be NULL,
+which implies removal of the optional B<nextUpdate> field.
 
 =head1 RETURN VALUES
 
@@ -65,9 +85,16 @@ or NULL if the B<lastUpdate> field is absent.
 X509_set1_notBefore(), X509_set1_notAfter(), X509_CRL_set1_lastUpdate() and
 X509_CRL_set1_nextUpdate() return 1 for success or 0 for failure.
 
+=head1 NOTES
+
+Unlike the B<X509> and B<X509_CRL> routines, the B<X509_ACERT> routines
+use the ASN1_GENERALIZEDTIME format instead of ASN1_TIME for holding time
+data.
+
 =head1 SEE ALSO
 
 L<d2i_X509(3)>,
+L<ASN1_GENERALIZEDTIME_check(3)>
 L<ERR_get_error(3)>,
 L<X509_CRL_get0_by_serial(3)>,
 L<X509_get0_signature(3)>,
@@ -86,14 +113,16 @@ L<X509_verify_cert(3)>
 
 =head1 HISTORY
 
-These functions are available in all versions of OpenSSL.
-
 X509_get_notBefore() and X509_get_notAfter() were deprecated in OpenSSL
-1.1.0
+1.1.0.
+
+X509_ACERT_get0_notBefore(), X509_ACERT_get0_notAfter(),
+X509_ACERT_set1_notBefore(), X509_ACERT_set1_notAfter()
+were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

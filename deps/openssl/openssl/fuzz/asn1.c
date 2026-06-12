@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -214,7 +214,7 @@ static ASN1_PCTX *pctx;
 #define DO_TEST(TYPE, D2I, I2D, PRINT) { \
     const unsigned char *p = buf; \
     unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
+    TYPE *type = D2I(NULL, &p, (long)len); \
     \
     if (type != NULL) { \
         int len2; \
@@ -234,7 +234,7 @@ static ASN1_PCTX *pctx;
 #define DO_TEST_PRINT_OFFSET(TYPE, D2I, I2D, PRINT) { \
     const unsigned char *p = buf; \
     unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
+    TYPE *type = D2I(NULL, &p, (long)len); \
     \
     if (type != NULL) { \
         BIO *bio = BIO_new(BIO_s_null()); \
@@ -252,7 +252,7 @@ static ASN1_PCTX *pctx;
 #define DO_TEST_PRINT_PCTX(TYPE, D2I, I2D, PRINT) { \
     const unsigned char *p = buf; \
     unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
+    TYPE *type = D2I(NULL, &p, (long)len); \
     \
     if (type != NULL) { \
         BIO *bio = BIO_new(BIO_s_null()); \
@@ -271,7 +271,7 @@ static ASN1_PCTX *pctx;
 #define DO_TEST_NO_PRINT(TYPE, D2I, I2D) { \
     const unsigned char *p = buf; \
     unsigned char *der = NULL; \
-    TYPE *type = D2I(NULL, &p, len); \
+    TYPE *type = D2I(NULL, &p, (long)len); \
     \
     if (type != NULL) { \
         BIO *bio = BIO_new(BIO_s_null()); \
@@ -311,7 +311,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         const uint8_t *b = buf;
         unsigned char *der = NULL;
         const ASN1_ITEM *i = ASN1_ITEM_ptr(item_type[n]);
-        ASN1_VALUE *o = ASN1_item_d2i(NULL, &b, len, i);
+        ASN1_VALUE *o = ASN1_item_d2i(NULL, &b, (long)len, i);
 
         if (o != NULL) {
             /*

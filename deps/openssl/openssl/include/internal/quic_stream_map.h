@@ -137,16 +137,17 @@ struct quic_stream_st {
      *
      * DO NOT test these pointers (sstream, rstream) for NULL. Determine the
      * state of the send or receive stream part first using the appropriate
-     * function; then the invariant of that state guarantees that sstream or
-     * rstream either is or is not NULL respectively, therefore there is no
-     * valid use case for testing these pointers for NULL. In particular, a
-     * stream with a send part can still have sstream as NULL, and a stream with
-     * a receive part can still have rstream as NULL. QUIC_SSTREAM and
-     * QUIC_RSTREAM are stream buffer resource management objects which exist
-     * only when they need to for buffer management purposes. The existence or
-     * non-existence of a QUIC_SSTREAM or QUIC_RSTREAM object does not
-     * correspond with whether a stream's respective send or receive part
-     * logically exists or not.
+     * function (ossl_quic_stream_has_send_buffer() resp.
+     * ossl_quic_stream_has_recv_buffer()  ; then the invariant of that state
+     * guarantees that sstream or rstream either is or is not NULL respectively,
+     * therefore there is no valid use case for testing these pointers for NULL.
+     * In particular, stream with a send part can still have sstream as NULL,
+     * and a stream with a receive part can still have rstream as NULL.
+     * QUIC_SSTREAM and QUIC_RSTREAM are stream buffer resource management
+     * objects which exist only when they need to for buffer management
+     * purposes. The existence or non-existence of a QUIC_SSTREAM or
+     * QUIC_RSTREAM object does not correspond with whether a stream's
+     * respective send or receive part logically exists or not.
      */
     QUIC_SSTREAM    *sstream;   /* NULL if RX-only */
     QUIC_RSTREAM    *rstream;   /* NULL if TX only */
@@ -508,8 +509,8 @@ static ossl_inline ossl_unused int ossl_quic_stream_recv_get_final_size(const QU
  * Determines the number of bytes available still to be read, and (if
  * include_fin is 1) whether a FIN or reset has yet to be read.
  */
-static ossl_inline ossl_unused int ossl_quic_stream_recv_pending(const QUIC_STREAM *s,
-                                                                 int include_fin)
+static ossl_inline ossl_unused size_t ossl_quic_stream_recv_pending(const QUIC_STREAM *s,
+                                                                    int include_fin)
 {
     size_t avail;
     int fin = 0;
@@ -553,6 +554,7 @@ static ossl_inline ossl_unused int ossl_quic_stream_recv_pending(const QUIC_STRE
  */
 struct quic_stream_map_st {
     LHASH_OF(QUIC_STREAM)   *map;
+    QUIC_CHANNEL            *ch;
     QUIC_STREAM_LIST_NODE   active_list;
     QUIC_STREAM_LIST_NODE   accept_list;
     QUIC_STREAM_LIST_NODE   ready_for_gc_list;
@@ -563,7 +565,6 @@ struct quic_stream_map_st {
     void                    *get_stream_limit_cb_arg;
     QUIC_RXFC               *max_streams_bidi_rxfc;
     QUIC_RXFC               *max_streams_uni_rxfc;
-    int                     is_server;
 };
 
 /*
@@ -584,7 +585,7 @@ int ossl_quic_stream_map_init(QUIC_STREAM_MAP *qsm,
                               void *get_stream_limit_cb_arg,
                               QUIC_RXFC *max_streams_bidi_rxfc,
                               QUIC_RXFC *max_streams_uni_rxfc,
-                              int is_server);
+                              QUIC_CHANNEL *ch);
 
 /*
  * Any streams still in the map will be released as though
@@ -832,6 +833,13 @@ void ossl_quic_stream_map_push_accept_queue(QUIC_STREAM_MAP *qsm,
  * empty.
  */
 QUIC_STREAM *ossl_quic_stream_map_peek_accept_queue(QUIC_STREAM_MAP *qsm);
+
+/*
+ * Returns the next item to be popped from the accept queue matching the given
+ * stream type, or NULL if it there are no items that match.
+ */
+QUIC_STREAM *ossl_quic_stream_map_find_in_accept_queue(QUIC_STREAM_MAP *qsm,
+                                                       int is_uni);
 
 /*
  * Removes a stream from the accept queue. rtt is the estimated connection RTT.

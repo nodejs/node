@@ -4,7 +4,10 @@
 
 OPENSSL_gmtime,
 OPENSSL_gmtime_adj,
-OPENSSL_gmtime_diff - platform-agnostic OpenSSL time routines
+OPENSSL_gmtime_diff,
+OPENSSL_timegm,
+OPENSSL_posix_to_tm,
+OPENSSL_tm_to_posix - platform-agnostic OpenSSL time routines
 
 =head1 SYNOPSIS
 
@@ -15,40 +18,101 @@ OPENSSL_gmtime_diff - platform-agnostic OpenSSL time routines
  int OPENSSL_gmtime_diff(int *pday, int *psec,
                         const struct tm *from, const struct tm *to);
 
+ #include <openssl/posix_time.h>
+ int OPENSSL_timegm(const struct tm *tm, time_t *out_time);
+ int OPENSSL_posix_to_tm(int64_t time, struct tm *out_tm);
+ int OPENSSL_tm_to_posix(struct tm t_tm, int64_t *out);
+
 =head1 DESCRIPTION
 
-OPENSSL_gmtime() returns the UTC time specified by I<timer> into the provided
-I<result> argument.
+OPENSSL_gmtime() returns the Unix/Posix time specified by I<timer>
+into the provided I<result> argument. |timer| must be a value of the
+number of seconds relative to 0 hours, 0 minutes, 0 seconds, January 1,
+1970, Coordinated Universal Time, without including leap seconds, and
+must be in the range of the year 0 to 9999 inclusively. I<result> will
+be zeroed, and only the fields I<tm_year>, I<tm_mon>, I<tm_mday>,
+I<tm_hour>, I<tm_min>, and I<tm_sec> will be updated in I<result> on
+success.
 
 OPENSSL_gmtime_adj() adds the offsets in I<offset_day> and I<offset_sec> to I<tm>.
 
 OPENSSL_gmtime_diff() calculates the difference between I<from> and I<to>.
 
+OPENSSL_timegm() converts a time structure in UTC time in I<tm> to a time_t value in
+I<out_time>.
+
+OPENSSL_posix_to_tm() converts a int64_t POSIX time value in I<time>,
+to a broken out time value in I<tm>. I<time> must be a value of the
+number of seconds relative to 0 hours, 0 minutes, 0 seconds, January 1,
+1970, Coordinated Universal Time, without including leap seconds, and
+must be in the range of the year 0 to 9999 inclusively. I<tm> will be
+zeroed, and only the fields I<tm_year>, I<tm_mon>, I<tm_mday>,
+I<tm_hour>, I<tm_min>, and I<tm_sec> will be updated in I<tm> on
+success.
+
+OPENSSL_tm_to_posix() converts a time value between the years 0 and
+9999 in I<tm> to a POSIX time value in I<out>.
+
 =head1 NOTES
 
-It is an error to call OPENSSL_gmtime() with I<result> equal to NULL. The
-contents of the time_t given by I<timer> are stored into the I<result>. Calling
-with I<timer> equal to NULL means use the current time.
+These functions are intended for use when using I<struct tm> values
+converted from ASN1_TIME values. They are not intended for general
+purpose time conversions, and should not be used for other purposes.
 
-OPENSSL_gmtime_adj() converts I<tm> into a days and seconds value, adds the
-offsets, then converts back into a I<struct tm> specified by I<tm>. Leap seconds
-are not considered.
+When these functions use a I<struct tm> as input, they consider only
+the I<tm_year>, I<tm_mon>, I<tm_mday>, I<tm_hour>, I<tm_min>, and
+I<tm_sec> fields of the structure, all other fields are ignored.
+Out of range values, including leap seconds, are not permitted.
 
-OPENSSL_gmtime_diff() calculates the difference between the two I<struct tm>
-structures I<from> and I<to>. The difference in days is placed into I<*pday>,
-the remaining seconds are placed to I<*psec>. The value in I<*psec> will be less
-than the number of seconds per day (3600). Leap seconds are not considered.
+OPENSSL_gmtime_adj() converts I<tm> into a days and seconds value,
+adds I<offset_day> and I<offset_sec> to the values, and then converts
+back into a I<struct tm> specified by I<tm>.
+
+It is an error to call OPENSSL_gmtime() with I<result> equal to
+NULL. The contents of the time_t given by I<timer> are stored into the
+I<result>. Calling with I<timer> equal to NULL means use the current
+time.
+
+OPENSSL_gmtime_adj() converts I<tm> into a days and seconds value,
+adds the offsets, then converts back into a I<struct tm> specified by
+I<tm>.
+
+OPENSSL_gmtime_diff() calculates the difference between the two
+I<struct tm> structures I<from> and I<to>. The difference in days is
+placed into I<*pday>, the remaining seconds are placed to
+I<*psec>. The value in I<*psec> will be less than the number of
+seconds per day (86400).
 
 =head1 RETURN VALUES
 
-OPENSSL_gmtime() returns NULL on error, or I<result> on success.
+OPENSSL_gmtime() returns I<result> on success or NULL for failure. It
+can fail if the input time is outside of the range of year 0 to 9999.
+
+OPENSSL_posix_to_tm() return 1 for success or 0 on failure. It
+can fail if the input time is outside of the range of year 0 to 9999.
+
+OPENSSL_timegm() and OPENSSL_tm_to_posix() return 1 for success or 0 for
+failure.  OpenSSL_timegm() can fail it the time is not representable
+in a time_t, and both may fail on invalid or out of range input in the
+input tm.
 
 OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() return 0 on error, and 1 on success.
 
+=head1 BUGS
+
+OPENSSL_gmtime() and OPENSSL_timegm() are not platform-agnostic due
+to possible limitations in the range of the platform I<time_t>
+type. OPENSSL_posix_to_tm() and OPENSSL_tm_to_posix() provide similar
+functionality in a platform independent manner.
+
 =head1 HISTORY
+
+OPENSSL_gmtime() returns NULL on error, or I<result> on success.
 
 OPENSSL_gmtime(), OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() have been
 in OpenSSL since 1.0.0.
+OPENSSL_timegm(), OPENSSL_posix_to_tm() and OPENSSL_tm_to_posix() were originally
+from BoringSSL and have been in OpenSSL since 4.0.0
 
 =head1 COPYRIGHT
 

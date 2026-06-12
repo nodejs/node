@@ -150,7 +150,7 @@ The function does not protect the message if I<unprotectedErrors> is nonzero.
 
 =head1 NOTES
 
-CMP is specified in RFC 4210 (and CRMF in RFC 4211).
+CMP is specified in RFC 9810 (and CRMF in RFC 4211).
 
 =head1 RETURN VALUES
 

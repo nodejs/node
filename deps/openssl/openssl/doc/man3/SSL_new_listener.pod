@@ -1,0 +1,240 @@
+=pod
+
+=head1 NAME
+
+SSL_new_listener, SSL_new_listener_from, SSL_is_listener, SSL_get0_listener,
+SSL_listen,
+SSL_accept_connection, SSL_get_accept_connection_queue_len,
+SSL_new_from_listener,
+SSL_ACCEPT_CONNECTION_NO_BLOCK - SSL object interface for abstracted connection
+acceptance
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ SSL *SSL_new_listener(SSL_CTX *ctx, uint64_t flags);
+ SSL *SSL_new_listener_from(SSL *ssl, uint64_t flags);
+
+ int SSL_is_listener(SSL *ssl);
+ SSL *SSL_get0_listener(SSL *ssl);
+
+ int SSL_listen(SSL *ssl);
+
+ #define SSL_ACCEPT_CONNECTION_NO_BLOCK
+ SSL *SSL_accept_connection(SSL *ssl, uint64_t flags);
+
+ size_t SSL_get_accept_connection_queue_len(SSL *ssl);
+
+ SSL *SSL_new_from_listener(SSL *ssl, uint64_t flags);
+
+=head1 DESCRIPTION
+
+The SSL_new_listener() function creates a listener SSL object.  Listener SSL
+objects are specialised to only accept network connections in a protocol-
+agnostic manner. They cannot be used, for example, for sending or receiving data
+using L<SSL_write_ex(3)> or L<SSL_read_ex(3)>. In general, only those functions
+expressly documented as being supported on a listener SSL object are available.
+
+The SSL_new_listener_from() function creates a listener SSL object which is
+subordinate to a QUIC domain SSL object I<ssl>. See L<SSL_new_domain(3)> and
+L<openssl-quic-concurrency(7)> for details on QUIC domain SSL objects.
+
+A listener SSL object supports the following operations:
+
+=over 4
+
+=item
+
+Standard reference counting and free operations, such as L<SSL_up_ref(3)> and
+L<SSL_free(3)>;
+
+=item
+
+Network BIO configuration operations, such as L<SSL_set_bio(3)>;
+
+=item
+
+Event processing and polling enablement APIs such as L<SSL_handle_events(3)>,
+L<SSL_get_event_timeout(3)>, L<SSL_get_rpoll_descriptor(3)>,
+L<SSL_get_wpoll_descriptor(3)>, L<SSL_net_read_desired(3)> and
+L<SSL_net_write_desired(3)>;
+
+=item
+
+Certain configurable parameters described in L<SSL_get_value_uint(3)> (see
+L<SSL_get_value_uint(3)> for details);
+
+=item
+
+Accepting network connections using the functions documented in this manual
+page, such as SSL_accept_connection().
+
+=back
+
+The basic workflow of using a listener object is as follows:
+
+=over 4
+
+=item
+
+Create a new listener object using SSL_new_listener() using a B<SSL_CTX> which
+uses a supported B<SSL_METHOD> (such as L<OSSL_QUIC_server_method(3)>);
+
+=item
+
+Configure appropriate network BIOs using L<SSL_set_bio(3)> on the listener SSL
+object;
+
+=item
+
+Configure the blocking mode using L<SSL_set_blocking_mode(3)>;
+
+=item
+
+Accept connections in a loop by calling SSL_accept_connection(). Each returned
+SSL object is a valid connection which can be used in a normal manner.
+
+=back
+
+The SSL_is_listener() function returns 1 if and only if a SSL object is a
+listener SSL object.
+
+The SSL_get0_listener() function returns a listener object which is related to
+the given SSL object, if there is one. For a listener object, this is the same
+object (the function returns its argument). For a connection object which was
+created by a listener object, that listener object is returned. If the I<ssl>
+argument is an SSL object which is not a listener object and which is not
+descended from a listener object (e.g. a connection obtained using
+SSL_accept_connection()) or indirectly from a listener object (e.g. a QUIC
+stream SSL object obtained using SSL_accept_stream() called on a connection
+obtained using SSL_accept_connection()) the return value is NULL. See NOTES
+below for caveats related to pending SSL connections on a QUIC listener's accept
+queue.
+
+The SSL_listen() function begins monitoring the listener I<ssl> for incoming
+connections. Appropriate BIOs must have been configured before calling
+SSL_listen(), along with any other needed configuration for the listener SSL
+object. It is typically not necessary to call SSL_listen() because it will be
+called automatically on the first call to SSL_accept_connection(). However,
+SSL_listen() may be called explicitly if it is desired to control precisely when
+the listening process begins, or to ensure that no errors occur when starting to
+listen for connections. After a call to SSL_listen() (or
+SSL_accept_connection()) succeeds. The SSL_listen() function is idempotent,
+subsequent calls on the same I<ssl> object are no-ops. This call is supported
+only on listener SSL objects.
+
+The SSL_accept_connection() call is supported only on a listener SSL object and
+accepts a new incoming connection. A new SSL object representing the accepted
+connection is created and returned on success. If no incoming connection is
+available and the listener SSL object is configured in nonblocking mode, NULL is
+returned.
+
+The new SSL object returned from SSL_accept_connection() may or may not have
+completed its handshake at the point it is returned. Optionally, you may use the
+function L<SSL_is_init_finished(3)> to determine this. You may call the
+functions L<SSL_accept(3)>, L<SSL_do_handshake(3)> or L<SSL_handle_events(3)> to
+progress the state of the SSL object towards handshake completion. Other "I/O"
+functions may also implicitly progress the state of the handshake such as
+L<SSL_poll(3)>, L<SSL_read(3)> and L<SSL_write(3)>.
+
+The B<SSL_ACCEPT_CONNECTION_NO_BLOCK> flag may be specified to
+SSL_accept_connection(). If specified, the call does not block even if the
+listener SSL object is configured in blocking mode.
+
+The SSL_get_accept_connection_queue_len() call returns the number of pending
+connections on the I<ssl> listener's queue. SSL_accept_connection() returns the
+next pending connection, removing it from the queue. The returned connection
+count is a point-in-time value, the actual number of connections that will
+ultimately be returned may be different.
+
+Currently, listener SSL objects are only supported for QUIC server usage via
+L<OSSL_QUIC_server_method(3)>, or QUIC client-only usage via
+L<OSSL_QUIC_client_method(3)> or L<OSSL_QUIC_client_thread_method(3)> (see
+L</CLIENT-ONLY USAGE>). It is expected that the listener interface, which
+provides an abstracted API for connection acceptance, will be expanded to
+support other protocols, such as TLS over TCP, plain TCP or DTLS in future.
+
+SSL_listen() and SSL_accept_connection() are "I/O" functions, meaning that they
+update the value returned by L<SSL_get_error(3)> if they fail.
+
+=head1 CLIENT-ONLY USAGE
+
+It is also possible to use the listener interface without accepting any
+connections and without listening for connections. This can be useful in
+circumstances where it is desirable for multiple connections to share the same
+underlying network resources. For example, multiple outgoing QUIC client
+connections could be made to use the same underlying UDP socket.
+
+To disable client address validation on a listener SSL object, the flag
+B<SSL_LISTENER_FLAG_NO_VALIDATE> may be passed in the flags field of both
+SSL_new_listener() and SSL_new_listener_from().  Note that this flag only
+impacts the sending of retry frames for server address validation.  Tokens may
+still be communicated from the server via NEW_TOKEN frames, which will still
+be validated on receipt in future connections.  Note that this setting is not
+recommended and may be dangerous in untrusted environments.  Not performing
+address validation exposes the server to malicious clients that may open large
+numbers of connections and never transact data on them (roughly equivalent to
+a TCP syn flood attack), which address validation mitigates.
+
+The SSL_new_from_listener() function creates a client connection under a given
+listener SSL object. For QUIC, it is also possible to use
+SSL_new_from_listener(), leading to a UDP network endpoint which has both
+incoming and outgoing connections.
+
+The I<flags> argument of SSL_new_from_listener() is reserved and must be set to
+0.
+
+=head1 RETURN VALUES
+
+SSL_new_listener() and SSL_new_listener_from() return a new listener SSL object
+or NULL on failure.
+
+SSL_is_listener() returns 1 if its I<ssl> argument is a listener object, 0
+otherwise.
+
+SSL_get0_listener() returns an SSL object pointer (potentially to the same
+object on which it is called) or NULL.
+
+SSL_listen() returns 1 on success or 0 on failure.
+
+SSL_accept_connection() returns a pointer to a new SSL object on success or NULL
+on failure. On success, the caller assumes ownership of the reference.
+
+SSL_get_accept_connection_queue_len() returns a nonnegative value, or 0 if the
+queue is empty, or called on an unsupported SSL object type.
+
+SSL_new_from_listener() returns a pointer to a new SSL object on success or NULL
+on failure. On success, the caller assumes ownership of the reference.
+
+=head1 NOTES
+
+SSL_get0_listener() behaves somewhat differently in SSL callbacks for QUIC
+connections.  As QUIC connections begin TLS handshake operations prior to them
+being accepted via SSL_accept_connection(), an application may receive callbacks
+for such pending connection prior to acceptance via SSL_accept_connection().  As
+listener association takes place during the accept process, prior to being
+returned from SSL_accept_connection(), calls to SSL_get0_listener() made from
+such SSL callbacks will return NULL.  This can be used as an indicator within
+the callback that the referenced SSL object has not yet been accepted.
+
+=head1 SEE ALSO
+
+L<OSSL_QUIC_server_method(3)>, L<SSL_free(3)>, L<SSL_set_bio(3)>,
+L<SSL_handle_events(3)>, L<SSL_get_rpoll_descriptor(3)>,
+L<SSL_set_blocking_mode(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

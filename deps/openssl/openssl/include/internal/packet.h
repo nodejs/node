@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -271,6 +271,25 @@ __owur static ossl_inline int PACKET_get_net_4_len(PACKET *pkt, size_t *data)
     if (ret)
         *data = (size_t)i;
 
+    return ret;
+}
+
+/**
+ * @brief Get 4 bytes in network order from |pkt| and store the value in |*data|
+ * Similar to PACKET_get_net_4() except the data is uint32_t
+ *
+ * @param pkt Contains a buffer to read from
+ * @param data The object to write the data to.
+ * @returns 1 on success, or 0 otherwise.
+ */
+static ossl_unused ossl_inline
+int PACKET_get_net_4_len_u32(PACKET *pkt, uint32_t *data)
+{
+    size_t i = 0;
+    int ret = PACKET_get_net_4_len(pkt, &i);
+
+    if (ret)
+        *data = (uint32_t)i;
     return ret;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,7 +47,7 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
             continue;
         if (type->pkey_type == NID_dsaWithSHA1) {
             /*
-             * special case: RFC 2459 tells us to omit 'parameters' with
+             * special case: RFC 3370 tells us to omit 'parameters' with
              * id-dsa-with-sha1
              */
             ASN1_TYPE_free(a->parameter);
@@ -191,7 +191,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
         if (algor1 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&algor1, &pp, aid_len) == NULL) {
+            if (d2i_X509_ALGOR(&algor1, &pp, (long)aid_len) == NULL) {
                 ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
                 goto err;
             }
@@ -200,7 +200,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
         if (algor2 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&algor2, &pp, aid_len) == NULL) {
+            if (d2i_X509_ALGOR(&algor2, &pp, (long)aid_len) == NULL) {
                 ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
                 goto err;
             }
@@ -277,7 +277,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
         ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
     }
-    ASN1_STRING_set0(signature, buf_out, outl);
+    ASN1_STRING_set0(signature, buf_out, (int)outl);
     buf_out = NULL;
     /*
      * In the interests of compatibility, I'll make sure that the bit string
@@ -287,5 +287,5 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it, X509_ALGOR *algor1,
  err:
     OPENSSL_clear_free((char *)buf_in, inl);
     OPENSSL_clear_free((char *)buf_out, outll);
-    return outl;
+    return (int)outl;
 }

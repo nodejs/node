@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,11 +12,16 @@ use OpenSSL::Test::Utils;
 
 setup("test_http");
 
+plan skip_all => "HTTP protocol is not supported by this OpenSSL build"
+    if disabled('http');
+plan skip_all => "not supported by no-sock build" if disabled('sock');
+
 plan tests => 2;
 
 SKIP: {
     skip "sockets disabled", 1 if disabled("sock");
     skip "OCSP disabled", 1 if disabled("ocsp");
+    skip "HTTP disabled", 1 if disabled("http");
     my $cmd = [qw{openssl ocsp -index any -port 0}];
     my @output = run(app($cmd), capture => 1);
     $output[0] =~ s/\r\n/\n/g;

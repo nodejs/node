@@ -66,11 +66,18 @@ due to external circumstances (see L<RAND(7)>), the operation will fail.
 
 The call to EVP_SignFinal() internally finalizes a copy of the digest context.
 This means that calls to EVP_SignUpdate() and EVP_SignFinal() can be called
-later to digest and sign additional data.
+later to digest and sign additional data.cApplications may disable this
+behavior by setting the EVP_MD_CTX_FLAG_FINALISE context flag via
+L<EVP_MD_CTX_set_flags(3)>.
 
 Since only a copy of the digest context is ever finalized the context must
 be cleaned up after use by calling EVP_MD_CTX_free() or a memory leak
 will occur.
+
+Note that not all providers support continuation, in case the selected
+provider does not allow to duplicate contexts EVP_SignFinal() will
+finalize the digest context and attempting to process additional data via
+EVP_SignUpdate() will result in an error.
 
 =head1 BUGS
 
@@ -102,7 +109,7 @@ The function EVP_SignFinal_ex() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

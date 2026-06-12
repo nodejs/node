@@ -465,7 +465,8 @@ static int default_fixup_args(enum state state,
                          = OPENSSL_malloc(ctx->buflen)) == NULL)
                         return 0;
                     if (BN_bn2nativepad(ctx->p2,
-                                         ctx->allocated_buf, ctx->buflen) < 0) {
+                                        ctx->allocated_buf,
+                                        (int)ctx->buflen) < 0) {
                         OPENSSL_free(ctx->allocated_buf);
                         ctx->allocated_buf = NULL;
                         return 0;
@@ -774,10 +775,10 @@ static int fix_cipher_md(enum state state,
         ctx->p2 = (char *)(ctx->p2 == NULL
                            ? OBJ_nid2sn(ctx->p1)
                            : get_name(ctx->p2));
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     } else if (state == POST_PARAMS_TO_CTRL && ctx->action_type == OSSL_ACTION_GET) {
         ctx->p2 = (ctx->p2 == NULL ? "" : (char *)get_name(ctx->p2));
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     if ((ret = default_fixup_args(state, translation, ctx)) <= 0)
@@ -895,7 +896,7 @@ static int fix_kdf_type(enum state state,
             }
         if (ret <= 0)
             goto end;
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     if ((ret = default_fixup_args(state, translation, ctx)) <= 0)
@@ -1081,7 +1082,7 @@ static int fix_dh_paramgen_type(enum state state,
             ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
             return 0;
         }
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     return default_fixup_args(state, translation, ctx);
@@ -1338,7 +1339,7 @@ static int fix_rsa_padding_mode(enum state state,
             return -2;
         }
         ctx->p2 = str_value_map[i].ptr;
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     if ((ret = default_fixup_args(state, translation, ctx)) <= 0)
@@ -1417,7 +1418,7 @@ static int fix_rsa_pss_saltlen(enum state state,
             ctx->name_buf[sizeof(ctx->name_buf) - 1] = '\0';
         }
         ctx->p2 = ctx->name_buf;
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     if ((ret = default_fixup_args(state, translation, ctx)) <= 0)
@@ -1476,7 +1477,7 @@ static int fix_hkdf_mode(enum state state,
         if (i == OSSL_NELEM(str_value_map))
             return 0;
         ctx->p2 = str_value_map[i].ptr;
-        ctx->p1 = strlen(ctx->p2);
+        ctx->p1 = (int)strlen(ctx->p2);
     }
 
     if ((ret = default_fixup_args(state, translation, ctx)) <= 0)
@@ -1561,7 +1562,7 @@ static int get_payload_group_name(enum state state,
     if (ctx->p2 == NULL)
         return 1;
 
-    ctx->p1 = strlen(ctx->p2);
+    ctx->p1 = (int)strlen(ctx->p2);
     return default_fixup_args(state, translation, ctx);
 }
 
@@ -2877,7 +2878,7 @@ static int evp_pkey_ctx_setget_params_to_ctrl(EVP_PKEY_CTX *pctx,
          * function to put it to good use, or maybe affect it.
          *
          * NOTE: even though EVP_PKEY_CTX_ctrl return value is documented
-         * as return positive on Success and 0 or negative on falure. There
+         * as return positive on Success and 0 or negative on failure. There
          * maybe parameters (e.g. ecdh_cofactor), which actually return 0
          * as success value. That is why we do POST_PARAMS_TO_CTRL for 0
          * value as well

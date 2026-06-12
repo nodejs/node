@@ -362,6 +362,30 @@ const OSSL_PARAM * name##_settable_ctx_params(ossl_unused void *cctx,          \
     return name##_known_settable_ctx_params;                                   \
 }
 
+struct ossl_cipher_get_ctx_param_list_st {
+    OSSL_PARAM *keylen;         /* all ciphers */
+    OSSL_PARAM *ivlen;          /* all ciphers */
+    OSSL_PARAM *pad;            /* all ciphers */
+    OSSL_PARAM *num;            /* all ciphers */
+    OSSL_PARAM *iv;             /* all ciphers */
+    OSSL_PARAM *updiv;          /* all ciphers */
+    OSSL_PARAM *tlsmac;         /* generic cipher */
+};
+
+struct ossl_cipher_set_ctx_param_list_st {
+    OSSL_PARAM *pad;            /* all ciphers */
+    OSSL_PARAM *num;            /* all ciphers */
+    OSSL_PARAM *bits;           /* generic cipher */
+    OSSL_PARAM *tlsvers;        /* generic cipher */
+    OSSL_PARAM *tlsmacsize;     /* generic cipher */
+    OSSL_PARAM *keylen;         /* variable key length ciphers */
+};
+
+int ossl_cipher_common_get_ctx_params
+    (PROV_CIPHER_CTX *ctx, const struct ossl_cipher_get_ctx_param_list_st *p);
+int ossl_cipher_common_set_ctx_params
+    (PROV_CIPHER_CTX *ctx, const struct ossl_cipher_set_ctx_param_list_st *p);
+
 int ossl_cipher_generic_initiv(PROV_CIPHER_CTX *ctx, const unsigned char *iv,
                                size_t ivlen);
 

@@ -13,6 +13,24 @@ the public exponent I<e>, the private exponent I<d>, and a collection of prime
 factors, exponents and coefficient for CRT calculations, of which the first
 few are known as I<p> and I<q>, I<dP> and I<dQ>, and I<qInv>.
 
+RSA key generation uses FIPS 186-5 Section A.1.6 "Generation of Probable
+Primes with Conditions Based on Auxiliary Probable Primes" for the OpenSSL FIPS
+provider. It is also used for the OpenSSL default provider when the generation
+parameters satisfy the following conditions:
+
+=over 4
+
+=item There are 2 "primes" (p, q)
+
+=item The exponent "e" >= 65537 and is odd
+
+=item The cryptographic length "bits" >= 2048
+
+=back
+
+Otherwise the OpenSSL default provider uses an older general multi-prime key
+generator.
+
 =head2 Common RSA parameters
 
 In addition to the common parameters that all keytypes should support (see
@@ -132,6 +150,29 @@ The RSA "e" value. The value may be any odd number greater than or equal to
 65537. The default value is 65537.
 For legacy reasons a value of 3 is currently accepted but is deprecated.
 
+=item "rsa-derive-from-pq"  (B<OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ>) <unsigned integer>
+
+Indicate that missing parameters not passed in the parameter list should be
+derived if not provided.  Setting a nonzero value will cause all
+needed exponents and coefficients to be derived if not available.  Setting this
+option requires at least OSSL_PARAM_RSA_FACTOR1, OSSL_PARAM_RSA_FACTOR2,
+and OSSL_PARAM_RSA_N to be provided.  This option is ignored if
+OSSL_KEYMGMT_SELECT_PRIVATE_KEY is not set in the selection parameter.
+
+=item "rsa-a" (B<OSSL_PKEY_PARAM_RSA_A>) <unsigned integer>
+
+Setting this value to one of 1, 3, 5 or 7 applies an additional constraint
+requiring that the computed prime p is congruent to this value mod 8. 
+If this value is zero then it is ignored. An error will occur if the value is not
+set to one of the above values.
+
+=item "rsa-b" (B<OSSL_PKEY_PARAM_RSA_B>) <unsigned integer>
+
+Setting this value to one of 1, 3, 5 or 7 applies an additional constraint
+requiring that the computed prime q is congruent to this value mod 8. 
+If this value is zero then it is ignored. An error will occur if the value is not
+set to one of the above values.
+
 =back
 
 =head2 RSA key generation parameters for FIPS module testing
@@ -206,9 +247,9 @@ OpenSSL default provider allows testing of the validity of multi-primes.
 
 =over 4
 
-=item FIPS186-4
+=item FIPS186-5
 
-Section B.3.6  Generation of Probable Primes with Conditions Based on
+Section A.1.6 Generation of Probable Primes with Conditions Based on
 Auxiliary Probable Primes
 
 =item RFC 8017, excluding RSA-PSS and RSA-OAEP
@@ -262,9 +303,13 @@ An B<RSA> key can be generated with key generation parameters:
 
 L<EVP_RSA_gen(3)>, L<EVP_KEYMGMT(3)>, L<EVP_PKEY(3)>, L<provider-keymgmt(7)>
 
+=head1 HISTORY
+
+The RSA key generation parameters "a" and "b" were added in OpenSSL 4.0.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

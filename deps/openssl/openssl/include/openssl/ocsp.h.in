@@ -142,19 +142,19 @@ typedef struct ocsp_service_locator_st OCSP_SERVICELOC;
 #  define d2i_OCSP_RESPONSE_bio(bp,p) ASN1_d2i_bio_of(OCSP_RESPONSE,OCSP_RESPONSE_new,d2i_OCSP_RESPONSE,bp,p)
 
 #  define PEM_read_bio_OCSP_REQUEST(bp,x,cb) (OCSP_REQUEST *)PEM_ASN1_read_bio( \
-     (char *(*)())d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST, \
+     (d2i_of_void *)d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST, \
      bp,(char **)(x),cb,NULL)
 
 #  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb) (OCSP_RESPONSE *)PEM_ASN1_read_bio(\
-     (char *(*)())d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE, \
+     (d2i_of_void *)d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE, \
      bp,(char **)(x),cb,NULL)
 
 #  define PEM_write_bio_OCSP_REQUEST(bp,o) \
-    PEM_ASN1_write_bio((int (*)())i2d_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST,\
+    PEM_ASN1_write_bio((i2d_of_void *)i2d_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST,\
                         bp,(char *)(o), NULL,NULL,0,NULL,NULL)
 
 #  define PEM_write_bio_OCSP_RESPONSE(bp,o) \
-    PEM_ASN1_write_bio((int (*)())i2d_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE,\
+    PEM_ASN1_write_bio((i2d_of_void *)i2d_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE,\
                         bp,(char *)(o), NULL,NULL,0,NULL,NULL)
 
 #  define i2d_OCSP_RESPONSE_bio(bp,o) ASN1_i2d_bio_of(OCSP_RESPONSE,i2d_OCSP_RESPONSE,bp,o)

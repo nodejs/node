@@ -48,7 +48,7 @@ enum {
     CMD_LOOKUP
 };
 
-#define MAX_CMDS    10000
+#define MAX_CMDS    5000
 
 static int get_cid(PACKET *pkt, QUIC_CONN_ID *cid)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,6 +41,7 @@ typedef struct CMS_KEKIdentifier_st CMS_KEKIdentifier;
 typedef struct CMS_KEKRecipientInfo_st CMS_KEKRecipientInfo;
 typedef struct CMS_PasswordRecipientInfo_st CMS_PasswordRecipientInfo;
 typedef struct CMS_OtherRecipientInfo_st CMS_OtherRecipientInfo;
+typedef struct CMS_KEMRecipientInfo_st CMS_KEMRecipientInfo;
 typedef struct CMS_ReceiptsFrom_st CMS_ReceiptsFrom;
 typedef struct CMS_CTX_st CMS_CTX;
 
@@ -142,7 +143,11 @@ struct CMS_EncryptedContentInfo_st {
 };
 
 struct CMS_RecipientInfo_st {
-    int type;
+    /*
+     * Type which the RecipientInfo is encoded with. OtherRecipientInfo
+     * encompasses different types, specified by 'type' below.
+     */
+    int encoded_type;
     union {
         CMS_KeyTransRecipientInfo *ktri;
         CMS_KeyAgreeRecipientInfo *kari;
@@ -150,6 +155,8 @@ struct CMS_RecipientInfo_st {
         CMS_PasswordRecipientInfo *pwri;
         CMS_OtherRecipientInfo *ori;
     } d;
+    /* internal type, including ORI types */
+    int type;
 };
 
 typedef CMS_SignerIdentifier CMS_RecipientIdentifier;
@@ -245,7 +252,29 @@ struct CMS_PasswordRecipientInfo_st {
 
 struct CMS_OtherRecipientInfo_st {
     ASN1_OBJECT *oriType;
-    ASN1_TYPE *oriValue;
+    union {
+        /* NID_id_smime_ori_kem */
+        CMS_KEMRecipientInfo *kemri;
+        /* anything else */
+        ASN1_TYPE *other;
+    } d;
+};
+
+struct CMS_KEMRecipientInfo_st {
+    int32_t version;
+    CMS_RecipientIdentifier *rid;
+    X509_ALGOR *kem;
+    ASN1_OCTET_STRING *kemct;
+    X509_ALGOR *kdf;
+    uint32_t kekLength;
+    ASN1_OCTET_STRING *ukm;
+    X509_ALGOR *wrap;
+    ASN1_OCTET_STRING *encryptedKey;
+    /* Public key context associated with current operation */
+    EVP_PKEY_CTX *pctx;
+    /* Cipher context for CEK wrapping */
+    EVP_CIPHER_CTX *ctx;
+    const CMS_CTX *cms_ctx;
 };
 
 struct CMS_DigestedData_st {
@@ -396,7 +425,7 @@ const char *ossl_cms_ctx_get0_propq(const CMS_CTX *ctx);
 void ossl_cms_resolve_libctx(CMS_ContentInfo *ci);
 
 CMS_ContentInfo *ossl_cms_Data_create(OSSL_LIB_CTX *ctx, const char *propq);
-int ossl_cms_DataFinal(CMS_ContentInfo *cms, BIO *cmsbio,
+int ossl_cms_DataFinal(CMS_ContentInfo *cms, BIO *cmsbio, BIO *data,
                        const unsigned char *precomp_md,
                        unsigned int precomp_mdlen);
 
@@ -408,7 +437,7 @@ int ossl_cms_DigestedData_do_final(const CMS_ContentInfo *cms,
                                    BIO *chain, int verify);
 
 BIO *ossl_cms_SignedData_init_bio(CMS_ContentInfo *cms);
-int ossl_cms_SignedData_final(CMS_ContentInfo *cms, BIO *chain,
+int ossl_cms_SignedData_final(CMS_ContentInfo *cms, BIO *chain, BIO *data,
                               const unsigned char *precomp_md,
                               unsigned int precomp_mdlen);
 int ossl_cms_set1_SignerIdentifier(CMS_SignerIdentifier *sid, X509 *cert,
@@ -435,7 +464,7 @@ int ossl_cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert);
 int ossl_cms_set1_keyid(ASN1_OCTET_STRING **pkeyid, X509 *cert);
 
 BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
-                                        const CMS_CTX *ctx);
+                                        const CMS_CTX *ctx, int auth);
 BIO *ossl_cms_EncryptedData_init_bio(const CMS_ContentInfo *cms);
 int ossl_cms_EncryptedContent_init(CMS_EncryptedContentInfo *ec,
                                    const EVP_CIPHER *cipher,
@@ -460,6 +489,7 @@ int ossl_cms_pkey_get_ri_type(EVP_PKEY *pk);
 int ossl_cms_pkey_is_ri_type_supported(EVP_PKEY *pk, int ri_type);
 
 void ossl_cms_RecipientInfos_set_cmsctx(CMS_ContentInfo *cms);
+int ossl_cms_RecipientInfo_wrap_init(CMS_RecipientInfo *ri, const EVP_CIPHER *cipher);
 
 /* KARI routines */
 int ossl_cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
@@ -469,6 +499,20 @@ int ossl_cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
                                      const CMS_CTX *ctx);
 int ossl_cms_RecipientInfo_kari_encrypt(const CMS_ContentInfo *cms,
                                         CMS_RecipientInfo *ri);
+
+/* KEMRI routines */
+int ossl_cms_RecipientInfo_kemri_get0_alg(CMS_RecipientInfo *ri,
+                                          uint32_t **pkekLength,
+                                          X509_ALGOR **pwrap);
+int ossl_cms_RecipientInfo_kemri_init(CMS_RecipientInfo *ri, X509 *recip,
+                                      EVP_PKEY *recipPubKey, unsigned int flags,
+                                      const CMS_CTX *ctx);
+int ossl_cms_RecipientInfo_kemri_encrypt(const CMS_ContentInfo *cms,
+                                         CMS_RecipientInfo *ri);
+int ossl_cms_RecipientInfo_kemri_decrypt(const CMS_ContentInfo *cms,
+                                         CMS_RecipientInfo *ri);
+int CMS_CMSORIforKEMOtherInfo_encode(unsigned char **pder, X509_ALGOR *wrap,
+                                     ASN1_OCTET_STRING *ukm, int keylen);
 
 /* PWRI routines */
 int ossl_cms_RecipientInfo_pwri_crypt(const CMS_ContentInfo *cms,
@@ -486,6 +530,7 @@ int ossl_cms_dh_envelope(CMS_RecipientInfo *ri, int decrypt);
 int ossl_cms_ecdh_envelope(CMS_RecipientInfo *ri, int decrypt);
 int ossl_cms_rsa_envelope(CMS_RecipientInfo *ri, int decrypt);
 int ossl_cms_rsa_sign(CMS_SignerInfo *si, int verify);
+int ossl_cms_kem_envelope(CMS_RecipientInfo *ri, int decrypt);
 
 int ossl_cms_get1_certs_ex(CMS_ContentInfo *cms, STACK_OF(X509) **certs);
 int ossl_cms_get1_crls_ex(CMS_ContentInfo *cms, STACK_OF(X509_CRL) **crls);
@@ -496,10 +541,12 @@ DECLARE_ASN1_ITEM(CMS_EncryptedData)
 DECLARE_ASN1_ITEM(CMS_EnvelopedData)
 DECLARE_ASN1_ITEM(CMS_AuthEnvelopedData)
 DECLARE_ASN1_ITEM(CMS_KEKRecipientInfo)
+DECLARE_ASN1_ITEM(CMS_KEMRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_KeyAgreeRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_KeyTransRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_OriginatorPublicKey)
 DECLARE_ASN1_ITEM(CMS_OtherKeyAttribute)
+DECLARE_ASN1_ITEM(CMS_OtherRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_Receipt)
 DECLARE_ASN1_ITEM(CMS_ReceiptRequest)
 DECLARE_ASN1_ITEM(CMS_RecipientEncryptedKey)

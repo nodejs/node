@@ -145,3 +145,7 @@ DECODER("DER", pem, der, yes),
  * unencrypted PrivateKeyInfo in DER form to the identified algorithm.
  */
 DECODER_w_structure("DER", der, EncryptedPrivateKeyInfo, der, yes),
+
+#ifndef OPENSSL_NO_LMS
+DECODER("LMS", xdr, lms, yes),
+#endif

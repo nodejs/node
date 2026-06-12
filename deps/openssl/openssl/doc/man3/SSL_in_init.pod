@@ -37,6 +37,8 @@ fully protected application data can be transferred or 0 otherwise.
 Note that in some circumstances (such as when early data is being transferred)
 SSL_in_init(), SSL_in_before() and SSL_is_init_finished() can all return 0.
 
+B<s> B<MUST NOT> be NULL.
+
 SSL_in_connect_init() returns 1 if B<s> is acting as a client and SSL_in_init()
 would return 1, or 0 otherwise.
 

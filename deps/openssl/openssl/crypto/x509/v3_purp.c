@@ -800,7 +800,7 @@ static int check_purpose_ns_ssl_server(const X509_PURPOSE *xp, const X509 *x,
     return ku_reject(x, KU_KEY_ENCIPHERMENT) ? 0 : ret;
 }
 
-/* common S/MIME checks */
+/* common S/MIME client checks */
 static int purpose_smime(const X509 *x, int non_leaf)
 {
     if (xku_reject(x, XKU_SMIME))
@@ -869,7 +869,7 @@ static int check_purpose_ocsp_helper(const X509_PURPOSE *xp, const X509 *x,
      */
     if (non_leaf)
         return check_ca(x);
-    /* Leaf certificate is checked in OCSP_verify() */
+    /* Leaf certificate is checked in OCSP_basic_verify() */
     return 1;
 }
 

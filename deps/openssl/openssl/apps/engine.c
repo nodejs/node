@@ -55,14 +55,14 @@ const OPTIONS engine_options[] = {
 static int append_buf(char **buf, int *size, const char *s)
 {
     const int expand = 256;
-    int len = strlen(s) + 1;
+    int len = (int)(strlen(s) + 1);
     char *p = *buf;
 
     if (p == NULL) {
         *size = ((len + expand - 1) / expand) * expand;
         p = *buf = app_malloc(*size, "engine buffer");
     } else {
-        const int blen = strlen(p);
+        const int blen = (int)strlen(p);
 
         if (blen > 0)
             len += 2 + blen;

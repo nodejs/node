@@ -10,7 +10,7 @@ IF[{- !$disabled{asm} -}]
   $AESASM_x86_64=\
         aes-x86_64.s vpaes-x86_64.s bsaes-x86_64.s aesni-x86_64.s \
         aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s \
-        aesni-xts-avx512.s
+        aesni-xts-avx512.s aes-cfb-avx512.s
   $AESDEF_x86_64=AES_ASM VPAES_ASM BSAES_ASM
 
   $AESASM_ia64=aes_core.c aes_cbc.c aes-ia64.s
@@ -31,7 +31,9 @@ IF[{- !$disabled{asm} -}]
 
   $AESASM_armv4=aes_cbc.c aes-armv4.S bsaes-armv7.S aesv8-armx.S
   $AESDEF_armv4=AES_ASM BSAES_ASM
-  $AESASM_aarch64=aes_core.c aes_cbc.c aesv8-armx.S bsaes-armv8.S vpaes-armv8.S
+  $AESASM_aarch64=\
+        aes_core.c aes_cbc.c aesv8-armx.S bsaes-armv8.S vpaes-armv8.S \
+        aes-sha1-armv8.S aes-sha256-armv8.S aes-sha512-armv8.S
   $AESDEF_aarch64=BSAES_ASM VPAES_ASM
 
   $AESASM_parisc11=aes_core.c aes_cbc.c aes-parisc.s
@@ -105,6 +107,7 @@ GENERATE[aes-x86_64.s]=asm/aes-x86_64.pl
 GENERATE[vpaes-x86_64.s]=asm/vpaes-x86_64.pl
 GENERATE[bsaes-x86_64.s]=asm/bsaes-x86_64.pl
 GENERATE[aesni-x86_64.s]=asm/aesni-x86_64.pl
+GENERATE[aes-cfb-avx512.s]=asm/aes-cfb-avx512.pl
 GENERATE[aesni-sha1-x86_64.s]=asm/aesni-sha1-x86_64.pl
 GENERATE[aesni-sha256-x86_64.s]=asm/aesni-sha256-x86_64.pl
 GENERATE[aesni-mb-x86_64.s]=asm/aesni-mb-x86_64.pl
@@ -137,6 +140,12 @@ GENERATE[aesv8-armx.S]=asm/aesv8-armx.pl
 INCLUDE[aesv8-armx.o]=..
 GENERATE[vpaes-armv8.S]=asm/vpaes-armv8.pl
 INCLUDE[vpaes-armv8.o]=..
+GENERATE[aes-sha1-armv8.S]=asm/aes-sha1-armv8.pl
+INCLUDE[aes-sha1-armv8.o]=..
+GENERATE[aes-sha256-armv8.S]=asm/aes-sha256-armv8.pl
+INCLUDE[aes-sha256-armv8.o]=..
+GENERATE[aes-sha512-armv8.S]=asm/aes-sha512-armv8.pl
+INCLUDE[aes-sha512-armv8.o]=..
 
 GENERATE[aes-armv4.S]=asm/aes-armv4.pl
 INCLUDE[aes-armv4.o]=..

@@ -45,8 +45,11 @@ Print out a usage message.
 
 =item B<-out> I<filename>
 
-specifies the output filename to write to or standard output by
-default.
+This specifies the output file to write to.
+Standard output is used if this option is not present.
+The output file can be the same as the input,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
 
 =item B<-noout>
 
@@ -77,7 +80,6 @@ However, if this URI would return a set of names (URIs), those are always
 returned.
 
 Note that all options must be given before the I<uri> argument.
-Otherwise they are ignored.
 
 Note I<-keys> selects exclusively private keys, there is no selector for public
 keys only.

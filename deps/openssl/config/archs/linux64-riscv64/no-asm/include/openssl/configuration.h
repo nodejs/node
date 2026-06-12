@@ -27,7 +27,7 @@ extern "C" {
  * OpenSSL was configured with the following options:
  */
 
-# define OPENSSL_CONFIGURED_API 30500
+# define OPENSSL_CONFIGURED_API 40000
 # ifndef OPENSSL_RAND_SEED_OS
 #  define OPENSSL_RAND_SEED_OS
 # endif
@@ -36,6 +36,9 @@ extern "C" {
 # endif
 # ifndef OPENSSL_NO_AFALGENG
 #  define OPENSSL_NO_AFALGENG
+# endif
+# ifndef OPENSSL_NO_ALLOCFAIL_TESTS
+#  define OPENSSL_NO_ALLOCFAIL_TESTS
 # endif
 # ifndef OPENSSL_NO_ASAN
 #  define OPENSSL_NO_ASAN
@@ -93,6 +96,9 @@ extern "C" {
 # endif
 # ifndef OPENSSL_NO_KTLS
 #  define OPENSSL_NO_KTLS
+# endif
+# ifndef OPENSSL_NO_LMS
+#  define OPENSSL_NO_LMS
 # endif
 # ifndef OPENSSL_NO_LOADERENG
 #  define OPENSSL_NO_LOADERENG
@@ -163,7 +169,10 @@ extern "C" {
 # undef I386_ONLY
 
 /*
- * The following are cipher-specific, but are part of the public API.
+ * The UEFI build supports both 32-bit and 64-bit builds from a single run
+ * of the Configure script.  To allow this, they define THIRTY_TWO_BIT and
+ * SIXTY_FOUR_BIT appropriately for their builds, and we should not touch
+ * them in that case.
  */
 # if !defined(OPENSSL_SYS_UEFI)
 #  undef BN_LLONG
@@ -173,6 +182,9 @@ extern "C" {
 #  undef THIRTY_TWO_BIT
 # endif
 
+/*
+ * The following are cipher-specific, but are part of the public API.
+ */
 # define RC4_INT unsigned char
 
 # if defined(OPENSSL_NO_COMP) || (defined(OPENSSL_NO_BROTLI) && defined(OPENSSL_NO_ZSTD) && defined(OPENSSL_NO_ZLIB))

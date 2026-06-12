@@ -1,5 +1,5 @@
 #
-# Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -4934,6 +4934,96 @@ KDF = TLS13-KDF
 Ctrl.mode = mode:EXTRACT_AND_EXPAND
 Ctrl.digest = digest:SHA256
 Result = KDF_CTRL_ERROR
+
+Title = TLS13-KDF unsupported XOF test
+
+Availablein = fips
+FIPSversion = <3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHAKE-256
+Ctrl.key = hexkey:f8af6aea2d397baf2948a25b2834200692cff17eee9165e4e27babee9edefd05
+Result = KDF_DERIVE_ERROR
+
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHAKE-256
+Ctrl.key = hexkey:f8af6aea2d397baf2948a25b2834200692cff17eee9165e4e27babee9edefd05
+Result = KDF_CTRL_ERROR
+Reason = xof digests not allowed
+
+Title = FIPS indicator tests
+
+# Test that the operation with unapproved digest function is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHA512-256
+Ctrl.key = hexkey:f8af6aea2d397baf2948a25b2834200692cff17eee9165e4e27babee9edefd05
+Result = KDF_CTRL_ERROR
+
+# Test that the operation with unapproved digest function is is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Unapproved = 1
+Ctrl.digest-check = digest-check:0
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHA512-256
+Ctrl.key = hexkey:f8af6aea2d397baf2948a25b2834200692cff17eee9165e4e27babee9edefd05
+Output = c8240b43113bb8bd211ee97c5145d389e8074f76eeeaac74eb55691062a436e4
+Reason = digest not allowed
+
+# Test that the key whose length is shorter than 112 bits is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHA2-256
+Ctrl.key = hexkey:0102030405060708090a0b
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXPAND_ONLY
+Ctrl.digest = digest:SHA2-256
+Ctrl.key = hexkey:0102030405060708090a0b
+Ctrl.data = hexdata:7c92f68bd5bf3638ea338a6494722e1b44127e1b7e8aad535f2322a644ff22b3
+Ctrl.prefix = hexprefix:746c73313320
+Ctrl.label = hexlabel:6320652074726166666963
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+# Test that the key whose length is shorter than 112 bits is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Unapproved = 1
+Ctrl.key-check = key-check:0
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHA2-256
+Ctrl.key = hexkey:0102030405060708090a0b
+Output = ac5ae06e0f6bff82f6256f0fc9fb943554752ba0c93f42ee6499b99c9e5c24a8
+
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Unapproved = 1
+Ctrl.key-check = key-check:0
+Ctrl.mode = mode:EXPAND_ONLY
+Ctrl.digest = digest:SHA2-256
+Ctrl.key = hexkey:0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.data = hexdata:7c92f68bd5bf3638ea338a6494722e1b44127e1b7e8aad535f2322a644ff22b3
+Ctrl.prefix = hexprefix:746c73313320
+Ctrl.label = hexlabel:6320652074726166666963
+Output = a8464234c7957b85460bf7abda8e20aa43b9e0944c02d76c1c28672619cf6978
 
 # Test that salt of arbitrary length works
 FIPSversion = >=3.4.0

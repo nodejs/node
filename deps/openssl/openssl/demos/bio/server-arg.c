@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,8 @@
 int main(int argc, char *argv[])
 {
     char *port = "*:4433";
-    BIO *ssl_bio, *tmp;
+    BIO *ssl_bio = NULL;
+    BIO *tmp;
     SSL_CTX *ctx;
     SSL_CONF_CTX *cctx;
     char buf[512];
@@ -105,6 +106,7 @@ int main(int argc, char *argv[])
      * Basically it means the SSL BIO will be automatically setup
      */
     BIO_set_accept_bios(in, ssl_bio);
+    ssl_bio = NULL;
 
  again:
     /*
@@ -140,5 +142,6 @@ int main(int argc, char *argv[])
     if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
     BIO_free(in);
+    BIO_free_all(ssl_bio);
     return ret;
 }

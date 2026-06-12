@@ -18,8 +18,10 @@ displayed.
 This is specified by using the B<-nameopt> option, which takes a
 comma-separated list of options from the following set.
 An option may be preceded by a minus sign, C<->, to turn it off.
-The default value is C<oneline>.
-The first four are the most commonly used.
+The first four option arguments are the most commonly used.
+
+The default value is
+C<esc_ctrl,utf8,dump_unknown,dump_der,sep_comma_plus_space,sname>.
 
 =head1 OPTIONS
 
@@ -169,7 +171,7 @@ name.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

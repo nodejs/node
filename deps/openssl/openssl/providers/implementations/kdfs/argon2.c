@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,6 +42,8 @@
 #endif
 
 #ifndef OPENSSL_NO_ARGON2
+
+# include "providers/implementations/kdfs/argon2.inc"
 
 # define ARGON2_MIN_LANES 1u
 # define ARGON2_MAX_LANES 0xFFFFFFu
@@ -221,6 +223,8 @@ static const OSSL_PARAM *kdf_argon2_settable_ctx_params(ossl_unused void *ctx,
                                                         ossl_unused void *p_ctx);
 static const OSSL_PARAM *kdf_argon2_gettable_ctx_params(ossl_unused void *ctx,
                                                         ossl_unused void *p_ctx);
+static int argon2_set_ctx_params(KDF_ARGON2 *ctx, const OSSL_PARAM params[],
+                                 OSSL_PARAM **size_param_ptr);
 
 static ossl_inline uint64_t load64(const uint8_t *src);
 static ossl_inline void store32(uint8_t *dst, uint32_t w);
@@ -564,8 +568,8 @@ static int fill_mem_blocks_mt(KDF_ARGON2 *ctx)
     void **t;
     ARGON2_THREAD_DATA *t_data;
 
-    t = OPENSSL_zalloc(sizeof(void *)*ctx->lanes);
-    t_data = OPENSSL_zalloc(ctx->lanes * sizeof(ARGON2_THREAD_DATA));
+    t = OPENSSL_calloc(ctx->lanes, sizeof(void *));
+    t_data = OPENSSL_calloc(ctx->lanes, sizeof(ARGON2_THREAD_DATA));
 
     if (t == NULL || t_data == NULL)
         goto fail;
@@ -733,11 +737,9 @@ static int initialize(KDF_ARGON2 *ctx)
         return 0;
 
     if (ctx->type != ARGON2_D)
-        ctx->memory = OPENSSL_secure_zalloc(ctx->memory_blocks *
-                                            sizeof(BLOCK));
+        ctx->memory = OPENSSL_secure_calloc(ctx->memory_blocks, sizeof(BLOCK));
     else
-        ctx->memory = OPENSSL_zalloc(ctx->memory_blocks *
-                                     sizeof(BLOCK));
+        ctx->memory = OPENSSL_calloc(ctx->memory_blocks, sizeof(BLOCK));
 
     if (ctx->memory == NULL) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_MEMORY_SIZE,
@@ -1016,10 +1018,12 @@ static int kdf_argon2_derive(void *vctx, unsigned char *out, size_t outlen,
 {
     KDF_ARGON2 *ctx;
     uint32_t memory_blocks, segment_length;
+    OSSL_PARAM *size_param;
 
     ctx = (KDF_ARGON2 *)vctx;
 
-    if (!ossl_prov_is_running() || !kdf_argon2_set_ctx_params(vctx, params))
+    if (!ossl_prov_is_running()
+            || !argon2_set_ctx_params(vctx, params, &size_param))
         return 0;
 
     if (ctx->mac == NULL)
@@ -1044,7 +1048,8 @@ static int kdf_argon2_derive(void *vctx, unsigned char *out, size_t outlen,
     }
 
     if (outlen != ctx->outlen) {
-        if (OSSL_PARAM_locate((OSSL_PARAM *)params, "size") != NULL) {
+        /* User set a size that was too short so raise an error */
+        if (size_param != NULL) {
             ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
             return 0;
         }
@@ -1388,118 +1393,108 @@ static int set_property_query(KDF_ARGON2 *ctx, const char *propq)
     return 1;
 }
 
-static int kdf_argon2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+static int argon2_set_ctx_params(KDF_ARGON2 *ctx, const OSSL_PARAM params[],
+                                 OSSL_PARAM **size_param_ptr)
 {
-    const OSSL_PARAM *p;
-    KDF_ARGON2 *ctx;
+    struct argon2_set_ctx_params_st p;
     uint32_t u32_value;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !argon2_set_ctx_params_decoder(params, &p))
+        return 0;
 
-    ctx = (KDF_ARGON2 *) vctx;
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_PASSWORD)) != NULL)
-        if (!kdf_argon2_ctx_set_pwd(ctx, p))
-            return 0;
+    if (p.pw != NULL && !kdf_argon2_ctx_set_pwd(ctx, p.pw))
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SALT)) != NULL)
-        if (!kdf_argon2_ctx_set_salt(ctx, p))
-            return 0;
+    if (p.salt != NULL && !kdf_argon2_ctx_set_salt(ctx, p.salt))
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SECRET)) != NULL)
-        if (!kdf_argon2_ctx_set_secret(ctx, p))
-            return 0;
+    if (p.secret != NULL && !kdf_argon2_ctx_set_secret(ctx, p.secret))
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ARGON2_AD)) != NULL)
-        if (!kdf_argon2_ctx_set_ad(ctx, p))
-            return 0;
+    if (p.ad != NULL && !kdf_argon2_ctx_set_ad(ctx, p.ad))
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SIZE)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if ((*size_param_ptr = p.size) != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.size, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_out_length(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ITER)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.iter != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.iter, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_t_cost(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_THREADS)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.thrds != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.thrds, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_threads(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ARGON2_LANES)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.lanes != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.lanes, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_lanes(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ARGON2_MEMCOST)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.mem != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.mem, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_m_cost(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_EARLY_CLEAN)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.eclean != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.eclean, &u32_value))
             return 0;
         kdf_argon2_ctx_set_flag_early_clean(ctx, u32_value);
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ARGON2_VERSION)) != NULL) {
-        if (!OSSL_PARAM_get_uint32(p, &u32_value))
+    if (p.vers != NULL) {
+        if (!OSSL_PARAM_get_uint32(p.vers, &u32_value))
             return 0;
         if (!kdf_argon2_ctx_set_version(ctx, u32_value))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_PROPERTIES)) != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING
-            || !set_property_query(ctx, p->data))
+    if (p.propq != NULL) {
+        if (p.propq->data_type != OSSL_PARAM_UTF8_STRING
+            || !set_property_query(ctx, p.propq->data))
             return 0;
     }
 
     return 1;
 }
 
+static int kdf_argon2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+{
+    KDF_ARGON2 *ctx = (KDF_ARGON2 *) vctx;
+    OSSL_PARAM *size_param;
+
+    return argon2_set_ctx_params(ctx, params, &size_param);
+}
+
 static const OSSL_PARAM *kdf_argon2_settable_ctx_params(ossl_unused void *ctx,
                                                         ossl_unused void *p_ctx)
 {
-    static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SECRET, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_ARGON2_AD, NULL, 0),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_SIZE, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_EARLY_CLEAN, NULL),
-        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_VERSION, NULL),
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_END
-    };
-
-    return known_settable_ctx_params;
+    return argon2_set_ctx_params_list;
 }
 
 static int kdf_argon2_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
-    OSSL_PARAM *p;
+    struct argon2_get_ctx_params_st p;
+    KDF_ARGON2 *ctx = (KDF_ARGON2 *) vctx;
 
-    (void) vctx;
-    if ((p = OSSL_PARAM_locate(params, OSSL_KDF_PARAM_SIZE)) != NULL)
-        return OSSL_PARAM_set_size_t(p, SIZE_MAX);
+    if (ctx == NULL || !argon2_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.size != NULL && !OSSL_PARAM_set_size_t(p.size, SIZE_MAX))
+        return 0;
 
     return -2;
 }
@@ -1507,12 +1502,7 @@ static int kdf_argon2_get_ctx_params(void *vctx, OSSL_PARAM params[])
 static const OSSL_PARAM *kdf_argon2_gettable_ctx_params(ossl_unused void *ctx,
                                                         ossl_unused void *p_ctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
-        OSSL_PARAM_END
-    };
-
-    return known_gettable_ctx_params;
+    return argon2_get_ctx_params_list;
 }
 
 const OSSL_DISPATCH ossl_kdf_argon2i_functions[] = {

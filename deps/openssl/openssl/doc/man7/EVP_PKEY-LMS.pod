@@ -1,0 +1,104 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY-LMS, EVP_KEYMGMT-LMS, LMS
+- EVP_PKEY Leighton-Micali Signature (LMS) keytype and algorithm support
+
+=head1 DESCRIPTION
+
+The B<LMS> keytype is implemented in OpenSSL's default and FIPS providers.
+The OpenSSL providers only support LMS signature verification, as this is a
+[SP 800-208](https://csrc.nist.gov/pubs/sp/800/208/final) requirement for
+FIPS software modules.
+
+=head2 Common LMS parameters
+
+LMS public keys are encoded in XDR format (i.e. not ASN1 format).
+The following parameters are used by EVP_PKEY_fromdata() and by the
+LMS keymanager for import and export.
+
+=over 4
+
+=item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
+
+Used for getting and setting the encoding of an LMS public key. The public key
+is expected to be in XDR format.
+
+=back
+
+=head1 CONFORMING TO
+
+=over 4
+
+=item RFC 8554
+
+Leighton-Micali Hash-Based Signatures
+
+=item NIST SP800-208
+
+Recommendation for Stateful Hash-Based Signature Schemes
+
+=item CNSA 2.0
+
+Commercial National Security Algorithm Suite
+
+=back
+
+=head1 NOTES
+
+LMS support is disabled by default at compile-time.
+To enable it, specify the B<enable-lms> build configuration option.
+
+=head1 EXAMPLES
+
+NOTE error checking has been omitted in these examples
+
+An B<EVP_PKEY> context can be obtained by calling:
+
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(libctx, "LMS", propq);
+
+An B<LMS> public key can be loaded simply like this:
+
+     EVP_PKEY *pkey = NULL;
+     OSSL_DECODER_CTX *dctx = NULL;
+     int selection = OSSL_KEYMGMT_SELECT_PUBLIC_KEY;
+
+     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "XDR", NULL,
+                                          "LMS", selection, libctx, propq);
+     ret = OSSL_DECODER_from_bio(dctx, bio);
+     OSSL_DECODER_CTX_free(dctx);
+
+To load a LMS key from XDR encoded "data" of size "datalen":
+
+    EVP_PKEY *key = NULL;
+    OSSL_PARAM params[2];
+
+    params[0] =
+        OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
+                                          (unsigned char *)data, datalen);
+    params[1] = OSSL_PARAM_construct_end();
+    ret = EVP_PKEY_fromdata_init(ctx)
+    ret = EVP_PKEY_fromdata(ctx, &key, EVP_PKEY_PUBLIC_KEY, params);
+
+=head1 SEE ALSO
+
+L<EVP_KEYMGMT(3)>,
+L<EVP_PKEY(3)>,
+L<EVP_SIGNATURE-LMS(7)>,
+L<provider-keymgmt(7)>
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.6.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -14,6 +14,7 @@
 #include "prov/implementations.h"
 #include "prov/ciphercommon.h"
 #include "prov/providercommon.h"
+#include "providers/implementations/ciphers/cipher_null.inc"
 
 typedef struct prov_cipher_null_ctx_st {
     int enc;
@@ -105,70 +106,60 @@ static int null_get_params(OSSL_PARAM params[])
     return ossl_cipher_generic_get_params(params, 0, 0, 0, 8, 0);
 }
 
-static const OSSL_PARAM null_known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
-    { OSSL_CIPHER_PARAM_TLS_MAC, OSSL_PARAM_OCTET_PTR, NULL, 0, OSSL_PARAM_UNMODIFIED },
-    OSSL_PARAM_END
-};
-
 static OSSL_FUNC_cipher_gettable_ctx_params_fn null_gettable_ctx_params;
 static const OSSL_PARAM *null_gettable_ctx_params(ossl_unused void *cctx,
                                                   ossl_unused void *provctx)
 {
-    return null_known_gettable_ctx_params;
+    return null_get_ctx_params_list;
 }
 
 static OSSL_FUNC_cipher_get_ctx_params_fn null_get_ctx_params;
 static int null_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
     PROV_CIPHER_NULL_CTX *ctx = (PROV_CIPHER_NULL_CTX *)vctx;
-    OSSL_PARAM *p;
+    struct null_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IVLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, 0)) {
+    if (ctx == NULL || !null_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.ivlen != NULL && !OSSL_PARAM_set_size_t(p.ivlen, 0)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_KEYLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, 0)) {
+
+    if (p.keylen != NULL && !OSSL_PARAM_set_size_t(p.keylen, 0)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_TLS_MAC);
-    if (p != NULL
-        && !OSSL_PARAM_set_octet_ptr(p, ctx->tlsmac, ctx->tlsmacsize)) {
+
+    if (p.mac != NULL
+        && !OSSL_PARAM_set_octet_ptr(p.mac, ctx->tlsmac, ctx->tlsmacsize)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }
     return 1;
 }
 
-static const OSSL_PARAM null_known_settable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_TLS_MAC_SIZE, NULL),
-    OSSL_PARAM_END
-};
-
 static OSSL_FUNC_cipher_settable_ctx_params_fn null_settable_ctx_params;
 static const OSSL_PARAM *null_settable_ctx_params(ossl_unused void *cctx,
                                                   ossl_unused void *provctx)
 {
-    return null_known_settable_ctx_params;
+    return null_set_ctx_params_list;
 }
-
 
 static OSSL_FUNC_cipher_set_ctx_params_fn null_set_ctx_params;
 static int null_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_CIPHER_NULL_CTX *ctx = (PROV_CIPHER_NULL_CTX *)vctx;
-    const OSSL_PARAM *p;
+    struct null_set_ctx_params_st p;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_TLS_MAC_SIZE);
-    if (p != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &ctx->tlsmacsize)) {
-            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
-            return 0;
-        }
+    if (ctx == NULL || !null_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.macsize != NULL
+            && !OSSL_PARAM_get_size_t(p.macsize, &ctx->tlsmacsize)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
+        return 0;
     }
 
     return 1;

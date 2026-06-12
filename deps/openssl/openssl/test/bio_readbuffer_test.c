@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,7 +35,7 @@ static int test_readbuffer_file_bio(int tstid)
     if (!TEST_ptr(in = BIO_new_file(filename, "r"))
         || !TEST_int_eq(BIO_read_ex(in, expected, sizeof(expected),
                                     &readbytes), 1)
-        || !TEST_int_lt(readbytes, sizeof(expected)))
+        || !TEST_size_t_lt(readbytes, sizeof(expected)))
         goto err;
     BIO_free(in);
     in = NULL;
@@ -86,7 +86,7 @@ static int test_readbuffer_file_bio(int tstid)
         count += bytes;
         len = sizeof(buf); /* fill the buffer on subsequent reads */
     }
-    if (!TEST_int_eq(count, readbytes))
+    if (!TEST_size_t_eq(count, readbytes))
         goto err;
     ret = 1;
 err:

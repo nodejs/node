@@ -17,11 +17,11 @@
 #include "crypto/security_bits.h"
 #include "rsa_local.h"
 
-#define RSA_FIPS1864_MIN_KEYGEN_KEYSIZE 2048
-#define RSA_FIPS1864_MIN_KEYGEN_STRENGTH 112
+#define RSA_FIPS186_5_MIN_KEYGEN_KEYSIZE 2048
+#define RSA_FIPS186_5_MIN_KEYGEN_STRENGTH 112
 
 /*
- * Generate probable primes 'p' & 'q'. See FIPS 186-4 Section B.3.6
+ * Generate probable primes 'p' & 'q'. See FIPS 186-5 Section A.1.6
  * "Generation of Probable Primes with Conditions Based on Auxiliary Probable
  * Primes".
  *
@@ -46,15 +46,22 @@
  *     e The public exponent.
  *     ctx A BN_CTX object.
  *     cb An optional BIGNUM callback.
+ *     a An optional number with a value of 0, 1, 3, 5 or 7 that may be used
+ *       to add the requirement p is congruent to a mod 8. The value is ignored
+ *       if it is zero.
+ *     b An optional number with a value of 0, 1, 3, 5 or 7 that may be used
+ *       to add the requirement q is congruent to b mod 8. The value is ignored
+ *       if it is zero.
+ *
  * Returns: 1 if successful, or  0 otherwise.
  * Notes:
  *     p1, p2, q1, q2 are returned if they are not NULL.
  *     Xp, Xp1, Xp2, Xq, Xq1, Xq2 are optionally passed in.
  *     (Required for CAVS testing).
  */
-int ossl_rsa_fips186_4_gen_prob_primes(RSA *rsa, RSA_ACVP_TEST *test,
+int ossl_rsa_fips186_5_gen_prob_primes(RSA *rsa, RSA_ACVP_TEST *test,
                                        int nbits, const BIGNUM *e, BN_CTX *ctx,
-                                       BN_GENCB *cb)
+                                       BN_GENCB *cb, uint32_t a, uint32_t b)
 {
     int ret = 0, ok;
     /* Temp allocated BIGNUMS */
@@ -81,21 +88,24 @@ int ossl_rsa_fips186_4_gen_prob_primes(RSA *rsa, RSA_ACVP_TEST *test,
     }
 #endif
 
-    /* (Step 1) Check key length
+    /*
+     * (Step 1) Check key length
      * NOTE: SP800-131A Rev1 Disallows key lengths of < 2048 bits for RSA
      * Signature Generation and Key Agree/Transport.
      */
-    if (nbits < RSA_FIPS1864_MIN_KEYGEN_KEYSIZE) {
+    if (nbits < RSA_FIPS186_5_MIN_KEYGEN_KEYSIZE) {
         ERR_raise(ERR_LIB_RSA, RSA_R_KEY_SIZE_TOO_SMALL);
         return 0;
     }
 
+    /* (Step 2) Check exponent */
     if (!ossl_rsa_check_public_exponent(e)) {
         ERR_raise(ERR_LIB_RSA, RSA_R_PUB_EXPONENT_OUT_OF_RANGE);
         return 0;
     }
 
-    /* (Step 3) Determine strength and check rand generator strength is ok -
+    /*
+     * (Step 3) Determine strength and check rand generator strength is ok -
      * this step is redundant because the generator always returns a higher
      * strength than is required.
      */
@@ -119,13 +129,13 @@ int ossl_rsa_fips186_4_gen_prob_primes(RSA *rsa, RSA_ACVP_TEST *test,
     BN_set_flags(rsa->q, BN_FLG_CONSTTIME);
 
     /* (Step 4) Generate p, Xp */
-    if (!ossl_bn_rsa_fips186_4_gen_prob_primes(rsa->p, Xpo, p1, p2, Xp, Xp1, Xp2,
-                                               nbits, e, ctx, cb))
+    if (!ossl_bn_rsa_fips186_5_gen_prob_primes(rsa->p, Xpo, p1, p2, Xp, Xp1, Xp2,
+                                               nbits, e, ctx, cb, a))
         goto err;
     for (;;) {
         /* (Step 5) Generate q, Xq*/
-        if (!ossl_bn_rsa_fips186_4_gen_prob_primes(rsa->q, Xqo, q1, q2, Xq, Xq1,
-                                                   Xq2, nbits, e, ctx, cb))
+        if (!ossl_bn_rsa_fips186_5_gen_prob_primes(rsa->q, Xqo, q1, q2, Xq, Xq1,
+                                                   Xq2, nbits, e, ctx, cb, b))
             goto err;
 
         /* (Step 6) |Xp - Xq| > 2^(nbitlen/2 - 100) */
@@ -146,7 +156,7 @@ int ossl_rsa_fips186_4_gen_prob_primes(RSA *rsa, RSA_ACVP_TEST *test,
     rsa->dirty_cnt++;
     ret = 1;
 err:
-    /* Zeroize any internally generated values that are not returned */
+    /* (Step 7) Zeroize any internally generated values that are not returned */
     BN_clear(Xpo);
     BN_clear(Xqo);
     BN_clear(tmp);
@@ -176,7 +186,7 @@ int ossl_rsa_sp800_56b_validate_strength(int nbits, int strength)
     int s = (int)ossl_ifc_ffc_compute_security_bits(nbits);
 
 #ifdef FIPS_MODULE
-    if (s < RSA_FIPS1864_MIN_KEYGEN_STRENGTH) {
+    if (s < RSA_FIPS186_5_MIN_KEYGEN_STRENGTH) {
         ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_MODULUS);
         return 0;
     }
@@ -351,7 +361,7 @@ err:
  *    6.3.1.1 rsakpg1 - basic
  *    6.3.1.3 rsakpg1 - crt
  *
- * See also FIPS 186-4 Section B.3.6
+ * See also FIPS 186-5 Section A.1.6
  * "Generation of Probable Primes with Conditions Based on Auxiliary
  * Probable Primes."
  *
@@ -360,10 +370,16 @@ err:
  *     nbits The intended key size in bits.
  *     efixed The public exponent. If NULL a default of 65537 is used.
  *     cb An optional BIGNUM callback.
+ *     a An optional number with a value of 0, 1, 3, 5 or 7 that may be used
+ *       to add the requirement p is congruent to a mod 8. The value is ignored
+ *       if it is zero.
+ *     b An optional number with a value of 0, 1, 3, 5 or 7 that may be used
+ *       to add the requirement q is congruent to b mod 8. The value is ignored
+ *       if it is zero.
  * Returns: 1 if successfully generated otherwise it returns 0.
  */
 int ossl_rsa_sp800_56b_generate_key(RSA *rsa, int nbits, const BIGNUM *efixed,
-                                    BN_GENCB *cb)
+                                    BN_GENCB *cb, uint32_t a, uint32_t b)
 {
     int ret = 0;
     int ok;
@@ -400,7 +416,7 @@ int ossl_rsa_sp800_56b_generate_key(RSA *rsa, int nbits, const BIGNUM *efixed,
 
     for (;;) {
         /* (Step 2) Generate prime factors */
-        if (!ossl_rsa_fips186_4_gen_prob_primes(rsa, info, nbits, e, ctx, cb))
+        if (!ossl_rsa_fips186_5_gen_prob_primes(rsa, info, nbits, e, ctx, cb, a, b))
             goto err;
 
         /* p>q check and skipping in case of acvp test */

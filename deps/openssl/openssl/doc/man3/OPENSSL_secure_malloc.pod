@@ -4,8 +4,9 @@
 
 CRYPTO_secure_malloc_init, CRYPTO_secure_malloc_initialized,
 CRYPTO_secure_malloc_done, OPENSSL_secure_malloc, CRYPTO_secure_malloc,
-OPENSSL_secure_zalloc, CRYPTO_secure_zalloc, OPENSSL_secure_free,
-CRYPTO_secure_free, OPENSSL_secure_clear_free,
+OPENSSL_secure_zalloc, CRYPTO_secure_zalloc, OPENSSL_secure_malloc_array,
+CRYPTO_secure_malloc_array, OPENSSL_secure_calloc, CRYPTO_secure_calloc,
+OPENSSL_secure_free, CRYPTO_secure_free, OPENSSL_secure_clear_free,
 CRYPTO_secure_clear_free, OPENSSL_secure_actual_size,
 CRYPTO_secure_allocated,
 CRYPTO_secure_used - secure heap storage
@@ -26,6 +27,14 @@ CRYPTO_secure_used - secure heap storage
  void *OPENSSL_secure_zalloc(size_t num);
  void *CRYPTO_secure_zalloc(size_t num, const char *file, int line);
 
+ void *OPENSSL_secure_malloc_array(size_t num, size_t size);
+ void *CRYPTO_secure_malloc_array(size_t num, size_t size,
+                                  const char *file, int line);
+
+ void *OPENSSL_secure_calloc(size_t num, size_t size);
+ void *CRYPTO_secure_calloc(size_t num, size_t size,
+                            const char *file, int line);
+
  void OPENSSL_secure_free(void* ptr);
  void CRYPTO_secure_free(void *ptr, const char *, int);
 
@@ -45,7 +54,12 @@ the program's dynamic memory area, where keys and other sensitive
 information might be stored, OpenSSL supports the concept of a "secure heap."
 The level and type of security guarantees depend on the operating system.
 It is a good idea to review the code and see if it addresses your
-threat model and concerns.
+threat model and concerns. It should be noted that the secure heap
+uses a single read/write lock, and therefore any operations
+that involve allocation or freeing of secure heap memory are serialised,
+blocking other threads. With that in mind, highly concurrent applications
+should enable the secure heap with caution and be aware of the performance
+implications for multi-threaded code.
 
 If a secure heap is used, then private key B<BIGNUM> values are stored there.
 This protects long-term storage of private keys, but will not necessarily
@@ -74,6 +88,15 @@ CRYPTO_secure_malloc() and adds the C<__FILE__> and C<__LINE__> parameters.
 OPENSSL_secure_zalloc() and CRYPTO_secure_zalloc() are like
 OPENSSL_secure_malloc() and CRYPTO_secure_malloc(), respectively,
 except that they call memset() to zero the memory before returning.
+
+OPENSSL_secure_malloc_array(), CRYPTO_secure_malloc_array(),
+OPENSSL_secure_calloc(), and CRYPTO_secure_calloc() are variants
+of OPENSSL_secure_malloc(), CRYPTO_secure_malloc(),
+OPENSSL_secure_zalloc(), and CRYPTO_secure_zalloc(), respectively, that accept
+an additional parameter, B<size>, which enables memory allocation
+operations for an array of B<num> members B<size> bytes each;
+these functions return an error if multiplication of B<num> and B<size>
+leads to an integer overflow, thus preventing allocations of an incorrect size.
 
 OPENSSL_secure_free() releases the memory at C<ptr> back to the heap.
 It must be called with a value previously obtained from
@@ -111,9 +134,12 @@ CRYPTO_secure_malloc_initialized() returns 1 if the secure heap is
 available (that is, if CRYPTO_secure_malloc_init() has been called,
 but CRYPTO_secure_malloc_done() has not been called or failed) or 0 if not.
 
-OPENSSL_secure_malloc() and OPENSSL_secure_zalloc() return a pointer into
-the secure heap of the requested size, or C<NULL> if memory could not be
-allocated.
+OPENSSL_secure_malloc(), CRYPTO_secure_malloc(), OPENSSL_secure_zalloc(),
+CRYPTO_secure_zalloc(), OPENSSL_secure_malloc_array(),
+CRYPTO_secure_malloc_array(), OPENSSL_secure_calloc(), and CRYPTO_secure_calloc()
+return a pointer into the secure heap of the requested size, if it is
+initialised, a pointer returned by the underlying OPENSSL_malloc() call,
+if it is not, or C<NULL> on error.
 
 CRYPTO_secure_allocated() returns 1 if the pointer is in the secure heap, or 0 if not.
 
@@ -133,9 +159,13 @@ The OPENSSL_secure_clear_free() function was added in OpenSSL 1.1.0g.
 The second argument to CRYPTO_secure_malloc_init() was changed from an B<int> to
 a B<size_t> in OpenSSL 3.0.
 
+The OPENSSL_secure_malloc_array(), CRYPTO_secure_malloc_array(),
+OPENSSL_secure_calloc(), and CRYPTO_secure_calloc() functions were added
+in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -18,6 +18,7 @@
 #include <openssl/randerr.h>
 #include <openssl/proverr.h>
 #include <openssl/self_test.h>
+#include "internal/common.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
@@ -26,6 +27,7 @@
 
 #ifndef OPENSSL_NO_JITTER
 # include <jitterentropy.h>
+# include "providers/implementations/rands/seed_src_jitter.inc"
 
 # define JITTER_MAX_NUM_TRIES 3
 
@@ -230,18 +232,18 @@ static int jitter_reseed(void *vseed,
 static int jitter_get_ctx_params(void *vseed, OSSL_PARAM params[])
 {
     PROV_JITTER *s = (PROV_JITTER *)vseed;
-    OSSL_PARAM *p;
+    struct jitter_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STATE);
-    if (p != NULL && !OSSL_PARAM_set_int(p, s->state))
+    if (s == NULL || !jitter_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STRENGTH);
-    if (p != NULL && !OSSL_PARAM_set_int(p, 1024))
+    if (p.state != NULL && !OSSL_PARAM_set_int(p.state, s->state))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, 128))
+    if (p.str != NULL && !OSSL_PARAM_set_uint(p.str, 1024))
+        return 0;
+
+    if (p.maxreq != NULL && !OSSL_PARAM_set_size_t(p.maxreq, 128))
         return 0;
     return 1;
 }
@@ -249,13 +251,7 @@ static int jitter_get_ctx_params(void *vseed, OSSL_PARAM params[])
 static const OSSL_PARAM *jitter_gettable_ctx_params(ossl_unused void *vseed,
                                                     ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_int(OSSL_RAND_PARAM_STATE, NULL),
-        OSSL_PARAM_uint(OSSL_RAND_PARAM_STRENGTH, NULL),
-        OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),
-        OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+    return jitter_get_ctx_params_list;
 }
 
 static int jitter_verify_zeroization(ossl_unused void *vseed)

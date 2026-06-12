@@ -13,22 +13,46 @@ implemented in OpenSSL's default and FIPS providers.  These implementations
 support the associated key, containing the public key I<pub> and the
 private key I<priv>.
 
-No additional parameters can be set during key generation.
+=head2 Common Keygen Parameters for X25519, X448, ED25519 and ED448
 
+The following parameters can be used during key generation by calling
+EVP_PKEY_CTX_set_params() after calling EVP_PKEY_keygen_init().
 
-=head2 Common X25519, X448, ED25519 and ED448 parameters
+=over 4
+
+=item "properties" (B<OSSL_PKEY_PARAM_PROPERTIES>) <octet string>
+
+The property query to use when fetching algorithms during the key generation
+operation.
+
+=back
+
+=head2 Keygen Parameters for X25519 and X448
+
+=over 4
+
+=item "dhkem-ikm" (B<OSSL_PKEY_PARAM_DHKEM_IKM>) <octet string>
+
+DHKEM requires the generation of a keypair using an input key material (seed).
+Use this to specify the key material used for generation of the private key.
+This value should not be reused for other purposes.
+It should have a length of at least 32 for X25519, and 56 for X448.
+
+=item "group" (B<OSSL_PKEY_PARAM_GROUP_NAME>) <UTF8 string>
+
+The group name must be "x25519" or "x448" respectively for those algorithms.
+This is only present for consistency with other key exchange algorithms and is
+typically not needed.
+
+=back
+
+=head2 Common Parameters for X25519, X448, ED25519 and ED448
 
 In addition to the common parameters that all keytypes should support (see
 L<provider-keymgmt(7)/Common parameters>), the implementation of these keytypes
 support the following.
 
 =over 4
-
-=item "group" (B<OSSL_PKEY_PARAM_GROUP_NAME>) <UTF8 string>
-
-This is only supported by X25519 and X448. The group name must be "x25519" or
-"x448" respectively for those algorithms. This is only present for consistency
-with other key exchange algorithms and is typically not needed.
 
 =item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
 
@@ -38,15 +62,26 @@ The public key value.
 
 The private key value.
 
+=back
+
+=head2 Parameters for X25519 and X448
+
+=over 4
+
 =item "encoded-pub-key" (B<OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY>) <octet string>
 
 Used for getting and setting the encoding of a public key for the B<X25519> and
 B<X448> key types. Public keys are expected be encoded in a format as defined by
 RFC7748.
 
+=item "fips-indicator" (B<OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+This getter is only supported by X25519 and X448 OpenSSL FIPS provider.
+Since X25519 and X448 are unapproved in FIPS 140-3 this getter returns 0.
+
 =back
 
-=head2 ED25519 and ED448 parameters
+=head2 Parameters for ED25519 and ED448
 
 =over 4
 
@@ -96,7 +131,7 @@ L<EVP_SIGNATURE-ED25519(7)>, L<EVP_SIGNATURE-ED448(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

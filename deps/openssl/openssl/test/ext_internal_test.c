@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,12 +61,15 @@ static EXT_LIST ext_list[] = {
     EXT_ENTRY(extended_master_secret),
     EXT_ENTRY(signature_algorithms_cert),
     EXT_ENTRY(post_handshake_auth),
+    EXT_ENTRY(client_cert_type),
+    EXT_ENTRY(server_cert_type),
     EXT_ENTRY(signature_algorithms),
     EXT_ENTRY(supported_versions),
     EXT_ENTRY(psk_kex_modes),
     EXT_ENTRY(key_share),
     EXT_ENTRY(cookie),
     EXT_ENTRY(cryptopro_bug),
+    EXT_ENTRY(compress_certificate),
     EXT_ENTRY(early_data),
     EXT_ENTRY(certificate_authorities),
     EXT_ENTRY(padding),

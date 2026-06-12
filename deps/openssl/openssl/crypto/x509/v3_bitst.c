@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,7 @@ static BIT_STRING_BITNAME ns_cert_type_table[] = {
 static BIT_STRING_BITNAME key_usage_type_table[] = {
     {0, "Digital Signature", "digitalSignature"},
     {1, "Non Repudiation", "nonRepudiation"},
+    {1, "Content Commitment", "contentCommitment"},
     {2, "Key Encipherment", "keyEncipherment"},
     {3, "Data Encipherment", "dataEncipherment"},
     {4, "Key Agreement", "keyAgreement"},
@@ -48,7 +49,17 @@ STACK_OF(CONF_VALUE) *i2v_ASN1_BIT_STRING(X509V3_EXT_METHOD *method,
                                           STACK_OF(CONF_VALUE) *ret)
 {
     BIT_STRING_BITNAME *bnam;
+    int last_seen_bit = -1;
+
     for (bnam = method->usr_data; bnam->lname; bnam++) {
+        /*
+         * If the bitnumber did not change from the last iteration, this entry
+         * is an an alias for the previous bit; treat the first result as
+         * canonical and ignore the rest.
+         */
+        if (last_seen_bit == bnam->bitnum)
+            continue;
+        last_seen_bit = bnam->bitnum;
         if (ASN1_BIT_STRING_get_bit(bits, bnam->bitnum))
             X509V3_add_value(bnam->lname, NULL, &ret);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -101,8 +101,6 @@ int ossl_blake2b_final(unsigned char *md, BLAKE2B_CTX *c);
 
 OSSL_FUNC_digest_get_ctx_params_fn ossl_blake2b_get_ctx_params;
 OSSL_FUNC_digest_set_ctx_params_fn ossl_blake2b_set_ctx_params;
-OSSL_FUNC_digest_gettable_ctx_params_fn ossl_blake2b_gettable_ctx_params;
-OSSL_FUNC_digest_settable_ctx_params_fn ossl_blake2b_settable_ctx_params;
 
 /*
  * These setters are internal and do not check the validity of their parameters.
@@ -132,7 +130,5 @@ void ossl_blake2s_param_set_salt(BLAKE2S_PARAM *P, const uint8_t *salt,
 
 OSSL_FUNC_digest_get_ctx_params_fn ossl_blake2s_get_ctx_params;
 OSSL_FUNC_digest_set_ctx_params_fn ossl_blake2s_set_ctx_params;
-OSSL_FUNC_digest_gettable_ctx_params_fn ossl_blake2s_gettable_ctx_params;
-OSSL_FUNC_digest_settable_ctx_params_fn ossl_blake2s_settable_ctx_params;
 
 #endif /* OSSL_PROV_BLAKE2_H */

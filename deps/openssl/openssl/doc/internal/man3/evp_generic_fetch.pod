@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-evp_generic_fetch, evp_generic_fetch_by_number, evp_generic_fetch_from_prov
+evp_generic_fetch, evp_generic_fetch_from_prov
 - generic algorithm fetchers and method creators for EVP
 
 =head1 SYNOPSIS
@@ -20,15 +20,6 @@ evp_generic_fetch, evp_generic_fetch_by_number, evp_generic_fetch_from_prov
                          int (*up_ref_method)(void *),
                          void (*free_method)(void *));
 
- void *evp_generic_fetch_by_number(OSSL_LIB_CTX *ctx, int operation_id,
-                                   int name_id, const char *properties,
-                                   void *(*new_method)(int name_id,
-                                                       const OSSL_DISPATCH *fns,
-                                                       OSSL_PROVIDER *prov,
-                                                       void *method_data),
-                                   void *method_data,
-                                   int (*up_ref_method)(void *),
-                                   void (*free_method)(void *));
  void *evp_generic_fetch_from_prov(OSSL_PROVIDER *prov, int operation_id,
                                    int name_id, const char *properties,
                                    void *(*new_method)(int name_id,
@@ -45,14 +36,6 @@ evp_generic_fetch() calls ossl_method_construct() with the given
 I<libctx>, I<operation_id>, I<name>, and I<properties> and uses
 it to create an EVP method with the help of the functions
 I<new_method>, I<up_ref_method>, and I<free_method>.
-
-evp_generic_fetch_by_number() does the same thing as evp_generic_fetch(),
-but takes a numeric I<name_id> instead of a name.
-I<name_id> must always be nonzero; as a matter of fact, it being zero
-is considered a programming error.
-This is meant to be used when one method needs to fetch an associated
-method, and is typically called from inside the given function
-I<new_method>.
 
 evp_generic_fetch_from_prov() does the same thing as evp_generic_fetch(),
 but limits the search of methods to the provider given with I<prov>.
@@ -138,6 +121,9 @@ And here's the implementation of the FOO method fetcher:
         if ((foo = OPENSSL_zalloc(sizeof(*foo))) == NULL)
             return NULL;
 
+        if (!CRYPTO_NEW_REF(&foo->refcnt, 1))
+            goto err;
+
         foo->name_id = name_id;
 
         for (; fns->function_id != 0; fns++) {
@@ -159,18 +145,32 @@ And here's the implementation of the FOO method fetcher:
                 break;
             }
         }
+        if (prov != NULL && !ossl_provider_up_ref(prov))
+            goto err;
+
         foo->prov = prov;
-        if (prov)
-            ossl_provider_up_ref(prov);
 
         return foo;
+
+    err:
+        if (foo != NULL)
+            CRYPTO_FREE_REF(&foo->refcnt);
+        OPENSSL_free(foo);
+        return NULL
     }
 
     EVP_FOO_meth_free(EVP_FOO *foo)
     {
+        int i;
+
         if (foo != NULL) {
             OSSL_PROVIDER *prov = foo->prov;
 
+            CRYPTO_DOWN_REF(&foo->refcnt, &i);
+            if (i > 0)
+                return;
+
+            CRYPTO_FREE_REF(&foo->refcnt);
             OPENSSL_free(foo);
             ossl_provider_free(prov);
         }
@@ -187,7 +187,7 @@ And here's the implementation of the FOO method fetcher:
         EVP_FOO *foo = vfoo;
         int ref = 0;
 
-        CRYPTO_UP_REF(&foo->refcnt, &ref, foo_lock);
+        CRYPTO_UP_REF(&foo->refcnt, &ref);
         return 1;
     }
 
@@ -275,7 +275,7 @@ The functions described here were all added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

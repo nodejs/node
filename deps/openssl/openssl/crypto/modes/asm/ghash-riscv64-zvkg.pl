@@ -94,7 +94,7 @@ $code .= <<___;
 .globl gcm_init_rv64i_zvkg_zvkb
 .type gcm_init_rv64i_zvkg_zvkb,\@function
 gcm_init_rv64i_zvkg_zvkb:
-    @{[vsetivli__x0_2_e64_m1_tu_mu]} # vsetivli x0, 2, e64, m1, ta, ma
+    @{[vsetivli__x0_2_e64_m1_tu_mu]} # vsetivli x0, 2, e64, m1, tu, mu
     @{[vle64_v $V0, $H]}             # vle64.v v0, (a1)
     @{[vrev8_v $V0, $V0]}            # vrev8.v v0, v0
     @{[vse64_v $V0, $Htable]}        # vse64.v v0, (a0)

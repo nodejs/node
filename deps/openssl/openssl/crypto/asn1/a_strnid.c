@@ -41,7 +41,7 @@ unsigned long ASN1_STRING_get_default_mask(void)
  * MASK:XXXX : a numerical mask value.
  * default   : use Printable, IA5, T61, BMP, and UTF8 string types
  * nombstr   : any string type except variable-sized BMPStrings or UTF8Strings
- * pkix      : PKIX recommendation in RFC2459
+ * pkix      : PKIX recommendation in RFC 5280
  * utf8only  : this is the default, use UTF8Strings
  */
 
@@ -129,6 +129,11 @@ ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
     int idx;
     ASN1_STRING_TABLE fnd;
 
+    if (nid <= 0) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_INVALID_ARGUMENT);
+        return NULL;
+    }
+
 #ifndef OPENSSL_NO_AUTOLOAD_CONFIG
     /* "stable" can be impacted by config, so load the config file first */
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
@@ -189,6 +194,11 @@ int ASN1_STRING_TABLE_add(int nid,
                           unsigned long flags)
 {
     ASN1_STRING_TABLE *tmp;
+
+    if (nid <= 0 || (minsize >= 0 && maxsize >= 0 && minsize > maxsize)) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
 
     tmp = stable_get(nid);
     if (tmp == NULL) {

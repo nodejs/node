@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -163,8 +163,9 @@ static unsigned char cbc_key[16] = {
     0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87
 };
-static unsigned char cbc_iv[8] =
-    { 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
+static unsigned char cbc_iv[8] = {
+    0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+};
 static char cbc_data[40] = "7654321 Now is the time for ";
 static unsigned char cbc_ok[32] = {
     0x6B, 0x77, 0xB4, 0xD6, 0x30, 0x06, 0xDE, 0xE6,
@@ -195,8 +196,9 @@ static unsigned char key_test[KEY_TEST_NUM] = {
     0x88
 };
 
-static unsigned char key_data[8] =
-    { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 };
+static unsigned char key_data[8] = {
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10
+};
 
 static unsigned char key_out[KEY_TEST_NUM][8] = {
     {0xF9, 0xAD, 0x59, 0x7C, 0x49, 0xDB, 0x00, 0x5E},
@@ -296,7 +298,7 @@ static int test_bf_ecb_raw(int n)
     BF_KEY key;
     BF_LONG data[2];
 
-    BF_set_key(&key, strlen(bf_key[n]), (unsigned char *)bf_key[n]);
+    BF_set_key(&key, (int)strlen(bf_key[n]), (unsigned char *)bf_key[n]);
 
     data[0] = bf_plain[n][0];
     data[1] = bf_plain[n][1];
@@ -352,7 +354,7 @@ static int test_bf_cbc(void)
     BF_KEY key;
     BF_LONG len;
 
-    len = strlen(cbc_data) + 1;
+    len = (BF_LONG)(strlen(cbc_data) + 1);
 
     BF_set_key(&key, 16, cbc_key);
     memset(cbc_in, 0, sizeof(cbc_in));
@@ -378,7 +380,7 @@ static int test_bf_cfb64(void)
     BF_KEY key;
     BF_LONG len;
 
-    len = strlen(cbc_data) + 1;
+    len = (BF_LONG)(strlen(cbc_data) + 1);
 
     BF_set_key(&key, 16, cbc_key);
     memset(cbc_in, 0, 40);
@@ -410,7 +412,7 @@ static int test_bf_ofb64(void)
     BF_KEY key;
     BF_LONG len;
 
-    len = strlen(cbc_data) + 1;
+    len = (BF_LONG)(strlen(cbc_data) + 1);
 
     BF_set_key(&key, 16, cbc_key);
     memset(cbc_in, 0, 40);
@@ -465,7 +467,7 @@ int setup_tests(void)
 # endif
 
     while ((o = opt_next()) != OPT_EOF) {
-        switch(o) {
+        switch (o) {
         case OPT_PRINT:
             print_test_data();
             return 1;

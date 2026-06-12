@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -431,7 +431,8 @@ static char *strip_spaces(char *name)
 
 int ossl_v3_name_cmp(const char *name, const char *cmp)
 {
-    int len, ret;
+    size_t len;
+    int ret;
     char c;
 
     len = strlen(cmp);

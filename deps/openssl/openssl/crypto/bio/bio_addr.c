@@ -427,7 +427,7 @@ int BIO_ADDRINFO_protocol(const BIO_ADDRINFO *bai)
 socklen_t BIO_ADDRINFO_sockaddr_size(const BIO_ADDRINFO *bai)
 {
     if (bai != NULL)
-        return bai->bai_addrlen;
+        return (socklen_t)bai->bai_addrlen;
     return 0;
 }
 

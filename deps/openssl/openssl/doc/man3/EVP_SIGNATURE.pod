@@ -7,7 +7,8 @@ EVP_SIGNATURE_fetch, EVP_SIGNATURE_free, EVP_SIGNATURE_up_ref,
 EVP_SIGNATURE_is_a, EVP_SIGNATURE_get0_provider,
 EVP_SIGNATURE_do_all_provided, EVP_SIGNATURE_names_do_all,
 EVP_SIGNATURE_get0_name, EVP_SIGNATURE_get0_description,
-EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
+EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params,
+EVP_SIGNATURE_has_message_update
 - Functions to manage EVP_SIGNATURE algorithm objects
 
 =head1 SYNOPSIS
@@ -34,6 +35,7 @@ EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
  const char *EVP_SIGNATURE_get0_description(const EVP_SIGNATURE *signature);
  const OSSL_PARAM *EVP_SIGNATURE_gettable_ctx_params(const EVP_SIGNATURE *sig);
  const OSSL_PARAM *EVP_SIGNATURE_settable_ctx_params(const EVP_SIGNATURE *sig);
+ int EVP_SIGNATURE_has_message_update(const EVP_SIGNATURE *sig);
 
 =head1 DESCRIPTION
 
@@ -83,6 +85,9 @@ return a constant L<OSSL_PARAM(3)> array that describes the names and types of k
 parameters that can be retrieved or set by a signature algorithm using
 L<EVP_PKEY_CTX_get_params(3)> and L<EVP_PKEY_CTX_set_params(3)>.
 
+EVP_SIGNATURE_has_message_update() checks whether EVP_PKEY_sign_message_update()
+and EVP_PKEY_verify_message_update() are both supported.
+
 =head1 RETURN VALUES
 
 EVP_SIGNATURE_fetch() returns a pointer to an B<EVP_SIGNATURE> for success
@@ -96,13 +101,17 @@ A return value of 0 means that the callback was not called for any names.
 EVP_SIGNATURE_gettable_ctx_params() and EVP_SIGNATURE_settable_ctx_params()
 return a constant L<OSSL_PARAM(3)> array or NULL on error.
 
+EVP_SIGNATURE_has_message_update() returns 1 if EVP_PKEY_sign_message_update()
+and EVP_PKEY_verify_message_update() are both supported, 0 otherwise.
+
 =head1 SEE ALSO
 
 L<crypto(7)/ALGORITHM FETCHING>, L<OSSL_PROVIDER(3)>
 
 =head1 HISTORY
 
-The functions described here were added in OpenSSL 3.0.
+Most functions described here were added in OpenSSL 3.0, except for
+EVP_PKEY_verify_message_update(), which was added in OpenSSL 4.0.
 
 =head1 COPYRIGHT
 

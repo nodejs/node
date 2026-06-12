@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,9 @@
 # define CPU_INFO_STR_LEN 128
 #elif defined(__powerpc__) || defined(__POWERPC__) || defined(_ARCH_PPC)
 # include "crypto/ppc_arch.h"
+# define CPU_INFO_STR_LEN 128
+#elif defined(__sparcv9) || defined(__sparcv9__)
+# include "crypto/sparc_arch.h"
 # define CPU_INFO_STR_LEN 128
 #elif defined(__s390__) || defined(__s390x__)
 # include "s390x_arch.h"
@@ -89,6 +92,16 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
                      " env:%s", env);
+# elif defined(__sparcv9) || defined(__sparcv9__)
+    const char *env;
+
+    BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
+                 CPUINFO_PREFIX "OPENSSL_sparcv9cap=0x%x:0x%x",
+                 OPENSSL_sparcv9cap_P[0], OPENSSL_sparcv9cap_P[1]);
+    if ((env = getenv("OPENSSL_sparcv9cap")) != NULL)
+        BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
+                     sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
+                     " env:%s", env);
 # elif defined(__s390__) || defined(__s390x__)
     const char *env;
 
@@ -127,27 +140,54 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
                      " env:%s", env);
 # elif defined(__riscv)
     const char *env;
-    char sep = '=';
+    size_t i;
 
     BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
-                 CPUINFO_PREFIX "OPENSSL_riscvcap");
-    for (size_t i = 0; i < kRISCVNumCaps; ++i) {
+                 CPUINFO_PREFIX "OPENSSL_riscvcap=RV"
+#  if __riscv_xlen == 32
+                 "32"
+#  elif __riscv_xlen == 64
+                 "64"
+#  elif __riscv_xlen == 128
+                 "128"
+#  endif
+#  if defined(__riscv_i) && defined(__riscv_m) && defined(__riscv_a) \
+      && defined(__riscv_f) && defined(__riscv_d) \
+      && defined(__riscv_zicsr) && defined(__riscv_zifencei)
+                 "G" /* shorthand for IMAFD_Zicsr_Zifencei */
+#  else
+#   ifdef __riscv_i
+                 "I"
+#   endif
+#   ifdef __riscv_m
+                 "M"
+#   endif
+#   ifdef __riscv_a
+                 "A"
+#   endif
+#   ifdef __riscv_f
+                 "F"
+#   endif
+#   ifdef __riscv_d
+                 "D"
+#   endif
+#  endif
+#  ifdef __riscv_c
+                 "C"
+#  endif
+                 );
+    for (i = 0; i < kRISCVNumCaps; i++) {
         if (OPENSSL_riscvcap_P[RISCV_capabilities[i].index]
-                & (1 << RISCV_capabilities[i].bit_offset)) {
+                & (1 << RISCV_capabilities[i].bit_offset))
             /* Match, display the name */
             BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                          sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
-                         "%c%s", sep, RISCV_capabilities[i].name);
-            /* Only the first sep is '=' */
-            sep = '_';
-        }
+                         "_%s", RISCV_capabilities[i].name);
     }
-    /* If no capability is found, add back the = */
-    if (sep == '=') {
+    if (RISCV_HAS_V())
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
-                     "%c", sep);
-    }
+                     " vlen:%lu", riscv_vlen());
     if ((env = getenv("OPENSSL_riscvcap")) != NULL)
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),

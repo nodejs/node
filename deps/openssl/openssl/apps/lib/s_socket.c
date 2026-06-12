@@ -139,7 +139,7 @@ int init_client(int *sock, const char *host, const char *port,
                           BIO_SOCK_REUSEADDR)) {
                 BIO_closesocket(*sock);
                 *sock = INVALID_SOCKET;
-                break;
+                continue;
             }
         }
 
@@ -154,8 +154,9 @@ int init_client(int *sock, const char *host, const char *port,
             BIO *tmpbio = BIO_new_dgram_sctp(*sock, BIO_NOCLOSE);
 
             if (tmpbio == NULL) {
-                ERR_print_errors(bio_err);
-                return 0;
+                BIO_closesocket(*sock);
+                *sock = INVALID_SOCKET;
+                goto out;
             }
             BIO_free(tmpbio);
         }
@@ -422,8 +423,6 @@ int do_server(int *accept_sock, const char *host, const char *port,
 
             if (naccept != -1)
                 naccept--;
-            if (naccept == 0)
-                BIO_closesocket(asock);
 
             BIO_set_tcp_ndelay(sock, 1);
             i = (*cb)(sock, type, protocol, context);
@@ -463,6 +462,7 @@ int do_server(int *accept_sock, const char *host, const char *port,
 
         if (i < 0 || naccept == 0) {
             BIO_closesocket(asock);
+            asock = INVALID_SOCKET;
             ret = i;
             break;
         }

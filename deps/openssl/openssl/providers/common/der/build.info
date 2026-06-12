@@ -127,9 +127,20 @@ IF[{- !$disabled{'slh-dsa'} -}]
   DEPEND[$DER_SLH_DSA_H]=oids_to_c.pm SLH_DSA.asn1
 ENDIF
 
+#----- HKDF
+$DER_HKDF_H=$INCDIR/der_hkdf.h
+$DER_HKDF_GEN=der_hkdf_gen.c
+
+GENERATE[$DER_HKDF_GEN]=der_hkdf_gen.c.in
+DEPEND[$DER_HKDF_GEN]=oids_to_c.pm HKDF.asn1
+
+DEPEND[${DER_HKDF_GEN/.c/.o}]=$DER_HKDF_H
+GENERATE[$DER_HKDF_H]=$INCDIR/der_hkdf.h.in
+DEPEND[$DER_HKDF_H]=oids_to_c.pm HKDF.asn1
+
 #----- Conclusion
 
-$COMMON= $DER_RSA_COMMON $DER_DIGESTS_GEN $DER_WRAP_GEN
+$COMMON= $DER_RSA_COMMON $DER_DIGESTS_GEN $DER_WRAP_GEN $DER_HKDF_GEN
 
 IF[{- !$disabled{dsa} -}]
   $COMMON = $COMMON $DER_DSA_GEN $DER_DSA_AUX

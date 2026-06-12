@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,14 +18,17 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/err.h>
+#include <openssl/proverr.h>
 #include <openssl/pem.h>         /* Functions for writing MSBLOB and PVK */
 #include <openssl/dsa.h>
+#include "internal/cryptlib.h"
 #include "internal/passphrase.h"
 #include "crypto/rsa.h"
 #include "prov/implementations.h"
 #include "prov/bio.h"
 #include "prov/provider_ctx.h"
-#include "endecoder_local.h"
+#include "prov/endecoder_local.h"
+#include "providers/implementations/encode_decode/encode_key2ms.inc"
 
 struct key2ms_ctx_st {
     PROV_CTX *provctx;
@@ -90,21 +93,18 @@ static void key2ms_freectx(void *vctx)
 
 static const OSSL_PARAM *key2pvk_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_int(OSSL_ENCODER_PARAM_ENCRYPT_LEVEL, NULL),
-        OSSL_PARAM_END,
-    };
-
-    return settables;
+    return key2pvk_set_ctx_params_list;
 }
 
 static int key2pvk_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     struct key2ms_ctx_st *ctx = vctx;
-    const OSSL_PARAM *p;
+    struct key2pvk_set_ctx_params_st p;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_ENCRYPT_LEVEL);
-    if (p != NULL && !OSSL_PARAM_get_int(p, &ctx->pvk_encr_level))
+    if (ctx == NULL || !key2pvk_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.enclvl != NULL && !OSSL_PARAM_get_int(p.enclvl, &ctx->pvk_encr_level))
         return 0;
     return 1;
 }

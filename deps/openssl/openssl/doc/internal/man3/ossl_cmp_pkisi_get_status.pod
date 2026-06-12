@@ -60,7 +60,7 @@ Uses data from I<ctx>, which in case of indirect POPO includes the private key.
 ossl_cmp_pkisi_get_status() returns the PKIStatus of I<si>, or -1 on error.
 
 ossl_cmp_PKIStatus_to_string() returns a human-readable string representing
-the PKIStatus values as specified in RFC 4210, Appendix F.
+the PKIStatus values as specified in RFC 9810, Appendix F.
 
 ossl_cmp_pkisi_get0_statusString() returns a direct pointer to the statusString
 field contained in I<si>.
@@ -73,7 +73,7 @@ with index I<index> in the PKIFailureInfo of the I<si>, or -1 on error.
 
 =head1 NOTES
 
-CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+CMP is defined in RFC 9810.
 
 =head1 RETURN VALUES
 

@@ -139,9 +139,9 @@ static int file_read(BIO *b, char *out, int outl)
 
     if (b->init && (out != NULL)) {
         if (b->flags & BIO_FLAGS_UPLINK_INTERNAL)
-            ret = UP_fread(out, 1, (int)outl, b->ptr);
+            ret = (int)UP_fread(out, 1, outl, b->ptr);
         else
-            ret = fread(out, 1, (int)outl, (FILE *)b->ptr);
+            ret = (int)fread(out, 1, outl, (FILE *)b->ptr);
         if (ret == 0
             && (b->flags & BIO_FLAGS_UPLINK_INTERNAL
                 ? UP_ferror((FILE *)b->ptr) : ferror((FILE *)b->ptr))) {
@@ -160,9 +160,9 @@ static int file_write(BIO *b, const char *in, int inl)
 
     if (b->init && (in != NULL)) {
         if (b->flags & BIO_FLAGS_UPLINK_INTERNAL)
-            ret = UP_fwrite(in, (int)inl, 1, b->ptr);
+            ret = (int)UP_fwrite(in, inl, 1, b->ptr);
         else
-            ret = fwrite(in, (int)inl, 1, (FILE *)b->ptr);
+            ret = (int)fwrite(in, inl, 1, (FILE *)b->ptr);
         if (ret)
             ret = inl;
         /* ret=fwrite(in,1,(int)inl,(FILE *)b->ptr); */
@@ -348,17 +348,19 @@ static int file_gets(BIO *bp, char *buf, int size)
             goto err;
     }
     if (buf[0] != '\0')
-        ret = strlen(buf);
+        ret = (int)strlen(buf);
  err:
     return ret;
 }
 
 static int file_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = file_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = file_write(bp, str, (int)n);
     return ret;
 }
 

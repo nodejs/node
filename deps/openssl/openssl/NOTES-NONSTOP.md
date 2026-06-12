@@ -37,8 +37,7 @@ for each on the TNS/X (L-Series) platform:
 The KLT threading model is a newly released model on NonStop. It implements
 kernel-level threading. KLT provides much closer threading to what OpenSSL
 uses for Linux-like threading models. KLT continues to use the pthread library
-API. There is no supported 32-bit or Guardian builds for KLT. Note: KLT is
-not currently available but is planned for post-2024.
+API. There is no supported 32-bit or Guardian builds for KLT.
 
 The SPT threading model is no longer supported as of OpenSSL 3.2.
 
@@ -52,6 +51,9 @@ instead of `nsx` in the set above.
 
 You cannot build for TNS/E for FIPS, so you must specify the `no-fips`
 option to `./Configure`.
+
+TNS/E has moved to a limited support state, so fixes for this platform will not
+be guaranteed in future.
 
 Linking and Loading Considerations
 ----------------------------------
@@ -72,6 +74,12 @@ for NonStop builds. If you need to have `atexit()` functionality, set
 `enabled-atexit` when configuring OpenSSL to enable the `atexit()` call to
 register `OPENSSL_cleanup()` automatically. Preferably, you can explicitly call
 `OPENSSL_cleanup()` from your application.
+
+Secure Memory
+-------------
+
+The mechanism used by OpenSSL for secure memory is not supported on NonStop.
+Use the `no-secure-memory` option when running `Configure`.
 
 About Prefix and OpenSSLDir
 ---------------------------

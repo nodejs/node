@@ -118,6 +118,34 @@ iter = 4096
 MD = sha512
 Key = 9d9e9c4cd21fe4be24d5b8244c759665
 
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha3-224
+Key = 691292bc3683d7d41ea2910f5b3eed23
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha3-256
+Key = 778b6e237a0f49621549ff70d218d208
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha3-384
+Key = 9a5f1e45e8b83f1b259ba72d11c59087
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha3-512
+Key = 2bfaf2d5ceb6d10f5e262cd902488cfd
+
 Title = PBKDF2 tests for empty and NULL inputs
 
 PBE = pbkdf2

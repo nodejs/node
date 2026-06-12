@@ -151,7 +151,7 @@ static int construct_from_text(OSSL_PARAM *to, const OSSL_PARAM *paramdef,
                 }
             */
 
-            BN_bn2nativepad(tmpbn, buf, buf_n);
+            BN_bn2nativepad(tmpbn, buf, (int)buf_n);
 
             /*
              * 2's complement negation, part two.
@@ -271,14 +271,14 @@ int OSSL_PARAM_print_to_bio(const OSSL_PARAM *p, BIO *bio, int print_values)
             }
             break;
         case OSSL_PARAM_UTF8_PTR:
-            ok = BIO_dump(bio, p->data, p->data_size);
+            ok = BIO_dump(bio, p->data, (int)p->data_size);
             break;
         case OSSL_PARAM_UTF8_STRING:
-            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            ok = BIO_dump(bio, (char *)p->data, (int)p->data_size);
             break;
         case OSSL_PARAM_OCTET_PTR:
         case OSSL_PARAM_OCTET_STRING:
-            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            ok = BIO_dump(bio, (char *)p->data, (int)p->data_size);
             break;
 #ifndef OPENSSL_SYS_UEFI
         case OSSL_PARAM_REAL:

@@ -88,20 +88,21 @@ int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[], int include_private)
     return 0;
 }
 
-int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
+int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM *privlen,
+                          const FFC_OSSL_PARAMS *pp)
 {
-    long l = DH_get_length(dh);
+    const long l = DH_get_length(dh);
 
-    if (!ossl_ffc_params_todata(ossl_dh_get0_params(dh), bld, params))
+    if (!ossl_ffc_params_todata(ossl_dh_get0_params(dh), bld, pp))
         return 0;
     if (l > 0
-        && !ossl_param_build_set_long(bld, params, OSSL_PKEY_PARAM_DH_PRIV_LEN, l))
+        && !ossl_param_build_set_long(bld, privlen, OSSL_PKEY_PARAM_DH_PRIV_LEN, l))
         return 0;
     return 1;
 }
 
-int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
-                       int include_private)
+int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM *pubkey,
+                       OSSL_PARAM *privkey, int include_private)
 {
     const BIGNUM *priv = NULL, *pub = NULL;
 
@@ -111,10 +112,10 @@ int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
     DH_get0_key(dh, &pub, &priv);
     if (priv != NULL
         && include_private
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_PRIV_KEY, priv))
+        && !ossl_param_build_set_bn(bld, privkey, OSSL_PKEY_PARAM_PRIV_KEY, priv))
         return 0;
     if (pub != NULL
-        && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_PUB_KEY, pub))
+        && !ossl_param_build_set_bn(bld, pubkey, OSSL_PKEY_PARAM_PUB_KEY, pub))
         return 0;
 
     return 1;

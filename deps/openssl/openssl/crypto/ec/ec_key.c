@@ -1007,14 +1007,14 @@ size_t EC_KEY_priv2oct(const EC_KEY *eckey,
 size_t ossl_ec_key_simple_priv2oct(const EC_KEY *eckey,
                                    unsigned char *buf, size_t len)
 {
-    size_t buf_len;
+    int buf_len;
 
     buf_len = (EC_GROUP_order_bits(eckey->group) + 7) / 8;
     if (eckey->priv_key == NULL)
         return 0;
     if (buf == NULL)
         return buf_len;
-    else if (len < buf_len)
+    else if (len < (size_t)buf_len)
         return 0;
 
     /* Octetstring may need leading zeros if BN is to short */
@@ -1046,13 +1046,17 @@ int EC_KEY_oct2priv(EC_KEY *eckey, const unsigned char *buf, size_t len)
 int ossl_ec_key_simple_oct2priv(EC_KEY *eckey, const unsigned char *buf,
                                 size_t len)
 {
+    if (len > INT_MAX) {
+        ERR_raise(ERR_LIB_EC, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
     if (eckey->priv_key == NULL)
         eckey->priv_key = BN_secure_new();
     if (eckey->priv_key == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         return 0;
     }
-    if (BN_bin2bn(buf, len, eckey->priv_key) == NULL) {
+    if (BN_bin2bn(buf, (int)len, eckey->priv_key) == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         return 0;
     }

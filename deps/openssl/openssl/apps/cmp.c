@@ -371,7 +371,7 @@ const OPTIONS cmp_options[] = {
     {"disable_confirm", OPT_DISABLE_CONFIRM, '-',
      "Do not confirm newly enrolled certificate w/o requesting implicit"},
     {OPT_MORE_STR, 0, 0,
-     "confirmation. WARNING: This leads to behavior violating RFC 4210"},
+     "confirmation. WARNING: This leads to behavior violating RFC 9810"},
     {"certout", OPT_CERTOUT, 's',
      "File to save newly enrolled certificate"},
     {"chainout", OPT_CHAINOUT, 's',
@@ -440,7 +440,7 @@ const OPTIONS cmp_options[] = {
     {OPT_MORE_STR, 0, 0,
      "certificate responses (ip/cp/kup), revocation responses (rp), and PKIConf"},
     {OPT_MORE_STR, 0, 0,
-     "WARNING: This setting leads to behavior allowing violation of RFC 4210"},
+     "WARNING: This setting leads to behavior allowing violation of RFC 9810"},
     {"no_cache_extracerts", OPT_NO_CACHE_EXTRACERTS, '-',
      "Do not keep certificates received in the extraCerts CMP message field"},
     { "srvcertout", OPT_SRVCERTOUT, 's',
@@ -577,7 +577,7 @@ const OPTIONS cmp_options[] = {
      "Trusted certificates for client authentication"},
     {"srv_untrusted", OPT_SRV_UNTRUSTED, 's',
      "Intermediate certs that may be useful for verifying CMP protection"},
-    {"ref_cert", OPT_RSP_CERT, 's',
+    {"ref_cert", OPT_REF_CERT, 's',
      "Certificate to be expected for rr and any oldCertID in kur messages"},
     {"rsp_cert", OPT_RSP_CERT, 's',
      "Certificate to be returned as mock enrollment result"},
@@ -623,7 +623,7 @@ const OPTIONS cmp_options[] = {
     {OPT_MORE_STR, 0, 0,
      "certificate responses (ip/cp/kup), and revocation responses (rp)."},
     {OPT_MORE_STR, 0, 0,
-     "WARNING: This setting leads to behavior violating RFC 4210"},
+     "WARNING: This setting leads to behavior violating RFC 9810"},
     {"accept_unprotected", OPT_ACCEPT_UNPROTECTED, '-',
      "Accept missing or invalid protection of requests"},
     {"accept_unprot_err", OPT_ACCEPT_UNPROT_ERR, '-',
@@ -1145,7 +1145,7 @@ static OSSL_CMP_SRV_CTX *setup_srv_ctx(ENGINE *engine)
         }
     } else {
         if (!OSSL_CMP_CTX_set1_referenceValue(ctx, (unsigned char *)opt_srv_ref,
-                                              strlen(opt_srv_ref)))
+                                              (int)strlen(opt_srv_ref)))
             goto err;
     }
 
@@ -1156,7 +1156,7 @@ static OSSL_CMP_SRV_CTX *setup_srv_ctx(ENGINE *engine)
         if (pass_str != NULL) {
             cleanse(opt_srv_secret);
             res = OSSL_CMP_CTX_set1_secretValue(ctx, (unsigned char *)pass_str,
-                                                strlen(pass_str));
+                                                (int)strlen(pass_str));
             clear_free(pass_str);
             if (res == 0)
                 goto err;
@@ -1550,7 +1550,7 @@ static int setup_protection_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
             cleanse(opt_secret);
             res = OSSL_CMP_CTX_set1_secretValue(ctx,
                                                 (unsigned char *)pass_string,
-                                                strlen(pass_string));
+                                                (int)strlen(pass_string));
             clear_free(pass_string);
             if (res == 0)
                 return 0;
@@ -1560,7 +1560,7 @@ static int setup_protection_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
     }
     if (opt_ref != NULL
             && !OSSL_CMP_CTX_set1_referenceValue(ctx, (unsigned char *)opt_ref,
-                                                 strlen(opt_ref)))
+                                                 (int)strlen(opt_ref)))
         return 0;
 
     if (opt_key != NULL) {
@@ -3263,7 +3263,7 @@ static int cmp_server(OSSL_CMP_CTX *srv_cmp_ctx)
                 goto next;
             }
             OPENSSL_free(path);
-            resp = OSSL_CMP_CTX_server_perform(cmp_ctx, req);
+            resp = OSSL_CMP_CTX_server_perform(cmp_ctx /* of client */, req);
             OSSL_CMP_MSG_free(req);
             if (resp == NULL) {
                 (void)http_server_send_status(prog, cbio,
@@ -3607,7 +3607,6 @@ int cmp_main(int argc, char **argv)
     int i;
     X509 *newcert = NULL;
     ENGINE *engine = NULL;
-    OSSL_CMP_CTX *srv_cmp_ctx = NULL;
     int ret = 0; /* default: failure */
 
     if (!handle_opts_upfront(argc, argv))
@@ -3715,10 +3714,16 @@ int cmp_main(int argc, char **argv)
             goto err;
         }
     }
+
     if (opt_server != NULL && opt_use_mock_srv) {
         CMP_err("cannot use both -server and -use_mock_srv options");
         goto err;
     }
+    if ((opt_server == NULL || opt_use_mock_srv) && opt_tls_used) {
+        CMP_warn("ignoring -tls_used option since -server is not given or -use_mock_srv is given");
+        opt_tls_used = 0;
+    }
+
 #endif
 
     if (opt_ignore_keyusage)
@@ -3733,27 +3738,25 @@ int cmp_main(int argc, char **argv)
 #endif
                                     )) {
         OSSL_CMP_SRV_CTX *srv_ctx;
+        OSSL_CMP_CTX *srv_cmp_ctx;
 
         if ((srv_ctx = setup_srv_ctx(engine)) == NULL)
             goto err;
+        OSSL_CMP_CTX_set_transfer_cb_arg(cmp_ctx /* of client */, srv_ctx);
+
         srv_cmp_ctx = OSSL_CMP_SRV_CTX_get0_cmp_ctx(srv_ctx);
-        OSSL_CMP_CTX_set_transfer_cb_arg(cmp_ctx, srv_ctx);
         if (!OSSL_CMP_CTX_set_log_cb(srv_cmp_ctx, print_to_bio_err)) {
             CMP_err1("cannot set up error reporting and logging for %s", prog);
             goto err;
         }
         OSSL_CMP_CTX_set_log_verbosity(srv_cmp_ctx, opt_verbosity);
-    }
 
 #if !defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_HTTP)
-    if (opt_tls_used && (opt_use_mock_srv || opt_server == NULL)) {
-        CMP_warn("ignoring -tls_used option since -use_mock_srv is given or -server is not given");
-        opt_tls_used = 0;
-    }
-
-    if (opt_port != NULL) { /* act as very basic CMP HTTP server */
-        ret = cmp_server(srv_cmp_ctx);
-        goto err;
+        if (opt_port != NULL) { /* act as very basic CMP HTTP server only */
+            ret = cmp_server(srv_cmp_ctx);
+            goto err;
+        }
+#endif
     }
 
     /* act as CMP client, possibly using internal mock server */
@@ -3761,10 +3764,14 @@ int cmp_main(int argc, char **argv)
     if (opt_reqout_only != NULL) {
         const char *msg = "option is ignored since -reqout_only option is given";
 
-# if !defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_HTTP)
+#if !defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_HTTP)
+        if (opt_port != NULL) {
+            CMP_err("the -reqout_only client option does not combine with -port implying server behavior");
+            goto err;
+        }
         if (opt_server != NULL)
             CMP_warn1("-server %s", msg);
-# endif
+#endif
         if (opt_use_mock_srv)
             CMP_warn1("-use_mock_srv %s", msg);
         if (opt_reqout != NULL)
@@ -3776,12 +3783,13 @@ int cmp_main(int argc, char **argv)
         opt_reqout = opt_reqout_only;
     }
     if (opt_rspin != NULL) {
+#if !defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_HTTP)
         if (opt_server != NULL)
             CMP_warn("-server option is not used if enough filenames given for -rspin");
+#endif
         if (opt_use_mock_srv)
             CMP_warn("-use_mock_srv option is not used if enough filenames given for -rspin");
     }
-#endif
 
     if (!setup_client_ctx(cmp_ctx, engine)) {
         CMP_err("cannot set up CMP context");

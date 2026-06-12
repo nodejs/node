@@ -71,6 +71,8 @@ int OSSL_ENCODER_CTX_set_output_type(OSSL_ENCODER_CTX *ctx,
                                      const char *output_type);
 int OSSL_ENCODER_CTX_set_output_structure(OSSL_ENCODER_CTX *ctx,
                                           const char *output_structure);
+int OSSL_ENCODER_CTX_set_finalized(OSSL_ENCODER_CTX *ctx);
+int OSSL_ENCODER_CTX_get_finalized(OSSL_ENCODER_CTX *ctx);
 
 /* Utilities to add encoders */
 int OSSL_ENCODER_CTX_add_encoder(OSSL_ENCODER_CTX *ctx, OSSL_ENCODER *encoder);

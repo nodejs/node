@@ -201,10 +201,52 @@ ASN1_SEQUENCE(CMS_PasswordRecipientInfo) = {
         ASN1_SIMPLE(CMS_PasswordRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(CMS_PasswordRecipientInfo)
 
+static int cms_kemri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+                        void *exarg)
+{
+    CMS_KEMRecipientInfo *kemri = (CMS_KEMRecipientInfo *)*pval;
+
+    if (operation == ASN1_OP_NEW_POST) {
+        kemri->ctx = EVP_CIPHER_CTX_new();
+        if (kemri->ctx == NULL)
+            return 0;
+        EVP_CIPHER_CTX_set_flags(kemri->ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        kemri->pctx = NULL;
+    } else if (operation == ASN1_OP_FREE_POST) {
+        EVP_PKEY_CTX_free(kemri->pctx);
+        EVP_CIPHER_CTX_free(kemri->ctx);
+        ASN1_OCTET_STRING_free(kemri->ukm);
+    }
+    return 1;
+}
+
+ASN1_SEQUENCE_cb(CMS_KEMRecipientInfo, cms_kemri_cb) = {
+        ASN1_EMBED(CMS_KEMRecipientInfo, version, INT32),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, rid, CMS_SignerIdentifier),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, kem, X509_ALGOR),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, kemct, ASN1_OCTET_STRING),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, kdf, X509_ALGOR),
+        ASN1_EMBED(CMS_KEMRecipientInfo, kekLength, INT32),
+        ASN1_EXP_OPT(CMS_KEMRecipientInfo, ukm, ASN1_OCTET_STRING, 0),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, wrap, X509_ALGOR),
+        ASN1_SIMPLE(CMS_KEMRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END_cb(CMS_KEMRecipientInfo, CMS_KEMRecipientInfo)
+
+ASN1_ADB_TEMPLATE(ori_def) = ASN1_SIMPLE(CMS_OtherRecipientInfo, d.other, ASN1_ANY);
+
+ASN1_ADB(CMS_OtherRecipientInfo) = {
+        ADB_ENTRY(NID_id_smime_ori_kem, ASN1_SIMPLE(CMS_OtherRecipientInfo, d.kemri,
+                  CMS_KEMRecipientInfo))
+} ASN1_ADB_END(CMS_OtherRecipientInfo, 0, oriType, 0, &ori_def_tt, NULL);
+
+DECLARE_ASN1_FUNCTIONS(CMS_OtherRecipientInfo)
+
 ASN1_SEQUENCE(CMS_OtherRecipientInfo) = {
   ASN1_SIMPLE(CMS_OtherRecipientInfo, oriType, ASN1_OBJECT),
-  ASN1_OPT(CMS_OtherRecipientInfo, oriValue, ASN1_ANY)
-} static_ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
+  ASN1_ADB_OBJECT(CMS_OtherRecipientInfo)
+} ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
+
+IMPLEMENT_ASN1_FUNCTIONS(CMS_OtherRecipientInfo)
 
 /* Free up RecipientInfo additional data */
 static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
@@ -224,6 +266,23 @@ static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
             CMS_PasswordRecipientInfo *pwri = ri->d.pwri;
             OPENSSL_clear_free(pwri->pass, pwri->passlen);
         }
+    } else if (operation == ASN1_OP_D2I_POST) {
+        CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
+
+        ri->type = ri->encoded_type;
+        if (ri->type == CMS_RECIPINFO_OTHER) {
+            int nid;
+
+            nid = OBJ_obj2nid(ri->d.ori->oriType);
+            /* For ORI, map NID to specific type */
+            if (nid == NID_id_smime_ori_kem)
+                ri->type = CMS_RECIPINFO_KEM;
+            /* Otherwise stay with generic CMS_RECIPINFO_OTHER type */
+        }
+    } else if (operation == ASN1_OP_NEW_POST) {
+        CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
+
+        ri->type = ri->encoded_type;
     }
     return 1;
 }
@@ -234,7 +293,7 @@ ASN1_CHOICE_cb(CMS_RecipientInfo, cms_ri_cb) = {
         ASN1_IMP(CMS_RecipientInfo, d.kekri, CMS_KEKRecipientInfo, 2),
         ASN1_IMP(CMS_RecipientInfo, d.pwri, CMS_PasswordRecipientInfo, 3),
         ASN1_IMP(CMS_RecipientInfo, d.ori, CMS_OtherRecipientInfo, 4)
-} ASN1_CHOICE_END_cb(CMS_RecipientInfo, CMS_RecipientInfo, type)
+} ASN1_CHOICE_END_cb(CMS_RecipientInfo, CMS_RecipientInfo, encoded_type)
 
 ASN1_NDEF_SEQUENCE(CMS_EnvelopedData) = {
         ASN1_EMBED(CMS_EnvelopedData, version, INT32),
@@ -429,4 +488,34 @@ int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg,
     ecsi.suppPubInfo = &oklen;
     intsi.pecsi = &ecsi;
     return ASN1_item_i2d(intsi.a, pder, ASN1_ITEM_rptr(CMS_SharedInfo));
+}
+
+/*
+ * Utilities to encode the CMS_CMSORIforKEMOtherInfo structure used during key
+ * derivation.
+ */
+
+typedef struct {
+    X509_ALGOR *wrap;
+    uint32_t kekLength;
+    ASN1_OCTET_STRING *ukm;
+} CMS_CMSORIforKEMOtherInfo;
+
+ASN1_SEQUENCE(CMS_CMSORIforKEMOtherInfo) = {
+        ASN1_SIMPLE(CMS_CMSORIforKEMOtherInfo, wrap, X509_ALGOR),
+        ASN1_EMBED(CMS_CMSORIforKEMOtherInfo, kekLength, INT32),
+        ASN1_EXP_OPT(CMS_CMSORIforKEMOtherInfo, ukm, ASN1_OCTET_STRING, 0),
+} static_ASN1_SEQUENCE_END(CMS_CMSORIforKEMOtherInfo)
+
+int CMS_CMSORIforKEMOtherInfo_encode(unsigned char **pder, X509_ALGOR *wrap,
+                                     ASN1_OCTET_STRING *ukm, int keylen)
+{
+    CMS_CMSORIforKEMOtherInfo kem_otherinfo;
+
+    kem_otherinfo.wrap = wrap;
+    kem_otherinfo.kekLength = keylen;
+    kem_otherinfo.ukm = ukm;
+
+    return ASN1_item_i2d((ASN1_VALUE *)&kem_otherinfo, pder,
+                         ASN1_ITEM_rptr(CMS_CMSORIforKEMOtherInfo));
 }

@@ -66,6 +66,9 @@ extern "C" {
 
 /* Known KDF names */
 # define OSSL_KDF_NAME_HKDF           "HKDF"
+# define OSSL_KDF_NAME_HKDF_SHA256    "HKDF-SHA256"
+# define OSSL_KDF_NAME_HKDF_SHA384    "HKDF-SHA384"
+# define OSSL_KDF_NAME_HKDF_SHA512    "HKDF-SHA512"
 # define OSSL_KDF_NAME_TLS1_3_KDF     "TLS13-KDF"
 # define OSSL_KDF_NAME_PBKDF1         "PBKDF1"
 # define OSSL_KDF_NAME_PBKDF2         "PBKDF2"

@@ -28,6 +28,10 @@ EVP_PKEY_get0_asn1
 
 =head1 SYNOPSIS
 
+The following functions have been deprecated since OpenSSL 3.6, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>; use the provider API instead.
+
  #include <openssl/evp.h>
 
  typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
@@ -437,9 +441,11 @@ The signature of the I<pub_decode> functional argument of
 EVP_PKEY_asn1_set_public() has changed in OpenSSL 3.0 so its I<pub>
 parameter is now constified.
 
+All of these functions were deprecated in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

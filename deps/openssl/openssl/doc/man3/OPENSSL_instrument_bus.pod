@@ -6,6 +6,9 @@ OPENSSL_instrument_bus, OPENSSL_instrument_bus2 - instrument references to memor
 
 =head1 SYNOPSIS
 
+The following functions have been deprecated since OpenSSL 3.6, and will
+be removed in a future release. They should no longer be used.
+
  #ifdef OPENSSL_CPUID_OBJ
  size_t OPENSSL_instrument_bus(unsigned int *vector, size_t num);
  size_t OPENSSL_instrument_bus2(unsigned int *vector, size_t num, size_t max);
@@ -43,7 +46,7 @@ Otherwise number of recorded values is returned.
 
 =head1 COPYRIGHT
 
-Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2011-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

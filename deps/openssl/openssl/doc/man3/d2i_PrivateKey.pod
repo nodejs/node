@@ -3,10 +3,10 @@
 =head1 NAME
 
 d2i_PrivateKey_ex, d2i_PrivateKey, d2i_PublicKey, d2i_KeyParams,
-d2i_AutoPrivateKey_ex,  d2i_AutoPrivateKey, i2d_PrivateKey, i2d_PublicKey,
-i2d_KeyParams, i2d_KeyParams_bio, d2i_PrivateKey_ex_bio, d2i_PrivateKey_bio,
-d2i_PrivateKey_ex_fp, d2i_PrivateKey_fp, d2i_KeyParams_bio, i2d_PrivateKey_bio,
-i2d_PrivateKey_fp
+d2i_AutoPrivateKey_ex,  d2i_AutoPrivateKey, i2d_PrivateKey,
+i2d_PKCS8PrivateKey, i2d_PublicKey, i2d_KeyParams, i2d_KeyParams_bio,
+d2i_PrivateKey_ex_bio, d2i_PrivateKey_bio, d2i_PrivateKey_ex_fp,
+d2i_PrivateKey_fp, d2i_KeyParams_bio, i2d_PrivateKey_bio, i2d_PrivateKey_fp
 - decode and encode functions for reading and saving EVP_PKEY structures
 
 =head1 SYNOPSIS
@@ -29,6 +29,7 @@ i2d_PrivateKey_fp
                               long length);
 
  int i2d_PrivateKey(const EVP_PKEY *a, unsigned char **pp);
+ int i2d_PKCS8PrivateKey(const EVP_PKEY *a, unsigned char **pp);
  int i2d_PublicKey(const EVP_PKEY *a, unsigned char **pp);
  int i2d_KeyParams(const EVP_PKEY *a, unsigned char **pp);
  int i2d_KeyParams_bio(BIO *bp, const EVP_PKEY *pkey);
@@ -77,6 +78,8 @@ to automatically detect the private key format.
 
 i2d_PrivateKey() encodes I<a>. It uses a key specific format or, if none is
 defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
+i2d_PKCS8PrivateKey() does the same using only the PKCS#8 unencrypted
+PrivateKeyInfo format.
 i2d_PublicKey() does the same for public keys.
 i2d_KeyParams() does the same for key parameters.
 These functions are similar to the d2i_X509() functions; see L<d2i_X509(3)>.
@@ -106,9 +109,9 @@ d2i_PrivateKey_ex_fp(), d2i_PrivateKey_fp(), d2i_PublicKey(), d2i_KeyParams()
 and d2i_KeyParams_bio() functions return a valid B<EVP_PKEY> structure or NULL if
 an error occurs. The error code can be obtained by calling L<ERR_get_error(3)>.
 
-i2d_PrivateKey(), i2d_PublicKey() and i2d_KeyParams() return the number of
-bytes successfully encoded or a negative value if an error occurs. The error
-code can be obtained by calling L<ERR_get_error(3)>.
+i2d_PrivateKey(), i2d_PKCS8PrivateKey(), i2d_PublicKey() and i2d_KeyParams()
+return the number of bytes successfully encoded or a negative value if an error
+occurs. The error code can be obtained by calling L<ERR_get_error(3)>.
 
 i2d_PrivateKey_bio(), i2d_PrivateKey_fp() and i2d_KeyParams_bio() return 1 if
 successfully encoded or zero if an error occurs.
@@ -123,9 +126,11 @@ L<d2i_PKCS8PrivateKey_bio(3)>
 d2i_PrivateKey_ex(), d2i_PrivateKey_ex_bio(), d2i_PrivateKey_ex_fp(), and
 d2i_AutoPrivateKey_ex() were added in OpenSSL 3.0.
 
+i2d_PKCS8PrivateKey() was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

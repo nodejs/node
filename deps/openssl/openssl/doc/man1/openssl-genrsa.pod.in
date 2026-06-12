@@ -28,6 +28,7 @@ B<openssl> B<genrsa>
 [B<-3>]
 [B<-primes> I<num>]
 [B<-verbose>]
+[B<-quiet>]
 [B<-traditional>]
 {- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
@@ -77,6 +78,11 @@ RSA key, which is defined in RFC 8017.
 =item B<-verbose>
 
 Print extra details about the operations being performed.
+
+=item B<-quiet>
+
+Print fewer details about the operations being performed, which may
+be handy during batch scripts and pipelines.
 
 =item B<-traditional>
 

@@ -16,7 +16,7 @@ use OpenSSL::Test::Utils;
 
 # These are special key generation tests for SM2 keys specifically,
 # as they could be said to be a bit special in their encoding.
-# This is an auxilliary test to 15-test_genec.t
+# This is an auxiliary test to 15-test_genec.t
 
 setup("test_gensm2");
 

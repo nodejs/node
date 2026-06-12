@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -527,7 +527,7 @@ static int do_name_ex(char_io *io_ch, void *arg, const X509_NAME *n,
                     objbuf = "";
                 }
             }
-            objlen = strlen(objbuf);
+            objlen = (int)strlen(objbuf);
             if (!io_ch(arg, objbuf, objlen))
                 return -1;
             if ((objlen < fld_len) && (flags & XN_FLAG_FN_ALIGN)) {

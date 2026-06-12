@@ -527,7 +527,7 @@ SSL_SESSION *lookup_sess_in_cache(SSL_CONNECTION *s,
         int copy = 1;
 
         ret = s->session_ctx->get_session_cb(SSL_CONNECTION_GET_USER_SSL(s),
-                                             sess_id, sess_id_len, &copy);
+                                             sess_id, (int)sess_id_len, &copy);
 
         if (ret != NULL) {
             if (ret->not_resumable) {

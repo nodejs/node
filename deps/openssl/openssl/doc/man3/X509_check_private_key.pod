@@ -10,17 +10,17 @@ request
 
  #include <openssl/x509.h>
 
- int X509_check_private_key(X509 *x, EVP_PKEY *k);
+ int X509_check_private_key(const X509 *cert, EVP_PKEY *pkey);
 
- int X509_REQ_check_private_key(X509_REQ *x, EVP_PKEY *k);
+ int X509_REQ_check_private_key(X509_REQ *req, EVP_PKEY *pkey);
 
 =head1 DESCRIPTION
 
 X509_check_private_key() function checks the consistency of private
-key B<k> with the public key in B<x>.
+key I<pkey> with the public key in I<cert>.
 
 X509_REQ_check_private_key() is equivalent to X509_check_private_key()
-except that B<x> represents a certificate request of structure B<X509_REQ>.
+except that I<req> represents a certificate request of structure B<X509_REQ>.
 
 =head1 RETURN VALUES
 
@@ -32,11 +32,11 @@ obtained using L<ERR_get_error(3)>.
 
 =head1 BUGS
 
-The B<check_private_key> functions don't check if B<k> itself is indeed
-a private key or not. It merely compares the public materials (e.g. exponent
-and modulus of an RSA key) and/or key parameters (e.g. EC params of an EC key)
-of a key pair. So if you pass a public key to these functions in B<k>, it will
-return success.
+The X509_check_private_key() and X509_REQ_check_private_key() functions
+do not check if I<pkey> itself is indeed a private key or not.
+They merely compare the public materials (e.g., exponent and modulus of an RSA
+key) and/or key parameters (e.g. EC params of an EC key) of a key pair.
+So they also return success if I<pkey> is a matching public key.
 
 =head1 SEE ALSO
 

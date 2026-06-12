@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,7 +52,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             ist->signTool = ASN1_UTF8STRING_new();
             if (ist->signTool == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
+                || !ASN1_STRING_set(ist->signTool, cnf->value, (int)strlen(cnf->value))) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -60,7 +60,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             ist->cATool = ASN1_UTF8STRING_new();
             if (ist->cATool == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
+                || !ASN1_STRING_set(ist->cATool, cnf->value, (int)strlen(cnf->value))) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -68,7 +68,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             ist->signToolCert = ASN1_UTF8STRING_new();
             if (ist->signToolCert == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
+                || !ASN1_STRING_set(ist->signToolCert, cnf->value, (int)strlen(cnf->value))) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
@@ -76,7 +76,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             ist->cAToolCert = ASN1_UTF8STRING_new();
             if (ist->cAToolCert == NULL
                 || cnf->value == NULL
-                || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
+                || !ASN1_STRING_set(ist->cAToolCert, cnf->value, (int)strlen(cnf->value))) {
                 ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }

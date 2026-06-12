@@ -4,8 +4,8 @@
 
 X509_get_pubkey, X509_get0_pubkey, X509_set_pubkey, X509_get_X509_PUBKEY,
 X509_REQ_get_pubkey, X509_REQ_get0_pubkey, X509_REQ_set_pubkey,
-X509_REQ_get_X509_PUBKEY - get or set certificate or certificate request
-public key
+X509_REQ_get_X509_PUBKEY
+- get or set certificate or certificate request public key
 
 =head1 SYNOPSIS
 
@@ -17,9 +17,9 @@ public key
  X509_PUBKEY *X509_get_X509_PUBKEY(const X509 *x);
 
  EVP_PKEY *X509_REQ_get_pubkey(X509_REQ *req);
- EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *req);
- int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
- X509_PUBKEY *X509_REQ_get_X509_PUBKEY(X509_REQ *x);
+ EVP_PKEY *X509_REQ_get0_pubkey(const X509_REQ *req);
+ int X509_REQ_set_pubkey(X509_REQ *req, EVP_PKEY *pkey);
+ X509_PUBKEY *X509_REQ_get_X509_PUBKEY(const X509_REQ *req);
 
 =head1 DESCRIPTION
 
@@ -51,7 +51,7 @@ improve performance.
 
 X509_get_pubkey(), X509_get0_pubkey(), X509_get_X509_PUBKEY(),
 X509_REQ_get_pubkey() and X509_REQ_get_X509_PUBKEY() return a public key or
-B<NULL> if an error occurred.
+B<NULL> if no public key is present in the structure or an error occurred.
 
 X509_set_pubkey() and X509_REQ_set_pubkey() return 1 for success and 0
 for failure.
@@ -75,9 +75,16 @@ L<X509_sign(3)>,
 L<X509V3_get_d2i(3)>,
 L<X509_verify_cert(3)>
 
+=head1 HISTORY
+
+X509_REQ_get0_X509_PUBKEY() was constified in OpenSSL 4.0.
+
+X509_get_pubkey() and X509_REQ_get_pubkey()
+are deprecated but retained for backward compatibility.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -25,6 +25,7 @@ provider-mac - The mac library E<lt>-E<gt> provider functions
  /* Encryption/decryption */
  int OSSL_FUNC_mac_init(void *mctx, unsigned char *key, size_t keylen,
                         const OSSL_PARAM params[]);
+ int OSSL_FUNC_mac_init_skey(void *mctx, const void *key, const OSSL_PARAM params[]);
  int OSSL_FUNC_mac_update(void *mctx, const unsigned char *in, size_t inl);
  int OSSL_FUNC_mac_final(void *mctx, unsigned char *out, size_t *outl, size_t outsize);
 
@@ -71,6 +72,7 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
  OSSL_FUNC_mac_dupctx               OSSL_FUNC_MAC_DUPCTX
 
  OSSL_FUNC_mac_init                 OSSL_FUNC_MAC_INIT
+ OSSL_FUNC_mac_init_skey            OSSL_FUNC_MAC_INIT_SKEY
  OSSL_FUNC_mac_update               OSSL_FUNC_MAC_UPDATE
  OSSL_FUNC_mac_final                OSSL_FUNC_MAC_FINAL
 
@@ -84,7 +86,8 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
 
 A mac algorithm implementation may not implement all of these functions.
 In order to be a consistent set of functions, at least the following functions
-must be implemented: OSSL_FUNC_mac_newctx(), OSSL_FUNC_mac_freectx(), OSSL_FUNC_mac_init(),
+must be implemented: OSSL_FUNC_mac_newctx(), OSSL_FUNC_mac_freectx(),
+at least one of OSSL_FUNC_mac_init() or OSSL_FUNC_mac_init_skey(),
 OSSL_FUNC_mac_update(), OSSL_FUNC_mac_final().
 All other functions are optional.
 
@@ -111,6 +114,9 @@ I<mctx> parameter and return the duplicate copy.
 OSSL_FUNC_mac_init() initialises a mac operation given a newly created provider
 side mac context in the I<mctx> parameter.  The I<params> are set before setting
 the MAC I<key> of I<keylen> bytes.
+
+OSSL_FUNC_mac_init_skey() is similar but uses an opaque provider-specific object
+to initialize the MAC context.
 
 OSSL_FUNC_mac_update() is called to supply data for MAC computation of a previously
 initialised mac operation.
@@ -193,6 +199,36 @@ Can be used to get the MAC block size (if supported by the algorithm).
 
 =back
 
+The OpenSSL FIPS provider may support the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_MAC_PARAM_FIPS_APPROVED_INDICATOR>) <int>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling the final function. It may return 0 if
+either "no-short-mac" or "key-check" are set to 0.
+
+=item "no-short-mac" (B<OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC>) <integer>
+
+If required this parameter should be set early via an init function.
+The default value of 1 causes an error when too short MAC output is
+asked for.  Setting this to 0 will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=item "key-check" (B<OSSL_MAC_PARAM_FIPS_KEY_CHECK>) <integer>
+
+If required this parameter should be set before OSSL_FUNC_mac_init.
+The default value of 1 causes an error when small key sizes are
+asked for.  Setting this to 0 will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 NOTES
 
 The MAC life-cycle is described in L<life_cycle-rand(7)>.  Providers should
@@ -204,7 +240,8 @@ the EVP layer will begin enforcing the listed transitions.
 OSSL_FUNC_mac_newctx() and OSSL_FUNC_mac_dupctx() should return the newly created
 provider side mac context, or NULL on failure.
 
-OSSL_FUNC_mac_init(), OSSL_FUNC_mac_update(), OSSL_FUNC_mac_final(), OSSL_FUNC_mac_get_params(),
+OSSL_FUNC_mac_init(), OSSL_FUNC_mac_init_skey(),
+OSSL_FUNC_mac_update(), OSSL_FUNC_mac_final(), OSSL_FUNC_mac_get_params(),
 OSSL_FUNC_mac_get_ctx_params() and OSSL_FUNC_mac_set_ctx_params() should return 1 for
 success or 0 on error.
 
@@ -223,10 +260,13 @@ L<life_cycle-mac(7)>, L<EVP_MAC(3)>
 =head1 HISTORY
 
 The provider MAC interface was introduced in OpenSSL 3.0.
+The parameters "no-short-mac" and "fips-indicator" were added in OpenSSL 3.4.
+
+The function OSSL_FUNC_mac_init_skey() was introduced in OpenSSL 3.5.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

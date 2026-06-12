@@ -8,6 +8,7 @@
  */
 
 #include "internal/refcount.h"
+#include "internal/hashtable.h"
 
 #define X509V3_conf_add_error_name_value(val) \
     ERR_add_error_data(4, "name=", (val)->name, ", value=", (val)->value)
@@ -20,7 +21,7 @@
 
 struct X509_VERIFY_PARAM_st {
     char *name;
-    time_t check_time;          /* Time to use */
+    int64_t check_time;         /* Time to use */
     uint32_t inh_flags;         /* Inheritance flags */
     unsigned long flags;        /* Various verify flags */
     int purpose;                /* purpose to check untrusted certificates */
@@ -106,6 +107,11 @@ struct x509_lookup_st {
     X509_STORE *store_ctx;      /* who owns us */
 };
 
+HT_START_KEY_DEFN(objs_key)
+HT_DEF_KEY_FIELD(xn_canon, unsigned char *)
+HT_DEF_KEY_FIELD(xn_canon_enclen, int)
+HT_END_KEY_DEFN(OBJS_KEY)
+
 /*
  * This is used to hold everything.  It is used for all certificate
  * validation.  Once we have a certificate chain, the 'verify' function is
@@ -114,7 +120,13 @@ struct x509_lookup_st {
 struct x509_store_st {
     /* The following is a cache of trusted certs */
     int cache;                  /* if true, stash any hits */
-    STACK_OF(X509_OBJECT) *objs; /* Cache of all objects */
+    /* Maps X509_NAME -> STACK_OF(X509_OBJECT) */
+    HT *objs_ht;
+    /*
+     * Deprecated. Used only in the X509_STORE_get0_objects() for backward
+     * compatibility.
+     */
+    STACK_OF(X509_OBJECT) *objs;
     /* These are external lookup methods */
     STACK_OF(X509_LOOKUP) *get_cert_methods;
     X509_VERIFY_PARAM *param;
@@ -159,4 +171,6 @@ int ossl_x509_likely_issued(X509 *issuer, X509 *subject);
 int ossl_x509_signing_allowed(const X509 *issuer, const X509 *subject);
 int ossl_x509_store_ctx_get_by_subject(const X509_STORE_CTX *ctx, X509_LOOKUP_TYPE type,
                                        const X509_NAME *name, X509_OBJECT *ret);
-int ossl_x509_store_read_lock(X509_STORE *xs);
+__owur int ossl_x509_store_read_lock(X509_STORE *xs);
+STACK_OF(X509_OBJECT) *ossl_x509_store_ht_get_by_name(const X509_STORE *store,
+                                                      const X509_NAME *xn);

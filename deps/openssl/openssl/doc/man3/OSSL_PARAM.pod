@@ -356,7 +356,7 @@ could fill in the parameters like this:
 
 =head1 SEE ALSO
 
-L<openssl-core.h(7)>, L<OSSL_PARAM_get_int(3)>, L<OSSL_PARAM_dup(3)>
+L<openssl-core.h(7)>, L<OSSL_PARAM_get_int(3)>, L<OSSL_PARAM_dup(3)>, L<OSSL_PARAM_construct_utf8_string(3)>
 
 =head1 HISTORY
 
@@ -364,7 +364,7 @@ B<OSSL_PARAM> was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

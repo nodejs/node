@@ -70,7 +70,7 @@ static int list_builtin_curves(BIO *out)
     EC_builtin_curve *curves = NULL;
     size_t n, crv_len = EC_get_builtin_curves(NULL, 0);
 
-    curves = app_malloc((int)sizeof(*curves) * crv_len, "list curves");
+    curves = app_malloc_array(crv_len, sizeof(*curves), "list curves");
     EC_get_builtin_curves(curves, crv_len);
 
     for (n = 0; n < crv_len; n++) {

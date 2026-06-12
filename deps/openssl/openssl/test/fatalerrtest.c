@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -69,7 +69,7 @@ static int test_fatalerr(void)
         TEST_error("Unexpected success reading data: %s\n", buf);
         goto err;
     }
-    if (!TEST_int_le(SSL_write(sssl, msg, strlen(msg)), 0))
+    if (!TEST_int_le(SSL_write(sssl, msg, (int)strlen(msg)), 0))
         goto err;
 
     ret = 1;

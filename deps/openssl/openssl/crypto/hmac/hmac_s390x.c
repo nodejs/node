@@ -117,8 +117,8 @@ int s390x_HMAC_init(HMAC_CTX *ctx, const void *key, int key_len, ENGINE *impl)
         (size_t)(ctx->plat.s390x.blk_size * HMAC_S390X_BUF_NUM_BLOCKS)) {
         OPENSSL_clear_free(ctx->plat.s390x.buf, ctx->plat.s390x.size);
         ctx->plat.s390x.size = 0;
-        ctx->plat.s390x.buf = OPENSSL_zalloc(ctx->plat.s390x.blk_size *
-                                             HMAC_S390X_BUF_NUM_BLOCKS);
+        ctx->plat.s390x.buf = OPENSSL_calloc(HMAC_S390X_BUF_NUM_BLOCKS,
+                                             ctx->plat.s390x.blk_size);
         if (ctx->plat.s390x.buf == NULL)
             return 0;
         ctx->plat.s390x.size = ctx->plat.s390x.blk_size *

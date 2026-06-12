@@ -13,41 +13,36 @@
  */
 #include "internal/deprecated.h"
 
+#include <string.h>
 #include <openssl/crypto.h>
 #include <openssl/params.h>
 #include <openssl/mdc2.h>
 #include <openssl/core_names.h>
 #include <openssl/err.h>
 #include <openssl/proverr.h>
+#include <internal/common.h>
 #include "prov/digestcommon.h"
 #include "prov/implementations.h"
+#include "providers/implementations/digests/mdc2_prov.inc"
 
 static OSSL_FUNC_digest_set_ctx_params_fn mdc2_set_ctx_params;
 static OSSL_FUNC_digest_settable_ctx_params_fn mdc2_settable_ctx_params;
 
-static const OSSL_PARAM known_mdc2_settable_ctx_params[] = {
-    OSSL_PARAM_uint(OSSL_DIGEST_PARAM_PAD_TYPE, NULL),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *mdc2_settable_ctx_params(ossl_unused void *ctx,
                                                   ossl_unused void *provctx)
 {
-    return known_mdc2_settable_ctx_params;
+    return mdc2_set_ctx_params_list;
 }
 
 static int mdc2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
-    const OSSL_PARAM *p;
+    struct mdc2_set_ctx_params_st p;
     MDC2_CTX *ctx = (MDC2_CTX *)vctx;
 
-    if (ctx == NULL)
+    if (ctx == NULL || !mdc2_set_ctx_params_decoder(params, &p))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_PAD_TYPE);
-    if (p != NULL && !OSSL_PARAM_get_uint(p, &ctx->pad_type)) {
+    if (p.pad != NULL && !OSSL_PARAM_get_uint(p.pad, &ctx->pad_type)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
         return 0;
     }

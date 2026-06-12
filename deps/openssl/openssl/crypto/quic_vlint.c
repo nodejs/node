@@ -29,7 +29,7 @@ void ossl_quic_vlint_encode_n(uint8_t *buf, uint64_t v, int n)
 
 void ossl_quic_vlint_encode(uint8_t *buf, uint64_t v)
 {
-    ossl_quic_vlint_encode_n(buf, v, ossl_quic_vlint_encode_len(v));
+    ossl_quic_vlint_encode_n(buf, v, (int)ossl_quic_vlint_encode_len(v));
 }
 
 uint64_t ossl_quic_vlint_decode_unchecked(const unsigned char *buf)
@@ -75,7 +75,7 @@ int ossl_quic_vlint_decode(const unsigned char *buf, size_t buf_len, uint64_t *v
     x = ossl_quic_vlint_decode_unchecked(buf);
 
     *v = x;
-    return dec_len;
+    return (int)dec_len;
 }
 
 #endif

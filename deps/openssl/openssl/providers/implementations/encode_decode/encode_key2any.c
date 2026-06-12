@@ -38,9 +38,10 @@
 #include "prov/bio.h"
 #include "prov/provider_ctx.h"
 #include "prov/der_rsa.h"
-#include "endecoder_local.h"
-#include "ml_dsa_codecs.h"
-#include "ml_kem_codecs.h"
+#include "prov/endecoder_local.h"
+#include "prov/ml_dsa_codecs.h"
+#include "prov/ml_kem_codecs.h"
+#include "providers/implementations/encode_decode/encode_key2any.inc"
 
 #if defined(OPENSSL_NO_DH) && defined(OPENSSL_NO_DSA) && defined(OPENSSL_NO_EC)
 # define OPENSSL_NO_KEYPARAMS
@@ -68,7 +69,6 @@ typedef int key_to_der_fn(BIO *out, const void *key,
                           key_to_paramstring_fn *p2s,
                           OSSL_i2d_of_void_ctx *k2d, KEY2ANY_CTX *ctx);
 typedef int write_bio_of_void_fn(BIO *bp, const void *x);
-
 
 /* Free the blob allocated during key_to_paramstring_fn */
 static void free_asn1_data(int type, void *data)
@@ -124,7 +124,8 @@ static X509_SIG *p8info_to_encp8(PKCS8_PRIV_KEY_INFO *p8info,
         return NULL;
     }
     /* First argument == -1 means "standard" */
-    p8 = PKCS8_encrypt_ex(-1, ctx->cipher, kstr, klen, NULL, 0, 0, p8info, libctx, NULL);
+    p8 = PKCS8_encrypt_ex(-1, ctx->cipher, kstr, (int)klen, NULL, 0, 0, p8info,
+                          libctx, NULL);
     OPENSSL_cleanse(kstr, klen);
     return p8;
 }
@@ -157,7 +158,6 @@ static X509_PUBKEY *key_to_pubkey(const void *key, int key_nid,
     int derlen;
     /* The final X509_PUBKEY */
     X509_PUBKEY *xpk = NULL;
-
 
     if ((xpk = X509_PUBKEY_new()) == NULL
         || (derlen = k2d(key, &der, (void *)ctx)) <= 0
@@ -803,7 +803,7 @@ static int ecx_spki_pub_to_der(const void *vecxkey, unsigned char **pder,
         return 0;
 
     *pder = keyblob;
-    return ecxkey->keylen;
+    return (int)ecxkey->keylen;
 }
 
 static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder,
@@ -819,7 +819,7 @@ static int ecx_pki_priv_to_der(const void *vecxkey, unsigned char **pder,
     }
 
     oct.data = ecxkey->privkey;
-    oct.length = ecxkey->keylen;
+    oct.length = (int)ecxkey->keylen;
     oct.flags = 0;
 
     keybloblen = i2d_ASN1_OCTET_STRING(&oct, pder);
@@ -1043,7 +1043,7 @@ static int slh_dsa_spki_pub_to_der(const void *vkey, unsigned char **pder,
         return 0;
 
     *pder = key_blob;
-    return key_len;
+    return (int)key_len;
 }
 
 static int slh_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
@@ -1062,7 +1062,7 @@ static int slh_dsa_pki_priv_to_der(const void *vkey, unsigned char **pder,
             && ((*pder = OPENSSL_memdup(ossl_slh_dsa_key_get_priv(key), len)) == NULL))
         return 0;
 
-    return len;
+    return (int)len;
 }
 # define slh_dsa_epki_priv_to_der slh_dsa_pki_priv_to_der
 
@@ -1135,35 +1135,28 @@ static void key2any_freectx(void *vctx)
 
 static const OSSL_PARAM *key2any_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_utf8_string(OSSL_ENCODER_PARAM_CIPHER, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_ENCODER_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_END,
-    };
-
-    return settables;
+    return key2any_set_ctx_params_list;
 }
 
 static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     KEY2ANY_CTX *ctx = vctx;
-    OSSL_LIB_CTX *libctx = ossl_prov_ctx_get0_libctx(ctx->provctx);
-    const OSSL_PARAM *cipherp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_CIPHER);
-    const OSSL_PARAM *propsp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_PROPERTIES);
-    const OSSL_PARAM *save_paramsp =
-        OSSL_PARAM_locate_const(params, OSSL_ENCODER_PARAM_SAVE_PARAMETERS);
+    struct key2any_set_ctx_params_st p;
 
-    if (cipherp != NULL) {
+    if (ctx == NULL || !key2any_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.cipher != NULL) {
         const char *ciphername = NULL;
         const char *props = NULL;
+        OSSL_LIB_CTX *libctx;
 
-        if (!OSSL_PARAM_get_utf8_string_ptr(cipherp, &ciphername))
+        if (!OSSL_PARAM_get_utf8_string_ptr(p.cipher, &ciphername))
             return 0;
-        if (propsp != NULL && !OSSL_PARAM_get_utf8_string_ptr(propsp, &props))
+        if (p.propq != NULL && !OSSL_PARAM_get_utf8_string_ptr(p.propq, &props))
             return 0;
 
+        libctx = ossl_prov_ctx_get0_libctx(ctx->provctx);
         EVP_CIPHER_free(ctx->cipher);
         ctx->cipher = NULL;
         ctx->cipher_intent = ciphername != NULL;
@@ -1173,10 +1166,9 @@ static int key2any_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
     }
 
-    if (save_paramsp != NULL) {
-        if (!OSSL_PARAM_get_int(save_paramsp, &ctx->save_parameters))
-            return 0;
-    }
+    if (p.svprm != NULL && !OSSL_PARAM_get_int(p.svprm, &ctx->save_parameters))
+        return 0;
+
     return 1;
 }
 

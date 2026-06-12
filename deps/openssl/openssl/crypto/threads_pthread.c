@@ -10,10 +10,40 @@
 /* We need to use the OPENSSL_fork_*() deprecated APIs */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
+#if !defined(__GNUC__) || !defined(__ATOMIC_ACQ_REL) || \
+    defined(BROKEN_CLANG_ATOMICS) || defined(OPENSSL_NO_STDIO)
+/*
+ * we only enable REPORT_RWLOCK_CONTENTION on clang/gcc when we have
+ * atomics available.  We do this because we need to use an atomic to track
+ * when we can close the log file.  We could use the CRYPTO_atomic_ api
+ * but that requires lock creation which gets us into a bad recursive loop
+ * when we try to initialize the file pointer
+ */
+# ifdef REPORT_RWLOCK_CONTENTION
+#  warning "RWLOCK CONTENTION REPORTING NOT SUPPORTED, Disabling"
+#  undef REPORT_RWLOCK_CONTENTION
+# endif
+#endif
+
+#ifdef REPORT_RWLOCK_CONTENTION
+# define _GNU_SOURCE
+# include <execinfo.h>
+# include <unistd.h>
+#endif
+
 #include <openssl/crypto.h>
 #include <crypto/cryptlib.h>
+#include <crypto/sparse_array.h>
 #include "internal/cryptlib.h"
+#include "internal/threads_common.h"
 #include "internal/rcu.h"
+#ifdef REPORT_RWLOCK_CONTENTION
+# include <fcntl.h>
+# include <stdbool.h>
+# include <sys/syscall.h>
+# include <sys/uio.h>
+# include "internal/time.h"
+#endif
 #include "rcu_internal.h"
 
 #if defined(__clang__) && defined(__has_feature)
@@ -294,30 +324,37 @@ static struct rcu_qp *get_hold_current_qp(struct rcu_lock_st *lock)
 static void ossl_rcu_free_local_data(void *arg)
 {
     OSSL_LIB_CTX *ctx = arg;
-    CRYPTO_THREAD_LOCAL *lkey = ossl_lib_ctx_get_rcukey(ctx);
-    struct rcu_thr_data *data = CRYPTO_THREAD_get_local(lkey);
+    struct rcu_thr_data *data = CRYPTO_THREAD_get_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, ctx);
 
+    CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, ctx, NULL);
     OPENSSL_free(data);
-    CRYPTO_THREAD_set_local(lkey, NULL);
 }
 
-void ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock)
+int ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock)
 {
     struct rcu_thr_data *data;
     int i, available_qp = -1;
-    CRYPTO_THREAD_LOCAL *lkey = ossl_lib_ctx_get_rcukey(lock->ctx);
 
     /*
      * we're going to access current_qp here so ask the
      * processor to fetch it
      */
-    data = CRYPTO_THREAD_get_local(lkey);
+    data = CRYPTO_THREAD_get_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, lock->ctx);
 
     if (data == NULL) {
         data = OPENSSL_zalloc(sizeof(*data));
-        OPENSSL_assert(data != NULL);
-        CRYPTO_THREAD_set_local(lkey, data);
-        ossl_init_thread_start(NULL, lock->ctx, ossl_rcu_free_local_data);
+        if (data == NULL)
+            return 0;
+
+        if (!CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, lock->ctx, data)) {
+            OPENSSL_free(data);
+            return 0;
+        }
+        if (!ossl_init_thread_start(NULL, lock->ctx, ossl_rcu_free_local_data)) {
+            OPENSSL_free(data);
+            CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, lock->ctx, NULL);
+            return 0;
+        }
     }
 
     for (i = 0; i < MAX_QPS; i++) {
@@ -326,7 +363,7 @@ void ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock)
         /* If we have a hold on this lock already, we're good */
         if (data->thread_qps[i].lock == lock) {
             data->thread_qps[i].depth++;
-            return;
+            return 1;
         }
     }
 
@@ -338,13 +375,13 @@ void ossl_rcu_read_lock(CRYPTO_RCU_LOCK *lock)
     data->thread_qps[available_qp].qp = get_hold_current_qp(lock);
     data->thread_qps[available_qp].depth = 1;
     data->thread_qps[available_qp].lock = lock;
+    return 1;
 }
 
 void ossl_rcu_read_unlock(CRYPTO_RCU_LOCK *lock)
 {
     int i;
-    CRYPTO_THREAD_LOCAL *lkey = ossl_lib_ctx_get_rcukey(lock->ctx);
-    struct rcu_thr_data *data = CRYPTO_THREAD_get_local(lkey);
+    struct rcu_thr_data *data = CRYPTO_THREAD_get_local_ex(CRYPTO_THREAD_LOCAL_RCU_KEY, lock->ctx);
     uint64_t ret;
 
     assert(data != NULL);
@@ -437,7 +474,7 @@ static struct rcu_qp *allocate_new_qp_group(CRYPTO_RCU_LOCK *lock,
                                             uint32_t count)
 {
     struct rcu_qp *new =
-        OPENSSL_zalloc(sizeof(*new) * count);
+        OPENSSL_calloc(count, sizeof(*new));
 
     lock->group_count = count;
     return new;
@@ -582,10 +619,268 @@ void ossl_rcu_lock_free(CRYPTO_RCU_LOCK *lock)
     OPENSSL_free(rlock);
 }
 
+# ifdef REPORT_RWLOCK_CONTENTION
+/*
+ * Normally we would use a BIO here to do this, but we create locks during
+ * library initialization, and creating a bio too early, creates a recursive set
+ * of stack calls that leads us to call CRYPTO_thread_run_once while currently
+ * executing the init routine for various run_once functions, which leads to
+ * deadlock.  Avoid that by just using a FILE pointer.  Also note that we
+ * directly use a pthread_mutex_t to protect access from multiple threads
+ * to the contention log file.  We do this because we want to avoid use
+ * of the CRYPTO_THREAD api so as to prevent recursive blocking reports.
+ */
+static CRYPTO_ONCE init_contention_data_flag = CRYPTO_ONCE_STATIC_INIT;
+pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+CRYPTO_THREAD_LOCAL thread_contention_data;
+
+struct stack_info {
+    unsigned int nptrs;
+    int write;
+    OSSL_TIME start;
+    OSSL_TIME duration;
+    char **strings;
+};
+
+#  define STACKS_COUNT 32
+#  define BT_BUF_SIZE 1024
+struct stack_traces {
+    int fd;
+    int lock_depth;
+    size_t idx;
+    struct stack_info stacks[STACKS_COUNT];
+};
+
+/* The glibc gettid() definition presents only since 2.30. */
+static ossl_inline pid_t get_tid(void)
+{
+#  ifdef OPENSSL_SYS_MACOSX
+    /*
+     * MACOS has the gettid call, but it does something completely different
+     * here than on other unixes.  Specifically it returns the uid of the calling thread
+     * (if set), or -1.  We need to use a MACOS specific call to get the thread id here
+     */
+    uint64_t tid;
+
+    pthread_threadid_np(NULL, &tid);
+    return (pid_t)tid;
+#  else
+    return syscall(SYS_gettid);
+#  endif
+}
+
+#  ifdef FIPS_MODULE
+#   define FIPS_SFX "-fips"
+#  else
+#   define FIPS_SFX ""
+#  endif
+static void *init_contention_data(void)
+{
+    struct stack_traces *traces;
+    char fname_fmt[] = "lock-contention-log" FIPS_SFX ".%d.txt";
+    char fname[sizeof(fname_fmt) + sizeof(int) * 3];
+
+    traces = OPENSSL_zalloc(sizeof(struct stack_traces));
+
+    snprintf(fname, sizeof(fname), fname_fmt, get_tid());
+
+    traces->fd = open(fname, O_WRONLY | O_APPEND | O_CLOEXEC | O_CREAT, 0600);
+
+    return traces;
+}
+
+static void destroy_contention_data(void *data)
+{
+    struct stack_traces *st = data;
+
+    close(st->fd);
+    OPENSSL_free(data);
+}
+
+static void init_contention_data_once(void)
+{
+    /*
+     * Create a thread local key here to store our list of stack traces
+     * to be printed when we unlock the lock we are holding
+     */
+    CRYPTO_THREAD_init_local(&thread_contention_data, destroy_contention_data);
+    return;
+}
+
+static struct stack_traces *get_stack_traces(bool init)
+{
+    struct stack_traces *traces = CRYPTO_THREAD_get_local(&thread_contention_data);
+
+    if (!traces && init) {
+        traces = init_contention_data();
+        CRYPTO_THREAD_set_local(&thread_contention_data, traces);
+    }
+
+    return traces;
+}
+
+static void print_stack_traces(struct stack_traces *traces)
+{
+    unsigned int j;
+    struct iovec *iov;
+    int iovcnt;
+
+    while (traces != NULL && traces->idx >= 1) {
+        traces->idx--;
+        dprintf(traces->fd,
+                "lock blocked on %s for %zu usec at time %zu tid %d\n",
+                traces->stacks[traces->idx].write == 1 ? "WRITE" : "READ",
+                ossl_time2us(traces->stacks[traces->idx].duration),
+                ossl_time2us(traces->stacks[traces->idx].start),
+                get_tid());
+        if (traces->stacks[traces->idx].strings != NULL) {
+            static const char lf = '\n';
+
+            iovcnt = traces->stacks[traces->idx].nptrs * 2 + 1;
+            iov = alloca(iovcnt * sizeof(*iov));
+            for (j = 0; j < traces->stacks[traces->idx].nptrs; j++) {
+                iov[2 * j].iov_base = traces->stacks[traces->idx].strings[j];
+                iov[2 * j].iov_len = strlen(traces->stacks[traces->idx].strings[j]);
+                iov[2 * j + 1].iov_base = (char *) &lf;
+                iov[2 * j + 1].iov_len = 1;
+            }
+            iov[traces->stacks[traces->idx].nptrs * 2].iov_base = (char *) &lf;
+            iov[traces->stacks[traces->idx].nptrs * 2].iov_len = 1;
+        } else {
+            static const char no_bt[] = "No stack trace available\n\n";
+
+            iovcnt = 1;
+            iov = alloca(iovcnt * sizeof(*iov));
+            iov[0].iov_base = (char *) no_bt;
+            iov[0].iov_len = sizeof(no_bt) - 1;
+        }
+        writev(traces->fd, iov, iovcnt);
+        free(traces->stacks[traces->idx].strings);
+    }
+}
+
+static ossl_inline void ossl_init_rwlock_contention_data(void)
+{
+    CRYPTO_THREAD_run_once(&init_contention_data_flag, init_contention_data_once);
+}
+
+static int record_lock_contention(pthread_rwlock_t *lock,
+                                  struct stack_traces *traces, bool write)
+{
+    void *buffer[BT_BUF_SIZE];
+    OSSL_TIME start, end;
+    int ret;
+
+    start = ossl_time_now();
+    ret = (write ? pthread_rwlock_wrlock : pthread_rwlock_rdlock)(lock);
+    if (ret)
+        return ret;
+    end = ossl_time_now();
+    traces->stacks[traces->idx].nptrs = backtrace(buffer, BT_BUF_SIZE);
+    traces->stacks[traces->idx].strings = backtrace_symbols(buffer,
+                                                            traces->stacks[traces->idx].nptrs);
+    traces->stacks[traces->idx].duration = ossl_time_subtract(end, start);
+    traces->stacks[traces->idx].start = start;
+    traces->stacks[traces->idx].write = write;
+    traces->idx++;
+    if (traces->idx >= STACKS_COUNT) {
+        fprintf(stderr, "STACK RECORD OVERFLOW!\n");
+        print_stack_traces(traces);
+    }
+
+    return 0;
+}
+
+static ossl_inline int ossl_rwlock_rdlock(pthread_rwlock_t *lock)
+{
+    struct stack_traces *traces = get_stack_traces(true);
+
+    if (ossl_unlikely(traces == NULL))
+        return ENOMEM;
+
+    traces->lock_depth++;
+    if (pthread_rwlock_tryrdlock(lock)) {
+        int ret = record_lock_contention(lock, traces, false);
+
+        if (ret)
+            traces->lock_depth--;
+
+        return ret;
+    }
+
+    return 0;
+}
+
+static ossl_inline int ossl_rwlock_wrlock(pthread_rwlock_t *lock)
+{
+    struct stack_traces *traces = get_stack_traces(true);
+
+    if (ossl_unlikely(traces == NULL))
+        return ENOMEM;
+
+    traces->lock_depth++;
+    if (pthread_rwlock_trywrlock(lock)) {
+        int ret = record_lock_contention(lock, traces, true);
+
+        if (ret)
+            traces->lock_depth--;
+
+        return ret;
+    }
+
+    return 0;
+}
+
+static ossl_inline int ossl_rwlock_unlock(pthread_rwlock_t *lock)
+{
+    int ret;
+
+    ret = pthread_rwlock_unlock(lock);
+    if (ret)
+        return ret;
+
+    {
+        struct stack_traces *traces = get_stack_traces(false);
+
+        if (traces != NULL) {
+            traces->lock_depth--;
+            assert(traces->lock_depth >= 0);
+            if (traces->lock_depth == 0)
+                print_stack_traces(traces);
+        }
+    }
+
+    return 0;
+}
+
+# else /* !REPORT_RWLOCK_CONTENTION */
+
+static ossl_inline void ossl_init_rwlock_contention_data(void)
+{
+}
+
+static ossl_inline int ossl_rwlock_rdlock(pthread_rwlock_t *rwlock)
+{
+    return pthread_rwlock_rdlock(rwlock);
+}
+
+static ossl_inline int ossl_rwlock_wrlock(pthread_rwlock_t *rwlock)
+{
+    return pthread_rwlock_wrlock(rwlock);
+}
+
+static ossl_inline int ossl_rwlock_unlock(pthread_rwlock_t *rwlock)
+{
+    return pthread_rwlock_unlock(rwlock);
+}
+# endif /* REPORT_RWLOCK_CONTENTION */
+
 CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 {
 # ifdef USE_RWLOCK
     CRYPTO_RWLOCK *lock;
+
+    ossl_init_rwlock_contention_data();
 
     if ((lock = OPENSSL_zalloc(sizeof(pthread_rwlock_t))) == NULL)
         /* Don't set error, to avoid recursion blowup. */
@@ -630,7 +925,7 @@ CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 __owur int CRYPTO_THREAD_read_lock(CRYPTO_RWLOCK *lock)
 {
 # ifdef USE_RWLOCK
-    if (!ossl_assert(pthread_rwlock_rdlock(lock) == 0))
+    if (!ossl_assert(ossl_rwlock_rdlock(lock) == 0))
         return 0;
 # else
     if (pthread_mutex_lock(lock) != 0) {
@@ -645,7 +940,7 @@ __owur int CRYPTO_THREAD_read_lock(CRYPTO_RWLOCK *lock)
 __owur int CRYPTO_THREAD_write_lock(CRYPTO_RWLOCK *lock)
 {
 # ifdef USE_RWLOCK
-    if (!ossl_assert(pthread_rwlock_wrlock(lock) == 0))
+    if (!ossl_assert(ossl_rwlock_wrlock(lock) == 0))
         return 0;
 # else
     if (pthread_mutex_lock(lock) != 0) {
@@ -660,7 +955,7 @@ __owur int CRYPTO_THREAD_write_lock(CRYPTO_RWLOCK *lock)
 int CRYPTO_THREAD_unlock(CRYPTO_RWLOCK *lock)
 {
 # ifdef USE_RWLOCK
-    if (pthread_rwlock_unlock(lock) != 0)
+    if (ossl_rwlock_unlock(lock) != 0)
         return 0;
 # else
     if (pthread_mutex_unlock(lock) != 0) {
@@ -689,7 +984,7 @@ void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock)
 
 int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))
 {
-    if (pthread_once(once, init) != 0)
+    if (ossl_unlikely(pthread_once(once, init) != 0))
         return 0;
 
     return 1;

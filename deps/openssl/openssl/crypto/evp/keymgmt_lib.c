@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -296,18 +296,22 @@ void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk)
     if (pk->keydata != NULL) {
         int bits = 0;
         int security_bits = 0;
+        int security_category = -1;
         int size = 0;
-        OSSL_PARAM params[4];
+        OSSL_PARAM params[5];
 
         params[0] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_BITS, &bits);
         params[1] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_SECURITY_BITS,
                                              &security_bits);
-        params[2] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_MAX_SIZE, &size);
-        params[3] = OSSL_PARAM_construct_end();
+        params[2] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_SECURITY_CATEGORY,
+                                             &security_category);
+        params[3] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_MAX_SIZE, &size);
+        params[4] = OSSL_PARAM_construct_end();
         if (evp_keymgmt_get_params(pk->keymgmt, pk->keydata, params)) {
             pk->cache.size = size;
             pk->cache.bits = bits;
             pk->cache.security_bits = security_bits;
+            pk->cache.security_category = security_category;
         }
     }
 }

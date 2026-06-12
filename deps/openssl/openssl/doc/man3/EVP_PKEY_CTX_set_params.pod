@@ -57,6 +57,9 @@ L<EVP_PKEY-DH(7)/DH parameters>
 L<EVP_PKEY-DH(7)/DH key generation parameters>
 L<EVP_PKEY-EC(7)/Common EC parameters>
 L<EVP_PKEY-X25519(7)/Common X25519, X448, ED25519 and ED448 parameters>
+L<EVP_PKEY-LMS(7)/Common LMS parameters>
+L<EVP_PKEY-ML-DSA(7)/Common parameters>
+L<EVP_PKEY-ML-KEM(7)/Common parameters>
 
 =head1 RETURN VALUES
 
@@ -68,6 +71,11 @@ It may also return NULL if there are no settable parameters available.
 All other functions and macros described on this page return a positive value
 for success and 0 or a negative value for failure. In particular a return value
 of -2 indicates the operation is not supported by the public key algorithm.
+
+=head1 NOTES
+
+LMS support is disabled by default at compile-time.
+To enable, specify the B<enable-lms> build configuration option.
 
 =head1 SEE ALSO
 
@@ -84,9 +92,13 @@ L<EVP_PKEY_keygen(3)>
 
 All functions were added in OpenSSL 3.0.
 
+Support for B<ML-DSA>> and B<ML-KEM> was added in OpenSSL 3.5.
+
+Support for B<LMS> was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

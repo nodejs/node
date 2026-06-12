@@ -27,7 +27,7 @@ used with EVP_MAC_fetch():
 The general description of these parameters can be found in
 L<EVP_MAC(3)/PARAMETERS>.
 
-The following parameter can be set with EVP_MAC_CTX_set_params():
+The following parameters can be set with EVP_MAC_CTX_set_params():
 
 =over 4
 
@@ -51,19 +51,27 @@ B<OSSL_MAC_PARAM_DIGEST>) to be considered valid.
 A flag to set the MAC digest to not initialise the implementation
 specific data.
 The value 0 or 1 is expected.
+This option is deprecated and will be removed in a future release.
+It may be set but is currently ignored
 
 =item "digest-oneshot" (B<OSSL_MAC_PARAM_DIGEST_ONESHOT>) <integer>
 
 A flag to set the MAC digest to be a one-shot operation.
 The value 0 or 1 is expected.
+This option is deprecated and will be removed in a future release.
+It may be set but is currently ignored.
 
 =item "tls-data-size" (B<OSSL_MAC_PARAM_TLS_DATA_SIZE>) <unsigned integer>
+
+=item "key-check" (B<OSSL_MAC_PARAM_FIPS_KEY_CHECK>) <integer>
+
+See L<provider-mac(7)/Mac Parameters>.
 
 =back
 
 =for comment The "flags" parameter is passed directly to HMAC_CTX_set_flags().
 
-The following parameter can be retrieved with EVP_MAC_CTX_get_params():
+The following parameters can be retrieved with EVP_MAC_CTX_get_params():
 
 =over 4
 
@@ -72,14 +80,14 @@ The following parameter can be retrieved with EVP_MAC_CTX_get_params():
 The "size" parameter can also be retrieved with EVP_MAC_CTX_get_mac_size().
 The length of the "size" parameter is equal to that of an B<unsigned int>.
 
-=back
-
-=over 4
-
 =item "block-size" (B<OSSL_MAC_PARAM_BLOCK_SIZE>) <unsigned integer>
 
 Gets the MAC block size.  The "block-size" parameter can also be retrieved with
 EVP_MAC_CTX_get_block_size().
+
+=item "fips-indicator" (B<OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+See L<provider-mac(7)/Mac Parameters>.
 
 =back
 
@@ -90,7 +98,7 @@ L<EVP_MAC(3)/PARAMETERS>, L<OSSL_PARAM(3)>, L<HMAC(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

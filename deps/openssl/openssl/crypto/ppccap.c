@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -101,7 +101,7 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 # include <sys/param.h>
-# if (defined(__FreeBSD__) && __FreeBSD_version >= 1200000) || \
+# if (defined(__FreeBSD__) && __FreeBSD_version >= 1104000) || \
     (defined(__OpenBSD__) && OpenBSD >= 202409)
 #  include <sys/auxv.h>
 #  define OSSL_IMPLEMENT_GETAUXVAL
@@ -135,9 +135,6 @@ static unsigned long getauxval(unsigned long key)
 #define HWCAP_ARCH_3_00         (1U << 23)
 #define HWCAP_ARCH_3_1          (1U << 18)
 
-# if defined(__GNUC__) && __GNUC__>=2
-__attribute__ ((constructor))
-# endif
 void OPENSSL_cpuid_setup(void)
 {
     char *e;

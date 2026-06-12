@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -102,15 +102,18 @@ static void set_seed(int s)
 
 int setup_test_framework(int argc, char *argv[])
 {
-    char *test_seed = getenv("OPENSSL_TEST_RAND_ORDER");
+    char *test_rand_order = getenv("OPENSSL_TEST_RAND_ORDER");
+    char *test_rand_seed = getenv("OPENSSL_TEST_RAND_SEED");
     char *TAP_levels = getenv("HARNESS_OSSL_LEVEL");
 
     if (TAP_levels != NULL)
         level = 4 * atoi(TAP_levels);
     test_adjust_streams_tap_level(level);
-    if (test_seed != NULL) {
+    if (test_rand_order != NULL) {
         rand_order = 1;
-        set_seed(atoi(test_seed));
+        set_seed(atoi(test_rand_order));
+    } else if (test_rand_seed != NULL) {
+        set_seed(atoi(test_rand_seed));
     } else {
         set_seed(0);
     }
@@ -264,8 +267,12 @@ PRINTF_FORMAT(2, 3) static void test_verdict(int verdict,
     test_flush_stdout();
     test_flush_stderr();
 
-    if (verdict == 0 && seed != 0)
-        test_printf_tapout("# OPENSSL_TEST_RAND_ORDER=%d\n", seed);
+    if (verdict == 0) {
+        if (rand_order)
+            test_printf_tapout("# OPENSSL_TEST_RAND_ORDER=%d\n", seed);
+        else
+            test_printf_tapout("# OPENSSL_TEST_RAND_SEED=%d\n", seed);
+    }
     test_printf_tapout("%s ", verdict != 0 ? "ok" : "not ok");
     va_start(ap, description);
     test_vprintf_tapout(description, ap);

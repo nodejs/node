@@ -3,7 +3,8 @@
 =head1 NAME
 
 EVP_PKEY_derive_init, EVP_PKEY_derive_init_ex,
-EVP_PKEY_derive_set_peer_ex, EVP_PKEY_derive_set_peer, EVP_PKEY_derive
+EVP_PKEY_derive_set_peer_ex, EVP_PKEY_derive_set_peer, EVP_PKEY_derive,
+EVP_PKEY_derive_SKEY
 - derive public key algorithm shared secret
 
 =head1 SYNOPSIS
@@ -16,6 +17,9 @@ EVP_PKEY_derive_set_peer_ex, EVP_PKEY_derive_set_peer, EVP_PKEY_derive
                                  int validate_peer);
  int EVP_PKEY_derive_set_peer(EVP_PKEY_CTX *ctx, EVP_PKEY *peer);
  int EVP_PKEY_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen);
+ EVP_SKEY *EVP_PKEY_derive_SKEY(EVP_PKEY_CTX *ctx, EVP_SKEYMGMT *mgmt,
+                                const char *key_type, const char *propquery,
+                                size_t keylen, const OSSL_PARAM params[]);
 
 =head1 DESCRIPTION
 
@@ -42,6 +46,14 @@ parameter should contain the length of the I<key> buffer, if the call is
 successful the shared secret is written to I<key> and the amount of data
 written to I<keylen>.
 
+EVP_PKEY_derive_SKEY() is similar to EVP_PKEY_derive() but returns an
+B<EVP_SKEY> object that stores the opaque data for the derived key. If
+B<EVP_SKEYMGMT> argument is passed, it would be explicitly used for the
+B<EVP_SKEY> creation. Otherwise the B<EVP_SKEYMGMT> object used for B<EVP_SKEY>
+will be fetched according to I<skeymgmtname> and I<propquery>.  If
+I<skeymgmtname> is NULL, the name matching the key exchange method name is
+assumed.
+
 =head1 NOTES
 
 After the call to EVP_PKEY_derive_init(), algorithm
@@ -57,6 +69,9 @@ EVP_PKEY_derive_init() and EVP_PKEY_derive() return 1
 for success and 0 or a negative value for failure.
 In particular a return value of -2 indicates the operation is not supported by
 the public key algorithm.
+
+EVP_PKEY_derive_SKEY() returns a freshly created B<EVP_SKEY> object on success
+or NULL on failure.
 
 =head1 EXAMPLES
 
@@ -112,9 +127,11 @@ functions were originally added in OpenSSL 1.0.0.
 The EVP_PKEY_derive_init_ex() and EVP_PKEY_derive_set_peer_ex() functions were
 added in OpenSSL 3.0.
 
+The EVP_PKEY_derive_SKEY() function was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

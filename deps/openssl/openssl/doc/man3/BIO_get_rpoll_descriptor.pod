@@ -1,0 +1,112 @@
+=pod
+
+=head1 NAME
+
+BIO_get_rpoll_descriptor, BIO_get_wpoll_descriptor - obtain a structure which
+can be used to determine when a BIO object can next be read or written
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ typedef struct bio_poll_descriptor_st {
+     uint32_t type;
+     union {
+         int        fd;
+         void       *custom;
+         uintptr_t  custom_ui;
+     } value;
+ } BIO_POLL_DESCRIPTOR;
+
+ int BIO_get_rpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc);
+ int BIO_get_wpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc);
+
+=head1 DESCRIPTION
+
+BIO_get_rpoll_descriptor() and BIO_get_wpoll_descriptor(), on success, fill
+I<*desc> with a poll descriptor. A poll descriptor is a tagged union structure
+which represents some kind of OS or non-OS resource which can be used to
+synchronise on I/O availability events.
+
+BIO_get_rpoll_descriptor() outputs a descriptor which can be used to determine
+when the BIO can (potentially) next be read, and BIO_get_wpoll_descriptor()
+outputs a descriptor which can be used to determine when the BIO can
+(potentially) next be written.
+
+It is permissible for BIO_get_rpoll_descriptor() and BIO_get_wpoll_descriptor()
+to output the same descriptor.
+
+Poll descriptors can represent different kinds of information. A typical kind of
+resource which might be represented by a poll descriptor is an OS file
+descriptor which can be used with APIs such as select().
+
+The kinds of poll descriptor defined by OpenSSL are:
+
+=over 4
+
+=item BIO_POLL_DESCRIPTOR_TYPE_NONE
+
+Represents the absence of a valid poll descriptor. It may be used by
+BIO_get_rpoll_descriptor() or BIO_get_wpoll_descriptor() to indicate that the
+BIO is not pollable for readability or writeability respectively.
+
+For this type, no field within the I<value> field of the B<BIO_POLL_DESCRIPTOR>
+is valid.
+
+=item BIO_POLL_DESCRIPTOR_TYPE_SOCK_FD
+
+The poll descriptor represents an OS socket resource. The field I<value.fd>
+in the B<BIO_POLL_DESCRIPTOR> is valid if it is not set to -1.
+
+The resource is whatever kind of handle is used by a given OS to represent
+sockets, which may vary by OS. For example, on Windows, the value is a B<SOCKET>
+for use with the Winsock API. On POSIX-like platforms, it is a file descriptor.
+
+Where a poll descriptor of this type is output by BIO_get_rpoll_descriptor(), it
+should be polled for readability to determine when the BIO might next be able to
+successfully complete a BIO_read() operation; likewise, where a poll descriptor
+of this type is output by BIO_get_wpoll_descriptor(), it should be polled for
+writeability to determine when the BIO might next be able to successfully
+complete a BIO_write() operation.
+
+=item BIO_POLL_DESCRIPTOR_CUSTOM_START
+
+Type values beginning with this value (inclusive) are reserved for application
+allocation for custom poll descriptor types. Any of the definitions in the union
+field I<value> can be used by the application arbitrarily as opaque values.
+
+=back
+
+Because poll descriptors are a tagged union structure, they can represent
+different kinds of information. New types of poll descriptor may be defined,
+including by applications, according to their needs.
+
+=head1 RETURN VALUES
+
+The functions BIO_get_rpoll_descriptor() and BIO_get_wpoll_descriptor() return 1
+on success and 0 on failure.
+
+These functions are permitted to succeed and initialise I<*desc> with a poll
+descriptor of type B<BIO_POLL_DESCRIPTOR_TYPE_NONE> to indicate that the BIO is
+not pollable for readability or writeability respectively.
+
+=head1 SEE ALSO
+
+L<SSL_handle_events(3)>, L<SSL_get_event_timeout(3)>, L<SSL_get_rpoll_descriptor(3)>,
+L<SSL_get_wpoll_descriptor(3)>, L<bio(7)>
+
+=head1 HISTORY
+
+The BIO_get_rpoll_descriptor() and BIO_get_wpoll_descriptor() functions were
+added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

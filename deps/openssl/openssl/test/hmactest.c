@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -214,6 +214,29 @@ static int test_hmac_single_shot(void)
     return 1;
 }
 
+/* https://github.com/openssl/openssl/issues/13210 */
+static int test_hmac_final_update_fail(void)
+{
+    HMAC_CTX *ctx = NULL;
+    unsigned char buf[EVP_MAX_MD_SIZE];
+    unsigned int len;
+    int ret = 0;
+
+    /* HMAC_Update() after HMAC_Final() must return an error. */
+    if (!TEST_ptr(ctx = HMAC_CTX_new()))
+        goto err;
+    if (!TEST_true(HMAC_Init_ex(ctx, test[5].key, test[5].key_len, EVP_sha256(), NULL))
+        || !TEST_true(HMAC_Update(ctx, test[5].data, test[5].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len))
+        || !TEST_false(HMAC_Update(ctx, test[5].data, test[5].data_len))
+        || !TEST_false(HMAC_Final(ctx, buf, &len)))
+        goto err;
+
+    ret = 1;
+err:
+    HMAC_CTX_free(ctx);
+    return ret;
+}
 
 static int test_hmac_copy(void)
 {
@@ -291,14 +314,155 @@ static char *pt(unsigned char *md, unsigned int len)
 }
 #endif
 
+static struct test_chunks_st {
+    const char *md_name;
+    char key[256];
+    int key_len;
+    int chunks;
+    int chunk_size[10];
+    const char *digest;
+} test_chunks[12] = {
+    {
+        "SHA224",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 64,
+        4, { 1, 50, 200, 4000 },
+        "40821a39dd54f01443b3f96b9370a15023fbdd819a074ffc4b703c77"
+    },
+    {
+        "SHA224",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 192,
+        10, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+        "55ffa85e53e9a68f41c8d653c60b4ada9566d22aed3811834882661c"
+    },
+    {
+        "SHA224", "0123456789abcdef0123456789abcdef", 32,
+        4, { 100, 4096, 100, 3896 },
+        "0fd18e7d8e974f401b29bf0502a71f6a9b77804e9191380ce9f48377"
+    },
+    {
+        "SHA256",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 64,
+        4, { 1, 50, 200, 4000 },
+        "f67a46fa77c66d3ea5b3ffb9a10afb3e501eaadd16b15978fdee9f014a782140"
+    },
+    {
+        "SHA256",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 192,
+        10, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+        "21a6f61ed6dbec30b58557a80988ff610d69b50b2e96d75863ab50f99da58c9d"
+    },
+    {
+        "SHA256", "0123456789abcdef0123456789abcdef", 32,
+        4, { 100, 4096, 100, 3896 },
+        "7bfd45c1bdde9b79244816b0aea0a67ea954a182e74c60410bfbc1fdc4842660"
+    },
+    {
+        "SHA384",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 64,
+        4, { 1, 50, 200, 4000 },
+        "e270e3c8ca3f2796a0c29cc7569fcec7584b04db26da64326aca0d17bd7731de"
+        "938694b273f3dafe6e2dc123cde26640"
+    },
+    {
+        "SHA384",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 192,
+        10, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+        "7036fd7d251298975acd18938471243e92fffe67be158f16c910c400576592d2"
+        "618c3c077ef25d703312668bd2d813ff"
+    },
+    {
+        "SHA384", "0123456789abcdef0123456789abcdef", 32,
+        4, { 100, 8192, 100, 8092 },
+        "0af8224145bd0812d2e34ba1f980ed4d218461271a54cce75dc43d36eda01e4e"
+        "ff4299c1ebf533a7ae636fa3e6aff903"
+    },
+    {
+        "SHA512",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 64,
+        4, { 1, 50, 200, 4000 },
+        "4016e960e2342553d4b9d34fb57355ab8b7f33af5dc2676fc1189e94b38f2b2c"
+        "a0ec8dc3c8b95fb1109d58480cea1e8f88e02f34ad79b303e4809373c46c1b16"
+    },
+    {
+        "SHA512",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", 192,
+        10, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+        "7ceb6a421fc19434bcb7ec9c8a15ea524dbfb896c24f5f517513f06597de99b1"
+        "918eb6b2472e52215ec7d1b5544766f79ff6ac6d1eb456f19a93819fa2d43c29"
+    },
+    {
+        "SHA512", "0123456789abcdef0123456789abcdef", 32,
+        4, { 100, 8192, 100, 8092 },
+        "cebf722ffdff5f0e4cbfbd480cd086101d4627d30d42f1f7cf21c43251018069"
+        "854d8e030b5a54cec1e2245d5b4629ff928806d4eababb427d751ec7c274047f"
+    },
+};
+
+static int test_hmac_chunks(int idx)
+{
+    char *p;
+    HMAC_CTX *ctx = NULL;
+    unsigned char buf[32768];
+    unsigned int len;
+    const EVP_MD *md;
+    int i, ret = 0;
+
+    if (!TEST_ptr(md = EVP_get_digestbyname(test_chunks[idx].md_name)))
+        goto err;
+
+    if (!TEST_ptr(ctx = HMAC_CTX_new()))
+        goto err;
+
+#ifdef CHARSET_EBCDIC
+    ebcdic2ascii(test_chunks[idx].key, test_chunks[idx].key,
+                 test_chunks[idx].key_len);
+#endif
+
+    if (!TEST_true(HMAC_Init_ex(ctx, test_chunks[idx].key,
+                                test_chunks[idx].key_len, md, NULL)))
+        goto err;
+
+    for (i = 0; i < test_chunks[idx].chunks; i++) {
+        if (!TEST_true((test_chunks[idx].chunk_size[i] < (int)sizeof(buf))))
+            goto err;
+        memset(buf, i, test_chunks[idx].chunk_size[i]);
+        if (!TEST_true(HMAC_Update(ctx, buf, test_chunks[idx].chunk_size[i])))
+            goto err;
+    }
+
+    if (!TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+
+    p = pt(buf, len);
+    if (!TEST_ptr(p) || !TEST_str_eq(p, test_chunks[idx].digest))
+        goto err;
+
+    ret = 1;
+
+err:
+    HMAC_CTX_free(ctx);
+    return ret;
+}
+
 int setup_tests(void)
 {
     ADD_ALL_TESTS(test_hmac_md5, 4);
     ADD_TEST(test_hmac_single_shot);
     ADD_TEST(test_hmac_bad);
     ADD_TEST(test_hmac_run);
+    ADD_TEST(test_hmac_final_update_fail);
     ADD_TEST(test_hmac_copy);
     ADD_TEST(test_hmac_copy_uninited);
+    ADD_ALL_TESTS(test_hmac_chunks,
+                  sizeof(test_chunks) / sizeof(struct test_chunks_st));
     return 1;
 }
 

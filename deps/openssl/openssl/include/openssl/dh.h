@@ -175,10 +175,10 @@ DECLARE_ASN1_ITEM(DHparams)
 #   define DH_CHECK_P_NOT_STRONG_PRIME     DH_CHECK_P_NOT_SAFE_PRIME
 
 #   define d2i_DHparams_fp(fp, x) \
-        (DH *)ASN1_d2i_fp((char *(*)())DH_new, \
-                          (char *(*)())d2i_DHparams, \
+        (DH *)ASN1_d2i_fp((void *(*)(void))DH_new, \
+                          (d2i_of_void *)d2i_DHparams, \
                           (fp), \
-                          (unsigned char **)(x))
+                          (void **)(x))
 #   define i2d_DHparams_fp(fp, x) \
         ASN1_i2d_fp(i2d_DHparams,(fp), (unsigned char *)(x))
 #   define d2i_DHparams_bio(bp, x) \
@@ -187,10 +187,10 @@ DECLARE_ASN1_ITEM(DHparams)
         ASN1_i2d_bio_of(DH, i2d_DHparams, bp, x)
 
 #   define d2i_DHxparams_fp(fp,x) \
-        (DH *)ASN1_d2i_fp((char *(*)())DH_new, \
-                          (char *(*)())d2i_DHxparams, \
+        (DH *)ASN1_d2i_fp((void *(*)(void))DH_new, \
+                          (d2i_of_void *)d2i_DHxparams, \
                           (fp), \
-                          (unsigned char **)(x))
+                          (void **)(x))
 #   define i2d_DHxparams_fp(fp, x) \
         ASN1_i2d_fp(i2d_DHxparams,(fp), (unsigned char *)(x))
 #   define d2i_DHxparams_bio(bp, x) \

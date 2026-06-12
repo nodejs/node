@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -171,7 +171,7 @@ int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
         memcpy(out, sec, outlen);
     }
     OPENSSL_clear_free(sec, seclen);
-    return outlen;
+    return (int)outlen;
 }
 
 EC_KEY_METHOD *EC_KEY_METHOD_new(const EC_KEY_METHOD *meth)

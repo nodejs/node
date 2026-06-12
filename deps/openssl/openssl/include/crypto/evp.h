@@ -247,6 +247,8 @@ struct evp_kdf_st {
     OSSL_FUNC_kdf_get_params_fn *get_params;
     OSSL_FUNC_kdf_get_ctx_params_fn *get_ctx_params;
     OSSL_FUNC_kdf_set_ctx_params_fn *set_ctx_params;
+    OSSL_FUNC_kdf_set_skey_fn *set_skey;
+    OSSL_FUNC_kdf_derive_skey_fn *derive_skey;
 };
 
 #define EVP_ORIG_DYNAMIC    0
@@ -730,6 +732,7 @@ struct evp_pkey_st {
     struct {
         int bits;
         int security_bits;
+        int security_category;
         int size;
     } cache;
 }; /* EVP_PKEY */
@@ -869,6 +872,7 @@ EVP_KEYMGMT *evp_keymgmt_fetch_from_prov(OSSL_PROVIDER *prov,
 /*
  * SKEYMGMT provider interface functions
  */
+EVP_SKEY *evp_skey_alloc(EVP_SKEYMGMT *skeymgmt);
 void evp_skeymgmt_freedata(const EVP_SKEYMGMT *keymgmt, void *keyddata);
 void *evp_skeymgmt_import(const EVP_SKEYMGMT *skeymgmt, int selection, const OSSL_PARAM params[]);
 int evp_skeymgmt_export(const EVP_SKEYMGMT *skeymgmt, void *keydata,

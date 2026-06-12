@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -152,7 +152,7 @@ static int do_ui_passphrase(char *pass, size_t pass_size, size_t *pass_len,
 
     prompt_idx = UI_add_input_string(ui, prompt,
                                      UI_INPUT_FLAG_DEFAULT_PWD,
-                                     ipass, 0, pass_size) - 1;
+                                     ipass, 0, (int)pass_size) - 1;
     if (prompt_idx < 0) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_UI_LIB);
         goto end;
@@ -165,7 +165,7 @@ static int do_ui_passphrase(char *pass, size_t pass_size, size_t *pass_len,
             goto end;
         verify_idx = UI_add_verify_string(ui, prompt,
                                           UI_INPUT_FLAG_DEFAULT_PWD,
-                                          vpass, 0, pass_size,
+                                          vpass, 0, (int)pass_size,
                                           ipass) - 1;
         if (verify_idx < 0) {
             ERR_raise(ERR_LIB_CRYPTO, ERR_R_UI_LIB);

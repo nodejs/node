@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,9 +49,9 @@ const OSSL_DISPATCH ossl_##alg##kbits##lc##_functions[] = {                    \
     { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                        \
       (void (*)(void))ossl_cipher_generic_gettable_params },                   \
     { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                    \
-      (void (*)(void))ossl_cipher_aead_gettable_ctx_params },                  \
+      (void (*)(void))ossl_##lc##_gettable_ctx_params },                       \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
-      (void (*)(void))ossl_cipher_aead_settable_ctx_params },                  \
+      (void (*)(void))ossl_##lc##_settable_ctx_params },                       \
     OSSL_DISPATCH_END                                                          \
 }
 

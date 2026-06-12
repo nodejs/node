@@ -32,7 +32,7 @@ SSL_CTX_set_post_handshake_auth
 
 SSL_CTX_set_verify() sets the verification flags for B<ctx> to be B<mode> and
 specifies the B<verify_callback> function to be used. If no callback function
-shall be specified, the NULL pointer can be used for B<verify_callback>.
+shall be specified, the NULL pointer can be used for B<verify_callback>. B<ctx> B<MUST NOT> be NULL.
 
 SSL_set_verify() sets the verification flags for B<ssl> to be B<mode> and
 specifies the B<verify_callback> function to be used. If no callback function
@@ -217,6 +217,9 @@ Only one certificate request may be outstanding at any time.
 
 When post-handshake authentication occurs, a refreshed NewSessionTicket
 message is sent to the client.
+
+Post-handshake authentication cannot be used with QUIC.
+SSL_set_post_handshake_auth() has no effect if called on a QUIC SSL object.
 
 =head1 BUGS
 

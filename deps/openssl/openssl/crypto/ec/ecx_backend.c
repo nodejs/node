@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,25 +52,20 @@ int ossl_ecx_public_from_private(ECX_KEY *key)
     return 1;
 }
 
-int ossl_ecx_key_fromdata(ECX_KEY *ecx, const OSSL_PARAM params[],
+int ossl_ecx_key_fromdata(ECX_KEY *ecx, const OSSL_PARAM *param_pub_key,
+                          const OSSL_PARAM *param_priv_key,
                           int include_private)
 {
     size_t privkeylen = 0, pubkeylen = 0;
-    const OSSL_PARAM *param_priv_key = NULL, *param_pub_key;
     unsigned char *pubkey;
 
     if (ecx == NULL)
         return 0;
 
-    param_pub_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
-    if (include_private)
-        param_priv_key =
-            OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
-
     if (param_pub_key == NULL && param_priv_key == NULL)
         return 0;
 
-    if (param_priv_key != NULL) {
+    if (include_private && param_priv_key != NULL) {
         if (!OSSL_PARAM_get_octet_string(param_priv_key,
                                          (void **)&ecx->privkey, ecx->keylen,
                                          &privkeylen))
@@ -86,7 +81,6 @@ int ossl_ecx_key_fromdata(ECX_KEY *ecx, const OSSL_PARAM params[],
             return 0;
         }
     }
-
 
     pubkey = ecx->pubkey;
     if (param_pub_key != NULL

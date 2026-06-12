@@ -69,10 +69,14 @@ int ossl_FIPS_IND_get_settable(const OSSL_FIPS_IND *ind, int id);
 int ossl_FIPS_IND_on_unapproved(OSSL_FIPS_IND *ind, int id, OSSL_LIB_CTX *libctx,
                                 const char *algname, const char *opname,
                                 OSSL_FIPS_IND_CHECK_CB *config_check_fn);
-int ossl_FIPS_IND_set_ctx_param(OSSL_FIPS_IND *ind, int id,
-                                const OSSL_PARAM params[], const char *name);
+int ossl_FIPS_IND_set_ctx_param(OSSL_FIPS_IND *ind, int id, const OSSL_PARAM *p);
+int ossl_FIPS_IND_set_ctx_param_locate(OSSL_FIPS_IND *ind, int id,
+                                       const OSSL_PARAM params[],
+                                       const char *name);
 int ossl_FIPS_IND_get_ctx_param(const OSSL_FIPS_IND *ind,
-                                      OSSL_PARAM params[]);
+                                OSSL_PARAM *p);
+int ossl_FIPS_IND_get_ctx_param_locate(const OSSL_FIPS_IND *ind,
+                                       OSSL_PARAM params[]);
 void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
 
 /* Place this in the algorithm ctx structure */
@@ -107,13 +111,19 @@ void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
  * The name must match the param used by OSSL_FIPS_IND_SETTABLE_CTX_PARAM
  */
 # define OSSL_FIPS_IND_SET_CTX_PARAM(ctx, id, params, name) \
-    ossl_FIPS_IND_set_ctx_param(&((ctx)->indicator), id, params, name)
+    ossl_FIPS_IND_set_ctx_param_locate(&((ctx)->indicator), id, params, name)
+
+# define OSSL_FIPS_IND_SET_CTX_FROM_PARAM(ctx, id, p) \
+    ossl_FIPS_IND_set_ctx_param(&((ctx)->indicator), id, p)
 
 # define OSSL_FIPS_IND_GETTABLE_CTX_PARAM() \
     OSSL_PARAM_int(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR, NULL),
 
 # define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, prms) \
-    ossl_FIPS_IND_get_ctx_param(&((ctx)->indicator), prms)
+    ossl_FIPS_IND_get_ctx_param_locate(&((ctx)->indicator), prms)
+
+# define OSSL_FIPS_IND_GET_CTX_FROM_PARAM(ctx, p) \
+    ossl_FIPS_IND_get_ctx_param(&((ctx)->indicator), p)
 
 # define OSSL_FIPS_IND_GET(ctx) (&((ctx)->indicator))
 
@@ -145,8 +155,10 @@ int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
 # define OSSL_FIPS_IND_ON_UNAPPROVED(ctx, id, libctx, algname, opname, configopt_fn)
 # define OSSL_FIPS_IND_SETTABLE_CTX_PARAM(name)
 # define OSSL_FIPS_IND_SET_CTX_PARAM(ctx, id, params, name) 1
+# define OSSL_FIPS_IND_SET_CTX_FROM_PARAM(ctx, id, p) 1
 # define OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
 # define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params) 1
+# define OSSL_FIPS_IND_GET_CTX_FROM_PARAM(ctx, params) 1
 # define OSSL_FIPS_IND_COPY(dst, src)
 
 #endif

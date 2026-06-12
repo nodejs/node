@@ -641,8 +641,8 @@ int OSSL_DECODER_CTX_set_params(OSSL_DECODER_CTX *ctx,
                                 const OSSL_PARAM params[])
 {
     int ok = 1;
-    size_t i;
-    size_t l;
+    int i;
+    int l;
 
     if (!ossl_assert(ctx != NULL)) {
         ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_PASSED_NULL_PARAMETER);

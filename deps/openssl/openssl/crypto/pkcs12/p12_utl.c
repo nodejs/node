@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,7 +22,7 @@ unsigned char *OPENSSL_asc2uni(const char *asc, int asclen,
     unsigned char *unitmp;
 
     if (asclen == -1)
-        asclen = strlen(asc);
+        asclen = (int)strlen(asc);
     if (asclen < 0)
         return NULL;
     ulen = asclen * 2 + 2;
@@ -82,7 +82,7 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
     unsigned long utf32chr = 0;
 
     if (asclen == -1)
-        asclen = strlen(asc);
+        asclen = (int)strlen(asc);
 
     for (ulen = 0, i = 0; i < asclen; i += j) {
         j = UTF8_getc((const unsigned char *)asc+i, asclen-i, &utf32chr);

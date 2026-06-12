@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -263,7 +263,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
         if (in != NULL && BIO_gets(in, p, CONFBUFSIZE - 1) < 0)
             goto err;
         p[CONFBUFSIZE - 1] = '\0';
-        ii = i = strlen(p);
+        ii = i = (int)strlen(p);
         if (first_call) {
             /* Other BOMs imply unsupported multibyte encoding,
              * so don't strip them and let the error raise */
@@ -641,15 +641,14 @@ static void clear_comments(CONF *conf, char *p)
 
 static int str_copy(CONF *conf, char *section, char **pto, char *from)
 {
-    int q, r, rr = 0, to = 0, len = 0;
+    int q, r, rr = 0, to = 0;
     char *s, *e, *rp, *p, *rrp, *np, *cp, v;
     BUF_MEM *buf;
 
     if ((buf = BUF_MEM_new()) == NULL)
         return 0;
 
-    len = strlen(from) + 1;
-    if (!BUF_MEM_grow(buf, len))
+    if (!BUF_MEM_grow(buf, strlen(from) + 1))
         goto err;
 
     for (;;) {
@@ -771,11 +770,6 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
             while (*p)
                 buf->data[to++] = *(p++);
 
-            /*
-             * Since we change the pointer 'from', we also have to change the
-             * perceived length of the string it points at.  /RL
-             */
-            len -= e - from;
             from = e;
 
             /*

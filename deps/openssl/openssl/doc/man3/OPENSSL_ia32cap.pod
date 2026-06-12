@@ -10,81 +10,77 @@ OPENSSL_ia32cap - the x86[_64] processor capabilities vector
 
 =head1 DESCRIPTION
 
-OpenSSL supports a range of x86[_64] instruction set extensions. These
-extensions are denoted by individual bits in capability vector returned
-by processor in EDX:ECX register pair after executing CPUID instruction
-with EAX=1 input value (see Intel Application Note #241618). This vector
-is copied to memory upon toolkit initialization and used to choose
-between different code paths to provide optimal performance across wide
-range of processors. For the moment of this writing following bits are
-significant:
+OpenSSL supports a range of x86[_64] instruction set extensions and
+features. These extensions are denoted by individual bits or groups of bits
+stored internally as ten 32-bit capability vectors and for simplicity
+represented logically below as five 64-bit vectors. This logical
+vector (LV) representation is used to streamline the definition of the
+OPENSSL_ia32cap environment variable.
+
+Upon toolkit initialization, the capability vectors are populated through
+successive executions of the CPUID instruction, after which any OPENSSL_ia32cap
+environment variable capability bit modifications are applied. After toolkit
+initialization is complete, populated vectors are then used to choose
+between different code paths to provide optimal performance across a wide
+range of x86[_64] based processors.
+
+Further CPUID information can be found in the Intel(R) Architecture
+Instruction Set Extensions Programming Reference, and the AMD64 Architecture
+Programmer's Manual (Volume 3).
+
+=head2 Notable Capability Bits for LV0
+
+The following are notable capability bits from logical vector 0 (LV0)
+resulting from the following execution of CPUID.(EAX=01H).EDX and
+CPUID.(EAX=01H).ECX:
 
 =over 4
 
-=item bit #4 denoting presence of Time-Stamp Counter.
+=item bit #0+4 denoting presence of Time-Stamp Counter;
 
-=item bit #19 denoting availability of CLFLUSH instruction;
+=item bit #0+19 denoting availability of CLFLUSH instruction;
 
-=item bit #20, reserved by Intel, is used to choose among RC4 code paths;
+=item bit #0+20, reserved by Intel, is used to choose among RC4 code paths;
 
-=item bit #23 denoting MMX support;
+=item bit #0+23 denoting MMX support;
 
-=item bit #24, FXSR bit, denoting availability of XMM registers;
+=item bit #0+24, FXSR bit, denoting availability of XMM registers;
 
-=item bit #25 denoting SSE support;
+=item bit #0+25 denoting SSE support;
 
-=item bit #26 denoting SSE2 support;
+=item bit #0+26 denoting SSE2 support;
 
-=item bit #28 denoting Hyperthreading, which is used to distinguish
+=item bit #0+28 denoting Hyperthreading, which is used to distinguish
 cores with shared cache;
 
-=item bit #30, reserved by Intel, denotes specifically Intel CPUs;
+=item bit #0+30, reserved by Intel, denotes specifically Intel CPUs;
 
-=item bit #33 denoting availability of PCLMULQDQ instruction;
+=item bit #0+33 denoting availability of PCLMULQDQ instruction;
 
-=item bit #41 denoting SSSE3, Supplemental SSE3, support;
+=item bit #0+41 denoting SSSE3, Supplemental SSE3, support;
 
-=item bit #43 denoting AMD XOP support (forced to zero on non-AMD CPUs);
+=item bit #0+43 denoting AMD XOP support (forced to zero on non-AMD CPUs);
 
-=item bit #54 denoting availability of MOVBE instruction;
+=item bit #0+54 denoting availability of MOVBE instruction;
 
-=item bit #57 denoting AES-NI instruction set extension;
+=item bit #0+57 denoting AES-NI instruction set extension;
 
-=item bit #58, XSAVE bit, lack of which in combination with MOVBE is used
+=item bit #0+58, XSAVE bit, lack of which in combination with MOVBE is used
 to identify Atom Silvermont core;
 
-=item bit #59, OSXSAVE bit, denoting availability of YMM registers;
+=item bit #0+59, OSXSAVE bit, denoting availability of YMM registers;
 
-=item bit #60 denoting AVX extension;
+=item bit #0+60 denoting AVX extension;
 
-=item bit #62 denoting availability of RDRAND instruction;
+=item bit #0+62 denoting availability of RDRAND instruction;
 
 =back
 
-For example, in 32-bit application context clearing bit #26 at run-time
-disables high-performance SSE2 code present in the crypto library, while
-clearing bit #24 disables SSE2 code operating on 128-bit XMM register
-bank. You might have to do the latter if target OpenSSL application is
-executed on SSE2 capable CPU, but under control of OS that does not
-enable XMM registers. Historically address of the capability vector copy
-was exposed to application through OPENSSL_ia32cap_loc(), but not
-anymore. Now the only way to affect the capability detection is to set
-B<OPENSSL_ia32cap> environment variable prior target application start. To
-give a specific example, on Intel P4 processor
-C<env OPENSSL_ia32cap=0x16980010 apps/openssl>, or better yet
-C<env OPENSSL_ia32cap=~0x1000000 apps/openssl> would achieve the desired
-effect. Alternatively you can reconfigure the toolkit with no-sse2
-option and recompile.
+=head2 Notable Capability Bits for LV1
 
-Less intuitive is clearing bit #28, or ~0x10000000 in the "environment
-variable" terms. The truth is that it's not copied from CPUID output
-verbatim, but is adjusted to reflect whether or not the data cache is
-actually shared between logical cores. This in turn affects the decision
-on whether or not expensive countermeasures against cache-timing attacks
-are applied, most notably in AES assembler module.
-
-The capability vector is further extended with EBX value returned by
-CPUID with EAX=7 and ECX=0 as input. Following bits are significant:
+The following are notable capability bits from logical vector 1 (LV1)
+resulting from the following execution of CPUID.(EAX=07H,ECX=0H).EBX and
+CPUID.(EAX=07H,ECX=0H).ECX:
 
 =over 4
 
@@ -103,8 +99,7 @@ and RORX;
 
 =item bit #64+19 denoting availability of ADCX and ADOX instructions;
 
-=item bit #64+21 denoting availability of VPMADD52[LH]UQ instructions,
-aka AVX512IFMA extension;
+=item bit #64+21 denoting availability of AVX512IFMA extension;
 
 =item bit #64+29 denoting availability of SHA extension;
 
@@ -118,10 +113,109 @@ aka AVX512IFMA extension;
 
 =back
 
-To control this extended capability word use C<:> as delimiter when
-setting up B<OPENSSL_ia32cap> environment variable. For example assigning
-C<:~0x20> would disable AVX2 code paths, and C<:0> - all post-AVX
-extensions.
+=head2 Notable Capability Bits for LV2
+
+The following are notable capability bits from logical vector 2 (LV2)
+resulting from the following execution of CPUID.(EAX=07H,ECX=0H).EDX and
+CPUID.(EAX=07H,ECX=1H).EAX:
+
+=over 4
+
+=item bit #128+15 denoting availability of Hybrid CPU;
+
+=item bit #128+29 denoting support for IA32_ARCH_CAPABILITIES MSR;
+
+=item bit #128+32 denoting availability of SHA512 extension;
+
+=item bit #128+33 denoting availability of SM3 extension;
+
+=item bit #128+34 denoting availability of SM4 extension;
+
+=item bit #128+55 denoting availability of AVX-IFMA extension;
+
+=back
+
+=head2 Notable Capability Bits for LV3
+
+The following are notable capability bits from logical vector 3 (LV3)
+resulting from the following execution of CPUID.(EAX=07H,ECX=1H).EDX and
+CPUID.(EAX=07H,ECX=1H).EBX:
+
+=over 4
+
+=item bit #192+19 denoting availability of AVX10 Converged Vector ISA extension;
+
+=item bit #192+21 denoting availability of APX_F extension;
+
+=back
+
+=head2 Notable Capability Bits for LV4
+
+The following are notable capability bits from logical vector 4 (LV4)
+resulting from the following execution of CPUID.(EAX=07H,ECX=1H).ECX and
+CPUID.(EAX=24H,ECX=0H).EBX:
+
+=over 4
+
+=item bits #256+32+[0:7] denoting AVX10 Converged Vector ISA Version (8 bits);
+
+=item bit #256+48 denoting AVX10 XMM support;
+
+=item bit #256+49 denoting AVX10 YMM support;
+
+=item bit #256+50 denoting AVX10 ZMM support;
+
+=back
+
+=head2 OPENSSL_ia32cap environment variable
+
+The B<OPENSSL_ia32cap> environment variable provides a mechanism to override
+the default capability vector values at library initialization time.
+The variable consists of a series of 64-bit numbers representing each
+of the logical vectors (LV) described above. Each value is delimited by a 'B<:>'.
+Decimal/Octal/Hexadecimal values representations are supported.
+
+C<env OPENSSL_ia32cap=LV0:LV1:LV2:LV3:LV4>
+
+Used in this form, each non-null logical vector will *overwrite* the entire corresponding
+capability vector pair with the provided value. To keep compatibility with the
+behaviour of the original OPENSSL_ia32cap environment variable
+<env OPENSSL_ia32cap=LV0:LV1>, the next capability vector pairs will be set to zero.
+
+To illustrate, the following will zero all capability bits in logical vectors 1 and further
+(disable all post-AVX extensions):
+
+C<env OPENSSL_ia32cap=:0>
+
+The following will zero all capability bits in logical vectors 2 and further:
+
+C<env OPENSSL_ia32cap=::0>
+
+The following will zero all capability bits only in logical vector 1:
+C<env OPENSSL_ia32cap=:0::::>
+
+A more likely usage scenario would be to disable specific instruction set extensions.
+The 'B<~>' character is used to specify a bit mask of the extensions to be disabled for
+a particular logical vector.
+
+To illustrate, the following will disable AVX2 code paths and further extensions:
+
+C<env OPENSSL_ia32cap=:~0x20000000000>
+
+The following will disable AESNI (LV0 bit 57) and VAES (LV1 bit 41)
+extensions and therefore any code paths using those extensions but leave
+the rest of the logical vectors unchanged:
+
+C<env OPENSSL_ia32cap=~0x200000000000000:~0x20000000000:~0x0:~0x0:~0x0>
+
+=head1 NOTES
+
+Not all capability bits are copied from CPUID output verbatim. An example
+of this is the somewhat less intuitive clearing of LV0 bit #28, or ~0x10000000
+in the "environment variable" terms. It has been adjusted to reflect whether or
+not the data cache is actually shared between logical cores. This in turn affects
+the decision on whether or not expensive countermeasures against cache-timing attacks
+are applied, most notably in AES assembler module.
 
 =head1 RETURN VALUES
 

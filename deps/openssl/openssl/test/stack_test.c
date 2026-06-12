@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -50,6 +50,15 @@ static int int_compare(const int *const *a, const int *const *b)
     return 0;
 }
 
+static int int_compare_backward(const int *const *a, const int *const *b)
+{
+    if (**a > **b)
+        return -1;
+    if (**a < **b)
+        return 1;
+    return 0;
+}
+
 static int test_int_stack(int reserve)
 {
     static int v[] = { 1, 2, -4, 16, 999, 1, -173, 1, 9 };
@@ -90,11 +99,17 @@ static int test_int_stack(int reserve)
 
     /* Check push and num */
     for (i = 0; i < n; i++) {
+        /* Empty or single element stack should be sorted */
+        if ((i == 0 || i == 1) && !TEST_true(sk_sint_is_sorted(s)))
+            goto end;
         if (!TEST_int_eq(sk_sint_num(s), i)) {
             TEST_info("int stack size %d", i);
             goto end;
         }
-        sk_sint_push(s, v + i);
+        if (!TEST_int_eq(sk_sint_push(s, v + i), i + 1)) {
+            TEST_info("int stack size %d", i);
+            goto end;
+        }
     }
     if (!TEST_int_eq(sk_sint_num(s), n))
         goto end;
@@ -131,9 +146,18 @@ static int test_int_stack(int reserve)
     /* sorting */
     if (!TEST_false(sk_sint_is_sorted(s)))
         goto end;
-    (void)sk_sint_set_cmp_func(s, &int_compare);
+    (void)sk_sint_set_cmp_func(s, &int_compare_backward);
     sk_sint_sort(s);
-    if (!TEST_true(sk_sint_is_sorted(s)))
+    if (!TEST_true(sk_sint_is_sorted(s))) /* should be sorted */
+        goto end;
+    (void)sk_sint_set_cmp_func(s, &int_compare_backward);
+    if (!TEST_true(sk_sint_is_sorted(s))) /* should still be sorted */
+        goto end;
+    (void)sk_sint_set_cmp_func(s, &int_compare);
+    if (!TEST_false(sk_sint_is_sorted(s))) /* should no longer be sorted */
+        goto end;
+    sk_sint_sort(s);
+    if (!TEST_true(sk_sint_is_sorted(s))) /* now should be sorted again */
         goto end;
 
     /* find sorted -- the value is matched so we don't need to locate it */
@@ -150,10 +174,34 @@ static int test_int_stack(int reserve)
             goto end;
         }
     for (i = 0; i < n_exfinds; i++)
-        if (!TEST_int_eq(sk_sint_find_ex(s, &exfinds[i].value), exfinds[i].ex)){
+        if (!TEST_int_eq(sk_sint_find_ex(s, &exfinds[i].value), exfinds[i].ex)) {
             TEST_info("int sorted find_ex absent %d", i);
             goto end;
         }
+
+    if (!TEST_true(sk_sint_is_sorted(s)))
+        goto end;
+
+    for (i = 0; i < n_exfinds; i++) {
+        int loc = sk_sint_find_ex(s, &exfinds[i].value);
+        int value = *sk_sint_value(s, loc);
+
+        /* inserting in the correct location should preserve is_sorted */
+        if (value < exfinds[i].value)
+            loc++;
+        sk_sint_insert(s, &exfinds[i].value, loc);
+        if (!TEST_true(sk_sint_is_sorted(s)))
+            goto end;
+    }
+
+    if (!TEST_true(sk_sint_is_sorted(s)))
+        goto end;
+
+    /* inserting out of order should make the array unsorted again */
+    sk_sint_insert(s, v + 6, 0);
+
+    if (!TEST_false(sk_sint_is_sorted(s)))
+        goto end;
 
     /* shift */
     if (!TEST_ptr_eq(sk_sint_shift(s), v + 6))
@@ -175,7 +223,7 @@ static int test_uchar_stack(int reserve)
 {
     static const unsigned char v[] = { 1, 3, 7, 5, 255, 0 };
     const int n = OSSL_NELEM(v);
-    STACK_OF(uchar) *s = sk_uchar_new(&uchar_compare), *r = NULL;
+    STACK_OF(uchar) *s = sk_uchar_new(&uchar_compare), *r = NULL, *q = NULL;
     int i;
     int testresult = 0;
 
@@ -202,18 +250,39 @@ static int test_uchar_stack(int reserve)
     r = sk_uchar_dup(s);
     if (!TEST_int_eq(sk_uchar_num(r), n))
         goto end;
+    q = sk_uchar_dup(s);
+    if (!TEST_int_eq(sk_uchar_num(q), n))
+        goto end;
     sk_uchar_sort(r);
+    sk_uchar_sort(q);
 
     /* pop */
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         if (!TEST_ptr_eq(sk_uchar_pop(s), v + i)) {
             TEST_info("uchar pop %d", i);
             goto end;
         }
+        /* Previously unsorted stack of more than 1 element remains unsorted */
+        if (i < n - 2 && !TEST_false(sk_uchar_is_sorted(s)))
+            goto end;
+        /* A single or zero element stack should be sorted */
+        if (i > n - 2 && !TEST_true(sk_uchar_is_sorted(s)))
+            goto end;
+    }
 
     /* free -- we rely on the debug malloc to detect leakage here */
     sk_uchar_free(s);
     s = NULL;
+
+    /* pop */
+    for (i = 0; i < n; i++) {
+        /* A sorted stack should remain sorted */
+        if (!TEST_true(sk_uchar_is_sorted(q)))
+            goto end;
+    }
+    /* free -- we rely on the debug malloc to detect leakage here */
+    sk_uchar_free(q);
+    q = NULL;
 
     /* dup again */
     if (!TEST_int_eq(sk_uchar_num(r), n))
@@ -252,6 +321,7 @@ static int test_uchar_stack(int reserve)
 end:
     sk_uchar_free(r);
     sk_uchar_free(s);
+    sk_uchar_free(q);
     return testresult;
 }
 

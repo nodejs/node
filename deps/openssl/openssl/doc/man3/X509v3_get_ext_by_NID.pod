@@ -4,7 +4,7 @@
 
 X509v3_get_ext_count, X509v3_get_ext, X509v3_get_ext_by_NID,
 X509v3_get_ext_by_OBJ, X509v3_get_ext_by_critical, X509v3_delete_ext,
-X509v3_add_ext, X509_get_ext_count, X509_get_ext,
+X509v3_add_ext, X509v3_add_extensions, X509_get_ext_count, X509_get_ext,
 X509_get_ext_by_NID, X509_get_ext_by_OBJ, X509_get_ext_by_critical,
 X509_delete_ext, X509_add_ext, X509_CRL_get_ext_count, X509_CRL_get_ext,
 X509_CRL_get_ext_by_NID, X509_CRL_get_ext_by_OBJ, X509_CRL_get_ext_by_critical,
@@ -29,6 +29,9 @@ X509_REVOKED_add_ext - extension stack utility functions
  X509_EXTENSION *X509v3_delete_ext(STACK_OF(X509_EXTENSION) *x, int loc);
  STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
                                           X509_EXTENSION *ex, int loc);
+ STACK_OF(X509_EXTENSION)
+      *X509v3_add_extensions(STACK_OF(X509_EXTENSION) **target,
+                             const STACK_OF(X509_EXTENSION) *exts);
 
  int X509_get_ext_count(const X509 *x);
  X509_EXTENSION *X509_get_ext(const X509 *x, int loc);
@@ -79,10 +82,16 @@ X509v3_delete_ext() deletes the extension with index I<loc> from I<x>.
 The deleted extension is returned and must be freed by the caller.
 If I<loc> is an invalid index value, NULL is returned.
 
-X509v3_add_ext() adds extension I<ex> to STACK I<*x> at position I<loc>. If
-I<loc> is -1, the new extension is added to the end. If I<*x> is NULL,
-a new STACK will be allocated. The passed extension I<ex> is duplicated
-internally so it must be freed after use.
+X509v3_add_ext() inserts extension I<ex> to STACK I<*x> at position I<loc>.
+If I<loc> is -1, the new extension is added to the end.
+A new STACK is allocated if I<*x> is NULL.
+The passed extension I<ex> is duplicated so it must be freed after use.
+
+X509v3_add_extensions() adds the list of extensions I<exts> to STACK I<*target>.
+The STACK I<*target> is returned unchanged if I<exts> is NULL or an empty list.
+Otherwise a new stack is allocated if I<*target> is NULL.
+An extension to be added
+that has the same OID as a pre-existing one replaces this earlier one.
 
 X509_get_ext_count(), X509_get_ext(), X509_get_ext_by_NID(),
 X509_get_ext_by_OBJ(), X509_get_ext_by_critical(), X509_delete_ext()
@@ -134,15 +143,22 @@ error occurs.
 
 X509v3_add_ext() returns a STACK of extensions or NULL on error.
 
+X509v3_add_extensions() returns a STACK of extensions
+or NULL on error or if I<*target> is NULL and I<exts> is NULL or an empty list.
+
 X509_add_ext() returns 1 on success and 0 on error.
 
 =head1 SEE ALSO
 
 L<X509V3_get_d2i(3)>
 
+=head1 HISTORY
+
+X509v3_add_extensions() was added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

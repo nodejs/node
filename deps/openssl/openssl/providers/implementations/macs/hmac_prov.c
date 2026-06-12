@@ -24,12 +24,14 @@
 #include <openssl/err.h>
 
 #include "internal/ssl3_cbc.h"
+#include "internal/cryptlib.h"
 
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "prov/provider_util.h"
 #include "prov/providercommon.h"
 #include "prov/securitycheck.h"
+#include "providers/implementations/macs/hmac_prov.inc"
 
 /*
  * Forward declaration of everything implemented here.  This is not strictly
@@ -191,7 +193,7 @@ static int hmac_setkey(struct hmac_data_st *macctx,
     digest = ossl_prov_digest_md(&macctx->digest);
     /* HMAC_Init_ex doesn't tolerate all zero params, so we must be careful */
     if (key != NULL || (macctx->tls_data_size == 0 && digest != NULL))
-        return HMAC_Init_ex(macctx->ctx, key, keylen, digest,
+        return HMAC_Init_ex(macctx->ctx, key, (int)keylen, digest,
                             ossl_prov_digest_engine(&macctx->digest));
     return 1;
 }
@@ -267,59 +269,43 @@ static int hmac_final(void *vmacctx, unsigned char *out, size_t *outl,
     return 1;
 }
 
-static const OSSL_PARAM known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_BLOCK_SIZE, NULL),
-    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *hmac_gettable_ctx_params(ossl_unused void *ctx,
                                                   ossl_unused void *provctx)
 {
-    return known_gettable_ctx_params;
+    return hmac_get_ctx_params_list;
 }
 
 static int hmac_get_ctx_params(void *vmacctx, OSSL_PARAM params[])
 {
     struct hmac_data_st *macctx = vmacctx;
-    OSSL_PARAM *p;
+    struct hmac_get_ctx_params_st p;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_SIZE)) != NULL
-            && !OSSL_PARAM_set_size_t(p, hmac_size(macctx)))
+    if (macctx == NULL || !hmac_get_ctx_params_decoder(params, &p))
         return 0;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_BLOCK_SIZE)) != NULL
-            && !OSSL_PARAM_set_int(p, hmac_block_size(macctx)))
+    if (p.size != NULL && !OSSL_PARAM_set_size_t(p.size, hmac_size(macctx)))
+        return 0;
+
+    if (p.bsize != NULL && !OSSL_PARAM_set_int(p.bsize, hmac_block_size(macctx)))
         return 0;
 
 #ifdef FIPS_MODULE
-    p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_FIPS_APPROVED_INDICATOR);
-    if (p != NULL) {
+    if (p.ind != NULL) {
         int approved = 0;
 
         if (!macctx->internal)
             approved = OSSL_FIPS_IND_GET(macctx)->approved;
-        if (!OSSL_PARAM_set_int(p, approved))
+        if (!OSSL_PARAM_set_int(p.ind, approved))
             return 0;
     }
 #endif
     return 1;
 }
 
-static const OSSL_PARAM known_settable_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_DIGEST, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_PROPERTIES, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_MAC_PARAM_KEY, NULL, 0),
-    OSSL_PARAM_int(OSSL_MAC_PARAM_DIGEST_NOINIT, NULL),
-    OSSL_PARAM_int(OSSL_MAC_PARAM_DIGEST_ONESHOT, NULL),
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_TLS_DATA_SIZE, NULL),
-    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_MAC_PARAM_FIPS_KEY_CHECK)
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *hmac_settable_ctx_params(ossl_unused void *ctx,
                                                   ossl_unused void *provctx)
 {
-    return known_settable_ctx_params;
+    return hmac_set_ctx_params_list;
 }
 
 /*
@@ -328,32 +314,33 @@ static const OSSL_PARAM *hmac_settable_ctx_params(ossl_unused void *ctx,
 static int hmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
 {
     struct hmac_data_st *macctx = vmacctx;
-    OSSL_LIB_CTX *ctx = PROV_LIBCTX_OF(macctx->provctx);
-    const OSSL_PARAM *p;
+    OSSL_LIB_CTX *ctx;
+    struct hmac_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!OSSL_FIPS_IND_SET_CTX_PARAM(macctx, OSSL_FIPS_IND_SETTABLE0, params,
-                                     OSSL_MAC_PARAM_FIPS_KEY_CHECK))
+    if (macctx == NULL || !hmac_set_ctx_params_decoder(params, &p))
         return 0;
 
-    if (!ossl_prov_digest_load_from_params(&macctx->digest, params, ctx))
+    ctx = PROV_LIBCTX_OF(macctx->provctx);
+
+    if (!OSSL_FIPS_IND_SET_CTX_FROM_PARAM(macctx, OSSL_FIPS_IND_SETTABLE0, p.ind_k))
         return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_KEY)) != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING)
+    if (p.digest != NULL
+            && !ossl_prov_digest_load(&macctx->digest, p.digest, p.propq,
+                                      p.engine, ctx))
+        return 0;
+
+    if (p.key != NULL) {
+        if (p.key->data_type != OSSL_PARAM_OCTET_STRING)
             return 0;
 
-        if (!hmac_setkey(macctx, p->data, p->data_size))
+        if (!hmac_setkey(macctx, p.key->data, p.key->data_size))
             return 0;
     }
 
-    if ((p = OSSL_PARAM_locate_const(params,
-                                     OSSL_MAC_PARAM_TLS_DATA_SIZE)) != NULL) {
-        if (!OSSL_PARAM_get_size_t(p, &macctx->tls_data_size))
-            return 0;
-    }
+    if (p.tlssize != NULL && !OSSL_PARAM_get_size_t(p.tlssize, &macctx->tls_data_size))
+        return 0;
+
     return 1;
 }
 

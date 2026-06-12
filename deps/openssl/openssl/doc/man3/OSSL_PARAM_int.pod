@@ -31,6 +31,7 @@ OSSL_PARAM_set_time_t, OSSL_PARAM_set_uint, OSSL_PARAM_set_uint32,
 OSSL_PARAM_set_uint64, OSSL_PARAM_set_ulong, OSSL_PARAM_set_BN,
 OSSL_PARAM_set_utf8_string, OSSL_PARAM_set_octet_string,
 OSSL_PARAM_set_utf8_ptr, OSSL_PARAM_set_octet_ptr,
+OSSL_PARAM_set_octet_string_or_ptr,
 OSSL_PARAM_UNMODIFIED, OSSL_PARAM_modified, OSSL_PARAM_set_all_unmodified
 - OSSL_PARAM helpers
 
@@ -106,6 +107,9 @@ OSSL_PARAM_UNMODIFIED, OSSL_PARAM_modified, OSSL_PARAM_set_all_unmodified
 
  int OSSL_PARAM_modified(const OSSL_PARAM *param);
  void OSSL_PARAM_set_all_unmodified(OSSL_PARAM *params);
+
+int OSSL_PARAM_set_octet_string_or_ptr(OSSL_PARAM *p, const void *val,
+                                       size_t len);
 
 =head1 DESCRIPTION
 
@@ -309,6 +313,12 @@ using the calls defined herein.
 OSSL_PARAM_set_all_unmodified() resets the unused indicator for all parameters
 in the array I<params>.
 
+OSSL_PARAM_set_octet_string_or_ptr() sets an OCTET string or string pointer
+from the parameter pointed to by I<p> to the value referenced by I<val>. If
+I<p> is an OCTET string and the parameter's I<data> field is NULL, then only
+its I<return_size> field will be assigned the size the parameter's I<data>
+buffer should have. The length of the OCTET string is provided by I<len>.
+
 =head1 RETURN VALUES
 
 OSSL_PARAM_construct_TYPE(), OSSL_PARAM_construct_BN(),
@@ -331,11 +341,10 @@ representable by the target type or parameter.
 Apart from that, the functions must be used appropriately for the
 expected type of the parameter.
 
-OSSL_PARAM_get_BN() and OSSL_PARAM_set_BN() currently only support
-nonnegative B<BIGNUM>s, and by consequence, only
-B<OSSL_PARAM_UNSIGNED_INTEGER>.  OSSL_PARAM_construct_BN() currently
-constructs an L<OSSL_PARAM(3)> structure with the data type
-B<OSSL_PARAM_UNSIGNED_INTEGER>.
+OSSL_PARAM_get_BN() and OSSL_PARAM_set_BN() only support nonnegative
+B<BIGNUM>s when the desired data type is B<OSSL_PARAM_UNSIGNED_INTEGER>.
+OSSL_PARAM_construct_BN() currently constructs an L<OSSL_PARAM(3)> structure
+with the data type B<OSSL_PARAM_UNSIGNED_INTEGER>.
 
 For OSSL_PARAM_construct_utf8_ptr() and OSSL_PARAM_consstruct_octet_ptr(),
 I<bsize> is not relevant if the purpose is to send the L<OSSL_PARAM(3)> array
@@ -393,17 +402,42 @@ could fill in the parameters like this:
     if ((p = OSSL_PARAM_locate(params, "cookie")) != NULL)
         OSSL_PARAM_set_utf8_ptr(p, "cookie value");
 
+=head2 Example 3
+
+This example shows a special case where
+I<-Wincompatible-pointer-types-discards-qualifiers> may be set during
+compilation. The value for I<buf> cannot be a I<const char *> type string. An
+alternative in this case would be to use B<OSSL_PARAM> macro abbreviated calls
+rather than the specific callers which allows you to define the sha1 argument
+as a standard character array (I<char[]>).
+
+For example, this code:
+
+    OSSL_PARAM params[2];
+    params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
+    params[1] = OSSL_PARAM_construct_end();
+
+Can be made compatible with the following version:
+
+    char sha1[] = "SHA1"; /* sha1 is defined as char[] in this case */
+    OSSL_PARAM params[2];
+
+    params[0] = OSSL_PARAM_construct_utf8_string("digest", sha1, 0);
+    params[1] = OSSL_PARAM_construct_end();
+
 =head1 SEE ALSO
 
 L<openssl-core.h(7)>, L<OSSL_PARAM(3)>
 
 =head1 HISTORY
 
-These APIs were introduced in OpenSSL 3.0.
+These functions were added in OpenSSL 3.0.
+
+OSSL_PARAM_set_octet_string_or_ptr was added in OpenSSL 3.6.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

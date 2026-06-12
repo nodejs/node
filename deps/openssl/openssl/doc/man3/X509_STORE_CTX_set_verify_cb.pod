@@ -9,13 +9,15 @@ X509_STORE_CTX_get_check_policy,
 X509_STORE_CTX_get_cert_crl,
 X509_STORE_CTX_get_check_crl,
 X509_STORE_CTX_get_get_crl,
+X509_STORE_CTX_set_get_crl,
 X509_STORE_CTX_get_check_revocation,
 X509_STORE_CTX_get_check_issued,
 X509_STORE_CTX_get_get_issuer,
 X509_STORE_CTX_get_verify_cb,
 X509_STORE_CTX_set_verify_cb,
 X509_STORE_CTX_verify_cb,
-X509_STORE_CTX_print_verify_cb
+X509_STORE_CTX_print_verify_cb,
+X509_STORE_CTX_set_current_reasons
 - get and set X509_STORE_CTX components such as verification callback
 
 =head1 SYNOPSIS
@@ -33,13 +35,20 @@ X509_STORE_CTX_print_verify_cb
  X509_STORE_CTX_get_issuer_fn X509_STORE_CTX_get_get_issuer(X509_STORE_CTX *ctx);
  X509_STORE_CTX_check_issued_fn X509_STORE_CTX_get_check_issued(X509_STORE_CTX *ctx);
  X509_STORE_CTX_check_revocation_fn X509_STORE_CTX_get_check_revocation(X509_STORE_CTX *ctx);
+
  X509_STORE_CTX_get_crl_fn X509_STORE_CTX_get_get_crl(X509_STORE_CTX *ctx);
+
+ void X509_STORE_CTX_set_get_crl(X509_STORE_CTX *ctx,
+                                 X509_STORE_CTX_get_crl_fn get_crl);
+
  X509_STORE_CTX_check_crl_fn X509_STORE_CTX_get_check_crl(X509_STORE_CTX *ctx);
  X509_STORE_CTX_cert_crl_fn X509_STORE_CTX_get_cert_crl(X509_STORE_CTX *ctx);
  X509_STORE_CTX_check_policy_fn X509_STORE_CTX_get_check_policy(X509_STORE_CTX *ctx);
  X509_STORE_CTX_lookup_certs_fn X509_STORE_CTX_get_lookup_certs(X509_STORE_CTX *ctx);
  X509_STORE_CTX_lookup_crls_fn X509_STORE_CTX_get_lookup_crls(X509_STORE_CTX *ctx);
  X509_STORE_CTX_cleanup_fn X509_STORE_CTX_get_cleanup(X509_STORE_CTX *ctx);
+ void X509_STORE_CTX_set_current_reasons(X509_STORE_CTX *ctx,
+                                         unsigned int current_reasons);
 
 =head1 DESCRIPTION
 
@@ -82,6 +91,17 @@ X509_STORE_CTX_get_lookup_certs(), X509_STORE_CTX_get_lookup_crls()
 and X509_STORE_CTX_get_cleanup() return the function pointers cached
 from the corresponding B<X509_STORE>, please see
 L<X509_STORE_set_verify(3)> for more information.
+
+X509_STORE_CTX_set_get_crl() sets the function to get the crl for a given
+certificate I<x>.
+When found, the crl must be assigned to I<*crl>.
+This function must return 0 on failure and 1 on success.
+I<If no function to get the issuer is provided, the internal default
+function will be used instead.>
+
+X509_STORE_CTX_set_current_reasons() is used in conjunction with
+X509_STORE_CTX_get_crl_fn. The X509_STORE_CTX_get_crl_fn callback must
+use this method to set the reason why the certificate is invalid.
 
 
 =head1 WARNINGS
@@ -212,7 +232,7 @@ X509_STORE_CTX_print_verify_cb() was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

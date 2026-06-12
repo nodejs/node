@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,10 @@
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/securitycheck.h"
+
+#ifdef FIPS_MODULE
+# include "providers/implementations/exchange/ecx_exch.inc"
+#endif
 
 static OSSL_FUNC_keyexch_newctx_fn x25519_newctx;
 static OSSL_FUNC_keyexch_newctx_fn x448_newctx;
@@ -177,24 +181,32 @@ static void *ecx_dupctx(void *vecxctx)
     return dstctx;
 }
 
+#ifdef FIPS_MODULE
+
+#endif
+
 static const OSSL_PARAM *ecx_gettable_ctx_params(ossl_unused void *vctx,
                                                  ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-        OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+#ifdef FIPS_MODULE
+    return ecx_get_ctx_params_list;
+#else
+    static OSSL_PARAM params[] = { OSSL_PARAM_END };
+
+    return params;
+#endif
 }
 
 static int ecx_get_ctx_params(ossl_unused void *vctx, OSSL_PARAM params[])
 {
 #ifdef FIPS_MODULE
     int approved = 0;
-    OSSL_PARAM *p = OSSL_PARAM_locate(params,
-                                      OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR);
+    struct ecx_get_ctx_params_st p;
 
-    if (p != NULL && !OSSL_PARAM_set_int(p, approved))
+    if (vctx == NULL || !ecx_get_ctx_params_decoder(params, &p))
+        return 0;
+
+    if (p.ind != NULL && !OSSL_PARAM_set_int(p.ind, approved))
         return 0;
 #endif
     return 1;

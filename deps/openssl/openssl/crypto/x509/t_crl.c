@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,12 +32,12 @@ int X509_CRL_print_fp(FILE *fp, X509_CRL *x)
 }
 #endif
 
-int X509_CRL_print(BIO *out, X509_CRL *x)
+int X509_CRL_print(BIO *out, const X509_CRL *x)
 {
   return X509_CRL_print_ex(out, x, XN_FLAG_COMPAT);
 }
 
-int X509_CRL_print_ex(BIO *out, X509_CRL *x, unsigned long nmflag)
+int X509_CRL_print_ex(BIO *out, const X509_CRL *x, unsigned long nmflag)
 {
     STACK_OF(X509_REVOKED) *rev;
     X509_REVOKED *r;
@@ -45,22 +45,28 @@ int X509_CRL_print_ex(BIO *out, X509_CRL *x, unsigned long nmflag)
     const ASN1_BIT_STRING *sig;
     long l;
     int i;
+    char mlch = ' ';
+    int nmindent = 0;
+
+    if ((nmflag & XN_FLAG_SEP_MASK) == XN_FLAG_SEP_MULTILINE) {
+        mlch = '\n';
+        nmindent = 8;
+    }
 
     BIO_printf(out, "Certificate Revocation List (CRL):\n");
     l = X509_CRL_get_version(x);
     if (l >= X509_CRL_VERSION_1 && l <= X509_CRL_VERSION_2)
-        BIO_printf(out, "%8sVersion %ld (0x%lx)\n", "", l + 1, (unsigned long)l);
+        BIO_printf(out, "%4sVersion %ld (0x%lx)\n", "", l + 1, (unsigned long)l);
     else
-        BIO_printf(out, "%8sVersion unknown (%ld)\n", "", l);
+        BIO_printf(out, "%4sVersion unknown (%ld)\n", "", l);
     X509_CRL_get0_signature(x, &sig, &sig_alg);
-    BIO_puts(out, "    ");
     X509_signature_print(out, sig_alg, NULL);
-    BIO_printf(out, "%8sIssuer: ", "");
-    X509_NAME_print_ex(out, X509_CRL_get_issuer(x), 0, nmflag);
+    BIO_printf(out, "%4sIssuer:%c", "", mlch);
+    X509_NAME_print_ex(out, X509_CRL_get_issuer(x), nmindent, nmflag);
     BIO_puts(out, "\n");
-    BIO_printf(out, "%8sLast Update: ", "");
+    BIO_printf(out, "%4sLast Update: ", "");
     ASN1_TIME_print(out, X509_CRL_get0_lastUpdate(x));
-    BIO_printf(out, "\n%8sNext Update: ", "");
+    BIO_printf(out, "\n%4sNext Update: ", "");
     if (X509_CRL_get0_nextUpdate(x))
         ASN1_TIME_print(out, X509_CRL_get0_nextUpdate(x));
     else
@@ -68,7 +74,7 @@ int X509_CRL_print_ex(BIO *out, X509_CRL *x, unsigned long nmflag)
     BIO_printf(out, "\n");
 
     X509V3_extensions_print(out, "CRL extensions",
-                            X509_CRL_get0_extensions(x), 0, 8);
+                            X509_CRL_get0_extensions(x), 0, 4);
 
     rev = X509_CRL_get_REVOKED(x);
 

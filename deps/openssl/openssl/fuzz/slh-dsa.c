@@ -378,7 +378,7 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
     /*
      * the context_string parameter can be no more than 255 bytes, so if
      * our random input buffer is greater than that, we expect failure above,
-     * which we check for.  In that event, theres nothing more we can do here
+     * which we check for.  In that event, there's nothing more we can do here
      * so bail out
      */
     if (expect_init_rc == 0)
@@ -439,7 +439,7 @@ static void slh_dsa_export_import(uint8_t **buf, size_t *len, void *key1,
      * EVP_PKEY returns:
      * 1 if the keys are equivalent
      * 0 if the keys are not equivalent
-     * -1 if the key types are differnt
+     * -1 if the key types are different
      * -2 if the operation is not supported
      */
     OPENSSL_assert(EVP_PKEY_eq(alice, new) == 1);
@@ -578,7 +578,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         return -1;
     /*
      * Get the first byte of the buffer to tell us what operation
-     * to preform
+     * to perform
      */
     buffer_cursor = consume_uint8t(buf, &len, &operation);
     if (buffer_cursor == NULL)

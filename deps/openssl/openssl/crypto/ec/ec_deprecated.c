@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,10 +28,10 @@ BIGNUM *EC_POINT_point2bn(const EC_GROUP *group,
 
     buf_len = EC_POINT_point2buf(group, point, form, &buf, ctx);
 
-    if (buf_len == 0)
+    if (buf_len == 0 || buf_len > INT_MAX)
         return NULL;
 
-    ret = BN_bin2bn(buf, buf_len, ret);
+    ret = BN_bin2bn(buf, (int)buf_len, ret);
 
     OPENSSL_free(buf);
 
@@ -41,7 +41,7 @@ BIGNUM *EC_POINT_point2bn(const EC_GROUP *group,
 EC_POINT *EC_POINT_bn2point(const EC_GROUP *group,
                             const BIGNUM *bn, EC_POINT *point, BN_CTX *ctx)
 {
-    size_t buf_len = 0;
+    int buf_len = 0;
     unsigned char *buf;
     EC_POINT *ret;
 

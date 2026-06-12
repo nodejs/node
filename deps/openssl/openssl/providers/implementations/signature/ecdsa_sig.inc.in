@@ -1,0 +1,41 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('ecdsa_get_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_ALGORITHM_ID',            'algid',  'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_DIGEST_SIZE',             'size',   'size_t'],
+                          ['OSSL_SIGNATURE_PARAM_DIGEST',                  'digest', 'utf8_string'],
+                          ['OSSL_SIGNATURE_PARAM_NONCE_TYPE',              'nonce',  'uint'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE',     'verify', 'uint', 'fips'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_APPROVED_INDICATOR', 'ind',    'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('ecdsa_set_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_DIGEST',            'digest',   'utf8_string'],
+                          ['OSSL_SIGNATURE_PARAM_PROPERTIES',        'propq',    'utf8_string'],
+                          ['OSSL_SIGNATURE_PARAM_DIGEST_SIZE',       'size',     'size_t'],
+                          ['OSSL_SIGNATURE_PARAM_KAT',               'kat',      'uint',
+                           "#if !defined(OPENSSL_NO_ACVP_TESTS)"],
+                          ['OSSL_SIGNATURE_PARAM_NONCE_TYPE',        'nonce',    'uint'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_KEY_CHECK',    'ind_k',    'int', 'fips'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_DIGEST_CHECK', 'ind_d',    'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('ecdsa_sigalg_set_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_SIGNATURE',         'sig',   'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_KAT',               'kat',   'uint',
+                           "#if !defined(OPENSSL_NO_ACVP_TESTS)"],
+                          ['OSSL_SIGNATURE_PARAM_NONCE_TYPE',        'nonce', 'uint'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_KEY_CHECK',    'ind_k', 'int', 'fips'],
+                          ['OSSL_SIGNATURE_PARAM_FIPS_DIGEST_CHECK', 'ind_d', 'int', 'fips'],
+                         )); -}

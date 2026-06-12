@@ -56,6 +56,36 @@ int STACK_OF_X509_cmp(const STACK_OF(X509) *sk1, const STACK_OF(X509) *sk2)
 }
 
 /*
+ * Compares two stacks of certificates in any order of their elements.
+ * Returns 0 if sk1 and sk2 are equal and another value otherwise
+ */
+int STACK_OF_X509_cmp_deep(const STACK_OF(X509) *sk1, const STACK_OF(X509) *sk2)
+{
+    int i, res, idx;
+    X509 *a, *b;
+
+    if (sk1 == sk2)
+        return 0;
+    if (sk1 == NULL)
+        return -1;
+    if (sk2 == NULL)
+        return 1;
+    if ((res = sk_X509_num(sk1) - sk_X509_num(sk2)))
+        return res;
+    for (i = 0; i < sk_X509_num(sk1); i++) {
+        a = sk_X509_value(sk1, i);
+        idx = sk_X509_find((STACK_OF(X509) *)sk2, a);
+        if (idx < 0)
+            return 0;
+        b = sk_X509_value(sk2, idx);
+        if (a != b)
+            if ((res = X509_cmp(a, b)) != 0)
+                return res;
+    }
+    return 0;
+}
+
+/*
  * Up refs and push a cert onto sk.
  * Returns the number of certificates on the stack on success
  * Returns -1 or 0 on error

@@ -49,7 +49,7 @@ LIBS{noinst}=$LIBDEFAULT $LIBCOMMON
 $COMMON_INCLUDES=../crypto ../include implementations/include common/include \
     fips/include
 
-INCLUDE[$LIBCOMMON]=$COMMON_INCLUDES
+INCLUDE[$LIBCOMMON]=.. $COMMON_INCLUDES
 INCLUDE[$LIBFIPS]=.. $COMMON_INCLUDES
 INCLUDE[$LIBLEGACY]=.. $COMMON_INCLUDES
 INCLUDE[$LIBDEFAULT]=.. $COMMON_INCLUDES
@@ -179,4 +179,4 @@ SOURCE[$NULLGOAL]=nullprov.c prov_running.c
 
 # template library, not used anywhere. It's merely here to ensure that the object files build
 LIBS{noinst}=libtemplate.a
-INCLUDE[libtemplate.a]=$COMMON_INCLUDES
+INCLUDE[libtemplate.a]=.. $COMMON_INCLUDES

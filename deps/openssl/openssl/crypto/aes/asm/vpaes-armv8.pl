@@ -18,7 +18,7 @@
 ## http://crypto.stanford.edu/vpaes/.
 ##
 ######################################################################
-# ARMv8 NEON adaptation by <appro@openssl.org>
+# ARMv8 NEON adaptation by <https://github.com/dot-asm>
 #
 # Reason for undertaken effort is that there is at least one popular
 # SoC based on Cortex-A53 that doesn't have crypto extensions.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,9 +137,9 @@ static int rc2_get_ctx_params(void *vctx, OSSL_PARAM params[])
         }
 
         /* Is this the original IV or the running IV? */
-        num = rc2_keybits_to_magic(ctx->key_bits);
-        if (!ASN1_TYPE_set_int_octetstring(type, num,
-                                           ctx->base.iv, ctx->base.ivlen)) {
+        num = rc2_keybits_to_magic((int)ctx->key_bits);
+        if (!ASN1_TYPE_set_int_octetstring(type, num, ctx->base.iv,
+                                           (int)ctx->base.ivlen)) {
             ASN1_TYPE_free(type);
             ERR_raise(ERR_LIB_PROV, ERR_R_ASN1_LIB);
             return 0;
@@ -198,9 +198,9 @@ static int rc2_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
         if (p->data_type != OSSL_PARAM_OCTET_STRING
             || ctx->base.ivlen > sizeof(iv)
-            || (type = d2i_ASN1_TYPE(NULL, &d, p->data_size)) == NULL
+            || (type = d2i_ASN1_TYPE(NULL, &d, (long)p->data_size)) == NULL
             || ((size_t)ASN1_TYPE_get_int_octetstring(type, &num, iv,
-                                                      ctx->base.ivlen)
+                                                      (int)ctx->base.ivlen)
                 != ctx->base.ivlen)
             || !ossl_cipher_generic_initiv(&ctx->base, iv, ctx->base.ivlen)
             || (ctx->key_bits = rc2_magic_to_keybits(num)) == 0) {

@@ -1,0 +1,11 @@
+#
+# To run the demos when linked with a shared library (default) ensure
+# that libcrypto is on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./x25519
+
+PROGRAMS{noinst} = x25519
+
+INCLUDE[x25519]=../../include
+SOURCE[x25519]=x25519.c
+DEPEND[x25519]=../../libcrypto

@@ -2,11 +2,15 @@
 # that don't appear in lib*.num -- because they are define's, in
 # assembly language, etc.
 #
+OPENSSL_armcap                          environment
 OPENSSL_ia32cap                         environment
-OPENSSL_s390xcap                        environment
+OPENSSL_ppccap                          environment
 OPENSSL_riscvcap                        environment
+OPENSSL_s390xcap                        environment
+OPENSSL_sparcv9cap                      environment
 OPENSSL_MALLOC_FD                       environment
 OPENSSL_MALLOC_FAILURES                 environment
+OPENSSL_MALLOC_SEED                     environment
 OPENSSL_instrument_bus                  assembler
 OPENSSL_instrument_bus2                 assembler
 #
@@ -281,10 +285,10 @@ BN_num_bytes                            define
 BN_one                                  define
 BN_zero                                 define deprecated 0.9.8
 CONF_modules_free                       define deprecated 1.1.0
-DES_ecb2_encrypt                        define
-DES_ede2_cbc_encrypt                    define
-DES_ede2_cfb64_encrypt                  define
-DES_ede2_ofb64_encrypt                  define
+DES_ecb2_encrypt                        define deprecated 3.0
+DES_ede2_cbc_encrypt                    define deprecated 3.0
+DES_ede2_cfb64_encrypt                  define deprecated 3.0
+DES_ede2_ofb64_encrypt                  define deprecated 3.0
 DTLS_get_link_min_mtu                   define
 DTLS_set_link_mtu                       define
 DTLSv1_get_timeout                      define
@@ -426,21 +430,28 @@ OPENSSL_VERSION_BUILD_METADATA          define
 OPENSSL_VERSION_PRE_RELEASE_STR         define
 OPENSSL_VERSION_BUILD_METADATA_STR      define
 OPENSSL_VERSION_TEXT                    define
+OPENSSL_calloc                          define
 OPENSSL_clear_free                      define
 OPENSSL_clear_realloc                   define
+OPENSSL_clear_realloc_array             define
 OPENSSL_free                            define
 OPENSSL_malloc                          define
+OPENSSL_malloc_array                    define
 OPENSSL_aligned_alloc                   define
+OPENSSL_aligned_alloc_array             define
 OPENSSL_malloc_init                     define
 OPENSSL_mem_debug_pop                   define deprecated 3.0.0
 OPENSSL_mem_debug_push                  define deprecated 3.0.0
 OPENSSL_memdup                          define
 OPENSSL_no_config                       define deprecated 1.1.0
 OPENSSL_realloc                         define
+OPENSSL_realloc_array                   define
 OPENSSL_secure_actual_size              define
 OPENSSL_secure_clear_free               define
 OPENSSL_secure_free                     define
+OPENSSL_secure_calloc                   define
 OPENSSL_secure_malloc                   define
+OPENSSL_secure_malloc_array             define
 OPENSSL_secure_zalloc                   define
 OPENSSL_strdup                          define
 OPENSSL_strndup                         define
@@ -653,6 +664,7 @@ SSL_get_signature_nid                   define
 SSL_get_time                            define
 SSL_get_timeout                         define
 SSL_get_tlsext_status_ocsp_resp         define
+SSL_get0_tlsext_status_ocsp_resp_ex     define
 SSL_get_tlsext_status_type              define
 SSL_get_tmp_key                         define
 SSL_in_accept_init                      define
@@ -690,6 +702,7 @@ SSL_set_time                            define
 SSL_set_timeout                         define
 SSL_set_tlsext_host_name                define
 SSL_set_tlsext_status_ocsp_resp         define
+SSL_set0_tlsext_status_ocsp_resp_ex     define
 SSL_set_tlsext_status_type              define
 SSL_set_tmp_dh                          define
 SSL_set_tmp_ecdh                        define
@@ -762,6 +775,8 @@ SSL_STREAM_STATE_RESET_REMOTE           define
 SSL_STREAM_STATE_CONN_CLOSED            define
 SSL_ACCEPT_CONNECTION_NO_BLOCK          define
 SSL_ACCEPT_STREAM_NO_BLOCK              define
+SSL_ACCEPT_STREAM_UNI                   define
+SSL_ACCEPT_STREAM_BIDI                  define
 SSL_DEFAULT_STREAM_MODE_AUTO_BIDI       define
 SSL_DEFAULT_STREAM_MODE_AUTO_UNI        define
 SSL_DEFAULT_STREAM_MODE_NONE            define

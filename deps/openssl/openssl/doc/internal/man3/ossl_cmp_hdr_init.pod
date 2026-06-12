@@ -72,7 +72,7 @@ PKIHeader to the given X509 Name value, without consuming the pointer.
 If B<nm> is NULL, recipient is set to the NULL DN (the empty list of strings).
 
 ossl_cmp_hdr_update_messagetime() (re-)sets the messageTime to the current
-system time. As written in RFC 4210, section 5.1.1:
+system time. As written in RFC 9810, section 5.1.1:
 The messageTime field contains the time at which the sender created the message.
 This may be useful to allow end entities to correct/check their local time for
 consistency with the time on a central system.
@@ -109,13 +109,13 @@ values in the given OSSL_CMP_CTX structure.
 This starts a new transaction in case ctx->transactionID is NULL.
 The sender name is copied from the subject of the client cert, if any,
 or else from the subject name provided for certification requests.
-As required by RFC 4210 section 5.1.1., if the sender name is not known
+As required by RFC 9810 section 5.1.1., if the sender name is not known
 to the client it set to the NULL-DN. In this case for identification at least
 the senderKID must be set, which we take from any referenceValue provided.
 
 =head1 NOTES
 
-CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+CMP is defined in RFC 9810.
 
 =head1 RETURN VALUES
 

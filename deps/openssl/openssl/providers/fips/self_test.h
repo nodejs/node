@@ -31,6 +31,8 @@ typedef struct self_test_post_params_st {
 } SELF_TEST_POST_PARAMS;
 
 int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test);
-int SELF_TEST_kats(OSSL_SELF_TEST *event, OSSL_LIB_CTX *libctx);
+int SELF_TEST_kats(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx, int do_deferred);
+int SELF_TEST_kats_single(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx,
+                          int type, const char *alg_name);
 
 void SELF_TEST_disable_conditional_error_state(void);

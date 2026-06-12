@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@ ASN1_SEQUENCE(SCRYPT_PARAMS) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(SCRYPT_PARAMS)
 
-static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, size_t saltlen,
+static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, int saltlen,
                                     size_t keylen, uint64_t N, uint64_t r,
                                     uint64_t p);
 
@@ -153,7 +153,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     return NULL;
 }
 
-static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, size_t saltlen,
+static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, int saltlen,
                                     size_t keylen, uint64_t N, uint64_t r,
                                     uint64_t p)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@ static int cipher_hw_cast5_initkey(PROV_CIPHER_CTX *ctx,
 {
     PROV_CAST_CTX *bctx =  (PROV_CAST_CTX *)ctx;
 
-    CAST_set_key(&(bctx->ks.ks), keylen, key);
+    CAST_set_key(&(bctx->ks.ks), (int)keylen, key);
     return 1;
 }
 

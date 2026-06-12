@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -446,7 +446,7 @@ int setup_tests(void)
 #ifdef OPENSSL_NO_ENGINE
     TEST_note("No ENGINE support");
 #else
-    int n;
+    size_t n;
 
     if (!test_skip_common_options()) {
         TEST_error("Error parsing test options\n");

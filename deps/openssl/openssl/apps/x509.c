@@ -47,7 +47,7 @@ typedef enum OPTION_choice {
     OPT_CASERIAL, OPT_SET_SERIAL, OPT_NEW, OPT_FORCE_PUBKEY, OPT_ISSU, OPT_SUBJ,
     OPT_ADDTRUST, OPT_ADDREJECT, OPT_SETALIAS, OPT_CERTOPT, OPT_DATEOPT, OPT_NAMEOPT,
     OPT_EMAIL, OPT_OCSP_URI, OPT_SERIAL, OPT_NEXT_SERIAL,
-    OPT_MODULUS, OPT_PUBKEY, OPT_X509TOREQ, OPT_TEXT, OPT_HASH,
+    OPT_MODULUS, OPT_MULTI, OPT_PUBKEY, OPT_X509TOREQ, OPT_TEXT, OPT_HASH,
     OPT_ISSUER_HASH, OPT_SUBJECT, OPT_ISSUER, OPT_FINGERPRINT, OPT_DATES,
     OPT_PURPOSE, OPT_STARTDATE, OPT_ENDDATE, OPT_CHECKEND, OPT_CHECKHOST,
     OPT_CHECKEMAIL, OPT_CHECKIP, OPT_NOOUT, OPT_TRUSTOUT, OPT_CLRTRUST,
@@ -122,6 +122,7 @@ const OPTIONS x509_options[] = {
     {"purpose", OPT_PURPOSE, '-', "Print out certificate purposes"},
     {"pubkey", OPT_PUBKEY, '-', "Print the public key in PEM format"},
     {"modulus", OPT_MODULUS, '-', "Print the RSA key modulus"},
+    {"multi", OPT_MULTI, '-', "Process multiple certificates"},
 
     OPT_SECTION("Certificate checking"),
     {"checkend", OPT_CHECKEND, 'M',
@@ -281,12 +282,13 @@ int x509_main(int argc, char **argv)
     X509_STORE *ctx = NULL;
     char *CAkeyfile = NULL, *CAserial = NULL, *pubkeyfile = NULL, *alias = NULL;
     char *checkhost = NULL, *checkemail = NULL, *checkip = NULL;
+    STACK_OF(X509) *certs = NULL;
     char *ext_names = NULL;
     char *extsect = NULL, *extfile = NULL, *passin = NULL, *passinarg = NULL;
     char *infile = NULL, *outfile = NULL, *privkeyfile = NULL, *CAfile = NULL;
     char *prog, *not_before = NULL, *not_after = NULL;
     int days = UNSET_DAYS; /* not explicitly set */
-    int x509toreq = 0, modulus = 0, print_pubkey = 0, pprint = 0;
+    int x509toreq = 0, modulus = 0, multi = 0, print_pubkey = 0, pprint = 0;
     int CAformat = FORMAT_UNDEF, CAkeyformat = FORMAT_UNDEF;
     unsigned long dateopt = ASN1_DTFLGS_RFC822;
     int fingerprint = 0, reqfile = 0, checkend = 0;
@@ -294,7 +296,7 @@ int x509_main(int argc, char **argv)
     int next_serial = 0, subject_hash = 0, issuer_hash = 0, ocspid = 0;
     int noout = 0, CA_createserial = 0, email = 0;
     int ocsp_uri = 0, trustout = 0, clrtrust = 0, clrreject = 0, aliasout = 0;
-    int ret = 1, i, j, num = 0, badsig = 0, clrext = 0, nocert = 0;
+    int ret = 1, i, j, k = 0, num = 0, badsig = 0, clrext = 0, nocert = 0;
     int text = 0, serial = 0, subject = 0, issuer = 0, startdate = 0, ext = 0;
     int enddate = 0;
     time_t checkoffset = 0;
@@ -498,6 +500,9 @@ int x509_main(int argc, char **argv)
             break;
         case OPT_MODULUS:
             modulus = ++num;
+            break;
+        case OPT_MULTI:
+            multi = 1;
             break;
         case OPT_PUBKEY:
             print_pubkey = ++num;
@@ -732,6 +737,11 @@ int x509_main(int argc, char **argv)
         }
     }
 
+    if (multi && (reqfile || newcert)) {
+        BIO_printf(bio_err, "Error: -multi cannot be used with -req or -new\n");
+        goto err;
+    }
+
     if (reqfile) {
         if (infile == NULL && isatty(fileno_stdin()))
             BIO_printf(bio_err,
@@ -788,11 +798,30 @@ int x509_main(int argc, char **argv)
     } else {
         if (infile == NULL && isatty(fileno_stdin()))
             BIO_printf(bio_err,
-                       "Warning: Reading certificate from stdin since no -in or -new option is given\n");
-        x = load_cert_pass(infile, informat, 1, passin, "certificate");
-        if (x == NULL)
-            goto err;
+                       "Warning: Reading certificate(s) from stdin since no -in or -new option is given\n");
+        if (multi) {
+            certs = sk_X509_new_null();
+            if (certs == NULL)
+                goto err;
+            if (!load_certs(infile, 1, &certs, passin, NULL))
+                goto err;
+            if (sk_X509_num(certs) <= 0)
+                goto err;
+        } else {
+            x = load_cert_pass(infile, informat, 1, passin, "certificate");
+            if (x == NULL)
+                goto err;
+        }
     }
+
+    out = bio_open_default(outfile, 'w', outformat);
+    if (out == NULL)
+        goto err;
+
+ cert_loop:
+    if (multi)
+        x = sk_X509_value(certs, k);
+
     if ((fsubj != NULL || req != NULL)
         && !X509_set_subject_name(x, fsubj != NULL ? fsubj :
                                   X509_REQ_get_subject_name(req)))
@@ -808,10 +837,6 @@ int x509_main(int argc, char **argv)
         if (xca == NULL)
             goto err;
     }
-
-    out = bio_open_default(outfile, 'w', outformat);
-    if (out == NULL)
-        goto err;
 
     if (alias)
         X509_alias_set1(x, (unsigned char *)alias, -1);
@@ -1079,7 +1104,7 @@ int x509_main(int argc, char **argv)
             BIO_printf(out, "Certificate will expire\n");
         else
             BIO_printf(out, "Certificate will not expire\n");
-        goto end;
+        goto end_cert_loop;
     }
 
     if (!check_cert_attributes(out, x, checkhost, checkemail, checkip, 1))
@@ -1087,7 +1112,7 @@ int x509_main(int argc, char **argv)
 
     if (noout || nocert) {
         ret = 0;
-        goto end;
+        goto end_cert_loop;
     }
 
     if (outformat == FORMAT_ASN1) {
@@ -1106,6 +1131,10 @@ int x509_main(int argc, char **argv)
         goto err;
     }
 
+ end_cert_loop:
+    if (multi && ++k < sk_X509_num(certs))
+        goto cert_loop;
+
     ret = 0;
     goto end;
 
@@ -1113,6 +1142,10 @@ int x509_main(int argc, char **argv)
     ERR_print_errors(bio_err);
 
  end:
+    if (multi) {
+        sk_X509_pop_free(certs, X509_free);
+        x = NULL;
+    }
     NCONF_free(extconf);
     BIO_free_all(out);
     X509_STORE_free(ctx);
@@ -1225,7 +1258,7 @@ static int parse_ext_names(char *names, const char **result)
     int cnt = 0, len = 0;
 
     p = q = names;
-    len = strlen(names);
+    len = (int)strlen(names);
 
     while (q - names <= len) {
         if (*q != ',' && *q != '\0') {
@@ -1270,7 +1303,7 @@ static int print_x509v3_exts(BIO *bio, X509 *x, const char *ext_names)
         BIO_printf(bio, "Invalid extension names: %s\n", ext_names);
         goto end;
     }
-    if ((names = OPENSSL_malloc(sizeof(char *) * nn)) == NULL)
+    if ((names = OPENSSL_malloc_array(nn, sizeof(char *))) == NULL)
         goto end;
     parse_ext_names(tmp_ext_names, names);
 

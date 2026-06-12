@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* We need to use some engine deprecated APIs */
-#define OPENSSL_SUPPRESS_DEPRECATED
+/*
+ * We need to use some engine deprecated APIs
+ */
+#include "internal/deprecated.h"
 
 #include "internal/cryptlib.h"
 #include <stdio.h>
@@ -110,7 +112,7 @@ const EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_find_str(ENGINE **pe,
     const EVP_PKEY_ASN1_METHOD *ameth = NULL;
 
     if (len == -1)
-        len = strlen(str);
+        len = (int)strlen(str);
     if (pe) {
 #ifndef OPENSSL_NO_ENGINE
         ENGINE *e;

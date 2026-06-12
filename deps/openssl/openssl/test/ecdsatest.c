@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -45,8 +45,8 @@ static int fbytes(unsigned char *buf, size_t num, ossl_unused const char *name,
         || !TEST_int_lt(fbytes_counter, OSSL_NELEM(numbers))
         || !TEST_true(BN_hex2bn(&tmp, numbers[fbytes_counter]))
         /* tmp might need leading zeros so pad it out */
-        || !TEST_int_le(BN_num_bytes(tmp), num)
-        || !TEST_int_gt(BN_bn2binpad(tmp, buf, num), 0))
+        || !TEST_int_le(BN_num_bytes(tmp), (int)num)
+        || !TEST_int_gt(BN_bn2binpad(tmp, buf, (int)num), 0))
         goto err;
 
     fbytes_counter = (fbytes_counter + 1) % OSSL_NELEM(numbers);
@@ -122,7 +122,7 @@ static int x9_62_tests(int n)
         || !TEST_true(p_len = EC_KEY_key2buf(key, POINT_CONVERSION_UNCOMPRESSED,
                                              &pbuf, NULL))
         || !TEST_ptr(qbuf = OPENSSL_hexstr2buf(ecdsa_cavs_kats[n].Q, &q_len))
-        || !TEST_int_eq(q_len, p_len)
+        || !TEST_size_t_eq((size_t)q_len, p_len)
         || !TEST_mem_eq(qbuf, q_len, pbuf, p_len))
         goto err;
 
@@ -249,7 +249,7 @@ static int test_builtin(int n, int as)
         || !TEST_true(EVP_DigestSignInit(mctx, NULL, NULL, NULL, pkey))
         || (as == EVP_PKEY_SM2 && !set_sm2_id(mctx, pkey))
         || !TEST_true(EVP_DigestSign(mctx, sig, &sig_len, tbs, sizeof(tbs)))
-        || !TEST_int_le(sig_len, ECDSA_size(eckey))
+        || !TEST_size_t_le(sig_len, (size_t)ECDSA_size(eckey))
         || !TEST_true(EVP_MD_CTX_reset(mctx))
         /* negative test, verify with wrong key, 0 return */
         || !TEST_true(EVP_DigestVerifyInit(mctx, NULL, NULL, NULL, pkey_neg))
@@ -399,15 +399,15 @@ int setup_tests(void)
 
     /* get a list of all internal curves */
     crv_len = EC_get_builtin_curves(NULL, 0);
-    if (!TEST_ptr(curves = OPENSSL_malloc(sizeof(*curves) * crv_len))
+    if (!TEST_ptr(curves = OPENSSL_malloc_array(crv_len, sizeof(*curves)))
         || !TEST_true(EC_get_builtin_curves(curves, crv_len))) {
         fake_rand_finish(fake_rand);
         return 0;
     }
-    ADD_ALL_TESTS(test_builtin_as_ec, crv_len);
+    ADD_ALL_TESTS(test_builtin_as_ec, (int)crv_len);
     ADD_TEST(test_ecdsa_sig_NULL);
 # ifndef OPENSSL_NO_SM2
-    ADD_ALL_TESTS(test_builtin_as_sm2, crv_len);
+    ADD_ALL_TESTS(test_builtin_as_sm2, (int)crv_len);
 # endif
     ADD_ALL_TESTS(x9_62_tests, OSSL_NELEM(ecdsa_cavs_kats));
 #endif

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@ use Cwd qw/abs_path/;
 use File::Basename;
 use File::Spec::Functions;
 
-use OpenSSL::Test qw/srctop_dir srctop_file/;
+use OpenSSL::Test qw/srctop_dir srctop_file run test/;
 use OpenSSL::Test::Utils;
 
 use FindBin;
@@ -136,10 +136,26 @@ sub print_templates {
 sub read_config {
     my $fname = shift;
     my $provider = shift;
-    local $ssltests::fips_mode = $provider eq "fips";
+
+    my $fips_mode = $provider eq "fips";
+    local $ssltests::fips_3_4 = 0;
+    local $ssltests::fips_3_5 = 0;
+
+    if ($fips_mode) {
+        my $provconf = srctop_file("test", "fips-and-base.cnf");
+        my $exit;
+
+        run(test(["fips_version_test", "-config", $provconf, ">=3.4.0"]),
+                 capture => 1, statusvar => \$exit);
+        $ssltests::fips_3_4 = $exit;
+        run(test(["fips_version_test", "-config", $provconf, ">=3.5.0"]),
+                 capture => 1, statusvar => \$exit);
+        $ssltests::fips_3_5 = $exit;
+    }
+
+    local $ssltests::fips_mode = $fips_mode;
     local $ssltests::no_deflt_libctx =
         $provider eq "default" || $provider eq "fips";
-
     open(INPUT, "< $fname") or die "Can't open input file '$fname'!\n";
     local $/ = undef;
     my $content = <INPUT>;

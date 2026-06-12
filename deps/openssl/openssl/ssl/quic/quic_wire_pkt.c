@@ -607,8 +607,8 @@ int ossl_quic_wire_encode_pkt_hdr(WPACKET *pkt,
     return 1;
 }
 
-int ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
-                                           const QUIC_PKT_HDR *hdr)
+size_t ossl_quic_wire_get_encoded_pkt_hdr_len(size_t short_conn_id_len,
+                                              const QUIC_PKT_HDR *hdr)
 {
     size_t len = 0, enclen;
 
@@ -926,14 +926,14 @@ int ossl_quic_calculate_retry_integrity_tag(OSSL_LIB_CTX *libctx,
     }
 
     /* Feed packet header as AAD data. */
-    if (EVP_CipherUpdate(cctx, NULL, &l, buf, hdr_enc_len) != 1) {
+    if (EVP_CipherUpdate(cctx, NULL, &l, buf, (int)hdr_enc_len) != 1) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         goto err;
     }
 
     /* Feed packet body as AAD data. */
     if (EVP_CipherUpdate(cctx, NULL, &l, hdr->data,
-                         hdr->len - QUIC_RETRY_INTEGRITY_TAG_LEN) != 1) {
+                         (int)(hdr->len - QUIC_RETRY_INTEGRITY_TAG_LEN)) != 1) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         goto err;
     }

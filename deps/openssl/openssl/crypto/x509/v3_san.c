@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -578,7 +578,7 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
     if (is_string) {
         if ((gen->d.ia5 = ASN1_IA5STRING_new()) == NULL ||
             !ASN1_STRING_set(gen->d.ia5, (unsigned char *)value,
-                             strlen(value))) {
+                             (int)strlen(value))) {
             ASN1_IA5STRING_free(gen->d.ia5);
             gen->d.ia5 = NULL;
             ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
@@ -639,7 +639,7 @@ GENERAL_NAME *v2i_GENERAL_NAME_ex(GENERAL_NAME *out,
 static int do_othername(GENERAL_NAME *gen, const char *value, X509V3_CTX *ctx)
 {
     char *objtmp = NULL, *p;
-    int objlen;
+    size_t objlen;
 
     if ((p = strchr(value, ';')) == NULL)
         return 0;

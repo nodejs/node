@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,9 @@ my @kdf_tests = (
     { cmd => [qw{openssl kdf -keylen 10 -digest SHA256 -kdfopt key:secret -kdfopt salt:salt -kdfopt info:label HKDF}],
       expected => '2a:c4:36:9f:52:59:96:f8:de:13',
       desc => 'HKDF SHA256' },
+    { cmd => [qw{openssl kdf -keylen 10 -kdfopt key:secret -kdfopt salt:salt -kdfopt info:label HKDF-SHA256}],
+      expected => '2a:c4:36:9f:52:59:96:f8:de:13',
+      desc => 'HKDF-SHA256' },
     { cmd => [qw{openssl kdf -keylen 25 -digest SHA256 -kdfopt pass:passwordPASSWORDpassword -kdfopt salt:saltSALTsaltSALTsaltSALTsaltSALTsalt -kdfopt iter:4096 PBKDF2}],
       expected => '34:8C:89:DB:CB:D3:2B:2F:32:D8:14:B8:11:6E:84:CF:2B:17:34:7E:BC:18:00:18:1C',
       desc => 'PBKDF2 SHA256'},

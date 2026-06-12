@@ -44,7 +44,7 @@ typedef enum OPTION_choice {
     OPT_C, OPT_R, OPT_OUT, OPT_SIGN, OPT_PASSIN, OPT_VERIFY,
     OPT_PRVERIFY, OPT_SIGNATURE, OPT_KEYFORM, OPT_ENGINE, OPT_ENGINE_IMPL,
     OPT_HEX, OPT_BINARY, OPT_DEBUG, OPT_FIPS_FINGERPRINT,
-    OPT_HMAC, OPT_MAC, OPT_SIGOPT, OPT_MACOPT, OPT_XOFLEN,
+    OPT_HMAC, OPT_HMAC_ENV, OPT_HMAC_STDIN, OPT_MAC, OPT_SIGOPT, OPT_MACOPT, OPT_XOFLEN,
     OPT_DIGEST,
     OPT_R_ENUM, OPT_PROV_ENUM
 } OPTION_CHOICE;
@@ -80,6 +80,8 @@ const OPTIONS dgst_options[] = {
     {"sigopt", OPT_SIGOPT, 's', "Signature parameter in n:v form"},
     {"signature", OPT_SIGNATURE, '<', "File with signature to verify"},
     {"hmac", OPT_HMAC, 's', "Create hashed MAC with key"},
+    {"hmac-env", OPT_HMAC_ENV, 's', "Create hashed MAC with key from environment variable"},
+    {"hmac-stdin", OPT_HMAC_STDIN, '-', "Create hashed MAC with key from stdin"},
     {"mac", OPT_MAC, 's', "Create MAC (not necessarily HMAC)"},
     {"macopt", OPT_MACOPT, 's', "MAC algorithm parameters in n:v form or key"},
     {"", OPT_DIGEST, '-', "Any supported digest"},
@@ -107,6 +109,9 @@ int dgst_main(int argc, char **argv)
     const char *outfile = NULL, *keyfile = NULL, *prog = NULL;
     const char *sigfile = NULL;
     const char *md_name = NULL;
+    char *env_var = NULL;
+    char *new_opt = NULL;
+    char *key_from_stdin = NULL;
     OPTION_CHOICE o;
     int separator = 0, debug = 0, keyform = FORMAT_UNDEF, siglen = 0;
     int i, ret = EXIT_FAILURE, out_bin = -1, want_pub = 0, do_verify = 0;
@@ -202,6 +207,29 @@ int dgst_main(int argc, char **argv)
         case OPT_HMAC:
             hmac_key = opt_arg();
             break;
+        case OPT_HMAC_ENV:
+            env_var = opt_arg();
+            hmac_key = getenv(env_var);
+            if (hmac_key == NULL) {
+                BIO_printf(bio_err, "No environment variable %s\n", env_var);
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            break;
+        case OPT_HMAC_STDIN:
+            if (key_from_stdin == NULL)
+                key_from_stdin = get_str_from_file(NULL);
+            if (key_from_stdin == NULL) {
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            if (strlen(key_from_stdin) == 0) {
+                BIO_printf(bio_err, "Empty key\n");
+                ret = EXIT_FAILURE;
+                goto end;
+            }
+            hmac_key = key_from_stdin;
+            break;
         case OPT_MAC:
             mac_name = opt_arg();
             break;
@@ -212,10 +240,17 @@ int dgst_main(int argc, char **argv)
                 goto opthelp;
             break;
         case OPT_MACOPT:
+            new_opt = process_additional_mac_key_arguments(opt_arg());
+            if (new_opt == NULL) {
+                ret = EXIT_FAILURE;
+                goto end;
+            }
             if (!macopts)
                 macopts = sk_OPENSSL_STRING_new_null();
-            if (!macopts || !sk_OPENSSL_STRING_push(macopts, opt_arg()))
+            if (!macopts || !sk_OPENSSL_STRING_push(macopts, new_opt)) {
+                clear_free(new_opt);
                 goto opthelp;
+            }
             break;
         case OPT_DIGEST:
             digestname = opt_unknown();
@@ -487,6 +522,8 @@ int dgst_main(int argc, char **argv)
     if (ret != EXIT_SUCCESS)
         ERR_print_errors(bio_err);
     OPENSSL_clear_free(buf, BUFSIZE);
+    if (key_from_stdin != NULL)
+        clear_free(key_from_stdin);
     BIO_free(in);
     OPENSSL_free(passin);
     BIO_free_all(out);
@@ -494,7 +531,7 @@ int dgst_main(int argc, char **argv)
     EVP_PKEY_free(sigkey);
     EVP_MD_CTX_free(signctx);
     sk_OPENSSL_STRING_free(sigopts);
-    sk_OPENSSL_STRING_free(macopts);
+    sk_OPENSSL_STRING_pop_free(macopts, clear_free);
     OPENSSL_free(sigbuf);
     BIO_free(bmd);
     release_engine(e);
@@ -576,7 +613,7 @@ static void print_out(BIO *out, unsigned char *buf, size_t len,
     int i, backslash = 0;
 
     if (binout) {
-        BIO_write(out, buf, len);
+        BIO_write(out, buf, (int)len);
     } else if (sep == 2) {
         file = newline_escape_filename(file, &backslash);
 

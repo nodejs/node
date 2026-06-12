@@ -100,36 +100,52 @@ int CRYPTO_atomic_store(uint64_t *dst, uint64_t val, CRYPTO_RWLOCK *lock);
 #define OPENSSL_malloc_init() while(0) continue
 
 # define OPENSSL_malloc(num) \
-        CRYPTO_malloc(num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_malloc(num, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_zalloc(num) \
-        CRYPTO_zalloc(num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_zalloc(num, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_malloc_array(num, size) \
+    CRYPTO_malloc_array(num, size, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_calloc(num, size) \
+    CRYPTO_calloc(num, size, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_aligned_alloc(num, alignment, freeptr) \
-        CRYPTO_aligned_alloc(num, alignment, freeptr, \
-                             OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_aligned_alloc(num, alignment, freeptr, \
+                         OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_aligned_alloc_array(num, size, alignment, freeptr) \
+    CRYPTO_aligned_alloc_array(num, size, alignment, freeptr, \
+                               OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_realloc(addr, num) \
-        CRYPTO_realloc(addr, num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_realloc(addr, num, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_clear_realloc(addr, old_num, num) \
-        CRYPTO_clear_realloc(addr, old_num, num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_clear_realloc(addr, old_num, num, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_realloc_array(addr, num, size) \
+    CRYPTO_realloc_array(addr, num, size, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_clear_realloc_array(addr, old_num, num, size) \
+    CRYPTO_clear_realloc_array(addr, old_num, num, size, \
+                               OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_clear_free(addr, num) \
-        CRYPTO_clear_free(addr, num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_clear_free(addr, num, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_free(addr) \
-        CRYPTO_free(addr, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_free(addr, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_memdup(str, s) \
-        CRYPTO_memdup((str), s, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_memdup((str), s, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_strdup(str) \
-        CRYPTO_strdup(str, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_strdup(str, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_strndup(str, n) \
-        CRYPTO_strndup(str, n, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_strndup(str, n, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_secure_malloc(num) \
-        CRYPTO_secure_malloc(num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_secure_malloc(num, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_secure_zalloc(num) \
-        CRYPTO_secure_zalloc(num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_secure_zalloc(num, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_secure_malloc_array(num, size) \
+    CRYPTO_secure_malloc_array(num, size, OPENSSL_FILE, OPENSSL_LINE)
+# define OPENSSL_secure_calloc(num, size) \
+    CRYPTO_secure_calloc(num, size, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_secure_free(addr) \
-        CRYPTO_secure_free(addr, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_secure_free(addr, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_secure_clear_free(addr, num) \
-        CRYPTO_secure_clear_free(addr, num, OPENSSL_FILE, OPENSSL_LINE)
+    CRYPTO_secure_clear_free(addr, num, OPENSSL_FILE, OPENSSL_LINE)
 # define OPENSSL_secure_actual_size(ptr) \
-        CRYPTO_secure_actual_size(ptr)
+    CRYPTO_secure_actual_size(ptr)
 
 size_t OPENSSL_strlcpy(char *dst, const char *src, size_t siz);
 size_t OPENSSL_strlcat(char *dst, const char *src, size_t siz);
@@ -332,9 +348,16 @@ void CRYPTO_get_mem_functions(CRYPTO_malloc_fn *malloc_fn,
 
 OSSL_CRYPTO_ALLOC void *CRYPTO_malloc(size_t num, const char *file, int line);
 OSSL_CRYPTO_ALLOC void *CRYPTO_zalloc(size_t num, const char *file, int line);
+OSSL_CRYPTO_ALLOC void *CRYPTO_malloc_array(size_t num, size_t size,
+                                            const char *file, int line);
+OSSL_CRYPTO_ALLOC void *CRYPTO_calloc(size_t num, size_t size,
+                                      const char *file, int line);
 OSSL_CRYPTO_ALLOC void *CRYPTO_aligned_alloc(size_t num, size_t align,
                                              void **freeptr, const char *file,
                                              int line);
+OSSL_CRYPTO_ALLOC void *CRYPTO_aligned_alloc_array(size_t num, size_t size,
+                                                   size_t align, void **freeptr,
+                                                   const char *file, int line);
 void *CRYPTO_memdup(const void *str, size_t siz, const char *file, int line);
 char *CRYPTO_strdup(const char *str, const char *file, int line);
 char *CRYPTO_strndup(const char *str, size_t s, const char *file, int line);
@@ -343,11 +366,19 @@ void CRYPTO_clear_free(void *ptr, size_t num, const char *file, int line);
 void *CRYPTO_realloc(void *addr, size_t num, const char *file, int line);
 void *CRYPTO_clear_realloc(void *addr, size_t old_num, size_t num,
                            const char *file, int line);
+void *CRYPTO_realloc_array(void *addr, size_t num, size_t size,
+                           const char *file, int line);
+void *CRYPTO_clear_realloc_array(void *addr, size_t old_num, size_t num,
+                                 size_t size, const char *file, int line);
 
 int CRYPTO_secure_malloc_init(size_t sz, size_t minsize);
 int CRYPTO_secure_malloc_done(void);
 OSSL_CRYPTO_ALLOC void *CRYPTO_secure_malloc(size_t num, const char *file, int line);
 OSSL_CRYPTO_ALLOC void *CRYPTO_secure_zalloc(size_t num, const char *file, int line);
+OSSL_CRYPTO_ALLOC void *CRYPTO_secure_malloc_array(size_t num, size_t size,
+                                                   const char *file, int line);
+OSSL_CRYPTO_ALLOC void *CRYPTO_secure_calloc(size_t num, size_t size,
+                                             const char *file, int line);
 void CRYPTO_secure_free(void *ptr, const char *file, int line);
 void CRYPTO_secure_clear_free(void *ptr, size_t num,
                               const char *file, int line);

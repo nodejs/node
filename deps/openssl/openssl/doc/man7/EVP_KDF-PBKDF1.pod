@@ -53,6 +53,8 @@ of candidate passwords.
 No assumption is made regarding the given password; it is simply treated as a
 byte sequence.
 
+The legacy provider needs to be available in order to access this algorithm.
+
 =head1 CONFORMING TO
 
 RFC 8018
@@ -64,7 +66,8 @@ L<EVP_KDF_CTX_new(3)>,
 L<EVP_KDF_CTX_free(3)>,
 L<EVP_KDF_CTX_set_params(3)>,
 L<EVP_KDF_derive(3)>,
-L<EVP_KDF(3)/PARAMETERS>
+L<EVP_KDF(3)/PARAMETERS>,
+L<OSSL_PROVIDER-legacy(7)>
 
 =head1 HISTORY
 

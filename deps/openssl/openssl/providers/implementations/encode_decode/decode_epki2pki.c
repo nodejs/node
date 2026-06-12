@@ -17,12 +17,14 @@
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
 #include <openssl/proverr.h>
+#include "internal/cryptlib.h"
 #include "internal/asn1.h"
 #include "internal/sizes.h"
 #include "prov/bio.h"
 #include "prov/decoders.h"
 #include "prov/implementations.h"
-#include "endecoder_local.h"
+#include "prov/endecoder_local.h"
+#include "providers/implementations/encode_decode/decode_epki2pki.inc"
 
 static OSSL_FUNC_decoder_newctx_fn epki2pki_newctx;
 static OSSL_FUNC_decoder_freectx_fn epki2pki_freectx;
@@ -56,21 +58,21 @@ static void epki2pki_freectx(void *vctx)
 
 static const OSSL_PARAM *epki2pki_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_utf8_string(OSSL_DECODER_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settables;
+    return epki2pki_set_ctx_params_list;
 }
 
 static int epki2pki_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     struct epki2pki_ctx_st *ctx = vctx;
-    const OSSL_PARAM *p;
-    char *str = ctx->propq;
+    struct epki2pki_set_ctx_params_st p;
+    char *str;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_DECODER_PARAM_PROPERTIES);
-    if (p != NULL && !OSSL_PARAM_get_utf8_string(p, &str, sizeof(ctx->propq)))
+    if (ctx == NULL || !epki2pki_set_ctx_params_decoder(params, &p))
+        return 0;
+
+    str = ctx->propq;
+    if (p.propq != NULL
+            && !OSSL_PARAM_get_utf8_string(p.propq, &str, sizeof(ctx->propq)))
         return 0;
 
     return 1;
@@ -140,7 +142,7 @@ int ossl_epki2pki_der_decode(unsigned char *der, long der_len, int selection,
             int new_der_len = 0;
 
             X509_SIG_get0(p8, &alg, &oct);
-            if (!PKCS12_pbe_crypt_ex(alg, pbuf, plen,
+            if (!PKCS12_pbe_crypt_ex(alg, pbuf, (int)plen,
                                      oct->data, oct->length,
                                      &new_der, &new_der_len, 0,
                                      libctx, propq)) {

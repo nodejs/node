@@ -124,8 +124,8 @@ static int dane_ctx_enable(struct dane_ctx_st *dctx)
     if (dctx->mdevp != NULL)
         return 1;
 
-    mdevp = OPENSSL_zalloc(n * sizeof(*mdevp));
-    mdord = OPENSSL_zalloc(n * sizeof(*mdord));
+    mdevp = OPENSSL_calloc(n, sizeof(*mdevp));
+    mdord = OPENSSL_calloc(n, sizeof(*mdord));
 
     if (mdord == NULL || mdevp == NULL) {
         OPENSSL_free(mdord);
@@ -232,12 +232,12 @@ static int dane_mtype_set(struct dane_ctx_st *dctx,
         uint8_t *mdord;
         int n = ((int)mtype) + 1;
 
-        mdevp = OPENSSL_realloc(dctx->mdevp, n * sizeof(*mdevp));
+        mdevp = OPENSSL_realloc_array(dctx->mdevp, n, sizeof(*mdevp));
         if (mdevp == NULL)
             return -1;
         dctx->mdevp = mdevp;
 
-        mdord = OPENSSL_realloc(dctx->mdord, n * sizeof(*mdord));
+        mdord = OPENSSL_realloc_array(dctx->mdord, n, sizeof(*mdord));
         if (mdord == NULL)
             return -1;
         dctx->mdord = mdord;
@@ -831,6 +831,7 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, SSL *user_ssl,
     s->ext.ocsp.exts = NULL;
     s->ext.ocsp.resp = NULL;
     s->ext.ocsp.resp_len = 0;
+    s->ext.ocsp.resp_ex = NULL;
 
     if (!SSL_CTX_up_ref(ctx))
         goto err;
@@ -1497,14 +1498,20 @@ void ossl_ssl_connection_free(SSL *ssl)
     OPENSSL_free(s->ext.tuples);
     OPENSSL_free(s->ext.peer_supportedgroups);
     sk_X509_EXTENSION_pop_free(s->ext.ocsp.exts, X509_EXTENSION_free);
+
 #ifndef OPENSSL_NO_OCSP
+    OPENSSL_free(s->ext.ocsp.resp);
+    s->ext.ocsp.resp = NULL;
+    s->ext.ocsp.resp_len = 0;
+
     sk_OCSP_RESPID_pop_free(s->ext.ocsp.ids, OCSP_RESPID_free);
+    sk_OCSP_RESPONSE_pop_free(s->ext.ocsp.resp_ex, OCSP_RESPONSE_free);
+    s->ext.ocsp.resp_ex = NULL;
 #endif
 #ifndef OPENSSL_NO_CT
     SCT_LIST_free(s->scts);
     OPENSSL_free(s->ext.scts);
 #endif
-    OPENSSL_free(s->ext.ocsp.resp);
     OPENSSL_free(s->ext.alpn);
     OPENSSL_free(s->ext.tls13_cookie);
     if (s->clienthello != NULL)
@@ -1733,15 +1740,6 @@ int SSL_set_fd(SSL *s, int fd)
     }
     BIO_set_fd(bio, fd, BIO_NOCLOSE);
     SSL_set_bio(s, bio, bio);
-#ifndef OPENSSL_NO_KTLS
-    /*
-     * The new socket is created successfully regardless of ktls_enable.
-     * ktls_enable doesn't change any functionality of the socket, except
-     * changing the setsockopt to enable the processing of ktls_start.
-     * Thus, it is not a problem to call it for non-TLS sockets.
-     */
-    ktls_enable(fd);
-#endif /* OPENSSL_NO_KTLS */
     ret = 1;
  err:
     return ret;
@@ -1767,15 +1765,6 @@ int SSL_set_wfd(SSL *s, int fd)
         }
         BIO_set_fd(bio, fd, BIO_NOCLOSE);
         SSL_set0_wbio(s, bio);
-#ifndef OPENSSL_NO_KTLS
-        /*
-         * The new socket is created successfully regardless of ktls_enable.
-         * ktls_enable doesn't change any functionality of the socket, except
-         * changing the setsockopt to enable the processing of ktls_start.
-         * Thus, it is not a problem to call it for non-TLS sockets.
-         */
-        ktls_enable(fd);
-#endif /* OPENSSL_NO_KTLS */
     } else {
         if (!BIO_up_ref(rbio))
             return 0;
@@ -3468,18 +3457,20 @@ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size)
         if (sk_SSL_CIPHER_find(srvrsk, c) < 0)
             continue;
 
-        n = OPENSSL_strnlen(c->name, size);
-        if (n >= size) {
-            if (p != buf)
-                --p;
-            *p = '\0';
-            return buf;
-        }
+        n = (int)OPENSSL_strnlen(c->name, size);
+        if (n >= size)
+            break;
+
         memcpy(p, c->name, n);
         p += n;
         *(p++) = ':';
         size -= n + 1;
     }
+
+    /* No overlap */
+    if (p == buf)
+        return NULL;
+
     p[-1] = '\0';
     return buf;
 }
@@ -3955,8 +3946,8 @@ static long check_keylog_bio_free(BIO *b, int oper, const char *argp,
     /*
      * Note we _dont_ take the keylog_lock here
      * This is intentional, because we only free the keylog lock
-     * During SSL_CTX_free, in which we already posess the lock, so
-     * Theres no need to grab it again here
+     * During SSL_CTX_free, in which we already possess the lock, so
+     * There's no need to grab it again here
      */
     if (oper == BIO_CB_FREE)
         keylog_bio = NULL;
@@ -4312,7 +4303,7 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
         /* Make sure we have a global lock allocated */
         if (!RUN_ONCE(&ssl_keylog_once, ssl_keylog_init)) {
             /* use a trace message as a warning */
-            OSSL_TRACE(TLS, "Unable to initalize keylog data\n");
+            OSSL_TRACE(TLS, "Unable to initialize keylog data\n");
             goto out;
         }
 
@@ -4439,7 +4430,7 @@ void SSL_CTX_free(SSL_CTX *a)
     OPENSSL_free(a->ext.keyshares);
     OPENSSL_free(a->ext.tuples);
     OPENSSL_free(a->ext.alpn);
-    OPENSSL_secure_free(a->ext.secure);
+    OPENSSL_secure_clear_free(a->ext.secure, sizeof(*a->ext.secure));
 
     ssl_evp_md_free(a->md5);
     ssl_evp_md_free(a->sha1);
@@ -6428,41 +6419,56 @@ static int ct_extract_ocsp_response_scts(SSL_CONNECTION *s)
 {
 # ifndef OPENSSL_NO_OCSP
     int scts_extracted = 0;
-    const unsigned char *p;
     OCSP_BASICRESP *br = NULL;
     OCSP_RESPONSE *rsp = NULL;
     STACK_OF(SCT) *scts = NULL;
-    int i;
+    int ret;
+    int i, j;
 
-    if (s->ext.ocsp.resp == NULL || s->ext.ocsp.resp_len == 0)
+    if (s->ext.ocsp.resp_ex == NULL)
         goto err;
 
-    p = s->ext.ocsp.resp;
-    rsp = d2i_OCSP_RESPONSE(NULL, &p, (int)s->ext.ocsp.resp_len);
-    if (rsp == NULL)
-        goto err;
-
-    br = OCSP_response_get1_basic(rsp);
-    if (br == NULL)
-        goto err;
-
-    for (i = 0; i < OCSP_resp_count(br); ++i) {
-        OCSP_SINGLERESP *single = OCSP_resp_get0(br, i);
-
-        if (single == NULL)
-            continue;
-
-        scts =
-            OCSP_SINGLERESP_get1_ext_d2i(single, NID_ct_cert_scts, NULL, NULL);
-        scts_extracted =
-            ct_move_scts(&s->scts, scts, SCT_SOURCE_OCSP_STAPLED_RESPONSE);
-        if (scts_extracted < 0)
+    for (j = 0; j < sk_OCSP_RESPONSE_num(s->ext.ocsp.resp_ex); j++) {
+        rsp = sk_OCSP_RESPONSE_value(s->ext.ocsp.resp_ex, j);
+        if (rsp == NULL)
             goto err;
+
+        br = OCSP_response_get1_basic(rsp);
+        if (br == NULL)
+            goto err;
+
+        for (i = 0; i < OCSP_resp_count(br); ++i) {
+            OCSP_SINGLERESP *single = OCSP_resp_get0(br, i);
+
+            if (single == NULL)
+                continue;
+
+            scts = OCSP_SINGLERESP_get1_ext_d2i(single,
+                                                NID_ct_cert_scts, NULL, NULL);
+            if (scts == NULL)  {
+                scts_extracted = -1;
+                goto err;
+            }
+
+            ret = ct_move_scts(&s->scts, scts,
+                               SCT_SOURCE_OCSP_STAPLED_RESPONSE);
+
+            SCT_LIST_free(scts);
+
+            if (ret < 0) {
+                scts_extracted = -1;
+                goto err;
+            }
+
+            scts_extracted += ret;
+        }
+
+        OCSP_BASICRESP_free(br);
+        /* to assure that is not freed twice */
+        br = NULL;
     }
  err:
-    SCT_LIST_free(scts);
     OCSP_BASICRESP_free(br);
-    OCSP_RESPONSE_free(rsp);
     return scts_extracted;
 # else
     /* Behave as if no OCSP response exists */
@@ -6874,7 +6880,7 @@ int SSL_client_hello_get1_extensions_present(SSL *s, int **out, size_t *outlen)
         *outlen = 0;
         return 1;
     }
-    if ((present = OPENSSL_malloc(sizeof(*present) * num)) == NULL)
+    if ((present = OPENSSL_malloc_array(num, sizeof(*present))) == NULL)
         return 0;
     for (i = 0; i < sc->clienthello->pre_proc_exts_len; i++) {
         ext = sc->clienthello->pre_proc_exts + i;
@@ -7120,7 +7126,7 @@ int ssl_cache_cipherlist(SSL_CONNECTION *s, PACKET *cipher_suites, int sslv2form
          * slightly over allocate because we won't store those. But that isn't a
          * problem.
          */
-        raw = OPENSSL_malloc(numciphers * TLS_CIPHER_LEN);
+        raw = OPENSSL_malloc_array(numciphers, TLS_CIPHER_LEN);
         s->s3.tmp.ciphers_raw = raw;
         if (raw == NULL) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_CRYPTO_LIB);
@@ -7328,7 +7334,7 @@ __owur unsigned int ssl_get_max_send_fragment(const SSL_CONNECTION *sc)
         return GET_MAX_FRAGMENT_LENGTH(sc->session);
 
     /* return current SSL connection setting */
-    return sc->max_send_fragment;
+    return (unsigned int)sc->max_send_fragment;
 }
 
 __owur unsigned int ssl_get_split_send_fragment(const SSL_CONNECTION *sc)
@@ -7340,10 +7346,10 @@ __owur unsigned int ssl_get_split_send_fragment(const SSL_CONNECTION *sc)
 
     /* else limit |split_send_fragment| to current |max_send_fragment| */
     if (sc->split_send_fragment > sc->max_send_fragment)
-        return sc->max_send_fragment;
+        return (unsigned int)sc->max_send_fragment;
 
     /* return current SSL connection setting */
-    return sc->split_send_fragment;
+    return (unsigned int)sc->split_send_fragment;
 }
 
 int SSL_stateless(SSL *s)
@@ -8078,6 +8084,18 @@ size_t SSL_get_accept_connection_queue_len(SSL *ssl)
         return 0;
 
     return ossl_quic_get_accept_connection_queue_len(ssl);
+#else
+    return 0;
+#endif
+}
+
+int SSL_get_peer_addr(SSL *ssl, BIO_ADDR *peer_addr)
+{
+#ifndef OPENSSL_NO_QUIC
+    if (!IS_QUIC(ssl))
+        return 0;
+
+    return ossl_quic_get_peer_addr(ssl, peer_addr);
 #else
     return 0;
 #endif

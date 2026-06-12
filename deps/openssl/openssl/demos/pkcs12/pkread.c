@@ -105,7 +105,7 @@ int main(int argc, char **argv)
     OPENSSL_free(name);
     X509_free(cert);
     EVP_PKEY_free(pkey);
-    sk_X509_pop_free(ca, X509_free);
+    OSSL_STACK_OF_X509_free(ca);
 
     return ret;
 }

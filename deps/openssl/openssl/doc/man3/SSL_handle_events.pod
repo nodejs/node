@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+SSL_handle_events - advance asynchronous state machine and perform network I/O
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_handle_events(SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_handle_events() performs any internal processing which is due on an SSL object. The
+exact operations performed by SSL_handle_events() vary depending on what kind of protocol
+is being used with the given SSL object. For example, SSL_handle_events() may handle
+timeout events which have become due, or may attempt, to the extent currently
+possible, to perform network I/O operations on one of the BIOs underlying the
+SSL object.
+
+The primary use case for SSL_handle_events() is to allow an application which uses
+OpenSSL in nonblocking mode to give OpenSSL an opportunity to handle timer
+events, or to respond to the availability of new data to be read from an
+underlying BIO, or to respond to the opportunity to write pending data to an
+underlying BIO.
+
+SSL_handle_events() can be used only with the following types of SSL object:
+
+=over 4
+
+=item DTLS SSL objects
+
+Using SSL_handle_events() on an SSL object being used with a DTLS method allows timeout
+events to be handled properly. This is equivalent to a call to
+L<DTLSv1_handle_timeout(3)>. Since SSL_handle_events() handles a superset of the use
+cases of L<DTLSv1_handle_timeout(3)>, it should be preferred for new
+applications which do not require support for OpenSSL 3.1 or older.
+
+When using DTLS, an application must call SSL_handle_events() as indicated by
+calls to L<SSL_get_event_timeout(3)>; event handling is not performed
+automatically by calls to other SSL functions such as L<SSL_read(3)> or
+L<SSL_write(3)>. Note that this is different to QUIC which also performs event
+handling implicitly; see below.
+
+=item QUIC connection SSL objects
+
+Using SSL_handle_events() on an SSL object which represents a QUIC connection allows
+timeout events to be handled properly, as well as incoming network data to be
+processed, and queued outgoing network data to be written, if the underlying BIO
+has the capacity to accept it.
+
+Ordinarily, when an application uses an SSL object in blocking mode, it does not
+need to call SSL_handle_events() because OpenSSL performs ticking internally on an
+automatic basis. However, if an application uses a QUIC connection in
+nonblocking mode, it must at a minimum ensure that SSL_handle_events() is called
+periodically to allow timeout events to be handled. An application can find out
+when it next needs to call SSL_handle_events() for this purpose (if at all) by calling
+L<SSL_get_event_timeout(3)>.
+
+Calling SSL_handle_events() on a QUIC connection SSL object being used in blocking mode
+is not necessary unless no I/O calls (such as L<SSL_read(3)> or L<SSL_write(3)>)
+will be made to the object for a substantial period of time. So long as at least
+one call to the SSL object is blocking, no such call is needed. However,
+SSL_handle_events() may optionally be used on a QUIC connection object if desired.
+
+With the thread-assisted mode of operation L<OSSL_QUIC_client_thread_method(3)>
+it is unnecessary to call SSL_handle_events() as the assist thread handles the QUIC
+connection events.
+
+=back
+
+Calling SSL_handle_events() on any other kind of SSL object is a no-op. This is
+considered a success case.
+
+Note that SSL_handle_events() supersedes the older L<DTLSv1_handle_timeout(3)> function
+for all use cases.
+
+=head1 RETURN VALUES
+
+Returns 1 on success and 0 on failure.
+
+=head1 SEE ALSO
+
+L<SSL_get_event_timeout(3)>, L<DTLSv1_handle_timeout(3)>, L<ssl(7)>
+
+=head1 HISTORY
+
+The SSL_handle_events() function was added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

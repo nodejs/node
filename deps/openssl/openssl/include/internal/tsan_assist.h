@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -100,10 +100,10 @@
 #    define _InterlockedExchangeAdd64 _InterlockedExchangeAdd64_nf
 #    pragma intrinsic(_InterlockedExchangeAdd64_nf)
 #    pragma intrinsic(__iso_volatile_load64, __iso_volatile_store64)
-#    define tsan_load(ptr) (sizeof(*(ptr)) == 8 ? __iso_volatile_load64(ptr) \
-                                               : __iso_volatile_load32(ptr))
-#    define tsan_store(ptr, val) (sizeof(*(ptr)) == 8 ? __iso_volatile_store64((ptr), (val)) \
-                                                     : __iso_volatile_store32((ptr), (val)))
+#    define tsan_load(ptr) (sizeof(*(ptr)) == 8 ? __iso_volatile_load64((void *)(ptr)) \
+                                               : __iso_volatile_load32((void *)(ptr)))
+#    define tsan_store(ptr, val) (sizeof(*(ptr)) == 8 ? __iso_volatile_store64(((void *)(ptr)), (val)) \
+                                                     : __iso_volatile_store32((void *)(ptr), (val)))
 #   else
 #    define tsan_load(ptr) __iso_volatile_load32(ptr)
 #    define tsan_store(ptr, val) __iso_volatile_store32((ptr), (val))
@@ -115,8 +115,8 @@
 #  pragma intrinsic(_InterlockedExchangeAdd)
 #  ifdef _WIN64
 #   pragma intrinsic(_InterlockedExchangeAdd64)
-#   define tsan_add(ptr, n) (sizeof(*(ptr)) == 8 ? _InterlockedExchangeAdd64((ptr), (n)) \
-                                                : _InterlockedExchangeAdd((ptr), (n)))
+#   define tsan_add(ptr, n) (sizeof(*(ptr)) == 8 ? _InterlockedExchangeAdd64((void *)(ptr), (n)) \
+                                                : _InterlockedExchangeAdd((void *)(ptr), (n)))
 #  else
 #   define tsan_add(ptr, n) _InterlockedExchangeAdd((ptr), (n))
 #  endif

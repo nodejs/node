@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -36,7 +36,7 @@ int ossl_pkcs5_pbkdf2_hmac_ex(const char *pass, int passlen,
         pass = empty;
         passlen = 0;
     } else if (passlen == -1) {
-        passlen = strlen(pass);
+        passlen = (int)strlen(pass);
     }
     if (salt == NULL && saltlen == 0)
         salt = (unsigned char *)empty;

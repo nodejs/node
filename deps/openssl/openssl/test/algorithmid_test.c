@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -276,7 +276,8 @@ const OPTIONS *test_get_options(void)
 int setup_tests(void)
 {
     OPTION_CHOICE o;
-    int n, x509 = 0, spki = 0, testcount = 0;
+    size_t n;
+    int x509 = 0, spki = 0, testcount = 0;
 
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {

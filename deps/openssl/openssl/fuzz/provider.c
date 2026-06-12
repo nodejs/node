@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -214,7 +214,7 @@ static int read_octet_string(const uint8_t **buf, size_t *len, char **res)
 
     *res = (char *) *buf;
 
-    r = ptr - *buf;
+    r = (int)(ptr - *buf);
     *len -= r;
     *buf = ptr;
 
@@ -270,7 +270,7 @@ static OSSL_PARAM *fuzz_params(OSSL_PARAM *param, const uint8_t **buf, size_t *l
     for (p = param; p != NULL && p->key != NULL; p++)
         p_num++;
 
-    fuzzed_parameters = OPENSSL_zalloc(sizeof(OSSL_PARAM) *(p_num + 1));
+    fuzzed_parameters = OPENSSL_calloc(p_num + 1, sizeof(OSSL_PARAM));
     p = fuzzed_parameters;
 
     for (; param != NULL && param->key != NULL; param++) {
@@ -409,7 +409,8 @@ static int do_evp_cipher(const EVP_CIPHER *evp_cipher, const OSSL_PARAM param[])
         return 0;
     }
 
-    if (!EVP_EncryptUpdate(ctx, outbuf, &outlen, (const unsigned char *) intext, strlen(intext))) {
+    if (!EVP_EncryptUpdate(ctx, outbuf, &outlen, (const unsigned char *) intext,
+                           (int)strlen(intext))) {
         /* Error */
         EVP_CIPHER_CTX_free(ctx);
         return 0;

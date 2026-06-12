@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,7 +72,7 @@ static int test_offset(int idx)
     int day, sec;
 
     at.data = (unsigned char*)testdata->data;
-    at.length = strlen(testdata->data);
+    at.length = (int)strlen(testdata->data);
     at.type = testdata->type;
     at.flags = 0;
 

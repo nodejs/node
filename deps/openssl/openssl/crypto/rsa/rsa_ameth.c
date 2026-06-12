@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -704,13 +704,13 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
         if (alg1 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&alg1, &pp, aid_len) == NULL)
+            if (d2i_X509_ALGOR(&alg1, &pp, (long)aid_len) == NULL)
                 return 0;
         }
         if (alg2 != NULL) {
             const unsigned char *pp = aid;
 
-            if (d2i_X509_ALGOR(&alg2, &pp, aid_len) == NULL)
+            if (d2i_X509_ALGOR(&alg2, &pp, (long)aid_len) == NULL)
                 return 0;
         }
 

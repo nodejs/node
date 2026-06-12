@@ -111,17 +111,17 @@ int ossl_bn_check_generated_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
 
 const BIGNUM *ossl_bn_get0_small_factors(void);
 
-int ossl_bn_rsa_fips186_4_gen_prob_primes(BIGNUM *p, BIGNUM *Xpout,
+int ossl_bn_rsa_fips186_5_gen_prob_primes(BIGNUM *p, BIGNUM *Xpout,
                                           BIGNUM *p1, BIGNUM *p2,
                                           const BIGNUM *Xp, const BIGNUM *Xp1,
                                           const BIGNUM *Xp2, int nlen,
                                           const BIGNUM *e, BN_CTX *ctx,
-                                          BN_GENCB *cb);
+                                          BN_GENCB *cb, uint32_t c);
 
-int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
+int ossl_bn_rsa_fips186_5_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
                                        const BIGNUM *r1, const BIGNUM *r2,
                                        int nlen, const BIGNUM *e, BN_CTX *ctx,
-                                       BN_GENCB *cb);
+                                       BN_GENCB *cb, uint32_t c);
 
 OSSL_LIB_CTX *ossl_bn_get_libctx(BN_CTX *ctx);
 
@@ -140,7 +140,7 @@ int s390x_crt(BIGNUM *r, const BIGNUM *i, const BIGNUM *p, const BIGNUM *q,
 #endif
 
 int ossl_bn_mont_ctx_set(BN_MONT_CTX *ctx, const BIGNUM *modulus, int ri,
-                         const unsigned char *rr, size_t rrlen,
+                         const unsigned char *rr, int rrlen,
                          uint32_t nlo, uint32_t nhi);
 
 int ossl_bn_mont_ctx_eq(const BN_MONT_CTX *m1, const BN_MONT_CTX *m2);

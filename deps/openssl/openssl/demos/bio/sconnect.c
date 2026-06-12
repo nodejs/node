@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,11 +16,16 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#if !defined(OPENSSL_SYS_WINDOWS)
+#include <unistd.h>
+#else
+#include <windows.h>
+# define sleep(x) Sleep(x*1000)
+#endif
 
 #define HOSTPORT "localhost:4433"
 #define CAFILE "root.pem"
@@ -30,7 +35,6 @@ int main(int argc, char *argv[])
     const char *hostport = HOSTPORT;
     const char *CAfile = CAFILE;
     const char *hostname;
-    char *cp;
     BIO *out = NULL;
     char buf[1024 * 10], *p;
     SSL_CTX *ssl_ctx = NULL;
@@ -52,9 +56,10 @@ int main(int argc, char *argv[])
 
     /* Enable trust chain verification */
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
-    SSL_CTX_load_verify_locations(ssl_ctx, CAfile, NULL);
+    if (!SSL_CTX_load_verify_locations(ssl_ctx, CAfile, NULL))
+        goto err;
 
-    /* Lets make a SSL structure */
+    /* Let's make an SSL structure */
     ssl = SSL_new(ssl_ctx);
     SSL_set_connect_state(ssl);
 
@@ -69,14 +74,16 @@ int main(int argc, char *argv[])
 
     /* The BIO has parsed the host:port and even IPv6 literals in [] */
     hostname = BIO_get_conn_hostname(out);
-    if (!hostname || SSL_set1_host(ssl, hostname) <= 0)
+    if (!hostname || SSL_set1_host(ssl, hostname) <= 0) {
+        BIO_free(ssl_bio);
         goto err;
+    }
 
     BIO_set_nbio(out, 1);
     out = BIO_push(ssl_bio, out);
 
     p = "GET / HTTP/1.0\r\n\r\n";
-    len = strlen(p);
+    len = (int)strlen(p);
 
     off = 0;
     for (;;) {

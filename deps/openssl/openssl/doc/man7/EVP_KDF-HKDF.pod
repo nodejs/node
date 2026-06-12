@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-EVP_KDF-HKDF - The HKDF EVP_KDF implementation
+EVP_KDF-HKDF - The HKDF EVP_KDF implementations
 
 =head1 DESCRIPTION
 
@@ -19,8 +19,33 @@ The output is considered to be keying material.
 
 =head2 Identity
 
-"HKDF" is the name for this implementation; it
+The following algorithms are available for this implementation; they
 can be used with the EVP_KDF_fetch() function.
+
+In this list, names are grouped together to signify that they are the same
+algorithm having multiple names.  This also includes the OID in canonical
+decimal form (which means that they are possible to fetch if the caller has a
+mere OID which came out in this form after a call to L<OBJ_obj2txt(3)>).
+
+=over 4
+
+=item "HKDF"
+
+The B<OSSL_KDF_PARAM_DIGEST> parameter must be set for B<HKDF> before it can
+be used.
+
+=item "HKDF-SHA256", "id-alg-hkdf-with-sha256", "1.2.840.113549.1.9.16.3.28"
+
+=item "HKDF-SHA384", "id-alg-hkdf-with-sha384", "1.2.840.113549.1.9.16.3.29"
+
+=item "HKDF-SHA512", "id-alg-hkdf-with-sha512", "1.2.840.113549.1.9.16.3.30"
+
+B<HKDF-SHA256>, B<HKDF-SHA384> and B<HKDF-SHA512> are fixed-digest versions
+of B<HKDF> with the appropriate digest already configured.
+L<EVP_KDF_CTX_reset(3)> will not reset the context's digest for fixed-digest
+versions.
+
+=back
 
 =head2 Supported parameters
 
@@ -31,6 +56,8 @@ The supported parameters are:
 =item "properties" (B<OSSL_KDF_PARAM_PROPERTIES>) <UTF8 string>
 
 =item "digest" (B<OSSL_KDF_PARAM_DIGEST>) <UTF8 string>
+
+Attempting to set the digest on a fixed-digest B<HKDF> will result in an error.
 
 =item "key" (B<OSSL_KDF_PARAM_KEY>) <octet string>
 
@@ -58,8 +85,9 @@ up for HKDF will perform an extract followed by an expand operation in one go.
 The derived key returned will be the result after the expand operation. The
 intermediate fixed-length pseudorandom key K is not returned.
 
-In this mode the digest, key, salt and info values must be set before a key is
-derived otherwise an error will occur.
+In this mode the key, salt and info values must be set before a key is
+derived otherwise an error will occur. For non-fixed mode (B<HKDF>) the digest
+must also be set.
 
 =item "EXTRACT_ONLY" or B<EVP_KDF_HKDF_MODE_EXTRACT_ONLY>
 
@@ -68,8 +96,9 @@ operation. The value returned will be the intermediate fixed-length pseudorandom
 key K.  The I<keylen> parameter must match the size of K, which can be looked
 up by calling EVP_KDF_CTX_get_kdf_size() after setting the mode and digest.
 
-The digest, key and salt values must be set before a key is derived otherwise
-an error will occur.
+The key and salt values must be set before a key is derived otherwise
+an error will occur. For non-fixed mode (B<HKDF>) the digest
+must also be set.
 
 =item "EXPAND_ONLY" or B<EVP_KDF_HKDF_MODE_EXPAND_ONLY>
 
@@ -77,10 +106,33 @@ In this mode calling L<EVP_KDF_derive(3)> will just perform the expand
 operation. The input key should be set to the intermediate fixed-length
 pseudorandom key K returned from a previous extract operation.
 
-The digest, key and info values must be set before a key is derived otherwise
-an error will occur.
+The key and info values must be set before a key is derived otherwise
+an error will occur. For non-fixed mode (B<HKDF>) the digest
+must also be set.
 
 =back
+
+=back
+
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling EVP_KDF_derive. It returns 0 if "key-check"
+is set to 0 and the check fails.
+
+=item "key-check" (B<OSSL_KDF_PARAM_FIPS_KEY_CHECK>) <integer>
+
+The default value of 1 causes an error during EVP_KDF_CTX_set_params() if the
+length of used key-derivation key (B<OSSL_KDF_PARAM_KEY>) is shorter than 112
+bits.
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
 
 =back
 
@@ -99,6 +151,8 @@ For that mode, the fixed output size can be looked up by calling EVP_KDF_CTX_get
 after setting the mode and digest on the B<EVP_KDF_CTX>.
 
 =head1 EXAMPLES
+
+=head2 HKDF Algorithm
 
 This example derives 10 bytes using SHA-256 with the secret key "secret",
 salt value "salt" and info value "label":
@@ -127,9 +181,36 @@ salt value "salt" and info value "label":
 
  EVP_KDF_CTX_free(kctx);
 
+=head2 HKDF-SHA256 Algorithm
+
+This example derives 10 bytes using HKDF-SHA256 with the secret key "secret",
+salt value "salt" and info value "label":
+
+ EVP_KDF *kdf;
+ EVP_KDF_CTX *kctx;
+ unsigned char out[10];
+ OSSL_PARAM params[4], *p = params;
+
+ kdf = EVP_KDF_fetch(NULL, "HKDF-SHA256", NULL);
+ kctx = EVP_KDF_CTX_new(kdf);
+ EVP_KDF_free(kdf);
+
+ *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
+                                          "secret", (size_t)6);
+ *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO,
+                                          "label", (size_t)5);
+ *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
+                                          "salt", (size_t)4);
+ *p = OSSL_PARAM_construct_end();
+ if (EVP_KDF_derive(kctx, out, sizeof(out), params) <= 0) {
+     error("EVP_KDF_derive");
+ }
+
+ EVP_KDF_CTX_free(kctx);
+
 =head1 CONFORMING TO
 
-RFC 5869
+RFC 5869 and RFC 8619
 
 =head1 SEE ALSO
 
@@ -144,11 +225,13 @@ L<EVP_KDF-TLS13_KDF(7)>
 
 =head1 HISTORY
 
-This functionality was added in OpenSSL 3.0.
+HKDF-SHA256, HKDF-SHA384 and HKDF-SHA512 were added in OpenSSL 3.6.
+
+All other functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -51,7 +51,7 @@ To install OpenSSL, you will need:
  * A "make" implementation
  * Perl 5 with core modules (please read [NOTES-PERL.md](NOTES-PERL.md))
  * The Perl module `Text::Template` (please read [NOTES-PERL.md](NOTES-PERL.md))
- * an ANSI C compiler
+ * a C-99 compiler
  * POSIX C library (at least POSIX.1-2008), or compatible types and
    functionality.
  * a development environment in the form of development libraries and C
@@ -334,6 +334,14 @@ Build OpenSSL with debugging symbols and zero optimization level.
     --release
 
 Build OpenSSL without debugging symbols.  This is the default.
+
+    --coverage
+
+Build OpenSSL with gcov profiling information included
+
+    --pgo
+
+Build OpenSSL optimized using gcov data obtained from --coverage build
 
 Directories
 -----------
@@ -737,6 +745,11 @@ This now only enables the `failed-malloc` feature.
 
 This is a no-op; the project uses the compiler's address/leak sanitizer instead.
 
+### enable-allocfail-tests
+
+This option enables testing that leverages the use of the crypto-mdebug feature
+to test error paths resulting from failed memory allocations.
+
 ### no-ct
 
 Don't build support for Certificate Transparency (CT).
@@ -886,6 +899,12 @@ Disable HTTP support.
 Don't build the legacy provider.
 
 Disabling this also disables the legacy algorithms: MD2 (already disabled by default).
+
+### enable-lms
+
+Enable Leighton-Micali Signatures (LMS) support.
+Support is currently limited to verification only as per
+[SP 800-208](https://csrc.nist.gov/pubs/sp/800/208/final).
 
 ### no-makedepend
 
@@ -2032,6 +2051,24 @@ around the problem by forcing the build procedure to use the following script:
 
 instead of the real clang. In which case it doesn't matter what clang version
 is used, as it is the version of the GNU assembler that will be checked.
+
+Notes on profile guided optimization
+------------------------------------
+
+Some compilers support the concept of profile guided optimization.  This feature
+allows a user to build openssl and use profiling data gathered while running an
+application such that it can then be rebuilt in a way that is optimized specifically
+for that application, increasing performance.  Currently this feature is built into
+the openssl build system for x86_64 only.
+
+1) Configure openssl with the --coverage option.  This will configure the compiler to
+   record profiling data for the libcrypto and libssl libraries
+2) Run the application(s) which you wish to optimize for, ensuring that they use
+   the libraries compiled in step (1) (note this may entail the use of LD_LIBRARY_PATH)
+3) Clean the openssl build with make clean.  Note that the profile data (the .gcda and .gcno
+   files are retained through the clean operation). This is intentional.
+4) Configure openssl again, but this time select the --pgo build type.  This will use the
+   profiled data to optimize code layout for the application in question.
 
 ---
 

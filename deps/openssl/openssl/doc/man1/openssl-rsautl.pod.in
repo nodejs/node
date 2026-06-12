@@ -76,7 +76,9 @@ See L<openssl-format-options(1)> for details.
 
 =item B<-pubin>
 
-The input file is an RSA public key.
+By default a private key is read from the key input.
+With this option a public key is read instead.
+If the input contains no public key but a private key, its public part is used.
 
 =item B<-certin>
 
@@ -104,6 +106,11 @@ Decrypt the input data using an RSA private key.
 The padding to use: PKCS#1 v1.5 (the default), PKCS#1 OAEP,
 ANSI X9.31, or no padding, respectively.
 For signatures, only B<-pkcs> and B<-raw> can be used.
+
+Note: because of protection against Bleichenbacher attacks, decryption
+using PKCS#1 v1.5 mode will not return errors in case padding check failed.
+Use B<-raw> and inspect the returned value manually to check if the
+padding is correct.
 
 =item B<-hexdump>
 

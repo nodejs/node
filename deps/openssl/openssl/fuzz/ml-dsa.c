@@ -198,7 +198,7 @@ static void create_ml_dsa_raw_key(uint8_t **buf, size_t *len,
      * typically much less (between 1 and 100 bytes) so use RAND_bytes here
      * instead
      */
-    if (!RAND_bytes(key, keylen))
+    if (!RAND_bytes(key, (int)keylen))
         return;
 
     /*

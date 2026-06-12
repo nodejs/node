@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+SSL_get_event_timeout - determine when an SSL object next needs to have events
+handled
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get_event_timeout(SSL *s, struct timeval *tv, int *is_infinite);
+
+=head1 DESCRIPTION
+
+SSL_get_event_timeout() determines when the SSL object next needs to perform
+internal processing due to the passage of time.
+
+All arguments are required; I<tv> and I<is_infinite> must be non-NULL.
+
+Upon the successful return of SSL_get_event_timeout(), one of the following
+cases applies:
+
+=over 4
+
+=item
+
+The SSL object has events which need to be handled immediately; The fields of
+I<*tv> are set to 0 and I<*is_infinite> is set to 0.
+
+=item
+
+The SSL object has events which need to be handled after some amount of time
+(relative to the time at which SSL_get_event_timeout() was called). I<*tv> is
+set to the amount of time after which L<SSL_handle_events(3)> should be called
+and I<*is_infinite> is set to 0.
+
+=item
+
+There are currently no timer events which require handling in the future. The
+value of I<*tv> is unspecified and I<*is_infinite> is set to 1.
+
+=back
+
+This function is currently applicable only to DTLS and QUIC connection SSL
+objects. If it is called on any other kind of SSL object, it always outputs
+infinity. This is considered a success condition.
+
+For DTLS, this function can be used instead of the older
+L<DTLSv1_get_timeout(3)> function. Note that this function differs from
+L<DTLSv1_get_timeout(3)> in that the case where no timeout is active is
+considered a success condition.
+
+Note that the value output by a call to SSL_get_event_timeout() may change as a
+result of other calls to the SSL object.
+
+Once the timeout expires, L<SSL_handle_events(3)> should be called to handle any
+internal processing which is due; for more information, see
+L<SSL_handle_events(3)>.
+
+Note that SSL_get_event_timeout() supersedes the older L<DTLSv1_get_timeout(3)>
+function for all use cases.
+
+If the call to SSL_get_event_timeout() fails, the values of I<*tv> and
+I<*is_infinite> may still be changed and their values become unspecified.
+
+=head1 RETURN VALUES
+
+Returns 1 on success and 0 on failure.
+
+=head1 SEE ALSO
+
+L<SSL_handle_events(3)>, L<DTLSv1_get_timeout(3)>, L<ssl(7)>
+
+=head1 HISTORY
+
+The SSL_get_event_timeout() function was added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

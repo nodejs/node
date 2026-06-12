@@ -32,7 +32,7 @@ of the buffer; use ERR_error_string_n() instead.
 ERR_error_string_n() is a variant of ERR_error_string() that writes
 at most I<len> characters (including the terminating 0)
 and truncates the string if necessary.
-For ERR_error_string_n(), I<buf> may not be B<NULL>.
+For ERR_error_string_n(), I<buf> B<MUST NOT> be NULL.
 
 The string will have the following format:
 

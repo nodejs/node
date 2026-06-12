@@ -194,6 +194,8 @@ static const ERR_STRING_DATA PROV_str_reasons[] = {
      "personalisation string too long"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_PSS_SALTLEN_TOO_SMALL),
      "pss saltlen too small"},
+    {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_REPEATED_PARAMETER),
+     "repeated parameter"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_REQUEST_TOO_LARGE_FOR_DRBG),
      "request too large for drbg"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_REQUIRE_CTR_MODE_CIPHER),

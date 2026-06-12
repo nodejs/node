@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,7 +54,7 @@ ASN1_UTF8STRING *s2i_ASN1_UTF8STRING(X509V3_EXT_METHOD *method,
         ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
-    if (!ASN1_STRING_set((ASN1_STRING *)utf8, str, strlen(str))) {
+    if (!ASN1_STRING_set((ASN1_STRING *)utf8, str, (int)strlen(str))) {
         ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         ASN1_UTF8STRING_free(utf8);
         return NULL;

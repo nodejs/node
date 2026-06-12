@@ -44,7 +44,7 @@ int ossl_quic_hkdf_extract(OSSL_LIB_CTX *libctx,
      * at least 8 bytes. It means that the length of destination connection ID
      * may be less than the minimum length for HKDF required by FIPS provider.
      *
-     * Therefore, we need to set `key-check` to zero to allow using destionation
+     * Therefore, we need to set `key-check` to zero to allow using destination
      * connection ID as IKM.
      */
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_FIPS_KEY_CHECK, &key_check);

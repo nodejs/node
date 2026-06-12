@@ -1,0 +1,99 @@
+=pod
+
+=head1 NAME
+
+SSL_add_expected_rpk,
+SSL_get_negotiated_client_cert_type,
+SSL_get_negotiated_server_cert_type,
+SSL_get0_peer_rpk,
+SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk);
+ int SSL_get_negotiated_client_cert_type(const SSL *s);
+ int SSL_get_negotiated_server_cert_type(const SSL *s);
+ EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
+ EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *ss);
+
+=head1 DESCRIPTION
+
+SSL_add_expected_rpk() adds a DANE TLSA record matching public key B<rpk>
+to SSL B<s>'s DANE validation policy.
+
+SSL_get_negotiated_client_cert_type() returns the connection's negotiated
+client certificate type.
+
+SSL_get_negotiated_server_cert_type() returns the connection's negotiated
+server certificate type.
+
+SSL_get0_peer_rpk() returns the peer's raw public key from SSL B<s>.
+
+SSL_SESSION_get0_peer_rpk() returns the peer's raw public key from
+SSL_SESSION B<ss>.
+
+=head1 NOTES
+
+Raw public keys are used in place of certificates when the option is
+negotiated.
+B<SSL_add_expected_rpk()> may be called multiple times to configure
+multiple trusted keys, this makes it possible to allow for key rotation,
+where a peer might be expected to offer an "old" or "new" key and the
+endpoint must be able to accept either one.
+
+When raw public keys are used, the certificate verify callback is called, and
+may be used to inspect the public key via X509_STORE_CTX_get0_rpk(3).
+Raw public keys have no subject, issuer, validity dates nor digital signature
+to verify. They can, however, be matched verbatim or by their digest value, this
+is done by specifying one or more TLSA records, see L<SSL_CTX_dane_enable(3)>.
+
+The raw public key is typically taken from the certificate assigned to the
+connection (e.g. via L<SSL_use_certificate(3)>), but if a certificate is not
+configured, then the public key will be extracted from the assigned
+private key.
+
+The SSL_add_expected_rpk() function is a wrapper around
+L<SSL_dane_tlsa_add(3)>.
+When DANE is enabled via L<SSL_dane_enable(3)>, the configured TLSA records
+will be used to validate the peer's public key or certificate.
+If DANE is not enabled, then no validation will occur.
+
+=head1 RETURN VALUES
+
+SSL_add_expected_rpk() returns 1 on success and 0 on failure.
+
+SSL_get0_peer_rpk() and SSL_SESSION_get0_peer_rpk() return the peer's raw
+public key as an EVP_PKEY or NULL when the raw public key is not available.
+
+SSL_get_negotiated_client_cert_type() and SSL_get_negotiated_server_cert_type()
+return one of the following values:
+
+=over 4
+
+=item TLSEXT_cert_type_x509
+
+=item TLSEXT_cert_type_rpk
+
+=back
+
+=head1 SEE ALSO
+
+L<SSL_CTX_dane_enable(3)>,
+L<SSL_CTX_set_options(3)>,
+L<SSL_dane_enable(3)>,
+L<SSL_get_verify_result(3)>,
+L<SSL_set_verify(3)>,
+L<SSL_use_certificate(3)>,
+L<X509_STORE_CTX_get0_rpk(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+=cut

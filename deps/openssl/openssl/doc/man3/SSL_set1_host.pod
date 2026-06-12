@@ -9,8 +9,8 @@ SSL server verification parameters
 
  #include <openssl/ssl.h>
 
- int SSL_set1_host(SSL *s, const char *hostname);
- int SSL_add1_host(SSL *s, const char *hostname);
+ int SSL_set1_host(SSL *s, const char *host);
+ int SSL_add1_host(SSL *s, const char *host);
  void SSL_set_hostflags(SSL *s, unsigned int flags);
  const char *SSL_get0_peername(SSL *s);
 
@@ -18,29 +18,36 @@ SSL server verification parameters
 
 These functions configure server hostname checks in the SSL client.
 
-SSL_set1_host() sets the expected DNS hostname to B<name> clearing
-any previously specified hostname.  If B<name> is NULL
-or the empty string, the list of hostnames is cleared and name
-checks are not performed on the peer certificate.  When a nonempty
-B<name> is specified, certificate verification automatically checks
-the peer hostname via L<X509_check_host(3)> with B<flags> as specified
+SSL_set1_host() sets in the verification parameters of I<s>
+the expected DNS hostname or IP address to I<host>,
+clearing any previously specified IP address and hostnames.
+If I<host> is NULL or the empty string, IP address
+and hostname checks are not performed on the peer certificate.
+When a nonempty I<host> is specified, certificate verification automatically
+checks the peer hostname via L<X509_check_host(3)> with I<flags> as specified
 via SSL_set_hostflags().  Clients that enable DANE TLSA authentication
 via L<SSL_dane_enable(3)> should leave it to that function to set
 the primary reference identifier of the peer, and should not call
 SSL_set1_host().
 
-SSL_add1_host() adds B<name> as an additional reference identifier
-that can match the peer's certificate.  Any previous names set via
-SSL_set1_host() or SSL_add1_host() are retained, no change is made
-if B<name> is NULL or empty.  When multiple names are configured,
-the peer is considered verified when any name matches.  This function
-is required for DANE TLSA in the presence of service name indirection
-via CNAME, MX or SRV records as specified in RFC7671, RFC7672 or
-RFC7673.
+SSL_add1_host() adds I<host> as an additional reference identifier
+that can match the peer's certificate.  Any previous hostnames
+set via SSL_set1_host() or SSL_add1_host() are retained.
+Adding an IP address is allowed only if no IP address has been set before.
+No change is made if I<host> is NULL or empty.
+When an IP address and/or multiple hostnames are configured,
+the peer is considered verified when any of these matches.
+This function is required for DANE TLSA in the presence of service name indirection
+via CNAME, MX or SRV records as specified in RFCs 7671, 7672, and 7673.
 
-SSL_set_hostflags() sets the B<flags> that will be passed to
+TLS clients are recommended to use SSL_set1_host() or SSL_add1_host()
+for server hostname or IP address validation,
+as well as L<SSL_set_tlsext_host_name(3)> for Server Name Indication (SNI),
+which may be crucial also for correct routing of the connection request.
+
+SSL_set_hostflags() sets the I<flags> that will be passed to
 L<X509_check_host(3)> when name checks are applicable, by default
-the B<flags> value is 0.  See L<X509_check_host(3)> for the list
+the I<flags> value is 0.  See L<X509_check_host(3)> for the list
 of available flags and their meaning.
 
 SSL_get0_peername() returns the DNS hostname or subject CommonName
@@ -51,13 +58,13 @@ of the reference identifiers configured via SSL_set1_host() or
 SSL_add1_host() starts with ".", which indicates a parent domain prefix
 rather than a fixed name, the matched peer name may be a sub-domain
 of the reference identifier.  The returned string is allocated by
-the library and is no longer valid once the associated B<ssl> handle
+the library and is no longer valid once the associated I<ssl> handle
 is cleared or freed, or a renegotiation takes place.  Applications
 must not free the return value.
 
 SSL clients are advised to use these functions in preference to
 explicitly calling L<X509_check_host(3)>.  Hostname checks may be out
-of scope with the RFC7671 DANE-EE(3) certificate usage, and the
+of scope with the RFC 7671 DANE-EE(3) certificate usage, and the
 internal check will be suppressed as appropriate when DANE is
 enabled.
 
@@ -66,8 +73,10 @@ enabled.
 SSL_set1_host() and SSL_add1_host() return 1 for success and 0 for
 failure.
 
+SSL_set_hostflags() returns nothing at all.
+
 SSL_get0_peername() returns NULL if peername verification is not
-applicable (as with RFC7671 DANE-EE(3)), or no trusted peername was
+applicable (as with RFC 7671 DANE-EE(3)), or no trusted peername was
 matched.  Otherwise, it returns the matched peername.  To determine
 whether verification succeeded call L<SSL_get_verify_result(3)>.
 
@@ -99,9 +108,8 @@ the lifetime of the SSL connection.
 =head1 SEE ALSO
 
 L<ssl(7)>,
-L<X509_check_host(3)>,
-L<SSL_get_verify_result(3)>.
-L<SSL_dane_enable(3)>.
+L<X509_check_host(3)>, L<SSL_set_tlsext_host_name(3)>,
+L<SSL_get_verify_result(3)>, L<SSL_dane_enable(3)>
 
 =head1 HISTORY
 
@@ -109,7 +117,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

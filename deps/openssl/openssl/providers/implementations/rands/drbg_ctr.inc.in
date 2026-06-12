@@ -1,0 +1,40 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('drbg_ctr_get_ctx_params',
+                         (['OSSL_DRBG_PARAM_CIPHER',                 'cipher',      'utf8_string'],
+                          ['OSSL_DRBG_PARAM_USE_DF',                 'df',          'int'],
+                          ['OSSL_RAND_PARAM_STATE',                  'state',       'int'],
+                          ['OSSL_RAND_PARAM_STRENGTH',               'str',         'uint'],
+                          ['OSSL_RAND_PARAM_MAX_REQUEST',            'maxreq',      'size_t'],
+                          ['OSSL_DRBG_PARAM_MIN_ENTROPYLEN',         'minentlen',   'size_t'],
+                          ['OSSL_DRBG_PARAM_MAX_ENTROPYLEN',         'maxentlen',   'size_t'],
+                          ['OSSL_DRBG_PARAM_MIN_NONCELEN',           'minnonlen',   'size_t'],
+                          ['OSSL_DRBG_PARAM_MAX_NONCELEN',           'maxnonlen',   'size_t'],
+                          ['OSSL_DRBG_PARAM_MAX_PERSLEN',            'maxperlen',   'size_t'],
+                          ['OSSL_DRBG_PARAM_MAX_ADINLEN',            'maxadlen',    'size_t'],
+                          ['OSSL_DRBG_PARAM_RESEED_COUNTER',         'reseed_cnt',  'uint'],
+                          ['OSSL_DRBG_PARAM_RESEED_TIME',            'reseed_time', 'time_t'],
+                          ['OSSL_DRBG_PARAM_RESEED_REQUESTS',        'reseed_req',  'uint'],
+                          ['OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL',   'reseed_int',  'uint64'],
+                          ['OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR', 'ind',         'int', 'fips'],
+                         )); -}
+
+{- produce_param_decoder('drbg_ctr_set_ctx_params',
+                         (['OSSL_DRBG_PARAM_PROPERTIES',           'propq',       'utf8_string'],
+                          ['OSSL_DRBG_PARAM_CIPHER',               'cipher',      'utf8_string'],
+                          ['OSSL_DRBG_PARAM_USE_DF',               'df',          'int'],
+                          ['OSSL_PROV_PARAM_CORE_PROV_NAME',       'prov',        'utf8_string'],
+                          ['OSSL_DRBG_PARAM_RESEED_REQUESTS',      'reseed_req',  'uint'],
+                          ['OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL', 'reseed_time', 'uint64'],
+                         )); -}

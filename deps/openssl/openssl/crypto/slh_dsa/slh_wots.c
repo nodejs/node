@@ -109,13 +109,13 @@ static int slh_wots_chain(SLH_DSA_HASH_CTX *ctx, const uint8_t *in,
     if (!WPACKET_allocate_bytes(wpkt, tmp_len, &tmp))
         return 0;
 
-    set_hash_address(adrs, j++);
+    set_hash_address(adrs, (uint32_t)(j++));
     if (!F(ctx, pk_seed, adrs, in, n, tmp, tmp_len))
         return 0;
 
     end_index = start_index + steps;
     for (; j < end_index; ++j) {
-        set_hash_address(adrs, j);
+        set_hash_address(adrs, (uint32_t)j);
         if (!F(ctx, pk_seed, adrs, tmp, n, tmp, tmp_len))
             return 0;
     }
@@ -162,11 +162,11 @@ int ossl_slh_wots_pk_gen(SLH_DSA_HASH_CTX *ctx,
     adrsf->copy_keypair_address(sk_adrs, adrs);
 
     for (i = 0; i < len; ++i) { /* len = 2n + 3 */
-        set_chain_address(sk_adrs, i);
+        set_chain_address(sk_adrs, (uint32_t)i);
         if (!PRF(ctx, pk_seed, sk_seed, sk_adrs, sk, sizeof(sk)))
             goto end;
 
-        set_chain_address(adrs, i);
+        set_chain_address(adrs, (uint32_t)i);
         if (!slh_wots_chain(ctx, sk, 0, NIBBLE_MASK, pk_seed, adrs, tmp_wpkt))
             goto end;
     }
@@ -232,11 +232,11 @@ int ossl_slh_wots_sign(SLH_DSA_HASH_CTX *ctx, const uint8_t *msg,
     adrsf->copy_keypair_address(sk_adrs, adrs);
 
     for (i = 0; i < len; ++i) {
-        set_chain_address(sk_adrs, i);
+        set_chain_address(sk_adrs, (uint32_t)i);
         /* compute chain i secret */
         if (!PRF(ctx, pk_seed, sk_seed, sk_adrs, sk, sizeof(sk)))
             goto err;
-        set_chain_address(adrs, i);
+        set_chain_address(adrs, (uint32_t)i);
         /* compute chain i signature */
         if (!slh_wots_chain(ctx, sk, 0, msg_and_csum_nibbles[i],
                             pk_seed, adrs, sig_wpkt))
@@ -293,7 +293,7 @@ int ossl_slh_wots_pk_from_sig(SLH_DSA_HASH_CTX *ctx,
 
     /* Compute the end nodes for each of the chains */
     for (i = 0; i < len; ++i) {
-        set_chain_address(adrs, i);
+        set_chain_address(adrs, (uint32_t)i);
         if (!PACKET_get_bytes(sig_rpkt, &sig_i, n)
                 || !slh_wots_chain(ctx, sig_i, msg_and_csum_nibbles[i],
                                    NIBBLE_MASK - msg_and_csum_nibbles[i],

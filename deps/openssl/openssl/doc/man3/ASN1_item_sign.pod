@@ -40,24 +40,32 @@ ASN1 sign and verify
 =head1 DESCRIPTION
 
 ASN1_item_sign_ex() is used to sign arbitrary ASN1 data using a data object
-I<data>, the ASN.1 structure I<it>, private key I<pkey> and message digest I<md>.
-The data that is signed is formed by taking the data object in I<data> and
-converting it to der format using the ASN.1 structure I<it>.
-The I<data> that will be signed, and a structure containing the signature may
-both have a copy of the B<X509_ALGOR>. The ASN1_item_sign_ex() function will
-write the correct B<X509_ALGOR> to the structs based on the algorithms and
-parameters that have been set up. If one of I<algor1> or I<algor2> points to the
-B<X509_ALGOR> of the I<data> to be signed, then that B<X509_ALGOR> will first be
-written before the signature is generated.
-Examples of valid values that can be used by the ASN.1 structure I<it> are
-ASN1_ITEM_rptr(X509_CINF), ASN1_ITEM_rptr(X509_REQ_INFO) and
-ASN1_ITEM_rptr(X509_CRL_INFO).
+I<data>, the ASN.1 structure I<it>, private key I<pkey>, and message digest I<md>.
+The data to be signed is formed by taking the data object in I<data>
+and converting it to DER format using the ASN.1 type structure I<it>.
+Examples of values that can be used for I<it> are I<ASN1_ITEM_rptr(X509_CINF)>,
+I<ASN1_ITEM_rptr(X509_REQ_INFO)>, and I<ASN1_ITEM_rptr(X509_CRL_INFO)>.
+
+I<signature>, <algor1>, and I<algor2> are essentially output parameters.
+The generated signature is set into I<signature>,
+which must have been allocated beforehand, e.g., using I<ASN1_BIT_STRING_new()>.
+This may happen indirectly, for instance by having an ASN.1 structure like
+B<X509> that includes a non-optional signature field of type B<ASN1_BIT_STRING>.
+The <algor1> and I<algor2> parameters are optional and support outputting
+up to two B<X509_ALGOR> values representing the signature algorithm
+(typically including a digest algorithm, and/or possibly other parameters),
+which is useful for structures like B<X509> that must contain the same signature
+algorithm information in two places: I<sig_alg> and I<cert_info.signature>.
+Each of the <algor1> and I<algor2> pointers may be NULL, otherwise
+they must have been allocated beforehand (e.g., using I<X509_ALGOR_new()>,
+or indirectly like for the B<X509>fields I<sig_alg> and I<cert_info.signature>),
+and the ASN1_item_sign_ex() function sets into it the signature algorithm. This
+is done before generating the signature value and setting it into I<signature>.
+
 The B<OSSL_LIB_CTX> specified in I<libctx> and the property query string
 specified in I<props> are used when searching for algorithms in providers.
-The generated signature is set into I<signature>.
 The optional parameter I<id> can be NULL, but can be set for special key types.
-See EVP_PKEY_CTX_set1_id() for further info. The output parameters <algor1> and
-I<algor2> are ignored if they are NULL.
+See EVP_PKEY_CTX_set1_id() for further info.
 
 ASN1_item_sign() is similar to ASN1_item_sign_ex() but uses default values of
 NULL for the I<id>, I<libctx> and I<propq>.
@@ -216,7 +224,7 @@ ASN1_item_sign_ex() and ASN1_item_verify_ex() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

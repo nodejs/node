@@ -1,5 +1,5 @@
 /*-
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -11,22 +11,10 @@
  * CRMF implementation by Martin Peylo, Miikka Viljanen, and David von Oheimb.
  */
 
-#include <string.h>
-
-#include <openssl/rand.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/asn1t.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/params.h>
-#include <openssl/core_names.h>
-
-#include "internal/sizes.h"
-
 #include "crmf_local.h"
+#include <openssl/rand.h> /* for RAND_bytes_ex() */
+#include "internal/sizes.h" /* for OSSL_MAX_NAME_SIZE */
+#include <openssl/err.h>
 
 /*-
  * creates and initializes OSSL_CRMF_PBMPARAMETER (section 4.4)
@@ -89,7 +77,7 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
         goto err;
     }
 
-    if (!ASN1_INTEGER_set(pbm->iterationCount, itercnt)) {
+    if (!ASN1_INTEGER_set(pbm->iterationCount, (long)itercnt)) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_CRMFERROR);
         goto err;
     }

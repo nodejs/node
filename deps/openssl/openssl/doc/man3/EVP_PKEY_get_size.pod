@@ -3,7 +3,8 @@
 =head1 NAME
 
 EVP_PKEY_get_size, EVP_PKEY_get_bits, EVP_PKEY_get_security_bits,
-EVP_PKEY_bits, EVP_PKEY_security_bits, EVP_PKEY_size
+EVP_PKEY_bits, EVP_PKEY_security_bits, EVP_PKEY_get_security_category,
+EVP_PKEY_size
 - EVP_PKEY information functions
 
 =head1 SYNOPSIS
@@ -13,6 +14,7 @@ EVP_PKEY_bits, EVP_PKEY_security_bits, EVP_PKEY_size
  int EVP_PKEY_get_size(const EVP_PKEY *pkey);
  int EVP_PKEY_get_bits(const EVP_PKEY *pkey);
  int EVP_PKEY_get_security_bits(const EVP_PKEY *pkey);
+ int EVP_PKEY_get_security_category(const EVP_PKEY *pkey);
 
  #define EVP_PKEY_bits EVP_PKEY_get_bits
  #define EVP_PKEY_security_bits EVP_PKEY_get_security_bits
@@ -22,6 +24,7 @@ EVP_PKEY_bits, EVP_PKEY_security_bits, EVP_PKEY_size
 
 EVP_PKEY_get_size() returns the maximum suitable size for the output
 buffers for almost all operations that can be done with I<pkey>.
+This corresponds to the provider parameter B<OSSL_PKEY_PARAM_MAX_SIZE>.
 The primary documented use is with L<EVP_SignFinal(3)> and
 L<EVP_SealInit(3)>, but it isn't limited there.  The returned size is
 also large enough for the output buffer of L<EVP_PKEY_sign(3)>,
@@ -38,14 +41,57 @@ receive that length), to avoid bugs.
 EVP_PKEY_get_bits() returns the cryptographic length of the cryptosystem
 to which the key in I<pkey> belongs, in bits.  Note that the definition
 of cryptographic length is specific to the key cryptosystem.
+This length corresponds to the provider parameter B<OSSL_PKEY_PARAM_BITS>.
 
 EVP_PKEY_get_security_bits() returns the number of security bits of the given
 I<pkey>, bits of security is defined in NIST SP800-57.
+This corresponds to the provider parameter B<OSSL_PKEY_PARAM_SECURITY_BITS>.
+
+EVP_PKEY_get_security_category() returns the
+L<post-quantum security category|https://nvlpubs.nist.gov/nistpubs/ir/2024/NIST.IR.8547.ipd.pdf>
+as defined by NIST.
+The post-quantum security category is an integer value from 0 to 5 that
+is based on an algorithm's classification on the range of security strengths
+offered by the existing standards in symmetric cryptography:
+
+=begin text
+
+ Security       Attack
+ Category       Type
+ ==============================================================
+    0           Weak
+    1           Key search on a block cipher with a 128-bit key
+    2           Collision search on a 256-bit hash function
+    3           Key search on a block cipher with a 192-bit key
+    4           Collision search on a 384-bit hash function
+    5           Key search on a block cipher with a 256-bit key
+
+=end text
+
+=begin html
+
+<table>
+<tr><th>Security Category</th><th>Attack Type</th>></tr>
+<tr><td>0</td><td>Weak</td></tr>
+<tr><td>1</td><td>Key search on a block cipher with a 128-bit key</td></tr>
+<tr><td>2</td><td>Collision search on a 256-bit hash function</td></tr>
+<tr><td>3</td><td>Key search on a block cipher with a 192-bit key</td></tr>
+<tr><td>4</td><td>Collision search on a 384-bit hash function</td></tr>
+<tr><td>5</td><td>Key search on a block cipher with a 256-bit key</td></tr>
+</table>
+
+=end html
 
 =head1 RETURN VALUES
 
 EVP_PKEY_get_size(), EVP_PKEY_get_bits() and EVP_PKEY_get_security_bits()
 return a positive number, or 0 if this size isn't available.
+
+EVP_PKEY_get_security_category() returns the post-quantum security category
+which is an integer in the range zero to five inclusive.  It returns -1 if
+the security category information isn't available.
+For all classical algorithms, 0 is returned meaning that they are not
+considered to be quantum safe.
 
 =head1 NOTES
 
@@ -66,6 +112,7 @@ L<EVP_DigestSignFinal(3)/NOTES>.
 
 =head1 SEE ALSO
 
+L<provider-keymgmt(7)>,
 L<EVP_SignFinal(3)>,
 L<EVP_SealInit(3)>,
 L<EVP_PKEY_sign(3)>,
@@ -79,9 +126,11 @@ The EVP_PKEY_bits(), EVP_PKEY_security_bits(), and EVP_PKEY_size() functions
 were renamed to include C<get> in their names in OpenSSL 3.0, respectively.
 The old names are kept as non-deprecated alias macros.
 
+EVP_PKEY_get_security_category() was added in OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

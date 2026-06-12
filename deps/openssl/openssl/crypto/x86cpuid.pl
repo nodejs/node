@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -268,34 +268,6 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ret	();
 &function_end_B("OPENSSL_far_spin");
 
-&function_begin_B("OPENSSL_wipe_cpu","EXTRN\t_OPENSSL_ia32cap_P:DWORD");
-	&xor	("eax","eax");
-	&xor	("edx","edx");
-	&picmeup("ecx","OPENSSL_ia32cap_P");
-	&mov	("ecx",&DWP(0,"ecx"));
-	&bt	(&DWP(0,"ecx"),1);
-	&jnc	(&label("no_x87"));
-	if ($sse2) {
-		&and	("ecx",1<<26|1<<24);	# check SSE2 and FXSR bits
-		&cmp	("ecx",1<<26|1<<24);
-		&jne	(&label("no_sse2"));
-		&pxor	("xmm0","xmm0");
-		&pxor	("xmm1","xmm1");
-		&pxor	("xmm2","xmm2");
-		&pxor	("xmm3","xmm3");
-		&pxor	("xmm4","xmm4");
-		&pxor	("xmm5","xmm5");
-		&pxor	("xmm6","xmm6");
-		&pxor	("xmm7","xmm7");
-	&set_label("no_sse2");
-	}
-	# just a bunch of fldz to zap the fp/mm bank followed by finit...
-	&data_word(0xeed9eed9,0xeed9eed9,0xeed9eed9,0xeed9eed9,0x90e3db9b);
-&set_label("no_x87");
-	&lea	("eax",&DWP(4,"esp"));
-	&ret	();
-&function_end_B("OPENSSL_wipe_cpu");
-
 &function_begin_B("OPENSSL_atomic_add");
 	&mov	("edx",&DWP(4,"esp"));	# fetch the pointer, 1st arg
 	&mov	("ecx",&DWP(8,"esp"));	# fetch the increment, 2nd arg
@@ -520,8 +492,6 @@ my $rdop = shift;
 }
 &gen_random("rdrand");
 &gen_random("rdseed");
-
-&initseg("OPENSSL_cpuid_setup");
 
 &hidden("OPENSSL_cpuid_setup");
 &hidden("OPENSSL_ia32cap_P");

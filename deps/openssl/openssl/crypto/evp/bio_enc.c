@@ -154,7 +154,7 @@ static int enc_read(BIO *b, char *out, int outl)
             if (i > 0)
                 ctx->read_end += i;
         } else {
-            i = ctx->read_end - ctx->read_start;
+            i = (int)(ctx->read_end - ctx->read_start);
         }
 
         if (i <= 0) {

@@ -9,26 +9,11 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <string.h>
-#include <stdio.h>
-
-#include <openssl/asn1t.h>
-#include <openssl/http.h>
-
-#include <openssl/cmp.h>
 #include "cmp_local.h"
 
-/* explicit #includes not strictly needed since implied by the above: */
-#include <ctype.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/err.h>
-
-static int keep_alive(int keep_alive, int body_type, BIO **bios)
+static int keep_alive(int want_keep_alive, int body_type, BIO **bios)
 {
-    if (keep_alive != 0 && bios == NULL
+    if (want_keep_alive != 0 && bios == NULL
         /*
          * Ask for persistent connection only if may need more round trips.
          * Do so even with disableConfirm because polling might be needed.
@@ -38,8 +23,8 @@ static int keep_alive(int keep_alive, int body_type, BIO **bios)
             && body_type != OSSL_CMP_PKIBODY_P10CR
             && body_type != OSSL_CMP_PKIBODY_KUR
             && body_type != OSSL_CMP_PKIBODY_POLLREQ)
-        keep_alive = 0;
-    return keep_alive;
+        want_keep_alive = 0;
+    return want_keep_alive;
 }
 
 /*

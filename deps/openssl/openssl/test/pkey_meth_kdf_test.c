@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -145,7 +145,7 @@ err:
 }
 
 #ifndef OPENSSL_NO_SCRYPT
-static int test_kdf_scrypt(void)
+static int test_kdf_scrypt(int index)
 {
     int ret = 0;
     EVP_PKEY_CTX *pctx;
@@ -192,8 +192,26 @@ static int test_kdf_scrypt(void)
         TEST_error("EVP_PKEY_CTX_set_maxmem_bytes");
         goto err;
     }
-    if (EVP_PKEY_derive(pctx, out, &outlen) <= 0) {
-        TEST_error("EVP_PKEY_derive");
+    if (index == 0) {
+        if (EVP_PKEY_derive(pctx, out, &outlen) <= 0) {
+            TEST_error("EVP_PKEY_derive");
+            goto err;
+        }
+    } else if (index == 1) {
+        EVP_SKEY *skey = NULL;
+        const unsigned char *key = NULL;
+        size_t keysize = 0;
+
+        if ((skey = EVP_PKEY_derive_SKEY(pctx, NULL, "GENERIC", NULL,
+                                         outlen, NULL)) == NULL) {
+            TEST_error("EVP_PKEY_derive_SKEY");
+            goto err;
+        }
+        if (!TEST_int_gt(EVP_SKEY_get0_raw_key(skey, &key, &keysize), 0))
+            goto err;
+        memcpy(out, key, keysize);
+        EVP_SKEY_free(skey);
+    } else {
         goto err;
     }
 
@@ -229,7 +247,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_kdf_tls1_prf, tests);
     ADD_ALL_TESTS(test_kdf_hkdf, tests);
 #ifndef OPENSSL_NO_SCRYPT
-    ADD_TEST(test_kdf_scrypt);
+    ADD_ALL_TESTS(test_kdf_scrypt, 1);
 #endif
     return 1;
 }

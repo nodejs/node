@@ -5,6 +5,7 @@
 EVP_KDF, EVP_KDF_fetch, EVP_KDF_free, EVP_KDF_up_ref,
 EVP_KDF_CTX, EVP_KDF_CTX_new, EVP_KDF_CTX_free, EVP_KDF_CTX_dup,
 EVP_KDF_CTX_reset, EVP_KDF_derive,
+EVP_KDF_CTX_set_SKEY, EVP_KDF_derive_SKEY,
 EVP_KDF_CTX_get_kdf_size,
 EVP_KDF_get0_provider, EVP_KDF_CTX_kdf, EVP_KDF_is_a,
 EVP_KDF_get0_name, EVP_KDF_names_do_all, EVP_KDF_get0_description,
@@ -28,6 +29,10 @@ EVP_KDF_CTX_gettable_params, EVP_KDF_CTX_settable_params - EVP KDF routines
  size_t EVP_KDF_CTX_get_kdf_size(EVP_KDF_CTX *ctx);
  int EVP_KDF_derive(EVP_KDF_CTX *ctx, unsigned char *key, size_t keylen,
                     const OSSL_PARAM params[]);
+ int EVP_KDF_CTX_set_SKEY(EVP_KDF_CTX *ctx, EVP_SKEY *key, const char *paramname);
+ EVP_SKEY *EVP_KDF_derive_SKEY(EVP_KDF_CTX *ctx, EVP_SKEYMGMT *mgmt,
+                               const char *key_type, const char *propquery,
+                               size_t keylen, const OSSL_PARAM params[]);
  int EVP_KDF_up_ref(EVP_KDF *kdf);
  void EVP_KDF_free(EVP_KDF *kdf);
  EVP_KDF *EVP_KDF_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
@@ -58,10 +63,10 @@ The EVP KDF routines are a high-level interface to Key Derivation Function
 algorithms and should be used instead of algorithm-specific functions.
 
 After creating a B<EVP_KDF_CTX> for the required algorithm using
-EVP_KDF_CTX_new(), inputs to the algorithm are supplied either by
-passing them as part of the EVP_KDF_derive() call or using calls
-to EVP_KDF_CTX_set_params() before calling EVP_KDF_derive() to derive
-the key.
+EVP_KDF_CTX_new(), inputs to the algorithm are supplied either by passing them
+as part of the EVP_KDF_derive() or EVP_KDF_derive_SKEY() call or using calls to
+EVP_KDF_CTX_set_params() or EVP_KDF_CTX_set_SKEY() before calling
+EVP_KDF_derive() or EVP_KDF_derive_SKEY() to derive the key.
 
 =head2 Types
 
@@ -107,6 +112,20 @@ I<keylen> bytes of key material and places it in the I<key> buffer.
 If the algorithm produces a fixed amount of output then an error will
 occur unless the I<keylen> parameter is equal to that output size,
 as returned by EVP_KDF_CTX_get_kdf_size().
+
+EVP_KDF_derive_SKEY() behaves similarly except it returns an B<EVP_SKEY>
+object.  If the I<skeymgmt> argument is explicitly passed, it will be used for
+the generated key. If the I<skeymgmt> argument is NULL, the I<key_type> and
+I<propquery> will be used for fetching the B<EVP_SKEYMGMT> object linked to the
+key.  If the KDF doesn't support dealing with opaque keys or the passed
+B<EVP_SKEYMGMT> is from a different provider than the KDF method, the operation
+will try to perform export/import through the raw format.
+
+EVP_KDF_CTX_set_SKEY() allows setting an skey object as the input parameter for
+the derivation functions. As different KDFs may accept several parameters as
+key names, we can specify the particular parameter name we set.  If null is
+passed, the parameter B<OSSL_KDF_PARAM_KEY> is implied.  It is used when the
+input key is represented by B<EVP_SKEY> rather than raw bytes.
 
 EVP_KDF_get_params() retrieves details about the implementation
 I<kdf>.
@@ -283,9 +302,9 @@ EVP_KDF_get0_name() returns the name of the KDF, or NULL on error.
 EVP_KDF_names_do_all() returns 1 if the callback was called for all names. A
 return value of 0 means that the callback was not called for any names.
 
-The remaining functions return 1 for success and 0 or a negative value for
-failure.  In particular, a return value of -2 indicates the operation is not
-supported by the KDF algorithm.
+EVP_KDF_derive_SKEY() returns the B<EVP_SKEY> object on success or NULL on failure.
+
+The remaining functions return 1 for success and 0 for failure.
 
 =head1 NOTES
 
@@ -302,9 +321,12 @@ L<life_cycle-kdf(7)>.
 
 This functionality was added in OpenSSL 3.0.
 
+EVP_KDF_derive_SKEY() and EVP_KDF_CTX_set_SKEY() functions were introduced in
+OpenSSL 3.6.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

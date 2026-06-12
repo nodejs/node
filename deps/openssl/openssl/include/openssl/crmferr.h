@@ -34,6 +34,7 @@
 #  define CRMF_R_ERROR_DECRYPTING_ENCRYPTEDVALUE           125
 #  define CRMF_R_ERROR_DECRYPTING_SYMMETRIC_KEY            106
 #  define CRMF_R_ERROR_SETTING_PURPOSE                     126
+#  define CRMF_R_ERROR_SIGNING_POPO                        129
 #  define CRMF_R_ERROR_VERIFYING_ENCRYPTEDKEY              127
 #  define CRMF_R_FAILURE_OBTAINING_RANDOM                  107
 #  define CRMF_R_ITERATIONCOUNT_BELOW_100                  108

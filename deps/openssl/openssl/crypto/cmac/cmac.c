@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -149,7 +149,8 @@ int ossl_cmac_init(CMAC_CTX *ctx, const void *key, size_t keylen,
         ctx->nlast_block = -1;
         if (EVP_CIPHER_CTX_get0_cipher(ctx->cctx) == NULL)
             return 0;
-        if (EVP_CIPHER_CTX_set_key_length(ctx->cctx, keylen) <= 0)
+        if (keylen > INT_MAX
+            || EVP_CIPHER_CTX_set_key_length(ctx->cctx, (int)keylen) <= 0)
             return 0;
         if (!EVP_EncryptInit_ex2(ctx->cctx, NULL, key, zero_iv, param))
             return 0;
@@ -198,7 +199,7 @@ int CMAC_Update(CMAC_CTX *ctx, const void *in, size_t dlen)
             nleft = dlen;
         memcpy(ctx->last_block + ctx->nlast_block, data, nleft);
         dlen -= nleft;
-        ctx->nlast_block += nleft;
+        ctx->nlast_block += (int)nleft;
         /* If no more to process return */
         if (dlen == 0)
             return 1;
@@ -224,14 +225,14 @@ int CMAC_Update(CMAC_CTX *ctx, const void *in, size_t dlen)
         }
     } else {
         while (cipher_blocks > max_burst_blocks) {
-            if (EVP_Cipher(ctx->cctx, buf, data, max_burst_blocks * bl) <= 0)
+            if (EVP_Cipher(ctx->cctx, buf, data, (int)(max_burst_blocks * bl)) <= 0)
                 return 0;
             dlen -= max_burst_blocks * bl;
             data += max_burst_blocks * bl;
             cipher_blocks -= max_burst_blocks;
         }
         if (cipher_blocks > 0) {
-            if (EVP_Cipher(ctx->cctx, buf, data, cipher_blocks * bl) <= 0)
+            if (EVP_Cipher(ctx->cctx, buf, data, (int)(cipher_blocks * bl)) <= 0)
                 return 0;
             dlen -= cipher_blocks * bl;
             data += cipher_blocks * bl;
@@ -240,7 +241,7 @@ int CMAC_Update(CMAC_CTX *ctx, const void *in, size_t dlen)
     }
     /* Copy any data left to last block buffer */
     memcpy(ctx->last_block, data, dlen);
-    ctx->nlast_block = dlen;
+    ctx->nlast_block = (int)dlen;
     return 1;
 
 }

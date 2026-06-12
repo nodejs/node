@@ -47,7 +47,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     OCSP_BASICRESP *bs = NULL;
     OCSP_CERTID *id = NULL;
 
-    x509_1 = d2i_X509(NULL, &p, len);
+    x509_1 = d2i_X509(NULL, &p, (long)len);
     if (x509_1 == NULL)
         goto err;
 
@@ -65,17 +65,17 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     OPENSSL_free(der);
 
     len = orig_len - (p - buf);
-    x509_2 = d2i_X509(NULL, &p, len);
+    x509_2 = d2i_X509(NULL, &p, (long)len);
     if (x509_2 == NULL)
         goto err;
 
     len = orig_len - (p - buf);
-    crl = d2i_X509_CRL(NULL, &p, len);
+    crl = d2i_X509_CRL(NULL, &p, (long)len);
     if (crl == NULL)
         goto err;
 
     len = orig_len - (p - buf);
-    resp = d2i_OCSP_RESPONSE(NULL, &p, len);
+    resp = d2i_OCSP_RESPONSE(NULL, &p, (long)len);
 
     store = X509_STORE_new();
     if (store == NULL)

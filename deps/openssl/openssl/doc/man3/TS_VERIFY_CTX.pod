@@ -1,0 +1,154 @@
+=pod
+
+=head1 NAME
+
+TS_VERIFY_CTX, TS_VERIFY_CTX_new, TS_VERIFY_CTX_init, TS_VERIFY_CTX_free,
+TS_VERIFY_CTX_cleanup, TS_VERIFY_CTX_set_flags, TS_VERIFY_CTX_add_flags,
+TS_VERIFY_CTX_set0_data, TS_VERIFY_CTX_set0_imprint, TS_VERIFY_CTX_set0_store,
+TS_VERIFY_CTX_set0_certs, TS_VERIFY_CTX_set_certs, TS_VERIFY_CTS_set_certs,
+TS_VERIFY_CTX_set_data, TS_VERIFY_CTX_set_imprint, TS_VERIFY_CTX_set_store
+- manage the TS response verification context
+
+=head1 SYNOPSIS
+
+ #include <openssl/ts.h>
+
+ typedef struct TS_verify_ctx TS_VERIFY_CTX;
+
+ TS_VERIFY_CTX *TS_VERIFY_CTX_new(void);
+ void TS_VERIFY_CTX_init(TS_VERIFY_CTX *ctx);
+ void TS_VERIFY_CTX_free(TS_VERIFY_CTX *ctx);
+ void TS_VERIFY_CTX_cleanup(TS_VERIFY_CTX *ctx);
+ int TS_VERIFY_CTX_set_flags(TS_VERIFY_CTX *ctx, int f);
+ int TS_VERIFY_CTX_add_flags(TS_VERIFY_CTX *ctx, int f);
+ int TS_VERIFY_CTX_set0_data(TS_VERIFY_CTX *ctx, BIO *b);
+ int TS_VERIFY_CTX_set0_imprint(TS_VERIFY_CTX *ctx,
+                                unsigned char *hexstr, long len);
+ int TS_VERIFY_CTX_set0_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
+ int TS_VERIFY_CTX_set0_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs);
+
+The following functions have been deprecated since OpenSSL 3.4:
+
+ BIO *TS_VERIFY_CTX_set_data(TS_VERIFY_CTX *ctx, BIO *b);
+ unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
+                                          unsigned char *hexstr, long len);
+ X509_STORE *TS_VERIFY_CTX_set_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
+ STACK_OF(X509) *TS_VERIFY_CTX_set_certs(TS_VERIFY_CTX *ctx,
+                                         STACK_OF(X509) *certs);
+
+The following function has been deprecated since OpenSSL 3.0:
+
+ STACK_OF(X509) *TS_VERIFY_CTS_set_certs(TS_VERIFY_CTX *ctx,
+                                         STACK_OF(X509) *certs);
+
+=head1 DESCRIPTION
+
+The Time-Stamp Protocol (TSP) is defined by RFC 3161. TSP is a protocol used to
+provide long-term proof of the existence of certain data before a particular
+time. TSP defines a Time Stamping Authority (TSA) and an entity that makes
+requests to the TSA. Usually, the TSA is referred to as the server side, and the
+requesting entity is referred to as the client.
+
+In TSP, when a server sends a response to a client, the server normally
+needs to sign the response data - the TimeStampToken (TST) - with its private
+key. Then the client verifies the received TST using the server's certificate
+chain.
+
+For all the following methods, unless noted otherwise, I<ctx> is the
+verification context created in advance.
+
+TS_VERIFY_CTX_new() returns an allocated B<TS_VERIFY_CTX> structure.
+
+TS_VERIFY_CTX_init() initializes a verification context.
+
+TS_VERIFY_CTX_free() frees up a B<TS_VERIFY_CTX> object. I<ctx> is the
+verification context to be freed. If I<ctx> is NULL, the call is ignored.
+
+TS_VERIFY_CTX_set_flags() sets the flags in the verification context. I<f> are
+the flags to be set.
+
+TS_VERIFY_CTX_add_flags() adds flags to the verification context. I<f> are the
+flags to be added (OR'd).
+
+TS_VERIFY_CTX_set0_data() sets the data to be verified. I<b> is the B<BIO> with
+the data. A previously assigned B<BIO> is freed.
+
+TS_VERIFY_CTX_set0_imprint() sets the message imprint. I<hexstr> is the
+message imprint to be assigned. A previously assigned imprint is freed.
+
+TS_VERIFY_CTX_set0_store() sets the store for the verification context. I<s> is
+the store to be assigned. A previously assigned store is freed.
+
+TS_VERIFY_CTX_set0_certs() is used to set the server's certificate chain when
+verifying a TST. I<certs> is a stack of B<X509> certificates.
+
+TS_VERIFY_CTX_cleanup() frees all data associated with the given
+B<TS_VERIFY_CTX> object and initializes it. I<ctx> is the verification context
+created in advance. If I<ctx> is NULL, the call is ignored.
+
+All of the following functions described are deprecated. Applications should
+instead use the functions L<TS_VERIFY_CTX_set0_data(3)>,
+L<TS_VERIFY_CTX_set0_imprint(3)>, L<TS_VERIFY_CTX_set0_store(3)>,
+L<TS_VERIFY_CTX_set0_certs(3)>.
+
+TS_VERIFY_CTX_set_data() is used to set the BIO with the data to be verified.
+A previously assigned BIO is B<not freed> by this call. I<b> is the B<BIO>
+with the data to assign.
+
+TS_VERIFY_CTX_set_imprint() is used to set the message imprint. A previously
+assigned imprint B<is freed> by this call. I<hexstr> is the string with the
+message imprint to assign.
+
+TS_VERIFY_CTX_set_store() is used to set the certificate store. A previously
+assigned store is B<not freed> by this call. I<s> is the store to assign.
+
+TS_VERIFY_CTX_set_certs() is used to set the server's certificate chain.
+A previously assigned stack is B<not freed> by this call. I<certs> is a stack
+of B<X509> certificates.
+
+TS_VERIFY_CTS_set_certs() is a misspelled version of TS_VERIFY_CTX_set_certs()
+which takes the same parameters and returns the same result.
+
+=head1 RETURN VALUES
+
+TS_VERIFY_CTX_new() returns an allocated B<TS_VERIFY_CTX> structure.
+
+TS_VERIFY_CTX_set_flags() returns the flags passed via parameter I<f>.
+
+TS_VERIFY_CTX_add_flags() returns the flags of the context after the ones
+passed via parameter I<f> are added to it.
+
+TS_VERIFY_CTX_set0_data(), TS_VERIFY_CTX_set0_imprint(),
+TS_VERIFY_CTX_set0_store(), and TS_VERIFY_CTX_set0_certs() return 1 if the
+value could be successfully set and 0 in case of any error.
+
+The deprecated functions TS_VERIFY_CTX_set_data(), TS_VERIFY_CTX_set_imprint(),
+TS_VERIFY_CTX_set_store(), TS_VERIFY_CTX_set_certs() return the parameter
+the user passes via parameter I<bio>, I<hexstr>, I<s> or I<certs>.
+
+=head1 SEE ALSO
+
+L<OSSL_ESS_check_signing_certs(3)>
+
+=head1 HISTORY
+
+TS_VERIFY_CTX_set0_data(), TS_VERIFY_CTX_set0_imprint(),
+TS_VERIFY_CTX_set0_store(), TS_VERIFY_CTX_set0_certs() replace the functions
+TS_VERIFY_CTX_set_data(), TS_VERIFY_CTX_set_imprint(),
+TS_VERIFY_CTX_set_store(), TS_VERIFY_CTX_set_certs() that were deprecated
+in OpenSSL 3.4.0.
+
+The spelling of TS_VERIFY_CTX_set_certs() was corrected in OpenSSL 3.0.0.
+The misspelled version TS_VERIFY_CTS_set_certs() has been retained for
+compatibility reasons, but it is deprecated in OpenSSL 3.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License"). You may not use
+this file except in compliance with the License. You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

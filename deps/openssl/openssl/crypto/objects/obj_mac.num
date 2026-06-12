@@ -1484,3 +1484,17 @@ SLH_DSA_SHAKE_192s_WITH_SHAKE256		1483
 SLH_DSA_SHAKE_192f_WITH_SHAKE256		1484
 SLH_DSA_SHAKE_256s_WITH_SHAKE256		1485
 SLH_DSA_SHAKE_256f_WITH_SHAKE256		1486
+aes_128_cbc_hmac_sha1_etm		1487
+aes_192_cbc_hmac_sha1_etm		1488
+aes_256_cbc_hmac_sha1_etm		1489
+aes_128_cbc_hmac_sha256_etm		1490
+aes_192_cbc_hmac_sha256_etm		1491
+aes_256_cbc_hmac_sha256_etm		1492
+aes_128_cbc_hmac_sha512_etm		1493
+aes_192_cbc_hmac_sha512_etm		1494
+aes_256_cbc_hmac_sha512_etm		1495
+HKDF_SHA256		1496
+HKDF_SHA384		1497
+HKDF_SHA512		1498
+id_smime_ori		1499
+id_smime_ori_kem		1500

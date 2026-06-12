@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@ static int cipher_hw_blowfish_initkey(PROV_CIPHER_CTX *ctx,
 {
     PROV_BLOWFISH_CTX *bctx =  (PROV_BLOWFISH_CTX *)ctx;
 
-    BF_set_key(&bctx->ks.ks, keylen, key);
+    BF_set_key(&bctx->ks.ks, (int)keylen, key);
     return 1;
 }
 

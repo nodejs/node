@@ -510,6 +510,12 @@ int EVP_SIGNATURE_is_a(const EVP_SIGNATURE *signature, const char *name)
            && evp_is_a(signature->prov, signature->name_id, NULL, name);
 }
 
+int EVP_SIGNATURE_has_message_update(const EVP_SIGNATURE *signature)
+{
+    return signature->verify_message_update != NULL
+           && signature->sign_message_update != NULL;
+}
+
 int evp_signature_get_number(const EVP_SIGNATURE *signature)
 {
     return signature->name_id;

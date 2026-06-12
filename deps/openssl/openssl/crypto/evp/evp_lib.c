@@ -320,11 +320,12 @@ int EVP_CIPHER_get_type(const EVP_CIPHER *cipher)
 int evp_cipher_cache_constants(EVP_CIPHER *cipher)
 {
     int ok, aead = 0, custom_iv = 0, cts = 0, multiblock = 0, randkey = 0;
+    int encrypt_then_mac = 0;
     size_t ivlen = 0;
     size_t blksz = 0;
     size_t keylen = 0;
     unsigned int mode = 0;
-    OSSL_PARAM params[10];
+    OSSL_PARAM params[11];
 
     params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_BLOCK_SIZE, &blksz);
     params[1] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &ivlen);
@@ -338,12 +339,14 @@ int evp_cipher_cache_constants(EVP_CIPHER *cipher)
                                          &multiblock);
     params[8] = OSSL_PARAM_construct_int(OSSL_CIPHER_PARAM_HAS_RAND_KEY,
                                          &randkey);
-    params[9] = OSSL_PARAM_construct_end();
+    params[9] = OSSL_PARAM_construct_int(OSSL_CIPHER_PARAM_ENCRYPT_THEN_MAC,
+                                         &encrypt_then_mac);
+    params[10] = OSSL_PARAM_construct_end();
     ok = evp_do_ciph_getparams(cipher, params) > 0;
     if (ok) {
-        cipher->block_size = blksz;
-        cipher->iv_len = ivlen;
-        cipher->key_len = keylen;
+        cipher->block_size = (int)blksz;
+        cipher->iv_len = (int)ivlen;
+        cipher->key_len = (int)keylen;
         cipher->flags = mode;
         if (aead)
             cipher->flags |= EVP_CIPH_FLAG_AEAD_CIPHER;
@@ -357,6 +360,8 @@ int evp_cipher_cache_constants(EVP_CIPHER *cipher)
             cipher->flags |= EVP_CIPH_FLAG_CUSTOM_CIPHER;
         if (randkey)
             cipher->flags |= EVP_CIPH_RAND_KEY;
+        if (encrypt_then_mac)
+            cipher->flags |= EVP_CIPH_FLAG_ENC_THEN_MAC;
         if (OSSL_PARAM_locate_const(EVP_CIPHER_gettable_ctx_params(cipher),
                                     OSSL_CIPHER_PARAM_ALGORITHM_ID_PARAMS))
             cipher->flags |= EVP_CIPH_FLAG_CUSTOM_ASN1;
@@ -1052,10 +1057,10 @@ int EVP_MD_CTX_get_size_ex(const EVP_MD_CTX *ctx)
          */
         params[0] = OSSL_PARAM_construct_size_t(OSSL_DIGEST_PARAM_SIZE, &sz);
         if (EVP_MD_CTX_get_params(c, params) != 1
-                || sz == SIZE_MAX
+                || sz > INT_MAX
                 || sz == 0)
             return -1;
-        return sz;
+        return (int)sz;
     }
     /* Normal digests have a constant fixed size output */
     return EVP_MD_get_size(EVP_MD_CTX_get0_md(ctx));
@@ -1356,7 +1361,7 @@ int EVP_CIPHER_CTX_get_algor(EVP_CIPHER_CTX *ctx, X509_ALGOR **alg)
         ret = -2;
         goto err;
     }
-    if (alg != NULL) {
+    if (alg != NULL && aid_len <= LONG_MAX) {
         unsigned char *aid = NULL;
         const unsigned char *pp = NULL;
 
@@ -1365,7 +1370,7 @@ int EVP_CIPHER_CTX_get_algor(EVP_CIPHER_CTX *ctx, X509_ALGOR **alg)
             pp = aid;
             if (EVP_CIPHER_CTX_get_params(ctx, params)
                 && OSSL_PARAM_modified(&params[0])
-                && d2i_X509_ALGOR(alg, &pp, aid_len) != NULL)
+                && d2i_X509_ALGOR(alg, &pp, (long)aid_len) != NULL)
                 ret = 1;
         }
         OPENSSL_free(aid);
@@ -1431,6 +1436,7 @@ int EVP_PKEY_CTX_get_algor_params(EVP_PKEY_CTX *ctx, X509_ALGOR *alg)
     if (OSSL_PARAM_modified(&params[0])
         /* ... but, we should get a return size too! */
         && derl != 0
+        && derl <= LONG_MAX
         && (der = OPENSSL_malloc(derl)) != NULL) {
         unsigned char *derp = der;
 
@@ -1438,7 +1444,7 @@ int EVP_PKEY_CTX_get_algor_params(EVP_PKEY_CTX *ctx, X509_ALGOR *alg)
         if (EVP_PKEY_CTX_get_params(ctx, params)
             && OSSL_PARAM_modified(&params[0])
             && d2i_ASN1_TYPE(&type, (const unsigned char **)&derp,
-                             derl) != NULL) {
+                             (long)derl) != NULL) {
             /*
              * Don't free alg->parameter, see comment further up.
              * Worst case, alg->parameter gets assigned its own value.
@@ -1472,7 +1478,7 @@ int EVP_PKEY_CTX_get_algor(EVP_PKEY_CTX *ctx, X509_ALGOR **alg)
         ret = -2;
         goto err;
     }
-    if (alg != NULL) {
+    if (alg != NULL && aid_len <= LONG_MAX) {
         unsigned char *aid = NULL;
         const unsigned char *pp = NULL;
 
@@ -1481,7 +1487,7 @@ int EVP_PKEY_CTX_get_algor(EVP_PKEY_CTX *ctx, X509_ALGOR **alg)
             pp = aid;
             if (EVP_PKEY_CTX_get_params(ctx, params)
                 && OSSL_PARAM_modified(&params[0])
-                && d2i_X509_ALGOR(alg, &pp, aid_len) != NULL)
+                && d2i_X509_ALGOR(alg, &pp, (long)aid_len) != NULL)
                 ret = 1;
         }
         OPENSSL_free(aid);

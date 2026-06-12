@@ -1,0 +1,33 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('ml_dsa_set_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_CONTEXT_STRING',   'ctx',    'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_TEST_ENTROPY',     'ent',    'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_DETERMINISTIC',    'det',    'int'],
+                          ['OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING', 'msgenc', 'int'],
+                          ['OSSL_SIGNATURE_PARAM_MU',               'mu',     'int'],
+                         )); -}
+
+{- produce_param_decoder('ml_dsa_verifymsg_set_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_CONTEXT_STRING',   'ctx',    'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_TEST_ENTROPY',     'ent',    'octet_string'],
+                          ['OSSL_SIGNATURE_PARAM_DETERMINISTIC',    'det',    'int'],
+                          ['OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING', 'msgenc', 'int'],
+                          ['OSSL_SIGNATURE_PARAM_MU',               'mu',     'int'],
+                          ['OSSL_SIGNATURE_PARAM_SIGNATURE',        'sig',    'octet_string'],
+                         )); -}
+
+{- produce_param_decoder('ml_dsa_get_ctx_params',
+                         (['OSSL_SIGNATURE_PARAM_ALGORITHM_ID', 'id', 'octet_string'],
+                         )); -}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -11,20 +11,7 @@
 
 /* CMP functions for PKIStatusInfo handling and PKIMessage decomposition */
 
-#include <string.h>
-
 #include "cmp_local.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <time.h>
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h> /* needed in case config no-deprecated */
-#include <openssl/engine.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/x509.h>
-#include <openssl/asn1err.h> /* for ASN1_R_TOO_SMALL and ASN1_R_TOO_LARGE */
 
 /* CMP functions related to PKIStatus */
 

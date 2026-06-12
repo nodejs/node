@@ -29,6 +29,7 @@
 #include "internal/cryptlib.h"
 #include "internal/comp.h"
 #include "internal/ssl_unwrap.h"
+#include <openssl/ocsp.h>
 
 static MSG_PROCESS_RETURN tls_process_as_hello_retry_request(SSL_CONNECTION *s,
                                                              PACKET *pkt);
@@ -2600,7 +2601,7 @@ MSG_PROCESS_RETURN tls_process_certificate_request(SSL_CONNECTION *s,
     if (s->s3.tmp.valid_flags != NULL)
         memset(s->s3.tmp.valid_flags, 0, s->ssl_pkey_num * sizeof(uint32_t));
     else
-        s->s3.tmp.valid_flags = OPENSSL_zalloc(s->ssl_pkey_num * sizeof(uint32_t));
+        s->s3.tmp.valid_flags = OPENSSL_calloc(s->ssl_pkey_num, sizeof(uint32_t));
 
     /* Give up for good if allocation didn't work */
     if (s->s3.tmp.valid_flags == NULL)
@@ -2863,7 +2864,9 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
         const EVP_MD *md = ssl_handshake_md(s);
         int hashleni = EVP_MD_get_size(md);
         size_t hashlen;
-        static const unsigned char nonce_label[] = "resumption";
+        /* ASCII: "resumption", in hex for EBCDIC compatibility */
+        static const unsigned char nonce_label[] = { 0x72, 0x65, 0x73, 0x75, 0x6D,
+                                                     0x70, 0x74, 0x69, 0x6F, 0x6E };
 
         /* Ensure cast to size_t is safe */
         if (!ossl_assert(hashleni > 0)) {
@@ -2874,7 +2877,7 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
 
         if (!tls13_hkdf_expand(s, md, s->resumption_master_secret,
                                nonce_label,
-                               sizeof(nonce_label) - 1,
+                               sizeof(nonce_label),
                                PACKET_data(&nonce),
                                PACKET_remaining(&nonce),
                                s->session->master_key,
@@ -2900,40 +2903,77 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
  * In TLSv1.3 this is called from the extensions code, otherwise it is used to
  * parse a separate message. Returns 1 on success or 0 on failure
  */
-int tls_process_cert_status_body(SSL_CONNECTION *s, PACKET *pkt)
+int tls_process_cert_status_body(SSL_CONNECTION *s, size_t chainidx, PACKET *pkt)
 {
-    size_t resplen;
     unsigned int type;
+#ifndef OPENSSL_NO_OCSP
+    size_t resplen;
+    unsigned char *respder;
+    OCSP_RESPONSE *resp = NULL;
+    const unsigned char *p;
+#endif
 
     if (!PACKET_get_1(pkt, &type)
         || type != TLSEXT_STATUSTYPE_ocsp) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_UNSUPPORTED_STATUS_TYPE);
         return 0;
     }
-    if (!PACKET_get_net_3_len(pkt, &resplen)
-        || PACKET_remaining(pkt) != resplen) {
-        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
-        return 0;
-    }
-    s->ext.ocsp.resp = OPENSSL_malloc(resplen);
-    if (s->ext.ocsp.resp == NULL) {
-        s->ext.ocsp.resp_len = 0;
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_CRYPTO_LIB);
-        return 0;
-    }
-    s->ext.ocsp.resp_len = resplen;
-    if (!PACKET_copy_bytes(pkt, s->ext.ocsp.resp, resplen)) {
-        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
-        return 0;
+
+#ifndef OPENSSL_NO_OCSP
+    OPENSSL_free(s->ext.ocsp.resp);
+    s->ext.ocsp.resp = NULL;
+    s->ext.ocsp.resp_len = 0;
+
+    if (s->ext.ocsp.resp_ex == NULL)
+        s->ext.ocsp.resp_ex = sk_OCSP_RESPONSE_new_null();
+
+    /*
+     * TODO(DTLS-1.3): in future DTLS should also be considered
+     */
+    if (!SSL_CONNECTION_IS_TLS13(s) && type == TLSEXT_STATUSTYPE_ocsp) {
+        sk_OCSP_RESPONSE_pop_free(s->ext.ocsp.resp_ex, OCSP_RESPONSE_free);
+        s->ext.ocsp.resp_ex = sk_OCSP_RESPONSE_new_null();
     }
 
+    if (PACKET_remaining(pkt) > 0) {
+        if (!PACKET_get_net_3_len(pkt, &resplen)
+            || PACKET_remaining(pkt) != resplen) {
+            SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
+            return 0;
+        }
+
+        if (resplen > 0) {
+            respder = OPENSSL_malloc(resplen);
+
+            if (respder == NULL) {
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_CRYPTO_LIB);
+                return 0;
+            }
+
+            if (!PACKET_copy_bytes(pkt, respder, resplen)) {
+                SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
+                OPENSSL_free(respder);
+                return 0;
+            }
+            p = respder;
+            resp = d2i_OCSP_RESPONSE(NULL, &p, (long)resplen);
+            OPENSSL_free(respder);
+            if (resp == NULL) {
+                SSLfatal(s, TLS1_AD_BAD_CERTIFICATE_STATUS_RESPONSE,
+                         SSL_R_TLSV1_BAD_CERTIFICATE_STATUS_RESPONSE);
+                return 0;
+            }
+            sk_OCSP_RESPONSE_insert(s->ext.ocsp.resp_ex, resp, (int)chainidx);
+        }
+    }
+
+#endif
     return 1;
 }
 
-
 MSG_PROCESS_RETURN tls_process_cert_status(SSL_CONNECTION *s, PACKET *pkt)
 {
-    if (!tls_process_cert_status_body(s, pkt)) {
+    if (!tls_process_cert_status_body(s, 0, pkt)) {
         /* SSLfatal() already called */
         return MSG_PROCESS_ERROR;
     }
@@ -3909,8 +3949,8 @@ CON_FUNC_RETURN tls_construct_client_compressed_certificate(SSL_CONNECTION *sc,
             || !WPACKET_reserve_bytes(pkt, max_length, NULL))
         goto err;
 
-    comp_len = COMP_compress_block(comp, WPACKET_get_curr(pkt), max_length,
-                                   (unsigned char *)buf->data, length);
+    comp_len = COMP_compress_block(comp, WPACKET_get_curr(pkt), (int)max_length,
+                                   (unsigned char *)buf->data, (int)length);
     if (comp_len <= 0)
         goto err;
 

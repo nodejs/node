@@ -1,0 +1,29 @@
+PROGRAMS{noinst}=client-arg sconnect server-cmod client-conf saccept server-arg server-conf
+
+INCLUDE[client-arg]=../../include
+SOURCE[client-arg]=client-arg.c
+DEPEND[client-arg]=../../libcrypto ../../libssl
+
+INCLUDE[sconnect]=../../include
+SOURCE[sconnect]=sconnect.c
+DEPEND[sconnect]=../../libcrypto ../../libssl
+
+INCLUDE[server-cmod]=../../include
+SOURCE[server-cmod]=server-cmod.c
+DEPEND[server-cmod]=../../libcrypto ../../libssl
+
+INCLUDE[client-conf]=../../include
+SOURCE[client-conf]=client-conf.c
+DEPEND[client-conf]=../../libcrypto ../../libssl
+
+INCLUDE[saccept]=../../include
+SOURCE[saccept]=saccept.c
+DEPEND[saccept]=../../libcrypto ../../libssl
+
+INCLUDE[server-arg]=../../include
+SOURCE[server-arg]=server-arg.c
+DEPEND[server-arg]=../../libcrypto ../../libssl
+
+INCLUDE[server-conf]=../../include
+SOURCE[server-conf]=server-conf.c
+DEPEND[server-conf]=../../libcrypto ../../libssl

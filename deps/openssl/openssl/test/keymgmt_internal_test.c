@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -246,7 +246,7 @@ static int test_pass_rsa(FIXTURE *fixture)
          */
 
         for (i = 0; i < OSSL_NELEM(expected); i++) {
-            int rv = TEST_int_eq(expected[i], keydata[i]);
+            int rv = TEST_uint64_t_eq((uint64_t)expected[i], (uint64_t)keydata[i]);
 
             if (!rv)
                 TEST_info("i = %zu", i);

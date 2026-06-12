@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # sha1_block procedure for ARMv4.
@@ -322,7 +322,7 @@ $code.=<<___;
 .word	OPENSSL_armcap_P-.Lsha1_block
 # endif
 #endif
-.asciz	"SHA1 block transform for ARMv4/NEON/ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"SHA1 block transform for ARMv4/NEON/ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	5
 ___
 #####################################################################

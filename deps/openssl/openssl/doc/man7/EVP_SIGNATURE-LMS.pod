@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+EVP_SIGNATURE-LMS
+- The EVP_PKEY Leighton-Micali Signature (LMS) implementation
+
+=head1 DESCRIPTION
+
+The B<LMS> EVP_PKEY implementation supports Leighton-Micali Signatures (LMS)
+described in [RFC 8554](https://datatracker.ietf.org/doc/html/rfc8854)
+and [SP 800-208](https://csrc.nist.gov/pubs/sp/800/208/final).
+The OpenSSL providers only support LMS signature verification, as this is a
+[SP 800-208](https://csrc.nist.gov/pubs/sp/800/208/final) requirement for
+FIPS software modules.
+
+EVP_PKEY_verify_message_init() and EVP_PKEY_verify() are the only supported
+functions used for LMS signatures. Streaming is not currently supported,
+and since the signature data contains data related to the digest used, functions
+that specify the digest name are not necessary.
+
+=head1 NOTES
+
+LMS support is disabled by default at compile-time.
+To enable, specify the B<enable-lms> build configuration option.
+
+LMS should only be used for older deployments.
+New deployments should use either L<EVP_SIGNATURE-ML-DSA(7)>
+or <L/EVP_SIGNATURE-SLH-DSA(7)>.
+
+=head1 EXAMPLES
+
+Error checking has been omitted from the following examples
+
+=head2 LMS signature verification
+
+ /* See L<EVP_PKEY-LMS(7)/EXAMPLES for an example of loading a LMS |pub| key */
+ ctx = EVP_PKEY_CTX_new_from_pkey(libctx, pub, propq);
+ sig = EVP_SIGNATURE_fetch(libctx, "LMS", propq);
+ EVP_PKEY_verify_message_init(ctx, sig, NULL);
+ /*
+  * EVP_PKEY_verify_message_update() and EVP_PKEY_verify_message_final()
+  * are not supported
+  */
+ ret = EVP_PKEY_verify(ctx, sigdata, sigdata_len, msg, msglen);
+ /*
+  * ret == 1 indicates success, 0 verify failure and < 0 for some
+  * other error.
+  */
+
+=head1 SEE ALSO
+
+L<EVP_PKEY-LMS(7)>,
+L<provider-signature(7)>,
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.6.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

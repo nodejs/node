@@ -10,15 +10,6 @@
  */
 
 #include "cmp_local.h"
-#include "internal/cryptlib.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/bio.h>
-#include <openssl/cmp.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/x509v3.h>
-#include <openssl/cmp_util.h>
 
 #define IS_CREP(t) ((t) == OSSL_CMP_PKIBODY_IP || (t) == OSSL_CMP_PKIBODY_CP \
                         || (t) == OSSL_CMP_PKIBODY_KUP)
@@ -378,7 +369,7 @@ static int poll_for_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
         } else {
             ossl_cmp_info(ctx, "received final response after polling");
             if (!ossl_cmp_ctx_set1_first_senderNonce(ctx, NULL))
-                return 0;
+                goto err;
             break;
         }
     }
@@ -566,11 +557,11 @@ static X509 *get1_cert_status(OSSL_CMP_CTX *ctx, int bodytype,
  * ctx->certConf_cb_arg, which has been initialized using opt_out_trusted, and
  * ctx->untrusted, which at this point already contains msg->extraCerts.
  * Returns 0 on acceptance, else a bit field reflecting PKIFailureInfo.
- * Quoting from RFC 4210 section 5.1. Overall PKI Message:
+ * Quoting from RFC 9810 section 5.1. Overall PKI Message:
  *     The extraCerts field can contain certificates that may be useful to
  *     the recipient.  For example, this can be used by a CA or RA to
  *     present an end entity with certificates that it needs to verify its
- *     own new certificate (if, for example, the CA that issued the end
+ *     own new certificate (for example, if the CA that issued the end
  *     entity's certificate is not a root CA for the end entity).  Note that
  *     this field does not necessarily contain a certification path; the
  *     recipient may have to sort, select from, or otherwise process the
@@ -839,7 +830,7 @@ int OSSL_CMP_try_certreq(OSSL_CMP_CTX *ctx, int req_type,
             goto err;
 
         if (!save_senderNonce_if_waiting(ctx, rep, rid))
-            return 0;
+            goto err;
     } else {
         if (req_type < 0)
             return ossl_cmp_exchange_error(ctx, OSSL_CMP_PKISTATUS_rejection,
@@ -882,7 +873,7 @@ X509 *OSSL_CMP_exec_certreq(OSSL_CMP_CTX *ctx, int req_type,
         goto err;
 
     if (!save_senderNonce_if_waiting(ctx, rep, rid))
-        return 0;
+        goto err;
 
     if (cert_response(ctx, 1 /* sleep */, rid, &rep, NULL, req_type, rep_type)
         <= 0)

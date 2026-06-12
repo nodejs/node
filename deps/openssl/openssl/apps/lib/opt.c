@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -437,6 +437,8 @@ int opt_cipher(const char *name, EVP_CIPHER **cipherp)
             opt_printf_stderr("%s XTS ciphers not supported\n", prog);
         } else if ((flags & EVP_CIPH_FLAG_AEAD_CIPHER) != 0) {
             opt_printf_stderr("%s: AEAD ciphers not supported\n", prog);
+        } else if ((flags & EVP_CIPH_FLAG_ENC_THEN_MAC) != 0) {
+            opt_printf_stderr("%s: ENC-then-MAC cipher not supported\n", prog);
         } else {
             ret = 1;
             if (cipherp != NULL)
@@ -1204,7 +1206,7 @@ void opt_help(const OPTIONS *list)
 
         i = 2 + (int)strlen(o->name);
         if (o->valtype != '-')
-            i += 1 + strlen(valtype2param(o));
+            i += 1 + (int)strlen(valtype2param(o));
 
         if (i > width)
             width = i;
@@ -1241,7 +1243,7 @@ int opt_isdir(const char *name)
         return -1;
 
 #  if !defined(_WIN32_WCE) || _WIN32_WCE>=101
-    if (!MultiByteToWideChar(CP_ACP, 0, name, len_0, tempname, MAX_PATH))
+    if (!MultiByteToWideChar(CP_ACP, 0, name, (int)len_0, tempname, MAX_PATH))
 #  endif
         for (i = 0; i < len_0; i++)
             tempname[i] = (WCHAR)name[i];

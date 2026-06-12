@@ -7,6 +7,8 @@ release. For more details please read the CHANGES file.
 OpenSSL Releases
 ----------------
 
+ - [OpenSSL 4.0](#openssl-40)
+ - [OpenSSL 3.6](#openssl-36)
  - [OpenSSL 3.5](#openssl-35)
  - [OpenSSL 3.4](#openssl-34)
  - [OpenSSL 3.3](#openssl-33)
@@ -19,6 +21,43 @@ OpenSSL Releases
  - [OpenSSL 1.0.1](#openssl-101)
  - [OpenSSL 1.0.0](#openssl-100)
  - [OpenSSL 0.9.x](#openssl-09x)
+
+OpenSSL 4.0
+-----------
+
+### Major changes between OpenSSL 3.6 and OpenSSL 4.0 [under development]
+
+  * none
+
+OpenSSL 3.6
+-----------
+
+### Major changes between OpenSSL 3.5 and OpenSSL 3.6 [under development]
+
+This release incorporates the following potentially significant or incompatible
+changes:
+
+  * Added NIST security categories for PKEY objects.
+
+  * Added support for `EVP_SKEY` opaque symmetric key objects to the key
+    derivation and key exchange provider methods. Added `EVP_KDF_CTX_set_SKEY()`,
+    `EVP_KDF_derive_SKEY()`, and `EVP_PKEY_derive_SKEY()` functions.
+
+  * Added LMS signature verification support as per [SP 800-208].
+    This support is present in both the FIPS and default providers.
+
+  * An ANSI-C toolchain is no longer sufficient for building OpenSSL.
+    The code should be built using compilers supporting C-99 features.
+
+  * Support for the VxWorks platforms has been removed.
+
+  * Added an `openssl configutl` utility for processing the OpenSSL
+    configuration file and dumping the equal configuration file.
+
+  * Added support for FIPS 186-5 deterministic ECDSA signature
+    generation to the FIPS provider.
+
+  * Deprecated `EVP_PKEY_ASN1_METHOD`-related functions.
 
 OpenSSL 3.5
 -----------
@@ -307,7 +346,7 @@ This release adds the following new features:
   * Added X509_STORE_get1_objects to avoid issues with the existing
     X509_STORE_get0_objects API in multi-threaded applications.
 
-  * Support for using certificate profiles and extened delayed delivery in CMP
+  * Support for using certificate profiles and extended delayed delivery in CMP
 
 This release incorporates the following potentially significant or incompatible
 changes:
@@ -2119,10 +2158,11 @@ OpenSSL 0.9.x
 [CVE-2006-2940]: https://www.openssl.org/news/vulnerabilities.html#CVE-2006-2940
 [CVE-2006-2937]: https://www.openssl.org/news/vulnerabilities.html#CVE-2006-2937
 [CVE-2005-2969]: https://www.openssl.org/news/vulnerabilities.html#CVE-2005-2969
-[OpenSSL Guide]: https://www.openssl.org/docs/manmaster/man7/ossl-guide-introduction.html
+[OpenSSL Guide]: https://docs.openssl.org/master/man7/ossl-guide-introduction
 [CHANGES.md]: ./CHANGES.md
 [README-QUIC.md]: ./README-QUIC.md
 [issue tracker]: https://github.com/openssl/openssl/issues
 [CMVP]: https://csrc.nist.gov/projects/cryptographic-module-validation-program
 [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
+[SP 800-208]: https://csrc.nist.gov/pubs/sp/800/208/final
 [jitterentropy-library]: https://github.com/smuellerDD/jitterentropy-library

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -131,7 +131,7 @@ static int pkey_ec_sign(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
 
     type = (dctx->md != NULL) ? EVP_MD_get_type(dctx->md) : NID_sha1;
 
-    ret = ECDSA_sign(type, tbs, tbslen, sig, &sltmp, ec);
+    ret = ECDSA_sign(type, tbs, (int)tbslen, sig, &sltmp, ec);
 
     if (ret <= 0)
         return ret;
@@ -157,7 +157,7 @@ static int pkey_ec_verify(EVP_PKEY_CTX *ctx,
     else
         type = NID_sha1;
 
-    ret = ECDSA_verify(type, tbs, tbslen, sig, siglen, ec);
+    ret = ECDSA_verify(type, tbs, (int)tbslen, sig, (int)siglen, ec);
 
     return ret;
 }
@@ -334,7 +334,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN:
-        *(int *)p2 = dctx->kdf_outlen;
+        *(int *)p2 = (int)dctx->kdf_outlen;
         return 1;
 
     case EVP_PKEY_CTRL_EC_KDF_UKM:
@@ -348,7 +348,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
     case EVP_PKEY_CTRL_GET_EC_KDF_UKM:
         *(unsigned char **)p2 = dctx->kdf_ukm;
-        return dctx->kdf_ukmlen;
+        return (int)dctx->kdf_ukmlen;
 
     case EVP_PKEY_CTRL_MD:
         if (EVP_MD_get_type((const EVP_MD *)p2) != NID_sha1 &&

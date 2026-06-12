@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -205,7 +205,7 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_data)
     OPENSSL_clear_free(buff, (unsigned int)bufsiz);
 
     if (ok >= 0)
-        res = strlen(buf);
+        res = (int)strlen(buf);
     if (ok == -1) {
         BIO_printf(bio_err, "User interface error\n");
         ERR_print_errors(bio_err);

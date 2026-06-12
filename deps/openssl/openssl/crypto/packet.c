@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -236,7 +236,7 @@ static int put_quic_value(unsigned char *data, size_t value, size_t len)
     if (ossl_quic_vlint_encode_len(value) > len)
         return 0;
 
-    ossl_quic_vlint_encode_n(data, value, len);
+    ossl_quic_vlint_encode_n(data, value, (int)len);
     return 1;
 }
 #endif

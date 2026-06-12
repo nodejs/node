@@ -251,6 +251,7 @@ SMIME 3			: id-smime-alg
 SMIME 4			: id-smime-cd
 SMIME 5			: id-smime-spq
 SMIME 6			: id-smime-cti
+SMIME 13		: id-smime-ori
 
 # S/MIME Modules
 id-smime-mod 1		: id-smime-mod-cms
@@ -336,6 +337,9 @@ id-smime-alg 5		: id-smime-alg-ESDH
 id-smime-alg 6		: id-smime-alg-CMS3DESwrap
 id-smime-alg 7		: id-smime-alg-CMSRC2wrap
 id-smime-alg 9		: id-alg-PWRI-KEK
+id-smime-alg 28		: id-alg-hkdf-with-sha256	: HKDF-SHA256
+id-smime-alg 29		: id-alg-hkdf-with-sha384	: HKDF-SHA384
+id-smime-alg 30		: id-alg-hkdf-with-sha512	: HKDF-SHA512
 
 # S/MIME Certificate Distribution
 id-smime-cd 1		: id-smime-cd-ldap
@@ -351,6 +355,9 @@ id-smime-cti 3		: id-smime-cti-ets-proofOfDelivery
 id-smime-cti 4		: id-smime-cti-ets-proofOfSender
 id-smime-cti 5		: id-smime-cti-ets-proofOfApproval
 id-smime-cti 6		: id-smime-cti-ets-proofOfCreation
+
+# S/MIME OtherRecipientInfo Type Identifier
+id-smime-ori 3		: id-smime-ori-kem
 
 pkcs9 20		:			: friendlyName
 pkcs9 21		:			: localKeyID
@@ -1721,6 +1728,15 @@ sm-scheme 104 10        : SM4-XTS             : sm4-xts
 			: AES-256-CBC-HMAC-SHA256	: aes-256-cbc-hmac-sha256
 			: ChaCha20-Poly1305		: chacha20-poly1305
 			: ChaCha20			: chacha20
+			: AES-128-CBC-HMAC-SHA1-ETM	: aes-128-cbc-hmac-sha1-etm
+			: AES-192-CBC-HMAC-SHA1-ETM	: aes-192-cbc-hmac-sha1-etm
+			: AES-256-CBC-HMAC-SHA1-ETM	: aes-256-cbc-hmac-sha1-etm
+			: AES-128-CBC-HMAC-SHA256-ETM	: aes-128-cbc-hmac-sha256-etm
+			: AES-192-CBC-HMAC-SHA256-ETM	: aes-192-cbc-hmac-sha256-etm
+			: AES-256-CBC-HMAC-SHA256-ETM	: aes-256-cbc-hmac-sha256-etm
+			: AES-128-CBC-HMAC-SHA512-ETM	: aes-128-cbc-hmac-sha512-etm
+			: AES-192-CBC-HMAC-SHA512-ETM	: aes-192-cbc-hmac-sha512-etm
+			: AES-256-CBC-HMAC-SHA512-ETM	: aes-256-cbc-hmac-sha512-etm
 
 ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
 

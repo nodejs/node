@@ -136,6 +136,16 @@ static void *evp_kdf_from_algorithm(int name_id,
                 break;
             kdf->set_ctx_params = OSSL_FUNC_kdf_set_ctx_params(fns);
             break;
+        case OSSL_FUNC_KDF_SET_SKEY:
+            if (kdf->set_skey != NULL)
+                break;
+            kdf->set_skey = OSSL_FUNC_kdf_set_skey(fns);
+            break;
+        case OSSL_FUNC_KDF_DERIVE_SKEY:
+            if (kdf->derive_skey != NULL)
+                break;
+            kdf->derive_skey = OSSL_FUNC_kdf_derive_skey(fns);
+            break;
         }
     }
     if (fnkdfcnt != 1 || fnctxcnt != 2) {

@@ -47,15 +47,10 @@ Additional parameters can be passed with the L<OSSL_PARAM(3)> array I<params>,
 
 =back
 
-=begin comment RETURN VALUES doesn't make sense for a manual that only
-describes a type, but document checkers still want that section, and
-to have more than just the section title.
-
 =head1 RETURN VALUES
 
-txt
-
-=end comment
+Functions of type B<OSSL_CALLBACK> and B<OSSL_PASSPHRASE_CALLBACK>
+must return 1 on success and 0 on failure.
 
 =head1 SEE ALSO
 

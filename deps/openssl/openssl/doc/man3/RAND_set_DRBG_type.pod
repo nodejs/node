@@ -41,7 +41,15 @@ is made too late.
 
 The default DRBG is "CTR-DRBG" using the "AES-256-CTR" cipher.
 
-The default seed source is "SEED-SRC".
+The default seed source can be configured when OpenSSL is compiled by
+setting B<-DOPENSSL_DEFAULT_SEED_SRC=SEED-SRC>. If not set then
+"SEED-SRC" is used.
+
+=head1 EXAMPLES
+
+ unsigned char bytes[100];
+ RAND_set_seed_source_type(NULL, "JITTER", NULL);
+ RAND_bytes(bytes, 100);
 
 =head1 SEE ALSO
 

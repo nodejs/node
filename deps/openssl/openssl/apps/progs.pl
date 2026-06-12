@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -93,7 +93,6 @@ EOF
 
     my %cmd_disabler = (
         ciphers  => "sock",
-        genrsa   => "rsa",
         gendsa   => "dsa",
         dsaparam => "dsa",
         gendh    => "dh",
@@ -107,7 +106,7 @@ EOF
 #   [2] = preprocessor conditional for excluding irrespective of deprecation
 #        rsa      => [ "pkey",      "3_0", "rsa" ],
 #        genrsa   => [ "genpkey",   "3_0", "rsa" ],
-        rsautl   => [ "pkeyutl",   "3_0", "rsa" ],
+        rsautl   => [ "pkeyutl",   "3_0", "" ],
 #        dhparam  => [ "pkeyparam", "3_0", "dh"  ],
 #        dsaparam => [ "pkeyparam", "3_0", "dsa" ],
 #        dsa      => [ "pkey",      "3_0", "dsa" ],

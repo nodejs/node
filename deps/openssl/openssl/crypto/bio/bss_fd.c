@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -116,7 +116,7 @@ static int fd_read(BIO *b, char *out, int outl)
 
     if (out != NULL) {
         clear_sys_error();
-        ret = UP_read(b->num, out, outl);
+        ret = (int)UP_read(b->num, out, outl);
         BIO_clear_retry_flags(b);
         if (ret <= 0) {
             if (BIO_fd_should_retry(ret))
@@ -132,7 +132,7 @@ static int fd_write(BIO *b, const char *in, int inl)
 {
     int ret;
     clear_sys_error();
-    ret = UP_write(b->num, in, inl);
+    ret = (int)UP_write(b->num, in, inl);
     BIO_clear_retry_flags(b);
     if (ret <= 0) {
         if (BIO_fd_should_retry(ret))
@@ -198,10 +198,12 @@ static long fd_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static int fd_puts(BIO *bp, const char *str)
 {
-    int n, ret;
+    int ret;
+    size_t n = strlen(str);
 
-    n = strlen(str);
-    ret = fd_write(bp, str, n);
+    if (n > INT_MAX)
+        return -1;
+    ret = fd_write(bp, str, (int)n);
     return ret;
 }
 
@@ -219,7 +221,7 @@ static int fd_gets(BIO *bp, char *buf, int size)
     ptr[0] = '\0';
 
     if (buf[0] != '\0')
-        ret = strlen(buf);
+        ret = (int)strlen(buf);
     return ret;
 }
 

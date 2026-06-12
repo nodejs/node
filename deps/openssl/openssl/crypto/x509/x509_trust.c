@@ -247,6 +247,13 @@ static int trust_compat(X509_TRUST *trust, X509 *x, int flags)
         return X509_TRUST_UNTRUSTED;
 }
 
+/*
+ * |id| is the NID of the extended key usage (EKU) to check for certificate |x|.
+ * Return X509_TRUST_REJECTED if negative trust attributes of |x| prevents it.
+ * Return X509_TRUST_TRUSTED if positive trust attributes of |x| accepts it.
+ * If |flags| includes X509_TRUST_OK_ANY_EKU then anyEKU serves as wildcard.
+ * Return X509_TRUST_UNTRUSTED if no clear decision has been reached here.
+ */
 static int obj_trust(int id, X509 *x, int flags)
 {
     X509_CERT_AUX *ax = x->aux;

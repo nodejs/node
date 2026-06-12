@@ -124,6 +124,10 @@ ASN1_STRING *ossl_rsa_ctx_to_pss_string(EVP_PKEY_CTX *pkctx);
 int ossl_rsa_pss_to_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pkctx,
                         const X509_ALGOR *sigalg, EVP_PKEY *pkey);
 
+int ossl_rsa_generate_multi_prime_key(RSA *rsa, int bits, int primes,
+                                      BIGNUM *e_value, BN_GENCB *cb,
+                                      uint32_t a, uint32_t b);
+
 # if defined(FIPS_MODULE) && !defined(OPENSSL_NO_ACVP_TESTS)
 int ossl_rsa_acvp_test_gen_params_new(OSSL_PARAM **dst, const OSSL_PARAM src[]);
 void ossl_rsa_acvp_test_gen_params_free(OSSL_PARAM *dst);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -280,7 +280,8 @@ static int ssl3_cbc_copy_mac(size_t *reclen,
          */
         aux1 = rotated_mac[rotate_offset & ~32];
         aux2 = rotated_mac[rotate_offset | 32];
-        mask = constant_time_eq_8(rotate_offset & ~32, rotate_offset);
+        mask = constant_time_eq_8((unsigned int)(rotate_offset & ~32),
+                                  (unsigned int)rotate_offset);
         aux3 = constant_time_select_8(mask, aux1, aux2);
         rotate_offset++;
 
@@ -296,7 +297,8 @@ static int ssl3_cbc_copy_mac(size_t *reclen,
     rotate_offset &= constant_time_lt_s(rotate_offset, mac_size);
     for (i = 0; i < mac_size; i++) {
         for (j = 0; j < mac_size; j++)
-            out[j] |= rotated_mac[i] & constant_time_eq_8_s(j, rotate_offset);
+            out[j] |= rotated_mac[i] & constant_time_eq_8_s((unsigned int)j,
+                                                            (unsigned int)rotate_offset);
         rotate_offset++;
         rotate_offset &= constant_time_lt_s(rotate_offset, mac_size);
 

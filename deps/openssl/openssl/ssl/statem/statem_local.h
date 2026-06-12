@@ -148,7 +148,7 @@ __owur MSG_PROCESS_RETURN tls_process_certificate_request(SSL_CONNECTION *s,
                                                           PACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
                                                          PACKET *pkt);
-__owur int tls_process_cert_status_body(SSL_CONNECTION *s, PACKET *pkt);
+__owur int tls_process_cert_status_body(SSL_CONNECTION *s, size_t chainidx, PACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_cert_status(SSL_CONNECTION *s,
                                                   PACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_server_done(SSL_CONNECTION *s,
@@ -168,7 +168,7 @@ __owur int ssl_do_client_cert_cb(SSL_CONNECTION *s, X509 **px509,
 __owur CON_FUNC_RETURN tls_construct_client_key_exchange(SSL_CONNECTION *s,
                                                          WPACKET *pkt);
 __owur int tls_client_key_exchange_post_work(SSL_CONNECTION *s);
-__owur int tls_construct_cert_status_body(SSL_CONNECTION *s, WPACKET *pkt);
+__owur int tls_construct_cert_status_body(SSL_CONNECTION *s, size_t chainidx, WPACKET *pkt);
 __owur CON_FUNC_RETURN tls_construct_cert_status(SSL_CONNECTION *s,
                                                  WPACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_key_exchange(SSL_CONNECTION *s,

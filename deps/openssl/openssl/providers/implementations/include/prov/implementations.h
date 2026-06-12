@@ -14,7 +14,7 @@
 extern const OSSL_DISPATCH ossl_sha1_functions[];
 extern const OSSL_DISPATCH ossl_sha224_functions[];
 extern const OSSL_DISPATCH ossl_sha256_functions[];
-extern const OSSL_DISPATCH ossl_sha256_192_functions[];
+extern const OSSL_DISPATCH ossl_sha256_192_internal_functions[];
 extern const OSSL_DISPATCH ossl_sha384_functions[];
 extern const OSSL_DISPATCH ossl_sha512_functions[];
 extern const OSSL_DISPATCH ossl_sha512_224_functions[];
@@ -98,6 +98,15 @@ extern const OSSL_DISPATCH ossl_aes256cbc_hmac_sha1_functions[];
 extern const OSSL_DISPATCH ossl_aes128cbc_hmac_sha1_functions[];
 extern const OSSL_DISPATCH ossl_aes256cbc_hmac_sha256_functions[];
 extern const OSSL_DISPATCH ossl_aes128cbc_hmac_sha256_functions[];
+extern const OSSL_DISPATCH ossl_aes128cbc_hmac_sha1_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes192cbc_hmac_sha1_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes256cbc_hmac_sha1_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes128cbc_hmac_sha256_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes192cbc_hmac_sha256_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes256cbc_hmac_sha256_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes128cbc_hmac_sha512_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes192cbc_hmac_sha512_etm_functions[];
+extern const OSSL_DISPATCH ossl_aes256cbc_hmac_sha512_etm_functions[];
 
 #ifndef OPENSSL_NO_ARIA
 extern const OSSL_DISPATCH ossl_aria256gcm_functions[];
@@ -278,6 +287,9 @@ extern const OSSL_DISPATCH ossl_kdf_scrypt_functions[];
 #endif
 extern const OSSL_DISPATCH ossl_kdf_tls1_prf_functions[];
 extern const OSSL_DISPATCH ossl_kdf_hkdf_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha256_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha384_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha512_functions[];
 extern const OSSL_DISPATCH ossl_kdf_tls1_3_kdf_functions[];
 extern const OSSL_DISPATCH ossl_kdf_sshkdf_functions[];
 extern const OSSL_DISPATCH ossl_kdf_sskdf_functions[];
@@ -323,6 +335,9 @@ extern const OSSL_DISPATCH ossl_ed448_keymgmt_functions[];
 extern const OSSL_DISPATCH ossl_sm2_keymgmt_functions[];
 # endif
 #endif
+#ifndef OPENSSL_NO_LMS
+extern const OSSL_DISPATCH ossl_lms_keymgmt_functions[];
+#endif
 extern const OSSL_DISPATCH ossl_ml_dsa_44_keymgmt_functions[];
 extern const OSSL_DISPATCH ossl_ml_dsa_65_keymgmt_functions[];
 extern const OSSL_DISPATCH ossl_ml_dsa_87_keymgmt_functions[];
@@ -365,6 +380,9 @@ extern const OSSL_DISPATCH ossl_x448_keyexch_functions[];
 #endif
 extern const OSSL_DISPATCH ossl_kdf_tls1_prf_keyexch_functions[];
 extern const OSSL_DISPATCH ossl_kdf_hkdf_keyexch_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha256_keyexch_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha384_keyexch_functions[];
+extern const OSSL_DISPATCH ossl_kdf_hkdf_sha512_keyexch_functions[];
 extern const OSSL_DISPATCH ossl_kdf_scrypt_keyexch_functions[];
 
 /* Signature */
@@ -419,6 +437,7 @@ extern const OSSL_DISPATCH ossl_mac_legacy_siphash_signature_functions[];
 extern const OSSL_DISPATCH ossl_mac_legacy_poly1305_signature_functions[];
 extern const OSSL_DISPATCH ossl_mac_legacy_cmac_signature_functions[];
 extern const OSSL_DISPATCH ossl_sm2_signature_functions[];
+extern const OSSL_DISPATCH ossl_lms_signature_functions[];
 extern const OSSL_DISPATCH ossl_ml_dsa_44_signature_functions[];
 extern const OSSL_DISPATCH ossl_ml_dsa_65_signature_functions[];
 extern const OSSL_DISPATCH ossl_ml_dsa_87_signature_functions[];
@@ -835,6 +854,8 @@ extern const OSSL_DISPATCH ossl_pem_to_der_decoder_functions[];
 
 extern const OSSL_DISPATCH ossl_file_store_functions[];
 extern const OSSL_DISPATCH ossl_winstore_store_functions[];
+
+extern const OSSL_DISPATCH ossl_xdr_to_lms_decoder_functions[];
 
 extern const OSSL_DISPATCH ossl_PrivateKeyInfo_der_to_ml_dsa_44_decoder_functions[];
 extern const OSSL_DISPATCH ossl_SubjectPublicKeyInfo_der_to_ml_dsa_44_decoder_functions[];

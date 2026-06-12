@@ -35,7 +35,7 @@ static int tls1_PRF(SSL_CONNECTION *s,
     const EVP_MD *md = ssl_prf_md(s);
     EVP_KDF *kdf;
     EVP_KDF_CTX *kctx = NULL;
-    OSSL_PARAM params[8], *p = params;
+    OSSL_PARAM params[9], *p = params;
     const char *mdname;
 
     if (md == NULL) {
@@ -71,6 +71,13 @@ static int tls1_PRF(SSL_CONNECTION *s,
                                              (void *)seed4, (size_t)seed4_len);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SEED,
                                              (void *)seed5, (size_t)seed5_len);
+    /*
+     * If we have a property query string, the kdf needs to know about it in the event
+     * the specific kdf in use allocated a digest as part of its implementation
+     */
+    if (SSL_CONNECTION_GET_CTX(s)->propq != NULL)
+        *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_PROPERTIES,
+                                                (char *)SSL_CONNECTION_GET_CTX(s)->propq, 0);
     *p = OSSL_PARAM_construct_end();
     if (EVP_KDF_derive(kctx, out, olen, params)) {
         EVP_KDF_CTX_free(kctx);
@@ -245,7 +252,7 @@ int tls1_change_cipher_state(SSL_CONNECTION *s, int which)
         BIO_printf(trc_out, "which = %04X, key:\n", which);
         BIO_dump_indent(trc_out, key, EVP_CIPHER_get_key_length(c), 4);
         BIO_printf(trc_out, "iv:\n");
-        BIO_dump_indent(trc_out, iv, k, 4);
+        BIO_dump_indent(trc_out, iv, (int)k, 4);
     } OSSL_TRACE_END(TLS);
 
     return 1;
@@ -308,7 +315,7 @@ int tls1_setup_key_block(SSL_CONNECTION *s)
         BIO_printf(trc_out, "master key\n");
         BIO_dump_indent(trc_out,
                         s->session->master_key,
-                        s->session->master_key_length, 4);
+                        (int)s->session->master_key_length, 4);
     } OSSL_TRACE_END(TLS);
 
     if (!tls1_generate_key_block(s, p, num)) {
@@ -318,7 +325,7 @@ int tls1_setup_key_block(SSL_CONNECTION *s)
 
     OSSL_TRACE_BEGIN(TLS) {
         BIO_printf(trc_out, "key block\n");
-        BIO_dump_indent(trc_out, p, num, 4);
+        BIO_dump_indent(trc_out, p, (int)num, 4);
     } OSSL_TRACE_END(TLS);
 
     ret = 1;
@@ -375,7 +382,7 @@ int tls1_generate_master_secret(SSL_CONNECTION *s, unsigned char *out,
         }
         OSSL_TRACE_BEGIN(TLS) {
             BIO_printf(trc_out, "Handshake hashes:\n");
-            BIO_dump(trc_out, (char *)hash, hashlen);
+            BIO_dump(trc_out, (char *)hash, (int)hashlen);
         } OSSL_TRACE_END(TLS);
         if (!tls1_PRF(s,
                       TLS_MD_EXTENDED_MASTER_SECRET_CONST,
@@ -405,7 +412,7 @@ int tls1_generate_master_secret(SSL_CONNECTION *s, unsigned char *out,
 
     OSSL_TRACE_BEGIN(TLS) {
         BIO_printf(trc_out, "Premaster Secret:\n");
-        BIO_dump_indent(trc_out, p, len, 4);
+        BIO_dump_indent(trc_out, p, (int)len, 4);
         BIO_printf(trc_out, "Client Random:\n");
         BIO_dump_indent(trc_out, s->s3.client_random, SSL3_RANDOM_SIZE, 4);
         BIO_printf(trc_out, "Server Random:\n");

@@ -1,9 +1,11 @@
 # Generated with generate_ssl_tests.pl
 
-num_tests = 2
+num_tests = 4
 
 test-0 = 0-certstatus-good
 test-1 = 1-certstatus-bad
+test-2 = 2-certstatus-good-ext
+test-3 = 3-certstatus-bad-ext
 # ===========================================================
 
 [0-certstatus-good]
@@ -58,5 +60,61 @@ server = 1-certstatus-bad-server-extra
 
 [1-certstatus-bad-server-extra]
 CertStatus = BadResponse
+
+
+# ===========================================================
+
+[2-certstatus-good-ext]
+ssl_conf = 2-certstatus-good-ext-ssl
+
+[2-certstatus-good-ext-ssl]
+server = 2-certstatus-good-ext-server
+client = 2-certstatus-good-ext-client
+
+[2-certstatus-good-ext-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT:@SECLEVEL=0
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[2-certstatus-good-ext-client]
+CipherString = DEFAULT:@SECLEVEL=0
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-2]
+ExpectedResult = Success
+Method = DTLS
+server = 2-certstatus-good-ext-server-extra
+
+[2-certstatus-good-ext-server-extra]
+CertStatus = GoodResponseExt
+
+
+# ===========================================================
+
+[3-certstatus-bad-ext]
+ssl_conf = 3-certstatus-bad-ext-ssl
+
+[3-certstatus-bad-ext-ssl]
+server = 3-certstatus-bad-ext-server
+client = 3-certstatus-bad-ext-client
+
+[3-certstatus-bad-ext-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
+CipherString = DEFAULT:@SECLEVEL=0
+PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
+
+[3-certstatus-bad-ext-client]
+CipherString = DEFAULT:@SECLEVEL=0
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
+VerifyMode = Peer
+
+[test-3]
+ExpectedResult = ClientFail
+Method = DTLS
+server = 3-certstatus-bad-ext-server-extra
+
+[3-certstatus-bad-ext-server-extra]
+CertStatus = BadResponseExt
 
 

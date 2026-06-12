@@ -54,7 +54,7 @@ ossl_cmp_ctx_set1_recipNonce() sets the given recipient nonce in the context.
 
 =head1 NOTES
 
-CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+CMP is defined in RFC 9810.
 
 =head1 RETURN VALUES
 

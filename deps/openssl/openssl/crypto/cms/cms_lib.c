@@ -200,10 +200,15 @@ err:
 /* unfortunately cannot constify SMIME_write_ASN1() due to this function */
 int CMS_dataFinal(CMS_ContentInfo *cms, BIO *cmsbio)
 {
-    return ossl_cms_DataFinal(cms, cmsbio, NULL, 0);
+    return ossl_cms_DataFinal(cms, cmsbio, NULL, NULL, 0);
 }
 
-int ossl_cms_DataFinal(CMS_ContentInfo *cms, BIO *cmsbio,
+int CMS_dataFinal_ex(CMS_ContentInfo *cms, BIO *cmsbio, BIO *data)
+{
+    return ossl_cms_DataFinal(cms, cmsbio, data, NULL, 0);
+}
+
+int ossl_cms_DataFinal(CMS_ContentInfo *cms, BIO *cmsbio, BIO *data,
                        const unsigned char *precomp_md,
                        unsigned int precomp_mdlen)
 {
@@ -244,7 +249,8 @@ int ossl_cms_DataFinal(CMS_ContentInfo *cms, BIO *cmsbio,
         return ossl_cms_AuthEnvelopedData_final(cms, cmsbio);
 
     case NID_pkcs7_signed:
-        return ossl_cms_SignedData_final(cms, cmsbio, precomp_md, precomp_mdlen);
+        return ossl_cms_SignedData_final(cms, cmsbio, data,
+                                         precomp_md, precomp_mdlen);
 
     case NID_pkcs7_digest:
         return ossl_cms_DigestedData_do_final(cms, cmsbio, 0);

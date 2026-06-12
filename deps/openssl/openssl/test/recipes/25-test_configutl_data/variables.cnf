@@ -1,0 +1,33 @@
+# vim:ft=conf
+openssl_conf = openssl_init
+
+default_var = ABC
+nested = "\${default_var}"
+
+[othersection]
+
+[test]
+# These should expand to ABC read from the default section
+0.recipient = ${default_var}
+1.recipient = $default_var
+2.recipient = $(default_var)
+# These should expand to DEF as the other section was explicitly referenced
+3.recipient = ${othersection::default_var}
+4.recipient = $othersection::default_var
+5.recipient = $(othersection::default_var)
+
+[test2]
+default_var = GHI
+# These should expand to GHI since the local section is always searched first 
+0.recipient = ${default_var}
+1.recipient = $default_var
+
+[test3]
+.pragma dollarid:on
+# Out of these, the first should contain the literal "$default_var", the others should expand
+0.recipient = literal$default_var
+1.recipient = expanded${default_var}
+2.recipient = expanded$(default_var)
+
+[test4]
+recipient = literal$nested

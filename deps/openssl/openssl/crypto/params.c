@@ -16,6 +16,7 @@
 #include "internal/endian.h"
 #include "internal/params.h"
 #include "internal/packet.h"
+#include "internal/common.h"
 
 /* Shortcuts for raising errors that are widely used */
 #define err_unsigned_negative \
@@ -52,7 +53,7 @@ static unsigned int real_shift(void)
 
 OSSL_PARAM *OSSL_PARAM_locate(OSSL_PARAM *p, const char *key)
 {
-    if (p != NULL && key != NULL)
+    if (ossl_likely(p != NULL && key != NULL))
         for (; p->key != NULL; p++)
             if (strcmp(key, p->key) == 0)
                 return p;
@@ -868,7 +869,7 @@ int OSSL_PARAM_get_uint64(const OSSL_PARAM *p, uint64_t *val)
         return 0;
     }
 
-    if (p->data_type == OSSL_PARAM_UNSIGNED_INTEGER) {
+    if (ossl_likely(p->data_type == OSSL_PARAM_UNSIGNED_INTEGER)) {
 #ifndef OPENSSL_SMALL_FOOTPRINT
         switch (p->data_size) {
         case sizeof(uint32_t):
@@ -1143,13 +1144,13 @@ int OSSL_PARAM_set_BN(OSSL_PARAM *p, const BIGNUM *val)
 
         switch (p->data_type) {
         case OSSL_PARAM_UNSIGNED_INTEGER:
-            if (BN_bn2nativepad(val, p->data, p->data_size) < 0) {
+            if (BN_bn2nativepad(val, p->data, (int)p->data_size) < 0) {
                 ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_INTEGER_OVERFLOW);
                 return 0;
             }
             break;
         case OSSL_PARAM_INTEGER:
-            if (BN_signed_bn2native(val, p->data, p->data_size) < 0) {
+            if (BN_signed_bn2native(val, p->data, (int)p->data_size) < 0) {
                 ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_INTEGER_OVERFLOW);
                 return 0;
             }
@@ -1471,6 +1472,15 @@ OSSL_PARAM OSSL_PARAM_construct_octet_string(const char *key, void *buf,
     return ossl_param_construct(key, OSSL_PARAM_OCTET_STRING, buf, bsize);
 }
 
+static int get_ptr_internal_skip_checks(const OSSL_PARAM *p, const void **val,
+                                        size_t *used_len)
+{
+    if (used_len != NULL)
+        *used_len = p->data_size;
+    *val = *(const void **)p->data;
+    return 1;
+}
+
 static int get_ptr_internal(const OSSL_PARAM *p, const void **val,
                             size_t *used_len, unsigned int type)
 {
@@ -1482,10 +1492,7 @@ static int get_ptr_internal(const OSSL_PARAM *p, const void **val,
         err_bad_type;
         return 0;
     }
-    if (used_len != NULL)
-        *used_len = p->data_size;
-    *val = *(const void **)p->data;
-    return 1;
+    return get_ptr_internal_skip_checks(p, val, used_len);
 }
 
 int OSSL_PARAM_get_utf8_ptr(const OSSL_PARAM *p, const char **val)
@@ -1555,10 +1562,10 @@ OSSL_PARAM OSSL_PARAM_construct_octet_ptr(const char *key, void **buf,
  * *out and *out_len are guaranteed to be untouched if this function
  * doesn't return success.
  */
-int ossl_param_get1_octet_string(const OSSL_PARAM *params, const char *name,
-                                 unsigned char **out, size_t *out_len)
+int ossl_param_get1_octet_string_from_param(const OSSL_PARAM *p,
+                                            unsigned char **out,
+                                            size_t *out_len)
 {
-    const OSSL_PARAM *p = OSSL_PARAM_locate_const(params, name);
     void *buf = NULL;
     size_t len = 0;
 
@@ -1576,11 +1583,20 @@ int ossl_param_get1_octet_string(const OSSL_PARAM *params, const char *name,
     return 1;
 }
 
-static int setbuf_fromparams(const OSSL_PARAM *p, const char *name,
+int ossl_param_get1_octet_string(const OSSL_PARAM *params, const char *name,
+                                 unsigned char **out, size_t *out_len)
+{
+    const OSSL_PARAM *p = OSSL_PARAM_locate_const(params, name);
+
+    return ossl_param_get1_octet_string_from_param(p, out, out_len);
+}
+
+static int setbuf_fromparams(size_t n, OSSL_PARAM *p[],
                              unsigned char *out, size_t *outlen)
 {
     int ret = 0;
     WPACKET pkt;
+    size_t i;
 
     if (out == NULL) {
         if (!WPACKET_init_null(&pkt, 0))
@@ -1590,12 +1606,12 @@ static int setbuf_fromparams(const OSSL_PARAM *p, const char *name,
             return 0;
     }
 
-    for (; p != NULL; p = OSSL_PARAM_locate_const(p + 1, name)) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING)
+    for (i = 0; i < n; i++) {
+        if (p[i]->data_type != OSSL_PARAM_OCTET_STRING)
             goto err;
-        if (p->data != NULL
-                && p->data_size != 0
-                && !WPACKET_memcpy(&pkt, p->data, p->data_size))
+        if (p[i]->data != NULL
+                && p[i]->data_size != 0
+                && !WPACKET_memcpy(&pkt, p[i]->data, p[i]->data_size))
             goto err;
     }
     if (!WPACKET_get_total_written(&pkt, outlen)
@@ -1607,23 +1623,17 @@ err:
     return ret;
 }
 
-int ossl_param_get1_concat_octet_string(const OSSL_PARAM *params, const char *name,
-                                        unsigned char **out,
-                                        size_t *out_len, size_t maxsize)
+int ossl_param_get1_concat_octet_string(size_t n, OSSL_PARAM *params[],
+                                        unsigned char **out, size_t *out_len)
 {
-    const OSSL_PARAM *p = OSSL_PARAM_locate_const(params, name);
     unsigned char *res;
     size_t sz = 0;
 
-    if (p == NULL)
-        return -1;
+    if (n == 0)
+        return 1;
 
     /* Calculate the total size */
-    if (!setbuf_fromparams(p, name, NULL, &sz))
-        return 0;
-
-    /* Check that it's not oversized */
-    if (maxsize > 0 && sz > maxsize)
+    if (!setbuf_fromparams(n, params, NULL, &sz))
         return 0;
 
     /* Special case zero length */
@@ -1639,7 +1649,7 @@ int ossl_param_get1_concat_octet_string(const OSSL_PARAM *params, const char *na
         return 0;
 
     /* Concat one or more OSSL_KDF_PARAM_INFO fields */
-    if (!setbuf_fromparams(p, name, res, &sz)) {
+    if (!setbuf_fromparams(n, params, res, &sz)) {
         OPENSSL_clear_free(res, sz);
         return 0;
     }
@@ -1659,12 +1669,17 @@ OSSL_PARAM OSSL_PARAM_construct_end(void)
 }
 
 static int get_string_ptr_internal(const OSSL_PARAM *p, const void **val,
-                                   size_t *used_len, unsigned int type)
+                                   size_t *used_len, unsigned int ref_type,
+                                   unsigned int type)
 {
     if (val == NULL || p == NULL) {
         err_null_argument;
         return 0;
     }
+
+    if (p->data_type == ref_type)
+        return get_ptr_internal_skip_checks(p, (const void **)val, used_len);
+
     if (p->data_type != type) {
         err_bad_type;
         return 0;
@@ -1677,25 +1692,32 @@ static int get_string_ptr_internal(const OSSL_PARAM *p, const void **val,
 
 int OSSL_PARAM_get_utf8_string_ptr(const OSSL_PARAM *p, const char **val)
 {
-    int rv;
-
-    ERR_set_mark();
-    rv = OSSL_PARAM_get_utf8_ptr(p, val);
-    ERR_pop_to_mark();
-
-    return rv || get_string_ptr_internal(p, (const void **)val, NULL,
-                                         OSSL_PARAM_UTF8_STRING);
+    return get_string_ptr_internal(p, (const void **)val, NULL,
+                                   OSSL_PARAM_UTF8_PTR,
+                                   OSSL_PARAM_UTF8_STRING);
 }
 
 int OSSL_PARAM_get_octet_string_ptr(const OSSL_PARAM *p, const void **val,
                                     size_t *used_len)
 {
-    int rv;
+    return get_string_ptr_internal(p, (const void **)val, used_len,
+                                   OSSL_PARAM_OCTET_PTR,
+                                   OSSL_PARAM_OCTET_STRING);
+}
 
-    ERR_set_mark();
-    rv = OSSL_PARAM_get_octet_ptr(p, val, used_len);
-    ERR_pop_to_mark();
+int OSSL_PARAM_set_octet_string_or_ptr(OSSL_PARAM *p, const void *val,
+                                       size_t len)
+{
+    if (p == NULL) {
+        err_null_argument;
+        return 0;
+    }
 
-    return rv || get_string_ptr_internal(p, val, used_len,
-                                         OSSL_PARAM_OCTET_STRING);
+    if (p->data_type == OSSL_PARAM_OCTET_STRING)
+        return OSSL_PARAM_set_octet_string(p, val, len);
+    else if (p->data_type == OSSL_PARAM_OCTET_PTR)
+        return OSSL_PARAM_set_octet_ptr(p, val, len);
+
+    err_bad_type;
+    return 0;
 }

@@ -90,32 +90,35 @@
  * Variant-specific constants and structures
  * -----------------------------------------
  */
-# define EVP_PKEY_ML_KEM_512    NID_ML_KEM_512
-# define ML_KEM_512_BITS        512
-# define ML_KEM_512_RANK        2
-# define ML_KEM_512_ETA1        3
-# define ML_KEM_512_ETA2        2
-# define ML_KEM_512_DU          10
-# define ML_KEM_512_DV          4
-# define ML_KEM_512_SECBITS     128
+# define EVP_PKEY_ML_KEM_512            NID_ML_KEM_512
+# define ML_KEM_512_BITS                512
+# define ML_KEM_512_RANK                2
+# define ML_KEM_512_ETA1                3
+# define ML_KEM_512_ETA2                2
+# define ML_KEM_512_DU                  10
+# define ML_KEM_512_DV                  4
+# define ML_KEM_512_SECBITS             128
+# define ML_KEM_512_SECURITY_CATEGORY   1
 
-# define EVP_PKEY_ML_KEM_768    NID_ML_KEM_768
-# define ML_KEM_768_BITS        768
-# define ML_KEM_768_RANK        3
-# define ML_KEM_768_ETA1        2
-# define ML_KEM_768_ETA2        2
-# define ML_KEM_768_DU          10
-# define ML_KEM_768_DV          4
-# define ML_KEM_768_SECBITS     192
+# define EVP_PKEY_ML_KEM_768            NID_ML_KEM_768
+# define ML_KEM_768_BITS                768
+# define ML_KEM_768_RANK                3
+# define ML_KEM_768_ETA1                2
+# define ML_KEM_768_ETA2                2
+# define ML_KEM_768_DU                  10
+# define ML_KEM_768_DV                  4
+# define ML_KEM_768_SECBITS             192
+# define ML_KEM_768_SECURITY_CATEGORY   3
 
-# define EVP_PKEY_ML_KEM_1024   NID_ML_KEM_1024
-# define ML_KEM_1024_BITS       1024
-# define ML_KEM_1024_RANK       4
-# define ML_KEM_1024_ETA1       2
-# define ML_KEM_1024_ETA2       2
-# define ML_KEM_1024_DU         11
-# define ML_KEM_1024_DV         5
-# define ML_KEM_1024_SECBITS    256
+# define EVP_PKEY_ML_KEM_1024           NID_ML_KEM_1024
+# define ML_KEM_1024_BITS               1024
+# define ML_KEM_1024_RANK               4
+# define ML_KEM_1024_ETA1               2
+# define ML_KEM_1024_ETA2               2
+# define ML_KEM_1024_DU                 11
+# define ML_KEM_1024_DV                 5
+# define ML_KEM_1024_SECBITS            256
+# define ML_KEM_1024_SECURITY_CATEGORY  5
 
 # define ML_KEM_KEY_RANDOM_PCT  (1 << 0)
 # define ML_KEM_KEY_FIXED_PCT   (1 << 1)
@@ -148,9 +151,10 @@ typedef struct {
     int du;
     int dv;
     int secbits;
+    int security_category;
 } ML_KEM_VINFO;
 
-/* Retrive global variant-specific parameters */
+/* Retrieve global variant-specific parameters */
 const ML_KEM_VINFO *ossl_ml_kem_get_vinfo(int evp_type);
 
 /* Known as ML_KEM_KEY via crypto/types.h */
@@ -187,10 +191,14 @@ typedef struct ossl_ml_kem_key_st {
     /*
      * Fixed-size built-in buffer, which holds the |rho| and the public key
      * |pkhash| in that order, once we have expanded key material.
-     * With seed-only keys, that are not yet expanded, this instead holds the
+     */
+    uint8_t rho_pkhash[64];                 /* |rho| + |pkhash| */
+
+    /*
+     * With seed-only keys, that are not yet expanded, this holds the
      * |z| and |d| components in that order.
      */
-    uint8_t seedbuf[64];                    /* |rho| + |pkhash| / |z| + |d| */
+    uint8_t *seedbuf;                       /* |z| + |d| temporary secure storage buffer */
     uint8_t *encoded_dk;                    /* Unparsed P8 private key */
 } ML_KEM_KEY;
 

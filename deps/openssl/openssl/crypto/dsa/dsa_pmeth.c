@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,7 +96,7 @@ static int pkey_dsa_sign(EVP_PKEY_CTX *ctx, unsigned char *sig,
             return 0;
     }
 
-    ret = DSA_sign(0, tbs, tbslen, sig, &sltmp, dsa);
+    ret = DSA_sign(0, tbs, (int)tbslen, sig, &sltmp, dsa);
 
     if (ret <= 0)
         return ret;
@@ -125,7 +125,7 @@ static int pkey_dsa_verify(EVP_PKEY_CTX *ctx,
             return 0;
     }
 
-    ret = DSA_verify(0, tbs, tbslen, sig, siglen, dsa);
+    ret = DSA_verify(0, tbs, (int)tbslen, sig, (int)siglen, dsa);
 
     return ret;
 }

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 #
 # Specific modes and adaptation for Linux kernel by Ard Biesheuvel
 # of Linaro.
@@ -33,8 +33,7 @@
 # key conv.	440  cycles per 128-bit key/0.18 of 8x block
 #
 # Snapdragon S4 encrypts byte in 17.6 cycles and decrypts in 19.7,
-# which is [much] worse than anticipated (for further details see
-# http://www.openssl.org/~appro/Snapdragon-S4.html).
+# which is [much] worse than anticipated
 #
 # Cortex-A15 manages in 14.2/16.1 cycles [when integer-only code
 # manages in 20.0 cycles].
@@ -45,7 +44,7 @@
 # results keep in mind key schedule conversion overhead (see
 # bsaes-x86_64.pl for further details)...
 #
-#						<appro@openssl.org>
+#						<https://github.com/dot-asm>
 
 # April-August 2013
 # Add CBC, CTR and XTS subroutines and adapt for kernel use; courtesy of Ard.
@@ -835,7 +834,7 @@ _bsaes_const:
 	.quad	0x02060a0e03070b0f, 0x0004080c0105090d
 .LREVM0SR:
 	.quad	0x090d01050c000408, 0x03070b0f060a0e02
-.asciz	"Bit-sliced AES for NEON, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"Bit-sliced AES for NEON, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	6
 .size	_bsaes_const,.-_bsaes_const
 

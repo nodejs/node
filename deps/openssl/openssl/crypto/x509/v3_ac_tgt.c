@@ -1,11 +1,16 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * Needed for EVP_PKEY_asn1_find
+ */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <stdio.h>
 #include <openssl/x509_acert.h>
@@ -103,15 +108,16 @@ static int i2r_OBJECT_DIGEST_INFO(X509V3_EXT_METHOD *method,
                            BIO *out, int indent)
 {
     int64_t dot = 0;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
     int sig_nid;
     X509_ALGOR *digalg;
+#endif
     ASN1_STRING *sig;
 
     if (odi == NULL) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
-    digalg = &odi->digestAlgorithm;
     sig = &odi->objectDigest;
     if (!ASN1_ENUMERATED_get_int64(&dot, &odi->digestedObjectType)) {
         return 0;
@@ -139,6 +145,8 @@ static int i2r_OBJECT_DIGEST_INFO(X509V3_EXT_METHOD *method,
     BIO_puts(out, "\n");
     if (BIO_printf(out, "\n%*sSignature Value: ", indent, "") <= 0)
         return 0;
+#ifndef OPENSSL_NO_DEPRECATED_3_6
+    digalg = &odi->digestAlgorithm;
     sig_nid = OBJ_obj2nid(odi->digestAlgorithm.algorithm);
     if (sig_nid != NID_undef) {
         int pkey_nid, dig_nid;
@@ -149,6 +157,7 @@ static int i2r_OBJECT_DIGEST_INFO(X509V3_EXT_METHOD *method,
                 return ameth->sig_print(out, digalg, sig, indent + 4, 0);
         }
     }
+#endif
     if (BIO_write(out, "\n", 1) != 1)
         return 0;
     if (sig)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -172,11 +172,11 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     OSSL_CMP_MSG *msg;
     BIO *in;
 
-    if (len == 0)
+    if (len == 0 || len > INT_MAX)
         return 0;
 
     in = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(in, buf, len) == len);
+    OPENSSL_assert((size_t)BIO_write(in, buf, (int)len) == len);
     msg = d2i_OSSL_CMP_MSG_bio(in, NULL);
     if (msg != NULL) {
         BIO *out = BIO_new(BIO_s_null());

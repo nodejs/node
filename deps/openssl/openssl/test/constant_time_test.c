@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -85,9 +85,9 @@ static int test_binary_op_s(size_t (*op) (size_t a, size_t b),
                             const char *op_name, size_t a, size_t b,
                             int is_true)
 {
-    if (is_true && !TEST_size_t_eq(op(a,b), CONSTTIME_TRUE_S))
+    if (is_true && !TEST_size_t_eq(op(a, b), CONSTTIME_TRUE_S))
         return 0;
-    if (!is_true && !TEST_uint_eq(op(a,b), CONSTTIME_FALSE_S))
+    if (!is_true && !TEST_size_t_eq(op(a, b), CONSTTIME_FALSE_S))
         return 0;
     return 1;
 }
@@ -149,7 +149,7 @@ static int test_is_zero_s(int i)
 
     if (a == 0 && !TEST_size_t_eq(constant_time_is_zero_s(a), CONSTTIME_TRUE_S))
         return 0;
-    if (a != 0 && !TEST_uint_eq(constant_time_is_zero_s(a), CONSTTIME_FALSE_S))
+    if (a != 0 && !TEST_size_t_eq(constant_time_is_zero_s(a), CONSTTIME_FALSE_S))
         return 0;
     return 1;
 }
@@ -183,9 +183,9 @@ static int test_select_32(uint32_t a, uint32_t b)
 
 static int test_select_s(size_t a, size_t b)
 {
-    if (!TEST_uint_eq(constant_time_select_s(CONSTTIME_TRUE_S, a, b), a))
+    if (!TEST_size_t_eq(constant_time_select_s(CONSTTIME_TRUE_S, a, b), a))
         return 0;
-    if (!TEST_uint_eq(constant_time_select_s(CONSTTIME_FALSE_S, a, b), b))
+    if (!TEST_size_t_eq(constant_time_select_s(CONSTTIME_FALSE_S, a, b), b))
         return 0;
     return 1;
 }
@@ -229,7 +229,7 @@ static int test_eq_s(size_t a, size_t b)
 {
     if (a == b && !TEST_size_t_eq(constant_time_eq_s(a, b), CONSTTIME_TRUE_S))
         return 0;
-    if (a != b && !TEST_int_eq(constant_time_eq_s(a, b), CONSTTIME_FALSE_S))
+    if (a != b && !TEST_size_t_eq(constant_time_eq_s(a, b), CONSTTIME_FALSE_S))
         return 0;
     return 1;
 }

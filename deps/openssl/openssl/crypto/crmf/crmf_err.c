@@ -36,6 +36,8 @@ static const ERR_STRING_DATA CRMF_str_reasons[] = {
      "error decrypting symmetric key"},
     {ERR_PACK(ERR_LIB_CRMF, 0, CRMF_R_ERROR_SETTING_PURPOSE),
      "error setting purpose"},
+    {ERR_PACK(ERR_LIB_CRMF, 0, CRMF_R_ERROR_SIGNING_POPO),
+     "error signing popo"},
     {ERR_PACK(ERR_LIB_CRMF, 0, CRMF_R_ERROR_VERIFYING_ENCRYPTEDKEY),
      "error verifying encryptedkey"},
     {ERR_PACK(ERR_LIB_CRMF, 0, CRMF_R_FAILURE_OBTAINING_RANDOM),

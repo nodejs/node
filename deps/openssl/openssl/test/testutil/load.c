@@ -49,7 +49,7 @@ STACK_OF(X509) *load_certs_pem(const char *file)
     do {
         x = PEM_read_bio_X509(bio, NULL, 0, NULL);
         if (x != NULL && !sk_X509_push(certs, x)) {
-            sk_X509_pop_free(certs, X509_free);
+            OSSL_STACK_OF_X509_free(certs);
             BIO_free(bio);
             return NULL;
         } else if (x == NULL) {
@@ -102,4 +102,58 @@ X509_REQ *load_csr_der(const char *file, OSSL_LIB_CTX *libctx)
         (void)TEST_ptr(d2i_X509_REQ_bio(bio, &csr));
     BIO_free(bio);
     return csr;
+}
+
+/*
+ * Glue an array of strings together.  Return a BIO and put the string
+ * into |*out| so we can free it.
+ */
+BIO *glue2bio(const char **pem, char **out)
+{
+    size_t s = 0;
+
+    *out = glue_strings(pem, &s);
+    return BIO_new_mem_buf(*out, (int)s);
+}
+
+/*
+ * Create a CRL from an array of strings.
+ */
+X509_CRL *CRL_from_strings(const char **pem)
+{
+    X509_CRL *crl;
+    char *p;
+    BIO *b = glue2bio(pem, &p);
+
+    if (b == NULL) {
+        OPENSSL_free(p);
+        return NULL;
+    }
+
+    crl = PEM_read_bio_X509_CRL(b, NULL, NULL, NULL);
+
+    OPENSSL_free(p);
+    BIO_free(b);
+    return crl;
+}
+
+/*
+ * Create an X509 from an array of strings.
+ */
+X509 *X509_from_strings(const char **pem)
+{
+    X509 *x;
+    char *p;
+    BIO *b = glue2bio(pem, &p);
+
+    if (b == NULL) {
+        OPENSSL_free(p);
+        return NULL;
+    }
+
+    x = PEM_read_bio_X509(b, NULL, NULL, NULL);
+
+    OPENSSL_free(p);
+    BIO_free(b);
+    return x;
 }

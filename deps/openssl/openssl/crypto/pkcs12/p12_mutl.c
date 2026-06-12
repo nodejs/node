@@ -26,7 +26,8 @@ static int pkcs12_pbmac1_pbkdf2_key_gen(const char *pass, int passlen,
                                         unsigned char *salt, int saltlen,
                                         int id, int iter, int keylen,
                                         unsigned char *out,
-                                        const EVP_MD *md_type);
+                                        const EVP_MD *md_type,
+                                        OSSL_LIB_CTX *libctx, const char *propq);
 
 int PKCS12_mac_present(const PKCS12 *p12)
 {
@@ -160,7 +161,9 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                                                 unsigned char *salt, int slen,
                                                 int id, int iter, int n,
                                                 unsigned char *out,
-                                                const EVP_MD *md_type))
+                                                const EVP_MD *md_type,
+                                                OSSL_LIB_CTX *libctx,
+                                                const char *propq))
 {
     int ret = 0;
     const EVP_MD *md;
@@ -173,6 +176,8 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     int md_nid = NID_undef;
     const X509_ALGOR *macalg;
     const ASN1_OBJECT *macoid;
+    OSSL_LIB_CTX *libctx;
+    const char *propq;
 
     if (!PKCS7_type_is_data(p12->authsafes)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_CONTENT_TYPE_NOT_DATA);
@@ -184,6 +189,8 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
         return 0;
     }
 
+    libctx = p12->authsafes->ctx.libctx;
+    propq = p12->authsafes->ctx.propq;
     salt = p12->mac->salt->data;
     saltlen = p12->mac->salt->length;
     if (p12->mac->iter == NULL)
@@ -200,8 +207,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
             return 0;
     }
     (void)ERR_set_mark();
-    md = md_fetch = EVP_MD_fetch(p12->authsafes->ctx.libctx, md_name,
-                                 p12->authsafes->ctx.propq);
+    md = md_fetch = EVP_MD_fetch(libctx, md_name, propq);
     if (md == NULL)
         md = EVP_get_digestbynid(OBJ_obj2nid(macoid));
 
@@ -219,8 +225,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 
     /* For PBMAC1 we use a special keygen callback if not provided (e.g. on verification) */
     if (pbmac1_md_nid != NID_undef && pkcs12_key_gen == NULL) {
-        keylen = PBMAC1_PBKDF2_HMAC(p12->authsafes->ctx.libctx, p12->authsafes->ctx.propq,
-                                    pass, passlen, macalg, key);
+        keylen = PBMAC1_PBKDF2_HMAC(libctx, propq, pass, passlen, macalg, key);
         if (keylen < 0)
             goto err;
     } else if ((md_nid == NID_id_GostR3411_94
@@ -242,14 +247,14 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 
             if (OBJ_obj2txt(hmac_md_name, sizeof(hmac_md_name), OBJ_nid2obj(pbmac1_kdf_nid), 0) < 0)
                 goto err;
-            hmac_md = EVP_MD_fetch(NULL, hmac_md_name, NULL);
+            hmac_md = EVP_MD_fetch(libctx, hmac_md_name, propq);
             if (hmac_md == NULL)
                 goto err;
             fetched = 1;
         }
         if (pkcs12_key_gen != NULL) {
             int res = (*pkcs12_key_gen)(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
-                                        iter, keylen, key, hmac_md);
+                                        iter, keylen, key, hmac_md, libctx, propq);
 
             if (fetched)
                 EVP_MD_free(hmac_md);
@@ -262,8 +267,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                 EVP_MD_free(hmac_md);
             /* Default to UTF-8 password */
             if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
-                                        iter, keylen, key, md,
-                                        p12->authsafes->ctx.libctx, p12->authsafes->ctx.propq)) {
+                                        iter, keylen, key, md, libctx, propq)) {
                 ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
                 goto err;
             }
@@ -377,10 +381,11 @@ static int pkcs12_pbmac1_pbkdf2_key_gen(const char *pass, int passlen,
                                         unsigned char *salt, int saltlen,
                                         int id, int iter, int keylen,
                                         unsigned char *out,
-                                        const EVP_MD *md_type)
+                                        const EVP_MD *md_type,
+                                        OSSL_LIB_CTX *libctx, const char *propq)
 {
-    return PKCS5_PBKDF2_HMAC(pass, passlen, salt, saltlen, iter,
-                             md_type, keylen, out);
+    return ossl_pkcs5_pbkdf2_hmac_ex(pass, passlen, salt, saltlen, iter, md_type,
+                                     keylen, out, libctx, propq);
 }
 
 static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
@@ -447,6 +452,7 @@ int PKCS12_set_pbmac1_pbkdf2(PKCS12 *p12, const char *pass, int passlen,
     int keylen = 0;
     PBMAC1PARAM *param = NULL;
     X509_ALGOR  *hmac_alg = NULL, *macalg = NULL;
+    OSSL_LIB_CTX *libctx = p12->authsafes->ctx.libctx;
 
     if (md_type == NULL)
         /* No need to do a fetch as the md_type is used only to get a NID */
@@ -471,19 +477,26 @@ int PKCS12_set_pbmac1_pbkdf2(PKCS12 *p12, const char *pass, int passlen,
     }
 
     if (salt == NULL) {
-        known_salt = OPENSSL_malloc(saltlen);
-        if (known_salt == NULL)
+        if (saltlen < 0) {
+            ERR_raise(ERR_LIB_PKCS12, PKCS12_R_INVALID_SALT_LENGTH);
             goto err;
+        }
+        if (saltlen > 0) {
+            known_salt = OPENSSL_malloc(saltlen);
+            if (known_salt == NULL)
+                goto err;
 
-        if (RAND_bytes_ex(NULL, known_salt, saltlen, 0) <= 0) {
-            ERR_raise(ERR_LIB_PKCS12, ERR_R_RAND_LIB);
-            goto err;
+            if (RAND_bytes_ex(libctx, known_salt, saltlen, 0) <= 0) {
+                ERR_raise(ERR_LIB_PKCS12, ERR_R_RAND_LIB);
+                goto err;
+            }
         }
     }
 
     param = PBMAC1PARAM_new();
     hmac_alg = X509_ALGOR_new();
-    alg = PKCS5_pbkdf2_set(iter, salt ? salt : known_salt, saltlen, prf_nid, keylen);
+    alg = PKCS5_pbkdf2_set_ex(iter, salt ? salt : known_salt, saltlen,
+                              prf_nid, keylen, libctx);
     if (param == NULL || hmac_alg == NULL || alg == NULL)
         goto err;
 

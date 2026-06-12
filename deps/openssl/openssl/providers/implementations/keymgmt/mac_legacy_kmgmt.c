@@ -46,7 +46,9 @@ static OSSL_FUNC_keymgmt_export_fn mac_export;
 static OSSL_FUNC_keymgmt_export_types_fn mac_imexport_types;
 
 static OSSL_FUNC_keymgmt_new_fn mac_new_cmac;
+static OSSL_FUNC_keymgmt_get_params_fn cmac_get_params;
 static OSSL_FUNC_keymgmt_gettable_params_fn cmac_gettable_params;
+static OSSL_FUNC_keymgmt_import_fn cmac_import;
 static OSSL_FUNC_keymgmt_import_types_fn cmac_imexport_types;
 static OSSL_FUNC_keymgmt_export_types_fn cmac_imexport_types;
 static OSSL_FUNC_keymgmt_gen_init_fn cmac_gen_init;
@@ -179,39 +181,54 @@ static int mac_match(const void *keydata1, const void *keydata2, int selection)
     return ok;
 }
 
-static int mac_key_fromdata(MAC_KEY *key, const OSSL_PARAM params[])
-{
-    const OSSL_PARAM *p;
+/* Common structure to handle the MAC parameters for various calls */
+struct mac_common_params_st {
+    OSSL_PARAM *key;
+    OSSL_PARAM *cipher; /* CMAC */
+    OSSL_PARAM *propq;
+    OSSL_PARAM *engine;
+};
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+#define mac_import_st mac_common_params_st
+#define cmac_import_st mac_common_params_st
+#define mac_get_params_st mac_common_params_st
+#define cmac_get_params_st mac_common_params_st
+#define mac_set_params_st mac_common_params_st
+#define mac_gen_set_params_st mac_common_params_st
+#define cmac_gen_set_params_st mac_common_params_st
+
+#include "providers/implementations/keymgmt/mac_legacy_kmgmt.inc"
+
+static int mac_key_fromdata(MAC_KEY *key, const struct mac_common_params_st *p)
+{
+    if (p->key != NULL) {
+        if (p->key->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }
         OPENSSL_secure_clear_free(key->priv_key, key->priv_key_len);
         /* allocate at least one byte to distinguish empty key from no key set */
-        key->priv_key = OPENSSL_secure_malloc(p->data_size > 0 ? p->data_size : 1);
+        key->priv_key = OPENSSL_secure_malloc(p->key->data_size > 0
+                                              ? p->key->data_size : 1);
         if (key->priv_key == NULL)
             return 0;
-        memcpy(key->priv_key, p->data, p->data_size);
-        key->priv_key_len = p->data_size;
+        memcpy(key->priv_key, p->key->data, p->key->data_size);
+        key->priv_key_len = p->key->data_size;
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PROPERTIES);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_UTF8_STRING) {
+    if (p->propq != NULL) {
+        if (p->propq->data_type != OSSL_PARAM_UTF8_STRING) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }
         OPENSSL_free(key->properties);
-        key->properties = OPENSSL_strdup(p->data);
+        key->properties = OPENSSL_strdup(p->propq->data);
         if (key->properties == NULL)
             return 0;
     }
 
-    if (key->cmac && !ossl_prov_cipher_load_from_params(&key->cipher, params,
-                                                        key->libctx)) {
+    if (key->cmac && !ossl_prov_cipher_load(&key->cipher, p->cipher, p->propq,
+                                            p->engine, key->libctx)) {
         ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
@@ -225,37 +242,68 @@ static int mac_key_fromdata(MAC_KEY *key, const OSSL_PARAM params[])
 static int mac_import(void *keydata, int selection, const OSSL_PARAM params[])
 {
     MAC_KEY *key = keydata;
+    struct mac_common_params_st p;
 
-    if (!ossl_prov_is_running() || key == NULL)
+    if (key == NULL
+            || (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0
+            || !ossl_prov_is_running()
+            || !mac_import_decoder(params, &p))
         return 0;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0)
+    return mac_key_fromdata(key, &p);
+}
+
+static const OSSL_PARAM *mac_imexport_types(int selection)
+{
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        return mac_import_list;
+    return NULL;
+}
+
+static int cmac_import(void *keydata, int selection, const OSSL_PARAM params[])
+{
+    MAC_KEY *key = keydata;
+    struct mac_common_params_st p;
+
+    if (key == NULL
+            || (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0
+            || !ossl_prov_is_running()
+            || !cmac_import_decoder(params, &p))
         return 0;
 
-    return mac_key_fromdata(key, params);
+    return mac_key_fromdata(key, &p);
+}
+
+static const OSSL_PARAM *cmac_imexport_types(int selection)
+{
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        return cmac_import_list;
+    return NULL;
 }
 
 static int key_to_params(MAC_KEY *key, OSSL_PARAM_BLD *tmpl,
-                         OSSL_PARAM params[])
+                         struct mac_common_params_st *p)
 {
-    if (key == NULL)
-        return 0;
+    struct mac_common_params_st empty;
+
+    if (p == NULL)
+        memset(p = &empty, 0, sizeof(empty));
 
     if (key->priv_key != NULL
-        && !ossl_param_build_set_octet_string(tmpl, params,
+        && !ossl_param_build_set_octet_string(tmpl, p->key,
                                               OSSL_PKEY_PARAM_PRIV_KEY,
                                               key->priv_key, key->priv_key_len))
         return 0;
 
     if (key->cipher.cipher != NULL
-        && !ossl_param_build_set_utf8_string(tmpl, params,
+        && !ossl_param_build_set_utf8_string(tmpl, p->cipher,
                                              OSSL_PKEY_PARAM_CIPHER,
                                              EVP_CIPHER_get0_name(key->cipher.cipher)))
         return 0;
 
 #if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
     if (key->cipher.engine != NULL
-        && !ossl_param_build_set_utf8_string(tmpl, params,
+        && !ossl_param_build_set_utf8_string(tmpl, p->engine,
                                              OSSL_PKEY_PARAM_ENGINE,
                                              ENGINE_get_id(key->cipher.engine)))
         return 0;
@@ -282,8 +330,7 @@ static int mac_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
     if (tmpl == NULL)
         return 0;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0
-         && !key_to_params(key, tmpl, NULL))
+    if (!key_to_params(key, tmpl, NULL))
         goto err;
 
     params = OSSL_PARAM_BLD_to_param(tmpl);
@@ -291,85 +338,61 @@ static int mac_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
         goto err;
 
     ret = param_cb(params, cbarg);
-    OSSL_PARAM_free(params);
+    OSSL_PARAM_clear_free(params);
 err:
     OSSL_PARAM_BLD_free(tmpl);
     return ret;
 }
 
-static const OSSL_PARAM mac_key_types[] = {
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_PROPERTIES, NULL, 0),
-    OSSL_PARAM_END
-};
-static const OSSL_PARAM *mac_imexport_types(int selection)
+static int mac_get_params(void *keydata, OSSL_PARAM params[])
 {
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-        return mac_key_types;
-    return NULL;
-}
+    struct mac_common_params_st p;
+    MAC_KEY *key = keydata;
 
-static const OSSL_PARAM cmac_key_types[] = {
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_CIPHER, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_ENGINE, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_PROPERTIES, NULL, 0),
-    OSSL_PARAM_END
-};
-static const OSSL_PARAM *cmac_imexport_types(int selection)
-{
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-        return cmac_key_types;
-    return NULL;
-}
+    if (key == NULL || !mac_get_params_decoder(params, &p))
+        return 0;
 
-static int mac_get_params(void *key, OSSL_PARAM params[])
-{
-    return key_to_params(key, NULL, params);
+    return key_to_params(key, NULL, &p);
 }
 
 static const OSSL_PARAM *mac_gettable_params(void *provctx)
 {
-    static const OSSL_PARAM gettable_params[] = {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return gettable_params;
+    return mac_get_params_list;
+}
+
+static int cmac_get_params(void *keydata, OSSL_PARAM params[])
+{
+    struct mac_common_params_st p;
+    MAC_KEY *key = keydata;
+
+    if (key == NULL || !cmac_get_params_decoder(params, &p))
+        return 0;
+
+    return key_to_params(key, NULL, &p);
 }
 
 static const OSSL_PARAM *cmac_gettable_params(void *provctx)
 {
-    static const OSSL_PARAM gettable_params[] = {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_CIPHER, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_ENGINE, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return gettable_params;
+    return cmac_get_params_list;
 }
 
 static int mac_set_params(void *keydata, const OSSL_PARAM params[])
 {
     MAC_KEY *key = keydata;
-    const OSSL_PARAM *p;
+    struct mac_common_params_st p;
 
-    if (key == NULL)
+    if (key == NULL || !mac_set_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
-    if (p != NULL)
-        return mac_key_fromdata(key, params);
+    if (p.key != NULL)
+        return mac_key_fromdata(key, &p);
 
     return 1;
 }
 
 static const OSSL_PARAM *mac_settable_params(void *provctx)
 {
-    static const OSSL_PARAM settable_params[] = {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settable_params;
+    return mac_set_params_list;
 }
 
 static void *mac_gen_init_common(void *provctx, int selection)
@@ -411,39 +434,48 @@ static void *cmac_gen_init(void *provctx, int selection,
     return gctx;
 }
 
-static int mac_gen_set_params(void *genctx, const OSSL_PARAM params[])
+static int mac_gen_set_params_common(struct mac_gen_ctx *gctx,
+                                     const struct mac_common_params_st *p)
 {
-    struct mac_gen_ctx *gctx = genctx;
-    const OSSL_PARAM *p;
-
-    if (gctx == NULL)
-        return 0;
-
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
-    if (p != NULL) {
-        if (p->data_type != OSSL_PARAM_OCTET_STRING) {
+    if (p->key != NULL) {
+        if (p->key->data_type != OSSL_PARAM_OCTET_STRING) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }
-        gctx->priv_key = OPENSSL_secure_malloc(p->data_size);
+        gctx->priv_key = OPENSSL_secure_malloc(p->key->data_size);
         if (gctx->priv_key == NULL)
             return 0;
-        memcpy(gctx->priv_key, p->data, p->data_size);
-        gctx->priv_key_len = p->data_size;
+        memcpy(gctx->priv_key, p->key->data, p->key->data_size);
+        gctx->priv_key_len = p->key->data_size;
     }
 
     return 1;
 }
 
+static int mac_gen_set_params(void *genctx, const OSSL_PARAM params[])
+{
+    struct mac_gen_ctx *gctx = genctx;
+    struct mac_common_params_st p;
+
+    if (gctx == NULL || !mac_gen_set_params_decoder(params, &p))
+        return 0;
+
+    return mac_gen_set_params_common(gctx, &p);
+}
+
 static int cmac_gen_set_params(void *genctx, const OSSL_PARAM params[])
 {
     struct mac_gen_ctx *gctx = genctx;
+    struct mac_common_params_st p;
 
-    if (!mac_gen_set_params(genctx, params))
+    if (gctx == NULL || !cmac_gen_set_params_decoder(params, &p))
         return 0;
 
-    if (!ossl_prov_cipher_load_from_params(&gctx->cipher, params,
-                                           gctx->libctx)) {
+    if (!mac_gen_set_params_common(gctx, &p))
+        return 0;
+
+    if (!ossl_prov_cipher_load(&gctx->cipher, p.cipher, p.propq,
+                               p.engine, gctx->libctx)) {
         ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
@@ -454,22 +486,13 @@ static int cmac_gen_set_params(void *genctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *mac_gen_settable_params(ossl_unused void *genctx,
                                                  ossl_unused void *provctx)
 {
-    static OSSL_PARAM settable[] = {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settable;
+    return mac_gen_set_params_list;
 }
 
 static const OSSL_PARAM *cmac_gen_settable_params(ossl_unused void *genctx,
                                                   ossl_unused void *provctx)
 {
-    static OSSL_PARAM settable[] = {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_CIPHER, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settable;
+    return cmac_gen_set_params_list;
 }
 
 static void *mac_gen(void *genctx, OSSL_CALLBACK *cb, void *cbarg)
@@ -552,13 +575,13 @@ const OSSL_DISPATCH ossl_mac_legacy_keymgmt_functions[] = {
 const OSSL_DISPATCH ossl_cmac_legacy_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_NEW, (void (*)(void))mac_new_cmac },
     { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))mac_free },
-    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*) (void))mac_get_params },
+    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*) (void))cmac_get_params },
     { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*) (void))cmac_gettable_params },
     { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*) (void))mac_set_params },
     { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void (*) (void))mac_settable_params },
     { OSSL_FUNC_KEYMGMT_HAS, (void (*)(void))mac_has },
     { OSSL_FUNC_KEYMGMT_MATCH, (void (*)(void))mac_match },
-    { OSSL_FUNC_KEYMGMT_IMPORT, (void (*)(void))mac_import },
+    { OSSL_FUNC_KEYMGMT_IMPORT, (void (*)(void))cmac_import },
     { OSSL_FUNC_KEYMGMT_IMPORT_TYPES, (void (*)(void))cmac_imexport_types },
     { OSSL_FUNC_KEYMGMT_EXPORT, (void (*)(void))mac_export },
     { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void (*)(void))cmac_imexport_types },
@@ -570,4 +593,3 @@ const OSSL_DISPATCH ossl_cmac_legacy_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))mac_gen_cleanup },
     OSSL_DISPATCH_END
 };
-

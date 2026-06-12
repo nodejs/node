@@ -10,14 +10,7 @@
  */
 
 #include "cmp_local.h"
-#include "crypto/asn1.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/asn1t.h>
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
-#include <openssl/x509.h>
+#include "crypto/asn1.h" /* for ossl_X509_ALGOR_from_nid() */
 
 /*
  * This function is also used by the internal verify_PBMAC() in cmp_vfy.c.
@@ -92,11 +85,11 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
                                &protection, &sig_len))
             goto end;
 
-        if ((prot = ASN1_BIT_STRING_new()) == NULL)
+        if (sig_len > INT_MAX || (prot = ASN1_BIT_STRING_new()) == NULL)
             goto end;
         /* OpenSSL by default encodes all bit strings as ASN.1 NamedBitList */
         ossl_asn1_string_set_bits_left(prot, 0);
-        if (!ASN1_BIT_STRING_set(prot, protection, sig_len)) {
+        if (!ASN1_BIT_STRING_set(prot, protection, (int)sig_len)) {
             ASN1_BIT_STRING_free(prot);
             prot = NULL;
         }
@@ -123,7 +116,7 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
         if (ASN1_item_sign_ex(ASN1_ITEM_rptr(OSSL_CMP_PROTECTEDPART),
                               msg->header->protectionAlg, /* sets X509_ALGOR */
                               NULL, prot, &prot_part, NULL, ctx->pkey, md,
-                              ctx->libctx, ctx->propq))
+                              ctx->libctx, ctx->propq) != 0)
             return prot;
         ASN1_BIT_STRING_free(prot);
         return NULL;
@@ -298,7 +291,7 @@ int ossl_cmp_msg_protect(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
         goto err;
 
     /*
-     * As required by RFC 4210 section 5.1.1., if the sender name is not known
+     * As required by RFC 9810 section 5.1.1., if the sender name is not known
      * to the client it set to NULL-DN. In this case for identification at least
      * the senderKID must be set, where we took the referenceValue as fallback.
      */

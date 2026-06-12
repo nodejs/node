@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -250,9 +250,10 @@ int crl_main(int argc, char **argv)
             goto end;
         if (i == 0) {
             BIO_printf(bio_err, "verify failure\n");
-	    goto end;
-        } else
+            goto end;
+        } else {
             BIO_printf(bio_err, "verify OK\n");
+        }
     }
 
     if (crldiff != NULL) {

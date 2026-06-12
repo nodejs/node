@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -564,20 +564,20 @@ static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
         /*
          * Number, range, or mistake, pick it apart and figure out which.
          */
-        i1 = strspn(val->value, "0123456789");
+        i1 = (int)strspn(val->value, "0123456789");
         if (val->value[i1] == '\0') {
             is_range = 0;
         } else {
             is_range = 1;
-            i2 = i1 + strspn(val->value + i1, " \t");
+            i2 = i1 + (int)strspn(val->value + i1, " \t");
             if (val->value[i2] != '-') {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_ASNUMBER);
                 X509V3_conf_add_error_name_value(val);
                 goto err;
             }
             i2++;
-            i2 = i2 + strspn(val->value + i2, " \t");
-            i3 = i2 + strspn(val->value + i2, "0123456789");
+            i2 = i2 + (int)strspn(val->value + i2, " \t");
+            i3 = i2 + (int)strspn(val->value + i2, "0123456789");
             if (val->value[i3] != '\0') {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_ASRANGE);
                 X509V3_conf_add_error_name_value(val);

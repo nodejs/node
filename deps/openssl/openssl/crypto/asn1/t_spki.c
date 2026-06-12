@@ -17,7 +17,7 @@
 
 /* Print out an SPKI */
 
-int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki)
+int NETSCAPE_SPKI_print(BIO *out, const NETSCAPE_SPKI *spki)
 {
     EVP_PKEY *pkey;
     ASN1_IA5STRING *chal;

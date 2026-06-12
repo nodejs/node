@@ -1,0 +1,63 @@
+=pod
+
+=head1 NAME
+
+X509_ACERT_add_attr_nconf
+- Add attributes to X509_ACERT from configuration section
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_acert.h>
+
+ int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
+                               X509_ACERT *acert);
+
+=head1 DESCRIPTION
+
+X509_ACERT_add_attr_nconf() adds one or more B<X509_ATTRIBUTE>s to the
+existing B<X509_ACERT> structure I<acert>. The attributes are read
+from a I<section> of the I<conf> object.
+
+The give I<section> of the configuration should contain attribute
+descriptions of the form:
+
+  attribute_name = value
+
+The format of B<value> will vary depending on the B<attribute_name>.
+B<value> can either be a string value or an B<ASN1_TYPE>
+object.
+
+To encode an B<ASN1_TYPE> object, use the prefix "ASN1:" followed by
+the object description that uses the same syntax as L<ASN1_generate_nconf(3)>.
+For example:
+
+ id-aca-group = ASN1:SEQUENCE:ietfattr
+
+ [ietfattr]
+ values = SEQUENCE:groups
+
+ [groups]
+ 1.string = UTF8:mygroup1
+
+=head1 RETURN VALUES
+
+X509_ACERT_add_attr_nconf() returns 1 for success and 0 for failure.
+
+=head1 SEE ALSO
+
+L<ASN1_generate_nconf(3)>.
+
+=head1 HISTORY
+
+The function X509_ACERT_add_attr_nconf() was added in OpenSSL 3.4.
+
+=head1 COPYRIGHT
+
+Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

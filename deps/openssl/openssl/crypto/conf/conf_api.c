@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -192,7 +192,7 @@ CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
         goto err;
     if ((v = OPENSSL_malloc(sizeof(*v))) == NULL)
         goto err;
-    i = strlen(section) + 1;
+    i = (int)strlen(section) + 1;
     if ((v->section = OPENSSL_malloc(i)) == NULL)
         goto err;
 

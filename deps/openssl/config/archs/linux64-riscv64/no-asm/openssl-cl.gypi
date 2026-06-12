@@ -21,6 +21,7 @@
       'openssl/apps/ciphers.c',
       'openssl/apps/cmp.c',
       'openssl/apps/cms.c',
+      'openssl/apps/configutl.c',
       'openssl/apps/crl.c',
       'openssl/apps/crl2pkcs7.c',
       'openssl/apps/dgst.c',

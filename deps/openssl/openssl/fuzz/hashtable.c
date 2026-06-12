@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,11 +99,11 @@ static void fuzz_free_cb(HT_VALUE *v)
 
 int FuzzerInitialize(int *argc, char ***argv)
 {
-    HT_CONFIG fuzz_conf = {NULL, fuzz_free_cb, NULL, 0, 1};
+    HT_CONFIG fuzz_conf = {NULL, fuzz_free_cb, NULL, 0, 1, 0};
 
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
     ERR_clear_error();
-    prediction_table = OPENSSL_zalloc(sizeof(FUZZER_VALUE) * 65537);
+    prediction_table = OPENSSL_calloc(65537, sizeof(FUZZER_VALUE));
     if (prediction_table == NULL)
         return -1;
     fuzzer_table = ossl_ht_new(&fuzz_conf);
@@ -276,7 +276,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         HT_SET_KEY_FIELD(&key, fuzzkey, keyval);
 
         /* lock the table for reading */
-        ossl_ht_read_lock(fuzzer_table);
+        if (!ossl_ht_read_lock(fuzzer_table))
+            return 0;
 
         /*
          * If the value to find is not already allocated

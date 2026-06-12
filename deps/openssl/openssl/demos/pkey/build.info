@@ -1,0 +1,36 @@
+#
+# To run the demos when linked with a shared library (default) ensure that
+# libcrypto is on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./EVP_PKEY_EC_keygen
+
+PROGRAMS{noinst} = EVP_PKEY_EC_keygen \
+                   EVP_PKEY_RSA_keygen \
+                   EVP_PKEY_DSA_keygen \
+                   EVP_PKEY_DSA_paramgen \
+                   EVP_PKEY_DSA_paramvalidate \
+                   EVP_PKEY_DSA_paramfromdata
+
+INCLUDE[EVP_PKEY_EC_keygen]=../../include
+SOURCE[EVP_PKEY_EC_keygen]=EVP_PKEY_EC_keygen.c
+DEPEND[EVP_PKEY_EC_keygen]=../../libcrypto
+
+INCLUDE[EVP_PKEY_RSA_keygen]=../../include
+SOURCE[EVP_PKEY_RSA_keygen]=EVP_PKEY_RSA_keygen.c
+DEPEND[EVP_PKEY_RSA_keygen]=../../libcrypto
+
+INCLUDE[EVP_PKEY_DSA_keygen]=../../include
+SOURCE[EVP_PKEY_DSA_keygen]=EVP_PKEY_DSA_keygen.c
+DEPEND[EVP_PKEY_DSA_keygen]=../../libcrypto
+
+INCLUDE[EVP_PKEY_DSA_paramgen]=../../include
+SOURCE[EVP_PKEY_DSA_paramgen]=EVP_PKEY_DSA_paramgen.c
+DEPEND[EVP_PKEY_DSA_paramgen]=../../libcrypto
+
+INCLUDE[EVP_PKEY_DSA_paramvalidate]=../../include
+SOURCE[EVP_PKEY_DSA_paramvalidate]=EVP_PKEY_DSA_paramvalidate.c
+DEPEND[EVP_PKEY_DSA_paramvalidate]=../../libcrypto
+
+INCLUDE[EVP_PKEY_DSA_paramfromdata]=../../include
+SOURCE[EVP_PKEY_DSA_paramfromdata]=EVP_PKEY_DSA_paramfromdata.c
+DEPEND[EVP_PKEY_DSA_paramfromdata]=../../libcrypto

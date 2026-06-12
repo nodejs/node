@@ -22,7 +22,9 @@ OSSL_ENCODER_CONSTRUCT,
 OSSL_ENCODER_CLEANUP,
 OSSL_ENCODER_CTX_set_construct,
 OSSL_ENCODER_CTX_set_construct_data,
-OSSL_ENCODER_CTX_set_cleanup
+OSSL_ENCODER_CTX_set_cleanup,
+OSSL_ENCODER_CTX_set_finalized,
+OSSL_ENCODER_CTX_get_finalized
 - Encoder context routines
 
 =head1 SYNOPSIS
@@ -69,6 +71,9 @@ OSSL_ENCODER_CTX_set_cleanup
  int OSSL_ENCODER_CTX_set_cleanup(OSSL_ENCODER_CTX *ctx,
                                   OSSL_ENCODER_CLEANUP *cleanup);
 
+ int OSSL_ENCODER_CTX_set_finalized(OSSL_ENCODER_CTX *ctx);
+ int OSSL_ENCODER_CTX_get_finalized(OSSL_ENCODER_CTX *ctx);
+
 =head1 DESCRIPTION
 
 Encoding an input object to the desired encoding may be done with a chain of
@@ -111,6 +116,8 @@ OSSL_ENCODER_CTX_add_extra() finds encoders that further encodes output
 from already added encoders, and adds them as well.  This is used to build
 encoder chains.
 
+OSSL_ENCODER_CTX_set_selection() sets what should be included in the output.
+
 OSSL_ENCODER_CTX_set_output_type() sets the ending output type.  This must
 be specified, and determines if a complete encoder chain is available.
 
@@ -129,6 +136,15 @@ passed to the constructor every time it's called.
 
 OSSL_ENCODER_CTX_set_cleanup() sets the constructor data I<cleanup>
 function.  This is called by L<OSSL_ENCODER_CTX_free(3)>.
+
+OSSL_ENCODER_CTX_set_finalized() finalises the context. Functions
+OSSL_ENCODER_CTX_set_selection(),
+OSSL_ENCODER_CTX_set_output_type(), OSSL_ENCODER_CTX_set_output_structure(),
+OSSL_ENCODER_CTX_add_encoder(), OSSL_ENCODER_CTX_add_extra(),
+OSSL_ENCODER_CTX_set_construct(), OSSL_ENCODER_CTX_set_construct_data() and
+OSSL_ENCODER_CTX_set_cleanup() can't be used after the context is finalised.
+
+OSSL_ENCODER_CTX_get_finalized() indicates if the context was finalised.
 
 =head2 Constructor
 
@@ -180,9 +196,15 @@ OSSL_ENCODER_CTX_set_params() returns 1 if all recognised parameters were
 valid, or 0 if one of them was invalid or caused some other failure in the
 implementation.
 
+OSSL_ENCODER_CTX_set_selection(),
+OSSL_ENCODER_CTX_set_output_type(), OSSL_ENCODER_CTX_set_output_structure(),
 OSSL_ENCODER_CTX_add_encoder(), OSSL_ENCODER_CTX_add_extra(),
-OSSL_ENCODER_CTX_set_construct(), OSSL_ENCODER_CTX_set_construct_data() and
-OSSL_ENCODER_CTX_set_cleanup() return 1 on success, or 0 on failure.
+OSSL_ENCODER_CTX_set_construct(), OSSL_ENCODER_CTX_set_construct_data(),
+OSSL_ENCODER_CTX_set_cleanup() and OSSL_ENCODER_CTX_set_finalized()
+return 1 on success, or 0 on failure.
+
+OSSL_ENCODER_CTX_get_finalized() returns 1 if I<ctx> was finalised,
+0 otherwise. It also returns 0 if I<ctx> is NULL.
 
 OSSL_ENCODER_CTX_get_num_encoders() returns the current number of encoders.
 It returns 0 if I<ctx> is NULL.
@@ -202,6 +224,12 @@ output type.
 OSSL_ENCODER_INSTANCE_get_output_structure() returns a string with the name
 of the output structure.
 
+=head1 NOTES AND BUGS
+
+The chain mechanism in ENCODE is not yet completely implemented.
+It affects functions such as OSSL_ENCODER_CTX_add_extra and the
+inner processing loop.
+
 =head1 SEE ALSO
 
 L<provider(7)>, L<OSSL_ENCODER(3)>
@@ -209,6 +237,9 @@ L<provider(7)>, L<OSSL_ENCODER(3)>
 =head1 HISTORY
 
 The functions described here were added in OpenSSL 3.0.
+
+OSSL_ENCODER_CTX_set_finalized() and OSSL_ENCODER_CTX_get_finalized()
+were added in OpenSSL 4.0.
 
 =head1 COPYRIGHT
 

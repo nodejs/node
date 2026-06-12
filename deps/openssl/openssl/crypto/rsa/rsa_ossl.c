@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,11 +15,18 @@
 
 #include "internal/cryptlib.h"
 #include "crypto/bn.h"
+#include "crypto/sparse_array.h"
 #include "rsa_local.h"
 #include "internal/constant_time.h"
+#if defined(OPENSSL_SYS_TANDEM)
+# include "internal/tsan_assist.h"
+# include "internal/threads_common.h"
+#endif
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
+
+DEFINE_SPARSE_ARRAY_OF(BN_BLINDING);
 
 static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
                                   unsigned char *to, RSA *rsa, int padding);
@@ -207,86 +214,96 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
     return r;
 }
 
-static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
+#if defined(OPENSSL_SYS_TANDEM)
+static TSAN_QUALIFIER uint64_t tsan_thread_id = 1;
+#endif
+
+static uintptr_t get_unique_thread_id(void)
+{
+#if defined(OPENSSL_SYS_TANDEM)
+    uintptr_t thread_id = (uintptr_t)CRYPTO_THREAD_get_local_ex(CRYPTO_THREAD_LOCAL_TANDEM_ID_KEY,
+                                                                NULL);
+
+    if (thread_id == 0) {
+        thread_id = tsan_counter(&tsan_thread_id);
+        CRYPTO_THREAD_set_local_ex(CRYPTO_THREAD_LOCAL_TANDEM_ID_KEY, NULL, (void *)thread_id);
+    }
+    return thread_id;
+#else
+    return (uintptr_t)CRYPTO_THREAD_get_current_id();
+#endif
+}
+
+static void free_bn_blinding(ossl_uintmax_t idx, BN_BLINDING *b, void *arg)
+{
+    BN_BLINDING_free(b);
+}
+
+void ossl_rsa_free_blinding(RSA *rsa)
+{
+    SPARSE_ARRAY_OF(BN_BLINDING) *blindings = rsa->blindings_sa;
+
+    ossl_sa_BN_BLINDING_doall_arg(blindings, free_bn_blinding, NULL);
+    ossl_sa_BN_BLINDING_free(blindings);
+}
+
+void *ossl_rsa_alloc_blinding(void)
+{
+    return ossl_sa_BN_BLINDING_new();
+}
+
+static BN_BLINDING *ossl_rsa_get_thread_bn_blinding(RSA *rsa)
+{
+    SPARSE_ARRAY_OF(BN_BLINDING) *blindings = rsa->blindings_sa;
+    uintptr_t tid = get_unique_thread_id();
+
+    return ossl_sa_BN_BLINDING_get(blindings, tid);
+}
+
+static int ossl_rsa_set_thread_bn_blinding(RSA *rsa, BN_BLINDING *b)
+{
+    SPARSE_ARRAY_OF(BN_BLINDING) *blindings = rsa->blindings_sa;
+    uintptr_t tid = get_unique_thread_id();
+
+    return ossl_sa_BN_BLINDING_set(blindings, tid, b);
+}
+
+static BN_BLINDING *rsa_get_blinding(RSA *rsa, BN_CTX *ctx)
 {
     BN_BLINDING *ret;
 
     if (!CRYPTO_THREAD_read_lock(rsa->lock))
         return NULL;
 
-    if (rsa->blinding == NULL) {
-        /*
-         * This dance with upgrading the lock from read to write will be
-         * slower in cases of a single use RSA object, but should be
-         * significantly better in multi-thread cases (e.g. servers). It's
-         * probably worth it.
-         */
-        CRYPTO_THREAD_unlock(rsa->lock);
-        if (!CRYPTO_THREAD_write_lock(rsa->lock))
-            return NULL;
-        if (rsa->blinding == NULL)
-            rsa->blinding = RSA_setup_blinding(rsa, ctx);
-    }
-
-    ret = rsa->blinding;
-    if (ret == NULL)
-        goto err;
-
-    if (BN_BLINDING_is_current_thread(ret)) {
-        /* rsa->blinding is ours! */
-
-        *local = 1;
-    } else {
-        /* resort to rsa->mt_blinding instead */
-
-        /*
-         * instructs rsa_blinding_convert(), rsa_blinding_invert() that the
-         * BN_BLINDING is shared, meaning that accesses require locks, and
-         * that the blinding factor must be stored outside the BN_BLINDING
-         */
-        *local = 0;
-
-        if (rsa->mt_blinding == NULL) {
-            CRYPTO_THREAD_unlock(rsa->lock);
-            if (!CRYPTO_THREAD_write_lock(rsa->lock))
-                return NULL;
-            if (rsa->mt_blinding == NULL)
-                rsa->mt_blinding = RSA_setup_blinding(rsa, ctx);
-        }
-        ret = rsa->mt_blinding;
-    }
-
- err:
+    ret = ossl_rsa_get_thread_bn_blinding(rsa);
     CRYPTO_THREAD_unlock(rsa->lock);
+
+    if (ret == NULL) {
+        ret = RSA_setup_blinding(rsa, ctx);
+        if (!CRYPTO_THREAD_write_lock(rsa->lock)) {
+            BN_BLINDING_free(ret);
+            ret = NULL;
+        } else {
+            if (!ossl_rsa_set_thread_bn_blinding(rsa, ret)) {
+                BN_BLINDING_free(ret);
+                ret = NULL;
+            }
+            CRYPTO_THREAD_unlock(rsa->lock);
+        }
+    }
+
     return ret;
 }
 
-static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
-                                BN_CTX *ctx)
+static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BN_CTX *ctx)
 {
-    if (unblind == NULL) {
-        /*
-         * Local blinding: store the unblinding factor in BN_BLINDING.
-         */
-        return BN_BLINDING_convert_ex(f, NULL, b, ctx);
-    } else {
-        /*
-         * Shared blinding: store the unblinding factor outside BN_BLINDING.
-         */
-        int ret;
-
-        if (!BN_BLINDING_lock(b))
-            return 0;
-
-        ret = BN_BLINDING_convert_ex(f, unblind, b, ctx);
-        BN_BLINDING_unlock(b);
-
-        return ret;
-    }
+    /*
+     * Local blinding: store the unblinding factor in BN_BLINDING.
+     */
+    return BN_BLINDING_convert_ex(f, NULL, b, ctx);
 }
 
-static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
-                               BN_CTX *ctx)
+static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BN_CTX *ctx)
 {
     /*
      * For local blinding, unblind is set to NULL, and BN_BLINDING_invert_ex
@@ -297,7 +314,7 @@ static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
      * to access the blinding without a lock.
      */
     BN_set_flags(f, BN_FLG_CONSTTIME);
-    return BN_BLINDING_invert_ex(f, unblind, b, ctx);
+    return BN_BLINDING_invert_ex(f, NULL, b, ctx);
 }
 
 /* signing */
@@ -308,13 +325,6 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
     int i, num = 0, r = -1;
     unsigned char *buf = NULL;
     BN_CTX *ctx = NULL;
-    int local_blinding = 0;
-    /*
-     * Used only if the blinding structure is shared. A non-NULL unblind
-     * instructs rsa_blinding_convert() and rsa_blinding_invert() to store
-     * the unblinding factor outside the blinding structure.
-     */
-    BIGNUM *unblind = NULL;
     BN_BLINDING *blinding = NULL;
 
     if ((ctx = BN_CTX_new_ex(rsa->libctx)) == NULL)
@@ -359,19 +369,13 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
             goto err;
 
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
-        blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
+        blinding = rsa_get_blinding(rsa, ctx);
         if (blinding == NULL) {
             ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
             goto err;
         }
-    }
 
-    if (blinding != NULL) {
-        if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL)) {
-            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
-            goto err;
-        }
-        if (!rsa_blinding_convert(blinding, f, unblind, ctx))
+        if (!rsa_blinding_convert(blinding, f, ctx))
             goto err;
     }
 
@@ -405,7 +409,7 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
     }
 
     if (blinding)
-        if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
+        if (!rsa_blinding_invert(blinding, ret, ctx))
             goto err;
 
     if (padding == RSA_X931_PADDING) {
@@ -524,13 +528,6 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
     unsigned char *buf = NULL;
     unsigned char kdk[SHA256_DIGEST_LENGTH] = {0};
     BN_CTX *ctx = NULL;
-    int local_blinding = 0;
-    /*
-     * Used only if the blinding structure is shared. A non-NULL unblind
-     * instructs rsa_blinding_convert() and rsa_blinding_invert() to store
-     * the unblinding factor outside the blinding structure.
-     */
-    BIGNUM *unblind = NULL;
     BN_BLINDING *blinding = NULL;
 
     /*
@@ -606,19 +603,13 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
             goto err;
 
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
-        blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
+        blinding = rsa_get_blinding(rsa, ctx);
         if (blinding == NULL) {
             ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
             goto err;
         }
-    }
 
-    if (blinding != NULL) {
-        if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL)) {
-            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
-            goto err;
-        }
-        if (!rsa_blinding_convert(blinding, f, unblind, ctx))
+        if (!rsa_blinding_convert(blinding, f, ctx))
             goto err;
     }
 
@@ -652,7 +643,7 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
     }
 
     if (blinding)
-        if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
+        if (!rsa_blinding_invert(blinding, ret, ctx))
             goto err;
 
     /*

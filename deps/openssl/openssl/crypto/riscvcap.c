@@ -120,9 +120,6 @@ size_t riscv_vlen(void)
     return vlen;
 }
 
-# if defined(__GNUC__) && __GNUC__>=2
-__attribute__ ((constructor))
-# endif
 void OPENSSL_cpuid_setup(void)
 {
     char *e;

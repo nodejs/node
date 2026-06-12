@@ -134,6 +134,7 @@
 # define PROV_R_PATH_MUST_BE_ABSOLUTE                     219
 # define PROV_R_PERSONALISATION_STRING_TOO_LONG           195
 # define PROV_R_PSS_SALTLEN_TOO_SMALL                     172
+# define PROV_R_REPEATED_PARAMETER                        252
 # define PROV_R_REQUEST_TOO_LARGE_FOR_DRBG                196
 # define PROV_R_REQUIRE_CTR_MODE_CIPHER                   206
 # define PROV_R_RESEED_ERROR                              197

@@ -34,7 +34,7 @@ B<CMS_PARTIAL>. Internally CMS_final() is called unless B<CMS_STREAM> and/or
 B<CMS_PARTIAL> is specified.
 
 The algorithm passed in the I<cipher> parameter must support ASN1 encoding of
-its parameters.
+its parameters. AEAD cipher algorithms are not supported.
 
 The B<CMS_ContentInfo> structure can be freed using L<CMS_ContentInfo_free(3)>.
 

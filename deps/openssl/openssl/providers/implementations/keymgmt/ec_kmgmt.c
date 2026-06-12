@@ -515,7 +515,7 @@ int ec_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
     }
 
     ok = param_cb(params, cbarg);
-    OSSL_PARAM_free(params);
+    OSSL_PARAM_clear_free(params);
 end:
     OSSL_PARAM_BLD_free(tmpl);
     OPENSSL_free(pub_key);
@@ -706,6 +706,9 @@ int common_get_params(void *key, OSSL_PARAM params[], int sm2)
         if (!OSSL_PARAM_set_int(p, sec_bits))
             goto err;
     }
+    if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_SECURITY_CATEGORY)) != NULL)
+        if (!OSSL_PARAM_set_int(p, 0))
+            goto err;
 
     if ((p = OSSL_PARAM_locate(params,
                                OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS))
@@ -790,6 +793,7 @@ static const OSSL_PARAM ec_known_gettable_params[] = {
     OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
+    OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_CATEGORY, NULL),
     OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_DEFAULT_DIGEST, NULL, 0),
     OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, NULL, 0),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS, NULL),

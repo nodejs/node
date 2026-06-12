@@ -342,8 +342,10 @@ int TS_CONF_set_policies(CONF *conf, const char *section, TS_RESP_CTX *ctx)
             ts_CONF_invalid(section, ENV_OTHER_POLICIES);
             goto err;
         }
-        if (!TS_RESP_CTX_add_policy(ctx, objtmp))
+        if (!TS_RESP_CTX_add_policy(ctx, objtmp)) {
+            ASN1_OBJECT_free(objtmp);
             goto err;
+        }
         ASN1_OBJECT_free(objtmp);
     }
 

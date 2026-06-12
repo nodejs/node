@@ -11,12 +11,16 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/proverr.h>
+#include <openssl/self_test.h>
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "prov/der_slh_dsa.h"
 #include "crypto/slh_dsa.h"
+#include "internal/cryptlib.h"
 #include "internal/sizes.h"
+#include "internal/fips.h"
+#include "providers/implementations/signature/slh_dsa_sig.inc"
 
 #define SLH_DSA_MAX_ADD_RANDOM_LEN 32
 
@@ -34,6 +38,34 @@ static OSSL_FUNC_signature_freectx_fn slh_dsa_freectx;
 static OSSL_FUNC_signature_dupctx_fn slh_dsa_dupctx;
 static OSSL_FUNC_signature_set_ctx_params_fn slh_dsa_set_ctx_params;
 static OSSL_FUNC_signature_settable_ctx_params_fn slh_dsa_settable_ctx_params;
+
+#ifdef FIPS_MODULE
+static FIPS_DEFERRED_TEST slh_sig_deferred_tests[] = {
+    {
+        "SLH-DSA-SHA2-128f",
+        FIPS_DEFERRED_KAT_SIGNATURE,
+        FIPS_DEFERRED_TEST_INIT
+    },
+    {
+        "SLH-DSA-SHAKE-128f",
+        FIPS_DEFERRED_KAT_SIGNATURE,
+        FIPS_DEFERRED_TEST_INIT
+    },
+    { NULL, 0, 0 },
+};
+#endif
+
+static int slh_dsa_self_check(OSSL_LIB_CTX *libctx)
+{
+    if (!ossl_prov_is_running())
+        return 0;
+
+#ifdef FIPS_MODULE
+    return FIPS_deferred_self_tests(libctx, slh_sig_deferred_tests);
+#else
+    return 1;
+#endif
+}
 
 /*
  * NOTE: Any changes to this structure may require updating slh_dsa_dupctx().
@@ -69,7 +101,7 @@ static void *slh_dsa_newctx(void *provctx, const char *alg, const char *propq)
 {
     PROV_SLH_DSA_CTX *ctx;
 
-    if (!ossl_prov_is_running())
+    if (!slh_dsa_self_check(PROV_LIBCTX_OF(provctx)))
         return NULL;
 
     ctx = OPENSSL_zalloc(sizeof(PROV_SLH_DSA_CTX));
@@ -259,40 +291,37 @@ static int slh_dsa_digest_verify(void *vctx, const uint8_t *sig, size_t siglen,
 static int slh_dsa_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_SLH_DSA_CTX *pctx = (PROV_SLH_DSA_CTX *)vctx;
-    const OSSL_PARAM *p;
+    struct slh_dsa_set_ctx_params_st p;
 
-    if (pctx == NULL)
+    if (pctx == NULL || !slh_dsa_set_ctx_params_decoder(params, &p))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_CONTEXT_STRING);
-    if (p != NULL) {
+    if (p.context != NULL) {
         void *vp = pctx->context_string;
 
-        if (!OSSL_PARAM_get_octet_string(p, &vp, sizeof(pctx->context_string),
+        if (!OSSL_PARAM_get_octet_string(p.context, &vp,
+                                         sizeof(pctx->context_string),
                                          &(pctx->context_string_len))) {
             pctx->context_string_len = 0;
             return 0;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_TEST_ENTROPY);
-    if (p != NULL) {
+
+    if (p.entropy != NULL) {
         void *vp = pctx->add_random;
         size_t n = ossl_slh_dsa_key_get_n(pctx->key);
 
-        if (!OSSL_PARAM_get_octet_string(p, &vp, n, &(pctx->add_random_len))
+        if (!OSSL_PARAM_get_octet_string(p.entropy, &vp, n, &(pctx->add_random_len))
                 || pctx->add_random_len != n) {
             pctx->add_random_len = 0;
             return 0;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_DETERMINISTIC);
-    if (p != NULL && !OSSL_PARAM_get_int(p, &pctx->deterministic))
+
+    if (p.det != NULL && !OSSL_PARAM_get_int(p.det, &pctx->deterministic))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING);
-    if (p != NULL && !OSSL_PARAM_get_int(p, &pctx->msg_encode))
+    if (p.msgenc != NULL && !OSSL_PARAM_get_int(p.msgenc, &pctx->msg_encode))
         return 0;
     return 1;
 }
@@ -300,39 +329,25 @@ static int slh_dsa_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *slh_dsa_settable_ctx_params(void *vctx,
                                                      ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settable_ctx_params[] = {
-        OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_TEST_ENTROPY, NULL, 0),
-        OSSL_PARAM_int(OSSL_SIGNATURE_PARAM_DETERMINISTIC, 0),
-        OSSL_PARAM_int(OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING, 0),
-        OSSL_PARAM_END
-    };
-
-    return settable_ctx_params;
+    return slh_dsa_set_ctx_params_list;
 }
-
-static const OSSL_PARAM known_gettable_ctx_params[] = {
-    OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
-    OSSL_PARAM_END
-};
 
 static const OSSL_PARAM *slh_dsa_gettable_ctx_params(ossl_unused void *vctx,
                                                      ossl_unused void *provctx)
 {
-    return known_gettable_ctx_params;
+    return slh_dsa_get_ctx_params_list;
 }
 
 static int slh_dsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
 {
     PROV_SLH_DSA_CTX *ctx = (PROV_SLH_DSA_CTX *)vctx;
-    OSSL_PARAM *p;
+    struct slh_dsa_get_ctx_params_st p;
 
-    if (ctx == NULL)
+    if (ctx == NULL || !slh_dsa_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_ALGORITHM_ID);
-    if (p != NULL
-        && !OSSL_PARAM_set_octet_string(p,
+    if (p.algid != NULL
+        && !OSSL_PARAM_set_octet_string(p.algid,
                                         ctx->aid_len == 0 ? NULL : ctx->aid_buf,
                                         ctx->aid_len))
         return 0;

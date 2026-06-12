@@ -17,7 +17,7 @@ See L<EVP_PKEY_encapsulate(3)> and L<EVP_PKEY_decapsulate(3)> for more info.
 =item "operation" (B<OSSL_KEM_PARAM_OPERATION>) <UTF8 string>
 
 The OpenSSL RSA Key Encapsulation Mechanism only currently supports the
-following operation
+following default operation (operating mode):
 
 =over 4
 
@@ -31,8 +31,13 @@ The decapsulate function recovers the secret using the RSA private key.
 
 This can be set using EVP_PKEY_CTX_set_kem_op().
 
-=back
+=item "fips-indicator" (B<OSSL_KEM_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
 
+=item "key-check" (B<OSSL_KEM_PARAM_FIPS_KEY_CHECK>) <integer>
+
+These parameters are described in L<provider-kem(7)>.
+
+=back
 
 =head1 CONFORMING TO
 
@@ -58,9 +63,13 @@ L<provider-keymgmt(7)>
 
 This functionality was added in OpenSSL 3.0.
 
+The C<operation> (operating mode) was a required parameter prior to OpenSSL 3.5.
+As of OpenSSL 3.5, C<RSASVE> is the default operating mode, and no explicit
+value need be specified.
+
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

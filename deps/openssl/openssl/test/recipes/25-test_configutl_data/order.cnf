@@ -1,0 +1,21 @@
+# vim:ft=conf
+openssl_conf = openssl_init
+
+[def]
+# Sections are alphabetically ordered
+0.recipient = 0
+
+[abc]
+# Order within sections is preserved, even if it isn't sorted
+7.recipient = 7
+6.recipient = 6
+4.recipient = 4
+3.recipient = 3
+5.recipient = 5
+2.recipient = 2
+1.recipient = 1
+0.recipient = 0
+
+[default]
+# The default section is consolidated and always printed first
+aaatest = value

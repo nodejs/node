@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,28 +61,16 @@ int RSA_flags(const RSA *r)
 
 void RSA_blinding_off(RSA *rsa)
 {
-    BN_BLINDING_free(rsa->blinding);
-    rsa->blinding = NULL;
     rsa->flags &= ~RSA_FLAG_BLINDING;
     rsa->flags |= RSA_FLAG_NO_BLINDING;
 }
 
 int RSA_blinding_on(RSA *rsa, BN_CTX *ctx)
 {
-    int ret = 0;
-
-    if (rsa->blinding != NULL)
-        RSA_blinding_off(rsa);
-
-    rsa->blinding = RSA_setup_blinding(rsa, ctx);
-    if (rsa->blinding == NULL)
-        goto err;
 
     rsa->flags |= RSA_FLAG_BLINDING;
     rsa->flags &= ~RSA_FLAG_NO_BLINDING;
-    ret = 1;
- err:
-    return ret;
+    return 1;
 }
 
 static BIGNUM *rsa_get_public_exp(const BIGNUM *d, const BIGNUM *p,
@@ -161,8 +149,6 @@ BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *in_ctx)
         ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         goto err;
     }
-
-    BN_BLINDING_set_current_thread(ret);
 
  err:
     BN_CTX_end(ctx);

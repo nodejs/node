@@ -14,6 +14,7 @@
 #include <openssl/params.h>
 #include <openssl/evp.h>
 #include <openssl/proverr.h>
+#include "internal/common.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
 #include "prov/providercommon.h"
@@ -22,6 +23,10 @@
 #include "prov/provider_ctx.h"
 #include "prov/der_ecx.h"
 #include "crypto/ecx.h"
+
+#define eddsa_set_variant_ctx_params_st eddsa_set_ctx_params_st
+
+#include "providers/implementations/signature/eddsa_sig.inc"
 
 #ifdef S390X_EC_ASM
 # include "s390x_arch.h"
@@ -86,6 +91,7 @@ static OSSL_FUNC_signature_get_ctx_params_fn eddsa_get_ctx_params;
 static OSSL_FUNC_signature_gettable_ctx_params_fn eddsa_gettable_ctx_params;
 static OSSL_FUNC_signature_set_ctx_params_fn eddsa_set_ctx_params;
 static OSSL_FUNC_signature_settable_ctx_params_fn eddsa_settable_ctx_params;
+static OSSL_FUNC_signature_set_ctx_params_fn eddsa_set_variant_ctx_params;
 static OSSL_FUNC_signature_settable_ctx_params_fn eddsa_settable_variant_ctx_params;
 
 /* there are five EdDSA instances:
@@ -787,19 +793,16 @@ static const char **ed448_sigalg_query_key_types(void)
     return keytypes;
 }
 
-
-
 static int eddsa_get_ctx_params(void *vpeddsactx, OSSL_PARAM *params)
 {
     PROV_EDDSA_CTX *peddsactx = (PROV_EDDSA_CTX *)vpeddsactx;
-    OSSL_PARAM *p;
+    struct eddsa_get_ctx_params_st p;
 
-    if (peddsactx == NULL)
+    if (peddsactx == NULL || !eddsa_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_SIGNATURE_PARAM_ALGORITHM_ID);
-    if (p != NULL
-        && !OSSL_PARAM_set_octet_string(p,
+    if (p.id != NULL
+        && !OSSL_PARAM_set_octet_string(p.id,
                                         peddsactx->aid_len == 0 ? NULL : peddsactx->aid_buf,
                                         peddsactx->aid_len))
         return 0;
@@ -807,43 +810,29 @@ static int eddsa_get_ctx_params(void *vpeddsactx, OSSL_PARAM *params)
     return 1;
 }
 
-static const OSSL_PARAM known_gettable_ctx_params[] = {
-    OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
-    OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_INSTANCE, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, NULL, 0),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *eddsa_gettable_ctx_params(ossl_unused void *vpeddsactx,
                                                    ossl_unused void *provctx)
 {
-    return known_gettable_ctx_params;
+    return eddsa_get_ctx_params_list;
 }
 
-static int eddsa_set_ctx_params(void *vpeddsactx, const OSSL_PARAM params[])
+static int eddsa_set_ctx_params_internal
+        (PROV_EDDSA_CTX *peddsactx, const struct eddsa_set_ctx_params_st *p)
 {
-    PROV_EDDSA_CTX *peddsactx = (PROV_EDDSA_CTX *)vpeddsactx;
-    const OSSL_PARAM *p;
-
-    if (peddsactx == NULL)
-        return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_INSTANCE);
-    if (p != NULL) {
+    if (p->inst != NULL) {
         char instance_name[OSSL_MAX_NAME_SIZE] = "";
         char *pinstance_name = instance_name;
 
         if (peddsactx->instance_id_preset_flag) {
-            /* When the instance is preset, the caller must no try to set it */
+            /* When the instance is preset, the caller must not try to set it */
             ERR_raise_data(ERR_LIB_PROV, PROV_R_NO_INSTANCE_ALLOWED,
                            "the EdDSA instance is preset, you may not try to specify it",
                            NULL);
             return 0;
         }
 
-        if (!OSSL_PARAM_get_utf8_string(p, &pinstance_name, sizeof(instance_name)))
+        if (!OSSL_PARAM_get_utf8_string(p->inst, &pinstance_name,
+                                        sizeof(instance_name)))
             return 0;
 
         /*
@@ -874,11 +863,12 @@ static int eddsa_set_ctx_params(void *vpeddsactx, const OSSL_PARAM params[])
 
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_SIGNATURE_PARAM_CONTEXT_STRING);
-    if (p != NULL) {
+    if (p->ctx != NULL) {
         void *vp_context_string = peddsactx->context_string;
 
-        if (!OSSL_PARAM_get_octet_string(p, &vp_context_string, sizeof(peddsactx->context_string), &(peddsactx->context_string_len))) {
+        if (!OSSL_PARAM_get_octet_string(p->ctx, &vp_context_string,
+                                         sizeof(peddsactx->context_string),
+                                         &(peddsactx->context_string_len))) {
             peddsactx->context_string_len = 0;
             return 0;
         }
@@ -887,28 +877,38 @@ static int eddsa_set_ctx_params(void *vpeddsactx, const OSSL_PARAM params[])
     return 1;
 }
 
-static const OSSL_PARAM settable_ctx_params[] = {
-    OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_INSTANCE, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, NULL, 0),
-    OSSL_PARAM_END
-};
-
 static const OSSL_PARAM *eddsa_settable_ctx_params(ossl_unused void *vpeddsactx,
                                                    ossl_unused void *provctx)
 {
-    return settable_ctx_params;
+    return eddsa_set_ctx_params_list;
 }
 
-static const OSSL_PARAM settable_variant_ctx_params[] = {
-    OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, NULL, 0),
-    OSSL_PARAM_END
-};
+static int eddsa_set_ctx_params(void *vpeddsactx, const OSSL_PARAM params[])
+{
+    PROV_EDDSA_CTX *peddsactx = (PROV_EDDSA_CTX *)vpeddsactx;
+    struct eddsa_set_ctx_params_st p;
+
+    if (peddsactx == NULL || !eddsa_set_ctx_params_decoder(params, &p))
+        return 0;
+    return eddsa_set_ctx_params_internal(peddsactx, &p);
+}
 
 static const OSSL_PARAM *
 eddsa_settable_variant_ctx_params(ossl_unused void *vpeddsactx,
                                   ossl_unused void *provctx)
 {
-    return settable_variant_ctx_params;
+    return eddsa_set_variant_ctx_params_list;
+}
+
+static int eddsa_set_variant_ctx_params(void *vpeddsactx,
+                                        const OSSL_PARAM params[])
+{
+    PROV_EDDSA_CTX *peddsactx = (PROV_EDDSA_CTX *)vpeddsactx;
+    struct eddsa_set_ctx_params_st p;
+
+    if (peddsactx == NULL || !eddsa_set_variant_ctx_params_decoder(params, &p))
+        return 0;
+    return eddsa_set_ctx_params_internal(peddsactx, &p);
 }
 
 /*
@@ -974,7 +974,7 @@ eddsa_settable_variant_ctx_params(ossl_unused void *vpeddsactx,
     { OSSL_FUNC_SIGNATURE_GETTABLE_CTX_PARAMS,                          \
         (void (*)(void))eddsa_gettable_ctx_params },                    \
     { OSSL_FUNC_SIGNATURE_SET_CTX_PARAMS,                               \
-        (void (*)(void))eddsa_set_ctx_params },                         \
+        (void (*)(void))eddsa_set_variant_ctx_params },                 \
     { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS,                          \
         (void (*)(void))eddsa_settable_variant_ctx_params },            \
     OSSL_DISPATCH_END

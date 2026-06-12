@@ -29,7 +29,6 @@
 # define ML_DSA_PRIV_SEED_BYTES 64 /* p' = Private random seed */
 # define ML_DSA_K_BYTES 32 /* K = Private random seed for signing */
 # define ML_DSA_TR_BYTES 64 /* Size of the Hash of the public key used for signing */
-# define ML_DSA_MU_BYTES 64 /* Size of the Hash for the message representative */
 # define ML_DSA_RHO_PRIME_BYTES 64 /* private random seed size */
 
 /*

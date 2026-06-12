@@ -6,6 +6,7 @@ X509_NAME_hash_ex, X509_NAME_hash,
 X509_get_subject_name, X509_set_subject_name, X509_subject_name_hash,
 X509_get_issuer_name, X509_set_issuer_name, X509_issuer_name_hash,
 X509_REQ_get_subject_name, X509_REQ_set_subject_name,
+X509_ACERT_get0_issuerName, X509_ACERT_set1_issuerName,
 X509_CRL_get_issuer, X509_CRL_set_issuer_name -
 get X509_NAME hashes or get and set issuer or subject names
 
@@ -30,6 +31,11 @@ get X509_NAME hashes or get and set issuer or subject names
  X509_NAME *X509_CRL_get_issuer(const X509_CRL *crl);
  int X509_CRL_set_issuer_name(X509_CRL *x, const X509_NAME *name);
 
+ #include <openssl/x509_acert.h>
+
+ X509_NAME *X509_ACERT_get0_issuerName(const X509_ACERT *x);
+ int X509_ACERT_set1_issuerName(X509_ACERT *x, const X509_NAME *name);
+
 The following macro has been deprecated since OpenSSL 3.0, and can be
 hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
 see L<openssl_user_macros(7)>:
@@ -48,7 +54,7 @@ X509_NAME_hash() returns a hash value of name I<x> or 0 on failure,
 using the default library context and default property query.
 
 X509_get_subject_name() returns the subject name of certificate I<x>. The
-returned value is an internal pointer which B<MUST NOT> be freed.
+returned value is an internal pointer which B<MUST NOT> be freed. I<x> B<MUST NOT> be NULL.
 
 X509_set_subject_name() sets the issuer name of certificate I<x> to
 I<name>. The I<name> parameter is copied internally and should be freed
@@ -63,13 +69,19 @@ X509_get_subject_name(), X509_set_subject_name(), and X509_subject_name_hash()
 except they relate to the issuer name of I<x>.
 
 Similarly X509_REQ_get_subject_name(), X509_REQ_set_subject_name(),
+X509_ACERT_get0_issuerName(), X509_ACERT_set1_issuerName(),
 X509_CRL_get_issuer() and X509_CRL_set_issuer_name() get or set the subject
 or issuer names of certificate requests of CRLs respectively.
+
+Since attribute certificates do not have a subject name, only the issuer name
+can be set.  For details on setting X509_ACERT holder identities, see
+L<X509_ACERT_set0_holder_entityName(3)>.
 
 =head1 RETURN VALUES
 
 X509_get_subject_name(), X509_get_issuer_name(), X509_REQ_get_subject_name()
-and X509_CRL_get_issuer() return an B<X509_NAME> pointer.
+X509_ACERT_get0_issuerName() and X509_CRL_get_issuer() return
+an B<X509_NAME> pointer.
 
 X509_NAME_hash_ex(), X509_NAME_hash(),
 X509_subject_name_hash() and X509_issuer_name_hash()
@@ -77,8 +89,9 @@ return the first four bytes of the SHA1 hash value,
 converted to B<unsigned long> in little endian order,
 or 0 on failure.
 
-X509_set_subject_name(), X509_set_issuer_name(), X509_REQ_set_subject_name()
-and X509_CRL_set_issuer_name() return 1 for success and 0 for failure.
+X509_set_subject_name(), X509_set_issuer_name(), X509_REQ_set_subject_name(),
+X509_ACERT_get0_issuerName() and X509_CRL_set_issuer_name() return 1 for
+success and 0 for failure.
 
 =head1 BUGS
 
@@ -114,9 +127,12 @@ added in OpenSSL 1.0.0 as a macro.
 
 X509_NAME_hash() was turned into a macro and deprecated in OpenSSL 3.0.
 
+X509_ACERT_get0_issuerName(), X509_ACERT_set1_issuerName()
+were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

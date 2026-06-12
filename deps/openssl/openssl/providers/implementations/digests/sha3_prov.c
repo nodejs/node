@@ -14,10 +14,13 @@
 #include <openssl/params.h>
 #include <openssl/err.h>
 #include <openssl/proverr.h>
+#include "internal/cryptlib.h"
 #include "internal/numbers.h"
 #include "internal/sha3.h"
 #include "prov/digestcommon.h"
 #include "prov/implementations.h"
+#include "internal/common.h"
+#include "providers/implementations/digests/sha3_prov.inc"
 
 #define SHA3_FLAGS PROV_DIGEST_FLAG_ALGID_ABSENT
 #define SHAKE_FLAGS (PROV_DIGEST_FLAG_XOF | PROV_DIGEST_FLAG_ALGID_ABSENT)
@@ -58,7 +61,7 @@ static sha3_squeeze_fn generic_sha3_squeeze;
 
 static int keccak_init(void *vctx, ossl_unused const OSSL_PARAM params[])
 {
-    if (!ossl_prov_is_running())
+    if (ossl_unlikely(!ossl_prov_is_running()))
         return 0;
     /* The newctx() handles most of the ctx fixed setup. */
     ossl_sha3_reset((KECCAK1600_CTX *)vctx);
@@ -77,11 +80,11 @@ static int keccak_update(void *vctx, const unsigned char *inp, size_t len)
     const size_t bsz = ctx->block_size;
     size_t num, rem;
 
-    if (len == 0)
+    if (ossl_unlikely(len == 0))
         return 1;
 
     /* Is there anything in the buffer already ? */
-    if ((num = ctx->bufsz) != 0) {
+    if (ossl_likely((num = ctx->bufsz) != 0)) {
         /* Calculate how much space is left in the buffer */
         rem = bsz - num;
         /* If the new input does not fill the buffer then just add it */
@@ -101,7 +104,7 @@ static int keccak_update(void *vctx, const unsigned char *inp, size_t len)
     /* Absorb the input - rem = leftover part of the input < blocksize) */
     rem = ctx->meth.absorb(ctx, inp, len);
     /* Copy the leftover bit of the input into the buffer */
-    if (rem) {
+    if (ossl_likely(rem)) {
         memcpy(ctx->buf, inp + len - rem, rem);
         ctx->bufsz = rem;
     }
@@ -114,13 +117,13 @@ static int keccak_final(void *vctx, unsigned char *out, size_t *outl,
     int ret = 1;
     KECCAK1600_CTX *ctx = vctx;
 
-    if (!ossl_prov_is_running())
+    if (ossl_unlikely(!ossl_prov_is_running()))
         return 0;
-    if (ctx->md_size == SIZE_MAX) {
+    if (ossl_unlikely(ctx->md_size == SIZE_MAX)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST_LENGTH);
         return 0;
     }
-    if (outlen > 0)
+    if (ossl_likely(outlen > 0))
         ret = ctx->meth.final(ctx, out, ctx->md_size);
 
     *outl = ctx->md_size;
@@ -584,32 +587,23 @@ static void *keccak_dupctx(void *ctx)
 static const OSSL_PARAM *shake_gettable_ctx_params(ossl_unused void *ctx,
                                                    ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_shake_gettable_ctx_params[] = {
-        {OSSL_DIGEST_PARAM_XOFLEN, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0},
-        {OSSL_DIGEST_PARAM_SIZE, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0},
-        OSSL_PARAM_END
-    };
-    return known_shake_gettable_ctx_params;
+    return shake_get_ctx_params_list;
 }
 
 static int shake_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
-    OSSL_PARAM *p;
+    struct shake_get_ctx_params_st p;
     KECCAK1600_CTX *ctx = (KECCAK1600_CTX *)vctx;
 
-    if (ctx == NULL)
+    if (ctx == NULL || !shake_get_ctx_params_decoder(params, &p))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_XOFLEN);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->md_size)) {
+    if (p.xoflen != NULL && !OSSL_PARAM_set_size_t(p.xoflen, ctx->md_size)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
         return 0;
     }
-    /* Size is an alias of xoflen */
-    p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_SIZE);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, ctx->md_size)) {
+    /* Size is an alias of xoflen but separate them for compatibility */
+    if (p.size != NULL && !OSSL_PARAM_set_size_t(p.size, ctx->md_size)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
         return 0;
     }
@@ -619,30 +613,19 @@ static int shake_get_ctx_params(void *vctx, OSSL_PARAM params[])
 static const OSSL_PARAM *shake_settable_ctx_params(ossl_unused void *ctx,
                                                    ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_shake_settable_ctx_params[] = {
-        {OSSL_DIGEST_PARAM_XOFLEN, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0},
-        {OSSL_DIGEST_PARAM_SIZE, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0},
-        OSSL_PARAM_END
-    };
-
-    return known_shake_settable_ctx_params;
+    return shake_set_ctx_params_list;
 }
 
 static int shake_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
-    const OSSL_PARAM *p;
+    struct shake_set_ctx_params_st p;
     KECCAK1600_CTX *ctx = (KECCAK1600_CTX *)vctx;
 
-    if (ctx == NULL)
+    if (ossl_unlikely(ctx == NULL || !shake_set_ctx_params_decoder(params, &p)))
         return 0;
-    if (ossl_param_is_empty(params))
-        return 1;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_XOFLEN);
-    if (p == NULL)
-        p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_SIZE);
-
-    if (p != NULL && !OSSL_PARAM_get_size_t(p, &ctx->md_size)) {
+    if (ossl_unlikely(p.xoflen != NULL
+            && !OSSL_PARAM_get_size_t(p.xoflen, &ctx->md_size))) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
         return 0;
     }

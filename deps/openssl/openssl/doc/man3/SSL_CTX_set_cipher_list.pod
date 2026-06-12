@@ -29,7 +29,7 @@ SSL_CTX_set_cipher_list() sets the list of available ciphers (TLSv1.2 and below)
 for B<ctx> using the control string B<str>. The format of the string is described
 in L<openssl-ciphers(1)>. The list of ciphers is inherited by all
 B<ssl> objects created from B<ctx>. This function does not impact TLSv1.3
-ciphersuites. Use SSL_CTX_set_ciphersuites() to configure those.
+ciphersuites. Use SSL_CTX_set_ciphersuites() to configure those. B<ctx> B<MUST NOT> be NULL.
 
 SSL_set_cipher_list() sets the list of ciphers (TLSv1.2 and below) only for
 B<ssl>.
@@ -49,6 +49,10 @@ ciphersuite names in order of preference. Valid TLSv1.3 ciphersuite names are:
 =item TLS_AES_128_CCM_SHA256
 
 =item TLS_AES_128_CCM_8_SHA256
+
+=item TLS_SHA384_SHA384 - integrity-only
+
+=item TLS_SHA256_SHA256 - integrity-only
 
 =back
 

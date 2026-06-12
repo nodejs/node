@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -150,7 +150,7 @@ static int ndef_prefix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
     if (*ndef_aux->boundary == NULL)
         return 0;
 
-    *plen = *ndef_aux->boundary - *pbuf;
+    *plen = (int)(*ndef_aux->boundary - *pbuf);
 
     return 1;
 }
@@ -223,7 +223,7 @@ static int ndef_suffix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
     if (*ndef_aux->boundary == NULL)
         return 0;
     *pbuf = *ndef_aux->boundary;
-    *plen = derlen - (*ndef_aux->boundary - ndef_aux->derbuf);
+    *plen = derlen - (int)(*ndef_aux->boundary - ndef_aux->derbuf);
 
     return 1;
 }

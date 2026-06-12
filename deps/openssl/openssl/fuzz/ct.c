@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
     const uint8_t **pp = &buf;
     unsigned char *der = NULL;
-    STACK_OF(SCT) *scts = d2i_SCT_LIST(NULL, pp, len);
+    STACK_OF(SCT) *scts = d2i_SCT_LIST(NULL, pp, (long)len);
     if (scts != NULL) {
         BIO *bio = BIO_new(BIO_s_null());
         SCT_LIST_print(scts, bio, 4, "\n", NULL);

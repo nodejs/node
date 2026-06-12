@@ -88,7 +88,7 @@ EVP_aria_256_gcm(),
 
 ARIA for 128, 192 and 256 bit keys in CBC-MAC Mode (CCM) and Galois Counter
 Mode (GCM). These ciphers require additional control operations to function
-correctly, see the L<EVP_EncryptInit(3)/AEAD Interface> section for details.
+correctly, see the L<EVP_EncryptInit(3)/AEAD INTERFACE> section for details.
 
 =back
 

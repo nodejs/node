@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 #
 # Permission to use under GPL terms is granted.
 # ====================================================================
@@ -43,8 +43,8 @@
 # terms it's 22.6 cycles per byte, which is disappointing result.
 # Technical writers asserted that 3-way S4 pipeline can sustain
 # multiple NEON instructions per cycle, but dual NEON issue could
-# not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
-# for further details. On side note Cortex-A15 processes one byte in
+# not be observed.
+# On side note Cortex-A15 processes one byte in
 # 16 cycles.
 
 # Byte order [in]dependence. =========================================
@@ -657,7 +657,7 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
-.asciz	"SHA512 block transform for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"SHA512 block transform for ARMv4/NEON, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	2
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .extern	OPENSSL_armcap_P

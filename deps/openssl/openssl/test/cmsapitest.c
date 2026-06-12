@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@
 #include <openssl/bio.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
+#include "../crypto/cms/cms_local.h" /* for d.signedData and d.envelopedData */
 
 #include "testutil.h"
 
@@ -25,9 +26,10 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
     int testresult = 0;
     STACK_OF(X509) *certstack = sk_X509_new_null();
     const char *msg = "Hello world";
-    BIO *msgbio = BIO_new_mem_buf(msg, strlen(msg));
+    BIO *msgbio = BIO_new_mem_buf(msg, (int)strlen(msg));
     BIO *outmsgbio = BIO_new(BIO_s_mem());
     CMS_ContentInfo* content = NULL;
+    BIO *contentbio = NULL;
     char buf[80];
 
     if (!TEST_ptr(certstack) || !TEST_ptr(msgbio) || !TEST_ptr(outmsgbio))
@@ -44,13 +46,21 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
                                CMS_TEXT)))
         goto end;
 
+    if (!(EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)
+            && !TEST_ptr(contentbio =
+                         CMS_EnvelopedData_decrypt(content->d.envelopedData,
+                                                   NULL, privkey, cert, NULL,
+                                                   CMS_TEXT, NULL, NULL)))
+        goto end;
+
     /* Check we got the message we first started with */
-    if (!TEST_int_eq(BIO_gets(outmsgbio, buf, sizeof(buf)), strlen(msg))
+    if (!TEST_int_eq(BIO_gets(outmsgbio, buf, sizeof(buf)), (int)strlen(msg))
             || !TEST_int_eq(strcmp(buf, msg), 0))
         goto end;
 
     testresult = 1;
  end:
+    BIO_free(contentbio);
     sk_X509_free(certstack);
     BIO_free(msgbio);
     BIO_free(outmsgbio);
@@ -79,10 +89,24 @@ static int test_encrypt_decrypt_aes_256_gcm(void)
     return test_encrypt_decrypt(EVP_aes_256_gcm());
 }
 
+static int test_CMS_add1_cert(void)
+{
+    CMS_ContentInfo *cms = NULL;
+    int ret = 0;
+
+    ret = TEST_ptr(cms = CMS_ContentInfo_new())
+        && TEST_ptr(CMS_add1_signer(cms, cert, privkey, NULL, 0))
+        && TEST_true(CMS_add1_cert(cms, cert)); /* add cert again */
+
+    CMS_ContentInfo_free(cms);
+    return ret;
+}
+
 static int test_d2i_CMS_bio_NULL(void)
 {
-    BIO *bio;
+    BIO *bio, *content = NULL;
     CMS_ContentInfo *cms = NULL;
+    unsigned int flags = CMS_NO_SIGNER_CERT_VERIFY;
     int ret = 0;
 
     /*
@@ -281,9 +305,12 @@ static int test_d2i_CMS_bio_NULL(void)
     };
 
     ret = TEST_ptr(bio = BIO_new_mem_buf(cms_data, sizeof(cms_data)))
-          && TEST_ptr(cms = d2i_CMS_bio(bio, NULL))
-          && TEST_true(CMS_verify(cms, NULL, NULL, NULL, NULL,
-                                  CMS_NO_SIGNER_CERT_VERIFY));
+        && TEST_ptr(cms = d2i_CMS_bio(bio, NULL))
+        && TEST_true(CMS_verify(cms, NULL, NULL, NULL, NULL, flags))
+        && TEST_ptr(content =
+                    CMS_SignedData_verify(cms->d.signedData, NULL, NULL, NULL,
+                                          NULL, NULL, flags, NULL, NULL));
+    BIO_free(content);
     CMS_ContentInfo_free(cms);
     BIO_free(bio);
     return ret && TEST_int_eq(ERR_peek_error(), 0);
@@ -304,6 +331,9 @@ static unsigned char *read_all(BIO *bio, long *p_len)
         buf = tmp;
         ret = BIO_read(bio, buf + *p_len, step);
         if (ret < 0)
+            break;
+
+        if (LONG_MAX - ret < *p_len)
             break;
 
         *p_len += ret;
@@ -356,6 +386,101 @@ end:
     return ret;
 }
 
+static int test_CMS_set1_key_mem_leak(void)
+{
+    CMS_ContentInfo *cms;
+    unsigned char key[32] = {0};
+    int ret = 0;
+
+    if (!TEST_ptr(cms = CMS_ContentInfo_new()))
+        return 0;
+
+    if (!TEST_true(CMS_EncryptedData_set1_key(cms, EVP_aes_256_cbc(),
+                                              key, 32)))
+        goto end;
+
+    if (!TEST_true(CMS_EncryptedData_set1_key(cms, EVP_aes_128_cbc(),
+                                              key, 16)))
+        goto end;
+
+    ret = 1;
+end:
+    CMS_ContentInfo_free(cms);
+    return ret;
+}
+
+static int test_encrypted_data(void)
+{
+    const char *msg = "Hello world";
+    BIO *msgbio = BIO_new_mem_buf(msg, (int)strlen(msg));
+    uint8_t key[16] = {0};
+    size_t keylen = 16;
+    CMS_ContentInfo *cms;
+    BIO *decryptbio = BIO_new(BIO_s_mem());
+    char buf[80];
+    int ret = 0;
+
+    cms = CMS_EncryptedData_encrypt(msgbio, EVP_aes_128_cbc(), key, keylen, SMIME_BINARY);
+    if (!TEST_ptr(cms))
+        goto end;
+
+    if (!TEST_true(CMS_EncryptedData_decrypt(cms, key, keylen, NULL, decryptbio, SMIME_BINARY)))
+        goto end;
+
+    /* Check we got the message we first started with */
+    if (!TEST_int_eq(BIO_gets(decryptbio, buf, sizeof(buf)), (int)strlen(msg))
+            || !TEST_int_eq(strcmp(buf, msg), 0))
+        goto end;
+
+    ret = 1;
+end:
+    CMS_ContentInfo_free(cms);
+    BIO_free(msgbio);
+    BIO_free(decryptbio);
+    return ret;
+}
+
+static int test_encrypted_data_aead(void)
+{
+    const char *msg = "Hello world";
+    BIO *msgbio = BIO_new_mem_buf(msg, (int)strlen(msg));
+    uint8_t key[16] = {0};
+    size_t keylen = 16;
+    CMS_ContentInfo *cms;
+    BIO *decryptbio = BIO_new(BIO_s_mem());
+    int ret = 0;
+
+    cms = CMS_ContentInfo_new();
+    if (!TEST_ptr(cms))
+        goto end;
+
+    /*
+     * AEAD algorithms are not supported by the CMS EncryptedData so setting
+     * the cipher to AES GCM 128 will result in a failure
+     */
+    if (!TEST_false(CMS_EncryptedData_set1_key(cms, EVP_aes_128_gcm(), key, keylen)))
+        goto end;
+
+    CMS_ContentInfo_free(cms);
+    cms = NULL;
+
+    /*
+     * AEAD algorithms are not supported by the CMS EncryptedData so setting
+     * the cipher to AES GCM 128 will result in a failure
+     */
+    cms = CMS_EncryptedData_encrypt(msgbio, EVP_aes_128_gcm(), key, keylen, SMIME_BINARY);
+    if (!TEST_ptr_null(cms))
+        goto end;
+
+    ret = 1;
+
+end:
+    CMS_ContentInfo_free(cms);
+    BIO_free(msgbio);
+    BIO_free(decryptbio);
+    return ret;
+}
+
 OPT_TEST_DECLARE_USAGE("certfile privkeyfile derfile\n")
 
 int setup_tests(void)
@@ -400,7 +525,11 @@ int setup_tests(void)
     ADD_TEST(test_encrypt_decrypt_aes_128_gcm);
     ADD_TEST(test_encrypt_decrypt_aes_192_gcm);
     ADD_TEST(test_encrypt_decrypt_aes_256_gcm);
+    ADD_TEST(test_CMS_add1_cert);
     ADD_TEST(test_d2i_CMS_bio_NULL);
+    ADD_TEST(test_CMS_set1_key_mem_leak);
+    ADD_TEST(test_encrypted_data);
+    ADD_TEST(test_encrypted_data_aead);
     ADD_ALL_TESTS(test_d2i_CMS_decode, 2);
     return 1;
 }

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # SHA256/512_Transform for Itanium.
@@ -121,7 +121,7 @@ if (!defined($big_endian))
 
 $code=<<___;
 .ident  \"$output, version 2.0\"
-.ident  \"IA-64 ISA artwork by Andy Polyakov <appro\@openssl.org>\"
+.ident  \"IA-64 ISA artwork by Andy Polyakov <https://github.com/dot-asm>\"
 .explicit
 .text
 
@@ -643,7 +643,7 @@ K256:	data4	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 	data4	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 	data4	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .size	K256#,$SZ*$rounds
-stringz	"SHA256 block transform for IA64, CRYPTOGAMS by <appro\@openssl.org>"
+stringz	"SHA256 block transform for IA64, CRYPTOGAMS by <https://github.com/dot-asm>"
 ___
 print<<___ if ($BITS==64);
 .align	64
@@ -689,5 +689,5 @@ K512:	data8	0x428a2f98d728ae22,0x7137449123ef65cd
 	data8	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 	data8	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 .size	K512#,$SZ*$rounds
-stringz	"SHA512 block transform for IA64, CRYPTOGAMS by <appro\@openssl.org>"
+stringz	"SHA512 block transform for IA64, CRYPTOGAMS by <https://github.com/dot-asm>"
 ___

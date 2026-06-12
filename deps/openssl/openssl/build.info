@@ -47,8 +47,91 @@ DEPEND[]=include/openssl/asn1.h \
          include/openssl/x509v3.h \
          include/openssl/x509_acert.h \
          include/openssl/x509_vfy.h \
-         include/crypto/bn_conf.h include/crypto/dso_conf.h \
-         include/internal/param_names.h crypto/params_idx.c
+         include/crypto/dso_conf.h \
+         providers/implementations/asymciphers/rsa_enc.inc \
+         providers/implementations/asymciphers/sm2_enc.inc \
+         providers/implementations/exchange/dh_exch.inc \
+         providers/implementations/exchange/ecdh_exch.inc \
+         providers/implementations/exchange/ecx_exch.inc \
+         providers/implementations/encode_decode/decode_der2key.inc \
+         providers/implementations/encode_decode/decode_epki2pki.inc \
+         providers/implementations/encode_decode/decode_pem2der.inc \
+         providers/implementations/encode_decode/decode_pvk2key.inc \
+         providers/implementations/encode_decode/decode_spki2typespki.inc \
+         providers/implementations/encode_decode/encode_key2any.inc \
+         providers/implementations/encode_decode/encode_key2ms.inc \
+         providers/implementations/kdfs/argon2.inc \
+         providers/implementations/kdfs/hkdf.inc \
+         providers/implementations/kdfs/hmacdrbg_kdf.inc \
+         providers/implementations/kdfs/kbkdf.inc \
+         providers/implementations/kdfs/krb5kdf.inc \
+         providers/implementations/kdfs/pbkdf1.inc \
+         providers/implementations/kdfs/pbkdf2.inc \
+         providers/implementations/kdfs/pkcs12kdf.inc \
+         providers/implementations/kdfs/pvkkdf.inc \
+         providers/implementations/kdfs/scrypt.inc \
+         providers/implementations/kdfs/sshkdf.inc \
+         providers/implementations/kdfs/sskdf.inc \
+         providers/implementations/kdfs/tls1_prf.inc \
+         providers/implementations/kdfs/x942kdf.inc \
+         providers/implementations/kem/ec_kem.inc \
+         providers/implementations/kem/ecx_kem.inc \
+         providers/implementations/kem/ml_kem_kem.inc \
+         providers/implementations/kem/rsa_kem.inc \
+         providers/implementations/keymgmt/dh_kmgmt.inc \
+         providers/implementations/keymgmt/dsa_kmgmt.inc \
+         providers/implementations/keymgmt/ecx_kmgmt.inc \
+         providers/implementations/keymgmt/lms_kmgmt.inc \
+         providers/implementations/keymgmt/mac_legacy_kmgmt.inc \
+         providers/implementations/keymgmt/ml_dsa_kmgmt.inc \
+         providers/implementations/keymgmt/ml_kem_kmgmt.inc \
+         providers/implementations/keymgmt/mlx_kmgmt.inc \
+         providers/implementations/keymgmt/slh_dsa_kmgmt.inc \
+         providers/implementations/keymgmt/template_kmgmt.inc \
+         providers/implementations/signature/dsa_sig.inc \
+         providers/implementations/signature/ecdsa_sig.inc \
+         providers/implementations/signature/eddsa_sig.inc \
+         providers/implementations/signature/ml_dsa_sig.inc \
+         providers/implementations/signature/rsa_sig.inc \
+         providers/implementations/signature/slh_dsa_sig.inc \
+         providers/implementations/signature/sm2_sig.inc \
+         providers/implementations/skeymgmt/generic.inc \
+         providers/implementations/storemgmt/file_store_any2obj.inc \
+         providers/implementations/storemgmt/file_store.inc \
+         providers/implementations/storemgmt/winstore_store.inc \
+         providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.inc \
+         providers/implementations/ciphers/cipher_aes_cbc_hmac_sha_etm.inc \
+         providers/implementations/ciphers/cipher_aes_gcm_siv.inc \
+         providers/implementations/ciphers/cipher_aes_ocb.inc \
+         providers/implementations/ciphers/cipher_aes_siv.inc \
+         providers/implementations/ciphers/cipher_aes_wrp.inc \
+         providers/implementations/ciphers/cipher_aes_xts.inc \
+         providers/implementations/ciphers/ciphercommon.inc \
+         providers/implementations/ciphers/ciphercommon_ccm.inc \
+         providers/implementations/ciphers/ciphercommon_gcm.inc \
+         providers/implementations/ciphers/cipher_chacha20.inc \
+         providers/implementations/ciphers/cipher_chacha20_poly1305.inc \
+         providers/implementations/ciphers/cipher_null.inc \
+         providers/implementations/ciphers/cipher_rc4_hmac_md5.inc \
+         providers/implementations/ciphers/cipher_sm4_xts.inc \
+         providers/implementations/digests/blake2_prov.inc \
+         providers/implementations/digests/digestcommon.inc \
+         providers/implementations/digests/mdc2_prov.inc \
+         providers/implementations/digests/sha3_prov.inc \
+         providers/implementations/include/prov/blake2_params.inc \
+         providers/implementations/macs/cmac_prov.inc \
+         providers/implementations/macs/gmac_prov.inc \
+         providers/implementations/macs/hmac_prov.inc \
+         providers/implementations/macs/kmac_prov.inc \
+         providers/implementations/macs/poly1305_prov.inc \
+         providers/implementations/macs/siphash_prov.inc \
+         providers/implementations/rands/drbg_ctr.inc \
+         providers/implementations/rands/drbg_hash.inc \
+         providers/implementations/rands/drbg_hmac.inc \
+         providers/implementations/rands/fips_crng_test.inc \
+         providers/implementations/rands/seed_src.inc \
+         providers/implementations/rands/seed_src_jitter.inc \
+         providers/implementations/rands/test_rng.inc
 
 GENERATE[include/openssl/asn1.h]=include/openssl/asn1.h.in
 GENERATE[include/openssl/asn1t.h]=include/openssl/asn1t.h.in
@@ -80,14 +163,261 @@ GENERATE[include/openssl/x509.h]=include/openssl/x509.h.in
 GENERATE[include/openssl/x509v3.h]=include/openssl/x509v3.h.in
 GENERATE[include/openssl/x509_acert.h]=include/openssl/x509_acert.h.in
 GENERATE[include/openssl/x509_vfy.h]=include/openssl/x509_vfy.h.in
-GENERATE[include/crypto/bn_conf.h]=include/crypto/bn_conf.h.in
 GENERATE[include/crypto/dso_conf.h]=include/crypto/dso_conf.h.in
 
-DEPEND[crypto/params_idx.c \
-       include/internal/param_names.h \
+DEPEND[providers/implementations/asymciphers/rsa_enc.inc \
+       providers/implementations/asymciphers/sm2_enc.inc \
+       providers/implementations/exchange/dh_exch.inc \
+       providers/implementations/exchange/ecdh_exch.inc \
+       providers/implementations/exchange/ecx_exch.inc \
+       providers/implementations/encode_decode/decode_der2key.inc \
+       providers/implementations/encode_decode/decode_epki2pki.inc \
+       providers/implementations/encode_decode/decode_pem2der.inc \
+       providers/implementations/encode_decode/decode_pvk2key.inc \
+       providers/implementations/encode_decode/decode_spki2typespki.inc \
+       providers/implementations/encode_decode/encode_key2any.inc \
+       providers/implementations/encode_decode/encode_key2ms.inc \
+       providers/implementations/kdfs/argon2.inc \
+       providers/implementations/kdfs/hkdf.inc \
+       providers/implementations/kdfs/hmacdrbg_kdf.inc \
+       providers/implementations/kdfs/kbkdf.inc \
+       providers/implementations/kdfs/krb5kdf.inc \
+       providers/implementations/kdfs/pbkdf1.inc \
+       providers/implementations/kdfs/pbkdf2.inc \
+       providers/implementations/kdfs/pkcs12kdf.inc \
+       providers/implementations/kdfs/pvkkdf.inc \
+       providers/implementations/kdfs/scrypt.inc \
+       providers/implementations/kdfs/sshkdf.inc \
+       providers/implementations/kdfs/sskdf.inc \
+       providers/implementations/kdfs/tls1_prf.inc \
+       providers/implementations/kdfs/x942kdf.inc \
+       providers/implementations/kem/ec_kem.inc \
+       providers/implementations/kem/ecx_kem.inc \
+       providers/implementations/kem/ml_kem_kem.inc \
+       providers/implementations/kem/rsa_kem.inc \
+       providers/implementations/keymgmt/dh_kmgmt.inc \
+       providers/implementations/keymgmt/dsa_kmgmt.inc \
+       providers/implementations/keymgmt/ecx_kmgmt.inc \
+       providers/implementations/keymgmt/lms_kmgmt.inc \
+       providers/implementations/keymgmt/mac_legacy_kmgmt.inc \
+       providers/implementations/keymgmt/ml_dsa_kmgmt.inc \
+       providers/implementations/keymgmt/ml_kem_kmgmt.inc \
+       providers/implementations/keymgmt/mlx_kmgmt.inc \
+       providers/implementations/keymgmt/slh_dsa_kmgmt.inc \
+       providers/implementations/keymgmt/template_kmgmt.inc \
+       providers/implementations/signature/dsa_sig.inc \
+       providers/implementations/signature/ecdsa_sig.inc \
+       providers/implementations/signature/eddsa_sig.inc \
+       providers/implementations/signature/ml_dsa_sig.inc \
+       providers/implementations/signature/rsa_sig.inc \
+       providers/implementations/signature/slh_dsa_sig.inc \
+       providers/implementations/signature/sm2_sig.inc \
+       providers/implementations/skeymgmt/generic.inc \
+       providers/implementations/storemgmt/file_store_any2obj.inc \
+       providers/implementations/storemgmt/file_store.inc \
+       providers/implementations/storemgmt/winstore_store.inc \
+       providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.inc \
+       providers/implementations/ciphers/cipher_aes_cbc_hmac_sha_etm.inc \
+       providers/implementations/ciphers/cipher_aes_gcm_siv.inc \
+       providers/implementations/ciphers/cipher_aes_ocb.inc \
+       providers/implementations/ciphers/cipher_aes_siv.inc \
+       providers/implementations/ciphers/cipher_aes_wrp.inc \
+       providers/implementations/ciphers/cipher_aes_xts.inc \
+       providers/implementations/ciphers/ciphercommon.inc \
+       providers/implementations/ciphers/ciphercommon_ccm.inc \
+       providers/implementations/ciphers/ciphercommon_gcm.inc \
+       providers/implementations/ciphers/cipher_chacha20.inc \
+       providers/implementations/ciphers/cipher_chacha20_poly1305.inc \
+       providers/implementations/ciphers/cipher_null.inc \
+       providers/implementations/ciphers/cipher_rc4_hmac_md5.inc \
+       providers/implementations/ciphers/cipher_sm4_xts.inc \
+       providers/implementations/digests/blake2_prov.inc \
+       providers/implementations/digests/digestcommon.inc \
+       providers/implementations/digests/mdc2_prov.inc \
+       providers/implementations/digests/sha3_prov.inc \
+       providers/implementations/include/prov/blake2_params.inc \
+       providers/implementations/macs/cmac_prov.inc \
+       providers/implementations/macs/gmac_prov.inc \
+       providers/implementations/macs/hmac_prov.inc \
+       providers/implementations/macs/kmac_prov.inc \
+       providers/implementations/macs/poly1305_prov.inc \
+       providers/implementations/macs/siphash_prov.inc \
+       providers/implementations/rands/drbg_ctr.inc \
+       providers/implementations/rands/drbg_hash.inc \
+       providers/implementations/rands/drbg_hmac.inc \
+       providers/implementations/rands/fips_crng_test.inc \
+       providers/implementations/rands/seed_src.inc \
+       providers/implementations/rands/seed_src_jitter.inc \
+       providers/implementations/rands/test_rng.inc \
        include/openssl/core_names.h]=util/perl|OpenSSL/paramnames.pm
-GENERATE[crypto/params_idx.c]=crypto/params_idx.c.in
-GENERATE[include/internal/param_names.h]=include/internal/param_names.h.in
+GENERATE[providers/implementations/asymciphers/rsa_enc.inc]=\
+    providers/implementations/asymciphers/rsa_enc.inc.in
+GENERATE[providers/implementations/asymciphers/sm2_enc.inc]=\
+    providers/implementations/asymciphers/sm2_enc.inc.in
+GENERATE[providers/implementations/exchange/dh_exch.inc]=\
+    providers/implementations/exchange/dh_exch.inc.in
+GENERATE[providers/implementations/exchange/ecdh_exch.inc]=\
+    providers/implementations/exchange/ecdh_exch.inc.in
+GENERATE[providers/implementations/exchange/ecx_exch.inc]=\
+    providers/implementations/exchange/ecx_exch.inc.in
+GENERATE[providers/implementations/encode_decode/decode_der2key.inc]=\
+    providers/implementations/encode_decode/decode_der2key.inc.in
+GENERATE[providers/implementations/encode_decode/decode_epki2pki.inc]=\
+    providers/implementations/encode_decode/decode_epki2pki.inc.in
+GENERATE[providers/implementations/encode_decode/decode_pem2der.inc]=\
+    providers/implementations/encode_decode/decode_pem2der.inc.in
+GENERATE[providers/implementations/encode_decode/decode_pvk2key.inc]=\
+    providers/implementations/encode_decode/decode_pvk2key.inc.in
+GENERATE[providers/implementations/encode_decode/decode_spki2typespki.inc]=\
+    providers/implementations/encode_decode/decode_spki2typespki.inc.in
+GENERATE[providers/implementations/encode_decode/encode_key2any.inc]=\
+    providers/implementations/encode_decode/encode_key2any.inc.in
+GENERATE[providers/implementations/encode_decode/encode_key2ms.inc]=\
+    providers/implementations/encode_decode/encode_key2ms.inc.in
+GENERATE[providers/implementations/kdfs/argon2.inc]=\
+    providers/implementations/kdfs/argon2.inc.in
+GENERATE[providers/implementations/kdfs/hkdf.inc]=\
+    providers/implementations/kdfs/hkdf.inc.in
+GENERATE[providers/implementations/kdfs/hmacdrbg_kdf.inc]=\
+    providers/implementations/kdfs/hmacdrbg_kdf.inc.in
+GENERATE[providers/implementations/kdfs/kbkdf.inc]=\
+    providers/implementations/kdfs/kbkdf.inc.in
+GENERATE[providers/implementations/kdfs/krb5kdf.inc]=\
+    providers/implementations/kdfs/krb5kdf.inc.in
+GENERATE[providers/implementations/kdfs/pbkdf1.inc]=\
+    providers/implementations/kdfs/pbkdf1.inc.in
+GENERATE[providers/implementations/kdfs/pbkdf2.inc]=\
+    providers/implementations/kdfs/pbkdf2.inc.in
+GENERATE[providers/implementations/kdfs/pkcs12kdf.inc]=\
+    providers/implementations/kdfs/pkcs12kdf.inc.in
+GENERATE[providers/implementations/kdfs/pvkkdf.inc]=\
+    providers/implementations/kdfs/pvkkdf.inc.in
+GENERATE[providers/implementations/kdfs/scrypt.inc]=\
+    providers/implementations/kdfs/scrypt.inc.in
+GENERATE[providers/implementations/kdfs/sshkdf.inc]=\
+    providers/implementations/kdfs/sshkdf.inc.in
+GENERATE[providers/implementations/kdfs/sskdf.inc]=\
+    providers/implementations/kdfs/sskdf.inc.in
+GENERATE[providers/implementations/kdfs/tls1_prf.inc]=\
+    providers/implementations/kdfs/tls1_prf.inc.in
+GENERATE[providers/implementations/kdfs/x942kdf.inc]=\
+    providers/implementations/kdfs/x942kdf.inc.in
+GENERATE[providers/implementations/kem/ec_kem.inc]=\
+    providers/implementations/kem/ec_kem.inc.in
+GENERATE[providers/implementations/kem/ecx_kem.inc]=\
+    providers/implementations/kem/ecx_kem.inc.in
+GENERATE[providers/implementations/kem/ml_kem_kem.inc]=\
+    providers/implementations/kem/ml_kem_kem.inc.in
+GENERATE[providers/implementations/kem/rsa_kem.inc]=\
+    providers/implementations/kem/rsa_kem.inc.in
+GENERATE[providers/implementations/keymgmt/dh_kmgmt.inc]=\
+    providers/implementations/keymgmt/dh_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/dsa_kmgmt.inc]=\
+    providers/implementations/keymgmt/dsa_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/ecx_kmgmt.inc]=\
+    providers/implementations/keymgmt/ecx_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/lms_kmgmt.inc]=\
+    providers/implementations/keymgmt/lms_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/mac_legacy_kmgmt.inc]=\
+    providers/implementations/keymgmt/mac_legacy_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/ml_dsa_kmgmt.inc]=\
+    providers/implementations/keymgmt/ml_dsa_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/ml_kem_kmgmt.inc]=\
+    providers/implementations/keymgmt/ml_kem_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/mlx_kmgmt.inc]=\
+    providers/implementations/keymgmt/mlx_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/slh_dsa_kmgmt.inc]=\
+    providers/implementations/keymgmt/slh_dsa_kmgmt.inc.in
+GENERATE[providers/implementations/keymgmt/template_kmgmt.inc]=\
+    providers/implementations/keymgmt/template_kmgmt.inc.in
+GENERATE[providers/implementations/signature/dsa_sig.inc]=\
+    providers/implementations/signature/dsa_sig.inc.in
+GENERATE[providers/implementations/signature/ecdsa_sig.inc]=\
+    providers/implementations/signature/ecdsa_sig.inc.in
+GENERATE[providers/implementations/signature/eddsa_sig.inc]=\
+    providers/implementations/signature/eddsa_sig.inc.in
+GENERATE[providers/implementations/signature/ml_dsa_sig.inc]=\
+    providers/implementations/signature/ml_dsa_sig.inc.in
+GENERATE[providers/implementations/signature/rsa_sig.inc]=\
+    providers/implementations/signature/rsa_sig.inc.in
+GENERATE[providers/implementations/signature/slh_dsa_sig.inc]=\
+    providers/implementations/signature/slh_dsa_sig.inc.in
+GENERATE[providers/implementations/signature/sm2_sig.inc]=\
+    providers/implementations/signature/sm2_sig.inc.in
+GENERATE[providers/implementations/skeymgmt/generic.inc]=\
+    providers/implementations/skeymgmt/generic.inc.in
+GENERATE[providers/implementations/storemgmt/file_store_any2obj.inc]=\
+    providers/implementations/storemgmt/file_store_any2obj.inc.in
+GENERATE[providers/implementations/storemgmt/file_store.inc]=\
+    providers/implementations/storemgmt/file_store.inc.in
+GENERATE[providers/implementations/storemgmt/winstore_store.inc]=\
+    providers/implementations/storemgmt/winstore_store.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.inc]=\
+    providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_cbc_hmac_sha_etm.inc]=\
+    providers/implementations/ciphers/cipher_aes_cbc_hmac_sha_etm.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_gcm_siv.inc]=\
+    providers/implementations/ciphers/cipher_aes_gcm_siv.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_ocb.inc]=\
+    providers/implementations/ciphers/cipher_aes_ocb.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_siv.inc]=\
+    providers/implementations/ciphers/cipher_aes_siv.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_wrp.inc]=\
+    providers/implementations/ciphers/cipher_aes_wrp.inc.in
+GENERATE[providers/implementations/ciphers/cipher_aes_xts.inc]=\
+    providers/implementations/ciphers/cipher_aes_xts.inc.in
+GENERATE[providers/implementations/ciphers/ciphercommon.inc]=\
+    providers/implementations/ciphers/ciphercommon.inc.in
+GENERATE[providers/implementations/ciphers/ciphercommon_ccm.inc]=\
+    providers/implementations/ciphers/ciphercommon_ccm.inc.in
+GENERATE[providers/implementations/ciphers/ciphercommon_gcm.inc]=\
+    providers/implementations/ciphers/ciphercommon_gcm.inc.in
+GENERATE[providers/implementations/ciphers/cipher_chacha20.inc]=\
+    providers/implementations/ciphers/cipher_chacha20.inc.in
+GENERATE[providers/implementations/ciphers/cipher_chacha20_poly1305.inc]=\
+    providers/implementations/ciphers/cipher_chacha20_poly1305.inc.in
+GENERATE[providers/implementations/ciphers/cipher_null.inc]=\
+    providers/implementations/ciphers/cipher_null.inc.in
+GENERATE[providers/implementations/ciphers/cipher_rc4_hmac_md5.inc]=\
+    providers/implementations/ciphers/cipher_rc4_hmac_md5.inc.in
+GENERATE[providers/implementations/ciphers/cipher_sm4_xts.inc]=\
+    providers/implementations/ciphers/cipher_sm4_xts.inc.in
+GENERATE[providers/implementations/digests/blake2_prov.inc]=\
+    providers/implementations/digests/blake2_prov.inc.in
+GENERATE[providers/implementations/digests/digestcommon.inc]=\
+    providers/implementations/digests/digestcommon.inc.in
+GENERATE[providers/implementations/digests/mdc2_prov.inc]=\
+    providers/implementations/digests/mdc2_prov.inc.in
+GENERATE[providers/implementations/digests/sha3_prov.inc]=\
+    providers/implementations/digests/sha3_prov.inc.in
+GENERATE[providers/implementations/include/prov/blake2_params.inc]=\
+    providers/implementations/include/prov/blake2_params.inc.in
+GENERATE[providers/implementations/macs/cmac_prov.inc]=\
+    providers/implementations/macs/cmac_prov.inc.in
+GENERATE[providers/implementations/macs/gmac_prov.inc]=\
+    providers/implementations/macs/gmac_prov.inc.in
+GENERATE[providers/implementations/macs/hmac_prov.inc]=\
+    providers/implementations/macs/hmac_prov.inc.in
+GENERATE[providers/implementations/macs/kmac_prov.inc]=\
+    providers/implementations/macs/kmac_prov.inc.in
+GENERATE[providers/implementations/macs/poly1305_prov.inc]=\
+    providers/implementations/macs/poly1305_prov.inc.in
+GENERATE[providers/implementations/macs/siphash_prov.inc]=\
+    providers/implementations/macs/siphash_prov.inc.in
+GENERATE[providers/implementations/rands/drbg_ctr.inc]=\
+    providers/implementations/rands/drbg_ctr.inc.in
+GENERATE[providers/implementations/rands/drbg_hash.inc]=\
+    providers/implementations/rands/drbg_hash.inc.in
+GENERATE[providers/implementations/rands/drbg_hmac.inc]=\
+    providers/implementations/rands/drbg_hmac.inc.in
+GENERATE[providers/implementations/rands/fips_crng_test.inc]=\
+    providers/implementations/rands/fips_crng_test.inc.in
+GENERATE[providers/implementations/rands/seed_src.inc]=\
+    providers/implementations/rands/seed_src.inc.in
+GENERATE[providers/implementations/rands/seed_src_jitter.inc]=\
+    providers/implementations/rands/seed_src_jitter.inc.in
+GENERATE[providers/implementations/rands/test_rng.inc]=\
+    providers/implementations/rands/test_rng.inc.in
 GENERATE[include/openssl/core_names.h]=include/openssl/core_names.h.in
 
 IF[{- defined $target{shared_defflag} -}]
@@ -134,6 +464,7 @@ GENERATE[builddata.pm]=util/mkinstallvars.pl \
     PREFIX=. BINDIR=apps APPLINKDIR=ms \
     LIBDIR= INCLUDEDIR=include "INCLUDEDIR=$(SRCDIR)/include" \
     ENGINESDIR=engines MODULESDIR=providers \
+    libdir= CMAKECONFIGDIR= PKGCONFIGDIR= \
     "VERSION=$(VERSION)" "LDLIBS=$(LIB_EX_LIBS)"
 
 DEPEND[""]=openssl.pc

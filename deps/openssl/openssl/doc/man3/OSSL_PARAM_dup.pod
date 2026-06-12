@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-OSSL_PARAM_dup, OSSL_PARAM_merge, OSSL_PARAM_free
+OSSL_PARAM_dup, OSSL_PARAM_merge, OSSL_PARAM_free, OSSL_PARAM_clear_free
 - OSSL_PARAM array copy functions
 
 =head1 SYNOPSIS
@@ -12,6 +12,7 @@ OSSL_PARAM_dup, OSSL_PARAM_merge, OSSL_PARAM_free
  OSSL_PARAM *OSSL_PARAM_dup(const OSSL_PARAM *params);
  OSSL_PARAM *OSSL_PARAM_merge(const OSSL_PARAM *params, const OSSL_PARAM *params1);
  void OSSL_PARAM_free(OSSL_PARAM *params);
+ void OSSL_PARAM_clear_free(OSSL_PARAM *params);
 
 =head1 DESCRIPTION
 
@@ -34,6 +35,12 @@ OSSL_PARAM_free() frees the parameter array I<params> that was created using
 OSSL_PARAM_dup(), OSSL_PARAM_merge() or OSSL_PARAM_BLD_to_param().
 If the argument to OSSL_PARAM_free() is NULL, nothing is done.
 
+OSSL_PARAM_clear_free() performs the same function as OSSL_PARAM_free() but
+additionally calls OPENSSL_cleanse() on the contents copied in. Note: only
+params built via the OSSL_PARAM_dup() or OSSL_PARAM_BLD_to_param() functions
+will be effectively cleared, parameters built any other way will still be
+freed but no cleanse operation will be performed.
+
 =head1 RETURN VALUES
 
 The functions OSSL_PARAM_dup() and OSSL_PARAM_merge() return a newly allocated
@@ -46,7 +53,8 @@ L<OSSL_PARAM(3)>, L<OSSL_PARAM_BLD(3)>
 
 =head1 HISTORY
 
-The functions were added in OpenSSL 3.0.
+The OSSL_PARAM_dup, OSSL_PARAM_merge and OSSL_PARAM_free functions were added
+in OpenSSL 3.0. OSSL_PARAM_clear_free was added in OpenSSL 4.0.0.
 
 =head1 COPYRIGHT
 

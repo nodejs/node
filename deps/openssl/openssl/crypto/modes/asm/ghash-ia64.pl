@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # March 2010
@@ -460,7 +460,7 @@ rem_8bit:
 	data1	0xB5,0xE0, 0xB4,0x22, 0xB6,0x64, 0xB7,0xA6, 0xB2,0xE8, 0xB3,0x2A, 0xB1,0x6C, 0xB0,0xAE
 	data1	0xBB,0xF0, 0xBA,0x32, 0xB8,0x74, 0xB9,0xB6, 0xBC,0xF8, 0xBD,0x3A, 0xBF,0x7C, 0xBE,0xBE
 .size	rem_8bit#,512
-stringz	"GHASH for IA64, CRYPTOGAMS by <appro\@openssl.org>"
+stringz	"GHASH for IA64, CRYPTOGAMS by <https://github.com/dot-asm>"
 ___
 
 $code =~ s/mux1(\s+)\S+\@rev/nop.i$1 0x0/gm      if ($big_endian);

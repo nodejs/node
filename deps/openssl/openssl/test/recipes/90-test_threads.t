@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@ my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 my $config_path = abs_path(srctop_file("test", $no_fips ? "default.cnf"
                                                         : "default-and-fips.cnf"));
 
-plan tests => 2;
+plan tests => 3;
 
 if ($no_fips) {
     ok(run(test(["threadstest", "-config", $config_path, data_dir()])),
@@ -33,8 +33,10 @@ if ($no_fips) {
        "running test_threads with FIPS");
 }
 
+ok(run(test(["threadpool_test"])), "running threadpool_test");
+
 # Merge the configuration files into one filtering the contents so the failure
-# condition is reproducable.  A working FIPS configuration without the install
+# condition is reproducible.  A working FIPS configuration without the install
 # status is required.
 
 open CFGBASE, '<', $config_path;
@@ -53,4 +55,4 @@ close CFGINC;
 close CFGOUT;
 
 $ENV{OPENSSL_CONF} = 'thread.cnf';
-ok(run(test(["threadstest_fips"])), "running test_threads_fips");
+ok(run(test(["threadstest_fips"])), "running threadstest_fips");

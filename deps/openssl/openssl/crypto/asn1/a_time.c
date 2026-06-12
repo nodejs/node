@@ -266,7 +266,7 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
 {
     char* p;
     ASN1_TIME *tmps = NULL;
-    const size_t len = 20;
+    const int len = 20;
 
     if (type == V_ASN1_UNDEF) {
         if (is_utc(ts->tm_year))
@@ -386,8 +386,11 @@ int ASN1_TIME_set_string_X509(ASN1_TIME *s, const char *str)
     ASN1_TIME t;
     struct tm tm;
     int rv = 0;
+    size_t len;
 
-    t.length = strlen(str);
+    if ((len = strlen(str)) >= INT_MAX)
+        goto out;
+    t.length = (int)len;
     t.data = (unsigned char *)str;
     t.flags = ASN1_STRING_FLAG_X509_TIME;
 

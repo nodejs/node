@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,7 +18,6 @@
 #include <openssl/params.h>
 #include <openssl/types.h>
 #include <openssl/core_names.h>
-#include "internal/nelem.h"
 #include "testutil.h"
 
 #if defined(OPENSSL_NO_DES) && !defined(OPENSSL_NO_MDC2)
@@ -48,7 +47,7 @@ static int test_mdc2(void)
     int testresult = 0;
     unsigned int pad_type = 2;
     unsigned char md[MDC2_DIGEST_LENGTH];
-    EVP_MD_CTX *c;
+    EVP_MD_CTX *c = NULL;
     static char text[] = "Now is the time for all ";
     size_t tlen = strlen(text), i = 0;
     OSSL_PROVIDER *prov = NULL;
@@ -59,6 +58,9 @@ static int test_mdc2(void)
     params[i++] = OSSL_PARAM_construct_end();
 
     prov = OSSL_PROVIDER_load(NULL, "legacy");
+    if (!TEST_ptr(prov))
+        goto end;
+
 # ifdef CHARSET_EBCDIC
     ebcdic2ascii(text, text, tlen);
 # endif

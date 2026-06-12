@@ -27,18 +27,24 @@ see L<openssl_user_macros(7)>:
 =head1 DESCRIPTION
 
 EVP_PKEY_set1_encoded_public_key() can be used to set the public key value
-within an existing EVP_PKEY object. For the built-in OpenSSL algorithms this
-currently only works for those that support key exchange. Parameters are not
-set as part of this operation, so typically an application will create an
-EVP_PKEY first, set the parameters on it, and then call this function.
+within an existing EVP_PKEY object, which does not yet have either a public or
+private key assigned.
+For the built-in OpenSSL algorithms this currently only works for those that
+support key exchange or key encapsulation.
+Parameters are not set as part of this operation, so typically an application
+will create an EVP_PKEY first, set the parameters on it, and then call this
+function.
 For example setting the parameters might be done using
 L<EVP_PKEY_copy_parameters(3)>.
 
 The format for the encoded public key will depend on the algorithm in use. For
 DH it should be encoded as a positive integer in big-endian form. For EC is
 should be a point conforming to Sec. 2.3.4 of the SECG SEC 1 ("Elliptic
-Curve Cryptography") standard. For X25519 and X448 it should be encoded in a
-format as defined by RFC7748.
+Curve Cryptography") standard. For B<X25519> and B<X448> it should be encoded
+in the format defined by RFC7748.
+For B<ML-KEM-512>, B<ML-KEM-768> and B<ML-KEM-1024>, this is the public key
+format defined in B<FIPS 203> (the 12-bit per-coefficient encoded public I<t>
+vector and 32-byte matrix seed I<rho>).
 
 The key to be updated is supplied in B<pkey>. The buffer containing the encoded
 key is pointed to be B<pub>. The length of the buffer is supplied in B<publen>.
@@ -117,9 +123,17 @@ performing a key exchange operation.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_new(3)>, L<EVP_PKEY_copy_parameters(3)>,
-L<EVP_PKEY_derive_init(3)>, L<EVP_PKEY_derive(3)>,
-L<EVP_PKEY-DH(7)>, L<EVP_PKEY-EC(7)>, L<EVP_PKEY-X25519(7)>, L<EVP_PKEY-X448(7)>
+L<EVP_PKEY_new(3)>,
+L<EVP_PKEY_copy_parameters(3)>,
+L<EVP_PKEY_derive_init(3)>,
+L<EVP_PKEY_derive(3)>,
+L<EVP_PKEY-DH(7)>,
+L<EVP_PKEY-EC(7)>,
+L<EVP_PKEY-X25519(7)>,
+L<EVP_PKEY-X448(7)>,
+L<EVP_PKEY-ML-KEM-512(7)>,
+L<EVP_PKEY-ML-KEM-768(7)>,
+L<EVP_PKEY-ML-KEM-1024(7)>.
 
 =head1 HISTORY
 
@@ -129,9 +143,11 @@ added in OpenSSL 3.0.
 EVP_PKEY_set1_tls_encodedpoint() and EVP_PKEY_get1_tls_encodedpoint() were
 deprecated in OpenSSL 3.0.
 
+Support for B<ML-KEM> was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

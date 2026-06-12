@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -34,14 +34,22 @@ static void swap_copy(unsigned char *out, const void *in, size_t len)
  * big endian machine copying from native to or from little endian involves
  * byte reversal.
  */
-static void le_copy(unsigned char *out, const void *in, size_t len)
+static void le_copy(unsigned char *out, size_t outlen,
+                    const void *in, size_t inlen)
 {
     DECLARE_IS_ENDIAN;
 
-    if (IS_LITTLE_ENDIAN)
-        memcpy(out, in, len);
-    else
-        swap_copy(out, in, len);
+    if (IS_LITTLE_ENDIAN) {
+        memcpy(out, in, outlen);
+    } else {
+        if (outlen < inlen) {
+            in = (const char *)in + inlen - outlen;
+            inlen = outlen;
+        }
+        if (!ossl_assert(outlen <= inlen))
+            return;
+        swap_copy(out, in, inlen);
+    }
 }
 
 static const struct {
@@ -66,6 +74,49 @@ static const struct {
             0x89, 0x67, 0xf2, 0x68, 0x33, 0xa0, 0x14, 0xb0 } },
 };
 
+static int test_param_type_null(OSSL_PARAM *param)
+{
+    int rc = 0;
+    uint64_t intval;
+    double dval;
+    BIGNUM *bn;
+
+    switch(param->data_type) {
+    case OSSL_PARAM_INTEGER:
+        if (param->data_size == sizeof(int32_t))
+            rc = OSSL_PARAM_get_int32(param, (int32_t *)&intval);
+        else if (param->data_size == sizeof(uint64_t))
+            rc = OSSL_PARAM_get_int64(param, (int64_t *)&intval);
+        else
+            return 1;
+        break;
+    case OSSL_PARAM_UNSIGNED_INTEGER:
+        if (param->data_size == sizeof(uint32_t))
+            rc = OSSL_PARAM_get_uint32(param, (uint32_t *)&intval);
+        else if (param->data_size == sizeof(uint64_t))
+            rc = OSSL_PARAM_get_uint64(param, &intval);
+        else
+            rc = OSSL_PARAM_get_BN(param, &bn);
+        break;
+    case OSSL_PARAM_REAL:
+        rc = OSSL_PARAM_get_double(param, &dval);
+        break;
+    case OSSL_PARAM_UTF8_STRING:
+    case OSSL_PARAM_OCTET_STRING:
+    case OSSL_PARAM_UTF8_PTR:
+    case OSSL_PARAM_OCTET_PTR:
+        /* these are allowed to be null */
+        return 1;
+        break;
+    }
+
+    /*
+     * we expect the various OSSL_PARAM_get functions above
+     * to return failure when the data is set to NULL
+     */
+    return rc == 0;
+}
+
 static int test_param_type_extra(OSSL_PARAM *param, const unsigned char *cmp,
                                  size_t width)
 {
@@ -78,7 +129,7 @@ static int test_param_type_extra(OSSL_PARAM *param, const unsigned char *cmp,
     const int signd = param->data_type == OSSL_PARAM_INTEGER;
 
     /*
-     * Set the unmodified sentinal directly because there is no param array
+     * Set the unmodified sentinel directly because there is no param array
      * for these tests.
      */
     param->return_size = OSSL_PARAM_UNMODIFIED;
@@ -98,17 +149,17 @@ static int test_param_type_extra(OSSL_PARAM *param, const unsigned char *cmp,
 
     /* Check signed types */
     if (bit32) {
-        le_copy(buf, &i32, sizeof(i32));
+        le_copy(buf, sizeof(i32), &i32, sizeof(i32));
         sz = sizeof(i32) < width ? sizeof(i32) : width;
         if (!TEST_mem_eq(buf, sz, cmp, sz))
             return 0;
     }
-    le_copy(buf, &i64, sizeof(i64));
+    le_copy(buf, sizeof(i64), &i64, sizeof(i64));
     sz = sizeof(i64) < width ? sizeof(i64) : width;
     if (!TEST_mem_eq(buf, sz, cmp, sz))
         return 0;
     if (sizet && !signd) {
-        le_copy(buf, &s, sizeof(s));
+        le_copy(buf, sizeof(s), &s, sizeof(s));
         sz = sizeof(s) < width ? sizeof(s) : width;
         if (!TEST_mem_eq(buf, sz, cmp, sz))
             return 0;
@@ -153,19 +204,22 @@ static int test_param_int(int n)
                        sizeof(int) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_int("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_int(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_int(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -180,19 +234,22 @@ static int test_param_long(int n)
                        ? sizeof(long int) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_long("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_long(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_long(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -206,19 +263,22 @@ static int test_param_uint(int n)
     const size_t len = raw_values[n].len >= sizeof(unsigned int) ? sizeof(unsigned int) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_uint("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_uint(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_uint(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -233,19 +293,22 @@ static int test_param_ulong(int n)
                        ? sizeof(unsigned long int) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_ulong("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_ulong(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_ulong(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -260,19 +323,22 @@ static int test_param_int32(int n)
                        ? sizeof(int32_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_int32("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_int32(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_int32(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -287,19 +353,22 @@ static int test_param_uint32(int n)
                        ? sizeof(uint32_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_uint32("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_uint32(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_uint32(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -314,19 +383,22 @@ static int test_param_int64(int n)
                        ? sizeof(int64_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_int64("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_int64(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_int64(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -341,19 +413,22 @@ static int test_param_uint64(int n)
                        ? sizeof(uint64_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_uint64("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_uint64(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_uint64(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -368,19 +443,22 @@ static int test_param_size_t(int n)
                        ? sizeof(size_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_size_t("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_size_t(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_size_t(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -395,19 +473,22 @@ static int test_param_time_t(int n)
                        ? sizeof(time_t) : raw_values[n].len;
     OSSL_PARAM param = OSSL_PARAM_time_t("a", NULL);
 
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
     memset(buf, 0, sizeof(buf));
-    le_copy(buf, raw_values[n].value, sizeof(in));
+    le_copy(buf, sizeof(in), raw_values[n].value, sizeof(in));
     memcpy(&in, buf, sizeof(in));
     param.data = &out;
     if (!TEST_true(OSSL_PARAM_set_time_t(&param, in)))
         return 0;
-    le_copy(cmp, &out, sizeof(out));
+    le_copy(cmp, sizeof(out), &out, sizeof(out));
     if (!TEST_mem_eq(cmp, len, raw_values[n].value, len))
         return 0;
     in = 0;
     if (!TEST_true(OSSL_PARAM_get_time_t(&param, &in)))
         return 0;
-    le_copy(cmp, &in, sizeof(in));
+    le_copy(cmp, sizeof(in), &in, sizeof(in));
     if (!TEST_mem_eq(cmp, sizeof(in), raw_values[n].value, sizeof(in)))
         return 0;
     param.data = &out;
@@ -423,15 +504,19 @@ static int test_param_bignum(int n)
                                        NULL, 0);
     int ret = 0;
 
-    param.data = bnbuf;
-    param.data_size = len;
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
 
-    le_copy(buf, raw_values[n].value, len);
+    param.data = bnbuf;
+    param.data_size = sizeof(bnbuf);
+
     if (!TEST_ptr(b = BN_lebin2bn(raw_values[n].value, (int)len, NULL)))
         goto err;
 
-    if (!TEST_true(OSSL_PARAM_set_BN(&param, b))
-        || !TEST_mem_eq(bnbuf, param.return_size, buf, param.return_size))
+    if (!TEST_true(OSSL_PARAM_set_BN(&param, b)))
+        goto err;
+    le_copy(buf, len, bnbuf, sizeof(bnbuf));
+    if (!TEST_mem_eq(raw_values[n].value, len, buf, len))
         goto err;
     param.data_size = param.return_size;
     if (!TEST_true(OSSL_PARAM_get_BN(&param, &c))
@@ -445,10 +530,52 @@ err:
     return ret;
 }
 
+static int test_param_signed_bignum(int n)
+{
+    unsigned char buf[MAX_LEN], bnbuf[MAX_LEN];
+    const size_t len = raw_values[n].len;
+    BIGNUM *b = NULL, *c = NULL;
+    OSSL_PARAM param = OSSL_PARAM_DEFN("bn", OSSL_PARAM_INTEGER, NULL, 0);
+    int ret = 0;
+
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
+
+    param.data = bnbuf;
+    param.data_size = sizeof(bnbuf);
+
+    if (!TEST_ptr(b = BN_signed_lebin2bn(raw_values[n].value, (int)len, NULL)))
+        goto err;
+
+    /* raw_values are little endian */
+    if (!TEST_false(!!(raw_values[n].value[len - 1] & 0x80) ^ BN_is_negative(b)))
+        goto err;
+    if (!TEST_true(OSSL_PARAM_set_BN(&param, b)))
+        goto err;
+    le_copy(buf, len, bnbuf, sizeof(bnbuf));
+    if (!TEST_mem_eq(raw_values[n].value, len, buf, len))
+        goto err;
+    param.data_size = param.return_size;
+    if (!TEST_true(OSSL_PARAM_get_BN(&param, &c))
+        || !TEST_BN_eq(b, c)) {
+        BN_print_fp(stderr, c);
+        goto err;
+    }
+
+    ret = 1;
+err:
+    BN_free(b);
+    BN_free(c);
+    return ret;
+}
+
 static int test_param_real(void)
 {
     double p;
     OSSL_PARAM param = OSSL_PARAM_double("r", NULL);
+
+    if (!TEST_int_eq(test_param_type_null(&param), 1))
+        return 0;
 
     param.data = &p;
     return TEST_true(OSSL_PARAM_set_double(&param, 3.14159))
@@ -474,7 +601,7 @@ static int test_param_construct(int tstid)
     OSSL_PARAM params[20];
     char buf[100], buf2[100], *bufp, *bufp2;
     unsigned char ubuf[100];
-    void *vp, *vpn = NULL, *vp2;
+    void *vp, *vp2, *vpn = NULL, *vpn2 = NULL;
     OSSL_PARAM *cp;
     int i, n = 0, ret = 0;
     unsigned int u;
@@ -501,11 +628,13 @@ static int test_param_construct(int tstid)
     params[n++] = OSSL_PARAM_construct_BN("bignum", ubuf, sizeof(ubuf));
     params[n++] = OSSL_PARAM_construct_utf8_string("utf8str", buf, sizeof(buf));
     params[n++] = OSSL_PARAM_construct_octet_string("octstr", buf, sizeof(buf));
+    params[n++] = OSSL_PARAM_construct_octet_string("octstr2", buf, sizeof(buf));
     params[n++] = OSSL_PARAM_construct_utf8_ptr("utf8ptr", &bufp, 0);
     params[n++] = OSSL_PARAM_construct_octet_ptr("octptr", &vp, 0);
+    params[n++] = OSSL_PARAM_construct_octet_ptr("octptr2", &vp, 0);
     params[n] = OSSL_PARAM_construct_end();
 
-    switch(tstid) {
+    switch (tstid) {
     case 0:
         p = params;
         break;
@@ -599,10 +728,44 @@ static int test_param_construct(int tstid)
         || !TEST_mem_eq(vp, sizeof("abcdefghi"),
                         "abcdefghi", sizeof("abcdefghi")))
         goto err;
+    /* OCTET string using OSSL_PARAM_set_octet_string_or_ptr */
+    if (!TEST_ptr(cp = OSSL_PARAM_locate(p, "octstr2"))
+        || !TEST_true(OSSL_PARAM_set_octet_string_or_ptr(cp, "jklmnopqr",
+                                                         sizeof("jklmnopqr")))
+        || !TEST_size_t_eq(cp->return_size, sizeof("jklmnopqr")))
+        goto err;
+    /* Match the return size to avoid trailing garbage bytes */
+    cp->data_size = cp->return_size;
+    if (!TEST_true(OSSL_PARAM_get_octet_string(cp, &vpn2, 0, &s))
+        || !TEST_size_t_eq(s, sizeof("jklmnopqr"))
+        || !TEST_mem_eq(vpn2, sizeof("jklmnopqr"),
+                        "jklmnopqr", sizeof("jklmnopqr")))
+        goto err;
+    vp = buf2;
+    if (!TEST_true(OSSL_PARAM_get_octet_string(cp, &vp, sizeof(buf2), &s))
+        || !TEST_size_t_eq(s, sizeof("jklmnopqr"))
+        || !TEST_mem_eq(vp, sizeof("jklmnopqr"),
+                        "jklmnopqr", sizeof("jklmnopqr")))
+        goto err;
     /* OCTET pointer */
     vp = &l;
     if (!TEST_ptr(cp = OSSL_PARAM_locate(p, "octptr"))
         || !TEST_true(OSSL_PARAM_set_octet_ptr(cp, &ul, sizeof(ul)))
+        || !TEST_size_t_eq(cp->return_size, sizeof(ul))
+        || (tstid <= 1 && !TEST_ptr_eq(vp, &ul)))
+        goto err;
+    /* Match the return size to avoid trailing garbage bytes */
+    cp->data_size = cp->return_size;
+    if (!TEST_true(OSSL_PARAM_get_octet_ptr(cp, (const void **)&vp2, &k))
+        || !TEST_size_t_eq(k, sizeof(ul))
+        || (tstid <= 1 && !TEST_ptr_eq(vp2, vp)))
+        goto err;
+    /* OCTET pointer using OSSL_PARAM_set_octet_string_or_ptr */
+    vp = &l;
+    vp2 = NULL;
+    k = 0;
+    if (!TEST_ptr(cp = OSSL_PARAM_locate(p, "octptr2"))
+        || !TEST_true(OSSL_PARAM_set_octet_string_or_ptr(cp, &ul, sizeof(ul)))
         || !TEST_size_t_eq(cp->return_size, sizeof(ul))
         || (tstid <= 1 && !TEST_ptr_eq(vp, &ul)))
         goto err;
@@ -620,7 +783,7 @@ static int test_param_construct(int tstid)
         goto err;
     /* Match the return size to avoid trailing garbage bytes */
     cp->data_size = cp->return_size;
-    if(!TEST_true(OSSL_PARAM_get_BN(cp, &bn2))
+    if (!TEST_true(OSSL_PARAM_get_BN(cp, &bn2))
         || !TEST_BN_eq(bn, bn2))
         goto err;
     ret = 1;
@@ -629,6 +792,7 @@ err:
         OPENSSL_free(p);
     OPENSSL_free(p1);
     OPENSSL_free(vpn);
+    OPENSSL_free(vpn2);
     BN_free(bn);
     BN_free(bn2);
     return ret;
@@ -692,6 +856,63 @@ static int test_param_copy_null(void)
     OSSL_PARAM_free(cp1);
     return ret;
 }
+static int test_param_merge(void)
+{
+    int val, ret;
+    int values[] = {1, 2, 3, 4};
+    OSSL_PARAM *p = NULL, *cp = NULL;
+    OSSL_PARAM param[3], param1[3];
+
+    param[0] = OSSL_PARAM_construct_int("diff1", &values[0]);
+    param[1] = OSSL_PARAM_construct_int("same", &values[1]);
+    param[2] = OSSL_PARAM_construct_end();
+    param1[0] = OSSL_PARAM_construct_int("diff2", &values[2]);
+    param1[1] = OSSL_PARAM_construct_int("same", &values[3]);
+    param1[2] = OSSL_PARAM_construct_end();
+
+    ret = TEST_ptr(p = OSSL_PARAM_merge(param, param1))
+        && TEST_ptr(cp = OSSL_PARAM_locate(p, "diff1"))
+        && TEST_true(OSSL_PARAM_get_int(p, &val))
+        && TEST_int_eq(val, values[0])
+        && TEST_ptr(cp = OSSL_PARAM_locate(p, "diff2"))
+        && TEST_true(OSSL_PARAM_get_int(cp, &val))
+        && TEST_int_eq(val, values[2])
+        && TEST_ptr(cp = OSSL_PARAM_locate(p, "same"))
+        && TEST_true(OSSL_PARAM_get_int(cp, &val))
+        && TEST_int_eq(val, values[3]);
+    OSSL_PARAM_free(p);
+    return ret;
+}
+static int test_param_clear_free(void)
+{
+    int values[] = {1, 2};
+    OSSL_PARAM *dup, *manual;
+    OSSL_PARAM base[3];
+    int ret = 0;
+
+    base[0] = OSSL_PARAM_construct_int("int", &values[0]);
+    base[1] = OSSL_PARAM_construct_int("int", &values[1]);
+    base[2] = OSSL_PARAM_construct_end();
+
+    if (!TEST_ptr(dup = OSSL_PARAM_dup(base)))
+        goto err;
+
+    OSSL_PARAM_clear_free(dup);
+
+    if (!TEST_ptr(manual = OPENSSL_zalloc(sizeof(OSSL_PARAM) * 3)))
+        goto err;
+
+    manual[0] = OSSL_PARAM_construct_int("int", &values[0]);
+    manual[1] = OSSL_PARAM_construct_int("int", &values[1]);
+    manual[2] = OSSL_PARAM_construct_end();
+
+    OSSL_PARAM_clear_free(manual);
+
+    ret = 1;
+
+err:
+    return ret;
+}
 
 int setup_tests(void)
 {
@@ -706,9 +927,12 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_param_int64, OSSL_NELEM(raw_values));
     ADD_ALL_TESTS(test_param_uint64, OSSL_NELEM(raw_values));
     ADD_ALL_TESTS(test_param_bignum, OSSL_NELEM(raw_values));
+    ADD_ALL_TESTS(test_param_signed_bignum, OSSL_NELEM(raw_values));
     ADD_TEST(test_param_real);
     ADD_ALL_TESTS(test_param_construct, 4);
     ADD_TEST(test_param_modified);
     ADD_TEST(test_param_copy_null);
+    ADD_TEST(test_param_merge);
+    ADD_TEST(test_param_clear_free);
     return 1;
 }

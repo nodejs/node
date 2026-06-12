@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,7 +72,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "20170217180105.001Z", 0, 0, -1, NULL,
     },
     {
-        /* time zone, check only */
+        /* timezone, check only */
         "20170217180105+0800", 0, 0, -1, NULL,
     },
     {
@@ -84,7 +84,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "20170217180105.001Z", 1, 0, -1, NULL,
     },
     {
-        /* time zone, set string */
+        /* timezone, set string */
         "20170217180105+0800", 1, 0, -1, NULL,
     },
     {
@@ -113,7 +113,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "040229180101Z", 0, 1, -1, NULL,
     },
     {
-        /* time zone, check only */
+        /* timezone, check only */
         "170217180154+0800", 0, 0, -1, NULL,
     },
     {
@@ -121,7 +121,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "1702171801Z", 1, 0, -1, NULL,
     },
     {
-        /* time zone, set string */
+        /* timezone, set string */
         "170217180154+0800", 1, 0, -1, NULL,
     },
     {
@@ -261,7 +261,7 @@ static int test_x509_cmp_time(int idx)
     memset(&t, 0, sizeof(t));
     t.type = x509_cmp_tests[idx].type;
     t.data = (unsigned char*)(x509_cmp_tests[idx].data);
-    t.length = strlen(x509_cmp_tests[idx].data);
+    t.length = (int)strlen(x509_cmp_tests[idx].data);
     t.flags = 0;
 
     result = X509_cmp_time(&t, &x509_cmp_tests[idx].cmp_time);
@@ -277,22 +277,29 @@ static int test_x509_cmp_time_current(void)
 {
     time_t now = time(NULL);
     /* Pick a day earlier and later, relative to any system clock. */
-    ASN1_TIME *asn1_before = NULL, *asn1_after = NULL;
+    ASN1_TIME *asn1_before = NULL, *asn1_after = NULL, *asn1_now = NULL;
     int cmp_result, failed = 0;
 
     asn1_before = ASN1_TIME_adj(NULL, now, -1, 0);
     asn1_after = ASN1_TIME_adj(NULL, now, 1, 0);
+    asn1_now = ASN1_TIME_adj(NULL, now, 0, 0);
 
-    cmp_result  = X509_cmp_time(asn1_before, NULL);
+    /* X509_cmp_time is expected to return -1 for equal */
+    cmp_result = X509_cmp_time(asn1_now, &now);
     if (!TEST_int_eq(cmp_result, -1))
         failed = 1;
 
-    cmp_result = X509_cmp_time(asn1_after, NULL);
+    cmp_result = X509_cmp_time(asn1_before, &now);
+    if (!TEST_int_eq(cmp_result, -1))
+        failed = 1;
+
+    cmp_result = X509_cmp_time(asn1_after, &now);
     if (!TEST_int_eq(cmp_result, 1))
         failed = 1;
 
     ASN1_TIME_free(asn1_before);
     ASN1_TIME_free(asn1_after);
+    ASN1_TIME_free(asn1_now);
 
     return failed == 0;
 }
@@ -490,7 +497,7 @@ static const struct {
             "Jul 31 22:20:50 2017 GMT"),
     /* Generalized Time, no seconds */
     construct_asn1_time("201707312220Z", V_ASN1_GENERALIZEDTIME,
-            "Jul 31 22:20:00 2017 GMT"),
+            "Bad time value"),
     /* Generalized Time, fractional seconds (3 digits) */
     construct_asn1_time("20170731222050.123Z", V_ASN1_GENERALIZEDTIME,
             "Jul 31 22:20:50.123 2017 GMT"),
@@ -505,7 +512,7 @@ static const struct {
             "Jul 31 22:20:50 2017 GMT"),
     /* UTC Time, no seconds */
     construct_asn1_time("1707312220Z", V_ASN1_UTCTIME,
-            "Jul 31 22:20:00 2017 GMT"),
+            "Bad time value"),
 };
 
 static const struct {
@@ -517,7 +524,7 @@ static const struct {
             "2017-07-31 22:20:50Z"),
     /* Generalized Time, no seconds */
     construct_asn1_time("201707312220Z", V_ASN1_GENERALIZEDTIME,
-            "2017-07-31 22:20:00Z"),
+            "Bad time value"),
     /* Generalized Time, fractional seconds (3 digits) */
     construct_asn1_time("20170731222050.123Z", V_ASN1_GENERALIZEDTIME,
             "2017-07-31 22:20:50.123Z"),
@@ -532,7 +539,7 @@ static const struct {
             "2017-07-31 22:20:50Z"),
     /* UTC Time, no seconds */
     construct_asn1_time("1707312220Z", V_ASN1_UTCTIME,
-            "2017-07-31 22:20:00Z"),
+            "Bad time value"),
 };
 
 static int test_x509_time_print_rfc_822(int idx)

@@ -4,7 +4,7 @@
 
 OSSL_STORE_CTX, OSSL_STORE_post_process_info_fn,
 OSSL_STORE_open, OSSL_STORE_open_ex,
-OSSL_STORE_ctrl, OSSL_STORE_load, OSSL_STORE_eof,
+OSSL_STORE_ctrl, OSSL_STORE_load, OSSL_STORE_eof, OSSL_STORE_delete,
 OSSL_STORE_error, OSSL_STORE_close
 - Types and functions to read objects from a URI
 
@@ -30,6 +30,9 @@ OSSL_STORE_error, OSSL_STORE_close
 
  OSSL_STORE_INFO *OSSL_STORE_load(OSSL_STORE_CTX *ctx);
  int OSSL_STORE_eof(OSSL_STORE_CTX *ctx);
+ int OSSL_STORE_delete(const char *uri, OSSL_LIB_CTX *libctx, const char *propq,
+                       const UI_METHOD *ui_method, void *ui_data,
+                       const OSSL_PARAM params[]);
  int OSSL_STORE_error(OSSL_STORE_CTX *ctx);
  int OSSL_STORE_close(OSSL_STORE_CTX *ctx);
 
@@ -104,6 +107,8 @@ Any other value is an error.
 OSSL_STORE_load() takes a B<OSSL_STORE_CTX> and tries to load the next
 available object and return it wrapped with B<OSSL_STORE_INFO>.
 
+OSSL_STORE_delete() deletes the object identified by I<uri>.
+
 OSSL_STORE_eof() takes a B<OSSL_STORE_CTX> and checks if we've reached the end
 of data.
 
@@ -152,7 +157,8 @@ or an error occurred, 0 otherwise.
 OSSL_STORE_error() returns 1 if an error occurred in an OSSL_STORE_load() call,
 otherwise 0.
 
-OSSL_STORE_ctrl() and OSSL_STORE_close() returns 1 on success, or 0 on failure.
+OSSL_STORE_delete(), OSSL_STORE_ctrl() and OSSL_STORE_close() return 1 on
+success, or 0 on failure.
 
 =head1 SEE ALSO
 
@@ -160,6 +166,8 @@ L<ossl_store(7)>, L<OSSL_STORE_INFO(3)>, L<OSSL_STORE_register_loader(3)>,
 L<passphrase-encoding(7)>
 
 =head1 HISTORY
+
+OSSL_STORE_delete() was added in OpenSSL 3.2.
 
 OSSL_STORE_open_ex() was added in OpenSSL 3.0.
 
@@ -170,13 +178,11 @@ were added in OpenSSL 1.1.1.
 Handling of NULL I<ctx> argument for OSSL_STORE_close()
 was introduced in OpenSSL 1.1.1h.
 
-OSSL_STORE_open_ex() was added in OpenSSL 3.0.
-
 OSSL_STORE_ctrl() and OSSL_STORE_vctrl() were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

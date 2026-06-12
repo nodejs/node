@@ -39,6 +39,8 @@ use OpenSSL::stackhash qw(generate_stack_macros);
 extern "C" {
 #endif
 
+DEFINE_STACK_OF(OCSP_RESPONSE)
+
 /*-
 SSL_CTX -> X509_STORE
                 -> X509_LOOKUP
@@ -130,8 +132,8 @@ int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj);
 int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj);
 void X509_trust_clear(X509 *x);
 void X509_reject_clear(X509 *x);
-STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(X509 *x);
-STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(X509 *x);
+STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(const X509 *x);
+STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(const X509 *x);
 
 int (*X509_TRUST_set_default(int (*trust) (int, X509 *, int))) (int, X509 *,
                                                                 int);
@@ -316,6 +318,14 @@ X509_LOOKUP_ctrl_ex((x), X509_L_ADD_STORE, (name), 0, NULL,           \
 # define X509_V_ERR_EC_KEY_EXPLICIT_PARAMS               94
 # define X509_V_ERR_RPK_UNTRUSTED                        95
 
+/* additional OCSP status errors */
+# define X509_V_ERR_OCSP_RESP_INVALID                    96
+# define X509_V_ERR_OCSP_SIGNATURE_FAILURE               97
+# define X509_V_ERR_OCSP_NOT_YET_VALID                   98
+# define X509_V_ERR_OCSP_HAS_EXPIRED                     99
+# define X509_V_ERR_OCSP_NO_RESPONSE                    100
+# define X509_V_ERR_CRL_VERIFY_FAILED                   101
+
 /* Certificate verify flags */
 # ifndef OPENSSL_NO_DEPRECATED_1_1_0
 #  define X509_V_FLAG_CB_ISSUER_CHECK             0x0   /* Deprecated */
@@ -367,6 +377,11 @@ X509_LOOKUP_ctrl_ex((x), X509_L_ADD_STORE, (name), 0, NULL,           \
 /* Do not check certificate/CRL validity against current time */
 # define X509_V_FLAG_NO_CHECK_TIME               0x200000
 
+/* Verify OCSP stapling response for server certificate */
+# define X509_V_FLAG_OCSP_RESP_CHECK 0x400000
+/* Verify OCSP stapling responses for whole chain */
+# define X509_V_FLAG_OCSP_RESP_CHECK_ALL 0x800000
+
 # define X509_VP_FLAG_DEFAULT                    0x1
 # define X509_VP_FLAG_OVERWRITE                  0x2
 # define X509_VP_FLAG_RESET_FLAGS                0x4
@@ -399,7 +414,10 @@ void X509_STORE_free(X509_STORE *xs);
 int X509_STORE_lock(X509_STORE *xs);
 int X509_STORE_unlock(X509_STORE *xs);
 int X509_STORE_up_ref(X509_STORE *xs);
+# ifndef OPENSSL_NO_DEPRECATED_4_0
+OSSL_DEPRECATEDIN_4_0_FOR("Use X509_STORE_get1_objects")
 STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(const X509_STORE *xs);
+# endif
 STACK_OF(X509_OBJECT) *X509_STORE_get1_objects(X509_STORE *xs);
 STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *xs);
 STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *xs,
@@ -675,6 +693,9 @@ void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *target);
 void X509_STORE_CTX_set0_rpk(X509_STORE_CTX *ctx, EVP_PKEY *target);
 void X509_STORE_CTX_set0_verified_chain(X509_STORE_CTX *c, STACK_OF(X509) *sk);
 void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk);
+# ifndef OPENSSL_NO_OCSP
+void X509_STORE_CTX_set_ocsp_resp(X509_STORE_CTX *ctx, STACK_OF(OCSP_RESPONSE) *sk);
+# endif
 int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
 int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
 int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,

@@ -1,0 +1,15 @@
+openssl_conf = openssl_init
+aaatest = value
+
+[abc]
+7.recipient = 7
+6.recipient = 6
+4.recipient = 4
+3.recipient = 3
+5.recipient = 5
+2.recipient = 2
+1.recipient = 1
+0.recipient = 0
+
+[def]
+0.recipient = 0

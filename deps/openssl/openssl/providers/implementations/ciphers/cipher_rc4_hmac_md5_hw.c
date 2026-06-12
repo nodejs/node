@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,7 @@ static int cipher_hw_rc4_hmac_md5_initkey(PROV_CIPHER_CTX *bctx,
 {
     PROV_RC4_HMAC_MD5_CTX *ctx = (PROV_RC4_HMAC_MD5_CTX *)bctx;
 
-    RC4_set_key(&ctx->ks.ks, keylen, key);
+    RC4_set_key(&ctx->ks.ks, (int)keylen, key);
     MD5_Init(&ctx->head);       /* handy when benchmarking */
     ctx->tail = ctx->head;
     ctx->md = ctx->head;
@@ -82,8 +82,8 @@ static int cipher_hw_rc4_hmac_md5_cipher(PROV_CIPHER_CTX *bctx,
             blocks *= MD5_CBLOCK;
             rc4_off += blocks;
             md5_off += blocks;
-            ctx->md.Nh += blocks >> 29;
-            ctx->md.Nl += blocks <<= 3;
+            ctx->md.Nh += (unsigned int)(blocks >> 29);
+            ctx->md.Nl += (unsigned int)(blocks <<= 3);
             if (ctx->md.Nl < (unsigned int)blocks)
                 ctx->md.Nh++;
         } else {
@@ -132,7 +132,7 @@ static int cipher_hw_rc4_hmac_md5_cipher(PROV_CIPHER_CTX *bctx,
             if (l < ctx->md.Nl)
                 ctx->md.Nh++;
             ctx->md.Nl = l;
-            ctx->md.Nh += blocks >> 29;
+            ctx->md.Nh += (unsigned int)(blocks >> 29);
         } else {
             md5_off = 0;
             rc4_off = 0;

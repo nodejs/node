@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -132,8 +132,10 @@ static size_t internal_trace_cb(const char *buf, size_t cnt,
             BIO_printf(bio_err, "ERROR: writing when tracing not started\n");
             return 0;
         }
+        if (cnt > INT_MAX)
+            cnt = INT_MAX;
 
-        ret = BIO_write(trace_data->bio, buf, cnt);
+        ret = BIO_write(trace_data->bio, buf, (int)cnt);
         break;
     case OSSL_TRACE_CTRL_END:
         if (!trace_data->ingroup) {
@@ -190,6 +192,7 @@ static void setup_trace_category(int category)
 
         OSSL_trace_set_callback(category, NULL, NULL);
         BIO_free_all(channel);
+        OPENSSL_free(trace_data);
     }
 }
 
@@ -244,6 +247,10 @@ int main(int argc, char *argv[])
     int global_help = 0;
     int global_version = 0;
     int ret = 0;
+    char *sec_mem_char = NULL;
+#ifndef OPENSSL_NO_SECURE_MEMORY
+    char *sec_mem_minsize_char = NULL;
+#endif
 
     arg.argv = NULL;
     arg.size = 0;
@@ -263,6 +270,54 @@ int main(int argc, char *argv[])
 #ifndef OPENSSL_NO_TRACE
     setup_trace(getenv("OPENSSL_TRACE"));
 #endif
+
+    sec_mem_char = getenv("OPENSSL_SEC_MEM");
+    if (sec_mem_char != NULL) {
+#ifndef OPENSSL_NO_SECURE_MEMORY
+        long sec_mem = 0;
+        long sec_mem_minsize = 0;
+        char *end = NULL;
+
+        errno = 0;
+        sec_mem = strtol(sec_mem_char, &end, 0);
+        if (errno != 0 || *end != 0 || end == sec_mem_char) {
+            BIO_printf(bio_err,
+                       "FATAL: could not convert OPENSSL_SEC_MEM (%s) to number\n",
+                       sec_mem_char);
+            ret = EXIT_FAILURE;
+            goto end;
+        }
+
+        /*
+         * Try to fetch the minsize if given, if not use the default value.
+         */
+        sec_mem_minsize_char = getenv("OPENSSL_SEC_MEM_MINSIZE");
+        if (sec_mem_minsize_char != NULL) {
+            errno = 0;
+            sec_mem_minsize = strtol(sec_mem_minsize_char, &end, 0);
+            if (errno != 0 || *end != 0 || end == sec_mem_minsize_char) {
+                BIO_printf(bio_err,
+                           "FATAL: could not convert OPENSSL_SEC_MEM_MINSIZE (%s) to number\n",
+                           sec_mem_minsize_char);
+                ret = 1;
+                goto end;
+            }
+        }
+
+        ret = CRYPTO_secure_malloc_init(sec_mem, sec_mem_minsize);
+        if (ret != 1) {
+            BIO_printf(bio_err,
+                       "FATAL: could not initialize secure memory\n");
+            ERR_print_errors(bio_err);
+            ret = 1;
+            goto end;
+        }
+#else
+        BIO_printf(bio_err,
+                   "FATAL: OPENSSL_SEC_MEM environment variable was set, but "
+                   "openssl was compiled without secure memory support.\n");
+#endif
+    }
 
     if ((fname = "apps_startup", !apps_startup())
             || (fname = "prog_init", (prog = prog_init()) == NULL)) {
@@ -319,6 +374,9 @@ int main(int argc, char *argv[])
     BIO_free_all(bio_out);
     apps_shutdown();
     BIO_free_all(bio_err);
+#ifndef OPENSSL_NO_SECURE_MEMORY
+    CRYPTO_secure_malloc_done();
+#endif
     EXIT(ret);
 }
 

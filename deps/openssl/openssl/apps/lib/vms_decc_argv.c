@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,7 +56,7 @@ char **copy_argv(int *argc, char *argv[])
      * get them when linking with all of libapps.a.
      * See comment in test/build.info.
      */
-    newargv = OPENSSL_malloc(sizeof(*newargv) * (count + 1));
+    newargv = OPENSSL_malloc_array(count + 1, sizeof(*newargv));
     if (newargv == NULL)
         return NULL;
 

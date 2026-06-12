@@ -20,6 +20,7 @@
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "prov/ml_dsa.h"
+#include "providers/implementations/keymgmt/ml_dsa_kmgmt.inc"
 
 static OSSL_FUNC_keymgmt_free_fn ml_dsa_free_key;
 static OSSL_FUNC_keymgmt_has_fn ml_dsa_has;
@@ -29,7 +30,6 @@ static OSSL_FUNC_keymgmt_export_fn ml_dsa_export;
 static OSSL_FUNC_keymgmt_import_types_fn ml_dsa_imexport_types;
 static OSSL_FUNC_keymgmt_export_types_fn ml_dsa_imexport_types;
 static OSSL_FUNC_keymgmt_dup_fn ml_dsa_dup_key;
-static OSSL_FUNC_keymgmt_get_params_fn ml_dsa_get_params;
 static OSSL_FUNC_keymgmt_gettable_params_fn ml_dsa_gettable_params;
 static OSSL_FUNC_keymgmt_validate_fn ml_dsa_validate;
 static OSSL_FUNC_keymgmt_gen_init_fn ml_dsa_gen_init;
@@ -192,39 +192,44 @@ static int ml_dsa_validate(const void *key_data, int selection, int check_type)
 static int ml_dsa_key_fromdata(ML_DSA_KEY *key, const OSSL_PARAM params[],
                                int include_private)
 {
-    const OSSL_PARAM *p = NULL;
     const ML_DSA_PARAMS *key_params = ossl_ml_dsa_key_params(key);
     const uint8_t *pk = NULL, *sk = NULL, *seed = NULL;
     size_t pk_len = 0, sk_len = 0, seed_len = 0;
+    struct ml_dsa_key_type_params_st p;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
-    if (p != NULL
-        && !OSSL_PARAM_get_octet_string_ptr(p, (const void **)&pk, &pk_len))
+    if (!ml_dsa_key_type_params_decoder(params, &p))
         return 0;
-    if (pk != NULL && pk_len != key_params->pk_len) {
-        ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH,
-                       "Invalid %s public key length", key_params->alg);
-        return 0;
+
+    if (p.pubkey != NULL) {
+        if (!OSSL_PARAM_get_octet_string_ptr(p.pubkey, (const void **)&pk, &pk_len))
+            return 0;
+        if (pk != NULL && pk_len != key_params->pk_len) {
+            ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH,
+                           "Invalid %s public key length", key_params->alg);
+            return 0;
+        }
     }
 
-    /* Private key is optional */
-    if (include_private) {
-        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ML_DSA_SEED);
-        if (p != NULL
-            && !OSSL_PARAM_get_octet_string_ptr(p, (const void **)&seed,
-                                                &seed_len))
+    /* Private key seed is optional */
+    if (p.seed != NULL && include_private) {
+        if (!OSSL_PARAM_get_octet_string_ptr(p.seed, (const void **)&seed,
+                                             &seed_len))
             return 0;
         if (seed != NULL && seed_len != ML_DSA_SEED_BYTES) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_SEED_LENGTH);
             return 0;
         }
-        p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
-        if (p != NULL
-            && !OSSL_PARAM_get_octet_string_ptr(p, (const void **)&sk, &sk_len))
+    }
+
+    /* Private key is optional */
+    if (p.privkey != NULL && include_private) {
+        if (!OSSL_PARAM_get_octet_string_ptr(p.privkey, (const void **)&sk,
+                                             &sk_len))
             return 0;
         if (sk != NULL && sk_len != key_params->sk_len) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH,
-                           "Invalid %s private key length", key_params->alg);
+                           "Invalid %s private key length",
+                           key_params->alg);
             return 0;
         }
     }
@@ -290,77 +295,75 @@ static int ml_dsa_import(void *keydata, int selection, const OSSL_PARAM params[]
     return res;
 }
 
-#define ML_DSA_IMEXPORTABLE_PARAMETERS \
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED, NULL, 0), \
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, NULL, 0), \
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0)
-
-static const OSSL_PARAM ml_dsa_key_types[] = {
-    ML_DSA_IMEXPORTABLE_PARAMETERS,
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *ml_dsa_imexport_types(int selection)
 {
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0)
         return NULL;
-    return ml_dsa_key_types;
+    return ml_dsa_key_type_params_list;
 }
 
-static const OSSL_PARAM ml_dsa_params[] = {
-    OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
-    OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
-    OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_MANDATORY_DIGEST, NULL, 0),
-    ML_DSA_IMEXPORTABLE_PARAMETERS,
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *ml_dsa_gettable_params(void *provctx)
 {
-    return ml_dsa_params;
+    return ml_dsa_get_params_list;
 }
 
 static int ml_dsa_get_params(void *keydata, OSSL_PARAM params[])
 {
     ML_DSA_KEY *key = keydata;
-    OSSL_PARAM *p;
-    const uint8_t *pub, *priv, *seed;
+    const uint8_t *d;
+    size_t len;
+    struct ml_dsa_get_params_st p;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_BITS)) != NULL
-            && !OSSL_PARAM_set_int(p, 8 * ossl_ml_dsa_key_get_pub_len(key)))
-        return 0;
-    if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_SECURITY_BITS)) != NULL
-            && !OSSL_PARAM_set_int(p, ossl_ml_dsa_key_get_collision_strength_bits(key)))
-        return 0;
-    if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MAX_SIZE)) != NULL
-            && !OSSL_PARAM_set_int(p, ossl_ml_dsa_key_get_sig_len(key)))
+    if (key == NULL || !ml_dsa_get_params_decoder(params, &p))
         return 0;
 
-    pub = ossl_ml_dsa_key_get_pub(key);
-    priv = ossl_ml_dsa_key_get_priv(key);
-    seed = ossl_ml_dsa_key_get_seed(key);
+    if (p.bits != NULL
+            && !OSSL_PARAM_set_size_t(p.bits, 8 * ossl_ml_dsa_key_get_pub_len(key)))
+        return 0;
 
-    if (seed != NULL
-        && (p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_ML_DSA_SEED)) != NULL
-        && !OSSL_PARAM_set_octet_string(p, seed, ML_DSA_SEED_BYTES))
+    if (p.secbits != NULL
+            && !OSSL_PARAM_set_size_t(p.secbits, ossl_ml_dsa_key_get_collision_strength_bits(key)))
         return 0;
-    if (priv != NULL
-        && (p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_PRIV_KEY)) != NULL
-        && !OSSL_PARAM_set_octet_string(p, priv,
-                                        ossl_ml_dsa_key_get_priv_len(key)))
+
+    if (p.maxsize != NULL
+            && !OSSL_PARAM_set_size_t(p.maxsize, ossl_ml_dsa_key_get_sig_len(key)))
         return 0;
-    if (pub != NULL
-        && (p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_PUB_KEY)) != NULL
-        && !OSSL_PARAM_set_octet_string(p, pub,
-                                        ossl_ml_dsa_key_get_pub_len(key)))
+
+    if (p.seccat != NULL
+            && !OSSL_PARAM_set_int(p.seccat, ossl_ml_dsa_key_get_security_category(key)))
         return 0;
+
+    if (p.seed != NULL) {
+        d = ossl_ml_dsa_key_get_seed(key);
+        if (d != NULL && !OSSL_PARAM_set_octet_string(p.seed, d,
+                                                      ML_DSA_SEED_BYTES))
+            return 0;
+    }
+
+    if (p.privkey != NULL) {
+        d = ossl_ml_dsa_key_get_priv(key);
+        if (d != NULL) {
+            len = ossl_ml_dsa_key_get_priv_len(key);
+            if (!OSSL_PARAM_set_octet_string(p.privkey, d, len))
+                return 0;
+        }
+    }
+
+    if (p.pubkey != NULL) {
+        d = ossl_ml_dsa_key_get_pub(key);
+        if (d != NULL) {
+            len = ossl_ml_dsa_key_get_pub_len(key);
+            if (!OSSL_PARAM_set_octet_string(p.pubkey, d, len))
+                return 0;
+        }
+    }
+
     /*
      * This allows apps to use an empty digest, so that the old API
      * for digest signing can be used.
      */
-    p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_MANDATORY_DIGEST);
-    if (p != NULL && !OSSL_PARAM_set_utf8_string(p, ""))
+    if (p.dgstp != NULL && !OSSL_PARAM_set_utf8_string(p.dgstp, ""))
         return 0;
-
     return 1;
 }
 
@@ -499,27 +502,25 @@ static void *ml_dsa_gen(void *genctx, int evp_type)
 static int ml_dsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
 {
     struct ml_dsa_gen_ctx *gctx = genctx;
-    const OSSL_PARAM *p;
+    struct ml_dsa_gen_set_params_st p;
 
-    if (gctx == NULL)
+    if (gctx == NULL || !ml_dsa_gen_set_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ML_DSA_SEED);
-    if (p != NULL) {
+    if (p.seed != NULL) {
         void *vp = gctx->entropy;
         size_t len = sizeof(gctx->entropy);
 
-        if (!OSSL_PARAM_get_octet_string(p, &vp, len, &(gctx->entropy_len))) {
+        if (!OSSL_PARAM_get_octet_string(p.seed, &vp, len, &(gctx->entropy_len))) {
             gctx->entropy_len = 0;
             return 0;
         }
     }
 
-    p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PROPERTIES);
-    if (p != NULL) {
+    if (p.propq != NULL) {
         OPENSSL_free(gctx->propq);
         gctx->propq = NULL;
-        if (!OSSL_PARAM_get_utf8_string(p, &gctx->propq, 0))
+        if (!OSSL_PARAM_get_utf8_string(p.propq, &gctx->propq, 0))
             return 0;
     }
     return 1;
@@ -528,12 +529,7 @@ static int ml_dsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
 static const OSSL_PARAM *ml_dsa_gen_settable_params(ossl_unused void *genctx,
                                                     ossl_unused void *provctx)
 {
-    static OSSL_PARAM settable[] = {
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settable;
+    return ml_dsa_gen_set_params_list;
 }
 
 static void ml_dsa_gen_cleanup(void *genctx)

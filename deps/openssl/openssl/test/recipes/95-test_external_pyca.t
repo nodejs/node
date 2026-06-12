@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -18,9 +18,12 @@ plan skip_all => "No external tests in this configuration"
 plan skip_all => "PYCA tests not available on Windows or VMS"
     if $^O =~ /^(VMS|MSWin32)$/;
 plan skip_all => "PYCA Cryptography not available"
-    if ! -f srctop_file("pyca-cryptography", "setup.py");
+    if ! -f srctop_file("pyca-cryptography", "release.py");
 plan skip_all => "PYCA tests only available in a shared build"
     if disabled("shared");
+
+# Temporariy disable this test until PYCA Cryptography works with 4.0
+plan skip_all => "PYCA Cryptography needs updating";
 
 plan tests => 1;
 

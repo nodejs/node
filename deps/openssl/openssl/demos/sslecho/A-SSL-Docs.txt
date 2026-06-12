@@ -1,0 +1,20 @@
+Useful Links:
+
+OpenSSL API Documentation: https://docs.openssl.org/master
+
+Github: https://github.com/openssl/openssl
+
+OpenSSL Wiki: https://github.com/openssl/openssl/wiki
+
+Original Simple Server: https://github.com/openssl/openssl/wiki/Simple_TLS_Server
+
+---------------------------------------------------------------
+
+Generate self signed cert and key 'pem' files (good for 10 years):
+
+openssl req -newkey rsa:4096 -x509 -sha256 -days 3650 -nodes -out cert.pem -keyout key.pem
+
+You can just hit carriage returns to accept the default values, except for "Common Name"; you
+should enter 'localhost', or an actual hostname.
+
+The same keys can be used for both communicating instances; same or different machines.

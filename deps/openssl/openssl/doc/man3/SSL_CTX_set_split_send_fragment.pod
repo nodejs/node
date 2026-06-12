@@ -123,6 +123,11 @@ It affects the client-side as only its side may initiate this extension use.
 SSL_SESSION_get_max_fragment_length() gets the maximum fragment length
 negotiated in B<session>.
 
+These functions cannot be used with QUIC SSL objects.
+SSL_set_max_send_fragment(), SSL_set_max_pipelines(),
+SSL_set_split_send_fragment(), SSL_set_default_read_buffer_len() and
+SSL_set_tlsext_max_fragment_length() fail if called on a QUIC SSL object.
+
 =head1 RETURN VALUES
 
 All non-void functions return 1 on success and 0 on failure.

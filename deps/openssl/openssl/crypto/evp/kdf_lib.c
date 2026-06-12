@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2018-2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -19,6 +19,7 @@
 #include "internal/numbers.h"
 #include "internal/provider.h"
 #include "evp_local.h"
+#include "internal/param_build_set.h"
 
 EVP_KDF_CTX *EVP_KDF_CTX_new(EVP_KDF *kdf)
 {
@@ -142,6 +143,144 @@ int EVP_KDF_derive(EVP_KDF_CTX *ctx, unsigned char *key, size_t keylen,
         return 0;
 
     return ctx->meth->derive(ctx->algctx, key, keylen, params);
+}
+
+struct convert_key {
+    const char *name;
+    OSSL_PARAM *param;
+};
+
+static int convert_key_cb(const OSSL_PARAM params[], void *arg)
+{
+    struct convert_key *ckey = arg;
+    const OSSL_PARAM *raw_bytes;
+    unsigned char *data;
+    size_t len;
+
+    raw_bytes = OSSL_PARAM_locate_const(params, OSSL_SKEY_PARAM_RAW_BYTES);
+    if (raw_bytes == NULL)
+        return 0;
+
+    if (!OSSL_PARAM_get_octet_string_ptr(raw_bytes, (const void **)&data, &len))
+        return 0;
+
+    *ckey->param = OSSL_PARAM_construct_octet_string(ckey->name, data, len);
+    return 1;
+}
+
+int EVP_KDF_CTX_set_SKEY(EVP_KDF_CTX *ctx, EVP_SKEY *key, const char *paramname)
+{
+    struct convert_key ckey;
+    OSSL_PARAM params[2] = {
+        OSSL_PARAM_END,
+        OSSL_PARAM_END,
+    };
+
+    if (ctx == NULL)
+        return 0;
+
+    ckey.name = (paramname != NULL) ? paramname : OSSL_KDF_PARAM_KEY;
+
+    if (ctx->meth->set_skey != NULL && ctx->meth->prov == key->skeymgmt->prov)
+        return ctx->meth->set_skey(ctx->algctx, key->keydata, ckey.name);
+
+    /*
+     * We can't use the opaque key directly.
+     * Let's try to export it and set the ctx params in a traditional manner.
+     */
+    ckey.param = &params[0];
+
+    if (!ctx->meth->set_ctx_params)
+        return 0;
+
+    if (EVP_SKEY_export(key, OSSL_SKEYMGMT_SELECT_SECRET_KEY,
+                        convert_key_cb, &ckey))
+        return ctx->meth->set_ctx_params(ctx->algctx, params);
+
+    return 0;
+}
+
+EVP_SKEY *EVP_KDF_derive_SKEY(EVP_KDF_CTX *ctx, EVP_SKEYMGMT *mgmt,
+                              const char *key_type, const char *propquery,
+                              size_t keylen, const OSSL_PARAM params[])
+{
+    EVP_SKEYMGMT *skeymgmt = NULL;
+    EVP_SKEY *ret = NULL;
+
+    if (ctx == NULL || key_type == NULL) {
+        ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
+        return NULL;
+    }
+
+    if (mgmt != NULL) {
+        skeymgmt = mgmt;
+    } else {
+        skeymgmt = evp_skeymgmt_fetch_from_prov(ctx->meth->prov,
+                                                key_type, propquery);
+        if (skeymgmt == NULL) {
+            /*
+             * The provider does not support skeymgmt, let's try to fallback
+             * to a provider that supports it
+             */
+            skeymgmt = EVP_SKEYMGMT_fetch(ossl_provider_libctx(ctx->meth->prov),
+                                          key_type, propquery);
+        }
+
+        if (skeymgmt == NULL) {
+            ERR_raise(ERR_LIB_EVP, ERR_R_FETCH_FAILED);
+            return NULL;
+        }
+    }
+
+    /* Fallback to raw derive + import if necessary */
+    if (skeymgmt->prov != ctx->meth->prov ||
+        ctx->meth->derive_skey == NULL) {
+        unsigned char *key = NULL;
+        OSSL_PARAM import_params[2] = {OSSL_PARAM_END, OSSL_PARAM_END};
+
+        if (ctx->meth->derive == NULL) {
+            ERR_raise(ERR_R_EVP_LIB, ERR_R_UNSUPPORTED);
+            return NULL;
+        }
+
+        key = OPENSSL_zalloc(keylen);
+        if (!key)
+            return NULL;
+
+        if (!ctx->meth->derive(ctx->algctx, key, keylen, params)) {
+            OPENSSL_free(key);
+            return NULL;
+        }
+        import_params[0] = OSSL_PARAM_construct_octet_string(OSSL_SKEY_PARAM_RAW_BYTES,
+                                                             key, keylen);
+
+        ret = EVP_SKEY_import_SKEYMGMT(ossl_provider_libctx(ctx->meth->prov), skeymgmt,
+                                       OSSL_SKEYMGMT_SELECT_SECRET_KEY, import_params);
+
+        if (mgmt != skeymgmt)
+            EVP_SKEYMGMT_free(skeymgmt);
+
+        OPENSSL_clear_free(key, keylen);
+        return ret;
+    }
+
+    ret = evp_skey_alloc(skeymgmt);
+    if (ret == NULL) {
+        if (mgmt != skeymgmt)
+            EVP_SKEYMGMT_free(skeymgmt);
+        return NULL;
+    }
+
+    ret->keydata = ctx->meth->derive_skey(ctx->algctx, key_type, ossl_provider_ctx(skeymgmt->prov),
+                                          skeymgmt->import, keylen, params);
+    if (ret->keydata == NULL) {
+        EVP_SKEY_free(ret);
+        ret = NULL;
+    }
+
+    if (mgmt != skeymgmt)
+        EVP_SKEYMGMT_free(skeymgmt);
+    return ret;
 }
 
 /*

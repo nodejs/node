@@ -21,6 +21,9 @@ ossl_cmp_msg_add_extraCerts
 ossl_cmp_calc_protection() calculates the protection for the given I<msg>
 according to the algorithm and parameters in the message header's protectionAlg
 using the credentials, library context, and property criteria in the I<ctx>.
+Unless I<msg->header->protectionAlg> is B<PasswordBasedMAC>,
+its value is completed according to I<ctx->pkey> and I<ctx->digest>,
+where the latter irrelevant in the case of Edwards curves.
 
 ossl_cmp_msg_protect() (re-)protects the given message I<msg> using an algorithm
 depending on the available context information given in the I<ctx>.
@@ -38,7 +41,7 @@ of the chain, i.e, the trust anchor (unless it is part of extraCertsOut).
 
 =head1 NOTES
 
-CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+CMP is defined in RFC 9810.
 
 The I<ctx> parameter of ossl_cmp_msg_add_extraCerts()
 and thus also of ossl_cmp_msg_protect() cannot be made I<const>

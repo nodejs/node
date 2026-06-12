@@ -1,0 +1,112 @@
+=pod
+
+=head1 NAME
+
+X509_ACERT_print_ex, X509_ACERT_print
+- X509_ACERT printing routines
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_acert.h>
+
+ int X509_ACERT_print(BIO *bp, X509_ACERT *acert);
+ int X509_ACERT_print_ex(BIO *bp, X509_ACERT *acert, unsigned long nmflags,
+                         unsigned long cflag);
+
+=head1 DESCRIPTION
+
+X509_ACERT_print_ex() prints a human readable version of the attribute
+certificate I<acert> to BIO I<bp>.
+
+The following data contained in the attribute certificate is printed
+in order:
+
+=over 4
+
+=item *
+
+The header text "Attribute certificate:" and "Data:" (X509_FLAG_NO_HEADER)
+
+= item *
+
+The attribute certificate version number as defined by the standard,
+followed in parentheses by the value contained in the version field in
+hexadecimal notation.  If the version number is not a valid value according
+to the specification, only the raw value is printed.
+See X509_ACERT_get_version(3) for details. (X509_FLAG_NO_VERSION)
+
+= item *
+
+The serial number of the attribute certificate (X509_FLAG_NO_SERIAL)
+
+= item *
+
+The identity of the holder of the attribute certificate. If the
+holder issuer name is present, the first GENERAL_NAME
+returned by X509_ACERT_get0_holder_entityName() is printed.
+If the holder baseCertificateId is present, the issuer name
+(printed with X509_NAME_print_ex) and serial number of the
+holder's certificate are displayed. (X509_FLAG_NO_SUBJECT)
+
+= item *
+
+The name of the attribute certificate issuer as returned from
+X509_ACERT_get0_issuerName() and printed using X509_NAME_print_ex().
+(X509_FLAG_NO_ISSUER)
+
+= item *
+
+The period of validity between the times returned from X509_ACERT_get0_notBefore()
+and  X509_ACERT_get0_notAfter().  The values are printed as a generalized times
+using ASN1_GENERALIZEDTIME_print(). (X509_FLAG_NO_VALIDITY)
+
+= item *
+
+The list of attributes contained in the attribute certificate.
+The attribute type is printed with i2a_ASN1_OBJECT().  String valued
+attributes are printed as raw string data. ASN1 encoded values are
+printed with ASN1_parse_dump().  (X509_FLAG_NO_ATTRIBUTES)
+
+= item *
+
+All X.509 extensions contained in the attribute certificate. (X509_FLAG_NO_EXTENSIONS)
+
+= item *
+
+The signature is printed with X509_signature_print(). (X509_FLAG_NO_SIGDUMP)
+
+If I<cflag> is specifies as X509_FLAG_COMPAT, all of the above data in the
+attribute certificate will be printed.
+
+The I<nmflags> flag determines the format used to output all fields printed using
+X509_NAME_print_ex(). See L<X509_NAME_print_ex(3)> for details.
+
+X509_ACERT_print() is equivalent to calling X509_ACERT_print_ex() with the
+I<nmflags> and I<cflags> set to XN_FLAG_COMPAT and X509_FLAG_COMPAT
+respectively.
+
+=back
+
+=head1 RETURN VALUES
+
+X509_ACERT_print_ex() X509_ACERT_print() return 1 for
+success and 0 for failure.
+
+=head1 SEE ALSO
+
+L<X509_NAME_print_ex(3)>
+
+=head1 HISTORY
+
+X509_ACERT_print() and X509_ACERT_print_ex() were added in OpenSSL 3.4.
+
+=head1 COPYRIGHT
+
+Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

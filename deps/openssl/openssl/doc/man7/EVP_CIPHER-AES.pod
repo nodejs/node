@@ -54,6 +54,8 @@ FIPS provider:
 
 =item "AES-128-SIV", "AES-192-SIV" and "AES-256-SIV"
 
+=item "AES-128-GCM-SIV", "AES-192-GCM-SIV" and "AES-256-GCM-SIV"
+
 =back
 
 =head2 Parameters
@@ -78,9 +80,13 @@ stealing (CTS) is used to fill the block.
 
 L<provider-cipher(7)>, L<OSSL_PROVIDER-FIPS(7)>, L<OSSL_PROVIDER-default(7)>
 
+=head1 HISTORY
+
+The GCM-SIV mode ciphers were added in OpenSSL version 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

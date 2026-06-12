@@ -324,10 +324,17 @@ void X509_VERIFY_PARAM_set_auth_level(X509_VERIFY_PARAM *param, int auth_level)
 
 time_t X509_VERIFY_PARAM_get_time(const X509_VERIFY_PARAM *param)
 {
-    return param->check_time;
+    /* This will be in the time_t range, because the only setter uses time_t */
+    return (time_t)param->check_time;
 }
 
 void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t)
+{
+    param->check_time = (int64_t)t;
+    param->flags |= X509_V_FLAG_USE_CHECK_TIME;
+}
+
+void ossl_x509_verify_param_set_time_posix(X509_VERIFY_PARAM *param, int64_t t)
 {
     param->check_time = t;
     param->flags |= X509_V_FLAG_USE_CHECK_TIME;
@@ -462,7 +469,7 @@ char *X509_VERIFY_PARAM_get1_ip_asc(X509_VERIFY_PARAM *param)
     size_t iplen;
     unsigned char *ip = int_X509_VERIFY_PARAM_get0_ip(param, &iplen);
 
-    return ip == NULL ? NULL : ossl_ipaddr_to_asc(ip, iplen);
+    return ip == NULL ? NULL : ossl_ipaddr_to_asc(ip, (int)iplen);
 }
 
 int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,

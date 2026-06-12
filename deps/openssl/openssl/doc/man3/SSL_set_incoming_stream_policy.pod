@@ -1,0 +1,99 @@
+=pod
+
+=head1 NAME
+
+SSL_set_incoming_stream_policy, SSL_INCOMING_STREAM_POLICY_AUTO,
+SSL_INCOMING_STREAM_POLICY_ACCEPT,
+SSL_INCOMING_STREAM_POLICY_REJECT - manage the QUIC incoming stream
+policy
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ #define SSL_INCOMING_STREAM_POLICY_AUTO
+ #define SSL_INCOMING_STREAM_POLICY_ACCEPT
+ #define SSL_INCOMING_STREAM_POLICY_REJECT
+
+ int SSL_set_incoming_stream_policy(SSL *conn, int policy,
+                                           uint64_t app_error_code);
+
+=head1 DESCRIPTION
+
+SSL_set_incoming_stream_policy() policy changes the incoming stream policy for a
+QUIC connection. Depending on the policy configured, OpenSSL QUIC may
+automatically reject incoming streams initiated by the peer. This is intended to
+ensure that legacy applications using single-stream operation with a default
+stream on a QUIC connection SSL object are not passed remotely-initiated streams
+by a peer which those applications are not prepared to handle.
+
+I<app_error_code> is an application error code which will be used in any QUIC
+B<STOP_SENDING> or B<RESET_STREAM> frames generated to implement the policy. The
+default application error code is 0.
+
+The valid values for I<policy> are:
+
+=over 4
+
+=item SSL_INCOMING_STREAM_POLICY_AUTO
+
+This is the default setting. Incoming streams are accepted according to the
+following rules:
+
+=over 4
+
+=item *
+
+If the default stream mode (configured using L<SSL_set_default_stream_mode(3)>)
+is set to B<SSL_DEFAULT_STREAM_MODE_AUTO_BIDI> (the default) or
+B<SSL_DEFAULT_STREAM_MODE_AUTO_UNI>, the incoming stream is rejected.
+
+=item *
+
+Otherwise (where the default stream mode is B<SSL_DEFAULT_STREAM_MODE_NONE>),
+the application is assumed to be stream aware, and the incoming stream is
+accepted.
+
+=back
+
+=item SSL_INCOMING_STREAM_POLICY_ACCEPT
+
+Always accept incoming streams, allowing them to be dequeued using
+L<SSL_accept_stream(3)>.
+
+=item SSL_INCOMING_STREAM_POLICY_REJECT
+
+Always reject incoming streams.
+
+=back
+
+Where an incoming stream is rejected, it is rejected immediately and it is not
+possible to gain access to the stream using L<SSL_accept_stream(3)>. The stream
+is rejected using QUIC B<STOP_SENDING> and B<RESET_STREAM> frames as
+appropriate.
+
+=head1 RETURN VALUES
+
+Returns 1 on success and 0 on failure.
+
+This function fails if called on a QUIC stream SSL object, or on a non-QUIC SSL
+object.
+
+=head1 SEE ALSO
+
+L<SSL_set_default_stream_mode(3)>, L<SSL_accept_stream(3)>
+
+=head1 HISTORY
+
+SSL_set_incoming_stream_policy() was added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

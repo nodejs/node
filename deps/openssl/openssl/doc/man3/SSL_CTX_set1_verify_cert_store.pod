@@ -59,7 +59,7 @@ affected if the parent SSL_CTX store pointer is set to a new value.
 
 The verification store is used to verify the certificate chain sent by the
 peer: that is an SSL/TLS client will use the verification store to verify
-the server's certificate chain and a SSL/TLS server will use it to verify
+the server's certificate chain and an SSL/TLS server will use it to verify
 any client certificate chain.
 
 The chain store is used to build the certificate chain.

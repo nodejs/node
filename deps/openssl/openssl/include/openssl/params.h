@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -156,6 +156,10 @@ void OSSL_PARAM_set_all_unmodified(OSSL_PARAM *p);
 OSSL_PARAM *OSSL_PARAM_dup(const OSSL_PARAM *p);
 OSSL_PARAM *OSSL_PARAM_merge(const OSSL_PARAM *p1, const OSSL_PARAM *p2);
 void OSSL_PARAM_free(OSSL_PARAM *p);
+void OSSL_PARAM_clear_free(OSSL_PARAM *p);
+
+int OSSL_PARAM_set_octet_string_or_ptr(OSSL_PARAM *p, const void *val,
+                                       size_t len);
 
 # ifdef  __cplusplus
 }

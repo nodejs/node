@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#ifndef OPENSSL_NO_DEPRECATED_3_6
 /*
  * This table MUST be kept in ascending order of the NID each method
  * represents (corresponding to the pkey_id field) as OBJ_bsearch
@@ -41,3 +42,4 @@ static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
     &ossl_sm2_asn1_meth,
 #endif
 };
+#endif

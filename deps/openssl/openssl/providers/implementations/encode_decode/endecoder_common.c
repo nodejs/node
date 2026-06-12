@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 #include <openssl/buffer.h>
 #include "internal/asn1.h"
 #include "prov/bio.h"
-#include "endecoder_local.h"
+#include "prov/endecoder_local.h"
 
 OSSL_FUNC_keymgmt_new_fn *
 ossl_prov_get_keymgmt_new(const OSSL_DISPATCH *fns)

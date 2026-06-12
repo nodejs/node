@@ -37,7 +37,6 @@
 # define TOBN(hi,lo)    ((BN_ULONG)hi<<32|lo)
 #endif
 
-#define ALIGNPTR(p,N)   ((unsigned char *)p+N-(size_t)p%N)
 #define P256_LIMBS      (256/BN_BITS2)
 
 typedef unsigned short u16;
@@ -623,14 +622,13 @@ __owur static int ecp_nistz256_windowed_mul(const EC_GROUP *group,
     void *table_storage = NULL;
 
     if ((num * 16 + 6) > OPENSSL_MALLOC_MAX_NELEMS(P256_POINT)
-        || (table_storage =
-            OPENSSL_malloc((num * 16 + 5) * sizeof(P256_POINT) + 64)) == NULL
-        || (p_str =
-            OPENSSL_malloc(num * 33 * sizeof(unsigned char))) == NULL
-        || (scalars = OPENSSL_malloc(num * sizeof(BIGNUM *))) == NULL)
+        || (table =
+            OPENSSL_aligned_alloc_array(num * 16 + 5, sizeof(P256_POINT), 64,
+                                        &table_storage)) == NULL
+        || (p_str = OPENSSL_malloc_array(num, 33)) == NULL
+        || (scalars = OPENSSL_malloc_array(num, sizeof(BIGNUM *))) == NULL)
         goto err;
 
-    table = (void *)ALIGNPTR(table_storage, 64);
     temp = (P256_POINT *)(table + num);
 
     for (i = 0; i < num; i++) {
@@ -816,7 +814,7 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
     size_t w;
 
     PRECOMP256_ROW *preComputedTable = NULL;
-    unsigned char *precomp_storage = NULL;
+    void *precomp_storage = NULL;
 
     /* if there is an old NISTZ256_PRE_COMP object, throw it away */
     EC_pre_comp_free(group);
@@ -856,11 +854,10 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
 
     w = 7;
 
-    if ((precomp_storage =
-         OPENSSL_malloc(37 * 64 * sizeof(P256_POINT_AFFINE) + 64)) == NULL)
+    if ((preComputedTable =
+         OPENSSL_aligned_alloc_array(37 * 64, sizeof(P256_POINT_AFFINE), 64,
+                                     &precomp_storage)) == NULL)
         goto err;
-
-    preComputedTable = (void *)ALIGNPTR(precomp_storage, 64);
 
     P = EC_POINT_new(group);
     T = EC_POINT_new(group);
@@ -1109,11 +1106,11 @@ __owur static int ecp_nistz256_points_mul(const EC_GROUP *group,
          * Without a precomputed table for the generator, it has to be
          * handled like a normal point.
          */
-        new_scalars = OPENSSL_malloc((num + 1) * sizeof(BIGNUM *));
+        new_scalars = OPENSSL_malloc_array(num + 1, sizeof(BIGNUM *));
         if (new_scalars == NULL)
             goto err;
 
-        new_points = OPENSSL_malloc((num + 1) * sizeof(EC_POINT *));
+        new_points = OPENSSL_malloc_array(num + 1, sizeof(EC_POINT *));
         if (new_points == NULL)
             goto err;
 

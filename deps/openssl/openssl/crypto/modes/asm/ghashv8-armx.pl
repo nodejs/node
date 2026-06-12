@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # GHASH for ARMv8 Crypto Extension, 64-bit polynomial multiplication.
@@ -811,7 +811,7 @@ ___
 
 $code.=<<___;
 .rodata
-.asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz  "GHASH for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align  2
 #endif
 ___

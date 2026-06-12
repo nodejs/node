@@ -418,6 +418,8 @@ PROCESSOR= {- $config{processor} -}
 {- dependmagic('build_libs'); -}: build_libs_nodep
 {- dependmagic('build_modules'); -}: build_modules_nodep
 {- dependmagic('build_programs'); -}: build_programs_nodep
+{- dependmagic('build_inst_sw'); -}: build_libs_nodep build_modules_nodep build_inst_programs_nodep copy-utils
+{- dependmagic('build_inst_programs'); -}: build_inst_programs_nodep
 
 build_docs: build_html_docs
 build_html_docs: $(HTMLDOCS1) $(HTMLDOCS3) $(HTMLDOCS5) $(HTMLDOCS7)
@@ -429,6 +431,8 @@ build_libs_nodep: $(LIBS) {- join(" ",map { platform->sharedlib_import($_) // ()
 build_modules_nodep: $(MODULES)
 	@
 build_programs_nodep: $(PROGRAMS) $(SCRIPTS)
+	@
+build_inst_programs_nodep: $(INSTALL_PROGRAMS) $(SCRIPTS)
 	@
 
 # Kept around for backward compatibility
@@ -507,7 +511,7 @@ install_docs: install_html_docs
 uninstall_docs: uninstall_html_docs
 
 {- output_off() if $disabled{fips}; "" -}
-install_fips: build_sw $(INSTALL_FIPSMODULECONF)
+install_fips: build_inst_sw $(INSTALL_FIPSMODULECONF)
 #	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(MODULESDIR)"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)"
@@ -607,7 +611,7 @@ install_runtime_libs: build_libs
 	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_SHLIBPDBS) \
                                         "$(INSTALLTOP)\bin"
 
-install_programs: install_runtime_libs build_programs
+install_programs: install_runtime_libs build_inst_programs
 	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
 	@$(ECHO) "*** Installing runtime programs"
 	@if not "$(INSTALL_PROGRAMS)"=="" \
@@ -841,7 +845,9 @@ EOF
 
           return <<"EOF";
 $args{src}: "$gen0" $deps
+	if exist \$@ attrib -r \$@
 	"\$(PERL)"$perlmodules "$dofile" "-o$target{build_file}" "$gen0"$gen_args > \$@
+	attrib +r \$@
 EOF
       } elsif (grep { $_ eq $gen0 } @{$unified_info{programs}}) {
           #
@@ -1050,8 +1056,10 @@ EOF
                            rel2abs($config{builddir}));
       return <<"EOF";
 $script: $sources configdata.pm
+	if exist $script attrib -r $script
 	"\$(PERL)" "-I\$(BLDDIR)" -Mconfigdata "$dofile" \\
 	    "-o$target{build_file}" $sources > \$@
+	attrib +r $script
 EOF
   }
   sub generatedir {

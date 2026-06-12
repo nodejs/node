@@ -82,6 +82,7 @@ void add_keybag(PKCS12_BUILDER *pb, const unsigned char *bytes, int len,
                 const PKCS12_ATTR *attrs, const PKCS12_ENC *enc);
 void add_secretbag(PKCS12_BUILDER *pb, int secret_nid, const char *secret,
                    const PKCS12_ATTR *attrs);
+void add_extra_attr(PKCS12_BUILDER *pb);
 
 /* Decode/check functions */
 void start_check_pkcs12(PKCS12_BUILDER *pb);

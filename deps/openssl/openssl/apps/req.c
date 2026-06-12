@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -944,9 +944,10 @@ int req_main(int argc, char **argv)
             goto end;
         if (i == 0) {
             BIO_printf(bio_err, "Certificate request self-signature verify failure\n");
-	    goto end;
-        } else /* i > 0 */
+            goto end;
+        } else /* i > 0 */ {
             BIO_printf(bio_out, "Certificate request self-signature verify OK\n");
+        }
     }
 
     if (noout && !text && !modulus && !subject && !pubkey) {
@@ -1418,7 +1419,7 @@ static int build_data(char *text, const char *def, char *value,
         return 1;
     }
 
-    i = strlen(buf);
+    i = (int)strlen(buf);
     if (buf[i - 1] != '\n') {
         BIO_printf(bio_err, "Missing newline at end of input\n");
         return 0;
@@ -1512,9 +1513,9 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
         int len;
 
         if (p != NULL)
-            len = p - gstr;
+            len = (int)(p - gstr);
         else
-            len = strlen(gstr);
+            len = (int)strlen(gstr);
 
         if (strncmp(gstr, "param", len) == 0) {
             expect_paramfile = 1;
@@ -1608,6 +1609,7 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
         *pkeylen = EVP_PKEY_get_bits(param);
         EVP_PKEY_free(param);
     } else {
+#ifndef OPENSSL_NO_DEPRECATED_3_6
         if (keygen_engine != NULL) {
             int pkey_id = get_legacy_pkey_id(app_get0_libctx(), *pkeytype,
                                              keygen_engine);
@@ -1615,9 +1617,12 @@ static EVP_PKEY_CTX *set_keygen_ctx(const char *gstr,
             if (pkey_id != NID_undef)
                 gctx = EVP_PKEY_CTX_new_id(pkey_id, keygen_engine);
         } else {
+#endif
             gctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(),
                                               *pkeytype, app_get0_propq());
+#ifndef OPENSSL_NO_DEPRECATED_3_6
         }
+#endif
     }
 
     if (gctx == NULL) {

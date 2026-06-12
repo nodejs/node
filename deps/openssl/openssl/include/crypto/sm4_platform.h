@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,7 +50,18 @@ void rv64i_zvksed_sm4_encrypt(const unsigned char *in, unsigned char *out,
                               const SM4_KEY *key);
 void rv64i_zvksed_sm4_decrypt(const unsigned char *in, unsigned char *out,
                               const SM4_KEY *key);
-#  endif /* RV64 */
+#  elif (defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64))
+/* Intel x86_64 support */
+#   include "internal/cryptlib.h"
+#   define HWSM4_CAPABLE_X86_64 \
+    ((OPENSSL_ia32cap_P[2] & (1 << 5)) && (OPENSSL_ia32cap_P[5] & (1 << 2)))
+int hw_x86_64_sm4_set_key(const unsigned char *userKey, SM4_KEY *key);
+int hw_x86_64_sm4_set_decryption_key(const unsigned char *userKey, SM4_KEY *key);
+void hw_x86_64_sm4_encrypt(const unsigned char *in, unsigned char *out,
+                           const SM4_KEY *key);
+void hw_x86_64_sm4_decrypt(const unsigned char *in, unsigned char *out,
+                           const SM4_KEY *key);
+#  endif
 # endif /* OPENSSL_CPUID_OBJ */
 
 # if defined(HWSM4_CAPABLE)

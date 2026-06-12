@@ -16,7 +16,7 @@ use OpenSSL::Test::Utils;
 
 setup("test_rsapss");
 
-plan tests => 13;
+plan tests => 18;
 
 #using test/testrsa.pem which happens to be a 512 bit RSA
 ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha1',
@@ -70,9 +70,44 @@ ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
 ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
             '-sha1',
             '-sigopt', 'rsa_padding_mode:pss',
+            '-sigopt', 'rsa_pss_saltlen:auto-digestmax',
+            '-sigopt', 'rsa_mgf1_md:sha512',
+            '-signature', 'testrsapss-restricted.sig',
+            srctop_file('test', 'testrsa.pem')])),
+   "openssl dgst -prverify rsa512bit.pem -sha1 -sigopt rsa_pss_saltlen:auto-digestmax verifies signatures with saltlen > digestlen");
+
+ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
+            '-sha1',
+            '-sigopt', 'rsa_padding_mode:pss',
             '-signature', 'testrsapss-unrestricted.sig',
             srctop_file('test', 'testrsa.pem')])),
    "openssl dgst -prverify [plain RSA key, PSS padding mode, no PSS restrictions]");
+
+ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha1',
+            '-sigopt', 'rsa_padding_mode:pss',
+            '-sigopt', 'rsa_pss_saltlen:auto-digestmax',
+            '-out', 'testrsapss-sha1-autodigestmax.sig',
+            srctop_file('test', 'testrsa.pem')])),
+   "openssl dgst -sign -sha1 -rsa_pss_saltlen:auto-digestmax");
+ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'), '-sha1',
+            '-sigopt', 'rsa_padding_mode:pss',
+            '-sigopt', 'rsa_pss_saltlen:20',
+            '-signature', 'testrsapss-sha1-autodigestmax.sig',
+            srctop_file('test', 'testrsa.pem')])),
+   "openssl dgst -sign -sha1 -rsa_padding_mode:auto-digestmax produces 20 (i.e., digestlen) bits of PSS salt");
+
+ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha256',
+            '-sigopt', 'rsa_padding_mode:pss',
+            '-sigopt', 'rsa_pss_saltlen:auto-digestmax',
+            '-out', 'testrsapss-sha256-autodigestmax.sig',
+            srctop_file('test', 'testrsa.pem')])),
+   "openssl dgst -sign -sha256 -rsa_pss_saltlen:auto-digestmax");
+ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'), '-sha256',
+            '-sigopt', 'rsa_padding_mode:pss',
+            '-sigopt', 'rsa_pss_saltlen:30',
+            '-signature', 'testrsapss-sha256-autodigestmax.sig',
+            srctop_file('test', 'testrsa.pem')])),
+   "openssl dgst -sign rsa512bit.pem -sha256 -rsa_padding_mode:auto-digestmax produces 30 bits of PSS salt (due to 512bit key)");
 
 # Test that RSA-PSS keys are supported by genpkey and rsa commands.
 {

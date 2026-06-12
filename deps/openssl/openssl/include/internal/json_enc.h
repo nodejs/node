@@ -10,6 +10,7 @@
 #ifndef OSSL_JSON_ENC_H
 # define OSSL_JSON_ENC_H
 
+# include <stdbool.h>
 # include <openssl/bio.h>
 
 /*
@@ -194,7 +195,7 @@ void ossl_json_key(OSSL_JSON_ENC *json, const char *key);
 void ossl_json_null(OSSL_JSON_ENC *json);
 
 /* Encode a JSON boolean value. */
-void ossl_json_bool(OSSL_JSON_ENC *json, int value);
+void ossl_json_bool(OSSL_JSON_ENC *json, bool value);
 
 /* Encode a JSON integer from a uint64_t. */
 void ossl_json_u64(OSSL_JSON_ENC *json, uint64_t value);

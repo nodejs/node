@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -115,7 +115,7 @@ static STACK_OF(X509) *load_chain(BIO *fp, int nelem)
             const unsigned char *p = data;
 
             if (!TEST_ptr(cert = d(0, &p, len))
-                    || !TEST_long_eq(p - data, len)) {
+                    || !TEST_long_eq((long)(p - data), len)) {
                 TEST_info("Certificate parsing error");
                 goto err;
             }
@@ -143,7 +143,7 @@ err:
     OPENSSL_free(name);
     OPENSSL_free(header);
     OPENSSL_free(data);
-    sk_X509_pop_free(chain, X509_free);
+    OSSL_STACK_OF_X509_free(chain);
     return NULL;
 }
 
@@ -155,7 +155,7 @@ static char *read_to_eol(BIO *f)
     if (BIO_gets(f, buf, sizeof(buf)) <= 0)
         return NULL;
 
-    n = strlen(buf);
+    n = (int)strlen(buf);
     if (buf[n - 1] != '\n') {
         if (n + 1 == sizeof(buf))
             TEST_error("input too long");
@@ -344,7 +344,7 @@ static int test_tlsafile(SSL_CTX *ctx, const char *base_name,
         }
 
         ok = verify_chain(ssl, chain);
-        sk_X509_pop_free(chain, X509_free);
+        OSSL_STACK_OF_X509_free(chain);
         err = SSL_get_verify_result(ssl);
         /*
          * Peek under the hood, normally TLSA match data is hidden when

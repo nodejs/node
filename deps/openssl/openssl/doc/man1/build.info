@@ -8,6 +8,7 @@ DEPEND[openssl-ciphers.pod]=../perlvars.pm
 DEPEND[openssl-cmds.pod]=../perlvars.pm
 DEPEND[openssl-cmp.pod]=../perlvars.pm
 DEPEND[openssl-cms.pod]=../perlvars.pm
+DEPEND[openssl-configutl.pod]=../perlvars.pm
 DEPEND[openssl-crl2pkcs7.pod]=../perlvars.pm
 DEPEND[openssl-crl.pod]=../perlvars.pm
 DEPEND[openssl-dgst.pod]=../perlvars.pm

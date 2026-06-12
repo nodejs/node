@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -410,7 +410,7 @@ static int dh_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
         dh = (DH *) EVP_PKEY_get0_DH(pkey);
         if (dh == NULL)
             return 0;
-        return ossl_dh_key2buf(dh, arg2, 0, 1);
+        return (int)ossl_dh_key2buf(dh, arg2, 0, 1);
     default:
         return -2;
     }

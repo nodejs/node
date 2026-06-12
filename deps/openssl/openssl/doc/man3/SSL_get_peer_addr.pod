@@ -1,0 +1,57 @@
+=pod
+
+=head1 NAME
+
+SSL_get_peer_addr - obtain the peer address of a QUIC connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get_peer_addr(SSL *ssl, BIO_ADDR *peer_addr);
+
+=head1 DESCRIPTION
+
+SSL_get_peer_addr() retrieves the peer address of a QUIC connection and stores
+it into the B<BIO_ADDR> structure pointed to by I<peer_addr>. The caller must
+supply a valid B<BIO_ADDR> object which will be filled in on success.
+
+This function is only meaningful when called on an SSL object which represents
+a QUIC connection or stream. It is not valid for non-QUIC SSL objects.
+
+=head1 NOTES
+
+The peer address identifies the remote endpoint of a QUIC connection. For UDP
+sockets used by QUIC, the kernel does not maintain a connected peer in the same
+sense as for TCP. Instead, the peer address is tracked in the QUIC connection
+state. SSL_get_peer_addr() provides a way to obtain this address information
+from OpenSSL.
+
+The B<BIO_ADDR> type is an OpenSSL abstraction which can represent
+both IPv4 and IPv6 socket addresses. Applications can get the address
+family via the L<BIO_ADDR(3)> API.
+
+=head1 RETURN VALUES
+
+SSL_get_peer_addr() returns 1 on success. On failure, or if called on an SSL
+object which is not a QUIC SSL object, 0 is returned and I<peer_addr> is left
+unchanged.
+
+=head1 SEE ALSO
+
+L<SSL_accept_connection(3)>, L<SSL_accept_stream(3)>, L<BIO_ADDR(3)>
+
+=head1 HISTORY
+
+This function was added in OpenSSL 4.0.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

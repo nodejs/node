@@ -13,6 +13,9 @@ OSSL_CMP_SRV_genm_cb_t,
 OSSL_CMP_SRV_error_cb_t,
 OSSL_CMP_SRV_pollReq_cb_t,
 OSSL_CMP_SRV_CTX_init,
+OSSL_CMP_SRV_delayed_delivery_cb_t,
+OSSL_CMP_SRV_clean_transaction_cb_t,
+OSSL_CMP_SRV_CTX_init_trans,
 OSSL_CMP_SRV_CTX_get0_cmp_ctx,
 OSSL_CMP_SRV_CTX_get0_custom_ctx,
 OSSL_CMP_SRV_CTX_set_send_unprotected_errors,
@@ -71,6 +74,13 @@ OSSL_CMP_SRV_CTX_set_grant_implicit_confirm
                            OSSL_CMP_SRV_error_cb_t process_error,
                            OSSL_CMP_SRV_certConf_cb_t process_certConf,
                            OSSL_CMP_SRV_pollReq_cb_t process_pollReq);
+ typedef int (*OSSL_CMP_SRV_delayed_delivery_cb_t)(OSSL_CMP_SRV_CTX *srv_ctx,
+                                                   const OSSL_CMP_MSG *req);
+ typedef int (*OSSL_CMP_SRV_clean_transaction_cb_t)(OSSL_CMP_SRV_CTX *srv_ctx,
+                                                    const ASN1_OCTET_STRING *id);
+ int OSSL_CMP_SRV_CTX_init_trans(OSSL_CMP_SRV_CTX *srv_ctx,
+                                 OSSL_CMP_SRV_delayed_delivery_cb_t delay,
+                                 OSSL_CMP_SRV_clean_transaction_cb_t clean);
 
  OSSL_CMP_CTX *OSSL_CMP_SRV_CTX_get0_cmp_ctx(const OSSL_CMP_SRV_CTX *srv_ctx);
  void *OSSL_CMP_SRV_CTX_get0_custom_ctx(const OSSL_CMP_SRV_CTX *srv_ctx);
@@ -97,6 +107,7 @@ which may be due to normal successful end of the transaction or due to an error.
 OSSL_CMP_CTX_server_perform() is an interface to
 OSSL_CMP_SRV_process_request() that can be used by a CMP client
 in the same way as L<OSSL_CMP_MSG_http_perform(3)>.
+In particular, the first parameter I<client_ctx> is the B<OSSL_CMP_CTX> of the client.
 The B<OSSL_CMP_SRV_CTX> must be set as I<transfer_cb_arg> of I<client_ctx>.
 
 OSSL_CMP_SRV_CTX_new() creates and initializes an B<OSSL_CMP_SRV_CTX> structure
@@ -113,6 +124,20 @@ general messages, error messages, and poll requests.
 All arguments except I<srv_ctx> may be NULL.
 If a callback for some message type is not given this means that the respective
 type of CMP message is not supported by the server.
+
+OSSL_CMP_SRV_CTX_init_trans() sets in I<srv_ctx> the optional callback
+functions for initiating delayed delivery and cleaning up a transaction.
+If the <delay> function is NULL then delivery of responses is never delayed.
+Otherwise I<delay> takes a custom server context and a request message as input.
+It must return 1 if delivery of the respective response shall be delayed,
+0 if not, and -1 on error.
+If the <clean> function is NULL then no specific cleanup is performed.
+Otherwise I<clean> takes a custom server context and a transaction ID pointer
+as input, where the pointer is NULL in case a new transaction is being started
+and otherwise provides the ID of the transaction being terminated.
+The <clean> function should reset the respective portions of the state
+and free related memory.
+It must return 1 on success and 0 on error.
 
 OSSL_CMP_SRV_CTX_get0_cmp_ctx() returns the B<OSSL_CMP_CTX> from the I<srv_ctx>.
 
@@ -133,7 +158,7 @@ confirmation of newly enrolled certificates if requested.
 
 =head1 NOTES
 
-CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+CMP is defined in RFC 9810 (and CRMF in RFC 4211).
 
 So far the CMP server implementation is limited to one request per CMP message
 (and consequently to at most one response component per CMP message).
@@ -156,6 +181,10 @@ All other functions return 1 on success, 0 on error.
 =head1 HISTORY
 
 The OpenSSL CMP support was added in OpenSSL 3.0.
+
+OSSL_CMP_SRV_CTX_init_trans()
+supporting delayed delivery of all types of response messages
+was added in OpenSSL 3.3.
 
 =head1 COPYRIGHT
 

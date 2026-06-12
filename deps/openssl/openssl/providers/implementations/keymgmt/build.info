@@ -8,6 +8,7 @@ $ECX_GOAL=../../libdefault.a ../../libfips.a
 $KDF_GOAL=../../libdefault.a ../../libfips.a
 $MAC_GOAL=../../libdefault.a ../../libfips.a
 $RSA_GOAL=../../libdefault.a ../../libfips.a
+$LMS_GOAL=../../libdefault.a ../../libfips.a
 $TEMPLATE_GOAL=../../libtemplate.a
 $ML_DSA_GOAL=../../libdefault.a ../../libfips.a
 $ML_KEM_GOAL=../../libdefault.a ../../libfips.a
@@ -46,6 +47,7 @@ IF[{- !$disabled{'ml-kem'} -}]
     SOURCE[$TLS_ML_KEM_HYBRID_GOAL]=mlx_kmgmt.c
   ENDIF
   SOURCE[$ML_KEM_GOAL]=ml_kem_kmgmt.c
+  DEPEND[ml_kem_kmgmt.o]=../../common/include/prov/der_hkdf.h
 ENDIF
 
 SOURCE[$RSA_GOAL]=rsa_kmgmt.c
@@ -53,6 +55,10 @@ SOURCE[$RSA_GOAL]=rsa_kmgmt.c
 SOURCE[$KDF_GOAL]=kdf_legacy_kmgmt.c
 
 SOURCE[$MAC_GOAL]=mac_legacy_kmgmt.c
+
+IF[{- !$disabled{lms} -}]
+  SOURCE[$LMS_GOAL]=lms_kmgmt.c
+ENDIF
 
 SOURCE[$TEMPLATE_GOAL]=template_kmgmt.c
 

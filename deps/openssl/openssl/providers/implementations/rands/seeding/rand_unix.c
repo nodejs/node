@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -211,7 +211,9 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 #   define OPENSSL_RAND_SEED_DEVRANDOM
 #  endif
 
-#  if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+#  if ((defined(__FreeBSD__) && __FreeBSD_version < 1200061)        \
+       || (defined(__NetBSD__) && __NetBSD_Version < 1000000000))   \
+      && defined(KERN_ARND)
 /*
  * sysctl_random(): Use sysctl() to read a random number from the kernel
  * Returns the number of bytes returned in buf on success, -1 on failure.

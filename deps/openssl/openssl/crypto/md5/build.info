@@ -6,6 +6,7 @@ IF[{- !$disabled{asm} -}]
   $MD5ASM_x86_64=md5-x86_64.s
   $MD5ASM_aarch64=md5-aarch64.S
   $MD5ASM_loongarch64=md5-loongarch64.S
+  $MD5ASM_riscv64=md5_riscv.c md5-riscv64.S md5-riscv64-zbb.S
   $MD5ASM_sparcv9=md5-sparcv9.S
 
   # Now that we have defined all the arch specific variables, use the
@@ -42,6 +43,10 @@ INCLUDE[md5-aarch64.o]=..
 
 GENERATE[md5-loongarch64.S]=asm/md5-loongarch64.pl
 INCLUDE[md5-loongarch64.o]=..
+
+GENERATE[md5-riscv64.S]=asm/md5-riscv64-zbb.pl
+GENERATE[md5-riscv64-zbb.S]=asm/md5-riscv64-zbb.pl zbb
+INCLUDE[md5-riscv64.o]=..  
 
 GENERATE[md5-sparcv9.S]=asm/md5-sparcv9.pl
 INCLUDE[md5-sparcv9.o]=..

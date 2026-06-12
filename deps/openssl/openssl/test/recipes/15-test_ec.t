@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -18,7 +18,7 @@ setup("test_ec");
 
 plan skip_all => 'EC is not supported in this build' if disabled('ec');
 
-plan tests => 15;
+plan tests => 16;
 
 my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 
@@ -33,6 +33,16 @@ subtest 'EC conversions -- private key' => sub {
     tconversion( -type => 'ec', -prefix => 'ec-priv',
                  -in => srctop_file("test","testec-p256.pem") );
 };
+
+SKIP: {
+    skip "SM2 is not supported by this OpenSSL build", 1
+        if disabled("sm2");
+    subtest 'EC conversions -- private key' => sub {
+        tconversion( -type => 'ec', -prefix => 'sm2-priv',
+                     -in => srctop_file("test","testec-sm2.pem") );
+    };
+}
+
 subtest 'EC conversions -- private key PKCS#8' => sub {
     tconversion( -type => 'ec', -prefix => 'ec-pkcs8',
                  -in => srctop_file("test","testec-p256.pem"),
@@ -59,34 +69,38 @@ subtest 'PKEY conversions -- public key' => sub {
                  -args => [ "pkey", "-pubin", "-pubout" ] );
 };
 
-subtest 'Ed25519 conversions -- private key' => sub {
-    tconversion( -type => "pkey", -prefix => "ed25519-pkey-priv",
-                 -in => srctop_file("test", "tested25519.pem") );
-};
-subtest 'Ed25519 conversions -- private key PKCS#8' => sub {
-    tconversion( -type => "pkey", -prefix => "ed25519-pkey-pkcs8",
-                 -in => srctop_file("test", "tested25519.pem"),
-                 -args => ["pkey"] );
-};
-subtest 'Ed25519 conversions -- public key' => sub {
-    tconversion( -type => "pkey", -prefix => "ed25519-pkey-pub",
-                 -in => srctop_file("test", "tested25519pub.pem"),
-                 -args => ["pkey", "-pubin", "-pubout"] );
-};
-subtest 'Ed448 conversions -- private key' => sub {
-    tconversion( -type => "pkey", -prefix => "ed448-pkey-priv",
-                 -in => srctop_file("test", "tested448.pem") );
-};
-subtest 'Ed448 conversions -- private key PKCS#8' => sub {
-    tconversion( -type => "pkey", -prefix => "ed448-pkey-pkcs8",
-                 -in => srctop_file("test", "tested448.pem"),
-                 -args => ["pkey"] );
-};
-subtest 'Ed448 conversions -- public key' => sub {
-    tconversion( -type => "pkey", -prefix => "ed448-pkey-pub",
-                 -in => srctop_file("test", "tested448pub.pem"),
-                 -args => ["pkey", "-pubin", "-pubout"] );
-};
+SKIP: {
+    skip "ECX is not supported by this OpenSSL build", 6
+        if disabled("ecx");
+    subtest 'Ed25519 conversions -- private key' => sub {
+        tconversion( -type => "pkey", -prefix => "ed25519-pkey-priv",
+                     -in => srctop_file("test", "tested25519.pem") );
+    };
+    subtest 'Ed25519 conversions -- private key PKCS#8' => sub {
+        tconversion( -type => "pkey", -prefix => "ed25519-pkey-pkcs8",
+                     -in => srctop_file("test", "tested25519.pem"),
+                     -args => ["pkey"] );
+    };
+    subtest 'Ed25519 conversions -- public key' => sub {
+        tconversion( -type => "pkey", -prefix => "ed25519-pkey-pub",
+                     -in => srctop_file("test", "tested25519pub.pem"),
+                     -args => ["pkey", "-pubin", "-pubout"] );
+    };
+    subtest 'Ed448 conversions -- private key' => sub {
+        tconversion( -type => "pkey", -prefix => "ed448-pkey-priv",
+                     -in => srctop_file("test", "tested448.pem") );
+    };
+    subtest 'Ed448 conversions -- private key PKCS#8' => sub {
+        tconversion( -type => "pkey", -prefix => "ed448-pkey-pkcs8",
+                     -in => srctop_file("test", "tested448.pem"),
+                     -args => ["pkey"] );
+    };
+    subtest 'Ed448 conversions -- public key' => sub {
+        tconversion( -type => "pkey", -prefix => "ed448-pkey-pub",
+                     -in => srctop_file("test", "tested448pub.pem"),
+                     -args => ["pkey", "-pubin", "-pubout"] );
+    };
+}
 
 subtest 'Check loading of fips and non-fips keys' => sub {
     plan skip_all => "FIPS is disabled"

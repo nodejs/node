@@ -48,12 +48,6 @@ my @cmp_server_tests = (
     [ "with polling",             [ "-poll_count", "1"       ], 1 ]
     );
 
-# loader_attic doesn't build on VMS, so we don't test it
-push @cmp_server_tests, (
-    [ "with loader_attic engine", [ "-engine", "loader_attic"], 1 ]
-    )
-    unless disabled('loadereng');
-
 plan tests => @cmp_basic_tests + @cmp_server_tests;
 
 foreach (@cmp_basic_tests) {

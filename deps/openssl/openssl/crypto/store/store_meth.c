@@ -502,3 +502,11 @@ int OSSL_STORE_LOADER_names_do_all(const OSSL_STORE_LOADER *loader,
 
     return 1;
 }
+
+const OSSL_PARAM *
+OSSL_STORE_LOADER_settable_ctx_params(const OSSL_STORE_LOADER *loader)
+{
+    if (loader != NULL && loader->p_settable_ctx_params != NULL)
+        return loader->p_settable_ctx_params(NULL);
+    return NULL;
+}

@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
 
 # Tests from NIST CCM Test Vectors (SP800-38C)
 
-Title = NIST CCM 128 Decryption-Verfication Process Tests
+Title = NIST CCM 128 Decryption-Verification Process Tests
 
 Cipher = aes-128-ccm
 Key = 4ae701103c63deca5b5a3939d7d05992
@@ -2241,7 +2241,7 @@ Plaintext = 4da40b80579c1d9a5309f7efecb7c059a2f914511ca5fc10
 Ciphertext = 1bf0ba0ebb20d8edba59f29a9371750c9c714078f73c335d
 
 
-Title = NIST CCM 192 Decryption-Verfication Process Tests
+Title = NIST CCM 192 Decryption-Verification Process Tests
 
 Cipher = aes-192-ccm
 Key = c98ad7f38b2c7e970c9b965ec87a08208384718f78206c6c
@@ -4474,7 +4474,7 @@ Plaintext = 4da40b80579c1d9a5309f7efecb7c059a2f914511ca5fc10
 Ciphertext = 30c154c616946eccc2e241d336ad33720953e449a0e6b0f0
 
 
-Title = NIST CCM 256 Decryption-Verfication Process Tests
+Title = NIST CCM 256 Decryption-Verification Process Tests
 
 Cipher = aes-256-ccm
 Key = eda32f751456e33195f1f499cf2dc7c97ea127b6d488f211ccc5126fbb24afa6

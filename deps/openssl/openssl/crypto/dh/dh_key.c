@@ -114,7 +114,7 @@ int ossl_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 int DH_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
     int ret = 0, i;
-    volatile size_t npad = 0, mask = 1;
+    volatile int npad = 0, mask = 1;
 
     /* compute the key; ret is constant unless compute_key is external */
 #ifdef FIPS_MODULE
@@ -394,7 +394,7 @@ int ossl_dh_buf2key(DH *dh, const unsigned char *buf, size_t len)
     const BIGNUM *p;
     int ret;
 
-    if ((pubkey = BN_bin2bn(buf, len, NULL)) == NULL)
+    if (len > INT_MAX || (pubkey = BN_bin2bn(buf, (int)len, NULL)) == NULL)
         goto err;
     DH_get0_pqg(dh, &p, NULL, NULL);
     if (p == NULL || BN_num_bytes(p) == 0) {

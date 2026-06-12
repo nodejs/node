@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -171,8 +171,6 @@ int ossl_tdes_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 
 CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_START(ossl_tdes)
-    OSSL_PARAM_uint(OSSL_CIPHER_PARAM_PADDING, NULL),
-    OSSL_PARAM_uint(OSSL_CIPHER_PARAM_NUM, NULL),
     OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK)
 CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_END(ossl_tdes)
 

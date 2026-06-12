@@ -146,7 +146,7 @@ void OPENSSL_cpuid_setup(void)
                         OPENSSL_ia32cap_P[index + 1] = (unsigned int)(vecx >> 32);
                     }
                 }
-                /* skip delimeter */
+                /* skip delimiter */
                 if ((env = ossl_strchr(env, ':')) != NULL)
                     env++;
             } else { /* zeroize the next two indexes */

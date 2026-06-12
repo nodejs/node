@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2004-2014, Akamai Technologies. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -278,7 +278,7 @@ size_t CRYPTO_secure_actual_size(void *ptr)
 #ifndef OPENSSL_NO_SECURE_MEMORY
     size_t actual_size;
 
-    if (!CRYPTO_THREAD_write_lock(sec_malloc_lock))
+    if (!CRYPTO_THREAD_read_lock(sec_malloc_lock))
         return 0;
     actual_size = sh_actual_size(ptr);
     CRYPTO_THREAD_unlock(sec_malloc_lock);
@@ -480,7 +480,7 @@ static int sh_init(size_t size, size_t minsize)
     for (i = sh.bittable_size; i; i >>= 1)
         sh.freelist_size++;
 
-    sh.freelist = OPENSSL_zalloc(sh.freelist_size * sizeof(char *));
+    sh.freelist = OPENSSL_calloc(sh.freelist_size, sizeof(char *));
     OPENSSL_assert(sh.freelist != NULL);
     if (sh.freelist == NULL)
         goto err;
@@ -656,8 +656,8 @@ static void *sh_malloc(size_t size)
         char *temp = sh.freelist[slist];
 
         /* remove from bigger list */
-        OPENSSL_assert(!sh_testbit(temp, slist, sh.bitmalloc));
-        sh_clearbit(temp, slist, sh.bittable);
+        OPENSSL_assert(!sh_testbit(temp, (int)slist, sh.bitmalloc));
+        sh_clearbit(temp, (int)slist, sh.bittable);
         sh_remove_from_list(temp);
         OPENSSL_assert(temp != sh.freelist[slist]);
 
@@ -665,25 +665,25 @@ static void *sh_malloc(size_t size)
         slist++;
 
         /* add to smaller list */
-        OPENSSL_assert(!sh_testbit(temp, slist, sh.bitmalloc));
-        sh_setbit(temp, slist, sh.bittable);
+        OPENSSL_assert(!sh_testbit(temp, (int)slist, sh.bitmalloc));
+        sh_setbit(temp, (int)slist, sh.bittable);
         sh_add_to_list(&sh.freelist[slist], temp);
         OPENSSL_assert(sh.freelist[slist] == temp);
 
         /* split in 2 */
         temp += sh.arena_size >> slist;
-        OPENSSL_assert(!sh_testbit(temp, slist, sh.bitmalloc));
-        sh_setbit(temp, slist, sh.bittable);
+        OPENSSL_assert(!sh_testbit(temp, (int)slist, sh.bitmalloc));
+        sh_setbit(temp, (int)slist, sh.bittable);
         sh_add_to_list(&sh.freelist[slist], temp);
         OPENSSL_assert(sh.freelist[slist] == temp);
 
-        OPENSSL_assert(temp-(sh.arena_size >> slist) == sh_find_my_buddy(temp, slist));
+        OPENSSL_assert(temp-(sh.arena_size >> slist) == sh_find_my_buddy(temp, (int)slist));
     }
 
     /* peel off memory to hand back */
     chunk = sh.freelist[list];
-    OPENSSL_assert(sh_testbit(chunk, list, sh.bittable));
-    sh_setbit(chunk, list, sh.bitmalloc);
+    OPENSSL_assert(sh_testbit(chunk, (int)list, sh.bittable));
+    sh_setbit(chunk, (int)list, sh.bitmalloc);
     sh_remove_from_list(chunk);
 
     OPENSSL_assert(WITHIN_ARENA(chunk));
@@ -706,19 +706,19 @@ static void sh_free(void *ptr)
         return;
 
     list = sh_getlist(ptr);
-    OPENSSL_assert(sh_testbit(ptr, list, sh.bittable));
-    sh_clearbit(ptr, list, sh.bitmalloc);
+    OPENSSL_assert(sh_testbit(ptr, (int)list, sh.bittable));
+    sh_clearbit(ptr, (int)list, sh.bitmalloc);
     sh_add_to_list(&sh.freelist[list], ptr);
 
     /* Try to coalesce two adjacent free areas. */
-    while ((buddy = sh_find_my_buddy(ptr, list)) != NULL) {
-        OPENSSL_assert(ptr == sh_find_my_buddy(buddy, list));
+    while ((buddy = sh_find_my_buddy(ptr, (int)list)) != NULL) {
+        OPENSSL_assert(ptr == sh_find_my_buddy(buddy, (int)list));
         OPENSSL_assert(ptr != NULL);
-        OPENSSL_assert(!sh_testbit(ptr, list, sh.bitmalloc));
-        sh_clearbit(ptr, list, sh.bittable);
+        OPENSSL_assert(!sh_testbit(ptr, (int)list, sh.bitmalloc));
+        sh_clearbit(ptr, (int)list, sh.bittable);
         sh_remove_from_list(ptr);
-        OPENSSL_assert(!sh_testbit(ptr, list, sh.bitmalloc));
-        sh_clearbit(buddy, list, sh.bittable);
+        OPENSSL_assert(!sh_testbit(ptr, (int)list, sh.bitmalloc));
+        sh_clearbit(buddy, (int)list, sh.bittable);
         sh_remove_from_list(buddy);
 
         list--;
@@ -728,8 +728,8 @@ static void sh_free(void *ptr)
         if (ptr > buddy)
             ptr = buddy;
 
-        OPENSSL_assert(!sh_testbit(ptr, list, sh.bitmalloc));
-        sh_setbit(ptr, list, sh.bittable);
+        OPENSSL_assert(!sh_testbit(ptr, (int)list, sh.bitmalloc));
+        sh_setbit(ptr, (int)list, sh.bittable);
         sh_add_to_list(&sh.freelist[list], ptr);
         OPENSSL_assert(sh.freelist[list] == ptr);
     }
@@ -742,7 +742,7 @@ static size_t sh_actual_size(char *ptr)
     OPENSSL_assert(WITHIN_ARENA(ptr));
     if (!WITHIN_ARENA(ptr))
         return 0;
-    list = sh_getlist(ptr);
+    list = (int)sh_getlist(ptr);
     OPENSSL_assert(sh_testbit(ptr, list, sh.bittable));
     return sh.arena_size / (ONE << list);
 }

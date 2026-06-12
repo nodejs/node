@@ -491,6 +491,8 @@ NODEBUG=@
 {- dependmagic('build_libs'); -} : build_libs_nodep
 {- dependmagic('build_modules'); -} : build_modules_nodep
 {- dependmagic('build_programs'); -} : build_programs_nodep
+{- dependmagic('build_inst_sw'); -} : build_libs_nodep, build_modules_nodep, build_inst_programs_nodep
+{- dependmagic('build_inst_programs'); -} : build_inst_programs_nodep
 
 build_generated_pods : $(GENERATED_PODS)
 build_docs : build_html_docs
@@ -500,6 +502,7 @@ build_generated : $(GENERATED_MANDATORY)
 build_libs_nodep : $(LIBS), $(SHLIBS)
 build_modules_nodep : $(MODULES)
 build_programs_nodep : $(PROGRAMS), $(SCRIPTS)
+build_inst_programs_nodep : $(INSTALL_PROGRAMS), $(SCRIPTS)
 
 # Kept around for backward compatibility
 build_apps build_tests : build_programs
@@ -606,7 +609,7 @@ install_docs : install_html_docs
 uninstall_docs : uninstall_html_docs
 
 {- output_off() if $disabled{fips}; "" -}
-install_fips : build_sw $(INSTALL_FIPSMODULECONF)
+install_fips : build_inst_sw $(INSTALL_FIPSMODULECONF)
 	@ WRITE SYS$OUTPUT "*** Installing FIPS module"
 	- CREATE/DIR ossl_installroot:[MODULES{- $target{pointer_size} -}.'arch']
 	- CREATE/DIR/PROT=(S:RWED,O:RWE,G:RE,W:RE) OSSL_DATAROOT:[000000]
@@ -687,7 +690,7 @@ install_runtime_libs : check_INSTALLTOP build_libs
                 @install_shlibs) -}
         @ {- output_on() if $disabled{shared}; "" -} !
 
-install_programs : check_INSTALLTOP install_runtime_libs build_programs
+install_programs : check_INSTALLTOP install_runtime_libs build_inst_programs
         @ {- output_off() if $disabled{apps}; "" -} !
         @ ! Install the main program
         - CREATE/DIR ossl_installroot:[EXE.'arch']
@@ -947,7 +950,9 @@ EOF
       } elsif (-f $inprologue) {
           my $local_scripture .= <<"EOF";
 $outprologue : $inprologue
+	IF F$SEARCH("$outprologue") .EQS. "" SET FILE/PROT=(O:RWD) $outprologue
 	COPY $inprologue $outprologue
+	SET FILE/PROT=(O:RD) $outprologue
 EOF
           $includefile_cache{$outprologue} = $local_scripture;
 
@@ -959,7 +964,9 @@ EOF
       } elsif (-f $inepilogue) {
           my $local_scripture .= <<"EOF";
 $outepilogue : $inepilogue
+	IF F$SEARCH("$outepilogue") .EQS. "" SET FILE/PROT=(O:RWD) $outepilogue
 	COPY $inepilogue $outepilogue
+	SET FILE/PROT=(O:RD) $outepilogue
 EOF
           $includefile_cache{$outepilogue} = $local_scripture;
 
@@ -1113,7 +1120,9 @@ EOF
 
           return <<"EOF";
 $args{src} : $gen0 $deps
+	IF F$SEARCH("\$\@") .EQS. "" SET FILE/PROT=(O:RWD) \$\@
 	\$(PERL)$perlmodules $dofile "-o$target{build_file}" $gen0$gen_args > \$\@
+	SET FILE/PROT=(O:RD) \$\@
 $decc_include_scripture
 EOF
       } elsif (grep { $_ eq $gen0 } @{$unified_info{programs}}) {
@@ -1476,10 +1485,11 @@ EOF
                            rel2abs($config{builddir}));
       return <<"EOF";
 $script : $sources configdata.pm
-        \$(PERL) "-I\$(BLDDIR)" "-Mconfigdata" $dofile -
+	IF F$SEARCH("$script") .EQS. "" SET FILE/PROT=(S:RWED,O:RWED,G:RE,W:RE) $script
+	\$(PERL) "-I\$(BLDDIR)" "-Mconfigdata" $dofile -
 	    "-o$target{build_file}" $sources > $script
-        SET FILE/PROT=(S:RWED,O:RWED,G:RE,W:RE) $script
-        PURGE $script
+	SET FILE/PROT=(S:RWED,O:RE,G:RE,W:RE) $script
+	PURGE $script
 EOF
   }
   ""    # Important!  This becomes part of the template result.

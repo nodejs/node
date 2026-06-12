@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 BaishanCloud. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -78,11 +78,11 @@ static int get_sni_from_client_hello(BIO *bio, char **sni)
             goto end;
         if (type == TLSEXT_TYPE_server_name) {
             if (!TEST_true(PACKET_get_length_prefixed_2(&pkt3, &pkt4))
-                    || !TEST_uint_ne(PACKET_remaining(&pkt4), 0)
+                    || !TEST_size_t_ne(PACKET_remaining(&pkt4), 0)
                     || !TEST_true(PACKET_get_1(&pkt4, &servname_type))
                     || !TEST_uint_eq(servname_type, TLSEXT_NAMETYPE_host_name)
                     || !TEST_true(PACKET_get_length_prefixed_2(&pkt4, &pkt5))
-                    || !TEST_uint_le(PACKET_remaining(&pkt5), TLSEXT_MAXLEN_host_name)
+                    || !TEST_size_t_le(PACKET_remaining(&pkt5), TLSEXT_MAXLEN_host_name)
                     || !TEST_false(PACKET_contains_zero_byte(&pkt5))
                     || !TEST_true(PACKET_strndup(&pkt5, sni)))
                 goto end;

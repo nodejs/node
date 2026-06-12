@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -749,7 +749,7 @@ static int ossltest_aes128_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         memcpy(out, tmpbuf, inl);
     OPENSSL_free(tmpbuf);
 
-    return inl;
+    return (int)inl;
 }
 
 static int ossltest_aes128_gcm_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
@@ -817,7 +817,7 @@ static int ossltest_aes128_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx,
 
             /* pad the payload|hmac */
             plen += SHA_DIGEST_LENGTH;
-            for (l = len - plen - 1; plen < len; plen++)
+            for (l = (unsigned int)(len - plen - 1); plen < len; plen++)
                 out[plen] = l;
         }
     } else {
@@ -840,7 +840,7 @@ static int ossltest_aes128_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx,
 
             /* figure out payload length */
             pad = out[len - 1];
-            maxpad = len - (SHA_DIGEST_LENGTH + 1);
+            maxpad = (unsigned int)(len - (SHA_DIGEST_LENGTH + 1));
             if (pad > maxpad)
                 return 0;
             for (plen = len - pad - 1; plen < len; plen++)

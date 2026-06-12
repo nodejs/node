@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -496,7 +496,7 @@ BIO *OSSL_trace_begin(int category)
             break;
         case CALLBACK_CHANNEL:
             (void)BIO_ctrl(channel, OSSL_TRACE_CTRL_BEGIN,
-                           prefix == NULL ? 0 : strlen(prefix), prefix);
+                           prefix == NULL ? 0 : (int)strlen(prefix), prefix);
             break;
         }
     }
@@ -525,7 +525,7 @@ void OSSL_trace_end(int category, BIO *channel)
             break;
         case CALLBACK_CHANNEL:
             (void)BIO_ctrl(channel, OSSL_TRACE_CTRL_END,
-                           suffix == NULL ? 0 : strlen(suffix), suffix);
+                           suffix == NULL ? 0 : (int)strlen(suffix), suffix);
             break;
         }
         current_channel = NULL;

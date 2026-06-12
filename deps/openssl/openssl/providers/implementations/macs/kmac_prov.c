@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,6 +61,7 @@
 #include "prov/provider_util.h"
 #include "prov/providercommon.h"
 #include "internal/cryptlib.h" /* ossl_assert */
+#include "providers/implementations/macs/kmac_prov.inc"
 
 /*
  * Forward declaration of everything implemented here.  This is not strictly
@@ -186,26 +187,31 @@ static struct kmac_data_st *kmac_new(void *provctx)
     return kctx;
 }
 
+#define kmac_new_list
+
 static void *kmac_fetch_new(void *provctx, const OSSL_PARAM *params)
 {
     struct kmac_data_st *kctx = kmac_new(provctx);
+    struct kmac_new_st p;
     int md_size;
 
     if (kctx == NULL)
         return 0;
-    if (!ossl_prov_digest_load_from_params(&kctx->digest, params,
-                                      PROV_LIBCTX_OF(provctx))) {
-        kmac_free(kctx);
-        return 0;
-    }
+    if (!kmac_new_decoder(params, &p))
+        goto err;
+    if (!ossl_prov_digest_load(&kctx->digest, p.digest, p.propq, p.engine,
+                               PROV_LIBCTX_OF(provctx)))
+        goto err;
 
     md_size = EVP_MD_get_size(ossl_prov_digest_md(&kctx->digest));
-    if (md_size <= 0) {
-        kmac_free(kctx);
-        return 0;
-    }
+    if (md_size <= 0)
+        goto err;
     kctx->out_len = (size_t)md_size;
     return kctx;
+
+err:
+    kmac_free(kctx);
+    return NULL;
 }
 
 static void *kmac128_new(void *provctx)
@@ -389,53 +395,40 @@ static int kmac_final(void *vmacctx, unsigned char *out, size_t *outl,
     return ok;
 }
 
-static const OSSL_PARAM known_gettable_ctx_params[] = {
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_BLOCK_SIZE, NULL),
-    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *kmac_gettable_ctx_params(ossl_unused void *ctx,
                                                   ossl_unused void *provctx)
 {
-    return known_gettable_ctx_params;
+    return kmac_get_ctx_params_list;
 }
 
 static int kmac_get_ctx_params(void *vmacctx, OSSL_PARAM params[])
 {
     struct kmac_data_st *kctx = vmacctx;
-    OSSL_PARAM *p;
+    struct kmac_get_ctx_params_st p;
     int sz;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_SIZE)) != NULL
-            && !OSSL_PARAM_set_size_t(p, kctx->out_len))
+    if (kctx == NULL || !kmac_get_ctx_params_decoder(params, &p))
         return 0;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_BLOCK_SIZE)) != NULL) {
+    if (p.size != NULL && !OSSL_PARAM_set_size_t(p.size, kctx->out_len))
+        return 0;
+
+    if (p.bsize != NULL) {
         sz = EVP_MD_block_size(ossl_prov_digest_md(&kctx->digest));
-        if (!OSSL_PARAM_set_int(p, sz))
+        if (!OSSL_PARAM_set_int(p.bsize, sz))
             return 0;
     }
 
-    if (!OSSL_FIPS_IND_GET_CTX_PARAM(kctx, params))
+    if (!OSSL_FIPS_IND_GET_CTX_FROM_PARAM(kctx, p.ind))
         return 0;
 
     return 1;
 }
 
-static const OSSL_PARAM known_settable_ctx_params[] = {
-    OSSL_PARAM_int(OSSL_MAC_PARAM_XOF, NULL),
-    OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
-    OSSL_PARAM_octet_string(OSSL_MAC_PARAM_KEY, NULL, 0),
-    OSSL_PARAM_octet_string(OSSL_MAC_PARAM_CUSTOM, NULL, 0),
-    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC)
-    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_MAC_PARAM_FIPS_KEY_CHECK)
-    OSSL_PARAM_END
-};
 static const OSSL_PARAM *kmac_settable_ctx_params(ossl_unused void *ctx,
                                                   ossl_unused void *provctx)
 {
-    return known_settable_ctx_params;
+    return kmac_set_ctx_params_list;
 }
 
 /*
@@ -450,25 +443,24 @@ static const OSSL_PARAM *kmac_settable_ctx_params(ossl_unused void *ctx,
 static int kmac_set_ctx_params(void *vmacctx, const OSSL_PARAM *params)
 {
     struct kmac_data_st *kctx = vmacctx;
-    const OSSL_PARAM *p;
+    struct kmac_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!OSSL_FIPS_IND_SET_CTX_PARAM(kctx, OSSL_FIPS_IND_SETTABLE0, params,
-                                     OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC))
-        return 0;
-    if (!OSSL_FIPS_IND_SET_CTX_PARAM(kctx, OSSL_FIPS_IND_SETTABLE1, params,
-                                     OSSL_MAC_PARAM_FIPS_KEY_CHECK))
+    if (kctx == NULL || !kmac_set_ctx_params_decoder(params, &p))
         return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_XOF)) != NULL
-        && !OSSL_PARAM_get_int(p, &kctx->xof_mode))
+    if (!OSSL_FIPS_IND_SET_CTX_FROM_PARAM(kctx, OSSL_FIPS_IND_SETTABLE0,
+                                          p.ind_sht))
         return 0;
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_SIZE)) != NULL) {
+    if (!OSSL_FIPS_IND_SET_CTX_FROM_PARAM(kctx, OSSL_FIPS_IND_SETTABLE1, p.ind_k))
+        return 0;
+
+    if (p.xof != NULL && !OSSL_PARAM_get_int(p.xof, &kctx->xof_mode))
+        return 0;
+
+    if (p.size != NULL) {
         size_t sz = 0;
 
-        if (!OSSL_PARAM_get_size_t(p, &sz))
+        if (!OSSL_PARAM_get_size_t(p.size, &sz))
             return 0;
         if (sz > KMAC_MAX_OUTPUT_LEN) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
@@ -488,19 +480,24 @@ static int kmac_set_ctx_params(void *vmacctx, const OSSL_PARAM *params)
 #endif
         kctx->out_len = sz;
     }
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_KEY)) != NULL
-            && !kmac_setkey(kctx, p->data, p->data_size))
-        return 0;
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_CUSTOM))
-        != NULL) {
-        if (p->data_size > KMAC_MAX_CUSTOM) {
+
+    if (p.key != NULL)
+        if (p.key->data_type != OSSL_PARAM_OCTET_STRING
+                || !kmac_setkey(kctx, p.key->data, p.key->data_size))
+            return 0;
+
+    if (p.custom != NULL) {
+        if (p.custom->data_type != OSSL_PARAM_OCTET_STRING)
+            return 0;
+        if (p.custom->data_size > KMAC_MAX_CUSTOM) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_CUSTOM_LENGTH);
             return 0;
         }
         if (!encode_string(kctx->custom, sizeof(kctx->custom), &kctx->custom_len,
-                           p->data, p->data_size))
+                           p.custom->data, p.custom->data_size))
             return 0;
     }
+
     return 1;
 }
 
@@ -599,9 +596,9 @@ static int bytepad(unsigned char *out, size_t *out_len,
                    const unsigned char *in1, size_t in1_len,
                    const unsigned char *in2, size_t in2_len, size_t w)
 {
-    int len;
+    size_t len;
     unsigned char *p = out;
-    int sz = w;
+    size_t sz = w;
 
     if (out == NULL) {
         if (out_len == NULL) {

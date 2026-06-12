@@ -1,0 +1,45 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('aes_cbc_hmac_sha_set_ctx_params',
+                         (['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_MAX_SEND_FRAGMENT',
+                           'maxfrag',  'size_t',       "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_AAD',
+                           'mb_aad',   'size_t',       "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_INTERLEAVE',
+                           'ileave',   'uint',         "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC',
+                           'enc',      'octet_string', "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC_IN',
+                           'enc_in',   'octet_string', "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_AEAD_MAC_KEY',  'key',    'octet_string'],
+                          ['OSSL_CIPHER_PARAM_AEAD_TLS1_AAD', 'tlsaad', 'octet_string'],
+                          ['OSSL_CIPHER_PARAM_KEYLEN',        'keylen', 'size_t'],
+                          ['OSSL_CIPHER_PARAM_TLS_VERSION',   'tlsver', 'uint' ],
+                         )); -}
+
+{- produce_param_decoder('aes_cbc_hmac_sha_get_ctx_params',
+                         (['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_MAX_BUFSIZE',
+                           'max',     'size_t', "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_INTERLEAVE',
+                           'inter',   'uint',   "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_AAD_PACKLEN',
+                           'packlen', 'uint',   "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_TLS1_MULTIBLOCK_ENC_LEN',
+                           'enclen',  'size_t', "#if !defined(OPENSSL_NO_MULTIBLOCK)"],
+                          ['OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD', 'pad',    'size_t'],
+                          ['OSSL_CIPHER_PARAM_KEYLEN',            'keylen', 'size_t'],
+                          ['OSSL_CIPHER_PARAM_IVLEN',             'ivlen',  'size_t'],
+                          ['OSSL_CIPHER_PARAM_IV',                'iv',     'octet_string'],
+                          ['OSSL_CIPHER_PARAM_UPDATED_IV',        'upd_iv', 'octet_string'],
+                         )); -}

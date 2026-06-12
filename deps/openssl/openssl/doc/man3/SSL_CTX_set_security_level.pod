@@ -75,33 +75,31 @@ OpenSSL.
 The security level corresponds to a minimum of 80 bits of security. Any
 parameters offering below 80 bits of security are excluded. As a result RSA,
 DSA and DH keys shorter than 1024 bits and ECC keys shorter than 160 bits
-are prohibited. All export cipher suites are prohibited since they all offer
-less than 80 bits of security. SSL version 2 is prohibited. Any cipher suite
-using MD5 for the MAC is also prohibited. Note that signatures using SHA1
-and MD5 are also forbidden at this level as they have less than 80 security
-bits.
+are prohibited. Any cipher suite using MD5 for the MAC is also prohibited. Any
+cipher suites using CCM with a 64 bit authentication tag are prohibited. Note
+that signatures using SHA1 and MD5 are also forbidden at this level as they
+have less than 80 security bits. Additionally, SSLv3, TLS 1.0, TLS 1.1 and
+DTLS 1.0 are all disabled at this level.
 
 =item B<Level 2>
 
 Security level set to 112 bits of security. As a result RSA, DSA and DH keys
 shorter than 2048 bits and ECC keys shorter than 224 bits are prohibited.
 In addition to the level 1 exclusions any cipher suite using RC4 is also
-prohibited. SSL version 3 is also not allowed. Compression is disabled.
+prohibited. Compression is disabled.
 
 =item B<Level 3>
 
 Security level set to 128 bits of security. As a result RSA, DSA and DH keys
 shorter than 3072 bits and ECC keys shorter than 256 bits are prohibited.
 In addition to the level 2 exclusions cipher suites not offering forward
-secrecy are prohibited. TLS versions below 1.1 are not permitted. Session
-tickets are disabled.
+secrecy are prohibited. Session tickets are disabled.
 
 =item B<Level 4>
 
 Security level set to 192 bits of security. As a result RSA, DSA and
 DH keys shorter than 7680 bits and ECC keys shorter than 384 bits are
-prohibited.  Cipher suites using SHA1 for the MAC are prohibited. TLS
-versions below 1.2 are not permitted.
+prohibited.  Cipher suites using SHA1 for the MAC are prohibited.
 
 =item B<Level 5>
 
@@ -117,7 +115,7 @@ I<Documentation to be provided.>
 =head1 NOTES
 
 The default security level can be configured when OpenSSL is compiled by
-setting B<-DOPENSSL_TLS_SECURITY_LEVEL=level>. If not set then 1 is used.
+setting B<-DOPENSSL_TLS_SECURITY_LEVEL=level>. If not set then 2 is used.
 
 The security framework disables or reject parameters inconsistent with the
 set security level. In the past this was difficult as applications had to set
@@ -181,7 +179,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

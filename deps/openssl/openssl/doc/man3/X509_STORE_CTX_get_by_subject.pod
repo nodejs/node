@@ -1,0 +1,51 @@
+=pod
+
+=head1 NAME
+
+X509_STORE_CTX_get_by_subject,
+X509_STORE_CTX_get_obj_by_subject
+- X509 and X509_CRL lookup functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_vfy.h>
+
+ int X509_STORE_CTX_get_by_subject(const X509_STORE_CTX *vs,
+                                   X509_LOOKUP_TYPE type,
+                                   const X509_NAME *name, X509_OBJECT *ret);
+ X509_OBJECT *X509_STORE_CTX_get_obj_by_subject(X509_STORE_CTX *vs,
+                                                X509_LOOKUP_TYPE type,
+                                                const X509_NAME *name);
+
+=head1 DESCRIPTION
+
+X509_STORE_CTX_get_by_subject() tries to find an object
+of given I<type>, which may be B<X509_LU_X509> or B<X509_LU_CRL>,
+and subject I<name> from the store in the provided store context I<vs>.
+If found and I<ret> is not NULL, it increments the reference count and
+stores the looked up object in I<ret>.
+
+X509_STORE_CTX_get_obj_by_subject() is like X509_STORE_CTX_get_by_subject()
+but returns the found object on success, else NULL.
+
+=head1 RETURN VALUES
+
+X509_STORE_CTX_get_by_subject() returns 1 if the lookup was successful, else 0.
+
+X509_STORE_CTX_get_obj_by_subject() returns an object on success, else NULL.
+
+=head1 SEE ALSO
+
+L<X509_LOOKUP_meth_set_get_by_subject(3)>,
+L<X509_LOOKUP_by_subject(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

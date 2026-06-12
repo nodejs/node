@@ -30,12 +30,15 @@
 #include <openssl/buffer.h>
 #include <openssl/err.h>
 #include <openssl/asn1err.h>
+#include <openssl/proverr.h>
+#include "internal/cryptlib.h"
 #include <openssl/params.h>
 #include "internal/asn1.h"
 #include "internal/sizes.h"
 #include "crypto/pem.h"          /* For internal PVK and "blob" headers */
 #include "prov/bio.h"
-#include "file_store_local.h"
+#include "prov/file_store_local.h"
+#include "providers/implementations/storemgmt/file_store_any2obj.inc"
 
 /*
  * newctx and freectx are not strictly necessary.  However, the method creator,
@@ -68,13 +71,16 @@ static void any2obj_freectx(void *ctx)
 static int any2obj_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     struct any2obj_ctx_st *ctx = vctx;
-    const OSSL_PARAM *p;
+    struct any2obj_set_ctx_params_st p;
     char *str;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_OBJECT_PARAM_DATA_STRUCTURE);
+    if (ctx == NULL || !any2obj_set_ctx_params_decoder(params, &p))
+        return 0;
+
     str = ctx->data_structure;
-    if (p != NULL
-        && !OSSL_PARAM_get_utf8_string(p, &str, sizeof(ctx->data_structure)))
+    if (p.datastruct != NULL
+        && !OSSL_PARAM_get_utf8_string(p.datastruct, &str,
+                                       sizeof(ctx->data_structure)))
         return 0;
 
     return 1;
@@ -82,11 +88,7 @@ static int any2obj_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
 static const OSSL_PARAM *any2obj_settable_ctx_params(ossl_unused void *provctx)
 {
-    static const OSSL_PARAM settables[] = {
-        OSSL_PARAM_utf8_string(OSSL_OBJECT_PARAM_DATA_STRUCTURE, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return settables;
+    return any2obj_set_ctx_params_list;
 }
 
 static int any2obj_decode_final(void *vctx, int objtype, const char *input_type,
@@ -176,12 +178,11 @@ static int msblob2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[0], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[0], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
     if (!ok)
         goto next;
-
 
     ERR_set_mark();
     p = (unsigned char *)&mem->data[0];
@@ -198,7 +199,7 @@ static int msblob2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[mem_len], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[mem_len], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
 
@@ -245,12 +246,11 @@ static int pvk2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[0], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[0], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
     if (!ok)
         goto next;
-
 
     ERR_set_mark();
     p = (unsigned char *)&mem->data[0];
@@ -267,7 +267,7 @@ static int pvk2obj_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     }
 
     ERR_set_mark();
-    ok = BIO_read(in, &mem->data[mem_len], mem_want) == (int)mem_want;
+    ok = BIO_read(in, &mem->data[mem_len], (int)mem_want) == (int)mem_want;
     mem_len += mem_want;
     ERR_pop_to_mark();
 

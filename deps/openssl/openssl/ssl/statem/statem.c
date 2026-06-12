@@ -547,7 +547,7 @@ static int grow_init_buf(SSL_CONNECTION *s, size_t size) {
 
     size_t msg_offset = (char *)s->init_msg - s->init_buf->data;
 
-    if (!BUF_MEM_grow_clean(s->init_buf, (int)size))
+    if (!BUF_MEM_grow_clean(s->init_buf, size))
         return 0;
 
     if (size < msg_offset)

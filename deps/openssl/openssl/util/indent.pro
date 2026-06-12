@@ -123,6 +123,7 @@
 -T CMAC_CTX
 -T CMS_AuthenticatedData
 -T CMS_CertificateChoices
+-T CMS_CMSORIforKEMOtherInfo
 -T CMS_CompressedData
 -T CMS_ContentInfo
 -T CMS_DigestedData
@@ -133,6 +134,7 @@
 -T CMS_IssuerAndSerialNumber
 -T CMS_KEKIdentifier
 -T CMS_KEKRecipientInfo
+-T CMS_KEMRecipientInfo
 -T CMS_KeyAgreeRecipientIdentifier
 -T CMS_KeyAgreeRecipientInfo
 -T CMS_KeyTransRecipientInfo

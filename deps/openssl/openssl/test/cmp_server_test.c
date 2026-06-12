@@ -76,6 +76,7 @@ static int execute_test_handle_request(CMP_SRV_TEST_FIXTURE *fixture)
     if (!TEST_true(OSSL_CMP_SRV_CTX_init(ctx, dummy_custom_ctx,
                                          process_cert_request, NULL, NULL,
                                          NULL, NULL, NULL))
+        || !TEST_true(OSSL_CMP_SRV_CTX_init_trans(ctx, NULL, NULL))
         || !TEST_ptr(custom_ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx(ctx))
         || !TEST_int_eq(strcmp(custom_ctx, dummy_custom_ctx), 0))
         goto end;

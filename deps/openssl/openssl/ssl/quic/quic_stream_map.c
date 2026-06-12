@@ -1,5 +1,5 @@
 /*
-* Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+* Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
 *
 * Licensed under the Apache License 2.0 (the "License").  You may not use
 * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,7 @@
 
 #include "internal/quic_stream_map.h"
 #include "internal/nelem.h"
+#include "internal/quic_channel.h"
 
 /*
  * QUIC Stream Map
@@ -92,7 +93,7 @@ int ossl_quic_stream_map_init(QUIC_STREAM_MAP *qsm,
                               void *get_stream_limit_cb_arg,
                               QUIC_RXFC *max_streams_bidi_rxfc,
                               QUIC_RXFC *max_streams_uni_rxfc,
-                              int is_server)
+                              QUIC_CHANNEL *ch)
 {
     qsm->map = lh_QUIC_STREAM_new(hash_stream, cmp_stream);
     qsm->active_list.prev = qsm->active_list.next = &qsm->active_list;
@@ -111,7 +112,7 @@ int ossl_quic_stream_map_init(QUIC_STREAM_MAP *qsm,
     qsm->get_stream_limit_cb_arg    = get_stream_limit_cb_arg;
     qsm->max_streams_bidi_rxfc      = max_streams_bidi_rxfc;
     qsm->max_streams_uni_rxfc       = max_streams_uni_rxfc;
-    qsm->is_server                  = is_server;
+    qsm->ch                         = ch;
     return 1;
 }
 
@@ -156,7 +157,7 @@ QUIC_STREAM *ossl_quic_stream_map_alloc(QUIC_STREAM_MAP *qsm,
 
     s->id           = stream_id;
     s->type         = type;
-    s->as_server    = qsm->is_server;
+    s->as_server    = ossl_quic_channel_is_server(qsm->ch);
     s->send_state   = (ossl_quic_stream_is_local_init(s)
                        || ossl_quic_stream_is_bidi(s))
         ? QUIC_SSTREAM_STATE_READY
@@ -329,7 +330,7 @@ void ossl_quic_stream_map_update_state(QUIC_STREAM_MAP *qsm, QUIC_STREAM *s)
 {
     int should_be_active, allowed_by_stream_limit = 1;
 
-    if (ossl_quic_stream_is_server_init(s) == qsm->is_server) {
+    if (ossl_quic_stream_is_server_init(s) == ossl_quic_channel_is_server(qsm->ch)) {
         int is_uni = !ossl_quic_stream_is_bidi(s);
         uint64_t stream_ordinal = s->id >> 2;
 
@@ -425,6 +426,14 @@ static void shutdown_flush_done(QUIC_STREAM_MAP *qsm, QUIC_STREAM *qs)
     assert(qsm->num_shutdown_flush > 0);
     qs->shutdown_flush = 0;
     --qsm->num_shutdown_flush;
+
+    /*
+     * when num_shutdown_flush becomes zero we need to poke
+     * SSL_poll() it's time to poke to SSL_shutdown() to proceed
+     * with shutdown process as all streams are gone (flushed).
+     */
+    if (qsm->num_shutdown_flush == 0)
+        ossl_quic_channel_notify_flush_done(qsm->ch);
 }
 
 int ossl_quic_stream_map_notify_totally_acked(QUIC_STREAM_MAP *qsm,
@@ -732,6 +741,24 @@ int ossl_quic_stream_map_schedule_stop_sending(QUIC_STREAM_MAP *qsm, QUIC_STREAM
 QUIC_STREAM *ossl_quic_stream_map_peek_accept_queue(QUIC_STREAM_MAP *qsm)
 {
     return accept_head(&qsm->accept_list);
+}
+
+QUIC_STREAM *ossl_quic_stream_map_find_in_accept_queue(QUIC_STREAM_MAP *qsm,
+                                                       int is_uni)
+{
+    QUIC_STREAM *qs;
+
+    if (ossl_quic_stream_map_get_accept_queue_len(qsm, is_uni) == 0)
+        return NULL;
+
+    qs = ossl_quic_stream_map_peek_accept_queue(qsm);
+    while (qs != NULL) {
+        if ((is_uni && !ossl_quic_stream_is_bidi(qs))
+            || (!is_uni && ossl_quic_stream_is_bidi(qs)))
+            break;
+        qs = accept_next(&qsm->accept_list, qs);
+    }
+    return qs;
 }
 
 void ossl_quic_stream_map_push_accept_queue(QUIC_STREAM_MAP *qsm,

@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,8 +45,14 @@ extern "C" {
 
 # define PKCS12_MAC_KEY_LENGTH 20
 
-/* The macro is expected to be used only internally. Kept for backwards compatibility. */
-# define PKCS12_SALT_LEN 8
+/*
+ * The macro is expected to be used only internally. Kept for
+ * backwards compatibility. NIST requires 16, previous value was
+ * 8. Allow to override this at compile time.
+ */
+# ifndef PKCS12_SALT_LEN
+#  define PKCS12_SALT_LEN 16
+# endif
 
 /* It's not clear if these are actually needed... */
 # define PKCS12_key_gen PKCS12_key_gen_utf8

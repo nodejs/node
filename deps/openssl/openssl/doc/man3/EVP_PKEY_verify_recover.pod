@@ -3,7 +3,7 @@
 =head1 NAME
 
 EVP_PKEY_verify_recover_init, EVP_PKEY_verify_recover_init_ex,
-EVP_PKEY_verify_recover
+EVP_PKEY_verify_recover_init_ex2, EVP_PKEY_verify_recover
 - recover signature using a public key algorithm
 
 =head1 SYNOPSIS
@@ -13,6 +13,8 @@ EVP_PKEY_verify_recover
  int EVP_PKEY_verify_recover_init(EVP_PKEY_CTX *ctx);
  int EVP_PKEY_verify_recover_init_ex(EVP_PKEY_CTX *ctx,
                                      const OSSL_PARAM params[]);
+ int EVP_PKEY_verify_recover_init_ex2(EVP_PKEY_CTX *ctx, EVP_SIGNATURE *algo,
+                                      const OSSL_PARAM params[]);
  int EVP_PKEY_verify_recover(EVP_PKEY_CTX *ctx,
                              unsigned char *rout, size_t *routlen,
                              const unsigned char *sig, size_t siglen);
@@ -28,6 +30,14 @@ for more information about implicit fetches.
 EVP_PKEY_verify_recover_init_ex() is the same as
 EVP_PKEY_verify_recover_init() but additionally sets the passed parameters
 I<params> on the context before returning.
+
+EVP_PKEY_verify_recover_init_ex2() is the same as EVP_PKEY_verify_recover_init_ex(),
+but works with an explicitly fetched B<EVP_SIGNATURE> I<algo>.
+A context I<ctx> without a pre-loaded key cannot be used with this function.
+Depending on what algorithm was fetched, certain details revolving around the
+treatment of the input to EVP_PKEY_verify() may be pre-determined, and in that
+case, those details may normally not be changed.
+See L</NOTES> below for a deeper explanation.
 
 The EVP_PKEY_verify_recover() function recovers signed data
 using I<ctx>. The signature is specified using the I<sig> and
@@ -50,6 +60,10 @@ in this way (for example RSA in PKCS padding mode).
 After the call to EVP_PKEY_verify_recover_init() algorithm specific control
 operations can be performed to set any appropriate parameters for the
 operation.
+
+After the call to EVP_PKEY_verify_recover_init_ex2(), algorithm specific control
+operations may not be needed if the chosen algorithm implies that those controls
+pre-set (and immutable).
 
 The function EVP_PKEY_verify_recover() can be called more than once on the same
 context if several operations are performed using the same parameters.
@@ -118,7 +132,7 @@ The EVP_PKEY_verify_recover_init_ex() function was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

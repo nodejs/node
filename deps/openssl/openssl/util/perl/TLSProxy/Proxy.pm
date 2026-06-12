@@ -124,10 +124,10 @@ sub init
     my $test_client_port;
 
     # Sometimes, our random selection of client ports gets unlucky
-    # And we randomly select a port thats already in use.  This causes
+    # And we randomly select a port that's already in use.  This causes
     # this test to fail, so lets harden ourselves against that by doing
     # a test bind to the randomly selected port, and only continue once we
-    # find a port thats available.
+    # find a port that's available.
     my $test_client_addr = $have_IPv6 ? "[::1]" : "127.0.0.1";
     my $found_port = 0;
     for (my $i = 0; $i <= 10; $i++) {
@@ -275,6 +275,16 @@ sub start
     my ($self) = shift;
     my $pid;
 
+    #
+    # s390x is a somewhat special case here.  It uses hw acceleration under
+    # the covers when computing MACs, and in so doing avoids the use of the
+    # needed ossltest provider when computing the underlying digest.  Since
+    # TLSProxy needs the ossltest provider to compute reliable known data in
+    # the digest, we disable MAC hw acceleration here to ensure that the provider
+    # gets used, just as it does with other architectures.
+    #
+    $ENV{OPENSSL_s390xcap} = "kmac:~0:~f000";
+
     # Create the Proxy socket
     my $proxaddr = $self->{proxy_addr};
     $proxaddr =~ s/[\[\]]//g; # Remove [ and ]
@@ -318,7 +328,7 @@ sub start
     }
 
     my $execcmd = $self->execute
-        ." s_server -no_comp -engine ossltest -state"
+        ." s_server -no_comp -provider=p_ossltest -provider=default -propquery ?provider=p_ossltest -state"
         #In TLSv1.3 we issue two session tickets. The default session id
         #callback gets confused because the ossltest engine causes the same
         #session id to be created twice due to the changed random number
@@ -423,7 +433,7 @@ sub clientstart
     if ($self->execute) {
         my $pid;
         my $execcmd = $self->execute
-             ." s_client -engine ossltest"
+             ." s_client -provider=p_ossltest -provider=default -propquery ?provider=p_ossltest"
              ." -connect $self->{proxy_addr}:$self->{proxy_port}";
         if ($self->{isdtls}) {
             $execcmd .= " -dtls -max_protocol DTLSv1.2"

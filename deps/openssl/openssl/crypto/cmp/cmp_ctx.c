@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -9,16 +9,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <openssl/trace.h>
-#include <openssl/bio.h>
-#include <openssl/ocsp.h> /* for OCSP_REVOKED_STATUS_* */
-
 #include "cmp_local.h"
-
-/* explicit #includes not strictly needed since implied by the above: */
-#include <openssl/cmp.h>
-#include <openssl/crmf.h>
-#include <openssl/err.h>
+#include <openssl/ocsp.h> /* for OCSP_REVOKED_STATUS_* */
 
 #define DEFINE_OSSL_CMP_CTX_get0(FIELD, TYPE) \
     DEFINE_OSSL_CMP_CTX_get0_NAME(FIELD, FIELD, TYPE)

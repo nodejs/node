@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,16 +27,16 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     unsigned char *data = NULL;
     long outlen;
 
-    if (len <= 1)
+    if (len <= 1 || len > INT_MAX)
         return 0;
 
     in = BIO_new(BIO_s_mem());
-    OPENSSL_assert((size_t)BIO_write(in, buf + 1, len - 1) == len - 1);
+    OPENSSL_assert((size_t)BIO_write(in, buf + 1, (int)(len - 1)) == len - 1);
     if (PEM_read_bio_ex(in, &name, &header, &data, &outlen, buf[0]) == 1) {
-	/* Try to read all the data we get to see if allocated properly. */
-        BIO_write(in, name, strlen(name));
-	BIO_write(in, header, strlen(header));
-	BIO_write(in, data, outlen);
+        /* Try to read all the data we get to see if allocated properly. */
+        BIO_write(in, name, (int)strlen(name));
+        BIO_write(in, header, (int)strlen(header));
+        BIO_write(in, data, outlen);
     }
     if (buf[0] & PEM_FLAG_SECURE) {
         OPENSSL_secure_free(name);

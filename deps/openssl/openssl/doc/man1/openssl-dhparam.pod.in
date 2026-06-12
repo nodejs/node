@@ -17,6 +17,8 @@ B<openssl dhparam>
 [B<-check>]
 [B<-noout>]
 [B<-text>]
+[B<-verbose>]
+[B<-quiet>]
 [B<-2>]
 [B<-3>]
 [B<-5>]
@@ -48,26 +50,27 @@ See L<openssl-format-options(1)> for details.
 
 =item B<-in> I<filename>
 
-This specifies the input filename to read parameters from or standard input if
+This specifies the input file to read parameters from or standard input if
 this option is not specified.
 
 =item B<-out> I<filename>
 
-This specifies the output filename parameters to. Standard output is used
-if this option is not present. The output filename should B<not> be the same
-as the input filename.
+This specifies the output file to write parameters to.
+Standard output is used if this option is not present.
+The output filename can be the same as the input filename,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
 
 =item B<-dsaparam>
 
 If this option is used, DSA rather than DH parameters are read or created;
-they are converted to DH format.  Otherwise, "strong" primes (such
+they are converted to DH format.  Otherwise, safe primes (such
 that (p-1)/2 is also prime) will be used for DH parameter generation.
 
-DH parameter generation with the B<-dsaparam> option is much faster,
-and the recommended exponent length is shorter, which makes DH key
-exchange more efficient.  Beware that with such DSA-style DH
-parameters, a fresh DH key should be created for each use to
-avoid small-subgroup attacks that may be possible otherwise.
+DH parameter generation with the B<-dsaparam> option is much faster.
+Beware that with such DSA-style DH parameters, a fresh DH key should be
+created for each use to avoid small-subgroup attacks that may be possible
+otherwise.
 
 =item B<-check>
 
@@ -103,6 +106,16 @@ This option prints out the DH parameters in human readable form.
 {- $OpenSSL::safe::opt_r_item -}
 
 {- $OpenSSL::safe::opt_provider_item -}
+
+=item B<-verbose>
+
+This option enables the output of progress messages, which is handy when
+running commands interactively that may take a long time to execute.
+
+=item B<-quiet>
+
+This option suppresses the output of progress messages, which may be
+undesirable in batch scripts or pipelines.
 
 =back
 

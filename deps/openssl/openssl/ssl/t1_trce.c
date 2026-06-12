@@ -452,7 +452,6 @@ static const ssl_trace_tbl ssl_ciphers_tbl[] = {
     {0xC0B5, "TLS_SHA384_SHA384"},
     {0xC100, "GOST2012-KUZNYECHIK-KUZNYECHIKOMAC"},
     {0xC101, "GOST2012-MAGMA-MAGMAOMAC"},
-    {0xC102, "GOST2012-GOST8912-IANA"},
 };
 
 /* Compression methods */
@@ -807,7 +806,7 @@ static int ssl_print_extension(BIO *bio, int indent, int server,
             if (plen + 1 > xlen)
                 return 0;
             BIO_indent(bio, indent + 2, 80);
-            BIO_write(bio, ext, plen);
+            BIO_write(bio, ext, (int)plen);
             BIO_puts(bio, "\n");
             ext += plen;
             xlen -= plen + 1;
@@ -959,7 +958,7 @@ static int ssl_print_extension(BIO *bio, int indent, int server,
         return ssl_trace_list(bio, indent + 2, ext + 1, xlen, 1, ssl_cert_type_tbl);
 
     default:
-        BIO_dump_indent(bio, (const char *)ext, extlen, indent + 2);
+        BIO_dump_indent(bio, (const char *)ext, (int)extlen, indent + 2);
     }
     return 1;
 }
@@ -1001,7 +1000,7 @@ static int ssl_print_extensions(BIO *bio, int indent, int server,
         if (extslen < extlen + 4) {
             BIO_printf(bio, "extensions, extype = %d, extlen = %d\n", extype,
                        (int)extlen);
-            BIO_dump_indent(bio, (const char *)msg, extslen, indent + 2);
+            BIO_dump_indent(bio, (const char *)msg, (int)extslen, indent + 2);
             return 0;
         }
         msg += 4;
@@ -1306,12 +1305,12 @@ static int ssl_print_certificate(BIO *bio, const SSL_CONNECTION *sc, int indent,
     BIO_indent(bio, indent, 80);
     BIO_printf(bio, "ASN.1Cert, length=%d", (int)clen);
     x = X509_new_ex(ctx->libctx, ctx->propq);
-    if (x != NULL && d2i_X509(&x, &q, clen) == NULL) {
+    if (x != NULL && d2i_X509(&x, &q, (long)clen) == NULL) {
         X509_free(x);
         x = NULL;
     }
     if (x ==  NULL)
-        BIO_puts(bio, "<UNPARSEABLE CERTIFICATE>\n");
+        BIO_puts(bio, "<UNPARSABLE CERTIFICATE>\n");
     else {
         BIO_puts(bio, "\n------details-----\n");
         X509_print_ex(bio, x, XN_FLAG_ONELINE, 0);
@@ -1348,7 +1347,7 @@ static int ssl_print_raw_public_key(BIO *bio, const SSL *ssl, int server,
     BIO_indent(bio, indent, 80);
     BIO_printf(bio, "raw_public_key, length=%d\n", (int)clen);
 
-    pkey = d2i_PUBKEY_ex(NULL, &msg, clen, ssl->ctx->libctx, ssl->ctx->propq);
+    pkey = d2i_PUBKEY_ex(NULL, &msg, (long)clen, ssl->ctx->libctx, ssl->ctx->propq);
     if (pkey == NULL)
         return 0;
     EVP_PKEY_print_public(bio, pkey, indent + 2, NULL);
@@ -1433,7 +1432,7 @@ static int ssl_print_compressed_certificates(BIO *bio, const SSL_CONNECTION *sc,
     else
         BIO_printf(bio, "Compressed length=%d, Ratio=unknown\n", (int)clen);
 
-    BIO_dump_indent(bio, (const char *)msg, clen, indent);
+    BIO_dump_indent(bio, (const char *)msg, (int)clen, indent);
 
 #ifndef OPENSSL_NO_COMP_ALG
     if (!ossl_comp_has_alg(alg))
@@ -1458,7 +1457,8 @@ static int ssl_print_compressed_certificates(BIO *bio, const SSL_CONNECTION *sc,
     }
 
     if ((comp = COMP_CTX_new(method)) == NULL
-            || COMP_expand_block(comp, ucdata, uclen, (unsigned char*)msg, clen) != (int)uclen)
+            || COMP_expand_block(comp, ucdata, (int)uclen,
+                                 (unsigned char*)msg, (int)clen) != (int)uclen)
         goto err;
 
     ret = ssl_print_certificates(bio, sc, server, indent, ucdata, uclen);
@@ -1539,9 +1539,9 @@ static int ssl_print_cert_request(BIO *bio, int indent, const SSL_CONNECTION *sc
         BIO_indent(bio, indent + 2, 80);
         BIO_printf(bio, "DistinguishedName (len=%d): ", (int)dlen);
         p = msg;
-        nm = d2i_X509_NAME(NULL, &p, dlen);
+        nm = d2i_X509_NAME(NULL, &p, (long)dlen);
         if (!nm) {
-            BIO_puts(bio, "<UNPARSEABLE DN>\n");
+            BIO_puts(bio, "<UNPARSABLE DN>\n");
         } else {
             X509_NAME_print_ex(bio, nm, 0, XN_FLAG_ONELINE);
             BIO_puts(bio, "\n");
@@ -1717,7 +1717,7 @@ static int ssl_print_handshake(BIO *bio, const SSL_CONNECTION *sc, int server,
     default:
         BIO_indent(bio, indent + 2, 80);
         BIO_puts(bio, "Unsupported, hex dump follows:\n");
-        BIO_dump_indent(bio, (const char *)msg, msglen, indent + 4);
+        BIO_dump_indent(bio, (const char *)msg, (int)msglen, indent + 4);
     }
     return 1;
 }

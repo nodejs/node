@@ -11,12 +11,12 @@ Your role can be one or several of:
   - Certificate authority
 
 This file is for users who wish to get a certificate of their own.
-Certificate authorities should read https://www.openssl.org/docs/apps/ca.html.
+Certificate authorities should read https://docs.openssl.org/master/man1/openssl-ca.
 
 In all the cases shown below, the standard configuration file, as
 compiled into openssl, will be used.  You may find it in /etc/,
 /usr/local/ssl/ or somewhere else.  By default the file is named
-openssl.cnf and is described at https://www.openssl.org/docs/apps/config.html.
+openssl.cnf and is described at https://docs.openssl.org/master/man5/config.
 You can specify a different configuration file using the
 '-config {file}' argument with the commands shown below.
 
@@ -35,7 +35,7 @@ you want an RSA private key, or if you want a DSA private key:
 
 The private keys created by these commands are not passphrase protected;
 it might or might not be the desirable thing.  Further information on how to
-create private keys can be found at https://www.openssl.org/docs/HOWTO/keys.txt.
+create private keys can be found at https://github.com/openssl/openssl/blob/master/doc/HOWTO/keys.txt.
 The rest of this text assumes you have a private key in the file privkey.pem.
 
 
@@ -48,7 +48,7 @@ give you the result back, thus making it authentic according to their
 policies).  A certificate request is sent to a certificate authority
 to get it signed into a certificate. You can also sign the certificate
 yourself if you have your own certificate authority or create a
-self-signed certificate (typically for testing purpose).
+self-signed certificate (typically for testing purposes).
 
 The certificate request is created like this:
 
@@ -77,7 +77,7 @@ with a certificate authority, or if you just want to create a test
 certificate for yourself.  This is similar to creating a certificate
 request, but creates a certificate instead of a certificate request.
 This is NOT the recommended way to create a CA certificate, see
-https://www.openssl.org/docs/apps/ca.html.
+https://docs.openssl.org/master/man1/openssl-ca.
 
   openssl req -new -x509 -key privkey.pem -out cacert.pem -days 1095
 

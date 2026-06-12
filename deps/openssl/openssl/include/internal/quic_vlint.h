@@ -1,5 +1,5 @@
 /*
-* Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+* Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
 *
 * Licensed under the Apache License 2.0 (the "License").  You may not use
 * this file except in compliance with the License.  You can obtain a copy
@@ -96,7 +96,7 @@ void ossl_quic_vlint_encode_n(unsigned char *buf, uint64_t v, int n);
  */
 static ossl_unused ossl_inline size_t ossl_quic_vlint_decode_len(uint8_t first_byte)
 {
-    return 1U << ((first_byte & 0xC0) >> 6);
+    return (size_t)(1U << ((first_byte & 0xC0) >> 6));
 }
 
 /*

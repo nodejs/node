@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ struct object_st {
      */
     double p2;
     /*
-     * Documented as an arbitrarly large unsigned integer.
+     * Documented as an arbitrarily large unsigned integer.
      * The data size must be large enough to accommodate.
      * Assumed data type OSSL_PARAM_UNSIGNED_INTEGER
      */
@@ -139,7 +139,7 @@ static int raw_set_params(void *vobj, const OSSL_PARAM *params)
         } else if (strcmp(params->key, "p3") == 0) {
             BN_free(obj->p3);
             if (!TEST_ptr(obj->p3 = BN_native2bn(params->data,
-                                                 params->data_size, NULL)))
+                                                 (int)params->data_size, NULL)))
                 return 0;
         } else if (strcmp(params->key, "p4") == 0) {
             OPENSSL_free(obj->p4);
@@ -183,7 +183,7 @@ static int raw_get_params(void *vobj, OSSL_PARAM *params)
             params->return_size = BN_num_bytes(obj->p3);
             if (!TEST_size_t_ge(params->data_size, params->return_size))
                 return 0;
-            BN_bn2nativepad(obj->p3, params->data, params->return_size);
+            BN_bn2nativepad(obj->p3, params->data, (int)params->return_size);
         } else if (strcmp(params->key, "p4") == 0) {
             params->return_size = strlen(obj->p4);
             if (!TEST_size_t_gt(params->data_size, params->return_size))
@@ -460,7 +460,7 @@ static int test_case_variant(OSSL_PARAM *params, const struct provider_dispatch_
         || !TEST_int_eq(app_p1, p1_init)        /* "provider" value */
         || !TEST_double_eq(app_p2, app_p2_init) /* Should remain untouched */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "p3"))
-        || !TEST_ptr(BN_native2bn(bignumbin, p->return_size, app_p3))
+        || !TEST_ptr(BN_native2bn(bignumbin, (int)p->return_size, app_p3))
         || !TEST_BN_eq(app_p3, verify_p3)       /* "provider" value */
         || !TEST_str_eq(app_p4, p4_init)        /* "provider" value */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "p5"))
@@ -511,7 +511,7 @@ static int test_case_variant(OSSL_PARAM *params, const struct provider_dispatch_
         || !TEST_int_eq(app_p1, app_p1_init)    /* app value */
         || !TEST_double_eq(app_p2, app_p2_init) /* Should remain untouched */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "p3"))
-        || !TEST_ptr(BN_native2bn(bignumbin, p->return_size, app_p3))
+        || !TEST_ptr(BN_native2bn(bignumbin, (int)p->return_size, app_p3))
         || !TEST_BN_eq(app_p3, verify_p3)       /* app value */
         || !TEST_str_eq(app_p4, app_p4_init)    /* app value */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "p5"))

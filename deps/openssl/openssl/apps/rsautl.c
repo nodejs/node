@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -215,7 +215,7 @@ int rsautl_main(int argc, char **argv)
 
     keysize = EVP_PKEY_get_size(pkey);
 
-    rsa_in = app_malloc(keysize * 2, "hold rsa key");
+    rsa_in = app_malloc_array(2, keysize, "hold rsa key");
     rsa_out = app_malloc(keysize, "output rsa key");
     rsa_outlen = keysize;
 
@@ -271,13 +271,13 @@ int rsautl_main(int argc, char **argv)
     }
     ret = 0;
     if (asn1parse) {
-        if (!ASN1_parse_dump(out, rsa_out, rsa_outlen, 1, -1)) {
+        if (!ASN1_parse_dump(out, rsa_out, (long)rsa_outlen, 1, -1)) {
             ERR_print_errors(bio_err);
         }
     } else if (hexdump) {
-        BIO_dump(out, (char *)rsa_out, rsa_outlen);
+        BIO_dump(out, (char *)rsa_out, (int)rsa_outlen);
     } else {
-        BIO_write(out, rsa_out, rsa_outlen);
+        BIO_write(out, rsa_out, (int)rsa_outlen);
     }
  end:
     EVP_PKEY_CTX_free(ctx);

@@ -620,7 +620,7 @@ static int dgram_pair_ctrl_get_mtu(BIO *bio)
 {
     struct bio_dgram_pair_st *b = bio->ptr;
 
-    return b->mtu;
+    return (int)b->mtu;
 }
 
 /* BIO_dgram_set_mtu (BIO_CTRL_DGRAM_SET_MTU) */
@@ -807,6 +807,9 @@ int BIO_new_bio_dgram_pair(BIO **pbio1, size_t writebuf1,
     long r;
     BIO *bio1 = NULL, *bio2 = NULL;
 
+    if (writebuf1 > LONG_MAX || writebuf2 > LONG_MAX)
+        goto err;
+
     bio1 = BIO_new(BIO_s_dgram_pair());
     if (bio1 == NULL)
         goto err;
@@ -816,13 +819,13 @@ int BIO_new_bio_dgram_pair(BIO **pbio1, size_t writebuf1,
         goto err;
 
     if (writebuf1 > 0) {
-        r = BIO_set_write_buf_size(bio1, writebuf1);
+        r = BIO_set_write_buf_size(bio1, (long)writebuf1);
         if (r == 0)
             goto err;
     }
 
     if (writebuf2 > 0) {
-        r = BIO_set_write_buf_size(bio2, writebuf2);
+        r = BIO_set_write_buf_size(bio2, (long)writebuf2);
         if (r == 0)
             goto err;
     }
@@ -1037,7 +1040,7 @@ static int dgram_pair_read(BIO *bio, char *buf, int sz_)
     l = dgram_pair_read_actual(bio, buf, (size_t)sz_, NULL, NULL, 0);
     if (l < 0) {
         if (l != -BIO_R_NON_FATAL)
-            ERR_raise(ERR_LIB_BIO, -l);
+            ERR_raise(ERR_LIB_BIO, (int)-l);
         ret = -1;
     } else {
         ret = (int)l;
@@ -1090,7 +1093,7 @@ static int dgram_pair_recvmmsg(BIO *bio, BIO_MSG *msg,
             if (i > 0) {
                 ret = 1;
             } else {
-                ERR_raise(ERR_LIB_BIO, -l);
+                ERR_raise(ERR_LIB_BIO, (int)-l);
                 ret = 0;
             }
             goto out;
@@ -1127,7 +1130,7 @@ static int dgram_mem_read(BIO *bio, char *buf, int sz_)
     l = dgram_pair_read_actual(bio, buf, (size_t)sz_, NULL, NULL, 0);
     if (l < 0) {
         if (l != -BIO_R_NON_FATAL)
-            ERR_raise(ERR_LIB_BIO, -l);
+            ERR_raise(ERR_LIB_BIO, (int)-l);
         ret = -1;
     } else {
         ret = (int)l;
@@ -1289,7 +1292,7 @@ static int dgram_pair_write(BIO *bio, const char *buf, int sz_)
 
     l = dgram_pair_write_actual(bio, buf, (size_t)sz_, NULL, NULL, 0);
     if (l < 0) {
-        ERR_raise(ERR_LIB_BIO, -l);
+        ERR_raise(ERR_LIB_BIO, (int)-l);
         ret = -1;
     } else {
         ret = (int)l;
@@ -1304,10 +1307,11 @@ static int dgram_pair_sendmmsg(BIO *bio, BIO_MSG *msg,
                                size_t stride, size_t num_msg,
                                uint64_t flags, size_t *num_processed)
 {
-    ossl_ssize_t ret, l;
+    ossl_ssize_t l;
     BIO_MSG *m;
     size_t i;
     struct bio_dgram_pair_st *b = bio->ptr;
+    int ret = 0;
 
     if (num_msg == 0) {
         *num_processed = 0;
@@ -1329,8 +1333,7 @@ static int dgram_pair_sendmmsg(BIO *bio, BIO_MSG *msg,
             if (i > 0) {
                 ret = 1;
             } else {
-                ERR_raise(ERR_LIB_BIO, -l);
-                ret = 0;
+                ERR_raise(ERR_LIB_BIO, (int)-l);
             }
             goto out;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,9 +34,12 @@ int ASN1_UTCTIME_check(const ASN1_UTCTIME *d)
 int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str)
 {
     ASN1_UTCTIME t;
+    size_t len;
 
+    if ((len = strlen(str)) >= INT_MAX)
+        return 0;
     t.type = V_ASN1_UTCTIME;
-    t.length = strlen(str);
+    t.length = (int)len;
     t.data = (unsigned char *)str;
     t.flags = 0;
 

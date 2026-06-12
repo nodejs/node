@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -116,7 +116,7 @@ DH *d2i_DHxparams(DH **a, const unsigned char **pp, long length)
 
     if (dhx->vparams != NULL) {
         /* The counter has a maximum value of 4 * numbits(p) - 1 */
-        size_t counter = (size_t)BN_get_word(dhx->vparams->counter);
+        int counter = (int)BN_get_word(dhx->vparams->counter);
         ossl_ffc_params_set_validate_params(params, dhx->vparams->seed->data,
                                             dhx->vparams->seed->length,
                                             counter);

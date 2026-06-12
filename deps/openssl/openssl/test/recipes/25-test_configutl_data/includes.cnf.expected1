@@ -1,0 +1,11 @@
+openssl_conf = openssl_init
+
+[included-file]
+present = true
+
+[includes1]
+cnf-file = present
+conf-file = present
+
+[includes2]
+main = present

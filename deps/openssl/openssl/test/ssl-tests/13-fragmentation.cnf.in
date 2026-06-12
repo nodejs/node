@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,7 @@ use warnings;
 
 package ssltests;
 
+our $fips_3_4;
 
 our @tests = (
     # Default fragment size is 512.
@@ -101,89 +102,6 @@ our @tests = (
             MaxFragmentSize => 5 * 1024 - 5,
         }
     },
-    # When the buffer / fragment size ratio is sufficiently large,
-    # multi-buffer code kicks in on some platforms for AES-SHA.  The
-    # exact minimum ratio depends on the platform, and is usually
-    # around 4. Since the test buffer is 64kB, a 4kB fragment is
-    # easily sufficient.
-    #
-    # (We run this test on all platforms though it's only true multibuffer
-    #  on some of them.)
-    {
-        name => "large-app-data-aes-sha1-multibuffer",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 1024 * 1024,
-            MaxFragmentSize => 4 * 1024,
-        }
-    },
-    {
-        name => "large-app-data-aes-sha2-multibuffer",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA256",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 1024 * 1024,
-            MaxFragmentSize => 4 * 1024,
-        }
-    },
-        {
-        name => "large-app-data-aes-sha1-multibuffer-odd-fragment",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 1024 * 1024 + 3,
-            MaxFragmentSize => 5 * 1024 - 5,
-        }
-    },
-    {
-        name => "large-app-data-aes-sha2-multibuffer-odd-fragment",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA256",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 1024 * 1024 - 3,
-            MaxFragmentSize => 5 * 1024 + 5,
-        }
-    },
-    # Test that multibuffer-capable code also handles small data correctly.
-    # Here fragment size == app data size < buffer size,
-    # so no multibuffering should happen.
-    {
-        name => "small-app-data-aes-sha1-multibuffer",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 4 * 1024,
-            MaxFragmentSize => 4 * 1024,
-        }
-    },
-    {
-        name => "small-app-data-aes-sha2-multibuffer",
-        server => { },
-        client => {
-            CipherString => "AES128-SHA256",
-            MaxProtocol => "TLSv1.2"
-        },
-        test => {
-            ApplicationData => 4 * 1024,
-            MaxFragmentSize => 4 * 1024,
-        }
-    },
     ############################################
     # Default (Max) Fragment Size is 512.
     # Default Application data size is 256.
@@ -266,3 +184,93 @@ our @tests = (
         }
     },
 );
+
+# Tests using RSA key exchange
+my @tests_rsa = (
+    # When the buffer / fragment size ratio is sufficiently large,
+    # multi-buffer code kicks in on some platforms for AES-SHA.  The
+    # exact minimum ratio depends on the platform, and is usually
+    # around 4. Since the test buffer is 64kB, a 4kB fragment is
+    # easily sufficient.
+    #
+    # (We run this test on all platforms though it's only true multibuffer
+    #  on some of them.)
+    {
+        name => "large-app-data-aes-sha1-multibuffer",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 1024 * 1024,
+            MaxFragmentSize => 4 * 1024,
+        }
+    },
+    {
+        name => "large-app-data-aes-sha2-multibuffer",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA256",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 1024 * 1024,
+            MaxFragmentSize => 4 * 1024,
+        }
+    },
+        {
+        name => "large-app-data-aes-sha1-multibuffer-odd-fragment",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 1024 * 1024 + 3,
+            MaxFragmentSize => 5 * 1024 - 5,
+        }
+    },
+    {
+        name => "large-app-data-aes-sha2-multibuffer-odd-fragment",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA256",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 1024 * 1024 - 3,
+            MaxFragmentSize => 5 * 1024 + 5,
+        }
+    },
+    # Test that multibuffer-capable code also handles small data correctly.
+    # Here fragment size == app data size < buffer size,
+    # so no multibuffering should happen.
+    {
+        name => "small-app-data-aes-sha1-multibuffer",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 4 * 1024,
+            MaxFragmentSize => 4 * 1024,
+        }
+    },
+    {
+        name => "small-app-data-aes-sha2-multibuffer",
+        server => { },
+        client => {
+            CipherString => "AES128-SHA256",
+            MaxProtocol => "TLSv1.2"
+        },
+        test => {
+            ApplicationData => 4 * 1024,
+            MaxFragmentSize => 4 * 1024,
+        }
+    }
+);
+
+push @tests, @tests_rsa
+    unless $fips_3_4;

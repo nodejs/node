@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # SHA256 block transform for x86. September 2007.
@@ -367,7 +367,7 @@ my $suffix=shift;
 	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2	);
 &data_word(@K256);
 &data_word(0x00010203,0x04050607,0x08090a0b,0x0c0d0e0f);	# byte swap mask
-&asciz("SHA256 block transform for x86, CRYPTOGAMS by <appro\@openssl.org>");
+&asciz("SHA256 block transform for x86, CRYPTOGAMS by <https://github.com/dot-asm>");
 
 ($a,$b,$c,$d,$e,$f,$g,$h)=(0..7);	# offsets
 sub off { &DWP(4*(((shift)-$i)&7),"esp"); }

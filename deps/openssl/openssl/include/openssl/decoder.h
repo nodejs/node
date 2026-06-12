@@ -63,6 +63,8 @@ int OSSL_DECODER_CTX_set_passphrase_cb(OSSL_DECODER_CTX *ctx,
 int OSSL_DECODER_CTX_set_passphrase_ui(OSSL_DECODER_CTX *ctx,
                                        const UI_METHOD *ui_method,
                                        void *ui_data);
+int OSSL_DECODER_CTX_set_finalized(OSSL_DECODER_CTX *ctx);
+int OSSL_DECODER_CTX_get_finalized(OSSL_DECODER_CTX *ctx);
 
 /*
  * Utilities to read the object to decode, with the result sent to cb.

@@ -1,0 +1,3 @@
+#The top level .gitignore ignores certificate files with the .0 extension
+#But we actually want them in this directory, so we override the top level rule
+!*.0

@@ -41,7 +41,7 @@ the SSL_SESSION objects are internally referenced by the SSL_CTX and
 linked into its session cache. SSL objects may be using the SSL_SESSION object;
 as a session may be reused, several SSL objects may be using one SSL_SESSION
 object at the same time. It is therefore crucial to keep the reference
-count (usage information) correct and not delete a SSL_SESSION object
+count (usage information) correct and not delete an SSL_SESSION object
 that is still used, as this may lead to program failures due to
 dangling pointers. These failures may also appear delayed, e.g.
 when an SSL_SESSION object was completely freed as the reference count

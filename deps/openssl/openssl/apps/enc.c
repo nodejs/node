@@ -70,12 +70,9 @@ const OPTIONS enc_options[] = {
 
     OPT_SECTION("Input"),
     {"in", OPT_IN, '<', "Input file"},
-    {"k", OPT_K, 's', "Passphrase"},
-    {"kfile", OPT_KFILE, '<', "Read passphrase from file"},
 
     OPT_SECTION("Output"),
     {"out", OPT_OUT, '>', "Output file"},
-    {"pass", OPT_PASS, 's', "Passphrase source"},
     {"v", OPT_V, '-', "Verbose output"},
     {"a", OPT_A, '-', "Base64 encode/decode, depending on encryption flag"},
     {"base64", OPT_A, '-', "Same as option -a"},
@@ -93,6 +90,9 @@ const OPTIONS enc_options[] = {
     {"S", OPT_UPPER_S, 's', "Salt, in hex"},
     {"iv", OPT_IV, 's', "IV in hex"},
     {"md", OPT_MD, 's', "Use specified digest to create a key from the passphrase"},
+    {"k", OPT_K, 's', "Passphrase (Deprecated"},
+    {"kfile", OPT_KFILE, '<', "Read passphrase from file (Deprecated)"},
+    {"pass", OPT_PASS, 's', "Passphrase source"},
     {"iter", OPT_ITER, 'p',
      "Specify the iteration count and force the use of PBKDF2"},
     {OPT_MORE_STR, 0, 0, "Default: " STR(PBKDF2_ITER_DEFAULT)},
@@ -584,7 +584,7 @@ int enc_main(int argc, char **argv)
                 /* not needed if HASH_UPDATE() is fixed : */
                 int islen = (sptr != NULL ? saltlen : 0);
 
-                if (!PKCS5_PBKDF2_HMAC(str, str_len, sptr, islen,
+                if (!PKCS5_PBKDF2_HMAC(str, (int)str_len, sptr, islen,
                                        iter, dgst, iklen+ivlen, tmpkeyiv)) {
                     BIO_printf(bio_err, "PKCS5_PBKDF2_HMAC failed\n");
                     goto end;
@@ -598,7 +598,7 @@ int enc_main(int argc, char **argv)
                                     "deprecated key derivation used.\n"
                                     "Using -iter or -pbkdf2 would be better.\n");
                 if (!EVP_BytesToKey(cipher, dgst, sptr,
-                                    (unsigned char *)str, str_len,
+                                    (unsigned char *)str, (int)str_len,
                                     1, key, iv)) {
                     BIO_printf(bio_err, "EVP_BytesToKey failed\n");
                     goto end;
@@ -809,6 +809,7 @@ static void show_ciphers(const OBJ_NAME *name, void *arg)
     cipher = EVP_get_cipherbyname(name->name);
     if (cipher == NULL
             || (EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) != 0
+            || (EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_ENC_THEN_MAC) != 0
             || EVP_CIPHER_get_mode(cipher) == EVP_CIPH_XTS_MODE)
         return;
 
@@ -826,7 +827,7 @@ static int set_hex(const char *in, unsigned char *out, int size)
     unsigned char j;
 
     i = size * 2;
-    n = strlen(in);
+    n = (int)strlen(in);
     if (n > i) {
         BIO_printf(bio_err, "hex string is too long, ignoring excess\n");
         n = i; /* ignore exceeding part */

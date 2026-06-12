@@ -121,8 +121,8 @@ L<ERR_get_error(3)>.
 
 =head1 WARNINGS
 
-The result of RSA_padding_check_PKCS1_type_2() is a very sensitive
-information which can potentially be used to mount a Bleichenbacher
+The result of RSA_padding_check_PKCS1_type_2() is exactly the
+information which is used to mount a classical Bleichenbacher
 padding oracle attack. This is an inherent weakness in the PKCS #1
 v1.5 padding design. Prefer PKCS1_OAEP padding. If that is not
 possible, the result of RSA_padding_check_PKCS1_type_2() should be
@@ -136,6 +136,9 @@ which was computed by RSA_private_decrypt() with B<RSA_NO_PADDING>,
 as this would create a small timing side channel which could be
 used to mount a Bleichenbacher attack against any padding mode
 including PKCS1_OAEP.
+
+You should prefer the use of EVP PKEY APIs for PKCS#1 v1.5 decryption
+as they implement the necessary workarounds internally.
 
 =head1 SEE ALSO
 
