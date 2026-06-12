@@ -109,12 +109,11 @@ test('expect failure for a private package in node_modules without --experimenta
        assert.strictEqual(result.code, 1);
      });
 
-// TODO(marco-ippolito): a nested package.json must not be able to enable type
-// stripping: npm only refuses to publish packages whose root package.json has
-// "private": true, so a published package can freely ship a nested
-// package.json with "private": true and bypass the restriction. Only the
-// package.json at the package root should be consulted.
-test('nested package.json faking "private": true in node_modules enables type stripping',
+// A nested package.json must not be able to enable type stripping: npm only
+// refuses to publish packages whose root package.json has "private": true, so
+// a published package can freely ship a nested package.json with
+// "private": true. Only the package.json at the package root is consulted.
+test('expect failure for a nested package.json faking "private": true in node_modules',
      async () => {
        const result = await spawnPromisified(process.execPath, [
          '--experimental-strip-private-modules',
@@ -122,9 +121,48 @@ test('nested package.json faking "private": true in node_modules enables type st
          fixtures.path('typescript/ts/test-typescript-fake-private-node-modules.ts'),
        ]);
 
-       assert.strictEqual(result.stderr, '');
-       assert.match(result.stdout, /Hello, TypeScript!/);
-       assert.strictEqual(result.code, 0);
+       assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+       assert.strictEqual(result.stdout, '');
+       assert.strictEqual(result.code, 1);
+     });
+
+test('expect failure for a private package bundled inside a non-private package',
+     async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--experimental-strip-private-modules',
+         '--no-warnings',
+         fixtures.path('typescript/ts/test-typescript-bundled-private-node-modules.ts'),
+       ]);
+
+       assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+       assert.strictEqual(result.stdout, '');
+       assert.strictEqual(result.code, 1);
+     });
+
+test('expect failure for a relative import into a non-private node_modules package',
+     async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--experimental-strip-private-modules',
+         '--no-warnings',
+         fixtures.path('typescript/ts/test-typescript-relative-node-modules.ts'),
+       ]);
+
+       assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+       assert.strictEqual(result.stdout, '');
+       assert.strictEqual(result.code, 1);
+     });
+
+test('expect failure for a ".." path resolving to a non-private node_modules package',
+     async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--experimental-strip-private-modules',
+         '--no-warnings',
+         fixtures.path('typescript/ts/test-typescript-dotdot-node-modules.ts'),
+       ]);
+
+       assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+       assert.strictEqual(result.stdout, '');
+       assert.strictEqual(result.code, 1);
      });
 
 test('expect failure for a non-private package in node_modules with --experimental-strip-private-modules',
