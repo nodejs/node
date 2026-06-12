@@ -913,6 +913,10 @@ Enable experimental support for storage inspection
 .It Fl -experimental-stream-iter
 Enable the experimental \fBnode:stream/iter\fR module.
 .
+.It Fl -experimental-strip-private-modules
+Enable type-stripping for TypeScript files under node_modules belonging to
+packages whose package.json contains \fB"private": true\fR.
+.
 .It Fl -experimental-test-coverage
 When used in conjunction with the \fBnode:test\fR module, a code coverage report is
 generated as part of the test runner output. If no tests are run, a coverage
