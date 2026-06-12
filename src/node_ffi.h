@@ -3,8 +3,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "ffi/fast.h"
 #include "ffi.h"
+#include "ffi/fast.h"
 #include "uv.h"
 
 #include <cstdint>

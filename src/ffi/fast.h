@@ -61,7 +61,8 @@ bool IsFastCallSupported();
 bool SignatureNeedsRawPointerConversions(const FFIFunction& fn);
 bool IsPointerTypeName(const std::string& name);
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn);
-std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(const std::shared_ptr<FFIFunction>& fn);
+std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
+    const std::shared_ptr<FFIFunction>& fn);
 std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn);
 
 }  // namespace node::ffi

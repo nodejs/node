@@ -188,10 +188,9 @@ std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
   return clone;
 }
 
-extern "C" uintptr_t node_ffi_fast_buffer_data(
-    v8::Local<v8::Value> value,
-    FastApiCallbackOptions* options,
-    uint32_t index) {
+extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
+                                               FastApiCallbackOptions* options,
+                                               uint32_t index) {
   // The generated trampoline treats this sentinel as "conversion failed" and
   // returns zero after throwing, preventing the native target from seeing an
   // invalid pointer value.
@@ -276,8 +275,8 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
       return nullptr;
     }
     needs_bigint = needs_bigint || NeedsBigIntRepresentation(type);
-    needs_callback_options = needs_callback_options ||
-                             type == FastFFIType::kBuffer;
+    needs_callback_options =
+        needs_callback_options || type == FastFFIType::kBuffer;
     args.push_back(type);
   }
 
@@ -311,8 +310,8 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
       metadata->arg_info.data(),
       needs_bigint ? CFunctionInfo::Int64Representation::kBigInt
                    : CFunctionInfo::Int64Representation::kNumber);
-  metadata->c_function = v8::CFunction(metadata->trampoline.code,
-                                       metadata->c_function_info.get());
+  metadata->c_function =
+      v8::CFunction(metadata->trampoline.code, metadata->c_function_info.get());
   return metadata;
 }
 

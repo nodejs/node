@@ -267,15 +267,15 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // V8 calls this FunctionTemplate through `fast_metadata->c_function` when
     // the optimized Fast API call path is available. The normal callback stays
     // attached as a fallback for V8 deopts and unsupported call sites.
-    Local<FunctionTemplate> tmpl = FunctionTemplate::New(
-        isolate,
-        DynamicLibrary::InvokeFunction,
-        info->object(),
-        Local<v8::Signature>(),
-        fn->args.size(),
-        v8::ConstructorBehavior::kThrow,
-        v8::SideEffectType::kHasSideEffect,
-        &info->fast_metadata->c_function);
+    Local<FunctionTemplate> tmpl =
+        FunctionTemplate::New(isolate,
+                              DynamicLibrary::InvokeFunction,
+                              info->object(),
+                              Local<v8::Signature>(),
+                              fn->args.size(),
+                              v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect,
+                              &info->fast_metadata->c_function);
     maybe_ret = tmpl->GetFunction(context);
   } else {
     // Non-Fast signatures either use the SharedBuffer invoker, where JS writes
@@ -386,7 +386,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
     // which must also know how to read slot 0.
     Local<Value> arguments_arr;
-    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&arguments_arr)) {
+    if (!ToV8Value(context, fn->arg_type_names, isolate)
+             .ToLocal(&arguments_arr)) {
       return MaybeLocal<Function>();
     }
     if (!ret->DefineOwnProperty(context,
@@ -409,15 +410,15 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       // Store the secondary invoker on the primary raw function under a hidden
       // Symbol. Keeping it separate avoids overloading SharedBuffer slow-path
       // metadata for Fast API routing.
-      Local<FunctionTemplate> tmpl = FunctionTemplate::New(
-          isolate,
-          DynamicLibrary::InvokeFunction,
-          info->object(),
-          Local<v8::Signature>(),
-          fn->args.size(),
-          v8::ConstructorBehavior::kThrow,
-          v8::SideEffectType::kHasSideEffect,
-          &info->fast_buffer_metadata->c_function);
+      Local<FunctionTemplate> tmpl =
+          FunctionTemplate::New(isolate,
+                                DynamicLibrary::InvokeFunction,
+                                info->object(),
+                                Local<v8::Signature>(),
+                                fn->args.size(),
+                                v8::ConstructorBehavior::kThrow,
+                                v8::SideEffectType::kHasSideEffect,
+                                &info->fast_buffer_metadata->c_function);
       Local<Function> fast_buffer_invoke;
       if (!tmpl->GetFunction(context).ToLocal(&fast_buffer_invoke)) {
         return MaybeLocal<Function>();

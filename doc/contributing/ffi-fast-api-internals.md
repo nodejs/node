@@ -89,7 +89,7 @@ true only on supported architectures when `IsJitMemorySupported()` succeeds.
 
 * Map one writable anonymous page.
 * Write a minimal return instruction (`0xD65F03C0` on AArch64, `0xC3` on
-  x86_64).
+  x86\_64).
 * Flush the instruction cache where required.
 * Try to transition the page to read/execute with `mprotect(PROT_READ |
   PROT_EXEC)`.
@@ -110,7 +110,7 @@ keeps unsupported cases out of the trampoline emitters and lets
 
 Eligibility requires:
 
-* A supported platform emitter: AArch64 or x86_64 SysV. Win64 is currently
+* A supported platform emitter: AArch64 or x86\_64 SysV. Win64 is currently
   ineligible.
 * A return type that is numeric, pointer, or `void`.
 * Argument types that are numeric or pointer. `void` cannot be an argument.
@@ -129,7 +129,7 @@ AArch64 eligibility mirrors `src/ffi/platforms/arm64.cc`:
   call would require preserving FP state.
 * Effective GP count must be at most 7, and FP count must be at most 8.
 
-x86_64 SysV eligibility mirrors `src/ffi/platforms/x64.cc`:
+x86\_64 SysV eligibility mirrors `src/ffi/platforms/x64.cc`:
 
 * `rdi` is occupied by V8's receiver, leaving `rsi`, `rdx`, `rcx`, `r8`, and
   `r9` for incoming GP arguments.
@@ -393,7 +393,7 @@ Important limits are:
 
 * At most eight public arguments before ABI-specific register checks.
 * No stack arguments in the current AArch64 trampoline.
-* At most one stack-loaded scalar GP argument in the current x86_64 SysV
+* At most one stack-loaded scalar GP argument in the current x86\_64 SysV
   trampoline.
 * No mixed buffer-shaped and FP arguments.
 * No `function` argument or return type in the Fast API path.

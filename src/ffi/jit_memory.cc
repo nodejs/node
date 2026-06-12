@@ -38,8 +38,12 @@ bool SelfTest() {
 #endif  // __aarch64__ || _M_ARM64 || __x86_64__
 
   const size_t page_size = static_cast<size_t>(getpagesize());
-  void* page = mmap(nullptr, page_size, PROT_READ | PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* page = mmap(nullptr,
+                    page_size,
+                    PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANON,
+                    -1,
+                    0);
   if (page == MAP_FAILED) {
     return false;
   }

@@ -235,10 +235,10 @@ bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
   static const char* dummy = "";
   if (out_reason == nullptr) out_reason = &dummy;
 
-  // Check that a platform stub emitter exists for the current ABI.
-  // Stub emitters cover AArch64 (Linux/macOS/FreeBSD/Windows) and
-  // x86_64 (SysV: Linux/macOS/FreeBSD, Win64: Windows). Other platforms
-  // fall back to libffi.
+    // Check that a platform stub emitter exists for the current ABI.
+    // Stub emitters cover AArch64 (Linux/macOS/FreeBSD/Windows) and
+    // x86_64 (SysV: Linux/macOS/FreeBSD, Win64: Windows). Other platforms
+    // fall back to libffi.
 #if !defined(__aarch64__) && !defined(_M_ARM64) && !defined(__x86_64__)
   *out_reason = "no platform stub emitter";
   return false;

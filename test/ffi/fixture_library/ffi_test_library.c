@@ -11,8 +11,7 @@
 
 // Integer operations.
 
-FFI_EXPORT void noop_void(void) {
-}
+FFI_EXPORT void noop_void(void) {}
 
 FFI_EXPORT int8_t add_i8(int8_t a, int8_t b) {
   return a + b;

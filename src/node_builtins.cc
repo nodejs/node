@@ -145,8 +145,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/dtls/state",
 #endif  // HAVE_DTLS
 #if !HAVE_FFI
-        "internal/ffi-shared-buffer",
-        "internal/ffi/fast-api",
+        "internal/ffi-shared-buffer", "internal/ffi/fast-api",
 #endif                  // !HAVE_FFI
         "dtls",         // Experimental.
         "ffi",          // Experimental.
