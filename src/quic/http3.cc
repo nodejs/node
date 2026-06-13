@@ -652,12 +652,14 @@ class Http3ApplicationImpl final : public Session::Application {
     Session::SendPendingDataScope send_scope(&session());
     static constexpr nghttp3_data_reader reader = {on_read_data_callback};
     const nghttp3_data_reader* reader_ptr = &reader; // can use the same reader
-    printf("mws in mark 3\n");
 
     Debug(&session(),
               "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
               stream.id(),
               sessionid);
+    // we only need to do this, if we can send data
+    if (stream.is_remote_unidirectional())
+      return true; // so bail out for remote unidirectional streams
     return nghttp3_conn_open_wt_data_stream(*this,
                                      sessionid,
                                      stream.id(),
