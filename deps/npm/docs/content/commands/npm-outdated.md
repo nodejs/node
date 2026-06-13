@@ -20,7 +20,7 @@ Use `--all` to find all outdated meta-dependencies as well.
 In the output:
 
 * `wanted` is the maximum version of the package that satisfies the semver range specified in `package.json`.
-  If there's no available semver range (i.e. you're running `npm outdated --global`, or the package isn't included in `package.json`), then `wanted` shows the currently-installed version.
+  If there's no available semver range (i.e. you're running `npm outdated --global`, or the package isn't included in `package.json`), then `wanted` shows the latest version.
 * `latest` is the version of the package tagged as latest in the registry.
   Running `npm publish` with no special configuration will publish the package with a dist-tag of `latest`.
   This may or may not be the maximum version of the package, or the most-recently published version of the package, depending on how the package's developer manages the latest [dist-tag](/commands/npm-dist-tag).
@@ -73,9 +73,10 @@ A few things to note:
 * Default: false
 * Type: Boolean
 
-When running `npm outdated` and `npm ls`, setting `--all` will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.
+Show or act on all packages, not just the ones your project directly depends
+on. For `npm outdated` and `npm ls` this lists every outdated or installed
+package. For `npm approve-scripts` and `npm deny-scripts` it selects every
+package with pending install scripts.
 
 
 
@@ -171,6 +172,9 @@ sources, the standard precedence applies (cli > env > project > user >
 global), so a higher-priority source can always relax or override a
 lower-priority one.
 
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
 
 
 #### `min-release-age`
@@ -189,6 +193,37 @@ your `.npmrc` is preserved when npm internally spawns a sub-process with
 `--before` while preparing a `git:` or `github:` dependency); when both
 apply, `before` wins within a single source and across sources the standard
 precedence rules apply.
+
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
+This value is not exported to the environment for child processes.
+
+#### `min-release-age-exclude`
+
+* Default:
+* Type: String (can be set multiple times)
+
+A list of package names or `minimatch` glob patterns that are exempt from
+the `min-release-age` (and `before`) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.
+
+For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:
+
+```
+min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+```
+
+Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so `@myorg/*` matches `@myorg/shared-utils`.
+
+Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.
 
 This value is not exported to the environment for child processes.
 
