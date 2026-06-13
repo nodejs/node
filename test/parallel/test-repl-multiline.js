@@ -4,6 +4,8 @@ const assert = require('assert');
 const { startNewREPLServer } = require('../common/repl');
 
 const input = ['const foo = {', '};', 'foo'];
+const dotCommandSyntaxError =
+  /Uncaught SyntaxError: Unexpected token '\.'/;
 
 function run({ useColors }) {
   const { replServer, output } = startNewREPLServer({ useColors });
@@ -27,3 +29,47 @@ function run({ useColors }) {
 
 run({ useColors: true });
 run({ useColors: false });
+
+function runDotCommandAfterRecoverable(command, validate) {
+  const { replServer, output } = startNewREPLServer();
+
+  replServer.on('exit', common.mustCall());
+  replServer.write('function a() {\n');
+  replServer.write(`${command}\n`);
+
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  validate(replServer, output);
+
+  replServer.close();
+}
+
+runDotCommandAfterRecoverable('.break', (replServer, output) => {
+  replServer.write('1 + 1\n');
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  assert.match(output.accumulator, /2\n/);
+});
+
+runDotCommandAfterRecoverable('.help', (replServer, output) => {
+  assert.match(output.accumulator, /\.break\s+Sometimes you get stuck/);
+  assert.match(output.accumulator, /\.help\s+Print this help message/);
+
+  replServer.write('.break\n');
+  replServer.write('1 + 1\n');
+
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  assert.match(output.accumulator, /2\n/);
+});
+
+{
+  const { replServer, output } = startNewREPLServer();
+  let exited = false;
+
+  replServer.on('exit', common.mustCall(() => {
+    exited = true;
+  }));
+  replServer.write('function a() {\n');
+  replServer.write('.exit\n');
+
+  assert.strictEqual(exited, true);
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+}
