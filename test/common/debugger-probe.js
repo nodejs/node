@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const { spawnSyncAndExit } = require('./child_process');
 
 // Work around a pre-existing inspector issue: if the debuggee exits too quickly
 // the inspector can segfault while tearing down. For now normalize the segfault
@@ -79,7 +80,17 @@ function assertProbeText(output, expected) {
   assert.strictEqual(normalized, expected);
 }
 
+function assertProbeCliError(inspectArgs, expectedStderr, { cwd } = {}) {
+  spawnSyncAndExit(process.execPath, ['inspect', ...inspectArgs], { cwd }, {
+    signal: null,
+    status: 9,
+    stderr: expectedStderr,
+    trim: true,
+  });
+}
+
 module.exports = {
   assertProbeJson,
+  assertProbeCliError,
   assertProbeText,
 };
