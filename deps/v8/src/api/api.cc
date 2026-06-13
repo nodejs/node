@@ -9021,7 +9021,7 @@ size_t v8::ArrayBufferView::CopyArrayBufferViewBytes(
   // A relaxed-atomic memmove is only required when both views are backed by a
   // SharedArrayBuffer; any other combination performs a plain memmove on the
   // backing store, matching v8::ArrayBuffer::CopyArrayBufferBytes.
-  if (src.is_shared && dst.is_shared) {
+  if (src.is_shared || dst.is_shared) {
     base::Relaxed_Memmove(
         reinterpret_cast<base::Atomic8*>(target_data),
         reinterpret_cast<const base::Atomic8*>(source_data), bytes_to_copy);

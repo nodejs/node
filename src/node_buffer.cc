@@ -605,33 +605,20 @@ size_t CopyImpl(Local<Value> source_obj,
                 const size_t target_start,
                 const size_t source_start,
                 const size_t to_copy) {
-  Local<ArrayBufferView> source = source_obj.As<ArrayBufferView>();
-  Local<ArrayBufferView> target = target_obj.As<ArrayBufferView>();
-
-  Local<ArrayBuffer> source_ab = source->Buffer();
-  Local<ArrayBuffer> target_ab = target->Buffer();
-
-  const size_t source_offset = source->ByteOffset() + source_start;
-  const size_t target_offset = target->ByteOffset() + target_start;
-
-  // Defer byte-range clamping and detached/immutable handling to V8. When both
-  // sides are backed by a SharedArrayBuffer the relaxed atomic overload is
-  // used, which honors the SharedArrayBuffer memory model. Any other
-  // combination (both regular, or one of each) goes through the ArrayBuffer
-  // overload: it operates on the underlying backing store regardless of
-  // shared-ness, so a plain memmove is performed (matching the historical
-  // behavior for SharedArrayBuffer-backed buffers). The V8 API has no overload
-  // that mixes ArrayBuffer and SharedArrayBuffer, so the two must never be
-  // cross-cast.
-  if (source_ab->IsSharedArrayBuffer() && target_ab->IsSharedArrayBuffer()) {
-    return source_ab.As<SharedArrayBuffer>()->CopyArrayBufferBytes(
-        source_offset,
-        to_copy,
-        target_ab.As<SharedArrayBuffer>(),
-        target_offset);
-  }
-  return source_ab->CopyArrayBufferBytes(
-      source_offset, to_copy, target_ab, target_offset);
+  // Defer byte-range clamping and detached/immutable/shared handling to V8.
+  // CopyArrayBufferViewBytes resolves the views' data pointers directly,
+  // without materializing their ArrayBuffers (ArrayBufferView::Buffer /
+  // JSTypedArray::GetBuffer), which dominates the per-call cost for small
+  // copies. When both views are backed by a SharedArrayBuffer it performs a
+  // relaxed-atomic memmove honoring the SharedArrayBuffer memory model; any
+  // other combination performs a plain memmove on the backing store (matching
+  // the historical behavior for SharedArrayBuffer-backed buffers).
+  return ArrayBufferView::CopyArrayBufferViewBytes(
+      source_obj.As<ArrayBufferView>(),
+      source_start,
+      target_obj.As<ArrayBufferView>(),
+      target_start,
+      to_copy);
 }
 
 // Assume caller has properly validated args.
