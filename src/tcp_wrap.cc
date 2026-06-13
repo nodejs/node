@@ -208,7 +208,14 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   int enable;
   if (!args[0]->Int32Value(env->context()).To(&enable)) return;
   unsigned int delay = static_cast<unsigned int>(args[1].As<Uint32>()->Value());
-  int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
+  // interval and count are optional. Fall back to the libuv defaults
+  // (1 second, 10 probes) when they are not provided so that callers using
+  // the legacy two-argument form of this handle method keep working.
+  unsigned int interval = 1;
+  unsigned int count = 10;
+  if (args[2]->IsUint32()) interval = args[2].As<Uint32>()->Value();
+  if (args[3]->IsUint32()) count = args[3].As<Uint32>()->Value();
+  int err = uv_tcp_keepalive_ex(&wrap->handle_, enable, delay, interval, count);
   args.GetReturnValue().Set(err);
 }
 
