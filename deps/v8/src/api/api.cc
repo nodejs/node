@@ -4246,6 +4246,43 @@ static size_t CopyArrayBufferBytesImpl(const void* source_buffer,
   return bytes_to_copy;
 }
 
+struct ArrayBufferViewBytes {
+  char* data;
+  size_t length;
+  bool is_shared;
+  bool is_immutable;
+};
+
+// Resolves a view's data pointer, byte length and backing-buffer flags without
+// materializing its ArrayBuffer (i.e. without JSTypedArray::GetBuffer, which is
+// comparatively expensive). A detached or out-of-bounds view resolves to an
+// empty {nullptr, 0} range.
+ArrayBufferViewBytes GetArrayBufferViewBytes(
+    i::Tagged<i::JSArrayBufferView> view) {
+  if (view->IsDetachedOrOutOfBounds()) return {nullptr, 0, false, false};
+  if (i::IsJSTypedArray(view)) {
+    i::Tagged<i::JSTypedArray> array = i::Cast<i::JSTypedArray>(view);
+    i::Tagged<i::JSArrayBuffer> buffer = array->buffer();
+    return {reinterpret_cast<char*>(array->DataPtr()), array->GetByteLength(),
+            buffer->is_shared(), buffer->is_immutable()};
+  }
+  if (i::IsJSDataView(view)) {
+    i::Tagged<i::JSDataView> data_view = i::Cast<i::JSDataView>(view);
+    i::Tagged<i::JSArrayBuffer> buffer =
+        i::Cast<i::JSArrayBuffer>(data_view->buffer());
+    return {reinterpret_cast<char*>(data_view->data_pointer()),
+            data_view->byte_length(), buffer->is_shared(),
+            buffer->is_immutable()};
+  }
+  i::Tagged<i::JSRabGsabDataView> data_view =
+      i::Cast<i::JSRabGsabDataView>(view);
+  i::Tagged<i::JSArrayBuffer> buffer =
+      i::Cast<i::JSArrayBuffer>(data_view->buffer());
+  return {reinterpret_cast<char*>(data_view->data_pointer()),
+          data_view->GetByteLength(), buffer->is_shared(),
+          buffer->is_immutable()};
+}
+
 size_t v8::SharedArrayBuffer::CopyArrayBufferBytes(
     size_t source_start, size_t bytes_to_copy, Local<SharedArrayBuffer> target,
     size_t target_start) const {
@@ -8958,6 +8995,40 @@ size_t v8::ArrayBuffer::CopyArrayBufferBytes(size_t source_start,
                                          self->GetByteLength(),
                                          that->backing_store(), target_start,
                                          that->GetByteLength(), bytes_to_copy);
+}
+
+size_t v8::ArrayBufferView::CopyArrayBufferViewBytes(
+    Local<ArrayBufferView> source, size_t source_start,
+    Local<ArrayBufferView> target, size_t target_start, size_t bytes_to_copy) {
+  i::DisallowGarbageCollection no_gc;
+  ArrayBufferViewBytes src =
+      GetArrayBufferViewBytes(*Utils::OpenDirectHandle(*source));
+  ArrayBufferViewBytes dst =
+      GetArrayBufferViewBytes(*Utils::OpenDirectHandle(*target));
+
+  // Never write to an immutable target. Detached/out-of-bounds views resolve to
+  // a zero length, so they fall out through the clamping below.
+  if (dst.is_immutable) return 0;
+
+  source_start = std::min(source_start, src.length);
+  target_start = std::min(target_start, dst.length);
+  bytes_to_copy = std::min(
+      {bytes_to_copy, src.length - source_start, dst.length - target_start});
+  if (bytes_to_copy == 0) return 0;
+
+  char* source_data = src.data + source_start;
+  char* target_data = dst.data + target_start;
+  // A relaxed-atomic memmove is only required when both views are backed by a
+  // SharedArrayBuffer; any other combination performs a plain memmove on the
+  // backing store, matching v8::ArrayBuffer::CopyArrayBufferBytes.
+  if (src.is_shared && dst.is_shared) {
+    base::Relaxed_Memmove(
+        reinterpret_cast<base::Atomic8*>(target_data),
+        reinterpret_cast<const base::Atomic8*>(source_data), bytes_to_copy);
+  } else {
+    std::memmove(target_data, source_data, bytes_to_copy);
+  }
+  return bytes_to_copy;
 }
 
 namespace {

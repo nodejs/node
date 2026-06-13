@@ -477,6 +477,26 @@ class V8_EXPORT ArrayBufferView : public Object {
    */
   bool HasBuffer() const;
 
+  /**
+   * Copy up to |bytes_to_copy| bytes from |source| (starting |source_start|
+   * bytes into the view) to |target| (starting |target_start| bytes into the
+   * view). The byte range is clamped to both views' byte lengths. The views'
+   * data pointers are resolved directly, without materializing their
+   * ArrayBuffers, avoiding the overhead of ArrayBufferView::Buffer /
+   * JSTypedArray::GetBuffer.
+   *
+   * Nothing is copied if |source| is detached or out of bounds, or if |target|
+   * is detached, out of bounds, or backed by an immutable ArrayBuffer. When
+   * both views are backed by a SharedArrayBuffer the copy uses a relaxed-atomic
+   * memmove that honors the SharedArrayBuffer memory model. Returns the number
+   * of bytes actually copied.
+   */
+  static size_t CopyArrayBufferViewBytes(Local<ArrayBufferView> source,
+                                         size_t source_start,
+                                         Local<ArrayBufferView> target,
+                                         size_t target_start,
+                                         size_t bytes_to_copy);
+
   V8_INLINE static ArrayBufferView* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
