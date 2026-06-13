@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-install-test----11160">
+<h1 id="----npm-install-test----11170">
     <span>npm-install-test</span>
-    <span class="version">@11.16.0</span>
+    <span class="version">@11.17.0</span>
 </h1>
 <span class="description">Install package(s) and run tests</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#prefer-dedupe"><code>prefer-dedupe</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#allow-directory"><code>allow-directory</code></a></li><li><a href="#allow-file"><code>allow-file</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#allow-remote"><code>allow-remote</code></a></li><li><a href="#allow-scripts"><code>allow-scripts</code></a></li><li><a href="#strict-allow-scripts"><code>strict-allow-scripts</code></a></li><li><a href="#dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#cpu"><code>cpu</code></a></li><li><a href="#os"><code>os</code></a></li><li><a href="#libc"><code>libc</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#prefer-dedupe"><code>prefer-dedupe</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#allow-directory"><code>allow-directory</code></a></li><li><a href="#allow-file"><code>allow-file</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#allow-remote"><code>allow-remote</code></a></li><li><a href="#allow-scripts"><code>allow-scripts</code></a></li><li><a href="#strict-allow-scripts"><code>strict-allow-scripts</code></a></li><li><a href="#dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li><li><a href="#min-release-age-exclude"><code>min-release-age-exclude</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#cpu"><code>cpu</code></a></li><li><a href="#os"><code>os</code></a></li><li><a href="#libc"><code>libc</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -475,6 +475,8 @@ wins (an explicit absolute date overrides a relative window). Across
 sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
 global), so a higher-priority source can always relax or override a
 lower-priority one.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
 <h4 id="min-release-age"><code>min-release-age</code></h4>
 <ul>
 <li>Default: null</li>
@@ -490,6 +492,29 @@ your <code>.npmrc</code> is preserved when npm internally spawns a sub-process w
 <code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
 apply, <code>before</code> wins within a single source and across sources the standard
 precedence rules apply.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="min-release-age-exclude"><code>min-release-age-exclude</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>A list of package names or <code>minimatch</code> glob patterns that are exempt from
+the <code>min-release-age</code> (and <code>before</code>) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.</p>
+<p>For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:</p>
+<pre><code>min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+</code></pre>
+<p>Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so <code>@myorg/*</code> matches <code>@myorg/shared-utils</code>.</p>
+<p>Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>

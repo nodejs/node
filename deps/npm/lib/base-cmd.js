@@ -129,7 +129,8 @@ class BaseCommand {
     }
 
     fullUsage.push('')
-    fullUsage.push(`Run "npm help ${name}" for more info`)
+    const helpName = parentName ? parentName.split(' ')[0] : name
+    fullUsage.push(`Run "npm help ${helpName}" for more info`)
 
     return fullUsage.join('\n')
   }
@@ -137,6 +138,7 @@ class BaseCommand {
   constructor (npm) {
     this.npm = npm
     this.commandArgs = null
+    this.parentName = null
 
     const { config } = this
 
@@ -167,7 +169,7 @@ class BaseCommand {
   }
 
   get usage () {
-    return this.constructor.describeUsage
+    return this.constructor.getUsage(this.parentName)
   }
 
   usageError (prefix = '') {

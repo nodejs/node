@@ -3,6 +3,7 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const auditError = require('../utils/audit-error.js')
 const { log, output } = require('proc-log')
 const reifyFinish = require('../utils/reify-finish.js')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const VerifySignatures = require('../utils/verify-signatures.js')
 
 class Audit extends ArboristWorkspaceCmd {
@@ -58,12 +59,14 @@ class Audit extends ArboristWorkspaceCmd {
     }
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
     const Arborist = require('@npmcli/arborist')
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const opts = {
       ...this.npm.flatOptions,
       audit: true,
       path: this.npm.prefix,
       reporter,
       workspaces: this.workspaceNames,
+      allowScripts: allowScriptsPolicy,
     }
 
     const arb = new Arborist(opts)
