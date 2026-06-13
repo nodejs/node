@@ -237,6 +237,10 @@ added:
   - v24.16.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63704
+    description: Add per-probe `--max-hit <n>` option to limit evaluated hits and finish
+        with a `completed` terminal event as soon as any probe reaches its limit.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63437
     description: Add `probe_failure` terminal `error` event for inspector-side mid-session
         failures, and `error.details` for additional context on per-hit and terminal errors.
@@ -264,8 +268,8 @@ printf-style debugging without having to modify the application code and
 clean up afterwards. It also supports structured JSON output for tool use.
 
 ```console
-$ node inspect --probe <file>:<line>[:<col>] --expr <expr>
-              [--probe <file>:<line>[:<col>] --expr <expr> ...]
+$ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>]
+              [--probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>] ...]
               [--json] [--preview] [--timeout=<ms>] [--port=<port>]
               [--] [<node-option> ...] <script> [<script-args> ...]
 ```
@@ -278,6 +282,11 @@ $ node inspect --probe <file>:<line>[:<col>] --expr <expr>
 * `--expr <expr>`: JavaScript expression to evaluate whenever execution reaches
   the location specified by the preceding `--probe`.
   Must immediately follow the `--probe` it belongs to.
+* `--max-hit <n>`: An optional per-probe limit on the number of times the probe
+  can be hit. When not specified, there's no hit limit. When any probe reaches
+  its hit limit, the probing process will detach and report the results. The process
+  being probed will continue to run. If any other probe is never reached by the time
+  the session ends, it will be reported as a missed probe.
 * `--timeout=<ms>`: A global wall-clock deadline for the entire probe session.
   The default is `30000`. This can be used to probe a long-running application
   that can be terminated externally.
@@ -292,6 +301,10 @@ Additional rules about the `--probe` and `--expr` arguments:
 
 * `--probe <file>:<line>[:<col>]` and `--expr <expr>` are strict pairs. Each
   `--probe` must be followed immediately by exactly one `--expr`.
+* `--max-hit <n>` is an optional per-probe option that applies to the most recent
+  `--probe`/`--expr` pair. It may not appear before the first `--probe` or
+  between a `--probe` and its matching `--expr`, and may be given at most once
+  per probe.
 * `--timeout`, `--json`, `--preview`, and `--port` are global probe options
   for the whole probe session. They may appear before or between probe pairs,
   but not between a `--probe` and its matching `--expr`.
@@ -366,6 +379,7 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
         "suffix": "cli.js",
         "line": 5
       }
+      // `maxHit` is present only when the probe was given a --max-hit limit.
     }
   ],
   "results": [
