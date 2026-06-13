@@ -57,8 +57,9 @@ class ContextNameResolver final : public v8::HeapProfiler::ContextNameResolver {
       : m_offset(0), m_strings(10000), m_session(session) {}
 
   const char* GetName(v8::Local<v8::Context> context) override {
-    InspectedContext* inspected_context = m_session->inspector()->getContext(
-        m_session->contextGroupId(), InspectedContext::contextId(context));
+    std::shared_ptr<InspectedContext> inspected_context =
+        m_session->inspector()->getContext(
+            m_session->contextGroupId(), InspectedContext::contextId(context));
     if (!inspected_context) return nullptr;
     String16 name = inspected_context->origin();
     size_t length = name.length();

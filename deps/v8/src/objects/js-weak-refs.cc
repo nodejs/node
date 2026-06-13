@@ -45,7 +45,7 @@ void JSFinalizationRegistry::ShrinkKeyMap(
   }
 }
 
-// ES#sec-cleanup-finalization-registry
+// https://tc39.es/ecma262/#sec-cleanup-finalization-registry
 // static
 Maybe<bool> JSFinalizationRegistry::Cleanup(
     Isolate* isolate,

@@ -40,6 +40,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/property-details.h"
 #include "src/objects/string.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -852,15 +853,12 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     return Changed(node).FollowedBy(ReduceJSInstanceOf(node));
   }
 
-  if (m.Ref(broker()).IsJSFunction()) {
+  if (m.Ref(broker()).IsJSFunctionWithPrototype()) {
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
 
-    // TODO(neis): Remove the has_prototype_slot condition once the broker is
-    // always enabled.
-    if (!function.map(broker()).has_prototype_slot() ||
-        !function.has_instance_prototype(broker()) ||
+    if (!function.has_instance_prototype(broker()) ||
         function.PrototypeRequiresRuntimeLookup(broker())) {
       return NoChange();
     }
@@ -879,7 +877,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   return NoChange();
 }
 
-// ES section #sec-promise-resolve
+// https://tc39.es/ecma262/#sec-promise-resolve
 Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   DCHECK_EQ(IrOpcode::kJSPromiseResolve, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
@@ -925,7 +923,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   return Replace(promise);
 }
 
-// ES section #sec-promise-resolve-functions
+// https://tc39.es/ecma262/#sec-promise-resolve-functions
 Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
   Node* promise = NodeProperties::GetValueInput(node, 0);
@@ -1814,13 +1812,11 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
-    if (object.IsJSFunction() && name.equals(broker()->prototype_string())) {
+    if (object.IsJSFunctionWithPrototype() &&
+        name.equals(broker()->prototype_string())) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      // TODO(neis): Remove the has_prototype_slot condition once the broker is
-      // always enabled.
-      if (!function.map(broker()).has_prototype_slot() ||
-          !function.has_instance_prototype(broker()) ||
+      if (!function.has_instance_prototype(broker()) ||
           function.PrototypeRequiresRuntimeLookup(broker())) {
         return NoChange();
       }
@@ -2862,16 +2858,24 @@ CallDescriptor* PushRegularApiCallInputs(
                               ? Builtin::kCallApiCallbackOptimizedNoProfiling
                               : Builtin::kCallApiCallbackOptimized);
 
+  const ZoneVector<CFunctionInfoWithDetails> overloads =
+      function_template_info.c_functions_with_signatures(broker);
+  const uint32_t overloads_count = static_cast<uint32_t>(overloads.size());
+  ZoneVector<Address> c_functions(overloads_count, jsgraph->zone());
+  ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                jsgraph->zone());
+  for (uint32_t i = 0; i < overloads_count; ++i) {
+    c_functions[i] = overloads[i].address;
+    c_signatures[i] = overloads[i].signature;
+  }
+
   Node* func_templ =
       jsgraph->HeapConstantNoHole(function_template_info.object());
   ApiFunction function(function_template_info.callback(broker));
   Node* function_reference = jsgraph->graph()->NewNode(
       jsgraph->common()->ExternalConstant(ExternalReference::Create(
           jsgraph->isolate(), &function, ExternalReference::DIRECT_API_CALL,
-          function_template_info.c_functions(broker).data(),
-          function_template_info.c_signatures(broker).data(),
-          static_cast<uint32_t>(
-              function_template_info.c_functions(broker).size()))));
+          c_functions.data(), c_signatures.data(), overloads_count)));
   Node* code = jsgraph->HeapConstantNoHole(call_api_callback.code());
 
   // Add CallApiCallbackStub's register argument as well.
@@ -3935,7 +3939,13 @@ JSNativeContextSpecialization::
   }
 
   // See if we can skip the detaching check.
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool is_store = keyed_mode.IsStore();
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      is_store ? dependencies()->DependOnArrayBufferMutableProtector() : true;
+
+  if (!depend_on_mutable || !depend_on_detaching) {
     // Load the buffer for the {receiver}.
     Node* buffer =
         typed_array.has_value()
@@ -3945,19 +3955,19 @@ JSNativeContextSpecialization::
                        AccessBuilder::ForJSArrayBufferViewBuffer()),
                    receiver, effect, control));
 
-    // Deopt if the {buffer} was detached.
+    // Deopt if the {buffer} was detached or immutable.
     // Note: A detached buffer leads to megamorphic feedback.
     Node* buffer_bit_field = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
         buffer, effect, control);
     Node* check = graph()->NewNode(
         simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
-                keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
-                                     : TypedArrayAccessMode::kRead))),
+        graph()->NewNode(simplified()->NumberBitwiseAnd(), buffer_bit_field,
+                         jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
+                             is_store ? TypedArrayAccessMode::kWrite
+                                      : TypedArrayAccessMode::kRead))),
         jsgraph()->ZeroConstant());
+
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,
         effect, control);
@@ -4238,21 +4248,25 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // for intermediate states of chains of property additions. That makes
   // it unclear what the best approach is here.
   DCHECK_EQ(map.UnusedPropertyFields(), 0);
-  int in_object_length = map.GetInObjectProperties();
-  int length = map.NextFreePropertyIndex() - in_object_length;
-  // Under normal circumstances, NextFreePropertyIndex() will always be larger
-  // than GetInObjectProperties(). However, an attacker able to corrupt heap
-  // memory can break this invariant, in which case we'll get confused here,
-  // potentially causing a sandbox violation. This CHECK defends against that.
+  FieldStorageLocation offset = map.NextFreeFieldStorageLocation();
+  DCHECK(!offset.is_in_object);
+  int length =
+      offset.offset_in_words - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+  // Under normal circumstances, NextFreeFieldStorageLocation()'s offset will
+  // always be larger than OFFSET_OF_DATA_START(FixedArray) / kTaggedSize.
+  // However, an attacker able to corrupt heap memory can break this invariant,
+  // in which case we'll get confused here, potentially causing a sandbox
+  // violation. This CHECK defends against that.
   SBXCHECK_GE(length, 0);
   int new_length = length + JSObject::kFieldsAdded;
 
   // Find the descriptor index corresponding to the first out-of-object
   // property.
   DescriptorArrayRef descs = map.instance_descriptors(broker());
-  InternalIndex first_out_of_object_descriptor(in_object_length);
+  InternalIndex first_out_of_object_descriptor(map.GetInObjectProperties());
   InternalIndex number_of_descriptors(descs.object()->number_of_descriptors());
-  for (InternalIndex i(in_object_length); i < number_of_descriptors; ++i) {
+  for (InternalIndex i = first_out_of_object_descriptor;
+       i < number_of_descriptors; ++i) {
     PropertyDetails details = descs.GetPropertyDetails(i);
     // Skip over non-field properties.
     if (details.location() != PropertyLocation::kField) {
@@ -4260,7 +4274,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     }
     // Skip over in-object fields.
     // TODO(leszeks): We could make this smarter, like a binary search.
-    if (details.field_index() < in_object_length) {
+    if (details.is_in_object()) {
       continue;
     }
     first_out_of_object_descriptor = i;
@@ -4280,7 +4294,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       ++descriptor;
       details = descs.GetPropertyDetails(descriptor);
     }
-    DCHECK_EQ(i, details.field_index() - in_object_length);
+    DCHECK(!details.is_in_object());
+    DCHECK_EQ(i, PropertyArray::OffsetInWordsToIndex(details.field_offset()));
     Representation repr = details.representation();
     MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
     dependencies()->DependOnFieldRepresentation(map, field_owner_map,

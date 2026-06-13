@@ -21,8 +21,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/embedder-data-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
-
 Address EmbedderDataArray::slots_start() {
   return field_address(OffsetOfElementAt(0));
 }

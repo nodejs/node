@@ -378,7 +378,7 @@ transitioning macro SlowSplice(
   return a;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.splice
+// https://tc39.es/ecma262/#sec-array.prototype.splice
 transitioning javascript builtin ArrayPrototypeSplice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

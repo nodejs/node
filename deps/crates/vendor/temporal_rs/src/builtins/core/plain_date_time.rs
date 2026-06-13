@@ -4,6 +4,7 @@ use super::{
     duration::normalized::InternalDurationRecord, Duration, PartialTime, PlainDate, PlainTime,
     ZonedDateTime,
 };
+use crate::error::ErrorMessage;
 use crate::parsed_intermediates::ParsedDateTime;
 use crate::{
     builtins::{
@@ -18,6 +19,7 @@ use crate::{
     parsers::IxdtfStringBuilder,
     primitive::FiniteF64,
     provider::{NeverProvider, TimeZoneProvider},
+    unix_time::EpochNanoseconds,
     MonthCode, TemporalError, TemporalResult, TimeZone,
 };
 use alloc::string::String;
@@ -311,6 +313,7 @@ impl PlainDateTime {
         let dest_epoch_ns = other.iso.as_nanoseconds();
         // 6. Return ? RoundRelativeDuration(diff, destEpochNs, isoDateTime1, unset, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
         diff.round_relative_duration(
+            self.iso.as_nanoseconds(),
             dest_epoch_ns.0,
             self,
             Option::<(&TimeZone, &NeverProvider)>::None,
@@ -335,10 +338,12 @@ impl PlainDateTime {
         if unit == Unit::Nanosecond {
             return FiniteF64::try_from(diff.normalized_time_duration().0);
         }
+        let origin_epoch_ns = self.iso.as_nanoseconds();
         // 5. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
         let dest_epoch_ns = other.iso.as_nanoseconds();
         // 6. Return ? TotalRelativeDuration(diff, destEpochNs, isoDateTime1, unset, calendar, unit).
         diff.total_relative_duration(
+            origin_epoch_ns,
             dest_epoch_ns.0,
             self,
             Option::<(&TimeZone, &NeverProvider)>::None,
@@ -640,16 +645,14 @@ impl PlainDateTime {
     #[inline]
     pub fn with(&self, fields: DateTimeFields, overflow: Option<Overflow>) -> TemporalResult<Self> {
         if fields.is_empty() {
-            return Err(
-                TemporalError::r#type().with_message("A PartialDateTime must have a valid field.")
-            );
+            return Err(TemporalError::r#type().with_enum(ErrorMessage::EmptyFieldsIsInvalid));
         }
         let overflow = overflow.unwrap_or(Overflow::Constrain);
 
         let result_date = self.calendar.date_from_fields(
             fields
                 .calendar_fields
-                .with_fallback_datetime(self, self.calendar.kind(), overflow)?,
+                .with_fallback_datetime(self, self.calendar.kind())?,
             overflow,
         )?;
 
@@ -892,7 +895,7 @@ impl PlainDateTime {
         &self,
         time_zone: TimeZone,
         disambiguation: Disambiguation,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<ZonedDateTime> {
         // 6. Let epochNs be ? GetEpochNanosecondsFor(timeZone, dateTime.[[ISODateTime]], disambiguation).
         let epoch_ns = time_zone.get_epoch_nanoseconds_for(self.iso, disambiguation, provider)?;
@@ -903,6 +906,15 @@ impl PlainDateTime {
             self.calendar.clone(),
             epoch_ns.offset,
         ))
+    }
+
+    /// Gets the EpochNanoseconds represented by this PlainDateTime
+    /// (using and UTC timezone)
+    ///
+    // Useful for implementing HandleDateTimeTemporalDateTime
+    pub fn epoch_ns_for_utc(&self) -> EpochNanoseconds {
+        // 3. Let epochNs be ? GetUTCEpochNanoseconds(isoDateTime).
+        self.iso.as_nanoseconds()
     }
 
     /// Create a [`PlainDate`] from the current `PlainDateTime`.
@@ -1307,6 +1319,24 @@ mod tests {
         assert_eq!(result.days(), 973);
         assert_eq!(result.hours(), 4);
         assert_eq!(result.minutes(), 30);
+    }
+
+    #[test]
+    fn dt_since_conflicting_signs() {
+        // From intl402/Temporal/PlainDateTime/prototype/since/wrapping-at-end-of-month-gregorian
+        // Tests that date arithmetic with conflicting signs works
+        let a = PlainDateTime::try_new(2023, 3, 1, 2, 0, 0, 0, 0, 0, Calendar::GREGORIAN).unwrap();
+        let b = PlainDateTime::try_new(2023, 1, 1, 3, 0, 0, 0, 0, 0, Calendar::GREGORIAN).unwrap();
+
+        let settings = DifferenceSettings {
+            largest_unit: Some(Unit::Year),
+            ..Default::default()
+        };
+        let result = a.since(&b, settings).unwrap();
+
+        assert_eq!(result.months(), 1);
+        assert_eq!(result.days(), 30);
+        assert_eq!(result.hours(), 23);
     }
 
     #[test]

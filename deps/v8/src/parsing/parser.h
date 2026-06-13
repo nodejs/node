@@ -160,8 +160,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(
       IsolateT* isolate, ParseInfo* info,
       MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-      Scope::DeserializationMode mode =
-          Scope::DeserializationMode::kScopesOnly);
+      Scope::DeserializationMode mode = Scope::DeserializationMode::kScopesOnly,
+      DirectHandle<Script> script = DirectHandle<Script>());
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);

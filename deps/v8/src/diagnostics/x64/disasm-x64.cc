@@ -131,11 +131,13 @@ enum InstructionType {
 
 enum Prefixes {
   ESCAPE_PREFIX = 0x0F,
+  EVEX_PREFIX = 0x62,
   SEGMENT_FS_OVERRIDE_PREFIX = 0x64,
   OPERAND_SIZE_OVERRIDE_PREFIX = 0x66,
   ADDRESS_SIZE_OVERRIDE_PREFIX = 0x67,
   VEX3_PREFIX = 0xC4,
   VEX2_PREFIX = 0xC5,
+  REX2_PREFIX = 0xD5,
   LOCK_PREFIX = 0xF0,
   REPNE_PREFIX = 0xF2,
   REP_PREFIX = 0xF3,
@@ -293,18 +295,8 @@ class DisassemblerX64 {
   DisassemblerX64(const NameConverter& converter,
                   Disassembler::UnimplementedOpcodeAction unimplemented_action)
       : converter_(converter),
-        tmp_buffer_pos_(0),
         abort_on_unimplemented_(unimplemented_action ==
                                 Disassembler::kAbortOnUnimplementedOpcode),
-        rex_(0),
-        operand_size_(0),
-        group_1_prefix_(0),
-        segment_prefix_(0),
-        address_size_prefix_(0),
-        vex_byte0_(0),
-        vex_byte1_(0),
-        vex_byte2_(0),
-        byte_size_operand_(false),
         instruction_table_(GetInstructionTable()) {
     tmp_buffer_[0] = '\0';
   }
@@ -312,6 +304,8 @@ class DisassemblerX64 {
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(v8::base::Vector<char> buffer, uint8_t* instruction);
+
+  bool hit_unimplemented_opcode() const { return hit_unimplemented_opcode_; }
 
  private:
   enum OperandSize {
@@ -323,19 +317,26 @@ class DisassemblerX64 {
 
   const NameConverter& converter_;
   v8::base::EmbeddedVector<char, 128> tmp_buffer_;
-  unsigned int tmp_buffer_pos_;
+  unsigned int tmp_buffer_pos_ = 0;
   bool abort_on_unimplemented_;
   // Prefixes parsed.
-  uint8_t rex_;
-  uint8_t operand_size_;         // 0x66 or (without group 3 prefix) 0x0.
-  uint8_t group_1_prefix_;       // 0xF2, 0xF3, or (without group 1 prefix) 0.
-  uint8_t segment_prefix_;       // 0x64 or (without group 2 prefix) 0.
-  uint8_t address_size_prefix_;  // 0x67 or (without group 4 prefix) 0.
-  uint8_t vex_byte0_;            // 0xC4 or 0xC5.
-  uint8_t vex_byte1_;
-  uint8_t vex_byte2_;  // only for 3 bytes vex prefix.
+  uint8_t rex_ = 0;
+  uint8_t operand_size_ = 0;    // 0x66 or (without group 3 prefix) 0x0.
+  uint8_t group_1_prefix_ = 0;  // 0xF2, 0xF3, or (without group 1 prefix) 0.
+  uint8_t segment_prefix_ = 0;  // 0x64 or (without group 2 prefix) 0.
+  uint8_t address_size_prefix_ = 0;  // 0x67 or (without group 4 prefix) 0.
+  uint8_t vex_byte0_ = 0;            // 0xC4 or 0xC5.
+  uint8_t vex_byte1_ = 0;
+  uint8_t vex_byte2_ = 0;  // only for 3 bytes vex prefix.
+  uint8_t evex_byte0_ = 0;  // 0x62 if EVEX prefix.
+  uint8_t evex_byte1_ = 0;
+  uint8_t evex_byte2_ = 0;
+  uint8_t evex_byte3_ = 0;
+  uint8_t rex2_byte0_ = 0;  // 0xD5 if REX2 prefix.
+  uint8_t rex2_byte1_ = 0;
   // Byte size operand override.
-  bool byte_size_operand_;
+  bool byte_size_operand_ = false;
+  bool hit_unimplemented_opcode_ = false;
   const InstructionTable* const instruction_table_;
 
   void setRex(uint8_t rex) {
@@ -418,6 +419,59 @@ class DisassemblerX64 {
     return ~(checked >> 3) & 0xF;
   }
 
+  // EVEX helpers.
+  bool is_evex() { return evex_byte0_ == EVEX_PREFIX; }
+  bool evex_map4() { return (evex_byte1_ & 0x07) == 4; }
+
+  bool evex_w() { return (evex_byte2_ & 0x80) != 0; }
+  int evex_pp() { return evex_byte2_ & 0x3; }
+  bool evex_pp_none() { return evex_pp() == 0; }
+  bool evex_pp_66() { return evex_pp() == 1; }
+  bool evex_pp_f3() { return evex_pp() == 2; }
+  bool evex_pp_f2() { return evex_pp() == 3; }
+  int evex_vvvv() { return (~evex_byte2_ >> 3) & 0xF; }
+
+  bool evex_nd() { return (evex_byte3_ & 0x10) != 0; }
+  bool evex_nf() { return (evex_byte3_ & 0x04) == 0; }
+  int evex_scc() { return evex_byte3_ & 0x0F; }
+  int evex_v4() { return (evex_byte3_ & 0x08) != 0 ? 0 : 16; }
+  int evex_ndd_reg() { return evex_vvvv() | evex_v4(); }
+
+  int evex_reg(int modrm_regop) {
+    int r3 = (evex_byte1_ & 0x80) ? 0 : 8;
+    int r4 = (evex_byte1_ & 0x10) ? 0 : 16;
+    return (modrm_regop & 0x7) | r3 | r4;
+  }
+
+  int evex_rm(int modrm_rm) {
+    int b3 = (evex_byte1_ & 0x20) ? 0 : 8;
+    int b4 = (evex_byte1_ & 0x08) ? 16 : 0;
+    return (modrm_rm & 0x7) | b3 | b4;
+  }
+
+  OperandSize evex_operand_size() {
+    if (evex_pp_66()) return OPERAND_WORD_SIZE;
+    if (evex_w()) return OPERAND_QUADWORD_SIZE;
+    return OPERAND_DOUBLEWORD_SIZE;
+  }
+
+  char evex_operand_size_code() { return "bwlq"[evex_operand_size()]; }
+
+  // REX2 helpers.
+  bool is_rex2() { return rex2_byte0_ == REX2_PREFIX; }
+  bool rex2_m() { return (rex2_byte1_ & 0x80) != 0; }
+  bool rex2_w() { return (rex2_byte1_ & 0x08) != 0; }
+  int rex2_base_reg(int low_bits) {
+    int b = (rex2_byte1_ & 0x01) ? 8 : 0;
+    int b4 = (rex2_byte1_ & 0x10) ? 16 : 0;
+    return low_bits | b | b4;
+  }
+  int rex2_reg(int modrm_regop) {
+    int r = (rex2_byte1_ & 0x04) ? 8 : 0;
+    int r4 = (rex2_byte1_ & 0x40) ? 16 : 0;
+    return (modrm_regop & 0x7) | r | r4;
+  }
+
   OperandSize operand_size() {
     if (byte_size_operand_) return OPERAND_BYTE_SIZE;
     if (rex_w()) return OPERAND_QUADWORD_SIZE;
@@ -490,9 +544,12 @@ class DisassemblerX64 {
   int MemoryFPUInstruction(int escape_opcode, int regop, uint8_t* modrm_start);
   int RegisterFPUInstruction(int escape_opcode, uint8_t modrm_byte);
   int AVXInstruction(uint8_t* data);
+  int APXInstruction(uint8_t* data);
+  int REX2Instruction(uint8_t* data);
   PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
+    hit_unimplemented_opcode_ = true;
     if (abort_on_unimplemented_) {
       FATAL("'Unimplemented Instruction'");
     } else {
@@ -2374,6 +2431,454 @@ const char* DisassemblerX64::TwoByteMnemonic(uint8_t opcode) {
   }
 }
 
+// Returns number of bytes used, including *data.
+int DisassemblerX64::APXInstruction(uint8_t* data) {
+  uint8_t* start = data;
+  uint8_t opcode = *data++;
+
+  char size_code = evex_operand_size_code();
+  bool is_w = evex_w();
+  bool has_nd = evex_nd();
+
+  int mod, regop, rm;
+  get_modrm(*data, &mod, &regop, &rm);
+
+  int full_regop = evex_reg(regop);
+  int full_rm = evex_rm(rm);
+  int ndd_reg = evex_ndd_reg();
+
+  // Synthesize rex_ for PrintRightOperand.
+  uint8_t synth_rex = 0x40;
+  if (!(evex_byte1_ & 0x80)) synth_rex |= 0x04;
+  if (!(evex_byte1_ & 0x40)) synth_rex |= 0x02;
+  if (!(evex_byte1_ & 0x20)) synth_rex |= 0x01;
+  if (is_w) synth_rex |= 0x08;
+  setRex(synth_rex);
+
+  bool is_ccmp_ctest_opcode =
+      opcode == 0x38 || opcode == 0x39 || opcode == 0x3A || opcode == 0x3B ||
+      opcode == 0x80 || opcode == 0x81 || opcode == 0x83 || opcode == 0x84 ||
+      opcode == 0x85 || opcode == 0xF6 || opcode == 0xF7;
+
+  if (!has_nd && is_ccmp_ctest_opcode) {
+    int scc = evex_scc();
+    const char* cc_suffix = conditional_code_suffix[scc];
+    switch (opcode) {
+      case 0x38: {
+        AppendToBuffer("ccmpb%s ", cc_suffix);
+        data += PrintRightByteOperand(data);
+        AppendToBuffer(",%s", NameOfByteCPURegister(full_regop & 0xF));
+        break;
+      }
+      case 0x39: {
+        AppendToBuffer("ccmp%s%c ", cc_suffix, size_code);
+        data += PrintRightOperand(data);
+        AppendToBuffer(",%s", NameOfCPURegister(full_regop & 0xF));
+        break;
+      }
+      case 0x3A: {
+        AppendToBuffer("ccmpb%s %s,", cc_suffix,
+                       NameOfByteCPURegister(full_regop & 0xF));
+        data += PrintRightByteOperand(data);
+        break;
+      }
+      case 0x3B: {
+        AppendToBuffer("ccmp%s%c %s,", cc_suffix, size_code,
+                       NameOfCPURegister(full_regop & 0xF));
+        data += PrintRightOperand(data);
+        break;
+      }
+      case 0x80: {
+        AppendToBuffer("ccmpb%s ", cc_suffix);
+        data += PrintRightByteOperand(data);
+        AppendToBuffer(",0x%x", *data);
+        data++;
+        break;
+      }
+      case 0x81: {
+        AppendToBuffer("ccmp%s%c ", cc_suffix, size_code);
+        data += PrintRightOperand(data);
+        if (evex_pp_66()) {
+          AppendToBuffer(",0x%x", Imm16(data));
+          data += 2;
+        } else {
+          AppendToBuffer(",0x%x", Imm32(data));
+          data += 4;
+        }
+        break;
+      }
+      case 0x83: {
+        AppendToBuffer("ccmp%s%c ", cc_suffix, size_code);
+        data += PrintRightOperand(data);
+        AppendToBuffer(",0x%x", Imm8(data));
+        data++;
+        break;
+      }
+      case 0x84: {
+        AppendToBuffer("ctestb%s ", cc_suffix);
+        data += PrintRightByteOperand(data);
+        AppendToBuffer(",%s", NameOfByteCPURegister(full_regop & 0xF));
+        break;
+      }
+      case 0x85: {
+        AppendToBuffer("ctest%s%c ", cc_suffix, size_code);
+        data += PrintRightOperand(data);
+        AppendToBuffer(",%s", NameOfCPURegister(full_regop & 0xF));
+        break;
+      }
+      case 0xF6: {
+        AppendToBuffer("ctestb%s ", cc_suffix);
+        data += PrintRightByteOperand(data);
+        AppendToBuffer(",0x%x", *data);
+        data++;
+        break;
+      }
+      case 0xF7: {
+        AppendToBuffer("ctest%s%c ", cc_suffix, size_code);
+        data += PrintRightOperand(data);
+        if (evex_pp_66()) {
+          AppendToBuffer(",0x%x", Imm16(data));
+          data += 2;
+        } else {
+          AppendToBuffer(",0x%x", Imm32(data));
+          data += 4;
+        }
+        break;
+      }
+      default:
+        UnimplementedInstruction();
+        data++;
+        break;
+    }
+    return static_cast<int>(data - start);
+  }
+
+  // SETZUCC.
+  if (evex_pp_f2() && has_nd && opcode >= 0x40 && opcode <= 0x4F) {
+    int cc = opcode - 0x40;
+    const char* cc_suffix = conditional_code_suffix[cc];
+    AppendToBuffer("setzu%s ", cc_suffix);
+    data += PrintRightOperand(data);
+    return static_cast<int>(data - start);
+  }
+
+  // CMOVcc and CFCMOVcc.
+  if (opcode >= 0x40 && opcode <= 0x4F) {
+    int cc = opcode - 0x40;
+    const char* cc_suffix = conditional_code_suffix[cc];
+    bool nf_set = (evex_byte3_ & 0x04) != 0;
+
+    if (!has_nd && nf_set) {
+      AppendToBuffer("cmov%s%c %s,%s,", cc_suffix, size_code,
+                     NameOfCPURegister(ndd_reg & 0xF),
+                     NameOfCPURegister(full_regop & 0xF));
+      data += PrintRightOperand(data);
+    } else if (!has_nd && !nf_set) {
+      AppendToBuffer("cfcmov%s%c %s,", cc_suffix, size_code,
+                     NameOfCPURegister(full_regop & 0xF));
+      data += PrintRightOperand(data);
+    } else if (has_nd && !nf_set) {
+      AppendToBuffer("cfcmov%s%c ", cc_suffix, size_code);
+      data += PrintRightOperand(data);
+      AppendToBuffer(",%s", NameOfCPURegister(full_regop & 0xF));
+    } else {
+      AppendToBuffer("cfcmov%s%c %s,%s,", cc_suffix, size_code,
+                     NameOfCPURegister(ndd_reg & 0xF),
+                     NameOfCPURegister(full_regop & 0xF));
+      data += PrintRightOperand(data);
+    }
+    return static_cast<int>(data - start);
+  }
+
+  // NDD arithmetic.
+  if (has_nd) {
+    const char* mnem = nullptr;
+    switch (opcode) {
+      case 0x00:
+      case 0x01:
+      case 0x02:
+      case 0x03:
+        mnem = "add";
+        break;
+      case 0x08:
+      case 0x09:
+      case 0x0A:
+      case 0x0B:
+        mnem = "or";
+        break;
+      case 0x10:
+      case 0x11:
+      case 0x12:
+      case 0x13:
+        mnem = "adc";
+        break;
+      case 0x18:
+      case 0x19:
+      case 0x1A:
+      case 0x1B:
+        mnem = "sbb";
+        break;
+      case 0x20:
+      case 0x21:
+      case 0x22:
+      case 0x23:
+        mnem = "and";
+        break;
+      case 0x28:
+      case 0x29:
+      case 0x2A:
+      case 0x2B:
+        mnem = "sub";
+        break;
+      case 0x30:
+      case 0x31:
+      case 0x32:
+      case 0x33:
+        mnem = "xor";
+        break;
+      default:
+        break;
+    }
+
+    if (mnem != nullptr) {
+      bool is_byte = (opcode & 0x01) == 0;
+      bool reg_is_dst = (opcode & 0x02) != 0;
+      if (is_byte) {
+        if (reg_is_dst) {
+          AppendToBuffer("%sb %s,%s,", mnem,
+                         NameOfByteCPURegister(ndd_reg & 0xF),
+                         NameOfByteCPURegister(full_regop & 0xF));
+          data += PrintRightByteOperand(data);
+        } else {
+          AppendToBuffer("%sb %s,", mnem, NameOfByteCPURegister(ndd_reg & 0xF));
+          data += PrintRightByteOperand(data);
+          AppendToBuffer(",%s", NameOfByteCPURegister(full_regop & 0xF));
+        }
+      } else {
+        if (reg_is_dst) {
+          AppendToBuffer("%s%c %s,%s,", mnem, size_code,
+                         NameOfCPURegister(ndd_reg & 0xF),
+                         NameOfCPURegister(full_regop & 0xF));
+          data += PrintRightOperand(data);
+        } else {
+          AppendToBuffer("%s%c %s,", mnem, size_code,
+                         NameOfCPURegister(ndd_reg & 0xF));
+          data += PrintRightOperand(data);
+          AppendToBuffer(",%s", NameOfCPURegister(full_regop & 0xF));
+        }
+      }
+      return static_cast<int>(data - start);
+    }
+
+    // NDD immediate arithmetic.
+    if (opcode == 0x80 || opcode == 0x81 || opcode == 0x83) {
+      const char* imm_mnem = nullptr;
+      int subcode = (regop >> 0) & 0x7;
+      switch (subcode) {
+        case 0:
+          imm_mnem = "add";
+          break;
+        case 1:
+          imm_mnem = "or";
+          break;
+        case 2:
+          imm_mnem = "adc";
+          break;
+        case 3:
+          imm_mnem = "sbb";
+          break;
+        case 4:
+          imm_mnem = "and";
+          break;
+        case 5:
+          imm_mnem = "sub";
+          break;
+        case 6:
+          imm_mnem = "xor";
+          break;
+        case 7:
+          imm_mnem = "cmp";
+          break;
+      }
+      if (opcode == 0x80) {
+        AppendToBuffer("%sb %s,", imm_mnem,
+                       NameOfByteCPURegister(ndd_reg & 0xF));
+        data += PrintRightByteOperand(data);
+        AppendToBuffer(",0x%x", *data);
+        data++;
+      } else if (opcode == 0x83) {
+        AppendToBuffer("%s%c %s,", imm_mnem, size_code,
+                       NameOfCPURegister(ndd_reg & 0xF));
+        data += PrintRightOperand(data);
+        AppendToBuffer(",0x%x", Imm8(data));
+        data++;
+      } else {
+        // 0x81
+        AppendToBuffer("%s%c %s,", imm_mnem, size_code,
+                       NameOfCPURegister(ndd_reg & 0xF));
+        data += PrintRightOperand(data);
+        if (evex_pp_66()) {
+          AppendToBuffer(",0x%x", Imm16(data));
+          data += 2;
+        } else {
+          AppendToBuffer(",0x%x", Imm32(data));
+          data += 4;
+        }
+      }
+      return static_cast<int>(data - start);
+    }
+
+    // NDD NOT/NEG.
+    if (opcode == 0xF7 || opcode == 0xF6) {
+      int subcode = (regop >> 0) & 0x7;
+      const char* f7_mnem = nullptr;
+      switch (subcode) {
+        case 2:
+          f7_mnem = "not";
+          break;
+        case 3:
+          f7_mnem = "neg";
+          break;
+        default:
+          break;
+      }
+      if (f7_mnem != nullptr) {
+        if (opcode == 0xF6) {
+          AppendToBuffer("%sb %s,", f7_mnem,
+                         NameOfByteCPURegister(ndd_reg & 0xF));
+          data += PrintRightByteOperand(data);
+        } else {
+          AppendToBuffer("%s%c %s,", f7_mnem, size_code,
+                         NameOfCPURegister(ndd_reg & 0xF));
+          data += PrintRightOperand(data);
+        }
+        return static_cast<int>(data - start);
+      }
+    }
+
+    // NDD shift.
+    if (opcode == 0xC1 || opcode == 0xD1 || opcode == 0xD3) {
+      const char* shift_mnem = nullptr;
+      int subcode = (regop >> 0) & 0x7;
+      switch (subcode) {
+        case 0:
+          shift_mnem = "rol";
+          break;
+        case 1:
+          shift_mnem = "ror";
+          break;
+        case 2:
+          shift_mnem = "rcl";
+          break;
+        case 3:
+          shift_mnem = "rcr";
+          break;
+        case 4:
+          shift_mnem = "shl";
+          break;
+        case 5:
+          shift_mnem = "shr";
+          break;
+        case 7:
+          shift_mnem = "sar";
+          break;
+        default:
+          break;
+      }
+      if (shift_mnem != nullptr) {
+        AppendToBuffer("%s%c %s,", shift_mnem, size_code,
+                       NameOfCPURegister(ndd_reg & 0xF));
+        data += PrintRightOperand(data);
+        if (opcode == 0xC1) {
+          AppendToBuffer(",0x%x", *data);
+          data++;
+        } else if (opcode == 0xD1) {
+          AppendToBuffer(",1");
+        } else {
+          AppendToBuffer(",cl");
+        }
+        return static_cast<int>(data - start);
+      }
+    }
+
+    // NDD imul.
+    if (opcode == 0xAF) {
+      AppendToBuffer("imul%c %s,%s,", size_code,
+                     NameOfCPURegister(ndd_reg & 0xF),
+                     NameOfCPURegister(full_regop & 0xF));
+      data += PrintRightOperand(data);
+      return static_cast<int>(data - start);
+    }
+
+    // Push2/Pop2.
+    if (opcode == 0xFF) {
+      int subcode = (regop >> 0) & 0x7;
+      if (subcode == 6) {
+        bool is_pq = is_w;
+        AppendToBuffer("%s %s,%s", is_pq ? "push2pq" : "push2q",
+                       NameOfCPURegister(ndd_reg & 0xF),
+                       NameOfCPURegister(full_rm & 0xF));
+        data++;  // modrm
+        return static_cast<int>(data - start);
+      }
+    }
+
+    if (opcode == 0x8F) {
+      int subcode = (regop >> 0) & 0x7;
+      if (subcode == 0) {
+        bool is_pq = is_w;
+        AppendToBuffer("%s %s,%s", is_pq ? "pop2pq" : "pop2q",
+                       NameOfCPURegister(ndd_reg & 0xF),
+                       NameOfCPURegister(full_rm & 0xF));
+        data++;  // modrm
+        return static_cast<int>(data - start);
+      }
+    }
+  }
+
+  UnimplementedInstruction();
+  return static_cast<int>(data - start);
+}
+
+// Returns number of bytes used, including *data.
+int DisassemblerX64::REX2Instruction(uint8_t* data) {
+  uint8_t* start = data;
+  bool is_map1 = rex2_m();
+  bool is_w = rex2_w();
+
+  // Synthesize rex_ for PrintRightOperand.
+  uint8_t synth_rex = 0x40;
+  if (rex2_byte1_ & 0x04) synth_rex |= 0x04;
+  if (rex2_byte1_ & 0x02) synth_rex |= 0x02;
+  if (rex2_byte1_ & 0x01) synth_rex |= 0x01;
+  if (is_w) synth_rex |= 0x08;
+  setRex(synth_rex);
+
+  uint8_t opcode = *data++;
+
+  if (!is_map1) {
+    if (opcode >= 0x50 && opcode <= 0x57) {
+      int reg = rex2_base_reg(opcode & 0x7);
+      AppendToBuffer("pushpq %s", NameOfCPURegister(reg & 0xF));
+      return static_cast<int>(data - start);
+    }
+    if (opcode >= 0x58 && opcode <= 0x5F) {
+      int reg = rex2_base_reg(opcode & 0x7);
+      AppendToBuffer("poppq %s", NameOfCPURegister(reg & 0xF));
+      return static_cast<int>(data - start);
+    }
+    if (opcode == 0xA1) {
+      int64_t target = Imm64(data);
+      AppendToBuffer("jmpabs 0x%" PRIx64, target);
+      data += 8;
+      return static_cast<int>(data - start);
+    }
+  }
+
+  UnimplementedInstruction();
+  return static_cast<int>(data - start);
+}
+
 // Disassembles the instruction at instr, and writes it into out_buffer.
 int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
                                        uint8_t* instr) {
@@ -2408,6 +2913,18 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
       setRex(0x40 | (~(vex_byte1_ >> 5) & 4));
       data += 2;
       break;  // Vex is the last prefix.
+    } else if (current == EVEX_PREFIX) {
+      evex_byte0_ = current;
+      evex_byte1_ = *(data + 1);
+      evex_byte2_ = *(data + 2);
+      evex_byte3_ = *(data + 3);
+      data += 4;
+      break;  // EVEX is the last prefix.
+    } else if (current == REX2_PREFIX) {
+      rex2_byte0_ = current;
+      rex2_byte1_ = *(data + 1);
+      data += 2;
+      break;  // REX2 is the last prefix.
     } else if (current == SEGMENT_FS_OVERRIDE_PREFIX) {
       segment_prefix_ = current;
     } else if (current == ADDRESS_SIZE_OVERRIDE_PREFIX) {
@@ -2422,6 +2939,12 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
   if (vex_byte0_ != 0) {
     processed = true;
     data += AVXInstruction(data);
+  } else if (is_evex()) {
+    processed = true;
+    data += APXInstruction(data);
+  } else if (is_rex2()) {
+    processed = true;
+    data += REX2Instruction(data);
   } else if (segment_prefix_ != 0 && address_size_prefix_ != 0) {
     if (*data == 0x90 && *(data + 1) == 0x90 && *(data + 2) == 0x90) {
       AppendToBuffer("sscmark");
@@ -2899,7 +3422,9 @@ const char* NameConverter::NameInCode(uint8_t* addr) const {
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     uint8_t* instruction) {
   DisassemblerX64 d(converter_, unimplemented_opcode_action());
-  return d.InstructionDecode(buffer, instruction);
+  int result = d.InstructionDecode(buffer, instruction);
+  if (d.hit_unimplemented_opcode()) hit_unimplemented_opcode_ = true;
+  return result;
 }
 
 // The X64 assembler does not use constant pools.

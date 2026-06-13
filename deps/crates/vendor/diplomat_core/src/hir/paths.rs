@@ -2,6 +2,7 @@ use super::lifetimes::{Lifetimes, LinkedLifetimes};
 use super::{
     Borrow, EnumDef, EnumId, Everywhere, Mutability, OpaqueDef, OpaqueId, OpaqueOwner,
     OutStructDef, OutputOnly, ReturnableStructDef, StructDef, TraitId, TyPosition, TypeContext,
+    TypeId,
 };
 
 /// Path to a struct that may appear as an output.
@@ -97,6 +98,12 @@ impl<Opt> OpaquePath<Opt, MaybeOwn> {
 impl<Opt> OpaquePath<Opt, Borrow> {
     pub fn borrowed(&self) -> &Borrow {
         &self.owner
+    }
+}
+
+impl<Opt, Owner> OpaquePath<Opt, Owner> {
+    pub fn id(&self) -> TypeId {
+        self.tcx_id.into()
     }
 }
 
@@ -238,6 +245,10 @@ impl EnumPath {
     /// Returns the [`EnumDef`] that this path references.
     pub fn resolve<'tcx>(&self, tcx: &'tcx TypeContext) -> &'tcx EnumDef {
         tcx.resolve_enum(self.tcx_id)
+    }
+
+    pub fn id(&self) -> TypeId {
+        self.tcx_id.into()
     }
 }
 

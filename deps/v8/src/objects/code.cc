@@ -95,19 +95,6 @@ int Code::SourceStatementPosition(int offset) const {
   return position;
 }
 
-SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
-  DCHECK(!is_maglevved());
-  SafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
-MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
-                                                   Address pc) {
-  DCHECK(is_maglevved());
-  MaglevSafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
 bool Code::IsIsolateIndependent(Isolate* isolate) {
   static constexpr int kModeMask =
       RelocInfo::AllRealModesMask() &
@@ -163,7 +150,7 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
   Tagged<DeoptimizationData> const data = deoptimization_data();
-  if (data->length() == 0) return false;
+  if (data->ulength().value() == 0) return false;
   if (data->GetSharedFunctionInfo() == sfi) return true;
   Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount().value();
@@ -234,7 +221,7 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
   // TODO(422951610): Zapping code discovered a bug in
   // --maglev-inline-api-calls. Remove the flag check here once the bug is
   // fixed.
-  if (tmp->length() > 0 && !v8_flags.maglev_inline_api_calls) {
+  if (tmp->ulength().value() > 0 && !v8_flags.maglev_inline_api_calls) {
     Address start = instruction_start();
     Address end = start + deoptimization_data()->DeoptExitStart().value();
     RelocIterator it(instruction_stream(), RelocIterator::kAllModesMask);

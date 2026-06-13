@@ -51,7 +51,7 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
 
   // Granularity: identifying the segmenter used.
   //
-  // ecma402 #sec-segmenter-internal-slots
+  // https://tc39.es/ecma402/#sec-segmenter-internal-slots
   enum class Granularity {
     GRAPHEME,  // for character-breaks
     WORD,      // for word-breaks

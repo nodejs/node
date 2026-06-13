@@ -210,7 +210,7 @@ MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
   DirectHandle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(
           debug_info->GetBreakPointCount(isolate_));
-  int break_points_hit_count = 0;
+  uint32_t break_points_hit_count = 0;
   bool has_break_points_at_all = false;
   for (size_t i = 0; i < break_locations.size(); i++) {
     bool location_has_break_points;
@@ -220,8 +220,8 @@ MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
     if (!check_result.is_null()) {
       DirectHandle<FixedArray> break_points_current_hit =
           check_result.ToHandleChecked();
-      int num_objects = break_points_current_hit->length();
-      for (int j = 0; j < num_objects; ++j) {
+      uint32_t num_objects = break_points_current_hit->ulength().value();
+      for (uint32_t j = 0; j < num_objects; ++j) {
         break_points_hit->set(break_points_hit_count++,
                               break_points_current_hit->get(j));
       }
@@ -830,7 +830,8 @@ bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
   }
 
   DirectHandle<FixedArray> array(Cast<FixedArray>(*break_points), isolate_);
-  for (int i = 0; i < array->length(); ++i) {
+  uint32_t array_len = array->ulength().value();
+  for (uint32_t i = 0; i < array_len; ++i) {
     const auto break_point =
         Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     if (break_point->id() == kInstrumentationId) {
@@ -1052,7 +1053,8 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
     Tagged<FixedArray> break_points = debug_info->break_points();
-    for (int i = 0; i < break_points->length(); i++) {
+    uint32_t break_points_len = break_points->ulength().value();
+    for (uint32_t i = 0; i < break_points_len; i++) {
       if (IsUndefined(break_points->get(i), isolate_)) continue;
       Tagged<BreakPointInfo> info = Cast<BreakPointInfo>(break_points->get(i));
       if (info->GetBreakPointCount(isolate_) == 0) continue;
@@ -1188,8 +1190,10 @@ void Debug::RecordWasmScriptWithBreakpoints(DirectHandle<Script> script) {
   }
   {
     DisallowGarbageCollection no_gc;
-    for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
-         --idx) {
+    const uint32_t wasm_scripts_len =
+        wasm_scripts_with_break_points_->length().value();
+    DCHECK_LE(wasm_scripts_len, kMaxInt);
+    for (int idx = static_cast<int>(wasm_scripts_len) - 1; idx >= 0; --idx) {
       Tagged<HeapObject> wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &wasm_script) &&
@@ -1221,8 +1225,10 @@ void Debug::ClearAllBreakPoints() {
   // Clear all wasm breakpoints.
   if (!wasm_scripts_with_break_points_.is_null()) {
     DisallowGarbageCollection no_gc;
-    for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
-         --idx) {
+    const uint32_t wasm_scripts_len =
+        wasm_scripts_with_break_points_->length().value();
+    DCHECK_LE(wasm_scripts_len, kMaxInt);
+    for (int idx = static_cast<int>(wasm_scripts_len) - 1; idx >= 0; --idx) {
       Tagged<HeapObject> raw_wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &raw_wasm_script)) {
@@ -1289,12 +1295,12 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(
   }
 
   DirectHandle<FixedArray> array(Cast<FixedArray>(*break_points), isolate_);
-  int num_objects = array->length();
+  uint32_t num_objects = array->ulength().value();
   Handle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(num_objects);
-  int break_points_hit_count = 0;
+  uint32_t break_points_hit_count = 0;
   *has_break_points = false;
-  for (int i = 0; i < num_objects; ++i) {
+  for (uint32_t i = 0; i < num_objects; ++i) {
     const auto break_point =
         Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     *has_break_points |= break_point->id() != kInstrumentationId;
@@ -1497,7 +1503,8 @@ void Debug::PrepareStep(StepAction step_action) {
 #endif  // V8_ENABLE_DRUMBRAKE
     // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
-    auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+    wasm::NativeModule* native_module = wasm_frame->native_module();
+    wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
     if (debug_info->PrepareStep(wasm_frame)) {
       UpdateHookOnFunctionCall();
       return;
@@ -1532,23 +1539,28 @@ void Debug::PrepareStep(StepAction step_action) {
           // by some other async function, should resume the latter. The return
           // value here is either a JSPromise or a JSGeneratorObject (for the
           // initial yield of async generators).
-          DirectHandle<JSReceiver> return_value(
-              Cast<JSReceiver>(thread_local_.return_value_), isolate_);
-          DirectHandle<Object> awaited_by_holder = JSReceiver::GetDataProperty(
-              isolate_, return_value,
-              isolate_->factory()->promise_awaited_by_symbol());
-          if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
-            auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
-            if (weak_fixed_array->length() == 1 &&
-                weak_fixed_array->get(0).IsWeak()) {
-              DirectHandle<HeapObject> awaited_by(
-                  weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
-                  isolate_);
-              if (IsJSGeneratorObject(*awaited_by)) {
-                DCHECK(!has_suspended_generator());
-                thread_local_.suspended_generator_ = *awaited_by;
-                ClearStepping();
-                return;
+          // It's possible to change the return value to something else though
+          // via the Chrome DevTools Protocol, so double-check first.
+          if (IsJSReceiver(thread_local_.return_value_)) {
+            DirectHandle<JSReceiver> return_value(
+                Cast<JSReceiver>(thread_local_.return_value_), isolate_);
+            DirectHandle<Object> awaited_by_holder =
+                JSReceiver::GetDataProperty(
+                    isolate_, return_value,
+                    isolate_->factory()->promise_awaited_by_symbol());
+            if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
+              auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
+              if (weak_fixed_array->ulength().value() == 1 &&
+                  weak_fixed_array->get(0).IsWeak()) {
+                DirectHandle<HeapObject> awaited_by(
+                    weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
+                    isolate_);
+                if (IsJSGeneratorObject(*awaited_by)) {
+                  DCHECK(!has_suspended_generator());
+                  thread_local_.suspended_generator_ = *awaited_by;
+                  ClearStepping();
+                  return;
+                }
               }
             }
           }
@@ -1571,7 +1583,8 @@ void Debug::PrepareStep(StepAction step_action) {
           }
           // Handle stepping out into Wasm.
           WasmFrame* wasm_frame = WasmFrame::cast(frames_it.frame());
-          auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+          wasm::NativeModule* native_module = wasm_frame->native_module();
+          wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
           if (debug_info->IsFrameBlackboxed(wasm_frame)) continue;
           debug_info->PrepareStepOutTo(wasm_frame);
           return;
@@ -1627,14 +1640,15 @@ DirectHandle<Object> Debug::GetSourceBreakLocations(
   }
   DirectHandle<FixedArray> locations = isolate->factory()->NewFixedArray(
       debug_info->GetBreakPointCount(isolate));
-  int count = 0;
-  for (int i = 0; i < debug_info->break_points()->length(); ++i) {
+  uint32_t count = 0;
+  uint32_t break_points_len = debug_info->break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; ++i) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(debug_info->break_points()->get(i));
-      int break_points = break_point_info->GetBreakPointCount(isolate);
+      uint32_t break_points = break_point_info->GetBreakPointCount(isolate);
       if (break_points == 0) continue;
-      for (int j = 0; j < break_points; ++j) {
+      for (uint32_t j = 0; j < break_points; ++j) {
         locations->set(count++,
                        Smi::FromInt(break_point_info->source_position()));
       }
@@ -2180,7 +2194,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     }
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->infos()->length() > 0) {
+        script->infos()->ulength().value() > 0) {
       MaybeDirectHandle<SharedFunctionInfo> shared =
           GetTopLevelWithRecompile(script, &triedTopLevelCompile);
       if (shared.is_null()) return false;
@@ -2215,7 +2229,8 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
 
 MaybeDirectHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
     Handle<Script> script, bool* did_compile) {
-  DCHECK_LE(kFunctionLiteralIdTopLevel, script->infos()->length());
+  DCHECK_LE(static_cast<uint32_t>(kFunctionLiteralIdTopLevel),
+            script->infos()->ulength().value());
   Tagged<MaybeObject> maybeToplevel =
       script->infos()->get(kFunctionLiteralIdTopLevel);
   Tagged<HeapObject> heap_object;
@@ -2418,7 +2433,8 @@ DirectHandle<FixedArray> Debug::GetLoadedScripts() {
     return factory->empty_fixed_array();
   }
   auto array = Cast<WeakArrayList>(factory->script_list());
-  Handle<FixedArray> results = factory->NewFixedArray(array->length());
+  const uint32_t array_length = array->length().value();
+  Handle<FixedArray> results = factory->NewFixedArray(array_length);
   int length = 0;
   {
     Script::Iterator iterator(isolate_);
@@ -2643,7 +2659,8 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
 
   std::vector<int> inspector_break_points_hit;
   // This array contains breakpoints installed using JS debug API.
-  for (int i = 0; i < break_points_hit->length(); ++i) {
+  uint32_t break_points_hit_count = break_points_hit->ulength().value();
+  for (uint32_t i = 0; i < break_points_hit_count; ++i) {
     Tagged<BreakPoint> break_point = Cast<BreakPoint>(break_points_hit->get(i));
     inspector_break_points_hit.push_back(break_point->id());
   }

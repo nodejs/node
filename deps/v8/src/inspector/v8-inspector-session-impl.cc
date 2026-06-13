@@ -229,7 +229,7 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
 Response V8InspectorSessionImpl::findInjectedScript(
     int contextId, InjectedScript*& injectedScript) {
   injectedScript = nullptr;
-  InspectedContext* context =
+  std::shared_ptr<InspectedContext> context =
       m_inspector->getContext(m_contextGroupId, contextId);
   if (!context)
     return Response::ServerError("Cannot find context with specified id");

@@ -66,17 +66,34 @@ class JSAsyncGeneratorObject
   TQ_OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject)
 };
 
-class AsyncGeneratorRequest
-    : public TorqueGeneratedAsyncGeneratorRequest<AsyncGeneratorRequest,
-                                                  Struct> {
+V8_OBJECT class AsyncGeneratorRequest : public StructLayout {
  public:
+  inline Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> next() const;
+  inline void set_next(Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int resume_mode() const;
+  inline void set_resume_mode(int value);
+
+  inline Tagged<Object> value() const;
+  inline void set_value(Tagged<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSPromise> promise() const;
+  inline void set_promise(Tagged<JSPromise> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(AsyncGeneratorRequest)
   DECL_VERIFIER(AsyncGeneratorRequest)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AsyncGeneratorRequest)
-};
+ public:
+  TaggedMember<UnionOf<AsyncGeneratorRequest, Undefined>> next_;
+  TaggedMember<Smi> resume_mode_;
+  TaggedMember<Object> value_;
+  TaggedMember<JSPromise> promise_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

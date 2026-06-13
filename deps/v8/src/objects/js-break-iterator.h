@@ -56,8 +56,8 @@ class JSV8BreakIterator
 
   DECL_PRINTER(JSV8BreakIterator)
 
-  DECL_ACCESSORS(break_iterator, Tagged<Managed<icu::BreakIterator>>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
+  DECL_ACCESSORS(icu_iterator_with_text,
+                 Tagged<Managed<IcuBreakIteratorWithText>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSV8BreakIterator)
 };

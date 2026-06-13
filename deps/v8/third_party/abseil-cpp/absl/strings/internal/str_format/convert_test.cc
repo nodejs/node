@@ -24,6 +24,7 @@
 #include <cstring>
 #include <cwctype>
 #include <limits>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -44,7 +45,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 
 namespace absl {
@@ -593,11 +593,11 @@ TYPED_TEST_P(TypedFormatConvertTest, AllIntsWithFlags) {
 }
 
 template <typename T>
-absl::optional<std::string> StrPrintChar(T c) {
+std::optional<std::string> StrPrintChar(T c) {
   return StrPrint("%c", static_cast<int>(c));
 }
 template <>
-absl::optional<std::string> StrPrintChar(wchar_t c) {
+std::optional<std::string> StrPrintChar(wchar_t c) {
   // musl libc has a bug where ("%lc", 0) writes no characters, and Android
   // doesn't support forcing UTF-8 via setlocale(). Hardcode the expected
   // answers for ASCII inputs to maximize test coverage on these platforms.
@@ -611,7 +611,7 @@ absl::optional<std::string> StrPrintChar(wchar_t c) {
   // call.
   std::string old_locale = setlocale(LC_CTYPE, nullptr);
   if (!setlocale(LC_CTYPE, "en_US.UTF-8")) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   const std::string output = StrPrint("%lc", static_cast<wint_t>(c));
   setlocale(LC_CTYPE, old_locale.c_str());
@@ -666,7 +666,7 @@ TYPED_TEST_P(TypedFormatConvertTest, Char) {
     SCOPED_TRACE(Esc(c));
     const FormatArgImpl args[] = {FormatArgImpl(c)};
     UntypedFormatSpecImpl format("%c");
-    absl::optional<std::string> result = StrPrintChar(c);
+    std::optional<std::string> result = StrPrintChar(c);
     if (result.has_value()) {
       EXPECT_EQ(result.value(), FormatPack(format, absl::MakeSpan(args)));
     }

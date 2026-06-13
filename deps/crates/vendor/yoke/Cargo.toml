@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "yoke"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Manish Goregaokar <manishsmail@gmail.com>"]
 build = false
 include = [
@@ -35,10 +35,9 @@ autobenches = false
 description = "Abstraction allowing borrowed data to be carried along with the backing data it borrows from"
 readme = "README.md"
 keywords = [
-    "zerocopy",
+    "zero-copy",
     "serialization",
-    "lifetime",
-    "borrow",
+    "memory-efficiency",
     "self-referential",
 ]
 categories = [
@@ -92,12 +91,12 @@ version = "1.2.0"
 default-features = false
 
 [dependencies.yoke-derive]
-version = "0.8.0"
+version = "0.8.2"
 optional = true
 default-features = false
 
 [dependencies.zerofrom]
-version = "0.1.3"
+version = "0.1.6"
 optional = true
 default-features = false
 
@@ -111,3 +110,52 @@ default-features = false
 [dev-dependencies.serde]
 version = "1.0.220"
 default-features = false
+
+[lints.clippy]
+alloc-instead-of-core = "warn"
+branches-sharing-code = "warn"
+collection_is_never_read = "warn"
+crosspointer_transmute = "warn"
+dbg_macro = "warn"
+debug_assert_with_mut_call = "warn"
+doc_markdown = "warn"
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+fn_to_numeric_cast_any = "warn"
+infinite_loop = "warn"
+large_stack_arrays = "warn"
+mismatching_type_param_order = "warn"
+missing_fields_in_debug = "warn"
+missing_transmute_annotations = "warn"
+negative_feature_names = "warn"
+or-fun-call = "warn"
+same_functions_in_if_condition = "warn"
+todo = "warn"
+transmute_bytes_to_str = "warn"
+transmute_int_to_bool = "warn"
+transmute_int_to_non_zero = "warn"
+transmute_ptr_to_ptr = "warn"
+transmute_ptr_to_ref = "warn"
+transmute_undefined_repr = "warn"
+transmutes_expressible_as_ptr_casts = "warn"
+trivially_copy_pass_by_ref = "deny"
+unnecessary-wraps = "warn"
+useless_transmute = "warn"
+wildcard_dependencies = "warn"
+
+[lints.rust]
+missing_debug_implementations = "deny"
+trivial_numeric_casts = "deny"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    "cfg(icu4c_enable_renaming)",
+    "cfg(needs_alloc_error_handler)",
+    "cfg(icu4x_run_size_tests)",
+    "cfg(icu4x_unstable_fast_trie_only)",
+]

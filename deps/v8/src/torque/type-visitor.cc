@@ -211,6 +211,7 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
+            false,
             FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -438,6 +439,21 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       }
     }
     std::optional<ClassFieldIndexInfo> array_length = field_expression.index;
+    bool index_is_constant = false;
+    if (array_length) {
+      if (IntegerLiteralExpression::DynamicCast(array_length->expr)) {
+        index_is_constant = true;
+      } else if (auto identifier =
+                     IdentifierExpression::DynamicCast(array_length->expr)) {
+        QualifiedName qualified_name{identifier->namespace_qualification,
+                                     identifier->name->value};
+        auto values = Declarations::TryLookup<Value>(qualified_name);
+        if (values.size() == 1 && (values[0]->IsNamespaceConstant() ||
+                                   values[0]->IsExternConstant())) {
+          index_is_constant = true;
+        }
+      }
+    }
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
          class_type,
@@ -446,6 +462,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.custom_weak_marking,
          field_expression.const_qualified,
+         index_is_constant,
          field_expression.synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {

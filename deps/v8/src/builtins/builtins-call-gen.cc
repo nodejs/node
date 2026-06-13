@@ -312,8 +312,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> length = var_length.value();
     {
       Label normalize_done(this);
-      CSA_DCHECK(this, Int32LessThanOrEqual(
-                           length, Int32Constant(FixedArray::kMaxLength)));
+      CSA_DCHECK(this, Uint32LessThanOrEqual(
+                           length, Uint32Constant(FixedArray::kMaxLength)));
       GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
       // Make sure we don't accidentally pass along the
       // empty_fixed_double_array since the tailed-called stubs cannot handle
@@ -358,8 +358,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  CSA_DCHECK(this, Int32LessThanOrEqual(length,
-                                        Int32Constant(FixedArray::kMaxLength)));
+  CSA_DCHECK(this, Uint32LessThanOrEqual(
+                       length, Uint32Constant(FixedArray::kMaxLength)));
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
   CSA_DCHECK(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
@@ -469,8 +469,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
         var_js_array.value(), JSArray::kLengthOffset);
     TNode<FixedArrayBase> elements = var_elements.value();
-    CSA_DCHECK(this, Int32LessThanOrEqual(
-                         length, Int32Constant(FixedArray::kMaxLength)));
+    CSA_DCHECK(this, Uint32LessThanOrEqual(
+                         length, Uint32Constant(FixedArray::kMaxLength)));
 
     if (!new_target) {
       TailCallBuiltin(Builtin::kCallVarargs, context, target, args_count,
@@ -642,7 +642,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       var_template = CAST(constructor);
       TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
       GotoIf(IsJSFunctionInstanceType(template_type), &template_from_closure);
-      Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
+      Branch(IsMapInstanceType(template_type), &template_map_loop,
              &template_loop);
     }
 
@@ -678,7 +678,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
           current, FunctionTemplateInfo::kRareDataOffset);
       GotoIf(IsUndefined(current_rare), &holder_next);
       var_template = LoadObjectField<HeapObject>(
-          current_rare, FunctionTemplateRareData::kParentTemplateOffset);
+          current_rare, offsetof(FunctionTemplateRareData, parent_template_));
       Goto(&template_loop);
     }
 

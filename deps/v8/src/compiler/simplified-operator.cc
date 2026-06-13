@@ -881,6 +881,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)                     \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)                    \
   V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)               \
+  V(ChangeSmiOrHoleToFloat64, Operator::kNoProperties, 1, 0)                 \
   V(ChangeNumberOrHoleToFloat64, Operator::kNoProperties, 1, 0)              \
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)             \
   V(ChangeFloat64HoleToTagged, Operator::kNoProperties, 1, 0)                \
@@ -898,6 +899,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)                      \
   V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)               \
   V(TruncateNumberOrOddballToWord32, Operator::kNoProperties, 1, 0)          \
+  V(TruncateSmiOrHoleToWord32, Operator::kNoProperties, 1, 0)                \
   V(TruncateNumberOrOddballOrHoleToWord32, Operator::kNoProperties, 1, 0)    \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)                  \
   V(TruncateTaggedToFloat64PreserveUndefined, Operator::kNoProperties, 1, 0) \

@@ -1440,7 +1440,7 @@ transitioning builtin ArrayTimSort(context: Context, sortState: SortState):
   return kSuccess;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.sort
+// https://tc39.es/ecma262/#sec-array.prototype.sort
 transitioning javascript builtin ArrayPrototypeSort(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. If comparefn is not undefined and IsCallable(comparefn) is false,

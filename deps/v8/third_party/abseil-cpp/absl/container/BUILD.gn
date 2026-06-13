@@ -9,6 +9,16 @@ absl_source_set("compressed_tuple") {
   deps = [ "//third_party/abseil-cpp/absl/utility" ]
 }
 
+absl_test("compressed_tuple_test") {
+  public = [ "internal/compressed_tuple_test.cc" ]
+  deps = [
+    ":compressed_tuple",
+    ":test_instance_tracker",
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/utility",
+  ]
+}
+
 absl_source_set("fixed_array") {
   public = [ "fixed_array.h" ]
   deps = [
@@ -126,7 +136,6 @@ absl_test("flat_hash_map_test") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/log:check",
     "//third_party/abseil-cpp/absl/meta:type_traits",
-    "//third_party/abseil-cpp/absl/types:any",
   ]
 }
 
@@ -648,7 +657,6 @@ absl_source_set("btree_test_common") {
 #     "//third_party/abseil-cpp/absl/random",
 #     "//third_party/abseil-cpp/absl/strings",
 #     "//third_party/abseil-cpp/absl/types:compare",
-#     "//third_party/abseil-cpp/absl/types:optional",
 #   ]
 # }
 

@@ -45,12 +45,12 @@ class JSListFormat
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder);
 
-  // ecma402 #sec-formatlist
+  // https://tc39.es/ecma402/#sec-formatlist
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatList(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
 
-  // ecma42 #sec-formatlisttoparts
+  // ecma42 https://tc39.es/ecma262/#sec-formatlisttoparts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatListToParts(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
@@ -65,7 +65,7 @@ class JSListFormat
 
   // Style: identifying the relative time format style used.
   //
-  // ecma402/#sec-properties-of-intl-listformat-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-listformat-instances
   enum class Style {
     LONG,   // Everything spelled out.
     SHORT,  // Abbreviations used when possible.
@@ -76,7 +76,7 @@ class JSListFormat
 
   // Type: identifying the list of types used.
   //
-  // ecma402/#sec-properties-of-intl-listformat-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-listformat-instances
   enum class Type {
     CONJUNCTION,  // for "and"-based lists (e.g., "A, B and C")
     DISJUNCTION,  // for "or"-based lists (e.g., "A, B or C"),

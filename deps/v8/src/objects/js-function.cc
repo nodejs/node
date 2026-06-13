@@ -447,16 +447,16 @@ MaybeHandle<String> JSBoundFunction::GetName(
 }
 
 // static
-Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
-                                      DirectHandle<JSBoundFunction> function) {
-  int nof_bound_arguments = function->bound_arguments()->length();
+Maybe<uint32_t> JSBoundFunction::GetLength(
+    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
+  uint32_t nof_bound_arguments = function->bound_arguments()->ulength().value();
   while (IsJSBoundFunction(function->bound_target_function())) {
     function = direct_handle(
         Cast<JSBoundFunction>(function->bound_target_function()), isolate);
     // Make sure we never overflow {nof_bound_arguments}, the number of
     // arguments of a function is strictly limited by the max length of an
     // JSAarray, Smi::kMaxValue is thus a reasonably good overestimate.
-    int length = function->bound_arguments()->length();
+    const uint32_t length = function->bound_arguments()->ulength().value();
     if (V8_LIKELY(Smi::kMaxValue - nof_bound_arguments > length)) {
       nof_bound_arguments += length;
     } else {
@@ -466,19 +466,25 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   if (IsJSWrappedFunction(function->bound_target_function())) {
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
-    int target_length = 0;
+    uint32_t target_length = 0;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
                                JSWrappedFunction::GetLength(isolate, target));
-    int length = std::max(0, target_length - nof_bound_arguments);
+    uint32_t length = 0;
+    if (target_length > nof_bound_arguments) {
+      length = target_length - nof_bound_arguments;
+    }
     return Just(length);
   }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
   DirectHandle<JSFunction> target(
       Cast<JSFunction>(function->bound_target_function()), isolate);
-  int target_length = target->length();
+  const uint32_t target_length = target->length();
 
-  int length = std::max(0, target_length - nof_bound_arguments);
+  uint32_t length = 0;
+  if (target_length > nof_bound_arguments) {
+    length = target_length - nof_bound_arguments;
+  }
   return Just(length);
 }
 
@@ -511,9 +517,9 @@ MaybeHandle<String> JSWrappedFunction::GetName(
 }
 
 // static
-Maybe<int> JSWrappedFunction::GetLength(
+Maybe<uint32_t> JSWrappedFunction::GetLength(
     Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
-  STACK_CHECK(isolate, Nothing<int>());
+  STACK_CHECK(isolate, Nothing<uint32_t>());
   DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetLength(
@@ -729,9 +735,10 @@ void JSFunction::InitializeFeedbackCell(
   bool has_closure_feedback_cell_array =
       function->has_closure_feedback_cell_array();
   if (has_closure_feedback_cell_array) {
-    CHECK_EQ(
-        function->closure_feedback_cell_array()->length(),
-        function->shared()->feedback_metadata()->create_closure_slot_count());
+    CHECK_EQ(function->closure_feedback_cell_array()->ulength().value(),
+             static_cast<uint32_t>(function->shared()
+                                       ->feedback_metadata()
+                                       ->create_closure_slot_count()));
   }
 
   const bool needs_feedback_vector =
@@ -924,7 +931,7 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
 
   int instance_size;
   int inobject_properties;
-  CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
+  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
   DirectHandle<NativeContext> creation_context(function->native_context(),
@@ -968,6 +975,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -1129,8 +1137,7 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       static_cast<int>(constructor->shared()->expected_nof_properties()),
       JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
-      instance_type, constructor_initial_map->has_prototype_slot(),
-      embedder_fields, expected_nof_properties, &instance_size,
+      instance_type, embedder_fields, expected_nof_properties, &instance_size,
       &in_object_properties);
 
   int pre_allocated = constructor_initial_map->GetInObjectProperties() -
@@ -1213,10 +1220,23 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
     DirectHandle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
-    int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
-                                    : Context::OBJECT_FUNCTION_INDEX;
-    DirectHandle<JSFunction> realm_constructor(
-        Cast<JSFunction>(native_context->GetNoCell(index)), isolate);
+    NativeContext::Field index = static_cast<NativeContext::Field>(
+        IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
+                            : Context::OBJECT_FUNCTION_INDEX);
+    DirectHandle<Object> maybe_realm_constructor(
+        native_context->GetNoCell(index), isolate);
+    if (IsUndefined(*maybe_realm_constructor)) {
+      // The constructor might belong to a lazily initialized part of the
+      // context. Try to initialize it.
+      isolate->bootstrapper()->InitializeLazyPartOfContext(native_context,
+                                                           index);
+      maybe_realm_constructor =
+          direct_handle(native_context->GetNoCell(index), isolate);
+    }
+    DirectHandle<JSFunction> realm_constructor;
+    if (!TryCast<JSFunction>(maybe_realm_constructor, &realm_constructor)) {
+      FATAL("Context does not have a constructor at index %d", index);
+    }
     prototype = direct_handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
@@ -1510,14 +1530,13 @@ int JSFunction::CalculateExpectedNofProperties(
 
 // static
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
-                                             bool has_prototype_slot,
                                              int requested_embedder_fields,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
-  int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
+  int header_size = JSObject::GetHeaderSize(instance_type);
   requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
 
   int max_nof_fields =

@@ -132,6 +132,7 @@ class V8_EXPORT_PRIVATE StaticCanonicalForLoopMatcher {
   static constexpr BinOp BinopFromOverflowCheckedBinopKind(
       OverflowCheckedBinopOp::Kind kind);
   static constexpr bool BinopKindIsSupported(WordBinopOp::Kind binop_kind);
+  static constexpr bool BinopIsCommutative(BinOp op);
 
  private:
   bool MatchPhiCompareCst(OpIndex cond_idx,

@@ -57,8 +57,11 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
 
 ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
     Tagged<HeapObject> witness, ExternalPointerHandle handle) {
-  DCHECK(!HeapLayout::InWritableSharedSpace(witness));
-  return isolate_->external_pointer_table().GetTag(handle);
+  if (HeapLayout::InWritableSharedSpace(witness)) {
+    return isolate_->shared_external_pointer_table().GetTag(handle);
+  } else {
+    return isolate_->external_pointer_table().GetTag(handle);
+  }
 }
 
 bool IsolateForSandbox::SharesPointerTablesWith(IsolateForSandbox other) const {

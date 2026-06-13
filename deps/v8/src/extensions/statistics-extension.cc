@@ -156,20 +156,22 @@ void StatisticsExtension::GetCounters(
     for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       Tagged<Object> maybe_source_positions;
-      if (Tagged<Code> code; TryCast(obj, &code)) {
+      if (Is<Code>(obj)) {
+        Tagged<Code> code = TrustedCast<Code>(obj);
         reloc_info_total += code->relocation_size();
         if (!code->has_source_position_table()) continue;
         maybe_source_positions = code->source_position_table();
-      } else if (Tagged<BytecodeArray> bytecode_array;
-                 TryCast(obj, &bytecode_array)) {
+      } else if (Is<BytecodeArray>(obj)) {
+        Tagged<BytecodeArray> bytecode_array = TrustedCast<BytecodeArray>(obj);
         maybe_source_positions =
             bytecode_array->raw_source_position_table(kAcquireLoad);
       } else {
         continue;
       }
-      Tagged<TrustedByteArray> source_positions;
-      if (!TryCast(maybe_source_positions, &source_positions)) continue;
-      if (source_positions->length() == 0) continue;
+      if (!Is<TrustedByteArray>(maybe_source_positions)) continue;
+      Tagged<TrustedByteArray> source_positions =
+          TrustedCast<TrustedByteArray>(maybe_source_positions);
+      if (source_positions->ulength().value() == 0) continue;
       source_position_table_total += source_positions->AllocatedSize();
     }
   }

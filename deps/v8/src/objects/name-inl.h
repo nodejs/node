@@ -254,7 +254,8 @@ bool Name::IsInteresting(Isolate* isolate) {
   // these strings and interesting symbols.
   return (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) ||
          this == *isolate->factory()->toJSON_string() ||
-         this == *isolate->factory()->get_string();
+         this == *isolate->factory()->get_string() ||
+         this == *isolate->factory()->then_string();
 }
 
 bool Name::IsAnyPrivate() {

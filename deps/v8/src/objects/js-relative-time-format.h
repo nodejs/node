@@ -47,12 +47,12 @@ class JSRelativeTimeFormat
 
   Handle<String> NumericAsString(Isolate* isolate) const;
 
-  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
+  // https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Format(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
       DirectHandle<JSRelativeTimeFormat> format);
 
-  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
+  // https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
       DirectHandle<JSRelativeTimeFormat> format);
@@ -66,7 +66,7 @@ class JSRelativeTimeFormat
   // used only when no more specific version is available (e.g., "1 day ago" vs
   // "yesterday").
   //
-  // ecma402/#sec-properties-of-intl-relativetimeformat-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-instances
   enum class Numeric {
     ALWAYS,  // numerical descriptions are always used ("1 day ago")
     AUTO     // numerical descriptions are used only when no more specific

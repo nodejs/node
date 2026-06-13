@@ -852,7 +852,6 @@ absl_cc_library(
     absl::random_internal_platform
     absl::random_internal_randen_hwaes_impl
     absl::config
-    absl::optional
 )
 
 # Internal-only target, do not depend on directly.

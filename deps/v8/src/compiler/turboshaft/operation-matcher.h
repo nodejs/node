@@ -423,6 +423,14 @@ class OperationMatcher {
 
   template <class T>
     requires(IsWord<T>())
+  bool MatchBitwiseXor(V<Any> matched, V<T>* left, V<T>* right,
+                       WordRepresentation rep) const {
+    return MatchWordBinop<T>(matched, left, right,
+                             WordBinopOp::Kind::kBitwiseXor, rep);
+  }
+
+  template <class T>
+    requires(IsWord<T>())
   bool MatchBitwiseAndWithConstant(V<Any> matched, V<T>* value,
                                    uint64_t* constant,
                                    WordRepresentation rep) const {

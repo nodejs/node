@@ -26,17 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import copy
-import os
 import re
 import shlex
 
 from pathlib import Path
 
 from testrunner.outproc import base as outproc
-from testrunner.local import command
 from testrunner.local import statusfile
-from testrunner.local import utils
-from testrunner.local.variants import ALL_VARIANT_FLAGS
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
@@ -75,6 +71,13 @@ MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
 MODULE_IMPORT_SOURCE_RESOURCES_PATTERN = re.compile(
     r"import\s*\.?\s*source\s*\(?['\"]([^'\"\n]+)['\"]",
     re.MULTILINE)
+# Pattern to detect files to push on Android for statements like:
+# import defer x from "path/to/file.js"
+# import.defer("module.mjs").catch()...
+# Require the matched path in one line. Note this might include some
+# false matches, which is safe, since files are tested for existence.
+MODULE_IMPORT_DEFER_RESOURCES_PATTERN = re.compile(
+    r"import\s*\.?\s*defer\s*\(?['\"]([^'\"\n]+)['\"]", re.MULTILINE)
 # Pattern to detect files to push on Android for expressions like:
 # shadowRealm.importValue("path/to/file.js", "obj")
 SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN = re.compile(
@@ -613,6 +616,8 @@ class TestCase(object):
     for match in MODULE_IMPORT_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
     for match in MODULE_IMPORT_SOURCE_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
+    for match in MODULE_IMPORT_DEFER_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
     for match in SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))

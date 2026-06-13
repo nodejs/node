@@ -54,6 +54,10 @@ namespace internal {
 
 class SafepointTableBuilder;
 
+namespace regexp {
+class RegExpMacroAssemblerMIPS;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1925,7 +1929,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerMIPS;
+  friend class regexp::RegExpMacroAssemblerMIPS;
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;

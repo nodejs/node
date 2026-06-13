@@ -212,8 +212,7 @@ void BM_CacheInSteadyState(benchmark::State& state) {
   state.SetLabel(absl::StrFormat("load_factor=%.2f", t.load_factor()));
 }
 
-template <typename Benchmark>
-void CacheInSteadyStateArgs(Benchmark* bm) {
+void CacheInSteadyStateArgs(::benchmark::Benchmark* bm) {
   // The default.
   const float max_load_factor = 0.875;
   // When the cache is at the steady state, the probe sequence will equal

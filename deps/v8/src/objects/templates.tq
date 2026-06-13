@@ -20,6 +20,7 @@ extern class TemplateInfoWithProperties extends TemplateInfo {
   property_accessors: ArrayList|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class FunctionTemplateRareData extends Struct {
   // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
   prototype_template: ObjectTemplateInfo|Undefined;

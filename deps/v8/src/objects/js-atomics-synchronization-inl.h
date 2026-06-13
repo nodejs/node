@@ -22,8 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-atomics-synchronization-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSynchronizationPrimitive)
-
 std::atomic<JSSynchronizationPrimitive::StateT>*
 JSSynchronizationPrimitive::AtomicStatePtr() {
   StateT* state_ptr = reinterpret_cast<StateT*>(field_address(kStateOffset));
@@ -127,8 +125,6 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
 #endif  // V8_COMPRESS_POINTERS
   return new_state;
 }
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
                                              DirectHandle<JSAtomicsMutex> mutex,
@@ -246,8 +242,6 @@ std::atomic<int32_t>* JSAtomicsMutex::AtomicOwnerThreadIdPtr() {
       reinterpret_cast<int32_t*>(field_address(kOwnerThreadIdOffset));
   return base::AsAtomicPtr(owner_thread_id_ptr);
 }
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsCondition)
 
 }  // namespace internal
 }  // namespace v8

@@ -125,8 +125,10 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   constexpr int kTagShift = internal::kCppHeapPointerTagShift;
   uint32_t first_tag = static_cast<uint32_t>(tag_range.first) << kTagShift;
   uint32_t last_tag = (static_cast<uint32_t>(tag_range.last) << kTagShift) + 1;
-  if (V8_LIKELY(actual_tag >= first_tag && actual_tag <= last_tag)) {
-    entry = entry >> kCppHeapPointerPayloadShift;
+  // Avoid DCE of the entry logic using volatile.
+  volatile Address safe_entry;
+  if (actual_tag >= first_tag && actual_tag <= last_tag) [[likely]] {
+    safe_entry = entry >> kCppHeapPointerPayloadShift;
   } else {
     // If the type check failed, we simply return nullptr here. That way:
     //  1. The null handle always results in nullptr being returned here, which
@@ -147,9 +149,9 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
     //     `csel x0, x10, x8, lo` instruction.
     //  3. The machine code sequence ends up being pretty short, which is
     //     important here as this code will be inlined into a lot of functions.
-    entry = 0;
+    safe_entry = 0;
   }
-  return reinterpret_cast<T*>(entry);
+  return reinterpret_cast<T*>(safe_entry);
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(
       Internals::ReadRawField<Address>(heap_object_ptr, offset));

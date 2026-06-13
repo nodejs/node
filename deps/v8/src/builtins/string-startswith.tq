@@ -5,7 +5,7 @@
 #include 'src/builtins/builtins-regexp-gen.h'
 
 namespace string {
-// https://tc39.github.io/ecma262/#sec-string.prototype.startswith
+// https://tc39.es/ecma262/#sec-string.prototype.startswith
 transitioning javascript builtin StringPrototypeStartsWith(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Boolean {

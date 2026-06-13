@@ -37,13 +37,13 @@ implementations that should be called out
 
 - [`DynamicDataProvider<BufferMarker>`], a.k.a. [`BufferProvider`](buf::BufferProvider) returns data as `[u8]` buffers.
 
-#### BufferProvider
+#### [`BufferProvider`](prelude::BufferProvider)
 
 These providers are able to return unstructured data typically represented as
 [`serde`]-serialized buffers. Users can call [`as_deserializing()`] to get an object
 implementing [`DataProvider`] by invoking Serde Deserialize.
 
-Examples of BufferProviders:
+Examples of [`BufferProvider`](prelude::BufferProvider)s:
 
 - [`FsDataProvider`] reads individual buffers from the filesystem.
 - [`BlobDataProvider`] reads buffers from a large in-memory blob.

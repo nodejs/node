@@ -31,7 +31,7 @@ class StringTableKey {
   uint32_t length() const { return length_; }
 
   virtual bool IsThinString() { return false; }
-  virtual Tagged<String> UnwrapThinString() { UNREACHABLE(); }
+  virtual Tagged<InternalizedString> UnwrapThinString() { UNREACHABLE(); }
 
  protected:
   inline void set_raw_hash_field(uint32_t raw_hash_field);
@@ -61,13 +61,15 @@ class V8_EXPORT_PRIVATE StringTable {
 
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  DirectHandle<String> LookupString(Isolate* isolate, DirectHandle<String> key);
+  DirectHandle<InternalizedString> LookupString(Isolate* isolate,
+                                                DirectHandle<String> key);
 
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.
   template <typename StringTableKey, typename IsolateT>
-  DirectHandle<String> LookupKey(IsolateT* isolate, StringTableKey* key);
+  DirectHandle<InternalizedString> LookupKey(IsolateT* isolate,
+                                             StringTableKey* key);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either a Smi if the string is an array index, an
@@ -77,7 +79,8 @@ class V8_EXPORT_PRIVATE StringTable {
 
   // Insert a range of strings. Only for use during isolate deserialization.
   void InsertForIsolateDeserialization(
-      Isolate* isolate, const base::Vector<DirectHandle<String>>& strings);
+      Isolate* isolate,
+      const base::Vector<DirectHandle<InternalizedString>>& strings);
 
   // Insert the single empty string. Only for use during heap bootstrapping.
   void InsertEmptyStringForBootstrapping(Isolate* isolate);

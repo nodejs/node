@@ -153,7 +153,7 @@ class LiftoffCompileEnvironment {
         native_module->wire_bytes().SubVector(function->code.offset(),
                                               function->code.end_offset());
 
-    bool is_shared =
+    SharedFlag is_shared =
         native_module->module()->type(function->sig_index).is_shared;
     FunctionBody body{sig, 0, function_wire_bytes.begin(),
                       function_wire_bytes.end(), is_shared};

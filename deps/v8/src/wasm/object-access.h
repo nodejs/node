@@ -28,25 +28,9 @@ class ObjectAccess : public AllStatic {
     return ToTagged(FixedArray::OffsetOfElementAt(index));
   }
 
-  // Get the offset into a fixed uint8 array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedUInt8Array(int index) {
-    return ToTagged(FixedUInt8Array::OffsetOfElementAt(index));
-  }
-
   // Get the offset into a fixed uint32 array for a given {index}.
   static constexpr int ElementOffsetInTaggedFixedUInt32Array(int index) {
     return ToTagged(FixedUInt32Array::OffsetOfElementAt(index));
-  }
-
-  // Get the offset into a fixed address array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedAddressArray(int index) {
-    return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
-  }
-
-  // Get the offset into a trusted fixed address array for a given {index}.
-  static constexpr int ElementOffsetInTaggedTrustedFixedAddressArray(
-      int index) {
-    return ToTagged(TrustedFixedAddressArray::OffsetOfElementAt(index));
   }
 
   // Get the offset into a ProtectedFixedArray for a given {index}.
@@ -54,25 +38,9 @@ class ObjectAccess : public AllStatic {
     return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
-  // Get the offset into a trusted pod array array for a given {index}.
-  template <typename T>
-  static constexpr int ElementOffsetInTaggedTrustedPodArray(int index) {
-    return ToTagged(TrustedPodArray<T>::OffsetOfElementAt(index));
-  }
-
-  // Get the offset of the context stored in a {JSFunction} object.
-  static constexpr int ContextOffsetInTaggedJSFunction() {
-    return ToTagged(JSFunction::kContextOffset);
-  }
-
   // Get the offset of the shared function info in a {JSFunction} object.
   static constexpr int SharedFunctionInfoOffsetInTaggedJSFunction() {
     return ToTagged(JSFunction::kSharedFunctionInfoOffset);
-  }
-
-  // Get the offset of the flags in a {SharedFunctionInfo} object.
-  static constexpr int FlagsOffsetInSharedFunctionInfo() {
-    return ToTagged(SharedFunctionInfo::kFlagsOffset);
   }
 };
 

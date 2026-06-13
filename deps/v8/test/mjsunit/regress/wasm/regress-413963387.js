@@ -5,7 +5,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
-var $array0 = builder.addArray(kWasmI64, true);
+var $array0 = builder.addArray(kWasmI64);
 var $glob2 = builder.addGlobal(wasmRefType($array0), false, false, [
   ...wasmI32Const(-1),  // length
   kGCPrefix, kExprArrayNewDefault, $array0

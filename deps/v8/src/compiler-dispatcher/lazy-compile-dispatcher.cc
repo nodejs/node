@@ -18,7 +18,9 @@
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/union.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner.h"
 #include "src/tasks/cancelable-task.h"
@@ -53,10 +55,80 @@ class LazyCompileDispatcher::JobTask : public v8::JobTask {
   LazyCompileDispatcher* lazy_compile_dispatcher_;
 };
 
-LazyCompileDispatcher::Job::Job(std::unique_ptr<BackgroundCompileTask> task)
-    : task(std::move(task)), state(Job::State::kPending) {}
+LazyCompileDispatcher::Job::Job(std::unique_ptr<BackgroundCompileTask> task_arg,
+                                LocalIsolate* isolate,
+                                DirectHandle<SharedFunctionInfo> shared_info)
+    : task(std::move(task_arg)), state(Job::State::kPending) {
+  // If the SharedFunctionInfo's UncompiledData has a job slot, then write
+  // into it. Otherwise, allocate a new UncompiledData with a job slot, and
+  // then write into that. Since we have two optional slots (preparse data and
+  // job), this gets a little messy.
+  Address job_address = reinterpret_cast<Address>(this);
+  Tagged<UncompiledData> uncompiled_data =
+      shared_info->uncompiled_data(isolate);
+  if (Tagged<UncompiledDataWithPreparseDataAndJob> data_with_job;
+      TryCast(uncompiled_data, &data_with_job)) {
+    data_with_job->set_job(job_address);
+    this->owning_uncompiled_data = task->NewPersistentHandle(data_with_job);
+  } else if (Tagged<UncompiledDataWithoutPreparseDataWithJob>
+                 data_without_preparse_with_job;
+             TryCast(uncompiled_data, &data_without_preparse_with_job)) {
+    data_without_preparse_with_job->set_job(job_address);
+    this->owning_uncompiled_data =
+        task->NewPersistentHandle(data_without_preparse_with_job);
+  } else if (Tagged<UncompiledDataWithPreparseData> data_with_preparse;
+             TryCast(uncompiled_data, &data_with_preparse)) {
+    Handle<String> inferred_name(data_with_preparse->inferred_name(), isolate);
+    Handle<PreparseData> preparse_data(data_with_preparse->preparse_data(),
+                                       isolate);
+    DirectHandle<UncompiledDataWithPreparseDataAndJob> new_uncompiled_data =
+        isolate->factory()->NewUncompiledDataWithPreparseDataAndJob(
+            inferred_name, data_with_preparse->start_position(),
+            data_with_preparse->end_position(), preparse_data);
 
-LazyCompileDispatcher::Job::~Job() = default;
+    new_uncompiled_data->set_job(job_address);
+    shared_info->set_uncompiled_data(*new_uncompiled_data);
+    this->owning_uncompiled_data =
+        task->NewPersistentHandle(*new_uncompiled_data);
+  } else if (Tagged<UncompiledDataWithoutPreparseData> data_without_preparse;
+             TryCast(uncompiled_data, &data_without_preparse)) {
+    Handle<String> inferred_name(data_without_preparse->inferred_name(),
+                                 isolate);
+    DirectHandle<UncompiledDataWithoutPreparseDataWithJob> new_uncompiled_data =
+        isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
+            inferred_name, data_without_preparse->start_position(),
+            data_without_preparse->end_position());
+
+    new_uncompiled_data->set_job(job_address);
+    shared_info->set_uncompiled_data(*new_uncompiled_data);
+    this->owning_uncompiled_data =
+        task->NewPersistentHandle(*new_uncompiled_data);
+  } else {
+    UNREACHABLE();
+  }
+  DCHECK(!owning_uncompiled_data.is_null());
+}
+
+void LazyCompileDispatcher::Job::ClearFromUncompiledData() {
+  IndirectHandle<UnionOf<UncompiledDataWithoutPreparseDataWithJob,
+                         UncompiledDataWithPreparseData>>
+      data;
+  if (!owning_uncompiled_data.ToHandle(&data)) return;
+
+  if (Tagged<UncompiledDataWithPreparseDataAndJob> data_with_job;
+      TryCast(*data, &data_with_job)) {
+    data_with_job->set_job(kNullAddress);
+  } else if (Tagged<UncompiledDataWithoutPreparseDataWithJob>
+                 data_without_preparse_with_job;
+             TryCast(*data, &data_without_preparse_with_job)) {
+    data_without_preparse_with_job->set_job(kNullAddress);
+  } else {
+    UNREACHABLE();
+  }
+  owning_uncompiled_data = kNullMaybeHandle;
+}
+
+LazyCompileDispatcher::Job::~Job() { DCHECK(owning_uncompiled_data.is_null()); }
 
 LazyCompileDispatcher::LazyCompileDispatcher(Isolate* isolate,
                                              Platform* platform,
@@ -86,54 +158,6 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
   CHECK(!job_handle_->IsValid());
 }
 
-namespace {
-
-// If the SharedFunctionInfo's UncompiledData has a job slot, then write into
-// it. Otherwise, allocate a new UncompiledData with a job slot, and then write
-// into that. Since we have two optional slots (preparse data and job), this
-// gets a little messy.
-void SetUncompiledDataJobPointer(LocalIsolate* isolate,
-                                 DirectHandle<SharedFunctionInfo> shared_info,
-                                 Address job_address) {
-  Tagged<UncompiledData> uncompiled_data =
-      shared_info->uncompiled_data(isolate);
-  if (Tagged<UncompiledDataWithPreparseDataAndJob> data_with_job;
-      TryCast(uncompiled_data, &data_with_job)) {
-    data_with_job->set_job(job_address);
-  } else if (Tagged<UncompiledDataWithoutPreparseDataWithJob>
-                 data_without_preparse_with_job;
-             TryCast(uncompiled_data, &data_without_preparse_with_job)) {
-    data_without_preparse_with_job->set_job(job_address);
-  } else if (Tagged<UncompiledDataWithPreparseData> data_with_preparse;
-             TryCast(uncompiled_data, &data_with_preparse)) {
-    Handle<String> inferred_name(data_with_preparse->inferred_name(), isolate);
-    Handle<PreparseData> preparse_data(data_with_preparse->preparse_data(),
-                                       isolate);
-    DirectHandle<UncompiledDataWithPreparseDataAndJob> new_uncompiled_data =
-        isolate->factory()->NewUncompiledDataWithPreparseDataAndJob(
-            inferred_name, data_with_preparse->start_position(),
-            data_with_preparse->end_position(), preparse_data);
-
-    new_uncompiled_data->set_job(job_address);
-    shared_info->set_uncompiled_data(*new_uncompiled_data);
-  } else if (Tagged<UncompiledDataWithoutPreparseData> data_without_preparse;
-             TryCast(uncompiled_data, &data_without_preparse)) {
-    Handle<String> inferred_name(data_without_preparse->inferred_name(),
-                                 isolate);
-    DirectHandle<UncompiledDataWithoutPreparseDataWithJob> new_uncompiled_data =
-        isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
-            inferred_name, data_without_preparse->start_position(),
-            data_without_preparse->end_position());
-
-    new_uncompiled_data->set_job(job_address);
-    shared_info->set_uncompiled_data(*new_uncompiled_data);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-}  // namespace
-
 void LazyCompileDispatcher::Enqueue(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     std::unique_ptr<Utf16CharacterStream> character_stream) {
@@ -141,13 +165,12 @@ void LazyCompileDispatcher::Enqueue(
                "V8.LazyCompilerDispatcherEnqueue");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
-  Job* job = new Job(std::make_unique<BackgroundCompileTask>(
-      isolate_, shared_info, std::move(character_stream),
-      worker_thread_runtime_call_stats_, background_compile_timer_,
-      static_cast<int>(max_stack_size_)));
-
-  SetUncompiledDataJobPointer(isolate, shared_info,
-                              reinterpret_cast<Address>(job));
+  Job* job =
+      new Job(std::make_unique<BackgroundCompileTask>(
+                  isolate_, shared_info, std::move(character_stream),
+                  worker_thread_runtime_call_stats_, background_compile_timer_,
+                  static_cast<int>(max_stack_size_)),
+              isolate, shared_info);
 
   // Post a background worker task to perform the compilation on the worker
   // thread.
@@ -329,7 +352,6 @@ void LazyCompileDispatcher::AbortJob(
     } else {
       UNREACHABLE();
     }
-    job->task->AbortFunction();
     job->state = Job::State::kFinalized;
     DeleteJob(job, lock);
   }
@@ -342,13 +364,11 @@ void LazyCompileDispatcher::AbortAll() {
   {
     base::MutexGuard lock(&mutex_);
     for (Job* job : pending_background_jobs_) {
-      job->task->AbortFunction();
       job->state = Job::State::kFinalized;
       DeleteJob(job, lock);
     }
     pending_background_jobs_.clear();
     for (Job* job : finalizable_jobs_) {
-      job->task->AbortFunction();
       job->state = Job::State::kFinalized;
       DeleteJob(job, lock);
     }
@@ -372,11 +392,15 @@ LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
   Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (Tagged<UncompiledDataWithPreparseDataAndJob> data_with_job;
       TryCast(data, &data_with_job)) {
-    return reinterpret_cast<Job*>(data_with_job->job());
+    Address job_address = data_with_job->job();
+    SBXCHECK_NE(job_address, kNullAddress);
+    return reinterpret_cast<Job*>(job_address);
   }
   if (Tagged<UncompiledDataWithoutPreparseDataWithJob>
           data_without_preparse_with_job;
       TryCast(data, &data_without_preparse_with_job)) {
+    Address job_address = data_without_preparse_with_job->job();
+    SBXCHECK_NE(job_address, kNullAddress);
     return reinterpret_cast<Job*>(data_without_preparse_with_job->job());
   }
   return nullptr;
@@ -506,7 +530,6 @@ bool LazyCompileDispatcher::FinalizeSingleJob() {
                                             Compiler::CLEAR_EXCEPTION);
   } else {
     DCHECK_EQ(job->state, Job::State::kAbortingNow);
-    job->task->AbortFunction();
   }
   job->state = Job::State::kFinalized;
   DeleteJob(job);
@@ -550,6 +573,7 @@ void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
 #ifdef DEBUG
   all_jobs_.erase(job);
 #endif
+  job->ClearFromUncompiledData();
   jobs_to_dispose_.push_back(job);
   if (jobs_to_dispose_.size() == 1) {
     num_jobs_for_background_++;

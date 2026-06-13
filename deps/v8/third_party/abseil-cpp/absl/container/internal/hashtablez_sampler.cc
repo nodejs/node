@@ -81,7 +81,6 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   capacity.store(0, std::memory_order_relaxed);
   size.store(0, std::memory_order_relaxed);
   num_erases.store(0, std::memory_order_relaxed);
-  num_insert_hits.store(0, std::memory_order_relaxed);
   num_rehashes.store(0, std::memory_order_relaxed);
   max_probe_length.store(0, std::memory_order_relaxed);
   total_probe_length.store(0, std::memory_order_relaxed);

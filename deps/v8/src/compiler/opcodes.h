@@ -230,6 +230,7 @@
 #define JS_OTHER_OP_LIST(V)            \
   JS_CALL_OP_LIST(V)                   \
   JS_CONSTRUCT_OP_LIST(V)              \
+  V(JSAsyncFunctionAwait)              \
   V(JSAsyncFunctionEnter)              \
   V(JSAsyncFunctionReject)             \
   V(JSAsyncFunctionResolve)            \
@@ -276,6 +277,7 @@
   V(ChangeTaggedToUint32)                     \
   V(ChangeTaggedToFloat64)                    \
   V(ChangeTaggedToTaggedSigned)               \
+  V(ChangeSmiOrHoleToFloat64)                 \
   V(ChangeNumberOrHoleToFloat64)              \
   V(ChangeInt31ToTaggedSigned)                \
   V(ChangeInt32ToTagged)                      \
@@ -291,6 +293,7 @@
   V(ChangeUint64ToBigInt)                     \
   V(TruncateBigIntToWord64)                   \
   V(TruncateNumberOrOddballToWord32)          \
+  V(TruncateSmiOrHoleToWord32)                \
   V(TruncateNumberOrOddballOrHoleToWord32)    \
   V(TruncateTaggedToFloat64)                  \
   V(TruncateTaggedToFloat64PreserveUndefined) \
@@ -878,8 +881,8 @@
   V(Word32PairShl)                       \
   V(Word32PairShr)                       \
   V(Word32PairSar)                       \
-  V(ProtectedLoad)                       \
-  V(ProtectedStore)                      \
+  V(TrappingLoad)                        \
+  V(TrappingStore)                       \
   V(LoadTrapOnNull)                      \
   V(StoreTrapOnNull)                     \
   V(MemoryBarrier)                       \

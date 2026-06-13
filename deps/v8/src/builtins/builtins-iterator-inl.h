@@ -8,6 +8,8 @@
 #include "src/builtins/builtins-iterator.h"
 
 #include "src/base/float16.h"
+#include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/execution/execution.h"
 #include "src/execution/protectors-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -123,23 +125,24 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
   }
 }
 
-// Helper for iterating over an iterable, with fast paths for Arrays and Sets.
 template <typename IntVisitor, typename DoubleVisitor, typename GenericVisitor>
-MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
-                                          DirectHandle<Object> items,
-                                          IntVisitor int_visitor,
-                                          DoubleVisitor double_visitor,
-                                          GenericVisitor generic_visitor,
-                                          std::optional<uint64_t> max_count) {
+MaybeDirectHandle<Object> IterableForEach(
+    Isolate* isolate, DirectHandle<Object> items, IntVisitor int_visitor,
+    DoubleVisitor double_visitor, GenericVisitor generic_visitor,
+    uint64_t* max_count_out, std::optional<uint64_t> max_count) {
   auto dispatch = [&](DirectHandle<Object> obj) -> bool {
     if (IsSmi(*obj)) {
-      return int_visitor(Smi::ToInt(*obj));
+      return double_visitor(static_cast<double>(Smi::ToInt(*obj)));
     } else if (IsHeapNumber(*obj)) {
       return double_visitor(Object::NumberValue(Cast<HeapNumber>(*obj)));
     } else {
       return generic_visitor(obj);
     }
   };
+
+  // TODO(olivf): Support a smaller limit. Needs additional counting in the case
+  // of holey arrays and deleted set elements.
+  DCHECK_IMPLIES(max_count, std::numeric_limits<uint32_t>::max() <= *max_count);
 
   // Fast path for JSArray.
   // This corresponds to an optimized version of
@@ -150,10 +153,19 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
     DirectHandle<JSArray> array = Cast<JSArray>(items);
     ElementsKind kind = array->GetElementsKind();
     // TODO(olivf): Move this as a helper into ElementsAccessor.
-    if (IsFastElementsKind(kind)) {
+    // Holey arrays are only supported if there are no properties on the lookup
+    // chain. This is approximated by checking for the array prototype and
+    // ensuring it has not elements.
+    if (IsFastElementsKind(kind) && (!IsHoleyElementsKind(kind) ||
+                                     (Protectors::IsNoElementsIntact(isolate) &&
+                                      array->HasArrayPrototype(isolate)))) {
       DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
       uint32_t len;
       if (Object::ToUint32(array->length(), &len)) {
+        DCHECK_IMPLIES(max_count, len < *max_count);
+        if (max_count_out) {
+          *max_count_out = len;
+        }
         if (len == 0) {
           return isolate->root_handle(RootIndex::kUndefinedValue);
         }
@@ -187,7 +199,13 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           DirectHandle<FixedDoubleArray> double_elements =
               Cast<FixedDoubleArray>(elements);
           for (uint32_t i = 0; i < len; ++i) {
-            if (double_elements->is_the_hole(i)) {
+            if (double_elements->is_the_hole(i) ||
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+                double_elements->is_undefined(i)
+#else
+                false
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+            ) {
               if (!generic_visitor(
                       isolate->root_handle(RootIndex::kUndefinedValue))) {
                 return abort;
@@ -234,62 +252,68 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
       IsJSFunction(*iterator_fn)) {
     if (DirectHandle<JSFunction> func = Cast<JSFunction>(iterator_fn);
-        func->code(isolate) ==
-        *isolate->builtins()->code(Builtin::kTypedArrayPrototypeValues)) {
+        isolate->builtins()
+            ->code(Builtin::kTypedArrayPrototypeValues)
+            ->SafeEquals(func->code(isolate))) {
       DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(receiver);
       ElementsKind kind = typed_array->GetElementsKind();
-      if (!IsBigIntTypedArrayElementsKind(kind)) {
-        bool out_of_bounds = false;
-        size_t len = typed_array->GetLengthOrOutOfBounds(out_of_bounds);
-        if (out_of_bounds || typed_array->WasDetached()) {
-          isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kTypedArrayDetachedErrorOperation,
-              isolate->factory()->NewStringFromAsciiChecked("iteration")));
-          return MaybeDirectHandle<Object>();
-        }
-        switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                           \
-  case TYPE##_ELEMENTS:                                                     \
-  case RAB_GSAB_##TYPE##_ELEMENTS: {                                        \
-    if constexpr (!(std::is_same_v<ctype, uint64_t> ||                      \
-                    (!std::is_same_v<int, int64_t> &&                       \
-                     (std::is_same_v<ctype, int64_t> ||                     \
-                      std::is_same_v<ctype, uint32_t>)))) {                 \
-      for (size_t i = 0; i < len; ++i) {                                    \
-        if (typed_array->WasDetached()) {                                   \
-          isolate->Throw(*isolate->factory()->NewTypeError(                 \
-              MessageTemplate::kTypedArrayDetachedErrorOperation,           \
-              isolate->factory()->NewStringFromAsciiChecked("iteration"))); \
-          return MaybeDirectHandle<Object>();                               \
-        }                                                                   \
-        ctype val = static_cast<ctype*>(typed_array->DataPtr())[i];         \
-        if constexpr (ElementsKind::TYPE##_ELEMENTS == FLOAT16_ELEMENTS) {  \
-          if (!double_visitor(fp16_ieee_to_fp32_value(val))) {              \
-            return MaybeDirectHandle<Object>();                             \
-          }                                                                 \
-        } else if constexpr (std::is_floating_point_v<ctype>) {             \
-          if (!double_visitor(val)) {                                       \
-            return MaybeDirectHandle<Object>();                             \
-          }                                                                 \
-        } else {                                                            \
-          static_assert(std::numeric_limits<ctype>::max() <=                \
-                        std::numeric_limits<int>::max());                   \
-          static_assert(std::numeric_limits<ctype>::min() >=                \
-                        std::numeric_limits<int>::min());                   \
-          if (!int_visitor(static_cast<int>(val))) {                        \
-            return MaybeDirectHandle<Object>();                             \
-          }                                                                 \
-        }                                                                   \
-      }                                                                     \
-      return isolate->root_handle(RootIndex::kUndefinedValue);              \
-    }                                                                       \
-    break;                                                                  \
+      bool out_of_bounds = false;
+      size_t len = typed_array->GetLengthOrOutOfBounds(out_of_bounds);
+      if (out_of_bounds || typed_array->WasDetached()) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kTypedArrayDetachedErrorOperation,
+            isolate->factory()->NewStringFromAsciiChecked("iteration")));
+        return MaybeDirectHandle<Object>();
+      }
+      if (max_count) {
+        if (len > *max_count) len = *max_count;
+      }
+      if (max_count_out) *max_count_out = len;
+
+      switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
+  case TYPE##_ELEMENTS:                                                        \
+  case RAB_GSAB_##TYPE##_ELEMENTS: {                                           \
+    /* Skip BigInt's here as they often need to be handled differently. */     \
+    if constexpr (!std::is_same_v<int64_t, ctype> &&                           \
+                  !std::is_same_v<uint64_t, ctype>) {                          \
+      CHECK(!IsBigIntTypedArrayElementsKind(kind));                            \
+      for (size_t i = 0; i < len; ++i) {                                       \
+        if (typed_array->WasDetached()) {                                      \
+          isolate->Throw(*isolate->factory()->NewTypeError(                    \
+              MessageTemplate::kTypedArrayDetachedErrorOperation,              \
+              isolate->factory()->NewStringFromAsciiChecked("iteration")));    \
+          return MaybeDirectHandle<Object>();                                  \
+        }                                                                      \
+        ctype val = base::ReadUnalignedValue<ctype>(                           \
+            reinterpret_cast<Address>(typed_array->DataPtr()) +                \
+            i * sizeof(ctype));                                                \
+        if constexpr (ElementsKind::TYPE##_ELEMENTS == FLOAT16_ELEMENTS) {     \
+          if (!double_visitor(fp16_ieee_to_fp32_value(val))) {                 \
+            return MaybeDirectHandle<Object>();                                \
+          }                                                                    \
+        } else if constexpr (std::is_integral_v<ctype> &&                      \
+                             base::kIsTypeInRangeForNumericType<int, ctype>) { \
+          auto cast = [](auto v) { return base::strict_cast<int>(v); };        \
+          if (!int_visitor(cast(val))) {                                       \
+            return MaybeDirectHandle<Object>();                                \
+          }                                                                    \
+        } else {                                                               \
+          static_assert(base::kIsTypeInRangeForNumericType<double, ctype>);    \
+          auto cast = [](auto v) { return base::strict_cast<double>(v); };     \
+          if (!double_visitor(cast(val))) {                                    \
+            return MaybeDirectHandle<Object>();                                \
+          }                                                                    \
+        }                                                                      \
+      }                                                                        \
+      return isolate->root_handle(RootIndex::kUndefinedValue);                 \
+    }                                                                          \
+    break;                                                                     \
   }
-          TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-          default:
-            break;
-        }
+        default:
+          break;
       }
     }
   }
@@ -312,7 +336,8 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
 
   // Medium fast path for JSArrayIterator.
   if (IsJSArrayIterator(*iterator) &&
-      Protectors::IsArrayIteratorLookupChainIntact(isolate)) {
+      Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
+      Protectors::IsNoElementsIntact(isolate)) {
     DirectHandle<JSArrayIterator> array_iterator =
         Cast<JSArrayIterator>(iterator);
     if (array_iterator->kind() == IterationKind::kValues) {
@@ -321,13 +346,20 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       if (IsJSArray(*iterated_object)) {
         DirectHandle<JSArray> array = Cast<JSArray>(iterated_object);
         ElementsKind kind = array->GetElementsKind();
-        if (IsFastElementsKind(kind)) {
+        // Holey arrays are only supported if there are no properties on the
+        // lookup chain.
+        if (IsFastElementsKind(kind) &&
+            (!IsHoleyElementsKind(kind) ||
+             (Protectors::IsNoElementsIntact(isolate) &&
+              array->HasArrayPrototype(isolate)))) {
           DirectHandle<FixedArrayBase> elements =
               handle(array->elements(), isolate);
           uint32_t len;
           uint32_t current_index;
           if (Object::ToUint32(array->length(), &len) &&
               Object::ToUint32(array_iterator->next_index(), &current_index)) {
+            DCHECK_IMPLIES(max_count, len < *max_count);
+            if (max_count_out) *max_count_out = len;
             if (len == 0) {
               return isolate->root_handle(RootIndex::kUndefinedValue);
             }
@@ -360,7 +392,13 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
               } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
                 DirectHandle<FixedDoubleArray> double_elements =
                     Cast<FixedDoubleArray>(elements);
-                if (double_elements->is_the_hole(current_index)) {
+                if (double_elements->is_the_hole(current_index) ||
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+                    double_elements->is_undefined(current_index)
+#else
+                    false
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+                ) {
                   if (!generic_visitor(
                           isolate->root_handle(RootIndex::kUndefinedValue))) {
                     break;
@@ -393,7 +431,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
               IteratorClose(isolate, iterator);
               return MaybeDirectHandle<Object>();
             }
-            auto num = isolate->factory()->NewNumberFromUint(len);
+            auto num = isolate->factory()->NewNumberFromUint(kMaxUInt32);
             array_iterator->set_next_index(*num);
             return isolate->root_handle(RootIndex::kUndefinedValue);
           }
@@ -409,26 +447,31 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
     DirectHandle<Object> table_obj(set_iterator->table(), isolate);
     if (IsOrderedHashSet(*table_obj)) {
       DirectHandle<OrderedHashSet> table = Cast<OrderedHashSet>(table_obj);
-      int capacity = table->UsedCapacity();
-      int current_index = Smi::ToInt(set_iterator->index());
-      DirectHandle<Object> key_handle(Smi::zero(), isolate);
-      for (; current_index < capacity; ++current_index) {
-        InternalIndex entry(current_index);
-        Tagged<Object> key = table->KeyAt(entry);
-        if (!IsTheHole(key, isolate)) {
-          key_handle.SetValue(key);
-          if (!dispatch(key_handle)) break;
+      if (!table->IsObsolete()) {
+        int capacity = table->UsedCapacity();
+        DCHECK_IMPLIES(max_count,
+                       static_cast<unsigned int>(capacity) < *max_count);
+        if (max_count_out) *max_count_out = capacity;
+        int current_index = Smi::ToInt(set_iterator->index());
+        DirectHandle<Object> key_handle(Smi::zero(), isolate);
+        for (; current_index < capacity; ++current_index) {
+          InternalIndex entry(current_index);
+          Tagged<Object> key = table->KeyAt(entry);
+          if (!IsHashTableHole(key, isolate)) {
+            key_handle.SetValue(key);
+            if (!dispatch(key_handle)) break;
+          }
         }
+        if (current_index < capacity) {
+          auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
+          set_iterator->set_index(*num);
+          IteratorClose(isolate, iterator);
+          return MaybeDirectHandle<Object>();
+        }
+        set_iterator->set_table(
+            ReadOnlyRoots(isolate).empty_ordered_hash_set());
+        return isolate->root_handle(RootIndex::kUndefinedValue);
       }
-      if (current_index < capacity) {
-        auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
-        set_iterator->set_index(*num);
-        IteratorClose(isolate, iterator);
-        return MaybeDirectHandle<Object>();
-      }
-      auto num = isolate->factory()->NewNumberFromUint(capacity);
-      set_iterator->set_index(*num);
-      return isolate->root_handle(RootIndex::kUndefinedValue);
     }
   }
 
@@ -472,6 +515,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
 
     if (max_count.has_value()) {
       if (++count > *max_count) {
+        if (max_count_out) *max_count_out = count;
         isolate->Throw(*isolate->factory()->NewRangeError(
             MessageTemplate::kStackOverflow));
         IteratorClose(isolate, iterator);
@@ -486,6 +530,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       return MaybeDirectHandle<Object>();
     }
   }
+  if (max_count_out) *max_count_out = count;
 
   return isolate->root_handle(RootIndex::kUndefinedValue);
 }

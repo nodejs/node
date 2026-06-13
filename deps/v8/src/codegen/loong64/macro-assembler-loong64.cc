@@ -86,9 +86,9 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_WEBASSEMBLY
-    bool generating_bultins =
+    bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_bultins) {
+    if (generating_builtins) {
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -135,9 +135,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_WEBASSEMBLY
-    bool generating_bultins =
+    bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_bultins) {
+    if (generating_builtins) {
       // Check if machine has simd enabled, if so push vector registers. If not
       // then only push double registers.
       Label no_simd, done;
@@ -461,14 +461,23 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 
 void MacroAssembler::LoadTrustedUnknownPointerField(
     Register destination, MemOperand field_operand, Register scratch,
-    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+    Label* is_unavailable) {
   DCHECK(!AreAliased(destination, scratch));
-  Label done;
+  Label zero_and_fallthrough, done;
+
+  // The label is_unavailable will be used if the field is null (with enabled
+  // sandbox) or a Smi (with disabled sandbox). In these two cases, if the
+  // label is a nullptr, then we zero the destination register and fall through.
+  if (!is_unavailable) is_unavailable = &zero_and_fallthrough;
 
 #ifdef V8_ENABLE_SANDBOX
   {
     Register handle = scratch;
     Ld_wu(handle, field_operand);
+
+    static_assert(kNullIndirectPointerHandle == 0);
+    Branch(is_unavailable, eq, handle, Operand(zero_reg));
 
     bool handles_code_case = false;
     constexpr int kCodePointerHandleMarkerBit = 0;
@@ -490,13 +499,14 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       }
     }
     if (!handles_code_case) {
-      Branch(&done, ne, destination, Operand(zero_reg));
+      Branch(&zero_and_fallthrough, ne, destination, Operand(zero_reg));
     }
 
     ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
+  JumpIfSmi(destination, is_unavailable);
 #endif  // V8_ENABLE_SANDBOX
 
 #if V8_STATIC_ROOTS_BOOL
@@ -519,8 +529,11 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #endif
 
-  bind(&done);
+  Branch(&done);
+
+  bind(&zero_and_fallthrough);
   Move(destination, zero_reg);
+  bind(&done);
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
@@ -638,6 +651,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   Ld_wu(destination, field_operand);
   srli_d(destination, destination, kCodePointerHandleShift);
   slli_d(destination, destination, kCodePointerTableEntrySizeLog2);
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
   Ld_d(destination, MemOperand(scratch, destination));
   if (tag != 0) {
     li(scratch, Operand(tag));
@@ -2629,8 +2643,8 @@ void MacroAssembler::Dotp_h(VRegister dst, VRegister src1, VRegister src2,
   case type:                                                   \
     vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero); \
     ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1);      \
-    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2);         \
-    Dotp_instr(dst, kSimd128ScratchReg, kSimd128RegZero);      \
+    ilv_instr(kSimd128ScratchReg1, kSimd128RegZero, src2);     \
+    Dotp_instr(dst, kSimd128ScratchReg, kSimd128ScratchReg1);  \
     break;
 
 void MacroAssembler::ExtMulLow(LSXDataType type, VRegister dst, VRegister src1,
@@ -2922,17 +2936,15 @@ void MacroAssembler::Move(FPURegister dst, uint32_t src) {
 
 void MacroAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
-    fmov_d(dst, kDoubleRegZero);
-  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
-             has_double_zero_reg_set_) {
-    Neg_d(dst, kDoubleRegZero);
+  if (src == base::bit_cast<uint64_t>(0.0)) {
+    // TODO(loong64_dev): fmov_d is better, but kDoubleRegZero is not
+    // initialized in cctest and unittest, so it cannot be used directly.
+    movgr2fr_d(dst, zero_reg);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     li(scratch, Operand(static_cast<int64_t>(src)));
     movgr2fr_d(dst, scratch);
-    if (dst == kDoubleRegZero) has_double_zero_reg_set_ = true;
   }
 }
 
@@ -3138,6 +3150,68 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   Pop(ra, result);
   bind(&done);
+}
+
+void MacroAssembler::Float64Mod(DoubleRegister out, DoubleRegister left,
+                                DoubleRegister right) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(left, f0);
+  DCHECK_EQ(right, f1);
+  DCHECK_EQ(out, f0);
+
+  Label slow, done_mod;
+  {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister dst_temp = temps.AcquireFp();
+    DoubleRegister zero_temp = temps.AcquireFp();
+
+    movgr2fr_d(zero_temp, zero_reg);
+    // Check if left is a positive integer.
+    frint_d(dst_temp, left);
+    CompareF64(left, dst_temp, CUNE);
+    BranchTrueShortF(&slow);
+    CompareF64(left, zero_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // Check if right is a positive integer.
+    frint_d(dst_temp, right);
+    CompareF64(right, dst_temp, CUNE);
+    BranchTrueShortF(&slow);
+    CompareF64(right, zero_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // Both are positive integers. The fast path is only valid if the computed
+    // remainder stays within the range [0, right).
+    fdiv_d(dst_temp, left, right);
+    Ftintrz_l_d(dst_temp, dst_temp);
+    ffint_d_l(dst_temp, dst_temp);
+    fnmsub_d(dst_temp, dst_temp, right, left);
+
+    // If quotient rounding changed the integer truncation result, the computed
+    // remainder escapes [0, right) and we must fall back to the precise slow
+    // path.
+    CompareF64(dst_temp, zero_temp, CULT);
+    BranchTrueShortF(&slow);
+    CompareF64(right, dst_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // If the remainder is in the range (0, right), result remains unchanged;
+    // If the remainder is 0, the result calculated in fnmsub_d is -0.0,
+    // which is changed to +0.0 here.
+    fabs_d(out, dst_temp);
+    Branch(&done_mod);
+  }
+
+  bind(&slow);
+  {
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    PrepareCallCFunction(0, 2, scratch);
+    CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  }
+
+  bind(&done_mod);
 }
 
 void MacroAssembler::CompareWord(Condition cond, Register dst, Register lhs,
@@ -4774,7 +4848,7 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   // Load the feedback vector from the closure.
   LoadTaggedField(dst,
                   FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  LoadTaggedField(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+  LoadTaggedField(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
@@ -4831,7 +4905,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     LoadCodePointerField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
     Register scratch = temps.Acquire();
     TestCodeIsMarkedForDeoptimizationAndJump(scratch_and_result, scratch, ne,
@@ -4995,6 +5069,20 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
       Ld_d(dst, src);
     }
     SmiUntag(dst);
+  }
+}
+
+void MacroAssembler::SmiUntagUnsigned(Register dst, const MemOperand& src) {
+  if (SmiValuesAre32Bits()) {
+    Ld_wu(dst, MemOperand(src.base(), SmiWordOffset(src.offset())));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Ld_wu(dst, src);
+    } else {
+      Ld_d(dst, src);
+    }
+    SmiUntagUnsigned(dst);
   }
 }
 
@@ -5890,6 +5978,11 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
 }
 
+void MacroAssembler::SmiUntagFieldUnsigned(Register dst,
+                                           const MemOperand& src) {
+  SmiUntagUnsigned(dst, src);
+}
+
 void MacroAssembler::StoreTaggedField(Register src, const MemOperand& dst,
                                       int* trap_pc) {
   if (COMPRESS_POINTERS_BOOL) {
@@ -6106,6 +6199,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
   }
 
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+  // This check doesn't make sense for sandbox testing since
+  // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
+  // and this check just hinders debugging.
   if (v8_flags.debug_code) {
     Label ok;
     if (handle_interceptor_result) {
@@ -6115,6 +6212,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                    AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);

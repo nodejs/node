@@ -31,7 +31,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -88,6 +88,15 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_MOPS)
   features.Add(MOPS);
 #endif
+#if defined(__ARM_FEATURE_CSSC)
+  features.Add(CSSC);
+#endif
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+  features.Add(FP16);
+#endif
+#if defined(__ARM_FEATURE_SVE2_BITPERM)
+  features.Add(SVEBITPERM);
+#endif
   return features;
 }
 
@@ -113,7 +122,9 @@ bool CpuFeatures::SupportsWasmSimd128() { return true; }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= CpuFeaturesFromCompiler();
+#endif
     supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
@@ -154,6 +165,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_mops()) {
     runtime.Add(MOPS);
+  }
+  if (cpu.has_svebitperm()) {
+    runtime.Add(SVEBITPERM);
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -3543,6 +3557,14 @@ void Assembler::eor3(const VRegister& vd, const VRegister& vn,
   Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
 }
 
+void Assembler::xar(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm, unsigned imm) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is2D() && vn.Is2D() && vm.Is2D());
+  DCHECK_EQ(imm & 0x3F, imm);
+  Emit(NEON_XAR | Rd(vd) | Rn(vn) | Rm(vm) | imm << 10);
+}
+
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));
   Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));
@@ -4381,6 +4403,13 @@ void Assembler::pmull2(const VRegister& vd, const VRegister& vn,
   DCHECK((vn.Is16B() && vd.Is8H()) || (vn.Is2D() && vd.Is1Q()));
   DCHECK(IsEnabled(PMULL1Q) || vd.Is8H());
   Emit(VFormat(vn) | NEON_PMULL2 | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::bext(const ZRegister& zd, const ZRegister& zn,
+                     const ZRegister& zm) {
+  DCHECK(IsEnabled(SVEBITPERM));
+  DCHECK(AreSameLaneSize(zd, zn, zm));
+  Emit(BEXT | SVESize(zd) | Rm(zm) | Rn(zn) | Rd(zd));
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {

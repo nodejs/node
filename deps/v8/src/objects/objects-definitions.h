@@ -140,6 +140,7 @@ namespace internal {
     promise_fulfill_reaction_job_task)                                        \
   V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,   \
     promise_reject_reaction_job_task)                                         \
+  V(_, ASYNC_RESUME_TASK_TYPE, AsyncResumeTask, async_resume_task)            \
   V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                       \
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                       \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \

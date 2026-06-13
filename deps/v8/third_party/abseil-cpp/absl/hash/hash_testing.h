@@ -20,6 +20,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -193,9 +194,9 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
     const V& value;
     size_t index;
     std::string ToString() const {
-      return absl::visit(PrintVisitor{index}, value);
+      return std::visit(PrintVisitor{index}, value);
     }
-    SpyHashState expand() const { return absl::visit(ExpandVisitor{}, value); }
+    SpyHashState expand() const { return std::visit(ExpandVisitor{}, value); }
   };
 
   using EqClass = std::vector<Info>;
@@ -206,7 +207,7 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
   for (const auto& value : values) {
     EqClass* c = nullptr;
     for (auto& eqclass : classes) {
-      if (absl::visit(EqVisitor<Eq>{equals}, value, eqclass[0].value)) {
+      if (std::visit(EqVisitor<Eq>{equals}, value, eqclass[0].value)) {
         c = &eqclass;
         break;
       }
@@ -300,11 +301,11 @@ struct MakeTypeSet<T, Ts...> : MakeTypeSet<Ts...>::template Insert<T>::type {};
 
 template <typename... T>
 using VariantForTypes = typename MakeTypeSet<
-    const typename std::decay<T>::type*...>::template apply<absl::variant>;
+    const typename std::decay<T>::type*...>::template apply<std::variant>;
 
 template <typename Container>
 struct ContainerAsVector {
-  using V = absl::variant<const typename Container::value_type*>;
+  using V = std::variant<const typename Container::value_type*>;
   using Out = std::vector<V>;
 
   static Out Do(const Container& values) {

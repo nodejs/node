@@ -110,7 +110,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   CppHeap(v8::Platform*,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&,
-          cppgc::Heap::MarkingType, cppgc::Heap::SweepingType);
+          cppgc::Heap::MarkingType, cppgc::Heap::SweepingType,
+          std::optional<cppgc::StackStartMarker>);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;

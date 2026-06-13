@@ -34,11 +34,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Sub:
     case kX64Sub32:
     case kX64Imul:
+    case kX64ImulWide:
+    case kX64UmulWide:
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
-    case kX64ImulHigh64:
-    case kX64UmulHigh64:
     case kX64Not:
     case kX64Not32:
     case kX64Neg:
@@ -454,11 +454,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kSSEFloat64Mul:
       return 5;
     case kX64Imul:
+    case kX64ImulWide:
+    case kX64UmulWide:
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
-    case kX64ImulHigh64:
-    case kX64UmulHigh64:
     case kX64Float32Abs:
     case kX64Float32Neg:
     case kX64Float64Abs:

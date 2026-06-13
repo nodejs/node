@@ -32,7 +32,7 @@ struct RefType {
   // references a type from an earlier recgroup (i.e. if `index_in_recgroup` is
   // not set).
   uint32_t index;
-  bool shared;
+  SharedFlag shared;
   Nullability nullable;
 
   // `ref_type_kind` and `index_in_recgroup` will be set by `FixupRefType`.
@@ -40,7 +40,7 @@ struct RefType {
   std::optional<uint32_t> index_in_recgroup;
 
   // Construction only passes the first three fields.
-  RefType(uint32_t index, bool shared, Nullability nullable)
+  RefType(uint32_t index, SharedFlag shared, Nullability nullable)
       : index(index), shared(shared), nullable(nullable) {}
 
   void FixupRefType(const std::vector<RefTypeKind>& available_ref_types,
@@ -71,7 +71,7 @@ struct RefType {
 
   void Print(std::ostream& os) const {
     if (nullable) os << "null ";
-    if (shared) os << "shared ";
+    if (shared == SharedFlag::kYes) os << "shared ";
     if (index_in_recgroup.has_value()) {
       os << "recref " << index_in_recgroup.value();
     } else {
@@ -174,10 +174,10 @@ struct StructType {
       mutabilities[i] = field_types[i].mutability;
     }
     bool is_descriptor = false;  // TODO(403372470): Add support.
-    bool is_shared = false;      // TODO(42204563): Add support.
+    // TODO(42204563): Add support for SharedFlag::kYes.
     builder->AddStructType(
         zone->New<wasm::StructType>(field_count, kNoOffsets, reps, mutabilities,
-                                    is_descriptor, is_shared),
+                                    is_descriptor, SharedFlag::kNo),
         kNotFinal, kNoSupertype);
   }
 
@@ -378,7 +378,8 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
       /* index */ fuzztest::NonNegative<int>(),
       // TODO(clemensb): Support shared types; the bit currently gets lost in
       // the module builder.
-      /* shared */ fuzztest::Just(false),  // fuzztest::Arbitrary<bool>(),
+      /* shared */
+      fuzztest::Just(SharedFlag::kNo),  // fuzztest::Arbitrary<bool>(),
       /* nullability */
       fuzztest::ElementOf({Nullability::kNullable, Nullability::kNonNullable}));
 

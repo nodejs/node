@@ -9,17 +9,24 @@ declared_types:
     Struct:
       name: Foo
       docs:
-        - ""
+        - - cfg: Star
+            lines: ""
         - []
       lifetimes: {}
       fields: []
       methods:
         - name: pub_fn
           docs:
-            - ""
+            - - cfg: Star
+                lines: ""
             - []
           abi_name: Foo_pub_fn
           self_param: ~
+          self_type:
+            path:
+              elements:
+                - Foo
+            lifetimes: []
           params: []
           return_type: ~
           lifetime_env: {}

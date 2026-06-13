@@ -38,6 +38,7 @@ macro NewSloppyArgumentsElements<Iterator: type>(
   SloppyArgumentsElements{length, context, arguments, mapped_entries: ...it};
 }
 
+@cppObjectLayoutDefinition
 extern class AliasedArgumentsEntry extends Struct {
   aliased_context_slot: Smi;
 }

@@ -179,14 +179,17 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
                  absl::ascii_isxdigit(static_cast<unsigned char>(src[p + 1]))) {
             // Arbitrarily many hex digits
             ch = (ch << 4) + hex_digit_to_int(src[++p]);
-          }
-          if (ch > 0xFF) {
-            if (error != nullptr) {
-              *error = "Value of \\" +
-                       std::string(src.substr(hex_start, p + 1 - hex_start)) +
-                       " exceeds 0xff";
+            // If ch was 0xFF at the start of this loop, the most can it can be
+            // here is (0xFF << 4) + 0xF, which is 4095, thus ch cannot overflow
+            // 32-bits here. The check below is sufficient.
+            if (ch > 0xFF) {
+              if (error != nullptr) {
+                *error = "Value of \\" +
+                         std::string(src.substr(hex_start, p + 1 - hex_start)) +
+                         " exceeds 0xff";
+              }
+              return false;
             }
-            return false;
           }
           if ((ch == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
@@ -827,7 +830,7 @@ bool Base64UnescapeInternal(const char* absl_nullable src, size_t slen,
 }
 
 /* clang-format off */
-constexpr std::array<char, 256> kHexValueLenient = {
+constexpr std::array<uint8_t, 256> kHexValueLenient = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -846,7 +849,7 @@ constexpr std::array<char, 256> kHexValueLenient = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-constexpr std::array<signed char, 256> kHexValueStrict = {
+constexpr std::array<int8_t, 256> kHexValueStrict = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -874,7 +877,7 @@ void HexStringToBytesInternal(const char* absl_nullable from, T to,
                               size_t num) {
   for (size_t i = 0; i < num; i++) {
     to[i] = static_cast<char>(kHexValueLenient[from[i * 2] & 0xFF] << 4) +
-            (kHexValueLenient[from[i * 2 + 1] & 0xFF]);
+            static_cast<char>(kHexValueLenient[from[i * 2 + 1] & 0xFF]);
   }
 }
 
@@ -951,19 +954,6 @@ bool WebSafeBase64Unescape(absl::string_view src,
   return Base64UnescapeInternal(src.data(), src.size(), dest, kUnWebSafeBase64);
 }
 
-void Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
-  strings_internal::Base64EscapeInternal(
-      reinterpret_cast<const unsigned char*>(src.data()), src.size(), dest,
-      true, strings_internal::kBase64Chars);
-}
-
-void WebSafeBase64Escape(absl::string_view src,
-                         std::string* absl_nonnull dest) {
-  strings_internal::Base64EscapeInternal(
-      reinterpret_cast<const unsigned char*>(src.data()), src.size(), dest,
-      false, strings_internal::kWebSafeBase64Chars);
-}
-
 std::string Base64Escape(absl::string_view src) {
   std::string dest;
   strings_internal::Base64EscapeInternal(
@@ -992,8 +982,10 @@ bool HexStringToBytes(absl::string_view hex, std::string* absl_nonnull bytes) {
       output, num_bytes, [hex](char* buf, size_t buf_size) {
         auto hex_p = hex.cbegin();
         for (size_t i = 0; i < buf_size; ++i) {
-          int h1 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
-          int h2 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
+          int h1 = absl::kHexValueStrict[static_cast<size_t>(
+              static_cast<uint8_t>(*hex_p++))];
+          int h2 = absl::kHexValueStrict[static_cast<size_t>(
+              static_cast<uint8_t>(*hex_p++))];
           if (h1 == -1 || h2 == -1) {
             return size_t{0};
           }

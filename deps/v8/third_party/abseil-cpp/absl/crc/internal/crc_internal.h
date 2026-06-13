@@ -137,22 +137,6 @@ class CRC32 : public CRCImpl {
 
 // Helpers
 
-// Return a bit mask containing len 1-bits.
-// Requires 0 < len <= sizeof(T)
-template <typename T>
-T MaskOfLength(int len) {
-  // shift 2 by len-1 rather than 1 by len because shifts of wordsize
-  // are undefined.
-  return (T(2) << (len - 1)) - 1;
-}
-
-// Rotate low-order "width" bits of "in" right by "r" bits,
-// setting other bits in word to arbitrary values.
-template <typename T>
-T RotateRight(T in, int width, int r) {
-  return (in << (width - r)) | ((in >> r) & MaskOfLength<T>(width - r));
-}
-
 // RoundUp<N>(p) returns the lowest address >= p aligned to an N-byte
 // boundary.  Requires that N is a power of 2.
 template <int alignment>

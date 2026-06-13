@@ -1049,6 +1049,8 @@ TEST(TestIncrementUseCounterInBuiltin) {
   CHECK_EQ(0, use_counts[v8::Isolate::kArraySpeciesModified]);
   ft.Call();
   CHECK_EQ(1, use_counts[v8::Isolate::kArraySpeciesModified]);
+
+  global_use_counts = nullptr;
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

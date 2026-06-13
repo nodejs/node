@@ -4,12 +4,14 @@
 
 #include "src/regexp/experimental/experimental-interpreter.h"
 
+#include "include/v8config.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 namespace {
 constexpr int kUndefinedRegisterValue = -1;
@@ -17,23 +19,23 @@ constexpr int kUndefinedMatchIndexValue = -1;
 constexpr uint64_t kUndefinedClockValue = -1;
 
 template <class Character>
-bool SatisfiesAssertion(RegExpAssertion::Type type,
+bool SatisfiesAssertion(Assertion::Type type,
                         base::Vector<const Character> context, int position) {
   DCHECK_LE(position, context.length());
   DCHECK_GE(position, 0);
 
   switch (type) {
-    case RegExpAssertion::Type::START_OF_INPUT:
+    case Assertion::Type::START_OF_INPUT:
       return position == 0;
-    case RegExpAssertion::Type::END_OF_INPUT:
+    case Assertion::Type::END_OF_INPUT:
       return position == context.length();
-    case RegExpAssertion::Type::START_OF_LINE:
+    case Assertion::Type::START_OF_LINE:
       if (position == 0) return true;
       return unibrow::IsLineTerminator(context[position - 1]);
-    case RegExpAssertion::Type::END_OF_LINE:
+    case Assertion::Type::END_OF_LINE:
       if (position == context.length()) return true;
       return unibrow::IsLineTerminator(context[position]);
-    case RegExpAssertion::Type::BOUNDARY:
+    case Assertion::Type::BOUNDARY:
       if (context.length() == 0) {
         return false;
       } else if (position == 0) {
@@ -44,29 +46,30 @@ bool SatisfiesAssertion(RegExpAssertion::Type type,
         return IsRegExpWord(context[position - 1]) !=
                IsRegExpWord(context[position]);
       }
-    case RegExpAssertion::Type::NON_BOUNDARY:
-      return !SatisfiesAssertion(RegExpAssertion::Type::BOUNDARY, context,
-                                 position);
+    case Assertion::Type::NON_BOUNDARY:
+      return !SatisfiesAssertion(Assertion::Type::BOUNDARY, context, position);
   }
 }
 
-base::Vector<RegExpInstruction> ToInstructionVector(
+base::Vector<Instruction> ToInstructionVector(
     Tagged<TrustedByteArray> raw_bytes,
-    const DisallowGarbageCollection& no_gc) {
-  RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
-  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
-  return base::Vector<RegExpInstruction>(inst_begin, inst_num);
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
+  Instruction* inst_begin = reinterpret_cast<Instruction*>(raw_bytes->begin());
+  uint32_t raw_bytes_len = raw_bytes->ulength().value();
+  uint32_t inst_num = raw_bytes_len / sizeof(Instruction);
+  DCHECK_EQ(sizeof(Instruction) * inst_num, raw_bytes_len);
+  return base::Vector<Instruction>(inst_begin, inst_num);
 }
 
 template <class Character>
 base::Vector<const Character> ToCharacterVector(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc);
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
 template <>
 base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
@@ -75,7 +78,8 @@ base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
 
 template <>
 base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());
@@ -90,7 +94,7 @@ class FilterGroups {
       base::Vector<uint64_t> capture_clocks,
       std::optional<base::Vector<uint64_t>> lookaround_clocks,
       base::Vector<int> filtered_registers,
-      base::Vector<const RegExpInstruction> bytecode, Zone* zone) {
+      base::Vector<const Instruction> bytecode, Zone* zone) {
     /* Capture groups that were not traversed in the last iteration of a
      * quantifier need to be discarded. In order to determine which groups need
      * to be discarded, the interpreter maintains a clock, an internal count of
@@ -109,8 +113,7 @@ class FilterGroups {
   }
 
  private:
-  FilterGroups(int pc, base::Vector<const RegExpInstruction> bytecode,
-               Zone* zone)
+  FilterGroups(int pc, base::Vector<const Instruction> bytecode, Zone* zone)
       : pc_(pc),
         max_clock_(0),
         pc_stack_(zone),
@@ -139,7 +142,7 @@ class FilterGroups {
 
   bool IsAtNodeEnd() {
     return pc_ + 1 == bytecode_.length() ||
-           bytecode_[pc_ + 1].opcode != RegExpInstruction::FILTER_CHILD;
+           bytecode_[pc_ + 1].opcode != Instruction::FILTER_CHILD;
   }
 
   base::Vector<int> Run(base::Vector<int> registers_,
@@ -153,7 +156,7 @@ class FilterGroups {
     while (!pc_stack_.empty()) {
       auto instr = bytecode_[pc_];
       switch (instr.opcode) {
-        case RegExpInstruction::FILTER_CHILD:
+        case Instruction::FILTER_CHILD:
           // We only need to come back for the next instructions if we are at
           // the end of the node.
           if (!IsAtNodeEnd()) {
@@ -165,7 +168,7 @@ class FilterGroups {
           pc_ = instr.payload.pc;
           break;
 
-        case RegExpInstruction::FILTER_GROUP: {
+        case Instruction::FILTER_GROUP: {
           int group_id = instr.payload.group_id;
 
           // Checks whether the captured group should be saved or discarded.
@@ -184,7 +187,7 @@ class FilterGroups {
           break;
         }
 
-        case RegExpInstruction::FILTER_QUANTIFIER: {
+        case Instruction::FILTER_QUANTIFIER: {
           int quantifier_id = instr.payload.quantifier_id;
 
           // Checks whether the quantifier should be saved or discarded.
@@ -200,7 +203,7 @@ class FilterGroups {
           break;
         }
 
-        case RegExpInstruction::FILTER_LOOKAROUND: {
+        case Instruction::FILTER_LOOKAROUND: {
           // Checks whether the lookaround should be saved or discarded.
           if (!lookaround_clocks.has_value() ||
               lookaround_clocks->at(instr.payload.lookaround_id) >=
@@ -234,7 +237,7 @@ class FilterGroups {
   ZoneStack<int> pc_stack_;
   ZoneStack<uint64_t> max_clock_stack_;
 
-  base::Vector<const RegExpInstruction> bytecode_;
+  base::Vector<const Instruction> bytecode_;
 };
 
 template <class Character>
@@ -348,8 +351,8 @@ class NfaInterpreter {
         input_index_(input_index),
         clock(0),
         pc_last_input_index_(
-            zone->AllocateArray<LastInputIndex>(bytecode->length()),
-            bytecode->length()),
+            zone->AllocateArray<LastInputIndex>(bytecode->ulength().value()),
+            bytecode->ulength().value()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),
         register_array_allocator_(zone),
@@ -372,35 +375,33 @@ class NfaInterpreter {
 
     // Iterate over the bytecode to find the PC of the filtering
     // instructions and lookarounds, and the number of quantifiers.
-    std::optional<struct Lookaround> lookaround;
+    std::optional<struct LookaroundInfo> lookaround;
     bool in_lookaround = false;
     int lookaround_index;
     for (int i = 0; i < bytecode_.length() - 1; ++i) {
       auto& inst = bytecode_[i];
 
-      if (inst.opcode == RegExpInstruction::START_LOOKAROUND) {
+      if (inst.opcode == Instruction::START_LOOKAROUND) {
         DCHECK(!lookaround.has_value());
         in_lookaround = true;
 
         // Stores the partial information for a lookaround. The rest will be
         // determined upon reaching a `WRITE_LOOKAROUND_TABLE` instruction.
         lookaround_index = inst.payload.lookaround.index();
-        lookaround = Lookaround{.match_pc = i,
-                                .capture_pc = -1,
-                                .type = inst.payload.lookaround.type()};
+        lookaround = LookaroundInfo{.match_pc = i,
+                                    .capture_pc = -1,
+                                    .type = inst.payload.lookaround.type()};
 
-        if (inst.payload.lookaround.type() ==
-            RegExpLookaround::Type::LOOKAHEAD) {
+        if (inst.payload.lookaround.type() == Lookaround::Type::LOOKAHEAD) {
           only_captureless_lookbehinds_ = false;
         }
       }
 
-      if (inst.opcode == RegExpInstruction::SET_REGISTER_TO_CP &&
-          in_lookaround) {
+      if (inst.opcode == Instruction::SET_REGISTER_TO_CP && in_lookaround) {
         only_captureless_lookbehinds_ = false;
       }
 
-      if (inst.opcode == RegExpInstruction::WRITE_LOOKAROUND_TABLE) {
+      if (inst.opcode == Instruction::WRITE_LOOKAROUND_TABLE) {
         DCHECK(lookaround.has_value());
 
         // Fills the current lookaround data.
@@ -409,24 +410,24 @@ class NfaInterpreter {
         // Since the lookarounds are not in order in the `lookarounds_` array,
         // we first fill it until it has the correct size.
         while (lookarounds_.length() <= lookaround_index) {
-          lookarounds_.Add({-1, -1, RegExpLookaround::Type::LOOKBEHIND}, zone_);
+          lookarounds_.Add({-1, -1, Lookaround::Type::LOOKBEHIND}, zone_);
         }
         lookarounds_.Set(lookaround_index, *lookaround);
         lookaround = {};
       }
 
-      if (inst.opcode == RegExpInstruction::END_LOOKAROUND) {
+      if (inst.opcode == Instruction::END_LOOKAROUND) {
         in_lookaround = false;
       }
 
       // The first `FILTER_*` instruction encountered is the start of the
       // `FILTER_*` section.
-      if (!filter_groups_pc_.has_value() && RegExpInstruction::IsFilter(inst)) {
+      if (!filter_groups_pc_.has_value() && Instruction::IsFilter(inst)) {
         DCHECK(v8_flags.experimental_regexp_engine_capture_group_opt);
         filter_groups_pc_ = i;
       }
 
-      if (inst.opcode == RegExpInstruction::SET_QUANTIFIER_TO_CLOCK) {
+      if (inst.opcode == Instruction::SET_QUANTIFIER_TO_CLOCK) {
         DCHECK(v8_flags.experimental_regexp_engine_capture_group_opt);
         quantifier_count_ =
             std::max(quantifier_count_, inst.payload.quantifier_id + 1);
@@ -519,7 +520,7 @@ class NfaInterpreter {
 
         // TODO(mbid,v8:10765): If we're in unicode mode, we have to advance to
         // the next codepoint, not to the next code unit. See also
-        // `RegExpUtils::AdvanceStringIndex`.
+        // `Utils::AdvanceStringIndex`.
         static_assert(!ExperimentalRegExp::kSupportsUnicode);
       }
     }
@@ -603,7 +604,7 @@ class NfaInterpreter {
       active_threads_.Rewind(0);
 
       current_lookaround_ = i;
-      reverse_ = lookarounds_.at(i).type == RegExpLookaround::Type::LOOKAHEAD;
+      reverse_ = lookarounds_.at(i).type == Lookaround::Type::LOOKAHEAD;
       input_index_ = reverse_ ? input_.length() : 0;
 
       active_threads_.Add(NewEmptyThread(lookarounds_.at(i).match_pc), zone_);
@@ -641,7 +642,7 @@ class NfaInterpreter {
         continue;
       }
 
-      Lookaround& lookaround = lookarounds_[i];
+      LookaroundInfo& lookaround = lookarounds_[i];
 
       std::fill(pc_last_input_index_.begin(), pc_last_input_index_.end(),
                 LastInputIndex());
@@ -659,7 +660,7 @@ class NfaInterpreter {
 
       best_match_thread_ = std::nullopt;
 
-      reverse_ = lookaround.type == RegExpLookaround::Type::LOOKBEHIND;
+      reverse_ = lookaround.type == Lookaround::Type::LOOKBEHIND;
       input_index_ = GetLookaroundMatchIndexArray(main_thread)[i];
 
       // We reuse the same thread as initial thread, to avoid having to merge
@@ -881,15 +882,15 @@ class NfaInterpreter {
       }
       MarkPcProcessed(t.pc, t.consumed_since_last_quantifier);
 
-      RegExpInstruction inst = bytecode_[t.pc];
+      Instruction inst = bytecode_[t.pc];
 
       switch (inst.opcode) {
-        case RegExpInstruction::CONSUME_RANGE:
-        case RegExpInstruction::RANGE_COUNT: {
+        case Instruction::CONSUME_RANGE:
+        case Instruction::RANGE_COUNT: {
           blocked_threads_.Add(t, zone_);
           return RegExp::kInternalRegExpSuccess;
         }
-        case RegExpInstruction::ASSERTION:
+        case Instruction::ASSERTION:
           if (!SatisfiesAssertion(inst.payload.assertion_type, input_,
                                   input_index_)) {
             DestroyThread(t);
@@ -897,7 +898,7 @@ class NfaInterpreter {
           }
           ++t.pc;
           break;
-        case RegExpInstruction::FORK: {
+        case Instruction::FORK: {
           InterpreterThread fork = NewUninitializedThread(inst.payload.pc);
           fork.consumed_since_last_quantifier =
               t.consumed_since_last_quantifier;
@@ -961,10 +962,10 @@ class NfaInterpreter {
           ++t.pc;
           break;
         }
-        case RegExpInstruction::JMP:
+        case Instruction::JMP:
           t.pc = inst.payload.pc;
           break;
-        case RegExpInstruction::ACCEPT:
+        case Instruction::ACCEPT:
           if (best_match_thread_.has_value()) {
             DestroyThread(*best_match_thread_);
           }
@@ -975,19 +976,19 @@ class NfaInterpreter {
           }
           active_threads_.Rewind(0);
           return RegExp::kInternalRegExpSuccess;
-        case RegExpInstruction::SET_QUANTIFIER_TO_CLOCK:
+        case Instruction::SET_QUANTIFIER_TO_CLOCK:
           GetQuantifierClockArray(t)[inst.payload.quantifier_id] = clock;
           ++t.pc;
           break;
 
-        case RegExpInstruction::CLEAR_REGISTER:
+        case Instruction::CLEAR_REGISTER:
           SBXCHECK_BOUNDS(inst.payload.register_index,
                           register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] =
               kUndefinedRegisterValue;
           ++t.pc;
           break;
-        case RegExpInstruction::SET_REGISTER_TO_CP:
+        case Instruction::SET_REGISTER_TO_CP:
           SBXCHECK_BOUNDS(inst.payload.register_index,
                           register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] = input_index_;
@@ -996,17 +997,17 @@ class NfaInterpreter {
           }
           ++t.pc;
           break;
-        case RegExpInstruction::FILTER_QUANTIFIER:
-        case RegExpInstruction::FILTER_GROUP:
-        case RegExpInstruction::FILTER_LOOKAROUND:
-        case RegExpInstruction::FILTER_CHILD:
+        case Instruction::FILTER_QUANTIFIER:
+        case Instruction::FILTER_GROUP:
+        case Instruction::FILTER_LOOKAROUND:
+        case Instruction::FILTER_CHILD:
           UNREACHABLE();
-        case RegExpInstruction::BEGIN_LOOP:
+        case Instruction::BEGIN_LOOP:
           t.consumed_since_last_quantifier =
               InterpreterThread::ConsumedCharacter::DidNotConsume;
           ++t.pc;
           break;
-        case RegExpInstruction::END_LOOP:
+        case Instruction::END_LOOP:
           // If the thread did not consume any character during a whole
           // quantifier iteration,then it must be destroyed, since quantifier
           // repetitions are not allowed to match the empty string.
@@ -1017,11 +1018,11 @@ class NfaInterpreter {
           }
           ++t.pc;
           break;
-        case RegExpInstruction::START_LOOKAROUND:
+        case Instruction::START_LOOKAROUND:
           ++t.pc;
           break;
 
-        case RegExpInstruction::END_LOOKAROUND:
+        case Instruction::END_LOOKAROUND:
           if (best_match_thread_.has_value()) {
             DestroyThread(*best_match_thread_);
           }
@@ -1032,7 +1033,7 @@ class NfaInterpreter {
           }
           active_threads_.Rewind(0);
           return RegExp::kInternalRegExpSuccess;
-        case RegExpInstruction::WRITE_LOOKAROUND_TABLE:
+        case Instruction::WRITE_LOOKAROUND_TABLE:
           // Reaching this instruction means that the current lookaround thread
           // has found a match and needs to be destroyed. Since the lookaround
           // is verified at this position, we update the `lookaround_table_`.
@@ -1048,7 +1049,7 @@ class NfaInterpreter {
 
           DestroyThread(t);
           return RegExp::kInternalRegExpSuccess;
-        case RegExpInstruction::READ_LOOKAROUND_TABLE:
+        case Instruction::READ_LOOKAROUND_TABLE:
           // Destroy the thread if the corresponding lookaround did or did not
           // complete a match at the current position (depending on whether or
           // not the lookaround is positive). The lookaround priority list
@@ -1119,7 +1120,7 @@ class NfaInterpreter {
       // Consume success.
       bool has_matched = false;
 
-      if (bytecode_[t.pc].opcode == RegExpInstruction::RANGE_COUNT) {
+      if (bytecode_[t.pc].opcode == Instruction::RANGE_COUNT) {
         ranges = bytecode_[t.pc].payload.num_ranges;
         ++t.pc;
       }
@@ -1129,9 +1130,9 @@ class NfaInterpreter {
 
       // Checking all ranges.
       for (int pc = t.pc; pc < next_pc; ++pc) {
-        RegExpInstruction inst = bytecode_[pc];
-        DCHECK_EQ(inst.opcode, RegExpInstruction::CONSUME_RANGE);
-        RegExpInstruction::Uc16Range range = inst.payload.consume_range;
+        Instruction inst = bytecode_[pc];
+        DCHECK_EQ(inst.opcode, Instruction::CONSUME_RANGE);
+        Instruction::Uc16Range range = inst.payload.consume_range;
         if (input_char >= range.min && input_char <= range.max) {
           // The current char matches the current range.
           t.pc = next_pc;
@@ -1438,7 +1439,7 @@ class NfaInterpreter {
   DisallowGarbageCollection no_gc_;
 
   Tagged<TrustedByteArray> bytecode_object_;
-  base::Vector<const RegExpInstruction> bytecode_;
+  base::Vector<const Instruction> bytecode_;
 
   // Number of registers used per thread.
   const int register_count_per_match_;
@@ -1496,10 +1497,10 @@ class NfaInterpreter {
 
   std::optional<InterpreterThread> best_match_thread_;
 
-  struct Lookaround {
+  struct LookaroundInfo {
     int match_pc;
     int capture_pc;
-    RegExpLookaround::Type type;
+    Lookaround::Type type;
   };
 
   // Stores the match pc, capture pc and direction of each lookaround,
@@ -1509,7 +1510,7 @@ class NfaInterpreter {
   // lookarounds it contains. Thus lookarounds must be run from the last to the
   // first (regarding their appearance order) to never execute a lookaround
   // before one of its child.
-  ZoneList<Lookaround> lookarounds_;
+  ZoneList<LookaroundInfo> lookarounds_;
 
   // Truth table for the lookarounds. lookaround_table_[l][r] indicates
   // whether the lookaround of index l did complete a match on the position
@@ -1569,5 +1570,6 @@ int ExperimentalRegExpInterpreter::FindMatches(
   }
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

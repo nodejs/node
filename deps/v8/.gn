@@ -44,5 +44,7 @@ default_args = {
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
 # discouraged except for gypi_to_gn calls.
-exec_script_allowlist = build_dotfile_settings.exec_script_allowlist +
-                        [ "//build_overrides/build.gni" ]
+exec_script_allowlist = build_dotfile_settings.exec_script_allowlist + [
+                          "//build_overrides/build.gni",
+                          "//gni/cluster_build.gni",
+                        ]

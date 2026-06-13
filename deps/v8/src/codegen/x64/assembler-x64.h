@@ -449,11 +449,21 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
   V(shr, 0x5)                     \
   V(sar, 0x7)
 
+#ifdef V8_ENABLE_APX_F
 // CCMP & CTEST instructions on operands/registers/immediate in APX
 // with kInt8Size, kInt16Size, kInt32Size and kInt64Size.
 #define ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(V) \
   V(ccmp)                                         \
   V(ctest)
+
+// CMOV instructions on operands/registers/ndd in APX
+// with kInt16Size, kInt32Size and kInt64Size.
+#define ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(V) \
+  V(cfcmov)                                    \
+  V(cmov)
+
+#define ASSEMBLER_CMOV_INSTRUCTION_LIST(V) V(cfcmov)
+#endif  // V8_ENABLE_APX_F
 
 // Partial Constant Pool
 // Different from complete constant pool (like arm does), partial constant pool
@@ -514,6 +524,10 @@ class ConstPool {
   // The bits for a rip-relative move instruction after mask.
   static constexpr uint32_t kMoveRipRelativeInstr = 0x00058B48;
 };
+
+namespace regexp {
+class RegExpMacroAssemblerX64;
+}
 
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
@@ -677,6 +691,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
 
+#ifdef V8_ENABLE_APX_F
 #define DECLARE_CONDITIONAL_INSTRUCTION(instruction)                \
   template <class P1, class P2>                                     \
   void instruction##b(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
@@ -699,6 +714,81 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(DECLARE_CONDITIONAL_INSTRUCTION)
 #undef DECLARE_CONDITIONAL_INSTRUCTION
+
+#define DECLARE_CMOV_NDD_INSTRUCTION(instruction)                 \
+  /* 3-operand APX version (ndd) */                               \
+  template <class P1, class P2>                                   \
+  void instruction##w(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt16Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##l(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt32Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##q(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt64Size);              \
+  }
+  ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(DECLARE_CMOV_NDD_INSTRUCTION)
+#undef DECLARE_CMOV_NDD_INSTRUCTION
+
+#define DECLARE_CMOV_INSTRUCTION(instruction)       \
+  /* 2-operand Legacy/APX version */                \
+  template <class P1, class P2>                     \
+  void instruction##w(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt16Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##l(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt32Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##q(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt64Size);     \
+  }
+  ASSEMBLER_CMOV_INSTRUCTION_LIST(DECLARE_CMOV_INSTRUCTION)
+#undef DECLARE_CMOV_INSTRUCTION
+
+#define DECLARE_SHIFT_NDD_INSTRUCTION(instruction, subcode)         \
+  void instruction##l(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }
+  SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_NDD_INSTRUCTION)
+#undef DECLARE_SHIFT_NDD_INSTRUCTION
+
+#endif  // V8_ENABLE_APX_F
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -2540,6 +2630,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void push2pq(Register src1, Register src2);
   void pop2q(Register dst1, Register dst2);
   void pop2pq(Register dst1, Register dst2);
+  void setzucc(Condition cc, Register reg);
+  void jmpabs(Immediate64 target);
+
+  // NDD neg
+  void negl(Register dst, Register src);
+  void negl(Register dst, Operand src);
+  void negq(Register dst, Register src);
+  void negq(Register dst, Operand src);
 #endif  // V8_ENABLE_APX_F
 
   // Check the code size generated from label to here.
@@ -3101,6 +3199,153 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                   int size) {
     immediate_ctest_op(0x0, dst, src, dcc, scc, size);
   }
+
+  // CMOVcc
+  void emit_cmov(Condition cc, Register ndd, Register reg, Register rm,
+                 int size);
+  void emit_cmov(Condition cc, Register ndd, Register reg, Operand rm,
+                 int size);
+  // CFCMOVcc
+  void emit_cfcmov(Condition cc, Register reg, Register rm, int size);
+  void emit_cfcmov(Condition cc, Register reg, Operand rm, int size);
+  void emit_cfcmov(Condition cc, Operand rm, Register reg, int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Register rm,
+                   int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Operand rm,
+                   int size);
+
+  // Emit NDD version machine code for one of the operations ADD, SUB, AND, OR
+  // XOR and IMUL. The encodings of these operations are all similar, differing
+  // just in the opcode or in the reg field of the ModR/M byte.
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Register src2, int size);
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Operand src2, int size);
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Register src1,
+                                   Immediate src2, int size);
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Operand src1,
+                                   Immediate src2, int size);
+
+  void emit_add(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x1, dst, src2, src1, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x21, dst, src2, src1, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x29, dst, src2, src1, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x09, dst, src2, src1, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x31, dst, src2, src1, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_not(Register dst, Register src, int size);
+  void emit_not(Register dst, Operand src, int size);
+
+  // Emit NDD version machine code for a shift operation.
+  void shift(Register dst, Register src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Operand src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Register src, int subcode, int size);
+  void shift(Register dst, Operand src, int subcode, int size);
 #endif  // V8_ENABLE_APX_F
 
   void emit_dec(Register dst, int size);
@@ -3296,7 +3541,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                int safepoint_table_offset, int handler_table_offset);
 
   friend class EnsureSpace;
-  friend class RegExpMacroAssemblerX64;
+  friend class regexp::RegExpMacroAssemblerX64;
 
   // code generation
   RelocInfoWriter reloc_info_writer;

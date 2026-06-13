@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-inl.h"
@@ -535,7 +536,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
   // The builtins constants table is also tightly tied to embedded builtins.
   hash = base::hash_combine(
-      hash, static_cast<size_t>(heap_.builtins_constants_table()->length()));
+      hash, heap_.builtins_constants_table()->ulength().value());
 
   return hash;
 }
@@ -866,7 +867,7 @@ int GetGeneratorBytecodeOffset(
 
 class CallSiteBuilder {
  public:
-  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
+  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, uint32_t limit,
                   Handle<Object> caller)
       : isolate_(isolate),
         mode_(mode),
@@ -878,18 +879,21 @@ class CallSiteBuilder {
     // framework and library code, and stack depth tends to be more than
     // a dozen frames, so we over-allocate a bit here to avoid growing
     // the elements array in the common case.
-    elements_ = isolate->factory()->NewFixedArray(std::min(64, limit));
+    elements_ = isolate->factory()->NewFixedArray(CallSiteInfo::Fields::kCount *
+                                                  std::min(64u, limit_));
   }
 
   void SetPrevFrameAsConstructCall() {
     if (skipped_prev_frame_) return;
     DCHECK_GT(index_, 0);
-    Tagged<CallSiteInfo> info =
-        Tagged<CallSiteInfo>::cast(elements_->get(index_ - 1));
+    int base_index = (index_ - 1) * CallSiteInfo::Fields::kCount;
+    int flags =
+        Smi::ToInt(elements_->get(base_index + CallSiteInfo::Fields::kFlags));
 #if V8_ENABLE_WEBASSEMBLY
-    if (info->IsWasm()) return;
+    if (flags & CallSiteInfo::kIsWasm) return;
 #endif
-    info->set_flags(info->flags() | CallSiteInfo::kIsConstructor);
+    elements_->set(base_index + CallSiteInfo::Fields::kFlags,
+                   Smi::FromInt(flags | CallSiteInfo::kIsConstructor));
   }
 
   bool Visit(FrameSummary const& summary) {
@@ -938,16 +942,7 @@ class CallSiteBuilder {
         function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
 
-    DirectHandle<FixedArray> parameters =
-        isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(v8_flags.detailed_error_stack_trace)) {
-      parameters = isolate_->factory()->CopyFixedArrayUpTo(
-          direct_handle(generator_object->parameters_and_registers(), isolate_),
-          function->shared()
-              ->internal_formal_parameter_count_without_receiver());
-    }
-
-    AppendFrame(receiver, function, code, offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags);
   }
 
   void AppendPromiseCombinatorFrame(DirectHandle<JSFunction> element_function,
@@ -964,14 +959,11 @@ class CallSiteBuilder {
     DirectHandle<Code> code(combinator->code(isolate_), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
-    DirectHandle<FixedArray> parameters =
-        isolate_->factory()->empty_fixed_array();
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
     int promise_index = Smi::ToInt(element_function->GetIdentityHash()) - 1;
-
-    AppendFrame(receiver, combinator, code, promise_index, flags, parameters);
+    AppendFrame(receiver, combinator, code, promise_index, flags);
   }
 
   void AppendJavaScriptFrame(
@@ -988,8 +980,8 @@ class CallSiteBuilder {
     if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function,
-                summary.abstract_code(), summary.code_offset(), flags,
-                summary.parameters());
+                handle(summary.abstract_code()->ToUnionType(), isolate_),
+                summary.code_offset(), flags);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1004,11 +996,10 @@ class CallSiteBuilder {
       }
     }
 
-    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<Undefined> code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
-                code, summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                code, summary.code_offset(), flags);
   }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1021,19 +1012,17 @@ class CallSiteBuilder {
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
-                summary.byte_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                summary.byte_offset(), flags);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
   void AppendWasmInlinedFrame(
       FrameSummary::WasmInlinedFrameSummary const& summary) {
-    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<Undefined> code = isolate_->factory()->undefined_value();
     int flags = CallSiteInfo::kIsWasm;
     AppendFrame(summary.wasm_instance(),
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
-                code, summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                code, summary.code_offset(), flags);
   }
 
   void AppendBuiltinFrame(FrameSummary::BuiltinFrameSummary const& summary) {
@@ -1043,15 +1032,15 @@ class CallSiteBuilder {
                                isolate_);
     int flags = CallSiteInfo::kIsBuiltin;
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function, code,
-                summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                summary.code_offset(), flags);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool Full() { return index_ >= limit_; }
 
   Handle<FixedArray> Build() {
-    return FixedArray::RightTrimOrEmpty(isolate_, elements_, index_);
+    return FixedArray::RightTrimOrEmpty(isolate_, elements_,
+                                        CallSiteInfo::Fields::kCount * index_);
   }
 
  private:
@@ -1114,26 +1103,74 @@ class CallSiteBuilder {
     return true;
   }
 
+ public:
+  // Store a deferred entry for a baseline frame.
+  // Stores the Code + raw PC offset; bytecode offset resolution
+  // happens lazily in ExpandDeferredFrames().
+  bool AppendDeferredFrame(JavaScriptFrame* frame, int deferred_flag) {
+    if (Full()) return false;
+    DirectHandle<JSFunction> function(frame->function(), isolate_);
+    if (!IsVisibleInStackTrace(function)) {
+      skipped_prev_frame_ = true;
+      return true;
+    }
+    int flags = deferred_flag;
+    if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
+    if (frame->IsConstructor()) flags |= CallSiteInfo::kIsConstructor;
+
+    Tagged<Code> code = frame->LookupCode();
+    int pc_offset = static_cast<int>(frame->pc() - code->instruction_start());
+
+    AppendFrame(Cast<UnionOf<JSAny, Hole>>(handle(frame->receiver(), isolate_)),
+                function, handle(code, isolate_), pc_offset, flags);
+    return true;
+  }
+
   void AppendFrame(DirectHandle<UnionOf<JSAny, Hole>> receiver_or_instance,
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
-                   DirectHandle<HeapObject> code, int offset, int flags,
-                   DirectHandle<FixedArray> parameters) {
+                   DirectHandle<Union<Code, BytecodeArray, Undefined>> code_obj,
+                   int offset, int flags) {
     if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
     }
-    auto info = isolate_->factory()->NewCallSiteInfo(
-        Cast<JSAny>(receiver_or_instance), function, code, offset, flags,
-        parameters);
-    elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
+
+    int base_index = index_ * CallSiteInfo::Fields::kCount;
+
+    // Set the last field first and grow the array if needed.
+    static_assert(CallSiteInfo::Fields::kFlags ==
+                  CallSiteInfo::Fields::kCount - 1);
+    elements_ = FixedArray::SetAndGrow(
+        isolate_, elements_, base_index + CallSiteInfo::Fields::kFlags,
+        Smi::FromInt(flags));
+
+    elements_->set(base_index + CallSiteInfo::Fields::kReceiver,
+                   *receiver_or_instance);
+    elements_->set(base_index + CallSiteInfo::Fields::kFunction, *function);
+
+    if (DirectHandle<Code> code; TryCast(code_obj, &code)) {
+      elements_->set(base_index + CallSiteInfo::Fields::kCode, code->wrapper());
+    } else if (DirectHandle<BytecodeArray> bytecode;
+               TryCast(code_obj, &bytecode)) {
+      elements_->set(base_index + CallSiteInfo::Fields::kCode,
+                     bytecode->wrapper());
+    } else {
+      elements_->set(base_index + CallSiteInfo::Fields::kCode,
+                     *isolate_->factory()->undefined_value());
+    }
+
+    elements_->set(base_index + CallSiteInfo::Fields::kOffset,
+                   Smi::FromInt(offset));
+
+    index_++;
     skipped_prev_frame_ = false;
   }
 
   Isolate* isolate_;
   const FrameSkipMode mode_;
-  int index_ = 0;
-  const int limit_;
+  uint32_t index_ = 0;
+  const uint32_t limit_;
   const Handle<Object> caller_;
   bool skip_next_frame_;
   bool skipped_prev_frame_ = false;
@@ -1343,6 +1380,40 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
     DirectHandle<JSPromise> promise(
         promise_resolve_thenable_job_task->promise_to_resolve(), isolate);
     return promise;
+  } else if (IsAsyncResumeTask(*current_microtask)) {
+    auto async_resume_task = Cast<AsyncResumeTask>(current_microtask);
+    Handle<JSGeneratorObject> generator_object(async_resume_task->generator(),
+                                               isolate);
+    if (generator_object->is_executing()) {
+      int kind = async_resume_task->kind();
+      if (kind == AsyncResumeTask::kAsyncFunctionAwait) {
+        DCHECK(IsJSAsyncFunctionObject(*generator_object));
+        auto async_function_object =
+            Cast<JSAsyncFunctionObject>(generator_object);
+        DirectHandle<JSPromise> promise(async_function_object->promise(),
+                                        isolate);
+        return promise;
+      } else {
+        DCHECK_EQ(kind, AsyncResumeTask::kYield);
+        DCHECK(IsJSAsyncGeneratorObject(*generator_object));
+        auto async_generator_object =
+            Cast<JSAsyncGeneratorObject>(generator_object);
+        DirectHandle<Object> queue(async_generator_object->queue(), isolate);
+        // The queue may legitimately be empty here. The kYield dispatch calls
+        // AsyncGeneratorResolve (which pops the yield request) followed by
+        // AsyncGeneratorResumeNext, which may immediately resume the generator
+        // with a subsequent queued throw/return. That resumed execution pops
+        // its own request via AsyncGeneratorReject/Resolve before RejectPromise
+        // triggers this stack capture. V8 has no separate ~draining-queue~
+        // state (spec sec-asyncgeneratorstart), so is_executing() remains true
+        // throughout; the empty queue is the tell that we're in that phase.
+        if (IsUndefined(*queue, isolate)) return MaybeDirectHandle<JSPromise>();
+        auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
+        DirectHandle<JSPromise> promise(
+            Cast<JSPromise>(async_generator_request->promise()), isolate);
+        return promise;
+      }
+    }
   }
   return MaybeDirectHandle<JSPromise>();
 }
@@ -1354,18 +1425,16 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
   }
 }
 
+// Summarize a single frame and pass each logical frame to the visitor.
 template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
                 StackTrace::StackTraceOptions options = StackTrace::kDetailed,
                 bool never_allocate = false) {
   DisallowJavascriptExecution no_js(isolate);
-  // Keep track if we visited a stack frame, but did not visit any summarized
-  // frames. Either because the stack frame didn't create any summarized frames
-  // or due to security origin.
-  bool skipped_last_frame = true;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     switch (frame->type()) {
+      case StackFrame::BASELINE:
       case StackFrame::API_CALLBACK_EXIT:
       case StackFrame::API_CONSTRUCT_EXIT:
       case StackFrame::BUILTIN_EXIT:
@@ -1374,7 +1443,6 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
       case StackFrame::TURBOFAN_JS:
       case StackFrame::MAGLEV:
       case StackFrame::INTERPRETED:
-      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
@@ -1389,14 +1457,73 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
         // inlining).
         FrameSummaries summaries =
             CommonFrame::cast(frame)->Summarize(never_allocate);
+        for (auto& summary : base::Reversed(summaries.frames)) {
+          // Skip frames from other origins when asked to do so.
+          if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+              !summary.native_context()->HasSameSecurityTokenAs(
+                  isolate->context())) {
+            continue;
+          }
+          if (!visitor->Visit(summary)) return;
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+}
+
+// Specialized stack walk for CallSiteBuilder, handling deferred baseline
+// frames and the construct-call flag on the previous frame.
+void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
+  DisallowJavascriptExecution no_js(isolate);
+  // Track whether the last physical frame produced any visited summarized
+  // frames. Used to correctly attribute construct-call flags.
+  bool skipped_last_frame = true;
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* frame = it.frame();
+    switch (frame->type()) {
+      case StackFrame::BASELINE:
+        // Baseline frames are captured as deferred entries so they can be
+        // expanded later without blocking the stack capture path.
+        if (!visitor->AppendDeferredFrame(
+                JavaScriptFrame::cast(frame),
+                CallSiteInfo::kIsDeferredBaselineFrame)) {
+          return;
+        }
+        skipped_last_frame = true;
+        break;
+      case StackFrame::API_CALLBACK_EXIT:
+      case StackFrame::API_CONSTRUCT_EXIT:
+      case StackFrame::BUILTIN_EXIT:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::TURBOFAN_JS:
+      case StackFrame::MAGLEV:
+      case StackFrame::INTERPRETED:
+      case StackFrame::BUILTIN:
+#if V8_ENABLE_WEBASSEMBLY
+      case StackFrame::STUB:
+      case StackFrame::WASM:
+      case StackFrame::WASM_SEGMENT_START:
+#if V8_ENABLE_DRUMBRAKE
+      case StackFrame::WASM_INTERPRETER_ENTRY:
+#endif  // V8_ENABLE_DRUMBRAKE
+#endif  // V8_ENABLE_WEBASSEMBLY
+      {
+        // A standard frame may include many summarized frames (due to
+        // inlining).
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
         if (summaries.top_frame_is_construct_call && !skipped_last_frame) {
           visitor->SetPrevFrameAsConstructCall();
         }
         skipped_last_frame = true;
         for (auto& summary : base::Reversed(summaries.frames)) {
-          // Skip frames from other origins when asked to do so.
-          if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-              !summary.native_context()->HasSameSecurityTokenAs(
+          // CaptureSimpleStackTrace uses kDetailed, which does not expose
+          // frames across security origins.
+          if (!summary.native_context()->HasSameSecurityTokenAs(
                   isolate->context())) {
             continue;
           }
@@ -1422,8 +1549,8 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  CallSiteBuilder builder(isolate, mode, limit, caller);
-  VisitStack(isolate, &builder);
+  CallSiteBuilder builder(isolate, mode, static_cast<uint32_t>(limit), caller);
+  VisitStack_ForCallSiteBuilder(isolate, &builder);
 
   // If --async-stack-traces are enabled and the "current microtask" is a
   // PromiseReactionJobTask, we try to enrich the stack trace with async
@@ -1434,18 +1561,26 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
 
   Handle<FixedArray> stack_trace = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
-                   "frameCount", stack_trace->length());
+                   "frameCount", stack_trace->ulength().value());
   return stack_trace;
 }
 
 DirectHandle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
-    Isolate* isolate, DirectHandle<FixedArray> call_site_infos, int limit) {
-  auto frames = isolate->factory()->NewFixedArray(
-      std::min(limit, call_site_infos->length()));
-  int index = 0;
-  for (int i = 0; i < call_site_infos->length() && index < limit; ++i) {
-    DirectHandle<CallSiteInfo> call_site_info(
-        Cast<CallSiteInfo>(call_site_infos->get(i)), isolate);
+    Isolate* isolate, DirectHandle<FixedArray> raw_data_for_call_site_infos,
+    uint32_t limit) {
+  Handle<FixedArray> expanded = CallSiteInfo::ExpandDeferredFrames(
+      isolate, handle(*raw_data_for_call_site_infos, isolate));
+  raw_data_for_call_site_infos = expanded;
+  uint32_t call_site_infos_len =
+      raw_data_for_call_site_infos->ulength().value() /
+      CallSiteInfo::Fields::kCount;
+  auto frames =
+      isolate->factory()->NewFixedArray(std::min(limit, call_site_infos_len));
+  uint32_t index = 0;
+  for (uint32_t i = 0; i < call_site_infos_len && index < limit; ++i) {
+    DirectHandle<CallSiteInfo> call_site_info =
+        CallSiteInfo::ConstructFromRawData(isolate,
+                                           raw_data_for_call_site_infos, i);
     if (call_site_info->IsAsync()) {
       break;
     }
@@ -1516,14 +1651,20 @@ MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
           stack_trace_for_uncaught_exceptions_frame_limit_,
           stack_trace_for_uncaught_exceptions_options_);
     } else {
-      auto call_site_infos =
+      auto raw_data_for_call_site_infos =
           Cast<FixedArray>(call_site_infos_or_formatted_stack);
+      DCHECK_GE(stack_trace_for_uncaught_exceptions_frame_limit_, 0);
       stack_trace = GetDetailedStackTraceFromCallSiteInfos(
-          this, call_site_infos,
-          stack_trace_for_uncaught_exceptions_frame_limit_);
-      if (stack_trace_limit < call_site_infos->length()) {
+          this, raw_data_for_call_site_infos,
+          static_cast<uint32_t>(
+              stack_trace_for_uncaught_exceptions_frame_limit_));
+      DCHECK_GE(stack_trace_limit, 0);
+      if (static_cast<uint32_t>(stack_trace_limit) *
+              CallSiteInfo::Fields::kCount <
+          raw_data_for_call_site_infos->ulength().value()) {
         call_site_infos_or_formatted_stack = FixedArray::RightTrimOrEmpty(
-            this, call_site_infos, stack_trace_limit);
+            this, raw_data_for_call_site_infos,
+            stack_trace_limit * CallSiteInfo::Fields::kCount);
       }
       // Notify the debugger.
       OnStackTraceCaptured(stack_trace);
@@ -1553,17 +1694,29 @@ Handle<FixedArray> Isolate::GetSimpleStackTrace(
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
 
+  Handle<FixedArray> raw_data;
   if (IsFixedArray(*lookup.error_stack)) {
-    return Cast<FixedArray>(lookup.error_stack);
-  }
-  if (!IsErrorStackData(*lookup.error_stack)) {
+    raw_data = Cast<FixedArray>(lookup.error_stack);
+  } else if (IsErrorStackData(*lookup.error_stack)) {
+    auto error_stack_data = Cast<ErrorStackData>(lookup.error_stack);
+    if (!error_stack_data->HasRawDataForCallSiteInfos()) {
+      return factory()->empty_fixed_array();
+    }
+    raw_data = handle(error_stack_data->raw_data_for_call_site_infos(), this);
+  } else {
     return factory()->empty_fixed_array();
   }
-  auto error_stack_data = Cast<ErrorStackData>(lookup.error_stack);
-  if (!error_stack_data->HasCallSiteInfos()) {
-    return factory()->empty_fixed_array();
+
+  raw_data = CallSiteInfo::ExpandDeferredFrames(this, raw_data);
+
+  int frame_count = raw_data->ulength().value() / CallSiteInfo::Fields::kCount;
+  Handle<FixedArray> call_site_infos = factory()->NewFixedArray(frame_count);
+  for (int i = 0; i < frame_count; ++i) {
+    DirectHandle<CallSiteInfo> call_site_info =
+        CallSiteInfo::ConstructFromRawData(this, raw_data, i);
+    call_site_infos->set(i, *call_site_info);
   }
-  return handle(error_stack_data->call_site_infos(), this);
+  return call_site_infos;
 }
 
 Address Isolate::GetAbstractPC(int* line, int* column) {
@@ -1613,10 +1766,6 @@ class StackFrameBuilder {
         index_(0),
         limit_(limit) {}
 
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
-  }
-
   bool Visit(FrameSummary& summary) {
     // Check if we have enough capacity left.
     if (index_ >= limit_) return false;
@@ -1634,8 +1783,8 @@ class StackFrameBuilder {
  private:
   Isolate* isolate_;
   Handle<FixedArray> frames_;
-  int index_;
-  int limit_;
+  uint32_t index_;
+  uint32_t limit_;
 };
 
 }  // namespace
@@ -1644,11 +1793,11 @@ DirectHandle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
     int limit, StackTrace::StackTraceOptions options) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
-  StackFrameBuilder builder(this, limit);
+  StackFrameBuilder builder(this, static_cast<uint32_t>(limit));
   VisitStack(this, &builder, options);
   auto frames = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
-                   "frameCount", frames->length());
+                   "frameCount", frames->ulength().value());
   auto stack_trace = factory()->NewStackTraceInfo(frames);
   OnStackTraceCaptured(stack_trace);
   return stack_trace;
@@ -1660,10 +1809,6 @@ class CurrentScriptNameStackVisitor {
  public:
   explicit CurrentScriptNameStackVisitor(Isolate* isolate)
       : isolate_(isolate) {}
-
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
-  }
 
   bool Visit(FrameSummary& summary) {
     // Skip frames that aren't subject to debugging. Keep this in sync with
@@ -1693,10 +1838,6 @@ class CurrentScriptNameStackVisitor {
 
 class CurrentScriptIdStackVisitor {
  public:
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
-  }
-
   bool Visit(FrameSummary& summary) {
     // Skip frames that aren't subject to debugging. Keep this in sync with
     // StackFrameBuilder::Visit so both visitors visit the same frames.
@@ -1726,20 +1867,13 @@ class CurrentScriptIdsAndContextsStackVisitor {
     DCHECK_LT(0, frame_data.size());
   }
 
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
-  }
-
   bool Visit(FrameSummary& summary) {
     if (!summary.is_subject_to_debugging()) return true;
 
     // Frames that are subject to debugging always have a valid script object. A
     // valid script object should have a valid id.
     auto script_handle = Cast<Script>(summary.script());
-    int script_id = script_handle->id();
-    if (script_handle->has_eval_from_shared()) {
-      script_id = GetRootScriptId(*script_handle);
-    }
+    int script_id = GetRootScriptId(*script_handle);
 
     Handle<NativeContext> context =
         handle(summary.native_context()->native_context(), isolate_);
@@ -1768,17 +1902,64 @@ class CurrentScriptIdsAndContextsStackVisitor {
     }
     return cur->id();
   }
+
   Isolate* const isolate_;
   v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
   size_t cur_frame_ = 0;
 };
 
-class CurrentScriptStackVisitor {
+class CurrentScriptDataStackVisitor {
  public:
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
+  CurrentScriptDataStackVisitor(
+      Isolate* isolate, v8::MemorySpan<StackTrace::ScriptData> frame_data)
+      : isolate_(isolate), frame_data_(frame_data) {
+    DCHECK_LT(0, frame_data.size());
   }
 
+  bool Visit(FrameSummary& summary) {
+    if (!summary.IsJavaScript()) return true;
+    if (!summary.is_subject_to_debugging()) return true;
+
+    auto script_handle = Cast<Script>(summary.script());
+    int script_id = GetRootScriptId(*script_handle);
+
+    DirectHandle<NativeContext> context =
+        handle(summary.native_context()->native_context(), isolate_);
+    if (context.is_null() || script_id <= 0) return true;
+
+    frame_data_[cur_frame_].function =
+        Utils::ToLocal(summary.AsJavaScript().function());
+    frame_data_[cur_frame_].context = Utils::ToLocal(context).As<v8::Context>();
+    frame_data_[cur_frame_].id = script_id;
+
+    cur_frame_ += 1;
+
+    return cur_frame_ < frame_data_.size();
+  }
+
+  size_t FrameCount() const { return cur_frame_; }
+
+ private:
+  int GetRootScriptId(Tagged<Script> script) {
+    Tagged<Script> cur = script;
+    while (cur->has_eval_from_shared()) {
+      Tagged<Object> maybe_sfi = cur->eval_from_shared();
+      if (!IsSharedFunctionInfo(maybe_sfi)) break;
+      Tagged<Object> maybe_script =
+          Cast<SharedFunctionInfo>(maybe_sfi)->script();
+      if (!IsScript(maybe_script)) break;
+      cur = Cast<Script>(maybe_script);
+    }
+    return cur->id();
+  }
+
+  Isolate* const isolate_;
+  v8::MemorySpan<StackTrace::ScriptData> frame_data_;
+  size_t cur_frame_ = 0;
+};
+
+class CurrentScriptStackVisitor {
+ public:
   bool Visit(FrameSummary& summary) {
     // Skip frames that aren't subject to debugging. Keep this in sync with
     // StackFrameBuilder::Visit so both visitors visit the same frames.
@@ -1819,6 +2000,17 @@ size_t Isolate::CurrentScriptIdsAndContexts(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptIdsAndContextsStackVisitor visitor(this, frame_data);
   VisitStack(this, &visitor);
+  return visitor.FrameCount();
+}
+
+size_t Isolate::CurrentScriptData(
+    v8::MemorySpan<StackTrace::ScriptData> frame_data) {
+  if (frame_data.size() == 0) return 0;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+
+  CurrentScriptDataStackVisitor visitor(this, frame_data);
+  // CurrentScriptData should only expose frames from the same origin.
+  VisitStack(this, &visitor, StackTrace::kDetailed, true);
   return visitor.FrameCount();
 }
 
@@ -1915,10 +2107,6 @@ class MinimalStackPrinter {
   static constexpr const char* kEndMarker = "$";
 
   explicit MinimalStackPrinter(size_t max_length) : max_length_(max_length) {}
-
-  void SetPrevFrameAsConstructCall() {
-    // Nothing to do.
-  }
 
   bool Visit(FrameSummary& summary) {
     if (summary.IsJavaScript()) {
@@ -2530,6 +2718,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
+          // Exception escapes the current suspender, unwind to the parent.
+          // Clear the external stack pointer to avoid a UAF.
+          suspender->set_stack(this, nullptr);
           suspender = suspender->parent();
         }
         RetireWasmStack(active_stack);
@@ -2552,6 +2743,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);
       iter.wasm_stack()->clear_stack_switch_info();
+#if V8_TARGET_OS_WIN
+      base::Stack::SetCurrentThreadStackBounds(iter.wasm_stack()->limit(),
+                                               iter.wasm_stack()->base());
+#endif
     }
     // Regardless of the stack that the handler belongs to, these fields should
     // be cleared.
@@ -3037,7 +3232,7 @@ HandlerTable::CatchPrediction PredictExceptionFromBytecode(
   HandlerTable table(bytecode);
   int handler_index = table.LookupHandlerIndexForRange(code_offset);
   if (handler_index < 0) return HandlerTable::UNCAUGHT;
-  return table.GetRangePrediction(handler_index);
+  return table.GetRangePrediction(static_cast<uint32_t>(handler_index));
 }
 
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
@@ -3161,12 +3356,17 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
 void Isolate::PrintCurrentStackTrace(
     std::ostream& out,
     PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
-  DirectHandle<FixedArray> frames = CaptureSimpleStackTrace(
-      this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
+  Handle<FixedArray> frames =
+      CaptureSimpleStackTrace(this, static_cast<int>(FixedArray::kMaxLength),
+                              SKIP_NONE, factory()->undefined_value());
+  frames = CallSiteInfo::ExpandDeferredFrames(this, frames);
 
   IncrementalStringBuilder builder(this);
-  for (int i = 0; i < frames->length(); ++i) {
-    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), this);
+  uint32_t frame_count =
+      frames->ulength().value() / CallSiteInfo::Fields::kCount;
+  for (uint32_t i = 0; i < frame_count; ++i) {
+    DirectHandle<CallSiteInfo> frame =
+        CallSiteInfo::ConstructFromRawData(this, frames, i);
 
     if (should_include_frame_callback) {
       Tagged<Object> raw_script_name = frame->GetScriptNameOrSourceURL();
@@ -3190,7 +3390,7 @@ void Isolate::PrintCurrentStackTrace(
       SerializeCallSiteInfo(this, frame, &builder);
     }
 
-    if (i != frames->length() - 1) builder.AppendCharacter('\n');
+    if (i != frame_count - 1) builder.AppendCharacter('\n');
   }
 
   DirectHandle<String> stack_trace = builder.Finish().ToHandleChecked();
@@ -3260,7 +3460,8 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(
   }
   DirectHandle<FixedArray> call_site_infos =
       GetSimpleStackTrace(Cast<JSReceiver>(exception));
-  for (int i = 0; i < call_site_infos->length(); ++i) {
+  uint32_t call_site_infos_count = call_site_infos->ulength().value();
+  for (uint32_t i = 0; i < call_site_infos_count; ++i) {
     DirectHandle<CallSiteInfo> call_site_info(
         Cast<CallSiteInfo>(call_site_infos->get(i)), this);
     if (CallSiteInfo::ComputeLocation(call_site_info, target)) {
@@ -3778,9 +3979,10 @@ bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
   }
   if (iterator.frame_summary().IsJavaScript()) {
     auto& js_summary = iterator.frame_summary().AsJavaScript();
-    if (Handle<BytecodeArray> bytecode_array;
-        TryCast(js_summary.abstract_code(), &bytecode_array)) {
-      if (CallsCatchMethod(iterator.isolate(), bytecode_array,
+    if (Tagged<BytecodeArray> bytecode_array;
+        TryCast(js_summary.abstract_code()->ToUnionType(), &bytecode_array)) {
+      if (CallsCatchMethod(iterator.isolate(),
+                           handle(bytecode_array, iterator.isolate()),
                            js_summary.code_offset())) {
         return true;
       }
@@ -3964,6 +4166,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
 bool Isolate::IsWasmCustomDescriptorsEnabled(
     DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
+  if (!v8_flags.wasm_custom_descriptors_permitted) return false;
   v8::WasmCustomDescriptorsEnabledCallback callback =
       wasm_custom_descriptors_enabled_callback();
   if (callback) {
@@ -4030,17 +4233,25 @@ char* Isolate::RestoreThread(char* from) {
 
 void Isolate::ReleaseSharedPtrs() {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
-  while (managed_ptr_destructors_head_) {
-    ManagedPtrDestructor* l = managed_ptr_destructors_head_;
-    ManagedPtrDestructor* n = nullptr;
-    managed_ptr_destructors_head_ = nullptr;
-    for (; l != nullptr; l = n) {
-      l->external_memory_accounter_.Decrease(
-          reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
-      l->destructor_(l->shared_ptr_ptr_);
-      n = l->next_;
-      delete l;
+
+  auto delete_pointers = [this](ManagedPtrDestructor** list) {
+    while (*list) {
+      ManagedPtrDestructor* l = *list;
+      ManagedPtrDestructor* n = nullptr;
+      *list = nullptr;
+      for (; l != nullptr; l = n) {
+        l->external_memory_accounter_.Decrease(
+            reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
+        l->destructor_(l->shared_ptr_ptr_);
+        n = l->next_;
+        delete l;
+      }
     }
+  };
+
+  delete_pointers(&managed_ptr_destructors_head_);
+  if (is_shared_space_isolate()) {
+    delete_pointers(&shared_managed_ptr_destructors_head_);
   }
 }
 
@@ -4054,23 +4265,39 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
+    shared_space_isolate()->RegisterManagedPtrDestructor(destructor);
+    return;
+  }
+
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
-  if (managed_ptr_destructors_head_) {
-    managed_ptr_destructors_head_->prev_ = destructor;
+  ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
+                                    ? &shared_managed_ptr_destructors_head_
+                                    : &managed_ptr_destructors_head_;
+  if (*list) {
+    (*list)->prev_ = destructor;
   }
-  destructor->next_ = managed_ptr_destructors_head_;
-  managed_ptr_destructors_head_ = destructor;
+  destructor->next_ = *list;
+  *list = destructor;
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
+    shared_space_isolate()->UnregisterManagedPtrDestructor(destructor);
+    return;
+  }
+
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
-    DCHECK_EQ(destructor, managed_ptr_destructors_head_);
-    managed_ptr_destructors_head_ = destructor->next_;
+    ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
+                                      ? &shared_managed_ptr_destructors_head_
+                                      : &managed_ptr_destructors_head_;
+    DCHECK_EQ(destructor, *list);
+    *list = destructor->next_;
   }
   if (destructor->next_) destructor->next_->prev_ = destructor->prev_;
   destructor->prev_ = nullptr;
@@ -4213,6 +4440,11 @@ Isolate::SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
     Address pc);
 
 void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
+  if (!stack->stack_obj().is_null()) {
+    // Clear the owning {WasmStackObject}'s external pointer to prevent a UAF.
+    stack->stack_obj()->set_stack(this, nullptr);
+    stack->set_stack_obj({});
+  }
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
@@ -4679,7 +4911,7 @@ void Isolate::Deinit() {
   // use those.
   cancelable_task_manager()->CancelAndWait();
 
-  // Delete any remaining RegExpResultVector instances.
+  // Delete any remaining regexp::ResultVector instances.
   for (int32_t* v : active_dynamic_regexp_result_vectors_) {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     SandboxFree(v);
@@ -4910,7 +5142,7 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = nullptr;
 
-  RegExpStack::Delete(regexp_stack_);
+  regexp::Stack::Delete(regexp_stack_);
   regexp_stack_ = nullptr;
 
   delete descriptor_lookup_cache_;
@@ -5101,7 +5333,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
                 ext_callback_scope->callback_info());
 
         DirectHandle<Object> holder =
-            Utils::OpenDirectHandle(*callback_info->HolderV2());
+            Utils::OpenDirectHandle(*callback_info->Holder());
         DCHECK(IsJSReceiver(*holder));
 
         using PCA = PropertyCallbackArguments;
@@ -5533,12 +5765,30 @@ using MapOfLoadsAndStoresPerFunction =
              std::pair<uint64_t /* loads */, uint64_t /* stores */>>;
 MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
 
-class BigIntPlatform : public bigint::Platform {
+class BigIntPlatform final : public bigint::Platform {
  public:
-  explicit BigIntPlatform(Isolate* isolate) : isolate_(isolate) {}
-  ~BigIntPlatform() override = default;
+  using digit_t = bigint::digit_t;
+  ~BigIntPlatform() final = default;
 
-  bool InterruptRequested() override {
+#if V8_ENABLE_SANDBOX
+  explicit BigIntPlatform(Isolate* isolate)
+      : isolate_(isolate),
+        allocator_(
+            IsolateGroup::GetDefault()->GetSandboxedArrayBufferAllocator()) {}
+
+  digit_t* Allocate(size_t count) final {
+    DCHECK_LT(count, std::numeric_limits<size_t>::max() / sizeof(digit_t));
+    return static_cast<digit_t*>(
+        allocator_->AllocateUninitializedOrCrash(count * sizeof(digit_t)));
+  }
+  void Free(digit_t* ptr) final { allocator_->Free(ptr); }
+#else
+  explicit BigIntPlatform(Isolate* isolate) : isolate_(isolate) {}
+  digit_t* Allocate(size_t count) final { return new digit_t[count]; }
+  void Free(digit_t* ptr) final { delete[] ptr; }
+#endif  // V8_ENABLE_SANDBOX
+
+  bool InterruptRequested() final {
     StackLimitCheck interrupt_check(isolate_);
     return (interrupt_check.InterruptRequested() &&
             isolate_->stack_guard()->HasTerminationRequest());
@@ -5546,6 +5796,9 @@ class BigIntPlatform : public bigint::Platform {
 
  private:
   Isolate* isolate_;
+#if V8_ENABLE_SANDBOX
+  SandboxedArrayBufferAllocatorBase* allocator_;
+#endif  // V8_ENABLE_SANDBOX
 };
 }  // namespace
 
@@ -5714,7 +5967,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
-  regexp_stack_ = RegExpStack::New();
+  regexp_stack_ = regexp::Stack::New();
   isolate_data_.set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
@@ -5952,6 +6205,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     PrintF("Set up central stack object (limit: %p, base: %p)\n",
            stack->jslimit(), reinterpret_cast<void*>(stack->base()));
   }
+#if V8_TARGET_OS_WIN
+  // Stack::GetStackStart() is meant to return the native stack start, but we
+  // update the TEB's StackBase during wasm stack switching. So call it during
+  // initialization to ensure that it caches the correct value.
+  base::Stack::GetStackStart();
+#endif
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -6468,7 +6727,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 
   // Add collected feedback vectors to the root list lest we lose them to GC.
   DirectHandle<ArrayList> list =
-      ArrayList::New(this, static_cast<int>(vectors.size()));
+      ArrayList::New(this, static_cast<uint32_t>(vectors.size()));
   for (const auto& vector : vectors) list = ArrayList::Add(this, list, vector);
   SetFeedbackVectorsForProfilingTools(*list);
 }
@@ -6784,6 +7043,7 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
 
   switch (phase) {
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kEvaluation:
       if (host_import_module_dynamically_callback_ == nullptr &&
           host_import_module_with_phase_dynamically_callback_ == nullptr) {
@@ -6799,8 +7059,6 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         return NewRejectedPromise(this, api_context, exception);
       }
       break;
-    case ModuleImportPhase::kDefer:
-      UNREACHABLE();
   }
 
   DirectHandle<String> specifier_str;
@@ -6862,8 +7120,9 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
             MaybeDirectHandle<JSPromise>());
       }
       break;
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kSource:
-      CHECK(v8_flags.js_source_phase_imports);
+      CHECK(v8_flags.js_source_phase_imports || v8_flags.js_defer_import_eval);
       CHECK_NOT_NULL(host_import_module_with_phase_dynamically_callback_);
       API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           this, promise,
@@ -6944,10 +7203,11 @@ MaybeDirectHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
 
   // The attributes will be passed to the host in the form: [key1,
   // value1, key2, value2, ...].
-  constexpr size_t kAttributeEntrySizeForDynamicImport = 2;
-  import_attributes_array = factory()->NewFixedArray(static_cast<int>(
-      attribute_keys->length() * kAttributeEntrySizeForDynamicImport));
-  for (int i = 0; i < attribute_keys->length(); i++) {
+  constexpr uint32_t kAttributeEntrySizeForDynamicImport = 2;
+  uint32_t attributes_keys_len = attribute_keys->ulength().value();
+  import_attributes_array = factory()->NewFixedArray(
+      attributes_keys_len * kAttributeEntrySizeForDynamicImport);
+  for (uint32_t i = 0; i < attributes_keys_len; i++) {
     DirectHandle<String> attribute_key(Cast<String>(attribute_keys->get(i)),
                                        this);
     DirectHandle<Object> attribute_value;
@@ -7415,10 +7675,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
   HandleScope scope(this);
   DirectHandle<WeakArrayList> detached_contexts =
       factory()->detached_contexts();
-  int length = detached_contexts->length();
+  const uint32_t length = detached_contexts->length().value();
   if (length == 0) return;
-  int new_length = 0;
-  for (int i = 0; i < length; i += 2) {
+  uint32_t new_length = 0;
+  for (uint32_t i = 0; i < length; i += 2) {
     Tagged<MaybeObject> context = detached_contexts->Get(i);
     DCHECK(context.IsWeakOrCleared());
     if (!context.IsCleared()) {
@@ -7429,7 +7689,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   detached_contexts->set_length(new_length);
-  int last_context_index = new_length;
+  uint32_t last_context_index = new_length;
   while (last_context_index < length) {
     detached_contexts->Set(last_context_index, Smi::zero());
     ++last_context_index;
@@ -7438,7 +7698,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (v8_flags.trace_detached_contexts) {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
-    for (int i = 0; i < new_length; i += 2) {
+    for (uint32_t i = 0; i < new_length; i += 2) {
       Tagged<MaybeObject> context = detached_contexts->Get(i);
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
       DCHECK(context.IsWeakOrCleared());
@@ -7494,6 +7754,10 @@ void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);
   DCHECK(global_proxy->IsDetached());
   env->set_microtask_queue(this, nullptr);
+  // Invalidate the EnqueueMicrotask cache if it references this context.
+  if (current_microtask_native_context() == *env) {
+    set_current_microtask_native_context(Smi::zero());
+  }
   // Set security token back to default (unique) state making sure that only
   // accesses from the same native context are allowed.
   env->set_security_token(env->global_object());

@@ -63,6 +63,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -71,6 +72,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -104,7 +106,10 @@
 #define ABSL_HASH_INTERNAL_CRC32_U32 _mm_crc32_u32
 #define ABSL_HASH_INTERNAL_CRC32_U8 _mm_crc32_u8
 
-#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__)
+// 32-bit builds with AVX do not have _mm_crc32_u64, so the _M_X64 condition is
+// necessary.
+#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__) && \
+    defined(_M_X64)
 
 // MSVC AVX (/arch:AVX) implies SSE 4.2.
 #include <intrin.h>
@@ -895,10 +900,10 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
   return H::combine(std::move(hash_state), opt.get());
 }
 
-// AbslHashValue for hashing absl::optional
+// AbslHashValue for hashing std::optional
 template <typename H, typename T>
 typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
-    H hash_state, const absl::optional<T>& opt) {
+    H hash_state, const std::optional<T>& opt) {
   if (opt) hash_state = H::combine(std::move(hash_state), *opt);
   return H::combine(std::move(hash_state), opt.has_value());
 }
@@ -912,12 +917,12 @@ struct VariantVisitor {
   }
 };
 
-// AbslHashValue for hashing absl::variant
+// AbslHashValue for hashing std::variant
 template <typename H, typename... T>
 typename std::enable_if<conjunction<is_hashable<T>...>::value, H>::type
-AbslHashValue(H hash_state, const absl::variant<T...>& v) {
+AbslHashValue(H hash_state, const std::variant<T...>& v) {
   if (!v.valueless_by_exception()) {
-    hash_state = absl::visit(VariantVisitor<H>{std::move(hash_state)}, v);
+    hash_state = std::visit(VariantVisitor<H>{std::move(hash_state)}, v);
   }
   return H::combine(std::move(hash_state), v.index());
 }
@@ -1057,10 +1062,51 @@ inline uint32_t Read1To3(const unsigned char* p, size_t len) {
   return mem0 | mem1;
 }
 
+#ifdef ABSL_HASH_INTERNAL_HAS_CRC32
+
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
+                                                            uint64_t value) {
+  // We use a union to access the high and low 32 bits of the state.
+  union {
+    uint64_t u64;
+    struct {
+#ifdef ABSL_IS_LITTLE_ENDIAN
+      uint32_t low, high;
+#else  // big endian
+      uint32_t high, low;
+#endif
+    } u32s;
+  } s;
+  s.u64 = state;
+  // The general idea here is to do two CRC32 operations in parallel using the
+  // low and high 32 bits of state as CRC states. Note that: (1) when absl::Hash
+  // is inlined into swisstable lookups, we know that the seed's high bits are
+  // zero so s.u32s.high is available immediately. (2) We chose to multiply
+  // value by 3 for the low CRC because (a) multiplication by 3 can be done in 1
+  // cycle on x86/ARM and (b) multiplication has carry bits so it's nonlinear in
+  // GF(2) and therefore ensures that the two CRCs are independent (unlike bit
+  // rotation, XOR, etc). (3) We also tried using addition instead of
+  // multiplication by 3, but (a) code size is larger and (b) if the input keys
+  // all have 0s in the bits where the addition constant has 1s, then the
+  // addition is equivalent to XOR and linear in GF(2). (4) The union makes it
+  // easy for the compiler to understand that the high and low CRC states are
+  // independent from each other so that when CombineRawImpl is repeated (e.g.
+  // for std::pair<size_t, size_t>), the CRC chains can run in parallel. We
+  // originally tried using bswaps rather than shifting by 32 bits (to get from
+  // high to low bits) because bswap is one byte smaller in code size, but the
+  // compiler couldn't understand that the CRC chains were independent.
+  s.u32s.high =
+      static_cast<uint32_t>(ABSL_HASH_INTERNAL_CRC32_U64(s.u32s.high, value));
+  s.u32s.low = static_cast<uint32_t>(
+      ABSL_HASH_INTERNAL_CRC32_U64(s.u32s.low, 3 * value));
+  return s.u64;
+}
+#else   // ABSL_HASH_INTERNAL_HAS_CRC32
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
                                                             uint64_t value) {
   return Mix(state ^ value, kMul);
 }
+#endif  // ABSL_HASH_INTERNAL_HAS_CRC32
 
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
@@ -1130,6 +1176,11 @@ inline uint64_t CombineContiguousImpl(
   }
   return CombineLargeContiguousImplOn32BitLengthGt8(state, first, len);
 }
+
+// TODO: crbug.com/475029685 - Remove this #undef once Abseil has fixed the
+// policy about inline functions with different implementations based on
+// target CPU flags since this risks ODR violations (see bug).
+#undef ABSL_HASH_INTERNAL_HAS_CRC32
 
 #ifdef ABSL_HASH_INTERNAL_HAS_CRC32
 inline uint64_t CombineContiguousImpl(
@@ -1219,8 +1270,7 @@ inline uint64_t CombineContiguousImpl(
 }
 #endif  // ABSL_HASH_INTERNAL_HAS_CRC32
 
-#if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE) && \
-    ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
+#if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE)
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 1
 #else
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 0

@@ -144,6 +144,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(
         RegisterList super_property_args);
+    static AssignmentLhsData PrivateField(Register object, int slot_index,
+                                          int depth);
 
     AssignType assign_type() const { return assign_type_; }
     bool is_private_assign_type() const {
@@ -153,8 +155,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
              assign_type_ == PRIVATE_GETTER_AND_SETTER ||
              assign_type_ == PRIVATE_DEBUG_DYNAMIC;
     }
+    bool is_private_field() const { return is_private_field_; }
+
     Expression* expr() const {
-      DCHECK(assign_type_ == NON_PROPERTY || is_private_assign_type());
+      DCHECK(assign_type_ == NON_PROPERTY || is_private_assign_type() ||
+             (v8_flags.private_field_bytecodes && is_private_field()));
       return expr_;
     }
     Expression* object_expr() const {
@@ -172,7 +177,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return key_;
     }
     const AstRawString* name() const {
-      DCHECK(assign_type_ == NAMED_PROPERTY);
+      DCHECK(assign_type_ == NAMED_PROPERTY ||
+             (v8_flags.private_field_bytecodes && is_private_field_));
       return name_;
     }
     RegisterList super_property_args() const {
@@ -180,19 +186,33 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
              assign_type_ == KEYED_SUPER_PROPERTY);
       return super_property_args_;
     }
+    int slot_index() const {
+      DCHECK(is_private_field_);
+      return slot_index_;
+    }
+    int depth() const {
+      DCHECK(is_private_field_);
+      return depth_;
+    }
+
+    void set_depth(int d) { depth_ = d; }
 
    private:
     AssignmentLhsData(AssignType assign_type, Expression* expr,
                       RegisterList super_property_args, Register object,
                       Register key, Expression* object_expr,
-                      const AstRawString* name)
+                      const AstRawString* name, bool is_private_field = false,
+                      int slot_index = 0, int depth = 0)
         : assign_type_(assign_type),
           expr_(expr),
           super_property_args_(super_property_args),
           object_(object),
           key_(key),
           object_expr_(object_expr),
-          name_(name) {}
+          name_(name),
+          is_private_field_(is_private_field),
+          slot_index_(slot_index),
+          depth_(depth) {}
 
     AssignType assign_type_;
 
@@ -203,12 +223,16 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     // KEYED_PROPERTY, PRIVATE_METHOD: object, key
     // NAMED_SUPER_PROPERTY: super_property_args
     // KEYED_SUPER_PROPERT:  super_property_args
+    // PRIVATE_FIELD: object, name
     Expression* expr_;
     RegisterList super_property_args_;
     Register object_;
     Register key_;
     Expression* object_expr_;
     const AstRawString* name_;
+    bool is_private_field_;
+    int slot_index_;
+    int depth_;
   };
 
   void GenerateBytecodeBody();

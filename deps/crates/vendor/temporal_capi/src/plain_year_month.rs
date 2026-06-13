@@ -120,6 +120,10 @@ pub mod ffi {
             self.0.era_year()
         }
 
+        pub fn reference_day(&self) -> u8 {
+            self.0.reference_day()
+        }
+
         pub fn calendar<'a>(&'a self) -> &'a Calendar {
             Calendar::transparent_convert(self.0.calendar())
         }
@@ -177,6 +181,18 @@ pub mod ffi {
                 .to_plain_date(day.map(|d| d.try_into()).transpose()?)
                 .map(|x| Box::new(PlainDate(x)))
                 .map_err(Into::into)
+        }
+
+        pub fn epoch_ms_for_utc(&self) -> Result<i64, TemporalError> {
+            let ns = self.0.epoch_ns_for_utc();
+
+            let ns_i128 = ns.as_i128();
+            let ms = ns_i128 / 1_000_000;
+            if let Ok(ms) = i64::try_from(ms) {
+                Ok(ms)
+            } else {
+                Err(TemporalError::assert("Found an out-of-range YearMonth"))
+            }
         }
 
         #[cfg(feature = "compiled_data")]

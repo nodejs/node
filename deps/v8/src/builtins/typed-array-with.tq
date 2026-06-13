@@ -5,7 +5,7 @@
 namespace typed_array {
 const kBuiltinNameWith: constexpr string = '%TypedArray%.prototype.with';
 
-// ES#sec-%typedarray%.prototype.with
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.with
 transitioning javascript builtin TypedArrayPrototypeWith(
     js-implicit context: NativeContext, receiver: JSAny)(index: JSAny,
     valueArg: JSAny): JSAny {
@@ -22,6 +22,19 @@ transitioning javascript builtin TypedArrayPrototypeWith(
     // 4. Let relativeIndex be ? ToIntegerOrInfinity(index).
     const relativeIndex = ToInteger_Inline(index);
 
+    // 5. If relativeIndex ≥ 0, let actualIndex be relativeIndex.
+    // 6. Else, let actualIndex be len + relativeIndex.
+
+    // We cannot yet throw if this index is deemed invalid, since
+    // ToNumber(value) needs to happen in any case.
+    // We can't use ConvertRelativeIndex here, since we need the actual index
+    // even if it appears to be out of bounds now. Calling ToNumber might "heal"
+    // the out of bounds situation by resizing the buffer.
+
+    const actualIndex: Number = relativeIndex >= 0 ?
+        relativeIndex :
+        Convert<Number>(originalLength) + relativeIndex;
+
     let value: JSAny;
     if (IsBigInt64ElementsKind(array.elements_kind)) {
       // 7. If O.[[ContentType]] is BigInt, set value to ? ToBigInt(value).
@@ -31,18 +44,14 @@ transitioning javascript builtin TypedArrayPrototypeWith(
       value = ToNumber_Inline(valueArg);
     }
 
-    // 5. If relativeIndex ≥ 0, let actualIndex be relativeIndex.
-    // 6. Else, let actualIndex be len + relativeIndex.
-    // (Reordered from above to be done after argument coercion, which might
-    // have resized the buffer.)
-    //
     // 9. If IsValidIntegerIndex(O, 𝔽(actualIndex)) is false, throw a
     // RangeError exception.
     attachedArrayAndLength = EnsureValidAndReadLength(
         array, TypedArrayAccessMode::kRead) otherwise IndexOutOfBounds;
-    const actualIndex: uintptr =
-        ConvertRelativeIndex(relativeIndex, attachedArrayAndLength.length)
-        otherwise IndexOutOfBounds, IndexOutOfBounds;
+    if (actualIndex < 0 ||
+        actualIndex >= Convert<Number>(attachedArrayAndLength.length)) {
+      goto IndexOutOfBounds;
+    }
 
     // 10. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
     const copy = TypedArrayCreateSameType(array, originalLength);
@@ -69,8 +78,13 @@ transitioning javascript builtin TypedArrayPrototypeWith(
     //   i. Perform ? Set(A, Pk, value, true).
     const accessor: TypedArrayAccessor =
         GetTypedArrayAccessor(copy.elements_kind);
-    if (actualIndex < originalLength) {
-      accessor.StoreJSAnyInBounds(context, copy, actualIndex, value);
+
+    // We already know actualIndex is a safe integer in the range
+    // [0, attachedArrayAndLength.length), so we can safely convert it to
+    // uintptr.
+    const actualIndexUint: uintptr = Convert<uintptr>(actualIndex);
+    if (actualIndexUint < originalLength) {
+      accessor.StoreJSAnyInBounds(context, copy, actualIndexUint, value);
     }
 
     // Fill the remainder with undefined, in case of resize during parameter

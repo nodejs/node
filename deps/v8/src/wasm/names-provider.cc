@@ -548,19 +548,6 @@ void CanonicalTypeNamesProvider::PrintFieldName(StringBuilder& out,
   out << "$field" << field_index;
 }
 
-// At the time of this writing, different std::string implementations
-// support 15 to 23 characters for inline storage. For accurate tracking
-// of memory consumption, dynamically determine this threshold.
-size_t CanonicalTypeNamesProvider::DetectInlineStringThreshold() {
-  for (size_t i = 0; i < 32; i++) {
-    std::string s(i, 'c');
-    Address str = reinterpret_cast<Address>(&s);
-    Address data = reinterpret_cast<Address>(s.data());
-    if (data < str || data >= str + sizeof(s)) return i;
-  }
-  return 32;
-}
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

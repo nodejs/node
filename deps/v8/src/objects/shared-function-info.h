@@ -422,7 +422,8 @@ class SharedFunctionInfo
   //
   // If the (expected) type of data is known, prefer to use the specialized
   // accessors (e.g. bytecode_array(), uncompiled_data(), etc.).
-  inline Tagged<Object> GetTrustedData(IsolateForSandbox isolate) const;
+  V8_EXPORT_PRIVATE Tagged<Union<Smi, TrustedObject>> GetTrustedData(
+      IsolateForSandbox isolate) const;
   inline Tagged<Object> GetUntrustedData() const;
 
   // Helper function for use when a specific data type is expected.
@@ -533,7 +534,6 @@ class SharedFunctionInfo
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool HasUncompiledDataWithoutPreparseData(
       IsolateForSandbox isolate) const;
-  inline void ClearUncompiledDataJobPointer(IsolateForSandbox isolate);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.
@@ -665,6 +665,9 @@ class SharedFunctionInfo
 
   // Indicates that the shared function info was live-edited.
   DECL_BOOLEAN_ACCESSORS(live_edited)
+
+  // Indicates that the function is a hoisted-in-context declaration.
+  DECL_BOOLEAN_ACCESSORS(is_hoisted_in_context)
 
   inline FunctionKind kind() const;
 
@@ -832,14 +835,17 @@ class SharedFunctionInfo
     ScriptIterator(const ScriptIterator&) = delete;
     ScriptIterator& operator=(const ScriptIterator&) = delete;
     V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> Next();
-    int CurrentIndex() const { return index_ - 1; }
+    uint32_t CurrentIndex() const {
+      DCHECK_GT(index_, 0);
+      return index_ - 1;
+    }
 
     // Reset the iterator to run on |script|.
     void Reset(Isolate* isolate, Tagged<Script> script);
 
    private:
     Handle<WeakFixedArray> infos_;
-    int index_;
+    uint32_t index_;
   };
 
   // Constants.

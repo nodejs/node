@@ -67,6 +67,7 @@
 #include <cstring>
 #include <iosfwd>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -222,7 +223,7 @@ class Cord {
   // remain live until the releaser is invoked. The callable releaser also must:
   //
   //   * be move constructible
-  //   * support `void operator()(absl::string_view) const` or `void operator()`
+  //   * support `void operator()(absl::string_view)` or `void operator()()`
   //
   // Example:
   //
@@ -763,7 +764,7 @@ class Cord {
   //
   // If this cord's representation is a single flat array, returns a
   // string_view referencing that array.  Otherwise returns nullopt.
-  absl::optional<absl::string_view> TryFlat() const
+  std::optional<absl::string_view> TryFlat() const
       ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // Cord::Flatten()
@@ -816,11 +817,11 @@ class Cord {
 
   // Returns this cord's expected checksum, if it has one.  Otherwise, returns
   // nullopt.
-  absl::optional<uint32_t> ExpectedChecksum() const;
+  std::optional<uint32_t> ExpectedChecksum() const;
 
   template <typename H>
   friend H AbslHashValue(H hash_state, const absl::Cord& c) {
-    absl::optional<absl::string_view> maybe_flat = c.TryFlat();
+    std::optional<absl::string_view> maybe_flat = c.TryFlat();
     if (maybe_flat.has_value()) {
       return H::combine(std::move(hash_state), *maybe_flat);
     }
@@ -1396,7 +1397,7 @@ inline size_t Cord::EstimatedMemoryUsage(
   return result;
 }
 
-inline absl::optional<absl::string_view> Cord::TryFlat() const
+inline std::optional<absl::string_view> Cord::TryFlat() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
   absl::cord_internal::CordRep* rep = contents_.tree();
   if (rep == nullptr) {
@@ -1406,7 +1407,7 @@ inline absl::optional<absl::string_view> Cord::TryFlat() const
   if (GetFlatAux(rep, &fragment)) {
     return fragment;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 inline absl::string_view Cord::Flatten() ABSL_ATTRIBUTE_LIFETIME_BOUND {

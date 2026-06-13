@@ -33,6 +33,8 @@ class EarlyReadOnlyRoots;
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
 // callsites when V8 cannot enable stricter compiler flags in general.
+// TODO(375937549): Find a better name for this since it's no longer used just
+// for HeapObject size.
 using SafeHeapObjectSize = base::StrongAlias<class HeapObjectSizeTag, uint32_t>;
 
 V8_OBJECT class HeapObjectLayout {
@@ -95,7 +97,9 @@ V8_OBJECT class HeapObjectLayout {
   inline EarlyReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Returns the heap object's size in bytes
+  // TODO(375937549): Replace all callsites of Size() with SafeSize().
   inline int Size() const;
+  inline SafeHeapObjectSize SafeSize() const;
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
@@ -414,8 +418,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTagRange tag_range>
-  inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+  inline auto ReadMaybeEmptyTrustedPointerField(size_t offset,
+                                                IsolateForSandbox isolate,
+                                                AcquireLoadTag) const;
 
   template <IndirectPointerTagRange tag_range>
   inline void WriteTrustedPointerField(size_t offset,
@@ -456,10 +461,18 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // These are references to entries in the JSDispatchTable, which contain the
   // current code for a function.
+  //
+  // TODO(leszeks): Remove after JSFunction is ported to the new layout.
   template <typename ObjectType>
   static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
-      ObjectType host, size_t offset, Isolate* isolate,
+      DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
       uint16_t parameter_count, DirectHandle<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  template <typename ObjectType>
+  static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
+      DirectHandle<ObjectType> host, JSDispatchHandle* location,
+      Isolate* isolate, uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the field at offset in obj, as a read/write Object reference.
@@ -544,7 +557,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   explicit V8_INLINE constexpr HeapObject(Address ptr,
                                           HeapObject::SkipTypeCheckTag)
       : TaggedImpl(ptr) {}
-  explicit inline HeapObject(Address ptr);
 
   // Static overwrites of TaggedImpl's IsSmi/IsHeapObject, to avoid conflicts
   // with IsSmi(Tagged<HeapObject>) inside HeapObject subclasses' methods.
@@ -573,10 +585,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE void set_map(IsolateT* isolate, Tagged<Map> value,
                          MemoryOrder order, VerificationMode mode);
 };
-
-inline HeapObject::HeapObject(Address ptr) : TaggedImpl(ptr) {
-  IsHeapObject(*this);
-}
 
 template <typename T>
 // static

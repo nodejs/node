@@ -8,7 +8,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/memory.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"

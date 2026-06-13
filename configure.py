@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv64', 'loong64')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -1593,8 +1593,8 @@ def check_compiler(o):
   # cargo and rustc are needed for Temporal.
   if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
     # Minimum cargo and rustc versions should match values in BUILDING.md.
-    min_cargo_ver_tuple = (1, 82)
-    min_rustc_ver_tuple = (1, 82)
+    min_cargo_ver_tuple = (1, 86)
+    min_rustc_ver_tuple = (1, 86)
     cargo = os.environ.get('CARGO', 'cargo')
     cargo_ver = get_cargo_version(cargo)
     print_verbose(f'Detected cargo (CARGO={cargo}): {cargo_ver}')

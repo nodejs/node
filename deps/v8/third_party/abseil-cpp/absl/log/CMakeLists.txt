@@ -757,7 +757,6 @@ absl_cc_library(
     absl::nullability
     absl::strings
     absl::synchronization
-    absl::optional
 )
 
 absl_cc_library(
@@ -806,7 +805,6 @@ absl_cc_test(
     absl::vlog_is_on
     absl::log_severity
     absl::flags
-    absl::optional
     GTest::gmock_main
 )
 
@@ -1016,7 +1014,6 @@ absl_cc_test(
     absl::config
     absl::log
     absl::log_internal_test_matchers
-    absl::optional
     absl::scoped_mock_log
     absl::str_format
     absl::strings

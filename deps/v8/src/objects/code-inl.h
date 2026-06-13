@@ -26,9 +26,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Code, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
-
 Tagged<Code> GcSafeCode::UnsafeCastToCode() const {
   return UncheckedCast<Code>(*this);
 }
@@ -76,7 +73,7 @@ bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
   Tagged<DeoptimizationData> deopt_data = UncheckedCast<DeoptimizationData>(
       UnsafeCastToCode()->unchecked_deoptimization_data());
   Address code_start_address = instruction_start();
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+  for (uint32_t i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i).value();
     if (address == pc && deopt_data->GetBytecodeOffsetOrBuiltinContinuationId(
@@ -684,11 +681,11 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   }
 
   auto deopt_data = deoptimization_data();
-  if (deopt_data->length() == 0) return;
+  if (deopt_data->ulength().value() == 0) return;
 
   Tagged<DeoptimizationLiteralArray> literals = deopt_data->LiteralArray();
-  const int literals_length = literals->length();
-  for (int i = 0; i < literals_length; ++i) {
+  const uint32_t literals_length = literals->ulength().value();
+  for (uint32_t i = 0; i < literals_length; ++i) {
     Tagged<MaybeObject> maybe_literal = literals->get_raw(i);
     Tagged<HeapObject> heap_literal;
     if (maybe_literal.GetHeapObject(&heap_literal)) {
@@ -944,8 +941,22 @@ inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
                                                         handle.value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
-CODE_POINTER_ACCESSORS(CodeWrapper, code, kCodeOffset)
+Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate) const {
+  return code_.load(isolate);
+}
+Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate,
+                               AcquireLoadTag tag) const {
+  return code_.Acquire_Load(isolate);
+}
+void CodeWrapper::set_code(Tagged<Code> value, WriteBarrierMode mode) {
+  code_.store(this, value, mode);
+}
+void CodeWrapper::set_code(Tagged<Code> value, ReleaseStoreTag,
+                           WriteBarrierMode mode) {
+  code_.Release_Store(this, value, mode);
+}
+bool CodeWrapper::has_code() const { return !code_.is_empty(); }
+void CodeWrapper::clear_code() { code_.clear(this); }
 
 }  // namespace internal
 }  // namespace v8

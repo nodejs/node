@@ -3082,6 +3082,10 @@ void DisassemblingDecoder::VisitNEONSHA3(Instruction* instr) {
     case NEON_EOR3:
       mnemonic = "eor3";
       break;
+    case NEON_XAR:
+      mnemonic = "xar";
+      form = "'Vd.2d, 'Vn.2d, 'Vm.2d, #'u1510";
+      break;
     default:
       form = "(NEONSHA3)";
   }
@@ -3811,6 +3815,24 @@ void DisassemblingDecoder::VisitNEONTable(Instruction* instr) {
   Format(instr, mnemonic, nfd.Substitute(re_form));
 }
 
+void DisassemblingDecoder::VisitSVEBitPerm(Instruction* instr) {
+  const char* form = "'Zd.%s, 'Zn.%s, 'Zm.%s";
+  const char* mnemonic = "unimplemented";
+  SVESizeDecoder ssd(instr);
+
+  DCHECK_EQ(instr->Mask(SVEBitPermFMask), SVEBitPermFixed);
+
+  switch (instr->Mask(SVEBitPermMask)) {
+    case BEXT:
+      mnemonic = "bext";
+      break;
+    default:
+      break;
+  }
+
+  Format(instr, mnemonic, ssd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitUnimplemented(Instruction* instr) {
   Format(instr, "unimplemented", "(Unimplemented)");
 }
@@ -3901,10 +3923,11 @@ void DisassemblingDecoder::Substitute(Instruction* instr, const char* string) {
 int DisassemblingDecoder::SubstituteField(Instruction* instr,
                                           const char* format) {
   switch (format[0]) {
-    // NB. The remaining substitution prefix characters are: GJKUZ.
+    // NB. The remaining substitution prefix characters are: GJKU.
     case 'R':  // Register. X or W, selected by sf bit.
     case 'F':  // FP register. S or D, selected by type field.
     case 'V':  // Vector register, V, vector format.
+    case 'Z':  // SVE register, Z, scalable vector format.
     case 'W':
     case 'X':
     case 'B':
@@ -3933,6 +3956,8 @@ int DisassemblingDecoder::SubstituteField(Instruction* instr,
       return SubstituteLSRegOffsetField(instr, format);
     case 'M':
       return SubstituteBarrierField(instr, format);
+    case 'u':
+      return SubstituteIntField(instr, format);
     default:
       UNREACHABLE();
   }
@@ -4070,6 +4095,9 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       break;
     case 'V':
       AppendToOutput("v%d", reg_num);
+      return field_len;
+    case 'Z':
+      AppendToOutput("z%d", reg_num);
       return field_len;
     default:
       UNREACHABLE();
@@ -4544,6 +4572,32 @@ int DisassemblingDecoder::SubstituteBarrierField(Instruction* instr,
 
   AppendToOutput("%s", options[domain][type]);
   return 1;
+}
+
+int DisassemblingDecoder::SubstituteIntField(const Instruction* instr,
+                                             const char* format) {
+  // A generic unsigned int field uses a placeholder of the form
+  // 'uAABB respectively where AA and BB are two digit bit positions between
+  // 00 and 31, and AA >= BB. The placeholder is substituted with the
+  // decimal integer represented by the bits in the instruction between
+  // positions AA and BB inclusive.
+  int32_t bits = 0;
+  const char* c = format;
+  DCHECK_EQ(*c, 'u');
+  c++;  // Skip the 'u'
+  DCHECK_EQ(strspn(c, "0123456789"), 4);
+  int msb = ((c[0] - '0') * 10) + (c[1] - '0');
+  int lsb = ((c[2] - '0') * 10) + (c[3] - '0');
+  DCHECK_GE(msb, lsb);
+  DCHECK_LE(msb, 32);
+  c += 4;
+  int chunk_width = msb - lsb + 1;
+  DCHECK((chunk_width > 0) && (chunk_width < 32));
+  bits = (bits << chunk_width) | (instr->Bits(msb, lsb));
+
+  AppendToOutput("%d", bits);
+
+  return static_cast<int>(c - format);
 }
 
 void DisassemblingDecoder::ResetOutput() {

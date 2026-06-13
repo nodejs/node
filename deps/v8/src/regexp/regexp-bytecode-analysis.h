@@ -17,56 +17,60 @@ namespace internal {
 
 class TrustedByteArray;
 
-class RegExpBytecodeAnalysis : public ZoneObject {
+namespace regexp {
+
+class BytecodeAnalysis : public ZoneObject {
  public:
-  RegExpBytecodeAnalysis(Isolate* isolate, Zone* zone,
-                         DirectHandle<TrustedByteArray> bytecode);
+  BytecodeAnalysis(Isolate* isolate, Zone* zone,
+                   DirectHandle<TrustedByteArray> bytecode);
 
   // Runs the analysis.
   void Analyze();
 
-  void PrintBlock(int block_id);
+  void PrintBlock(uint32_t block_id);
 
   // Queries
-  bool IsLoopHeader(int block_id) const;
-  bool IsBackEdge(int bytecode_offset) const;
+  bool IsLoopHeader(uint32_t block_id) const;
+  bool IsBackEdge(uint32_t bytecode_offset) const;
 
-  bool UsesCurrentChar(int block_id) const;
-  bool LoadsCurrentChar(int block_id) const;
+  bool UsesCurrentChar(uint32_t block_id) const;
+  bool LoadsCurrentChar(uint32_t block_id) const;
 
-  int GetBlockId(int bytecode_offset) const;
-  int GetEbbId(int bytecode_offset) const;
-  int BlockStart(int block_id) const;
-  int BlockEnd(int block_id) const;
+  uint32_t GetBlockId(uint32_t bytecode_offset) const;
+  int GetEbbId(uint32_t bytecode_offset) const;
+  uint32_t BlockStart(uint32_t block_id) const;
+  uint32_t BlockEnd(uint32_t block_id) const;
 
  private:
   struct LoopInfo {
-    int header_block_id;
+    uint32_t header_block_id;
     BitVector members;
     // Pairs of (source_block_id, target_block_id).
-    ZoneVector<std::pair<int, int>> exits;
+    ZoneVector<std::pair<uint32_t, uint32_t>> exits;
 
-    LoopInfo(int header_id, int num_blocks, Zone* zone)
+    LoopInfo(uint32_t header_id, uint32_t num_blocks, Zone* zone)
         : header_block_id(header_id), members(num_blocks, zone), exits(zone) {}
   };
 
   void FindBasicBlocks();
   void AnalyzeControlFlow();
-  void ComputeLoops(const ZoneVector<std::pair<int, int>>& back_edges);
+  void ComputeLoops(
+      const ZoneVector<std::pair<uint32_t, uint32_t>>& back_edges);
   void AnalyzeDataFlow();
 
   // Helper to iterate successors of a block.
   template <typename Callback>
-  void ForEachSuccessor(int block_id, Callback callback,
+  void ForEachSuccessor(uint32_t block_id, Callback callback,
                         bool include_backtrack);
 
-  int block_count() const {
-    return static_cast<int>(block_starts_.size()) - kSlotAtLength;
+  uint32_t block_count() const {
+    DCHECK_GE(block_starts_.size(), kSlotAtLength);
+    return static_cast<uint32_t>(block_starts_.size()) - kSlotAtLength;
   }
 
   Zone* zone_;
   Handle<TrustedByteArray> bytecode_;
-  int length_;
+  uint32_t length_;
 
   // Some arrays are sized so they are safe to access at index
   // `bytecode_array.length`.
@@ -87,7 +91,7 @@ class RegExpBytecodeAnalysis : public ZoneObject {
   // Block[i] range is [ block_starts_[i], block_starts_[i+1] )
   // The last entry in block_starts_ is equal to length_, serving as the
   // end of the last block.
-  ZoneVector<int> block_starts_;
+  ZoneVector<uint32_t> block_starts_;
 
   // Which block a bytecode belongs to. Index: bytecode_offset.
   ZoneVector<int32_t> offset_to_block_id_;
@@ -111,6 +115,7 @@ class RegExpBytecodeAnalysis : public ZoneObject {
   DisallowGarbageCollection no_gc_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

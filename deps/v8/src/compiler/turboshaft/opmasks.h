@@ -267,6 +267,9 @@ using kWord32Equal = ComparisonMask::For<ComparisonOp::Kind::kEqual,
                                          WordRepresentation::Word32()>;
 using kWord64Equal = ComparisonMask::For<ComparisonOp::Kind::kEqual,
                                          WordRepresentation::Word64()>;
+using kFloat64SignedLessThan =
+    ComparisonMask::For<ComparisonOp::Kind::kSignedLessThan,
+                        RegisterRepresentation::Float64()>;
 using ComparisonKindMask = MaskBuilder<ComparisonOp, FIELD(ComparisonOp, kind)>;
 using kComparisonEqual = ComparisonKindMask::For<ComparisonOp::Kind::kEqual>;
 

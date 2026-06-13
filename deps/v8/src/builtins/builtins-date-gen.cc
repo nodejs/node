@@ -75,54 +75,63 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(
   Return(result);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getdate
 TF_BUILTIN(DatePrototypeGetDate, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kDay);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getday
 TF_BUILTIN(DatePrototypeGetDay, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kWeekday);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getfullyear
 TF_BUILTIN(DatePrototypeGetFullYear, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kYear);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.gethours
 TF_BUILTIN(DatePrototypeGetHours, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kHour);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getmilliseconds
 TF_BUILTIN(DatePrototypeGetMilliseconds, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMillisecond);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getminutes
 TF_BUILTIN(DatePrototypeGetMinutes, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMinute);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getmonth
 TF_BUILTIN(DatePrototypeGetMonth, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMonth);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getseconds
 TF_BUILTIN(DatePrototypeGetSeconds, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kSecond);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.gettime
 TF_BUILTIN(DatePrototypeGetTime, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -132,60 +141,70 @@ TF_BUILTIN(DatePrototypeGetTime, DateBuiltinsAssembler) {
       LoadObjectField<Float64T>(date_receiver, JSDate::kValueOffset)));
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.gettimezoneoffset
 TF_BUILTIN(DatePrototypeGetTimezoneOffset, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kTimezoneOffset);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcdate
 TF_BUILTIN(DatePrototypeGetUTCDate, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kDayUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcday
 TF_BUILTIN(DatePrototypeGetUTCDay, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kWeekdayUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcfullyear
 TF_BUILTIN(DatePrototypeGetUTCFullYear, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kYearUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutchours
 TF_BUILTIN(DatePrototypeGetUTCHours, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kHourUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcmilliseconds
 TF_BUILTIN(DatePrototypeGetUTCMilliseconds, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMillisecondUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcminutes
 TF_BUILTIN(DatePrototypeGetUTCMinutes, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMinuteUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcmonth
 TF_BUILTIN(DatePrototypeGetUTCMonth, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kMonthUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.getutcseconds
 TF_BUILTIN(DatePrototypeGetUTCSeconds, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Generate_DatePrototype_GetField(context, receiver, JSDate::kSecondUTC);
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype.valueof
 TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -195,6 +214,7 @@ TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
       LoadObjectField<Float64T>(date_receiver, JSDate::kValueOffset)));
 }
 
+// https://tc39.es/ecma262/#sec-date.prototype-@@toprimitive
 TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);

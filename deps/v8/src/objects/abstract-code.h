@@ -55,6 +55,7 @@ class AbstractCode : public HeapObject {
 
   inline Tagged<Code> GetCode();
   inline Tagged<BytecodeArray> GetBytecodeArray();
+  inline Tagged<Union<Code, BytecodeArray>> ToUnionType();
 
  private:
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);

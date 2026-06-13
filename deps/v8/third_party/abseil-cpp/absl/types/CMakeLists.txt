@@ -129,6 +129,32 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    source_location
+  HDRS
+    "source_location.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::nullability
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    source_location_test
+  SRCS
+    "source_location_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::source_location
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
     compare
   HDRS
     "compare.h"
@@ -151,6 +177,34 @@ absl_cc_test(
   DEPS
     absl::base
     absl::compare
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    internal_optional_ref
+  HDRS
+    "optional_ref.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    optional_ref_test
+  SRCS
+    "optional_ref_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::config
+    absl::internal_optional_ref
+    absl::strings
     GTest::gmock_main
 )
 

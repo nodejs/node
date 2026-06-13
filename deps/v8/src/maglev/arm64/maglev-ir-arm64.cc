@@ -779,7 +779,9 @@ void Float64Modulus::SetValueLocationConstraints() {
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  // TODO(marja): We can generate better code for constant inputs and for inputs
+  // which are guaranteed to be integers.
+  __ Float64Mod(d0, d0, d1);
 }
 
 void Float64Negate::SetValueLocationConstraints() {
@@ -844,11 +846,20 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -859,11 +870,20 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -1084,11 +1104,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register budget = scratch.W();
-  __ Ldr(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Ldr(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   __ Subs(budget, budget, Immediate(amount));
-  __ Str(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Str(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type,
                       scratch);

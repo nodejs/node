@@ -88,8 +88,8 @@
 //!
 //! [prettyplease]: https://github.com/dtolnay/prettyplease
 
-// Quote types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/quote/1.0.42")]
+#![no_std]
+#![doc(html_root_url = "https://docs.rs/quote/1.0.45")]
 #![allow(
     clippy::doc_markdown,
     clippy::elidable_lifetime_names,
@@ -103,6 +103,7 @@
 )]
 
 extern crate alloc;
+extern crate std;
 
 #[cfg(feature = "proc-macro")]
 extern crate proc_macro;
@@ -273,7 +274,7 @@ macro_rules! __quote {
         /// behavior of concatenating them. The underscore and the identifier will
         /// continue to be two separate tokens as if you had written `_ x`.
         ///
-        /// ```
+        /// ```edition2018
         /// # use proc_macro2::{self as syn, Span};
         /// # use quote::quote;
         /// #
@@ -911,16 +912,16 @@ macro_rules! quote_token_with_context {
     // A repetition with separator.
     ($tokens:ident $b3:tt $b2:tt $b1:tt (#) ( $($inner:tt)* ) $sep:tt *) => {{
         use $crate::__private::ext::*;
-        let mut _i = 0usize;
+        let mut _first = true;
         let has_iter = $crate::__private::HasIterator::<false>;
         $crate::pounded_var_names!{quote_bind_into_iter!(has_iter) () $($inner)*}
         <_ as $crate::__private::CheckHasIterator<true>>::check(has_iter);
         while true {
             $crate::pounded_var_names!{quote_bind_next_or_break!() () $($inner)*}
-            if _i > 0 {
+            if !_first {
                 $crate::quote_token!{$sep $tokens}
             }
-            _i += 1;
+            _first = false;
             $crate::quote_each_token!{$tokens $($inner)*}
         }
     }};
@@ -972,16 +973,16 @@ macro_rules! quote_token_with_context_spanned {
 
     ($tokens:ident $span:ident $b3:tt $b2:tt $b1:tt (#) ( $($inner:tt)* ) $sep:tt *) => {{
         use $crate::__private::ext::*;
-        let mut _i = 0usize;
+        let mut _first = true;
         let has_iter = $crate::__private::HasIterator::<false>;
         $crate::pounded_var_names!{quote_bind_into_iter!(has_iter) () $($inner)*}
         <_ as $crate::__private::CheckHasIterator<true>>::check(has_iter);
         while true {
             $crate::pounded_var_names!{quote_bind_next_or_break!() () $($inner)*}
-            if _i > 0 {
+            if !_first {
                 $crate::quote_token_spanned!{$sep $tokens $span}
             }
-            _i += 1;
+            _first = false;
             $crate::quote_each_token_spanned!{$tokens $span $($inner)*}
         }
     }};
@@ -1014,7 +1015,10 @@ macro_rules! quote_token_with_context_spanned {
 #[doc(hidden)]
 macro_rules! quote_token {
     ($ident:ident $tokens:ident) => {
-        $crate::__private::push_ident(&mut $tokens, stringify!($ident));
+        $crate::__private::push_ident(
+            &mut $tokens,
+            $crate::__private::stringify!($ident),
+        );
     };
 
     (:: $tokens:ident) => {
@@ -1218,7 +1222,10 @@ macro_rules! quote_token {
     };
 
     ($lifetime:lifetime $tokens:ident) => {
-        $crate::__private::push_lifetime(&mut $tokens, stringify!($lifetime));
+        $crate::__private::push_lifetime(
+            &mut $tokens,
+            $crate::__private::stringify!($lifetime),
+        );
     };
 
     (_ $tokens:ident) => {
@@ -1226,7 +1233,10 @@ macro_rules! quote_token {
     };
 
     ($other:tt $tokens:ident) => {
-        $crate::__private::parse(&mut $tokens, stringify!($other));
+        $crate::__private::parse(
+            &mut $tokens,
+            $crate::__private::stringify!($other),
+        );
     };
 }
 
@@ -1235,7 +1245,11 @@ macro_rules! quote_token {
 #[doc(hidden)]
 macro_rules! quote_token_spanned {
     ($ident:ident $tokens:ident $span:ident) => {
-        $crate::__private::push_ident_spanned(&mut $tokens, $span, stringify!($ident));
+        $crate::__private::push_ident_spanned(
+            &mut $tokens,
+            $span,
+            $crate::__private::stringify!($ident),
+        );
     };
 
     (:: $tokens:ident $span:ident) => {
@@ -1442,7 +1456,11 @@ macro_rules! quote_token_spanned {
     };
 
     ($lifetime:lifetime $tokens:ident $span:ident) => {
-        $crate::__private::push_lifetime_spanned(&mut $tokens, $span, stringify!($lifetime));
+        $crate::__private::push_lifetime_spanned(
+            &mut $tokens,
+            $span,
+            $crate::__private::stringify!($lifetime),
+        );
     };
 
     (_ $tokens:ident $span:ident) => {
@@ -1450,6 +1468,10 @@ macro_rules! quote_token_spanned {
     };
 
     ($other:tt $tokens:ident $span:ident) => {
-        $crate::__private::parse_spanned(&mut $tokens, $span, stringify!($other));
+        $crate::__private::parse_spanned(
+            &mut $tokens,
+            $span,
+            $crate::__private::stringify!($other),
+        );
     };
 }

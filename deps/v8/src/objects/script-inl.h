@@ -22,8 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/script-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
-
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
                   kEvalFromSharedOrWrappedArgumentsOffset,
@@ -51,7 +49,13 @@ ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Tagged<Object>,
                   CHECK_SCRIPT_NOT_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
+ACCESSORS_CHECKED(Script, eval_from_scope_info, Tagged<Object>,
+                  kEvalFromScopeInfoOffset, CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
+
+bool Script::has_eval_from_scope_info() const {
+  return IsScopeInfo(eval_from_scope_info());
+}
 
 ACCESSORS(Script, compiled_lazy_function_positions, Tagged<Object>,
           kCompiledLazyFunctionPositionsOffset)
@@ -105,11 +109,12 @@ void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
-  return type() == Type::kWasm && wasm_breakpoint_infos()->length() > 0;
+  return type() == Type::kWasm &&
+         wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
-wasm::NativeModule* Script::wasm_native_module() const {
-  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->raw();
+Managed<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
+  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->ptr();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }

@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82.0"
+rust-version = "1.86.0"
 name = "temporal_rs"
-version = "0.1.0"
+version = "0.2.3"
 authors = ["boa-dev"]
 build = false
 exclude = [
@@ -55,13 +55,17 @@ all-features = true
 
 [features]
 compiled_data = ["tzdb"]
-default = ["sys"]
+default = ["sys-local"]
+float64_representable_durations = []
 log = ["dep:log"]
 std = []
 sys = [
     "std",
     "compiled_data",
     "dep:web-time",
+]
+sys-local = [
+    "sys",
     "dep:iana-time-zone",
 ]
 tzdb = [
@@ -73,6 +77,9 @@ tzdb = [
 name = "temporal_rs"
 path = "src/lib.rs"
 
+[dependencies.calendrical_calculations]
+version = "0.2.4"
+
 [dependencies.core_maths]
 version = "0.1.1"
 
@@ -81,15 +88,15 @@ version = "0.1.64"
 optional = true
 
 [dependencies.icu_calendar]
-version = "2.0.3"
+version = "2.2.1"
 features = ["compiled_data"]
 default-features = false
 
-[dependencies.icu_locale]
-version = "2.0.0"
+[dependencies.icu_locale_core]
+version = "2.1.0"
 
 [dependencies.ixdtf]
-version = "0.6.0"
+version = "0.6.4"
 features = ["duration"]
 
 [dependencies.log]
@@ -101,14 +108,15 @@ version = "0.2.19"
 default-features = false
 
 [dependencies.timezone_provider]
-version = "~0.1.0"
+version = "0.2.3"
+default-features = false
 
 [dependencies.tinystr]
-version = "0.8.1"
+version = "0.8.0"
 
 [dependencies.web-time]
 version = "1.1.0"
 optional = true
 
 [dependencies.writeable]
-version = "0.6.1"
+version = "0.6.0"

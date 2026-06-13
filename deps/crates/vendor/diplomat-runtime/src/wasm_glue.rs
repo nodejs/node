@@ -3,6 +3,23 @@
 //! This is a private module
 use alloc::format;
 
+// https://blog.rust-lang.org/2026/04/04/changes-to-webassembly-targets-and-handling-undefined-symbols/#what-is-going-to-break-and-how-to-fix
+#[link(wasm_import_module = "env")]
+extern "C" {
+    fn diplomat_throw_error_js(ptr: *const u8, len: usize);
+
+    #[cfg(feature = "log")]
+    fn diplomat_console_error_js(ptr: *const u8, len: usize);
+    #[cfg(feature = "log")]
+    fn diplomat_console_warn_js(ptr: *const u8, len: usize);
+    #[cfg(feature = "log")]
+    fn diplomat_console_info_js(ptr: *const u8, len: usize);
+    #[cfg(feature = "log")]
+    fn diplomat_console_log_js(ptr: *const u8, len: usize);
+    #[cfg(feature = "log")]
+    fn diplomat_console_debug_js(ptr: *const u8, len: usize);
+}
+
 /// In theory, this function may be useful for other backends eventually, but
 /// currently it is only useful in WASM so it is in this module.
 #[no_mangle]
@@ -34,10 +51,6 @@ fn panic_handler(info: &std::panic::PanicHookInfo) {
         None => format!("wasm panicked at <unknown location>:\n{msg}"),
     };
 
-    extern "C" {
-        fn diplomat_throw_error_js(ptr: *const u8, len: usize);
-    }
-
     unsafe { diplomat_throw_error_js(msg.as_ptr(), msg.len()) }
 }
 
@@ -57,36 +70,11 @@ impl log::Log for ConsoleLogger {
         }
 
         let out = match record.level() {
-            log::Level::Error => {
-                extern "C" {
-                    fn diplomat_console_error_js(ptr: *const u8, len: usize);
-                }
-                diplomat_console_error_js
-            }
-            log::Level::Warn => {
-                extern "C" {
-                    fn diplomat_console_warn_js(ptr: *const u8, len: usize);
-                }
-                diplomat_console_warn_js
-            }
-            log::Level::Info => {
-                extern "C" {
-                    fn diplomat_console_info_js(ptr: *const u8, len: usize);
-                }
-                diplomat_console_info_js
-            }
-            log::Level::Debug => {
-                extern "C" {
-                    fn diplomat_console_log_js(ptr: *const u8, len: usize);
-                }
-                diplomat_console_log_js
-            }
-            log::Level::Trace => {
-                extern "C" {
-                    fn diplomat_console_debug_js(ptr: *const u8, len: usize);
-                }
-                diplomat_console_debug_js
-            }
+            log::Level::Error => diplomat_console_error_js,
+            log::Level::Warn => diplomat_console_warn_js,
+            log::Level::Info => diplomat_console_info_js,
+            log::Level::Debug => diplomat_console_log_js,
+            log::Level::Trace => diplomat_console_debug_js,
         };
 
         let msg = alloc::format!("{}", record.args());

@@ -847,6 +847,23 @@ class NEONFormatDecoder {
   char form_buffer_[64];
   char mne_buffer_[16];
 };
+
+class SVESizeDecoder {
+ public:
+  explicit SVESizeDecoder(const Instruction* instr)
+      : instrbits_(instr->InstructionBits()) {}
+
+  // Substitute %s in the input string with a new string based on scalable
+  // vector size.
+  const char* Substitute(const char* string);
+
+  VectorFormat GetVectorFormat(void);
+
+ private:
+  Instr instrbits_;
+  char form_buffer_[64];
+};
+
 }  // namespace internal
 }  // namespace v8
 

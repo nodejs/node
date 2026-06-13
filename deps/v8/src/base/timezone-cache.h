@@ -13,11 +13,11 @@ class TimezoneCache {
   // Short name of the local timezone (e.g., EST)
   virtual const char* LocalTimezone(double time_ms) = 0;
 
-  // ES #sec-daylight-saving-time-adjustment
+  // https://tc39.es/ecma262/#sec-daylight-saving-time-adjustment
   // Daylight Saving Time Adjustment
   virtual double DaylightSavingsOffset(double time_ms) = 0;
 
-  // ES #sec-local-time-zone-adjustment
+  // https://tc39.es/ecma262/#sec-local-time-zone-adjustment
   // Local Time Zone Adjustment
   //
   // https://github.com/tc39/ecma262/pull/778

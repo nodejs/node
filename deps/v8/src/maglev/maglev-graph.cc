@@ -8,6 +8,7 @@
 
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8::internal::maglev {
@@ -28,25 +29,6 @@ Constant* Graph::GetHeapNumberConstant(double constant) {
     return node;
   }
   return it->second;
-}
-
-compiler::OptionalScopeInfoRef Graph::TryGetScopeInfoForContextLoad(
-    ValueNode* context, int offset) {
-  compiler::OptionalScopeInfoRef cur = TryGetScopeInfo(context);
-  if (offset == Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
-    return cur;
-  }
-  CHECK_EQ(offset, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-  if (cur.has_value()) {
-    cur = (*cur).OuterScopeInfo(broker());
-    while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
-      cur = cur->OuterScopeInfo(broker());
-    }
-    if (cur->HasContext()) {
-      return cur;
-    }
-  }
-  return {};
 }
 
 template <typename Function>
@@ -70,58 +52,10 @@ void Graph::IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
   }
 }
 
-compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context,
-                                                      bool for_suspend) {
-  auto it = scope_infos_.find(context);
-  if (it != scope_infos_.end()) {
-    return it->second;
-  }
-  compiler::OptionalScopeInfoRef res;
-  if (auto context_const = context->TryCast<Constant>()) {
-    res = context_const->object().AsContext().scope_info(broker());
-    if (!res->HasContext()) return {};
-  } else if (auto load = context->TryCast<LoadContextSlotNoCells>()) {
-    compiler::OptionalScopeInfoRef cur =
-        TryGetScopeInfoForContextLoad(load->input(0).node(), load->offset());
-    if (cur.has_value()) res = cur;
-  } else if (auto load_script = context->TryCast<LoadContextSlot>()) {
-    compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
-        load_script->input(0).node(), load_script->offset());
-    if (cur.has_value()) res = cur;
-  } else if (context->Is<InitialValue>()) {
-    // We should only fail to keep track of initial contexts originating from
-    // the OSR prequel; or when we suspend a generator without a nested context.
-    // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
-    DCHECK_IMPLIES(!for_suspend, is_osr());
-  } else {
-    // Any context created within a function must be registered in
-    // graph()->scope_infos(). Initial contexts must be registered before
-    // BuildBody. We don't track context in generators (yet) and around eval
-    // the bytecode compiler creates contexts by calling
-    // Runtime::kNewFunctionInfo directly.
-    DCHECK(
-        context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
-        context->Is<RegisterInput>() || context->Is<CallRuntime>() ||
-        (context->Is<LoadTaggedField>() &&
-         context->Cast<LoadTaggedField>()->load_type() == LoadType::kContext));
-  }
-  return scope_infos_[context] = res;
-}
-
 bool Graph::ContextMayAlias(ValueNode* context,
                             compiler::OptionalScopeInfoRef scope_info) {
-  // Distinguishing contexts by their scope info only works if scope infos are
-  // guaranteed to be unique.
-  // TODO(crbug.com/401059828): reenable when crashes are gone.
-  if ((true) || !v8_flags.reuse_scope_infos) return true;
-  if (!scope_info.has_value()) {
-    return true;
-  }
-  auto other = TryGetScopeInfo(context);
-  if (!other.has_value()) {
-    return true;
-  }
-  return scope_info->equals(*other);
+  // TODO(verwaest): Do something better.
+  return true;
 }
 
 void Graph::RemoveUnreachableBlocks() {

@@ -106,7 +106,7 @@ namespace v8::internal::trap_handler {
 #define TH_DISABLE_ASAN
 #endif
 
-struct ProtectedInstructionData {
+struct TrappingInstructionData {
   // The offset of this instruction from the start of its code object.
   // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
   uint32_t instr_offset;
@@ -119,8 +119,8 @@ const int kInvalidIndex = -1;
 /// This returns a number that can be used to identify the handler data to
 /// ReleaseHandlerData, or -1 on failure.
 int TH_EXPORT_PRIVATE RegisterHandlerData(
-    uintptr_t base, size_t size, size_t num_protected_instructions,
-    const ProtectedInstructionData* protected_instructions);
+    uintptr_t base, size_t size, size_t num_trapping_instructions,
+    const TrappingInstructionData* trapping_instructions);
 
 /// Removes the data from the master list and frees any memory, if necessary.
 /// TODO(mtrofin): We can switch to using size_t for index and not need
@@ -137,6 +137,16 @@ bool TH_EXPORT_PRIVATE RegisterV8Sandbox(uintptr_t base, size_t size);
 /// Unregisters the base and size of the V8 sandbox region decribed by base and
 /// size.
 void TH_EXPORT_PRIVATE UnregisterV8Sandbox(uintptr_t base, size_t size);
+
+/// Registers a memory region that should be covered by the trap handler.
+/// This currently includes Wasm memories (including guard regions) and the
+/// inaccessible WasmNull payload.
+bool TH_EXPORT_PRIVATE RegisterCoveredMemory(uintptr_t base,
+                                             size_t reserved_size);
+
+/// Unregisters a memory region.
+void TH_EXPORT_PRIVATE UnregisterCoveredMemory(uintptr_t base,
+                                               size_t reserved_size);
 
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.

@@ -12,7 +12,7 @@ use super::{parse_ixdtf, ParseVariant};
 #[inline]
 pub(crate) fn parse_allowed_timezone_formats(
     s: &str,
-    provider: &impl TimeZoneProvider,
+    provider: &(impl TimeZoneProvider + ?Sized),
 ) -> Option<TimeZone> {
     let (offset, annotation) = if let Ok((offset, annotation)) =
         parse_ixdtf(s.as_bytes(), ParseVariant::DateTime).map(|r| (r.offset, r.tz))

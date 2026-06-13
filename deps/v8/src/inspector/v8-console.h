@@ -52,9 +52,9 @@ class V8Console : public v8::debug::ConsoleDelegate {
    private:
     static void accessorGetterCallback(
         v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
-    static void accessorSetterCallback(v8::Local<v8::Name>,
-                                       v8::Local<v8::Value>,
-                                       const v8::PropertyCallbackInfo<void>&);
+    static void accessorSetterCallback(
+        v8::Local<v8::Name>, v8::Local<v8::Value>,
+        const v8::PropertyCallbackInfo<v8::Boolean>&);
 
     v8::Local<v8::Context> context() const { return m_context.Get(m_isolate); }
     v8::Local<v8::Object> commandLineAPI() const {

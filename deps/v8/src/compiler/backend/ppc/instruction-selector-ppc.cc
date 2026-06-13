@@ -348,7 +348,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   VisitLoadCommon(this, node, mode, opcode);
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -520,7 +520,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1185,6 +1185,10 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   const WordBinopOp& op = Cast<WordBinopOp>(node);
   Emit(kPPC_MulHigh32, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
+}
+
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {

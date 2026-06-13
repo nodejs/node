@@ -168,23 +168,23 @@ class BenchmarkRunner(object):
       return (None, None)
 
     # Retrieve peak memory usage if available
-    g = re.match("System peak.*: (?P<peak_memory>\d+)", line)
+    g = re.match(r"System peak.*: (?P<peak_memory>\d+)", line)
     if g != None:
       return ("memory", g.group('peak_memory'))
 
     # Kraken or Sunspider?
-    g = re.match("(?P<test_name>\w+(-\w+)*)\(RunTime\): (?P<score>\d+) ms\.", \
+    g = re.match(r"(?P<test_name>\w+(-\w+)*)\(RunTime\): (?P<score>\d+) ms\.", \
         line)
     if g is None:
       # Octane?
-      g = re.match("(?P<test_name>\w+): (?P<score>\d+)", line)
+      g = re.match(r"(?P<test_name>\w+): (?P<score>\d+)", line)
       if g is None:
-        g = re.match("Score \(version [0-9]+\): (?P<score>\d+)", line)
+        g = re.match(r"Score \(version [0-9]+\): (?P<score>\d+)", line)
         if g is not None:
           return ('Octane', g.group('score'))
         else:
           # Generic?
-          g = re.match("(?P<test_name>\w+)\W+(?P<score>\d+)", line)
+          g = re.match(r"(?P<test_name>\w+)\W+(?P<score>\d+)", line)
           if g is None:
             return (None, None)
     return (g.group('test_name'), g.group('score'))

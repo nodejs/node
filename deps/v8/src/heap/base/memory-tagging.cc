@@ -4,7 +4,7 @@
 
 #include "src/heap/base/memory-tagging.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "v8config.h"
 

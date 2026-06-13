@@ -87,7 +87,7 @@ class AstRawString final : public ZoneObject {
   }
 
   // This function can be called after internalizing.
-  V8_INLINE IndirectHandle<String> string() const {
+  V8_INLINE IndirectHandle<InternalizedString> string() const {
     DCHECK(has_string_);
     return string_;
   }
@@ -118,7 +118,7 @@ class AstRawString final : public ZoneObject {
     return &next_;
   }
 
-  void set_string(IndirectHandle<String> string) {
+  void set_string(IndirectHandle<InternalizedString> string) {
     DCHECK(!string.is_null());
     DCHECK(!has_string_);
     string_ = string;
@@ -129,7 +129,7 @@ class AstRawString final : public ZoneObject {
 
   union {
     AstRawString* next_;
-    IndirectHandle<String> string_;
+    IndirectHandle<InternalizedString> string_;
   };
 
   base::Vector<const uint8_t> literal_bytes_;  // Memory owned by Zone.

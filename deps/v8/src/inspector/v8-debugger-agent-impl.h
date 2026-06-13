@@ -182,7 +182,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
                 v8::debug::BreakReasons breakReasons);
   void didContinue();
-  void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
+  void didParseSource(std::unique_ptr<V8DebuggerScript>);
 
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,

@@ -35,7 +35,7 @@
 #include "src/codegen/riscv/assembler-riscv.h"
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/code-memory-access-inl.h"

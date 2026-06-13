@@ -1884,6 +1884,55 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 }
 
 // static
+Stack::StackSlot Stack::ObtainCurrentThreadStackLimit() {
+#if defined(V8_TARGET_ARCH_X64)
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_ARM64)
+  ULONG_PTR lowLimit, highLimit;
+  ::GetCurrentThreadStackLimits(&lowLimit, &highLimit);
+  return reinterpret_cast<void*>(lowLimit);
+#else
+#error Unsupported GetStackLimit.
+#endif
+}
+
+// A pointer to current thread's stack limit.
+thread_local void* thread_stack_limit = nullptr;
+
+// static
+void Stack::SaveStackLimit() {
+  Stack::StackSlot new_limit = ObtainCurrentThreadStackLimit();
+  // The stack limit can only move down.
+  DCHECK(thread_stack_limit == nullptr ||
+         new_limit <= reinterpret_cast<uintptr_t>(thread_stack_limit));
+  thread_stack_limit = new_limit;
+}
+
+Stack::StackSlot Stack::GetStackLimit() {
+  DCHECK_NOT_NULL(thread_stack_limit);
+  return thread_stack_limit;
+}
+
+// static
+void Stack::SetCurrentThreadStackBounds(uintptr_t limit, uintptr_t base) {
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+  reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase = base;
+  reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit = limit;
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase =
+      reinterpret_cast<void*>(base);
+  reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit =
+      reinterpret_cast<void*>(limit);
+#else
+#error Unsupported SetCurrentThreadStackBounds.
+#endif
+}
+
+// static
 Stack::StackSlot Stack::GetCurrentStackPosition() {
 #if V8_CC_MSVC
   return _AddressOfReturnAddress();

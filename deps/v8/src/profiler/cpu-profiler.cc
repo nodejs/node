@@ -669,7 +669,8 @@ CpuProfilingResult CpuProfiler::StartProfiling(
         &source_rundown_sources_trace_enabled);
     if (source_rundown_trace_enabled || source_rundown_sources_trace_enabled) {
       Handle<WeakArrayList> script_objects = isolate_->factory()->script_list();
-      for (int i = 0; i < script_objects->length(); i++) {
+      const uint32_t script_objects_len = script_objects->length().value();
+      for (uint32_t i = 0; i < script_objects_len; i++) {
         if (Tagged<HeapObject> script_object;
             script_objects->get(i).GetHeapObjectIfWeak(&script_object)) {
           Tagged<Script> script(Cast<Script>(script_object));

@@ -99,7 +99,7 @@ void Module::SetStatus(Status new_status) {
   DisallowGarbageCollection no_gc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
-  SetStatusInternal(*this, new_status);
+  SetStatusInternal(this, new_status);
 }
 
 void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
@@ -108,13 +108,13 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
                  IsTheHole(exception(), isolate));
   DCHECK(!IsTheHole(error, isolate));
-  if (IsSourceTextModule(*this)) {
+  if (IsSourceTextModule(this)) {
     // Revert to minimal SFI in case we have already been instantiating or
     // evaluating.
-    auto self = Cast<SourceTextModule>(*this);
+    auto self = Cast<SourceTextModule>(this);
     self->set_code(self->GetSharedFunctionInfo());
   }
-  SetStatusInternal(*this, Module::kErrored);
+  SetStatusInternal(this, Module::kErrored);
   if (isolate->is_catchable_by_javascript(error)) {
     set_exception(error);
   } else {
@@ -140,7 +140,8 @@ void Module::ResetGraph(Isolate* isolate, DirectHandle<Module> module) {
     DCHECK(IsSyntheticModule(*module));
     return;
   }
-  for (int i = 0; i < requested_modules->length(); ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<Object> descendant(requested_modules->get(i), isolate);
     if (IsModule(*descendant)) {
       ResetGraph(isolate, Cast<Module>(descendant));
@@ -164,10 +165,13 @@ void Module::Reset(Isolate* isolate, DirectHandle<Module> module) {
   // succeeds instantiation.
   DCHECK(!IsJSModuleNamespace(module->module_namespace()) &&
          !IsJSModuleNamespace(module->deferred_module_namespace()));
-  const int export_count =
+  const uint32_t export_count =
       IsSourceTextModule(*module)
-          ? Cast<SourceTextModule>(*module)->regular_exports()->length()
-          : Cast<SyntheticModule>(*module)->export_names()->length();
+          ? Cast<SourceTextModule>(*module)
+                ->regular_exports()
+                ->ulength()
+                .value()
+          : Cast<SyntheticModule>(*module)->export_names()->ulength().value();
   DirectHandle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate, export_count);
 
@@ -576,8 +580,8 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.
-  if (!IsSourceTextModule(*this)) return false;
-  Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
+  if (!IsSourceTextModule(this)) return false;
+  Tagged<SourceTextModule> root = Cast<SourceTextModule>(this);
   DCHECK_GE(root->status(), kLinked);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -595,7 +599,8 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
 
     if (current->has_toplevel_await()) return true;
     Tagged<FixedArray> requested_modules = current->requested_modules();
-    for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    const uint32_t requested_modules_len = requested_modules->ulength().value();
+    for (uint32_t i = 0; i < requested_modules_len; ++i) {
       Tagged<Object> raw_descendant = requested_modules->get(i);
       // The current module must have been linked as the root has been linked.
       // If the request is a source phase import, the descendant can be a

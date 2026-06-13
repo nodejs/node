@@ -298,7 +298,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvAtomicLoadDecompressTaggedSigned:
     case kRiscvAtomicLoadDecompressTagged:
     case kRiscvAtomicStoreCompressTagged:
-    case kRiscvLoadDecompressProtected:
+    case kRiscvLoadDecompressTrapping:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif
@@ -1496,7 +1496,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvAssertEqual:
       return AssertLatency();
 #ifdef V8_TARGET_ARCH_RISCV64
-    case kRiscvLoadDecompressProtected:
+    case kRiscvLoadDecompressTrapping:
       return 11;
 #endif
     default:

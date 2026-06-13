@@ -53,6 +53,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -583,7 +584,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // Status::GetPayload()
   //
   // Gets the payload of a status given its unique `type_url` key, if present.
-  absl::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
+  std::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
 
   // Status::SetPayload()
   //
@@ -862,9 +863,9 @@ inline void swap(absl::Status& a, absl::Status& b) noexcept {
   swap(a.rep_, b.rep_);
 }
 
-inline absl::optional<absl::Cord> Status::GetPayload(
+inline std::optional<absl::Cord> Status::GetPayload(
     absl::string_view type_url) const {
-  if (IsInlined(rep_)) return absl::nullopt;
+  if (IsInlined(rep_)) return std::nullopt;
   return RepToPointer(rep_)->GetPayload(type_url);
 }
 

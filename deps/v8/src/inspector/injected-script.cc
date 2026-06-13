@@ -287,7 +287,7 @@ class InjectedScript::ProtocolPromiseHandler {
   void catchCallback(v8::Local<v8::Value> result) {
     // Hold strongly onto m_evaluationResult now to prevent `cleanup` from
     // running in case any code below triggers GC.
-    m_evaluationResult.ClearWeak();
+    m_evaluationResult.ClearWeak<void>();
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
@@ -1164,7 +1164,7 @@ Response InjectedScript::bindRemoteObjectIfNeeded(
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
     V8InspectorImpl* inspector =
         static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-    InspectedContext* inspectedContext =
+    std::shared_ptr<InspectedContext> inspectedContext =
         inspector->getContext(InspectedContext::contextId(context));
     InjectedScript* injectedScript =
         inspectedContext ? inspectedContext->getInjectedScript(sessionId)

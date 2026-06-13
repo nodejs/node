@@ -41,10 +41,11 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  v8::base::ScopedVector<char> source(1024);
+  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(
-      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
-      name, name, name);
+      source.as_vector(),
+      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,
+      name);
   CHECK(CompileRun(source.begin())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);

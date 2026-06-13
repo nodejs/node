@@ -600,6 +600,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE;
+
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE;
 

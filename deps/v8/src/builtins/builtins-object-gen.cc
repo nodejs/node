@@ -326,6 +326,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   return array;
 }
 
+// https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kReceiver);
   auto key = Parameter<Object>(Descriptor::kKey);
@@ -395,7 +396,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
 }
 
-// ES #sec-object.assign
+// https://tc39.es/ecma262/#sec-object.assign
 TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -624,7 +625,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   args.PopAndReturn(to);
 }
 
-// ES #sec-object.keys
+// https://tc39.es/ecma262/#sec-object.keys
 TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -744,7 +745,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
                        new_target, object, key));
 }
 
-// ES #sec-object.getOwnPropertyNames
+// https://tc39.es/ecma262/#sec-object.getOwnPropertyNames
 TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -866,7 +867,7 @@ TF_BUILTIN(ObjectEntries, ObjectEntriesValuesBuiltinsAssembler) {
   GetOwnValuesOrEntries(context, object, CollectType::kEntries);
 }
 
-// ES #sec-object.prototype.isprototypeof
+// https://tc39.es/ecma262/#sec-object.prototype.isprototypeof
 TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto value = Parameter<Object>(Descriptor::kValue);
@@ -981,8 +982,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> boolean_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::BOOLEAN_FUNCTION_INDEX));
-    TNode<Map> boolean_initial_map = LoadObjectField<Map>(
-        boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> boolean_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(boolean_constructor));
     TNode<JSPrototype> boolean_prototype =
         LoadMapPrototype(boolean_initial_map);
     var_default = BooleanToStringConstant();
@@ -1014,8 +1015,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> number_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::NUMBER_FUNCTION_INDEX));
-    TNode<Map> number_initial_map = LoadObjectField<Map>(
-        number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> number_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(number_constructor));
     TNode<JSPrototype> number_prototype = LoadMapPrototype(number_initial_map);
     var_default = NumberToStringConstant();
     var_holder = number_prototype;
@@ -1058,8 +1059,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> string_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::STRING_FUNCTION_INDEX));
-    TNode<Map> string_initial_map = LoadObjectField<Map>(
-        string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> string_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(string_constructor));
     TNode<JSPrototype> string_prototype = LoadMapPrototype(string_initial_map);
     var_default = StringToStringConstant();
     var_holder = string_prototype;
@@ -1072,8 +1073,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> symbol_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::SYMBOL_FUNCTION_INDEX));
-    TNode<Map> symbol_initial_map = LoadObjectField<Map>(
-        symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> symbol_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(symbol_constructor));
     TNode<JSPrototype> symbol_prototype = LoadMapPrototype(symbol_initial_map);
     var_default = ObjectToStringConstant();
     var_holder = symbol_prototype;
@@ -1086,8 +1087,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> bigint_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::BIGINT_FUNCTION_INDEX));
-    TNode<Map> bigint_initial_map = LoadObjectField<Map>(
-        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> bigint_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(bigint_constructor));
     TNode<JSPrototype> bigint_prototype = LoadMapPrototype(bigint_initial_map);
     var_default = ObjectToStringConstant();
     var_holder = bigint_prototype;
@@ -1216,7 +1217,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES #sec-object.create
+// https://tc39.es/ecma262/#sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
@@ -1286,8 +1287,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       TNode<PrototypeInfo> prototype_info =
           LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
-      TNode<HeapObject> derived_maps = CAST(
-          LoadObjectField(prototype_info, PrototypeInfo::kDerivedMapsOffset));
+      TNode<HeapObject> derived_maps = CAST(LoadObjectField(
+          prototype_info, offsetof(PrototypeInfo, derived_maps_)));
       // In case it exists, derived maps is a weak array list where the first
       // element is the object create map.
       GotoIf(TaggedEqual(derived_maps, UndefinedConstant()), &call_runtime);
@@ -1315,7 +1316,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES #sec-object.is
+// https://tc39.es/ecma262/#sec-object.is
 TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
   const auto left = Parameter<Object>(Descriptor::kLeft);
   const auto right = Parameter<Object>(Descriptor::kRight);
@@ -1404,11 +1405,10 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   // have one.
   Label done(this), runtime(this);
   GotoIfForceSlowPath(&runtime);
-  GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
+  GotoIfNot(IsJSFunctionWithPrototypeMap(LoadMap(closure)), &runtime);
   TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
-      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
-          closure, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
+      LoadJSFunctionPrototypeOrInitialMap(closure);
+  GotoIfNot(IsMap(maybe_map), &runtime);
   TNode<Map> map = CAST(maybe_map);
 
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(
@@ -1458,7 +1458,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Goto(&done);
 
   BIND(&done);
-  { Return(result); }
+  {
+    Return(result);
+  }
 
   BIND(&runtime);
   {

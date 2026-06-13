@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --no-liftoff --no-wasm-lazy-compilation
+// Flags: --experimental-wasm-stringref --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -241,8 +241,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function LoadsAndStoresArrays() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let arrayI32 = builder.addArray(kWasmI32, true);
-  let arrayI8 = builder.addArray(kWasmI8, true);
+  let arrayI32 = builder.addArray(kWasmI32);
+  let arrayI8 = builder.addArray(kWasmI8);
 
   let tests = [
     ["I32", arrayI32, kExprArrayGet],

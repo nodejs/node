@@ -45,10 +45,10 @@
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/iterator_traits.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
@@ -240,7 +240,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // array, or throws std::out_of_range
   reference at(size_type i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }
@@ -249,7 +249,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // of the fixed array.
   const_reference at(size_type i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }

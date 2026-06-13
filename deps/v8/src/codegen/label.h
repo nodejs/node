@@ -10,6 +10,11 @@
 namespace v8 {
 namespace internal {
 
+namespace regexp {
+class BytecodeGenerator;
+class BytecodeWriter;
+}  // namespace regexp
+
 // -----------------------------------------------------------------------------
 // Labels represent pc locations; they are typically jump or call targets.
 // After declaration, a label can be freely used to denote known or (yet)
@@ -104,8 +109,8 @@ class Label {
 
   friend class Assembler;
   friend class Displacement;
-  friend class RegExpBytecodeGenerator;
-  friend class RegExpBytecodeWriter;
+  friend class regexp::BytecodeGenerator;
+  friend class regexp::BytecodeWriter;
 };
 
 }  // namespace internal

@@ -32,9 +32,11 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
                                   isolate->factory()->empty_string()));
   }
   int num_buckets = capacity / kLoadFactor;
+  // TODO(375937549): Convert to uint32_t.
+  int length = HashTableStartIndex() + num_buckets + (capacity * kEntrySize);
+  DCHECK_GE(length, 0);
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
-      Derived::GetMap(isolate->roots_table()),
-      HashTableStartIndex() + num_buckets + (capacity * kEntrySize),
+      Derived::GetMap(isolate->roots_table()), static_cast<uint32_t>(length),
       allocation);
   Handle<Derived> table = Cast<Derived>(backing_store);
   DisallowGarbageCollection no_gc;
@@ -56,8 +58,11 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
   // Requires that the map has already been set up in the roots table.
   DCHECK(!ReadOnlyRoots(isolate).is_initialized(root_index));
 
+  // TODO(375937549): Convert to uint32_t.
+  int length = HashTableStartIndex();
+  DCHECK_GE(length, 0);
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
-      Derived::GetMap(isolate->roots_table()), HashTableStartIndex(),
+      Derived::GetMap(isolate->roots_table()), static_cast<uint32_t>(length),
       allocation);
   Handle<Derived> table = Cast<Derived>(backing_store);
   DisallowHandleAllocation no_gc;
@@ -225,13 +230,13 @@ OrderedHashSet::Add(Isolate* isolate, DirectHandle<OrderedHashSet> table,
 
 Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
     Isolate* isolate, Handle<OrderedHashSet> table, GetKeysConversion convert) {
-  int length = table->NumberOfElements();
+  const uint32_t length = static_cast<uint32_t>(table->NumberOfElements());
   int nof_buckets = table->NumberOfBuckets();
   // Convert the dictionary to a linear list.
   Handle<FixedArray> result = Cast<FixedArray>(table);
   // From this point on table is no longer a valid OrderedHashSet.
   result->set_map(isolate, ReadOnlyRoots(isolate).fixed_array_map());
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Tagged<Object> key = table->get(index);
     uint32_t index_value;

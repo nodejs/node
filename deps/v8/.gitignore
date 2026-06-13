@@ -62,6 +62,7 @@
 /src/inspector/build/closure-compiler
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
+/test/benchmarks/JetStream3
 /test/fuzzer/wasm_corpus/
 /test/fuzzer/wasm_corpus.tar.gz
 !/test/mjsunit/tools/*.log

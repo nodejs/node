@@ -20,8 +20,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-cell-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyCell)
-
 ACCESSORS(PropertyCell, dependent_code, Tagged<DependentCode>,
           kDependentCodeOffset)
 ACCESSORS(PropertyCell, name, Tagged<Name>, kNameOffset)

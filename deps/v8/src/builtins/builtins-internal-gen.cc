@@ -81,7 +81,6 @@ TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
 }
 
 TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
-  Label tailcall_to_shared(this);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   auto arg_count =
@@ -101,26 +100,22 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
       ExternalConstant(ExternalReference::isolate_address());
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<IntPtrT> result = UncheckedCast<IntPtrT>(
-      CallCFunction(f, MachineType::UintPtr(),
-                    std::make_pair(MachineType::Pointer(), isolate_ptr),
-                    std::make_pair(MachineType::TaggedPointer(), shared)));
-  GotoIf(IntPtrEqual(result, IntPtrConstant(0)), &tailcall_to_shared);
+  TNode<Object> result =
+      CAST(CallCFunction(f, MachineType::AnyTagged(),
+                         std::make_pair(MachineType::Pointer(), isolate_ptr),
+                         std::make_pair(MachineType::TaggedPointer(), shared)));
 
-  CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
-  Goto(&tailcall_to_shared);
+  auto code = Select<Object>(
+      TaggedIsSmi(result),
+      [=, this] {
+        return CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
+      },
+      [=] { return result; });
 
-  BIND(&tailcall_to_shared);
-  // Tail call into code object on the SharedFunctionInfo.
-  // TODO(https://crbug.com/451355210, ishell): consider removing this
-  // duplicate implementation in favour of returning code object from above
-  // runtime calls once non-leaptering code is removed.
-  TNode<Code> code = GetSharedFunctionInfoCode(shared);
-
-  // TailCallJSCode will take care of parameter count validation between the
-  // code and dispatch handle.
-  TailCallJSCode(code, context, function, new_target, arg_count,
-                 dispatch_handle);
+  TailCallJSCode(
+      TrustedCast<Code>(
+          code, "used in a call which will be checked via dispatch table"),
+      context, function, new_target, arg_count, dispatch_handle);
 }
 
 class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
@@ -778,6 +773,74 @@ TF_BUILTIN(TSANSeqCstStore64SaveFP, TSANSeqCstStoreCodeStubAssembler) {
   GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt64Size);
 }
 
+class TSANReleaseStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANReleaseStoreCodeStubAssembler(
+      compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_16_bits());
+    } else if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_64_bits());
+    }
+  }
+
+  void GenerateTSANReleaseStore(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
+    TNode<IntPtrT> value = BitcastTaggedToWord(
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANReleaseStore8IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt8Size);
+}
+
+TF_BUILTIN(TSANReleaseStore8SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt8Size);
+}
+
+TF_BUILTIN(TSANReleaseStore16IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANReleaseStore16SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt16Size);
+}
+
+TF_BUILTIN(TSANReleaseStore32IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANReleaseStore32SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANReleaseStore64IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANReleaseStore64SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt64Size);
+}
+
 class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
  public:
   explicit TSANRelaxedLoadCodeStubAssembler(compiler::CodeAssemblerState* state)
@@ -1145,7 +1208,7 @@ TF_BUILTIN(CopyDataPropertiesWithExcludedProperties,
       source, excluded_property_count, excluded_properties));
 }
 
-// ES #sec-copydataproperties
+// https://tc39.es/ecma262/#sec-copydataproperties
 TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
   auto target = Parameter<JSObject>(Descriptor::kTarget);
   auto source = Parameter<Object>(Descriptor::kSource);
@@ -1721,6 +1784,8 @@ TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
 TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto expected_type_smi = Parameter<Smi>(Descriptor::kType);
+  auto allow_widening_smi_to_int32 =
+      Parameter<Smi>(Descriptor::kAllowWideningSmiToInt32);
 
   TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
 
@@ -1770,7 +1835,28 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   CheckType(maglev::NodeType::kSmi);
 
   BIND(&is_heap_number);
-  CheckType(maglev::NodeType::kHeapNumber);
+  {
+    Label treat_as_heap_number(this), is_int32(this);
+    GotoIf(SmiEqual(allow_widening_smi_to_int32, SmiConstant(0)),
+           &treat_as_heap_number);
+
+    TNode<Float64T> value = LoadHeapNumberValue(heap_object);
+    TNode<Int32T> int32_value = Signed(TruncateFloat64ToWord32(value));
+    Branch(Float64Equal(value, ChangeInt32ToFloat64(int32_value)), &is_int32,
+           &treat_as_heap_number);
+
+    BIND(&is_int32);
+    TNode<Word32T> smi_or_heap_number =
+        Int32Constant(static_cast<int>(maglev::UnionType(
+            maglev::NodeType::kSmi, maglev::NodeType::kHeapNumber)));
+    // If expected_type allows either Smi or HeapNumber, we're done.
+    Branch(Word32NotEqual(Word32And(expected_type, smi_or_heap_number),
+                          Int32Constant(0)),
+           &done, &treat_as_heap_number);
+
+    BIND(&treat_as_heap_number);
+    CheckType(maglev::NodeType::kHeapNumber);
+  }
 
   BIND(&is_string);
   // TODO(477184397): Check String subtypes

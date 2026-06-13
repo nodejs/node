@@ -20,8 +20,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-shadow-realm-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSShadowRealm)
-
 }  // namespace internal
 }  // namespace v8
 

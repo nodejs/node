@@ -99,6 +99,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSSetPrototypeProperties:
       return true;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
@@ -244,6 +245,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Misc operations
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:

@@ -37,7 +37,7 @@
 //!
 //! # Preferences Merging
 //!
-//! In traditional internatonalization APIs, the argument passed to constructors is a locale.
+//! In traditional internationalization APIs, the argument passed to constructors is a locale.
 //! ICU4X changes this paradigm by accepting a `Preferences`, which can be extracted from a [`Locale`] and combined with
 //! other `Preferences`s provided by the environment.
 //!
@@ -401,8 +401,7 @@ pub trait PreferenceKey: Sized {
     fn try_from_key_value(
         _key: &crate::extensions::unicode::Key,
         _value: &crate::extensions::unicode::Value,
-    ) -> Result<Option<Self>, crate::preferences::extensions::unicode::errors::PreferencesParseError>
-    {
+    ) -> Result<Option<Self>, extensions::unicode::errors::PreferencesParseError> {
         Ok(None)
     }
 
@@ -495,28 +494,7 @@ macro_rules! __define_preferences {
 
         impl From<&$crate::Locale> for $name {
             fn from(loc: &$crate::Locale) -> Self {
-                use $crate::preferences::PreferenceKey;
-
-                $(
-                    let mut $key = None;
-                )*
-
-                for (k, v) in loc.extensions.unicode.keywords.iter() {
-                    $(
-                        if let Ok(Some(r)) = <$pref>::try_from_key_value(k, v) {
-                            $key = Some(r);
-                            continue;
-                        }
-                    )*
-                }
-
-                Self {
-                    locale_preferences: loc.into(),
-
-                    $(
-                        $key,
-                    )*
-                }
+                $name::from_locale_strict(loc).unwrap_or_else(|e| e)
             }
         }
 
@@ -564,6 +542,49 @@ macro_rules! __define_preferences {
                     }
                 )*
             }
+
+            #[doc = concat!("Construct a `", stringify!($name), "` from a `Locale`")]
+            ///
+            /// Returns `Err` if any of of the preference values are invalid.
+            pub fn from_locale_strict(loc: &$crate::Locale) -> Result<Self, Self> {
+                use $crate::preferences::PreferenceKey;
+
+                let mut is_err = false;
+
+                $(
+                    let mut $key = None;
+                )*
+
+                for (k, v) in loc.extensions.unicode.keywords.iter() {
+                    $(
+
+                        match <$pref>::try_from_key_value(k, v) {
+                            Ok(Some(k)) => {
+                                $key = Some(k);
+                                continue;
+                            }
+                            Ok(None) => {}
+                            Err(_) => {
+                                is_err = true
+                            }
+                        }
+                    )*
+                }
+
+                let r = Self {
+                    locale_preferences: $crate::preferences::LocalePreferences::from_locale_strict(loc).unwrap_or_else(|e| { is_err = true; e }),
+
+                    $(
+                        $key,
+                    )*
+                };
+
+                if is_err {
+                    Err(r)
+                } else {
+                    Ok(r)
+                }
+            }
         }
     )
 }
@@ -572,8 +593,8 @@ macro_rules! __define_preferences {
 #[doc(hidden)]
 macro_rules! __prefs_convert {
     (
-        $name1:ident,
-        $name2:ident
+        $name1:ty,
+        $name2:ty
     ) => {
         impl From<&$name1> for $name2 {
             fn from(other: &$name1) -> Self {
@@ -584,8 +605,8 @@ macro_rules! __prefs_convert {
         }
     };
     (
-        $name1:ident,
-        $name2:ident,
+        $name1:ty,
+        $name2:ty,
         {
             $(
                 $key:ident

@@ -27,8 +27,8 @@ class StringForwardingTable::Record final {
     return Cast<String>(OriginalStringObject(cage_base));
   }
 
-  Tagged<String> forward_string(PtrComprCageBase cage_base) const {
-    return Cast<String>(ForwardStringObjectOrHash(cage_base));
+  Tagged<InternalizedString> forward_string(PtrComprCageBase cage_base) const {
+    return Cast<InternalizedString>(ForwardStringObjectOrHash(cage_base));
   }
 
   inline uint32_t raw_hash(PtrComprCageBase cage_base) const;
@@ -51,7 +51,7 @@ class StringForwardingTable::Record final {
     OriginalStringSlot().Release_Store(object);
   }
 
-  void set_forward_string(Tagged<Object> object) {
+  void set_forward_string(Tagged<InternalizedString> object) {
     ForwardStringOrHashSlot().Release_Store(object);
   }
 
@@ -62,7 +62,8 @@ class StringForwardingTable::Record final {
     base::AsAtomicPointer::Release_Store(&external_resource_, address);
   }
 
-  inline void SetInternalized(Tagged<String> string, Tagged<String> forward_to);
+  inline void SetInternalized(Tagged<String> string,
+                              Tagged<InternalizedString> forward_to);
   inline void SetExternal(Tagged<String> string,
                           v8::String::ExternalStringResourceBase*,
                           bool is_one_byte, uint32_t raw_hash);
@@ -169,8 +170,8 @@ void StringForwardingTable::Record::set_external_resource(
   set_external_resource(address);
 }
 
-void StringForwardingTable::Record::SetInternalized(Tagged<String> string,
-                                                    Tagged<String> forward_to) {
+void StringForwardingTable::Record::SetInternalized(
+    Tagged<String> string, Tagged<InternalizedString> forward_to) {
   set_original_string(string);
   set_forward_string(forward_to);
   set_external_resource(kNullExternalPointer);

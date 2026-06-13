@@ -666,7 +666,8 @@ DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::OwnedVector<const uint8_t> bytes) {
+    base::OwnedVector<const uint8_t> bytes,
+    base::Vector<const char> source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -718,9 +719,8 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 #endif
 
-  constexpr base::Vector<const char> kNoSourceUrl;
   DirectHandle<Script> script =
-      GetOrCreateScript(isolate, native_module, kNoSourceUrl);
+      GetOrCreateScript(isolate, native_module, source_url);
 
   native_module->LogWasmCodes(isolate, *script);
 
@@ -967,7 +967,7 @@ DirectHandle<Script> CreateWasmScript(
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".
       int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
-      DCHECK(url_len >= 0 && url_len < buffer.length());
+      DCHECK(url_len >= 0 && static_cast<size_t>(url_len) < buffer.size());
       url_str = isolate->factory()
                     ->NewStringFromUtf8(buffer.SubVector(0, url_len),
                                         AllocationType::kOld)
@@ -975,7 +975,7 @@ DirectHandle<Script> CreateWasmScript(
     } else {
       // Build the URL in the form "wasm://wasm/<module name>-<hash>".
       int hash_len = SNPrintF(buffer, "-%08x", hash);
-      DCHECK(hash_len >= 0 && hash_len < buffer.length());
+      DCHECK(hash_len >= 0 && static_cast<size_t>(hash_len) < buffer.size());
       DirectHandle<String> prefix =
           isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
       DirectHandle<String> module_name =
@@ -1055,10 +1055,25 @@ DirectHandle<Script> CreateWasmScript(
 }
 }  // namespace
 
-DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
+MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
     base::Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
+  CompileTimeImports target_imports = native_module->compile_imports();
+  if (isolate->flush_denormals()) {
+    target_imports.Add(CompileTimeImport::kDisableDenormalFloats);
+  } else {
+    target_imports.Remove(CompileTimeImport::kDisableDenormalFloats);
+  }
+
+  // On denormals mismatch, we recompile the module with the correct
+  // flags. SyncCompile will check the cache first to avoid redundant work.
+  if (target_imports.compare(native_module->compile_imports()) != 0) {
+    ErrorThrower thrower(isolate, "WasmEngine::ImportNativeModule");
+    return SyncCompile(
+        isolate, native_module->enabled_features(), target_imports, &thrower,
+        base::OwnedCopyOf(native_module->wire_bytes()), source_url);
+  }
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
@@ -1125,15 +1140,6 @@ void WasmEngine::DumpAndResetTurboStatistics() {
        << std::endl;
   }
   compilation_stats_.reset();
-}
-
-void WasmEngine::DumpTurboStatistics() {
-  base::MutexGuard guard(&mutex_);
-  if (compilation_stats_ != nullptr) {
-    StdoutStream os;
-    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_, false}
-       << std::endl;
-  }
 }
 
 CodeTracer* WasmEngine::GetCodeTracer() {
@@ -1789,6 +1795,19 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       // the thread info below instead.
       continue;
     }
+    if (!stack->has_frames() && stack->jmpbuf()->pc != kNullAddress) {
+      // This is a WasmFX stack that has been reserved for a new continuation
+      // but hasn't been started yet. It does not contain any frames yet, but
+      // the jump buffer PC points to the stack entry wrapper, so we must keep
+      // the wrapper alive.
+      WasmCode* stack_entry_wrapper =
+          wasm::GetWasmCodeManager()->LookupCode(isolate, stack->jmpbuf()->pc);
+      DCHECK_NOT_NULL(stack_entry_wrapper);
+      DCHECK_EQ(stack_entry_wrapper->kind(),
+                WasmCode::Kind::kWasmStackEntryWrapper);
+      live_wasm_code.insert(stack_entry_wrapper);
+      continue;
+    }
     for (StackFrameIterator it(isolate, stack.get()); !it.done();
          it.Advance()) {
       StackFrame* const frame = it.frame();
@@ -1855,8 +1874,7 @@ void WasmEngine::TriggerCodeGCForTesting() {
   if (!v8_flags.wasm_code_gc) return;
   base::MutexGuard guard(&mutex_);
   TRACE_CODE_GC("Wasm Code GC explicitly requested for testing:\n");
-  if (new_potentially_dead_code_size_ == 0) {
-    DCHECK(potentially_dead_code_.empty());
+  if (potentially_dead_code_.empty()) {
     // Let's not waste a GC sequence index when there is no code to free.
     TRACE_CODE_GC("But there is nothing to do.\n");
     return;

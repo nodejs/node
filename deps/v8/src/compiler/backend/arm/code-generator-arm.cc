@@ -304,6 +304,38 @@ class OutOfLineFloatMax final : public OutOfLineCode {
 using OutOfLineFloat32Max = OutOfLineFloatMax<SwVfpRegister>;
 using OutOfLineFloat64Max = OutOfLineFloatMax<DwVfpRegister>;
 
+#if V8_ENABLE_WEBASSEMBLY
+class OutOfLineTrap final : public OutOfLineCode {
+ public:
+  OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+      : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
+
+  void Generate() final {
+    ArmOperandConverter i(gen_, instr_);
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateCallToTrap(trap_id);
+  }
+
+ private:
+  void GenerateCallToTrap(TrapId trap_id) {
+    gen_->AssembleSourcePosition(instr_);
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched when the code
+    // is added to the native module and copied into wasm code space.
+    __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
+    gen_->RecordSafepoint(reference_map);
+    if (v8_flags.debug_code) {
+      __ stop();
+    }
+  }
+
+  Instruction* instr_;
+  CodeGenerator* gen_;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -977,6 +1009,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ b(exit->label());
       break;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+      __ b(zone()->New<OutOfLineTrap>(this, instr)->entry());
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -3800,36 +3837,6 @@ void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
 #if V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  class OutOfLineTrap final : public OutOfLineCode {
-   public:
-    OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
-        : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
-
-    void Generate() final {
-      ArmOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
-    }
-
-   private:
-    void GenerateCallToTrap(TrapId trap_id) {
-      gen_->AssembleSourcePosition(instr_);
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map =
-          gen_->zone()->New<ReferenceMap>(gen_->zone());
-      gen_->RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
-      }
-    }
-
-    Instruction* instr_;
-    CodeGenerator* gen_;
-  };
   auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Condition cc = FlagsConditionToCondition(condition);

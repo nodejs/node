@@ -12,7 +12,7 @@
 #include "src/objects/js-break-iterator.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -22,12 +22,8 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-break-iterator-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSV8BreakIterator)
-
-ACCESSORS(JSV8BreakIterator, break_iterator,
-          Tagged<Managed<icu::BreakIterator>>, kBreakIteratorOffset)
-ACCESSORS(JSV8BreakIterator, unicode_string,
-          Tagged<Managed<icu::UnicodeString>>, kUnicodeStringOffset)
+ACCESSORS(JSV8BreakIterator, icu_iterator_with_text,
+          Tagged<Managed<IcuBreakIteratorWithText>>, kIcuIteratorWithTextOffset)
 
 }  // namespace internal
 }  // namespace v8

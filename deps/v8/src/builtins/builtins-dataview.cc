@@ -15,9 +15,9 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES #sec-dataview-objects
+// https://tc39.es/ecma262/#sec-dataview-objects
 
-// ES #sec-dataview-constructor
+// https://tc39.es/ecma262/#sec-dataview-constructor
 BUILTIN(DataViewConstructor) {
   const char* const kMethodName = "DataView constructor";
   HandleScope scope(isolate);

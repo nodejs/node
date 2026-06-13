@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-staging
-// Flags: --no-stress-wasm-stack-switching
+// Flags: --allow-natives-syntax --no-stress-wasm-stack-switching
 
 // --stress-wasm-stack-switching affects the behavior of the JSPI tests below,
 // so we skip them under this stress variant to only check the intended behavior
@@ -60,7 +59,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let table = builder.addTable(kWasmExternRef, 1);
-  let array_index = builder.addArray(kWasmI32, true);
+  let array_index = builder.addArray(kWasmI32);
   let new_space_full_index = builder.addImport('m', 'new_space_full', kSig_v_v);
   builder.addFunction("test", kSig_i_r)
       .addBody([

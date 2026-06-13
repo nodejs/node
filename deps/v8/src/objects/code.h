@@ -9,6 +9,7 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
+#include "src/objects/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -308,9 +309,6 @@ class Code : public ExposedTrustedObject {
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   // Support for short builtin calls END.
 
-  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
-
   void SetMarkedForDeoptimization(Isolate* isolate,
                                   LazyDeoptimizeReason reason);
   void TraceMarkForDeoptimization(Isolate* isolate,
@@ -486,6 +484,7 @@ class Code : public ExposedTrustedObject {
   static const int kArgumentsBits = 16;
   // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
   // on the call nodes without overflowing the uint16_t input_count.
+  // TODO(375937549): Convert to use uint32_t.
   static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:
@@ -581,25 +580,18 @@ class GcSafeCode : public HeapObject {
 // A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
 // for example when a reference to a Code needs to be stored along other tagged
 // pointers inside an array or similar container datastructure.
-class CodeWrapper : public Struct {
+V8_OBJECT class CodeWrapper : public StructLayout {
  public:
   DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_PRINTER(CodeWrapper)
   DECL_VERIFIER(CodeWrapper)
 
-#define FIELD_LIST(V)              \
-  V(kCodeOffset, kCodePointerSize) \
-  V(kHeaderSize, 0)                \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(CodeWrapper, Struct);
-};
+ public:
+  TrustedPointerMember<Code, kCodeIndirectPointerTag> code_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

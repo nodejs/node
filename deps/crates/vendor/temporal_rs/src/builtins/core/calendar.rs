@@ -7,6 +7,7 @@ use crate::{
     builtins::core::{
         duration::DateDuration, Duration, PlainDate, PlainDateTime, PlainMonthDay, PlainYearMonth,
     },
+    error::ErrorMessage,
     iso::IsoDate,
     options::{Overflow, Unit},
     parsers::parse_allowed_calendar_formats,
@@ -16,23 +17,28 @@ use core::str::FromStr;
 
 use icu_calendar::{
     cal::{
-        Buddhist, Chinese, Coptic, Dangi, Ethiopian, EthiopianEraStyle, Hebrew, HijriSimulated,
-        HijriTabular, HijriUmmAlQura, Indian, Japanese, JapaneseExtended, Persian, Roc,
+        Buddhist, ChineseTraditional, Coptic, Ethiopian, EthiopianEraStyle, Hebrew, Hijri, Indian,
+        Japanese, KoreanTraditional, Persian, Roc,
     },
     AnyCalendar, AnyCalendarKind, Calendar as IcuCalendar, Iso, Ref,
 };
 use icu_calendar::{
     cal::{HijriTabularEpoch, HijriTabularLeapYears},
+    options::DateDurationUnit as IcuUnit,
+    options::{
+        DateAddOptions, DateDifferenceOptions, DateFromFieldsOptions, MissingFieldsStrategy,
+        Overflow as IcuOverflow,
+    },
     preferences::CalendarAlgorithm,
-    types::MonthCode as IcuMonthCode,
+    types::DateDuration as IcuDateDuration,
+    types::DateFields,
     Gregorian,
 };
-use icu_locale::extensions::unicode::Value;
-use tinystr::{tinystr, TinyAsciiStr};
+use icu_locale_core::extensions::unicode::Value;
+use tinystr::TinyAsciiStr;
 
 use super::ZonedDateTime;
 
-mod era;
 mod fields;
 mod types;
 
@@ -40,9 +46,7 @@ pub use fields::{CalendarFields, YearMonthCalendarFields};
 #[cfg(test)]
 pub(crate) use types::month_to_month_code;
 pub(crate) use types::ResolutionType;
-pub use types::{MonthCode, ResolvedCalendarFields};
-
-use era::EraInfo;
+pub use types::{MonthCode, ResolvedIsoFields};
 
 /// The core `Calendar` type for `temporal_rs`
 ///
@@ -90,8 +94,6 @@ impl Calendar {
     pub const HIJRI_TABULAR_THURSDAY: Self = Self::new(AnyCalendarKind::HijriTabularTypeIIThursday);
     /// The Hijri Umm al-Qura calendar
     pub const HIJRI_UMM_AL_QURA: Self = Self::new(AnyCalendarKind::HijriUmmAlQura);
-    /// The Hijri simulated calendar
-    pub const HIJRI_SIMULATED: Self = Self::new(AnyCalendarKind::HijriSimulatedMecca);
     /// The ISO 8601 calendar
     pub const ISO: Self = Self::new(AnyCalendarKind::Iso);
     /// The Japanese calendar
@@ -106,9 +108,9 @@ impl Calendar {
     pub const fn new(kind: AnyCalendarKind) -> Self {
         let cal = match kind {
             AnyCalendarKind::Buddhist => &AnyCalendar::Buddhist(Buddhist),
-            AnyCalendarKind::Chinese => const { &AnyCalendar::Chinese(Chinese::new()) },
+            AnyCalendarKind::Chinese => const { &AnyCalendar::Chinese(ChineseTraditional::new()) },
             AnyCalendarKind::Coptic => &AnyCalendar::Coptic(Coptic),
-            AnyCalendarKind::Dangi => const { &AnyCalendar::Dangi(Dangi::new()) },
+            AnyCalendarKind::Dangi => const { &AnyCalendar::Dangi(KoreanTraditional::new()) },
             AnyCalendarKind::Ethiopian => {
                 const {
                     &AnyCalendar::Ethiopian(Ethiopian::new_with_era_style(
@@ -128,30 +130,34 @@ impl Calendar {
             AnyCalendarKind::Indian => &AnyCalendar::Indian(Indian),
             AnyCalendarKind::HijriTabularTypeIIFriday => {
                 const {
-                    &AnyCalendar::HijriTabular(HijriTabular::new(
+                    &AnyCalendar::HijriTabular(Hijri::new_tabular(
                         HijriTabularLeapYears::TypeII,
                         HijriTabularEpoch::Friday,
                     ))
                 }
             }
             AnyCalendarKind::HijriSimulatedMecca => {
-                const { &AnyCalendar::HijriSimulated(HijriSimulated::new_mecca()) }
+                // This calendar is currently unsupported by Temporal
+                &AnyCalendar::Iso(Iso)
             }
             AnyCalendarKind::HijriTabularTypeIIThursday => {
                 const {
-                    &AnyCalendar::HijriTabular(HijriTabular::new(
+                    &AnyCalendar::HijriTabular(Hijri::new_tabular(
                         HijriTabularLeapYears::TypeII,
                         HijriTabularEpoch::Thursday,
                     ))
                 }
             }
             AnyCalendarKind::HijriUmmAlQura => {
-                const { &AnyCalendar::HijriUmmAlQura(HijriUmmAlQura::new()) }
+                const { &AnyCalendar::HijriUmmAlQura(Hijri::new_umm_al_qura()) }
             }
             AnyCalendarKind::Iso => &AnyCalendar::Iso(Iso),
-            AnyCalendarKind::Japanese => const { &AnyCalendar::Japanese(Japanese::new()) },
-            AnyCalendarKind::JapaneseExtended => {
-                const { &AnyCalendar::JapaneseExtended(JapaneseExtended::new()) }
+            #[allow(
+                deprecated,
+                reason = "need to match on JapaneseExtended for exhaustiveness"
+            )]
+            AnyCalendarKind::Japanese | AnyCalendarKind::JapaneseExtended => {
+                const { &AnyCalendar::Japanese(Japanese::new()) }
             }
             AnyCalendarKind::Persian => &AnyCalendar::Persian(Persian),
             AnyCalendarKind::Roc => &AnyCalendar::Roc(Roc),
@@ -209,6 +215,81 @@ impl FromStr for Calendar {
     }
 }
 
+impl From<Overflow> for IcuOverflow {
+    fn from(other: Overflow) -> Self {
+        match other {
+            Overflow::Reject => Self::Reject,
+            Overflow::Constrain => Self::Constrain,
+        }
+    }
+}
+
+impl TryFrom<Unit> for IcuUnit {
+    type Error = TemporalError;
+    fn try_from(other: Unit) -> TemporalResult<Self> {
+        Ok(match other {
+            Unit::Day => IcuUnit::Days,
+            Unit::Week => IcuUnit::Weeks,
+            Unit::Month => IcuUnit::Months,
+            Unit::Year => IcuUnit::Years,
+            _ => {
+                return Err(TemporalError::r#type()
+                    .with_message("Found time unit when computing CalendarDateUntil."))
+            }
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a CalendarFields> for DateFields<'a> {
+    type Error = TemporalError;
+    fn try_from(other: &'a CalendarFields) -> TemporalResult<Self> {
+        let mut this = DateFields::default();
+        this.era = other.era.as_ref().map(|o| o.as_bytes());
+        this.era_year = other.era_year;
+        this.extended_year = other.year;
+        this.month_code = other.month_code.as_ref().map(|o| o.0.as_bytes());
+        this.ordinal_month = other.month;
+        this.day = other.day;
+        Ok(this)
+    }
+}
+
+/// See <https://github.com/unicode-org/icu4x/issues/7207>
+///
+/// We don't want to trigger any pathological or panicky testcases in ICU4X.
+///
+/// To aid in that, we early constrain date durations to things that have no hope of producing a datetime
+/// that is within Temporal range.
+fn early_constrain_date_duration(duration: &IcuDateDuration) -> Result<(), TemporalError> {
+    // Temporal range is -271821-04-20 to +275760-09-13
+    // This is (roughly) the maximum year duration that can exist for ISO
+    const TEMPORAL_MAX_ISO_YEAR_DURATION: u32 = 275760 + 271821;
+    // Double it. No calendar has years that are half the size of ISO years.
+    const YEAR_DURATION: u32 = 2 * TEMPORAL_MAX_ISO_YEAR_DURATION;
+    // Assume every year is a leap year, calculate a month range
+    const MONTH_DURATION: u32 = YEAR_DURATION * 13;
+    // Our longest year is 390 days
+    const DAY_DURATION: u32 = YEAR_DURATION * 390;
+    const WEEK_DURATION: u32 = DAY_DURATION / 7;
+
+    let err = Err(TemporalError::range().with_enum(ErrorMessage::IntermediateDateTimeOutOfRange));
+
+    if duration.years > YEAR_DURATION {
+        return err;
+    }
+    if duration.months > MONTH_DURATION {
+        return err;
+    }
+    if duration.weeks > WEEK_DURATION {
+        return err;
+    }
+    if duration.days > DAY_DURATION {
+        return err;
+    }
+
+    Ok(())
+}
+
 // ==== Public `CalendarSlot` methods ====
 
 impl Calendar {
@@ -230,26 +311,26 @@ impl Calendar {
         fields: CalendarFields,
         overflow: Overflow,
     ) -> TemporalResult<PlainDate> {
-        let resolved_fields =
-            ResolvedCalendarFields::try_from_fields(self, &fields, overflow, ResolutionType::Date)?;
-
         if self.is_iso() {
+            let resolved_fields =
+                ResolvedIsoFields::try_from_fields(&fields, overflow, ResolutionType::Date)?;
+
             // Resolve month and monthCode;
             return PlainDate::new_with_overflow(
-                resolved_fields.era_year.arithmetic_year,
-                resolved_fields.month_code.to_month_integer(),
+                resolved_fields.arithmetic_year,
+                resolved_fields.month,
                 resolved_fields.day,
                 self.clone(),
                 overflow,
             );
         }
 
-        let calendar_date = self.0.from_codes(
-            resolved_fields.era_year.era.as_ref().map(|e| e.0.as_str()),
-            resolved_fields.era_year.year,
-            IcuMonthCode(resolved_fields.month_code.0),
-            resolved_fields.day,
-        )?;
+        let fields = DateFields::try_from(&fields)?;
+        let mut options = DateFromFieldsOptions::default();
+        options.overflow = Some(overflow.into());
+        options.missing_fields_strategy = Some(MissingFieldsStrategy::Reject);
+
+        let calendar_date = self.0.from_fields(fields, options)?;
         let iso = self.0.to_iso(&calendar_date);
         PlainDate::new_with_overflow(
             Iso.extended_year(&iso),
@@ -272,26 +353,77 @@ impl Calendar {
         // For example, constructing a PlainMonthDay for {year: 2025, month: 2, day: 29}
         // with overflow: constrain will produce 02-28 since it will constrain
         // the date to 2025-02-28 first, and only *then* will it construct an MD.
-        //
-        // This is specced partially in https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
-        // notice that RegulateISODate is called with the passed-in year, but the reference year is used regardless
-        // of the passed in year in the final result.
-        //
-        // There may be more efficient ways to do this, but this works pretty well and doesn't require
-        // calendrical knowledge.
         if fields.year.is_some() || (fields.era.is_some() && fields.era_year.is_some()) {
-            let date = self.date_from_fields(fields, overflow)?;
-            fields = CalendarFields::from_date(&date);
+            // The ISO case is specified in <https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate>
+            // It does not perform any range checks, arbitrarily large year values can be used.
+            if self.is_iso() {
+                let resolved = ResolvedIsoFields::try_from_fields(
+                    &fields,
+                    overflow,
+                    ResolutionType::MonthDayWithYear,
+                )?;
+                fields = CalendarFields {
+                    year: Some(1972),
+                    month: Some(resolved.month),
+                    day: Some(resolved.day),
+                    ..Default::default()
+                };
+            } else {
+                // The non-ISO case is specified in <https://tc39.es/proposal-intl-era-monthcode/#sup-temporal-nonisomonthdaytoisoreferencedate>
+                //
+                let date_fields = DateFields::try_from(&fields)?;
+                {
+                    // This algorithm requires an early-check to ensure the year is *somewhat* valid:
+                    // > b. If there exists no combination of inputs such that ! CalendarIntegersToISO(calendar, fields.[[Year]], ..., ...) would
+                    // return an ISO Date Record isoDate for which ISODateWithinLimits(isoDate) is true, throw a RangeError exception.
+
+                    // We do this by using constrain with minimal and maximal month-day values to try and
+                    // see if either is in the ISO year range.
+                    //
+                    // This is complicated, it would be nice to not have to do this: <https://github.com/tc39/proposal-intl-era-monthcode/issues/127>
+                    let mut options = DateFromFieldsOptions::default();
+                    options.overflow = Some(IcuOverflow::Constrain);
+                    options.missing_fields_strategy = Some(MissingFieldsStrategy::Reject);
+
+                    let mut fields_min = fields.clone();
+                    let mut fields_max = fields.clone();
+                    fields_min.month = Some(1);
+                    fields_max.month = Some(15);
+                    fields_min.month_code = None;
+                    fields_max.month_code = None;
+                    fields_min.day = Some(1);
+                    fields_max.day = Some(40);
+                    let fields_min = DateFields::try_from(&fields_min)?;
+                    let fields_max = DateFields::try_from(&fields_max)?;
+                    let date_min = self.0.from_fields(fields_min, options)?;
+                    let date_max = self.0.from_fields(fields_max, options)?;
+                    let iso_min = IsoDate::from_icu4x(self.0.to_iso(&date_min));
+                    let iso_max = IsoDate::from_icu4x(self.0.to_iso(&date_max));
+
+                    // If *both* are an error, then no date in this year maps to the ISO year range.
+                    if iso_min.check_within_limits().is_err()
+                        && iso_max.check_within_limits().is_err()
+                    {
+                        return Err(TemporalError::range().with_enum(ErrorMessage::DateOutOfRange));
+                    }
+                }
+                let mut options = DateFromFieldsOptions::default();
+                options.overflow = Some(overflow.into());
+                options.missing_fields_strategy = Some(MissingFieldsStrategy::Reject);
+                let calendar_date = self.0.from_fields(date_fields, options)?;
+
+                fields = CalendarFields {
+                    month_code: Some(MonthCode(self.0.month(&calendar_date).to_input().code().0)),
+                    day: Some(self.0.day_of_month(&calendar_date).0),
+                    ..Default::default()
+                };
+            }
         }
-        let resolved_fields = ResolvedCalendarFields::try_from_fields(
-            self,
-            &fields,
-            overflow,
-            ResolutionType::MonthDay,
-        )?;
         if self.is_iso() {
+            let resolved_fields =
+                ResolvedIsoFields::try_from_fields(&fields, overflow, ResolutionType::MonthDay)?;
             return PlainMonthDay::new_with_overflow(
-                resolved_fields.month_code.to_month_integer(),
+                resolved_fields.month,
                 resolved_fields.day,
                 self.clone(),
                 overflow,
@@ -299,13 +431,29 @@ impl Calendar {
             );
         }
 
-        // We trust ResolvedCalendarFields to have calculated an appropriate reference year for us
-        let calendar_date = self.0.from_codes(
-            resolved_fields.era_year.era.as_ref().map(|e| e.0.as_str()),
-            resolved_fields.era_year.year,
-            IcuMonthCode(resolved_fields.month_code.0),
-            resolved_fields.day,
-        )?;
+        let fields = DateFields::try_from(&fields)?;
+        let mut options = DateFromFieldsOptions::default();
+        options.overflow = Some(overflow.into());
+        if fields.day.is_none() {
+            // Otherwise we're liable to hit the YearMonth resolution
+            return Err(TemporalError::r#type().with_message("Must specify day for MonthDay"));
+        }
+        options.missing_fields_strategy = Some(MissingFieldsStrategy::Ecma);
+
+        let mut calendar_date = self.0.from_fields(fields, options)?;
+
+        // The MonthDay algorithm wants us to resolve a date *with* the provided year,
+        // if one was provided, but then use a reference year afterwards.
+        // So if a year was provided, we reresolve.
+        if fields.era_year.is_some() || fields.extended_year.is_some() {
+            let mut fields2 = DateFields::default();
+            fields2.day = Some(self.0.day_of_month(&calendar_date).0);
+            let code = self.0.month(&calendar_date).to_input().code();
+            fields2.month_code = Some(code.0.as_bytes());
+
+            calendar_date = self.0.from_fields(fields2, options)?;
+        }
+
         let iso = self.0.to_iso(&calendar_date);
         PlainMonthDay::new_with_overflow(
             Iso.month(&iso).ordinal,
@@ -322,30 +470,32 @@ impl Calendar {
         fields: YearMonthCalendarFields,
         overflow: Overflow,
     ) -> TemporalResult<PlainYearMonth> {
-        // TODO: add a from_partial_year_month method on ResolvedCalendarFields
-        let resolved_fields = ResolvedCalendarFields::try_from_fields(
-            self,
-            &CalendarFields::from(fields),
-            overflow,
-            ResolutionType::YearMonth,
-        )?;
         if self.is_iso() {
+            // TODO: add a from_partial_year_month method on ResolvedCalendarFields
+            let resolved_fields = ResolvedIsoFields::try_from_fields(
+                &CalendarFields::from(fields),
+                overflow,
+                ResolutionType::YearMonth,
+            )?;
             return PlainYearMonth::new_with_overflow(
-                resolved_fields.era_year.arithmetic_year,
-                resolved_fields.month_code.to_month_integer(),
+                resolved_fields.arithmetic_year,
+                resolved_fields.month,
                 Some(resolved_fields.day),
                 self.clone(),
                 overflow,
             );
         }
 
-        // NOTE: This might preemptively throw as `ICU4X` does not support regulating.
-        let calendar_date = self.0.from_codes(
-            resolved_fields.era_year.era.as_ref().map(|e| e.0.as_str()),
-            resolved_fields.era_year.year,
-            IcuMonthCode(resolved_fields.month_code.0),
-            resolved_fields.day,
-        )?;
+        let fields = CalendarFields::from(fields);
+        let fields = DateFields::try_from(&fields)?;
+        let mut options = DateFromFieldsOptions::default();
+        options.overflow = Some(overflow.into());
+        if fields.extended_year.is_none() && fields.era_year.is_none() {
+            // Otherwise we're liable to hit the MonthDay resolution
+            return Err(TemporalError::r#type().with_message("Must specify year for YearMonth"));
+        }
+        options.missing_fields_strategy = Some(MissingFieldsStrategy::Ecma);
+        let calendar_date = self.0.from_fields(fields, options)?;
         let iso = self.0.to_iso(&calendar_date);
         PlainYearMonth::new_with_overflow(
             Iso.year_info(&iso).year,
@@ -370,7 +520,34 @@ impl Calendar {
             return PlainDate::try_new(result.year, result.month, result.day, self.clone());
         }
 
-        Err(TemporalError::range().with_message("Not yet implemented."))
+        // This should be a valid duration at this point so we can just call .abs()
+        let invalid = TemporalError::range().with_enum(ErrorMessage::DurationNotValid);
+        let duration = IcuDateDuration {
+            is_negative: duration.years < 0
+                || duration.months < 0
+                || duration.weeks < 0
+                || duration.days < 0,
+            years: u32::try_from(duration.years.abs()).map_err(|_| invalid)?,
+            months: u32::try_from(duration.months.abs()).map_err(|_| invalid)?,
+            weeks: u32::try_from(duration.weeks.abs()).map_err(|_| invalid)?,
+            days: u32::try_from(duration.days.abs()).map_err(|_| invalid)?,
+        };
+
+        early_constrain_date_duration(&duration)?;
+        let mut options = DateAddOptions::default();
+        options.overflow = Some(overflow.into());
+        let calendar_date = self.0.from_rata_die(date.to_rd());
+
+        let added = self.0.add(&calendar_date, duration, options)?;
+
+        let iso = self.0.to_iso(&added);
+        PlainDate::new_with_overflow(
+            Iso.extended_year(&iso),
+            Iso.month(&iso).ordinal,
+            Iso.day_of_month(&iso).0,
+            self.clone(),
+            overflow,
+        )
     }
 
     /// `CalendarDateUntil`
@@ -384,7 +561,25 @@ impl Calendar {
             let date_duration = one.diff_iso_date(two, largest_unit)?;
             return Ok(Duration::from(date_duration));
         }
-        Err(TemporalError::range().with_message("Not yet implemented."))
+        let mut options = DateDifferenceOptions::default();
+        options.largest_unit = Some(largest_unit.try_into()?);
+        let calendar_date1 = self.0.from_rata_die(one.to_rd());
+        let calendar_date2 = self.0.from_rata_die(two.to_rd());
+
+        let added = self.0.until(&calendar_date1, &calendar_date2, options);
+
+        let days = added.days.into();
+        let mut duration = DateDuration::new(
+            added.years.into(),
+            added.months.into(),
+            added.weeks.into(),
+            days,
+        )?;
+
+        if added.is_negative {
+            duration = duration.negated();
+        }
+        Ok(Duration::from(duration))
     }
 
     /// `CalendarEra`
@@ -392,7 +587,7 @@ impl Calendar {
         if self.is_iso() {
             return None;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0
             .year_info(&calendar_date)
             .era()
@@ -404,7 +599,7 @@ impl Calendar {
         if self.is_iso() {
             return None;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0
             .year_info(&calendar_date)
             .era()
@@ -416,7 +611,7 @@ impl Calendar {
         if self.is_iso() {
             return iso_date.year;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.extended_year(&calendar_date)
     }
 
@@ -425,18 +620,14 @@ impl Calendar {
         if self.is_iso() {
             return iso_date.month;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.month(&calendar_date).ordinal
     }
 
     /// `CalendarMonthCode`
     pub fn month_code(&self, iso_date: &IsoDate) -> MonthCode {
-        if self.is_iso() {
-            let mc = iso_date.to_icu4x().month().standard_code.0;
-            return MonthCode(mc);
-        }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
-        MonthCode(self.0.month(&calendar_date).standard_code.0)
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
+        MonthCode(self.0.month(&calendar_date).to_input().code().0)
     }
 
     /// `CalendarDay`
@@ -444,28 +635,25 @@ impl Calendar {
         if self.is_iso() {
             return iso_date.day;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.day_of_month(&calendar_date).0
     }
 
     /// `CalendarDayOfWeek`
     pub fn day_of_week(&self, iso_date: &IsoDate) -> u16 {
-        iso_date.to_icu4x().day_of_week() as u16
+        iso_date.to_icu4x_iso().weekday() as u16
     }
 
     /// `CalendarDayOfYear`
     pub fn day_of_year(&self, iso_date: &IsoDate) -> u16 {
-        if self.is_iso() {
-            return iso_date.to_icu4x().day_of_year().0;
-        }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.day_of_year(&calendar_date).0
     }
 
     /// `CalendarWeekOfYear`
     pub fn week_of_year(&self, iso_date: &IsoDate) -> Option<u8> {
         if self.is_iso() {
-            return Some(iso_date.to_icu4x().week_of_year().week_number);
+            return Some(iso_date.to_icu4x_iso().week_of_year().week_number);
         }
         // TODO: Research in ICU4X and determine best approach.
         None
@@ -474,7 +662,7 @@ impl Calendar {
     /// `CalendarYearOfWeek`
     pub fn year_of_week(&self, iso_date: &IsoDate) -> Option<i32> {
         if self.is_iso() {
-            return Some(iso_date.to_icu4x().week_of_year().iso_year);
+            return Some(iso_date.to_icu4x_iso().week_of_year().iso_year);
         }
         // TODO: Research in ICU4X and determine best approach.
         None
@@ -487,19 +675,13 @@ impl Calendar {
 
     /// `CalendarDaysInMonth`
     pub fn days_in_month(&self, iso_date: &IsoDate) -> u16 {
-        if self.is_iso() {
-            return iso_date.to_icu4x().days_in_month() as u16;
-        }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.days_in_month(&calendar_date) as u16
     }
 
     /// `CalendarDaysInYear`
     pub fn days_in_year(&self, iso_date: &IsoDate) -> u16 {
-        if self.is_iso() {
-            return iso_date.to_icu4x().days_in_year();
-        }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.days_in_year(&calendar_date)
     }
 
@@ -508,16 +690,13 @@ impl Calendar {
         if self.is_iso() {
             return 12;
         }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.months_in_year(&calendar_date) as u16
     }
 
     /// `CalendarInLeapYear`
     pub fn in_leap_year(&self, iso_date: &IsoDate) -> bool {
-        if self.is_iso() {
-            return iso_date.to_icu4x().is_in_leap_year();
-        }
-        let calendar_date = self.0.from_iso(*iso_date.to_icu4x().inner());
+        let calendar_date = self.0.from_rata_die(iso_date.to_rd());
         self.0.is_in_leap_year(&calendar_date)
     }
 
@@ -533,106 +712,6 @@ impl Calendar {
 }
 
 impl Calendar {
-    pub(crate) fn get_era_info(&self, era_alias: &TinyAsciiStr<19>) -> Option<EraInfo> {
-        match self.0 .0.kind() {
-            AnyCalendarKind::Buddhist if *era_alias == tinystr!(19, "be") => {
-                Some(era::BUDDHIST_ERA)
-            }
-            AnyCalendarKind::Coptic if *era_alias == tinystr!(19, "am") => Some(era::COPTIC_ERA),
-            AnyCalendarKind::Ethiopian if era::ETHIOPIC_ERA_IDENTIFIERS.contains(era_alias) => {
-                Some(era::ETHIOPIC_ERA)
-            }
-            AnyCalendarKind::Ethiopian
-                if era::ETHIOPIC_ETHOPICAA_ERA_IDENTIFIERS.contains(era_alias) =>
-            {
-                Some(era::ETHIOPIC_ETHIOAA_ERA)
-            }
-            AnyCalendarKind::EthiopianAmeteAlem
-                if era::ETHIOAA_ERA_IDENTIFIERS.contains(era_alias) =>
-            {
-                Some(era::ETHIOAA_ERA)
-            }
-            AnyCalendarKind::Gregorian if era::GREGORY_ERA_IDENTIFIERS.contains(era_alias) => {
-                Some(era::GREGORY_ERA)
-            }
-            AnyCalendarKind::Gregorian
-                if era::GREGORY_INVERSE_ERA_IDENTIFIERS.contains(era_alias) =>
-            {
-                Some(era::GREGORY_INVERSE_ERA)
-            }
-            AnyCalendarKind::Hebrew if *era_alias == tinystr!(19, "am") => Some(era::HEBREW_ERA),
-            AnyCalendarKind::Indian if *era_alias == tinystr!(19, "shaka") => Some(era::INDIAN_ERA),
-            AnyCalendarKind::HijriTabularTypeIIFriday
-            | AnyCalendarKind::HijriSimulatedMecca
-            | AnyCalendarKind::HijriTabularTypeIIThursday
-            | AnyCalendarKind::HijriUmmAlQura
-                if *era_alias == tinystr!(19, "ah") =>
-            {
-                Some(era::ISLAMIC_ERA)
-            }
-            AnyCalendarKind::HijriTabularTypeIIFriday
-            | AnyCalendarKind::HijriSimulatedMecca
-            | AnyCalendarKind::HijriTabularTypeIIThursday
-            | AnyCalendarKind::HijriUmmAlQura
-                if *era_alias == tinystr!(19, "bh") =>
-            {
-                Some(era::ISLAMIC_INVERSE_ERA)
-            }
-            AnyCalendarKind::Japanese if *era_alias == tinystr!(19, "heisei") => {
-                Some(era::HEISEI_ERA)
-            }
-            AnyCalendarKind::Japanese if era::JAPANESE_ERA_IDENTIFIERS.contains(era_alias) => {
-                Some(era::JAPANESE_ERA)
-            }
-            AnyCalendarKind::Japanese
-                if era::JAPANESE_INVERSE_ERA_IDENTIFIERS.contains(era_alias) =>
-            {
-                Some(era::JAPANESE_INVERSE_ERA)
-            }
-            AnyCalendarKind::Japanese if *era_alias == tinystr!(19, "meiji") => {
-                Some(era::MEIJI_ERA)
-            }
-            AnyCalendarKind::Japanese if *era_alias == tinystr!(19, "reiwa") => {
-                Some(era::REIWA_ERA)
-            }
-            AnyCalendarKind::Japanese if *era_alias == tinystr!(19, "showa") => {
-                Some(era::SHOWA_ERA)
-            }
-            AnyCalendarKind::Japanese if *era_alias == tinystr!(19, "taisho") => {
-                Some(era::TAISHO_ERA)
-            }
-            AnyCalendarKind::Persian if *era_alias == tinystr!(19, "ap") => Some(era::PERSIAN_ERA),
-            AnyCalendarKind::Roc if *era_alias == tinystr!(19, "roc") => Some(era::ROC_ERA),
-            AnyCalendarKind::Roc if *era_alias == tinystr!(19, "broc") => {
-                Some(era::ROC_INVERSE_ERA)
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn get_calendar_default_era(&self) -> Option<EraInfo> {
-        match self.0 .0.kind() {
-            AnyCalendarKind::Buddhist => Some(era::BUDDHIST_ERA),
-            AnyCalendarKind::Chinese => None,
-            AnyCalendarKind::Coptic => Some(era::COPTIC_ERA),
-            AnyCalendarKind::Dangi => None,
-            AnyCalendarKind::Ethiopian => Some(era::ETHIOPIC_ERA),
-            AnyCalendarKind::EthiopianAmeteAlem => Some(era::ETHIOAA_ERA),
-            AnyCalendarKind::Gregorian => Some(era::GREGORY_ERA),
-            AnyCalendarKind::Hebrew => Some(era::HEBREW_ERA),
-            AnyCalendarKind::Indian => Some(era::INDIAN_ERA),
-            AnyCalendarKind::HijriSimulatedMecca => Some(era::ISLAMIC_ERA),
-            AnyCalendarKind::HijriTabularTypeIIFriday => Some(era::ISLAMIC_ERA),
-            AnyCalendarKind::HijriTabularTypeIIThursday => Some(era::ISLAMIC_ERA),
-            AnyCalendarKind::HijriUmmAlQura => Some(era::ISLAMIC_ERA),
-            AnyCalendarKind::Iso => None,
-            AnyCalendarKind::Japanese => Some(era::JAPANESE_ERA),
-            AnyCalendarKind::Persian => Some(era::PERSIAN_ERA),
-            AnyCalendarKind::Roc => Some(era::ROC_ERA),
-            _ => None,
-        }
-    }
-
     pub(crate) fn calendar_has_eras(kind: AnyCalendarKind) -> bool {
         match kind {
             AnyCalendarKind::Buddhist

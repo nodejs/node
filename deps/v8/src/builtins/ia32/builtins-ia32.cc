@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -559,6 +560,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ mov(data,
          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
+  __ JumpIfSmi(data, is_unavailable);
   __ LoadMap(scratch1, data);
 
 #ifndef V8_JITLESS
@@ -620,31 +622,29 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ CompareStackLimit(esp, StackLimitKind::kRealStackLimit);
-  __ j(below, &stack_overflow);
+  // Copy the function arguments from the generator object's register file.
+  // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ movzx_w(
+      ecx, FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ dec(ecx);  // Exclude receiver.
 
-  // Pop return address.
-  __ PopReturnAddressTo(eax);
+  Label stack_overflow;
+  __ StackOverflowCheck(ecx, edi /* scratch */, &stack_overflow, true);
 
   // ----------- S t a t e -------------
   //  -- eax    : return address
   //  -- edx    : the JSGeneratorObject to resume
-  //  -- edi    : generator function
   //  -- esi    : generator context
+  //  -- ecx    : parameter count
   // -----------------------------------
+
+  // Pop return address.
+  __ PopReturnAddressTo(eax);
 
   {
     __ movd(xmm0, ebx);
 
-    // Copy the function arguments from the generator object's register file.
-    // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
-    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ movzx_w(ecx, FieldOperand(
-                        ecx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ dec(ecx);  // Exclude receiver.
     __ mov(ebx,
            FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
     {
@@ -1084,7 +1084,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ bind(&compile_lazy);
   // Restore actual argument count.
   __ movd(eax, xmm0);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
 
   __ bind(&is_baseline);
   {
@@ -1807,7 +1807,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ movd(saved_feedback_cell, feedback_cell);
   Register feedback_vector = ecx;
   __ mov(feedback_vector,
-         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   __ AssertFeedbackVector(feedback_vector, scratch);
   feedback_cell = no_reg;
 
@@ -2463,8 +2463,30 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // Pop return address
+  __ pop(edx);
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  // - target
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  __ movd(edi, xmm1);  // Restore target.
+  __ push(edi);
+  // - arguments list
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  __ push(kArgumentsList);
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(ecx);
+  __ push(ecx);
+  // - return address
+  __ Push(edx);
+  // - adjust arg count
+  __ add(eax, Immediate(SuperSpreadArgs::kNumExtraArgs - 1));
+
   __ movd(esi, xmm3);  // Restore the context.
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ movd(edx, xmm0);  // Restore new.target.
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
@@ -3911,6 +3933,55 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack =
+      WasmFXResumeThrowRefDescriptor::GetRegisterParameter(0);
+  Register exnref = WasmFXResumeThrowRefDescriptor::GetRegisterParameter(1);
+  // If the target stack is in a suspended state, switch to it and throw the
+  // exception from there.
+  // If the stack has not been started yet, switching to it is invalid as it
+  // does not have a stack entry frame. Instead, retire it and throw the
+  // exception from the current stack.
+  // Both blocks exit with the exnref pushed on the stack.
+  __ cmp(Operand(target_stack, wasm::kStackFpOffset), Immediate(0));
+  Label throw_;
+  Label retire_and_throw;
+  __ j(equal, &retire_and_throw);
+  Label return_;
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               target_stack, &return_, no_reg, {target_stack, exnref});
+  // Switch to the target stack without restoring the PC.
+  LoadJumpBuffer(masm, target_stack, false);
+  __ Push(exnref);
+  __ jmp(&throw_);
+
+  __ bind(&retire_and_throw);
+  __ Push(exnref);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(edi, target_stack));
+    __ PrepareCallCFunction(2, edi);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ mov(MemOperand(esp, 1 * kSystemPointerSize), target_stack);
+    __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
+  }
+
+  __ bind(&throw_);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
+  __ Trap();
+  __ bind(&return_);
+  // Return the arg buffer.
+  __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
+}
+
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
@@ -3947,8 +4018,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(arg_buffer);
 
   Label ok;
-  __ cmp(target_stack, Immediate(0));
-  __ j(not_equal, &ok);
+  __ test(target_stack, target_stack);
+  __ j(not_zero, &ok);
   // No handler found.
   __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
@@ -3960,6 +4031,62 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(WasmFXSuspendDescriptor::GetStackParameterCount() *
          kSystemPointerSize);
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(ebp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    Register scratch = kContextRegister;
+    DCHECK(!AreAliased(scratch, cont, target_stack_reg, arg_buffer_reg));
+    __ PrepareCallCFunction(9, scratch);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ mov(MemOperand(esp, 1 * kSystemPointerSize), esp);
+    __ mov(MemOperand(esp, 2 * kSystemPointerSize), ebp);
+    __ LoadLabelAddress(scratch, &resume);
+    __ mov(MemOperand(esp, 3 * kSystemPointerSize), scratch);
+    __ mov(MemOperand(esp, 4 * kSystemPointerSize), tag);
+    __ mov(MemOperand(esp, 5 * kSystemPointerSize), cont);
+    __ mov(MemOperand(esp, 6 * kSystemPointerSize), target_stack_reg);
+    __ mov(MemOperand(esp, 7 * kSystemPointerSize), arg_buffer_reg);
+    __ mov(scratch, sig_op);
+    __ mov(MemOperand(esp, 8 * kSystemPointerSize), scratch);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ cmp(kReturnRegister0, Immediate(0));
+  __ j(not_equal, &ok);
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  // We have a prompt bracket.
+  __ Drop(1);  // Drop the pushed context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  __ mov(target_stack, kReturnRegister0);
+  // Load the arg buffer to set up resume of target stack
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Move(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, esp, ebp));
+  LoadJumpBuffer(masm, target_stack, true);
+  __ Trap();
+  __ bind(&resume);
+  __ mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ ret(WasmFXSwitchDescriptor::GetStackParameterCount() * kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
@@ -4978,7 +5105,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ mov(feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   closure = no_reg;
   __ mov(feedback_vector,
-         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

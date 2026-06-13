@@ -6,16 +6,20 @@
 #define V8_OBJECTS_MANAGED_H_
 
 #include <memory>
+#include <utility>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-external-memory-accounter.h"
-#include "src/api/api.h"
-#include "src/execution/isolate.h"
+#include "include/v8-object.h"
+#include "include/v8config.h"
+#include "src/base/compiler-specific.h"
 #include "src/handles/handles.h"
-#include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 #include "src/sandbox/external-pointer-table.h"
 
 namespace v8::internal {
+
+class Isolate;
 
 // Mechanism for associating an ExternalPointerTag with a C++ type that is
 // referenced via a Managed. Every such C++ type must have a unique
@@ -68,14 +72,19 @@ struct ManagedPtrDestructor
   ManagedPtrDestructor* next_ = nullptr;
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
+  SharedFlag shared_ = SharedFlag::kNo;
   Address* global_handle_location_ = nullptr;
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 
   ManagedPtrDestructor(size_t estimated_size, void* shared_ptr_ptr,
-                       void (*destructor)(void*))
+                       void (*destructor)(void*), SharedFlag shared)
       : estimated_size_(estimated_size),
         shared_ptr_ptr_(shared_ptr_ptr),
-        destructor_(destructor) {}
+        destructor_(destructor),
+        shared_(shared) {}
+
+  V8_EXPORT_PRIVATE void UpdateEstimatedSize(size_t new_estimated_size,
+                                             Isolate* isolate);
 };
 
 // The GC finalizer of a managed object, which does not depend on
@@ -93,29 +102,93 @@ V8_EXPORT_PRIVATE void ManagedObjectFinalizer(
 template <class CppType>
 class Managed : public Foreign {
  public:
-  Managed() : Foreign() {}
-  explicit Managed(Address ptr) : Foreign(ptr) {}
-  V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
-      : Foreign(ptr, SkipTypeCheckTag{}) {}
+  // Exposes the underlying C++ object and keeps the ref counter incremented.
+  //
+  // Usage examples:
+  //
+  //   managed1.ptr()->DoStuff();  // `Ptr` lives till end of full-expression
+  //
+  //   ReadFrom(*managed2.ptr());  // ditto
+  //
+  //   Managed<T>::Ptr ptr = managed3.ptr();  // kept for multiple statements
+  //   ReadFrom(*ptr);
+  //   WriteTo(ptr.raw());
+  //
+  // Note: it's generally unsafe to dereference the raw pointer after the `Ptr`
+  // went out of scope and GC happened.
+  class Ptr final {
+   public:
+    V8_INLINE Ptr(Ptr&& other) V8_NOEXCEPT = default;
+    Ptr(const Ptr&) = delete;
+    V8_INLINE Ptr& operator=(Ptr&& other) V8_NOEXCEPT = default;
+    Ptr& operator=(const Ptr&) = delete;
 
-  // For every object, add a `->` operator which returns a pointer to this
-  // object. This will allow smoother transition between T and Tagged<T>.
-  Managed* operator->() { return this; }
-  const Managed* operator->() const { return this; }
+    V8_INLINE CppType* operator->() V8_LIFETIME_BOUND { return ptr_.get(); }
+    V8_INLINE const CppType* operator->() const V8_LIFETIME_BOUND {
+      return ptr_.get();
+    }
 
-  // Get a raw pointer to the C++ object.
-  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+    V8_INLINE CppType& operator*() V8_LIFETIME_BOUND { return *ptr_; }
+    V8_INLINE const CppType& operator*() const V8_LIFETIME_BOUND {
+      return *ptr_;
+    }
 
-  // Get a reference to the shared pointer to the C++ object.
-  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
+    V8_INLINE CppType* raw() V8_LIFETIME_BOUND { return ptr_.get(); }
+    V8_INLINE const CppType* raw() const V8_LIFETIME_BOUND {
+      return ptr_.get();
+    }
+
+    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() { return ptr_; }
+
+    V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
+
+   private:
+    friend class Managed;
+
+    V8_INLINE explicit Ptr(std::shared_ptr<CppType> ptr)
+        : ptr_(std::move(ptr)) {}
+
+    std::shared_ptr<CppType> ptr_;
+  };
+
+  // Deprecated. Get a raw pointer to the C++ object.
+  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
+  V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
+
+  // Get a raw pointer to the C++ object. The returned pointer is only valid as
+  // long as no GC happens; prefer `ptr()` unless on performance-critical code
+  // paths.
+  V8_INLINE CppType* raw(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
+    return GetSharedPtrPtr(GetDestructor())->get();
+  }
+
+  // Deprecated. Get a reference to the shared pointer to the C++ object.
+  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
+  V8_INLINE const std::shared_ptr<CppType>& get() {
+    return *GetSharedPtrPtr(GetDestructor());
+  }
+
+  // Get the wrapper that exposes access to the C++ object.
+  //
+  // The wrapper keeps the ref counter incremented, guaranteeing that the C++
+  // object stays alive even if our Foreign gets corrupted by an in-sandbox
+  // corruption and collected by GC.
+  V8_INLINE Ptr ptr() { return Ptr(*GetSharedPtrPtr(GetDestructor())); }
 
   // Read back the memory estimate that was provided when creating this Managed.
   size_t estimated_size() const { return GetDestructor()->estimated_size_; }
 
   // Set a new managed object, dropping the old reference.
-  // TODO(clemensb): Add an `UpdateEstimatedSize(size_t)` method.
-  void SetManagedObject(std::shared_ptr<CppType> new_managed) {
-    *GetSharedPtrPtr() = std::move(new_managed);
+  void SetManagedObject(std::shared_ptr<CppType> new_managed, Isolate* isolate,
+                        size_t new_estimated_size) {
+    ManagedPtrDestructor* destructor = GetDestructor();
+    *GetSharedPtrPtr(destructor) = std::move(new_managed);
+    destructor->UpdateEstimatedSize(new_estimated_size, isolate);
+  }
+
+  void UpdateEstimatedSize(Isolate* isolate, size_t new_estimated_size) {
+    GetDestructor()->UpdateEstimatedSize(new_estimated_size, isolate);
   }
 
   // Create a {Managed>} from an existing {std::shared_ptr} or {std::unique_ptr}
@@ -135,9 +208,10 @@ class Managed : public Foreign {
     return reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
   }
 
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  static std::shared_ptr<CppType>* GetSharedPtrPtr(
+      ManagedPtrDestructor* destructor) {
     return reinterpret_cast<std::shared_ptr<CppType>*>(
-        GetDestructor()->shared_ptr_ptr_);
+        destructor->shared_ptr_ptr_);
   }
 };
 
@@ -147,11 +221,6 @@ class Managed : public Foreign {
 template <class CppType>
 class TrustedManaged : public TrustedForeign {
  public:
-  TrustedManaged() : TrustedForeign() {}
-  explicit TrustedManaged(Address ptr) : TrustedForeign(ptr) {}
-  V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
-      : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
-
   // For every object, add a `->` operator which returns a pointer to this
   // object. This will allow smoother transition between T and Tagged<T>.
   TrustedManaged* operator->() { return this; }
@@ -167,14 +236,14 @@ class TrustedManaged : public TrustedForeign {
   // {std::unique_ptr} (which will implicitly convert to {std::shared_ptr}).
   static DirectHandle<TrustedManaged<CppType>> From(
       Isolate* isolate, size_t estimated_size,
-      std::shared_ptr<CppType> shared_ptr, bool shared);
+      std::shared_ptr<CppType> shared_ptr, SharedFlag shared);
 
  private:
   friend class Tagged<TrustedManaged>;
 
   // Internally the {TrustedForeign} stores a pointer to the
   // {std::shared_ptr<CppType>}.
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  std::shared_ptr<CppType>* GetSharedPtrPtr() const {
     auto destructor =
         reinterpret_cast<ManagedPtrDestructor*>(foreign_address());
     return reinterpret_cast<std::shared_ptr<CppType>*>(

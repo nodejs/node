@@ -49,13 +49,13 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
       return access_mode == AccessMode::kLoad &&
              map.object()->is_prototype_map();
     }
-    return !map.object()->has_named_interceptor() &&
+    return !map.has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasmObjectMap(*map.object())) {
-    DCHECK(!map.object()->has_named_interceptor());
+    DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
     // we can't express that in this helper function.
@@ -557,7 +557,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_value.AsHeapObject().IsJSFunction()) return {};
 
         SharedFunctionInfoRef sfi = trap_value.AsJSFunction().shared(broker());
-        Tagged<Object> trusted_data =
+        Tagged<Union<Smi, TrustedObject>> trusted_data =
             sfi.object()->GetTrustedData(broker()->local_isolate_or_isolate());
         Tagged<WasmExportedFunctionData> wasm_data;
         if (!TryCast(trusted_data, &wasm_data)) return {};
@@ -638,7 +638,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   DirectHandle<DescriptorArray> descriptors =
       map.instance_descriptors(broker()).object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
-  int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) {
     // The ICs collect feedback in PREMONOMORPHIC state already,
@@ -648,8 +647,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // here and fall back to use the regular IC logic instead.
     return Invalid();
   }
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
-                                                        details_representation);
+  FieldIndex field_index = FieldIndex::ForDetails(*map.object(), details);
   // Private brands are used when loading private methods, which are stored in a
   // BlockContext, an internal object.
   Type field_type = name.object()->IsPrivateBrand() ? Type::OtherInternal()
@@ -763,8 +761,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
             isolate, name.object(),
             Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {
-      // ES#sec-module-namespace-exotic-objects-set-p-v-receiver
-      // ES#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
       //
       // Storing to a module namespace object is always an error or a no-op in
       // JS.
@@ -1421,12 +1419,11 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // TODO(bmeurer): Handle transition to data constant?
   if (details.location() != PropertyLocation::kField) return Invalid();
 
-  int const index = details.field_index();
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) return Invalid();
 
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(
-      *transition_map.object(), index, details_representation);
+  FieldIndex field_index =
+      FieldIndex::ForDetails(*transition_map.object(), details);
   Type field_type = Type::NonInternal();
   OptionalMapRef field_map;
 

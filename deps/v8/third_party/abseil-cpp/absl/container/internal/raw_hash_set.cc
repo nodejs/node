@@ -62,14 +62,15 @@ namespace {
   assert((CONDITION) && "Try enabling sanitizers.")
 #endif
 
-[[noreturn]] ABSL_ATTRIBUTE_NOINLINE void HashTableSizeOverflow() {
-  ABSL_RAW_LOG(FATAL, "Hash table size overflow");
+void ValidateMaxSize([[maybe_unused]] size_t size,
+                     [[maybe_unused]] size_t key_size,
+                     [[maybe_unused]] size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(size <= MaxValidSize(key_size, slot_size));
 }
-
-void ValidateMaxSize(size_t size, size_t slot_size) {
-  if (IsAboveValidSize(size, slot_size)) {
-    HashTableSizeOverflow();
-  }
+void ValidateMaxCapacity(size_t capacity, size_t key_size, size_t slot_size) {
+  if (capacity <= 1) return;
+  ValidateMaxSize(CapacityToGrowth(PreviousCapacity(capacity)), key_size,
+                  slot_size);
 }
 
 // Returns "random" seed.
@@ -1681,7 +1682,7 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
 void ReserveEmptyNonAllocatedTableToFitNewSize(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_size) {
-  ValidateMaxSize(new_size, policy.slot_size);
+  ValidateMaxSize(new_size, policy.key_size, policy.slot_size);
   ABSL_ASSUME(new_size > 0);
   ResizeEmptyNonAllocatedTableImpl(common, policy, SizeToCapacity(new_size),
                                    /*force_infoz=*/false);
@@ -1700,7 +1701,7 @@ ABSL_ATTRIBUTE_NOINLINE void ReserveAllocatedTable(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_size) {
   const size_t cap = common.capacity();
-  ValidateMaxSize(new_size, policy.slot_size);
+  ValidateMaxSize(new_size, policy.key_size, policy.slot_size);
   ABSL_ASSUME(new_size > 0);
   const size_t new_capacity = SizeToCapacity(new_size);
   if (cap == policy.soo_capacity()) {
@@ -1747,7 +1748,7 @@ void ReserveEmptyNonAllocatedTableToFitBucketCount(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t bucket_count) {
   size_t new_capacity = NormalizeCapacity(bucket_count);
-  ValidateMaxSize(CapacityToGrowth(new_capacity), policy.slot_size);
+  ValidateMaxCapacity(new_capacity, policy.key_size, policy.slot_size);
   ResizeEmptyNonAllocatedTableImpl(common, policy, new_capacity,
                                    /*force_infoz=*/false);
 }
@@ -1864,11 +1865,11 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
     }
   }
 
-  ValidateMaxSize(n, policy.slot_size);
   // bitor is a faster way of doing `max` here. We will round up to the next
   // power-of-2-minus-1, so bitor is good enough.
   const size_t new_capacity =
       NormalizeCapacity(n | SizeToCapacity(common.size()));
+  ValidateMaxCapacity(new_capacity, policy.key_size, policy.slot_size);
   // n == 0 unconditionally rehashes as per the standard.
   if (n == 0 || new_capacity > cap) {
     if (cap == policy.soo_capacity()) {

@@ -106,23 +106,14 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
   // actual cost of pooled memory.
   size_t PooledMemory() const;
 
-  void ReleasePooledPages(PageAllocator& allocator);
+  std::vector<PageMemoryRegion*> TakeAll();
 
   auto& get_raw_pool_for_testing() { return pool_; }
 
  private:
   // The pool of pages that are not returned to the OS. Bounded by
   // `primary_pool_capacity_`.
-  struct PooledPageMemoryRegion {
-    explicit PooledPageMemoryRegion(PageMemoryRegion* region)
-        : region(region) {}
-    PageMemoryRegion* region;
-    // When a page enters the pool, it's from the heap, so it's neither
-    // decommitted nor discarded.
-    bool is_decommitted = false;
-    bool is_discarded = false;
-  };
-  std::vector<PooledPageMemoryRegion> pool_;
+  std::vector<PageMemoryRegion*> pool_;
 };
 
 // A backend that is used for allocating and freeing normal and large pages.

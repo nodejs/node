@@ -238,8 +238,6 @@ class WasmGraphBuilder {
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
 
-  TrapId GetTrapIdForTrap(wasm::TrapReason reason);
-
   Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 
   void Assert(Node* condition, AbortReason abort_reason);

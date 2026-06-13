@@ -1206,8 +1206,6 @@ using MaybeIndirectHandle = MaybeHandle<T>;
 class MaybeObjectHandle;
 class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
-template <typename T>
-class MaybeWeak;
 class MutablePage;
 class MessageLocation;
 class ModuleScope;
@@ -1267,12 +1265,22 @@ class TheHole;
 template <typename... Ts>
 class Union;
 class Variable;
+template <typename T>
+class Weak;
 namespace maglev {
 class MaglevAssembler;
 }
 namespace compiler {
 class AccessBuilder;
 }
+
+// MaybeWeak<T> represents a reference to T that may be either a strong or weak.
+template <typename T>
+using MaybeWeak = Union<T, Weak<T>>;
+
+// Zero is a special Smi value.
+// TODO(leszeks): Add a proper Zero type.
+using Zero = Smi;
 
 // Number is either a Smi or a HeapNumber.
 using Number = Union<Smi, HeapNumber>;
@@ -1301,7 +1309,7 @@ using JSAnyOrSharedFunctionInfo =
 // be any other primitive value.
 using JSPrototype = Union<JSReceiver, Null>;
 
-using MaybeObject = MaybeWeak<Object>;
+using MaybeObject = Union<Smi, HeapObject, Weak<HeapObject>>;
 using HeapObjectReference = MaybeWeak<HeapObject>;
 
 using JSObjectOrUndefined = Union<JSObject, Undefined>;
@@ -1671,7 +1679,8 @@ inline size_t hash_value(AllocationType kind) {
 
 inline constexpr bool IsSharedAllocationType(AllocationType kind) {
   return kind == AllocationType::kSharedOld ||
-         kind == AllocationType::kSharedMap;
+         kind == AllocationType::kSharedMap ||
+         kind == AllocationType::kSharedTrusted;
 }
 
 enum class RecordYoungSlot : bool {
@@ -1827,6 +1836,8 @@ enum class InlineCacheState {
   POLYMORPHIC,
   // Many DOM receiver types have been seen for the same accessor.
   MEGADOM,
+  // Many receiver types have been seen with the same handler.
+  HOMOMORPHIC,
   // Many receiver types have been seen.
   MEGAMORPHIC,
   // A generic handler is installed and no extra typefeedback is recorded.
@@ -1850,6 +1861,8 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "RECOMPUTE_HANDLER";
     case InlineCacheState::POLYMORPHIC:
       return "POLYMORPHIC";
+    case InlineCacheState::HOMOMORPHIC:
+      return "HOMOMORPHIC";
     case InlineCacheState::MEGAMORPHIC:
       return "MEGAMORPHIC";
     case InlineCacheState::MEGADOM:
@@ -1868,6 +1881,8 @@ enum ShouldThrow {
   kDontThrow = Internals::kDontThrow,
   kThrowOnError = Internals::kThrowOnError,
 };
+
+enum class InterceptorKind { kNamed, kIndexed };
 
 // The result that might be returned by Setter/Definer/Deleter interceptor
 // callback when it doesn't throw an exception.
@@ -2676,19 +2691,29 @@ enum class CachedTieringDecision : int32_t {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))
 
-#define TYPED_STRICTEQUAL_STUB_LIST(V) \
-  V(None)                              \
-  V(SignedSmall)                       \
-  V(Number)                            \
-  V(InternalizedString)                \
-  V(String)                            \
-  V(Symbol)                            \
-  V(Receiver)                          \
+#define TYPED_EQUAL_STUB_LIST(V) \
+  V(None)                        \
+  V(SignedSmall)                 \
+  V(Number)                      \
+  V(InternalizedString)          \
+  V(String)                      \
+  V(Receiver)                    \
   V(Any)
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V) \
+  TYPED_EQUAL_STUB_LIST(V)             \
+  V(Symbol)
+
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V) \
+  V(None)                                     \
+  V(SignedSmall)                              \
+  V(Number)
 #else
 #define IF_SPARKPLUG_PLUS(V, ...)
 
 #define TYPED_STRICTEQUAL_STUB_LIST(V)
+#define TYPED_EQUAL_STUB_LIST(V)
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V)
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {
@@ -2733,6 +2758,12 @@ inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
 }
 
+enum class SharedFlag : bool { kNo = false, kYes = true };
+
+inline std::ostream& operator<<(std::ostream& os, SharedFlag shared) {
+  return os << (shared == SharedFlag::kYes ? "shared" : "not shared");
+}
+
 // An architecture independent representation of the sets of registers available
 // for instruction creation.
 enum class AliasingKind {
@@ -2764,6 +2795,8 @@ enum class AliasingKind {
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
   V(TrapResume)                    \
+  V(TrapSuspend)                   \
+  V(TrapSwitch)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {
@@ -2955,7 +2988,7 @@ class int31_t {
 
 enum PropertiesEnumerationMode {
   // String and then Symbol properties according to the spec
-  // ES#sec-object.assign
+  // https://tc39.es/ecma262/#sec-object.assign
   kEnumerationOrder,
   // Order of property addition
   kPropertyAdditionOrder,
@@ -3018,7 +3051,9 @@ constexpr uint64_t kInvalidWasmSignatureHash = ~uint64_t{0};
 
 enum class CallJumpMode { kCall, kTailCall };
 
-constexpr int kPreallocatedNumberStringTableSize = 100;
+constexpr uint32_t kPreallocatedNumberStringTableSize = 100;
+
+enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 enum class SilenceNanMode {
   kSilenceUndefined,

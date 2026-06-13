@@ -93,6 +93,14 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANSeqCstStore32SaveFP)                                          \
   IF_TSAN(V, TSANSeqCstStore64IgnoreFP)                                        \
   IF_TSAN(V, TSANSeqCstStore64SaveFP)                                          \
+  IF_TSAN(V, TSANReleaseStore8IgnoreFP)                                        \
+  IF_TSAN(V, TSANReleaseStore8SaveFP)                                          \
+  IF_TSAN(V, TSANReleaseStore16IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore16SaveFP)                                         \
+  IF_TSAN(V, TSANReleaseStore32IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore32SaveFP)                                         \
+  IF_TSAN(V, TSANReleaseStore64IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore64SaveFP)                                         \
   IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedLoad32SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \
@@ -105,6 +113,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmAllocateDescriptorStruct)                                              \
   V(WasmAllocateSharedStructWithRtt)                                           \
+  V(WasmAllocateWaitQueue)                                                     \
+  V(WasmManagedObjectWait)                                                     \
   V(WasmConfigureAllPrototypesOpt)                                             \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
@@ -125,6 +135,7 @@ namespace v8::internal::wasm {
   V(WasmStringViewWtf16Slice)                                                  \
   V(WasmStringNewWtf8Array)                                                    \
   V(WasmStringNewWtf16Array)                                                   \
+  V(WasmStringNewWtf16ArrayShared)                                             \
   V(WasmStringEncodeWtf8Array)                                                 \
   V(WasmStringToUtf8Array)                                                     \
   V(WasmStringEncodeWtf16Array)                                                \
@@ -153,7 +164,9 @@ namespace v8::internal::wasm {
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(WasmFXResume)                                                              \
   V(WasmFXResumeThrow)                                                         \
+  V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
+  V(WasmFXSwitch)                                                              \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \

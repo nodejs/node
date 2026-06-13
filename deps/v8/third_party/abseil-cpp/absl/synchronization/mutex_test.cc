@@ -993,6 +993,20 @@ TEST(Mutex, FunctionPointerConditionWithConstMethod) {
   EXPECT_TRUE(absl::Condition(&chapman, &Constable::WotsAllThisThen).Eval());
 }
 
+#ifdef __cpp_explicit_this_parameter
+struct TrueViaDeducingThis {
+  template <class This, class... Args>
+  bool operator()(this const This&, Args...) {
+    return true;
+  }
+};
+
+TEST(Mutex, FunctorConditionDeducingThis) {
+  TrueViaDeducingThis f;
+  EXPECT_TRUE(absl::Condition(&f).Eval());
+}
+#endif
+
 struct True {
   template <class... Args>
   bool operator()(Args...) const {

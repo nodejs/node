@@ -62,6 +62,8 @@ data_marker!(
     HelloWorldV1,
     HelloWorld<'static>,
     has_checksum = true,
+    #[cfg(feature = "export")]
+    attributes_domain = "hello",
 );
 
 /// A data provider returning Hello World strings in different languages.
@@ -114,6 +116,8 @@ impl HelloWorldProvider {
         ("bn", "", "ওহে বিশ্ব"),
         ("cs", "", "Ahoj světe"),
         ("de", "", "Hallo Welt"),
+        ("de", "lowercase", "hallo welt"),
+        ("de", "uppercase", "HALLO WELT"),
         ("de-AT", "", "Servus Welt"),
         ("el", "", "Καλημέρα κόσμε"),
         ("en", "", "Hello World"),
@@ -129,7 +133,12 @@ impl HelloWorldProvider {
         ("en-GB", "", "Hello from 🇬🇧"),
         // ENGLAND
         ("en-GB-u-sd-gbeng", "", "Hello from 🏴󠁧󠁢󠁥󠁮󠁧󠁿"),
+        ("en", "lowercase", "hello world"),
         ("en", "reverse", "Olleh Dlrow"),
+        ("en", "rotate1", "dHello Worl"),
+        ("en", "rotate2", "ldHello Wor"),
+        ("en", "rotate3", "rldHello Wo"),
+        ("en", "uppercase", "HELLO WORLD"),
         ("eo", "", "Saluton, Mondo"),
         ("fa", "", "سلام دنیا‎"),
         ("fi", "", "hei maailma"),
@@ -155,7 +164,6 @@ impl HelloWorldProvider {
 
 impl DataProvider<HelloWorldV1> for HelloWorldProvider {
     fn load(&self, req: DataRequest) -> Result<DataResponse<HelloWorldV1>, DataError> {
-        #[allow(clippy::indexing_slicing)] // binary_search
         let data = Self::DATA
             .iter()
             .find(|(l, a, _)| {
@@ -224,7 +232,7 @@ impl DynamicDataProvider<BufferMarker> for HelloWorldJsonProvider {
                 buffer_format: Some(icu_provider::buf::BufferFormat::Json),
                 ..result.metadata
             },
-            #[allow(clippy::unwrap_used)] // HelloWorld::serialize is infallible
+            #[expect(clippy::unwrap_used)] // HelloWorld::serialize is infallible
             payload: DataPayload::from_owned_buffer(
                 serde_json::to_string(result.payload.get())
                     .unwrap()
@@ -236,8 +244,8 @@ impl DynamicDataProvider<BufferMarker> for HelloWorldJsonProvider {
 }
 
 impl IterableDataProvider<HelloWorldV1> for HelloWorldProvider {
-    fn iter_ids(&self) -> Result<BTreeSet<DataIdentifierCow>, DataError> {
-        #[allow(clippy::unwrap_used)] // hello-world
+    fn iter_ids(&self) -> Result<BTreeSet<DataIdentifierCow<'_>>, DataError> {
+        #[expect(clippy::unwrap_used)] // hello-world
         Ok(Self::DATA
             .iter()
             .map(|(l, a, _)| {
@@ -318,7 +326,7 @@ impl HelloWorldFormatter {
         let locale = HelloWorldV1::make_locale(prefs.locale_preferences);
         let data = provider
             .load(DataRequest {
-                id: crate::request::DataIdentifierBorrowed::for_locale(&locale),
+                id: DataIdentifierBorrowed::for_locale(&locale),
                 ..Default::default()
             })?
             .payload;
@@ -326,7 +334,6 @@ impl HelloWorldFormatter {
     }
 
     /// Formats a hello world message, returning a [`FormattedHelloWorld`].
-    #[allow(clippy::needless_lifetimes)] // documentary example
     pub fn format<'l>(&'l self) -> FormattedHelloWorld<'l> {
         FormattedHelloWorld {
             data: self.data.get(),
@@ -344,8 +351,8 @@ impl Writeable for FormattedHelloWorld<'_> {
         self.data.message.write_to(sink)
     }
 
-    fn write_to_string(&self) -> Cow<str> {
-        self.data.message.clone()
+    fn writeable_borrow(&self) -> Option<&str> {
+        self.data.message.writeable_borrow()
     }
 
     fn writeable_length_hint(&self) -> writeable::LengthHint {
@@ -361,42 +368,12 @@ fn test_iter() {
     use crate::IterableDataProvider;
     use icu_locale_core::locale;
 
-    assert_eq!(
-        HelloWorldProvider.iter_ids().unwrap(),
-        BTreeSet::from_iter([
-            DataIdentifierCow::from_locale(locale!("bn").into()),
-            DataIdentifierCow::from_locale(locale!("cs").into()),
-            DataIdentifierCow::from_locale(locale!("de").into()),
-            DataIdentifierCow::from_locale(locale!("de-AT").into()),
-            DataIdentifierCow::from_locale(locale!("el").into()),
-            DataIdentifierCow::from_locale(locale!("en").into()),
-            DataIdentifierCow::from_locale(locale!("en-001").into()),
-            DataIdentifierCow::from_locale(locale!("en-002").into()),
-            DataIdentifierCow::from_locale(locale!("en-019").into()),
-            DataIdentifierCow::from_locale(locale!("en-142").into()),
-            DataIdentifierCow::from_locale(locale!("en-GB").into()),
-            DataIdentifierCow::from_locale(locale!("en-GB-u-sd-gbeng").into()),
-            DataIdentifierCow::from_borrowed_and_owned(
-                DataMarkerAttributes::from_str_or_panic("reverse"),
-                locale!("en").into()
-            ),
-            DataIdentifierCow::from_locale(locale!("eo").into()),
-            DataIdentifierCow::from_locale(locale!("fa").into()),
-            DataIdentifierCow::from_locale(locale!("fi").into()),
-            DataIdentifierCow::from_locale(locale!("is").into()),
-            DataIdentifierCow::from_locale(locale!("ja").into()),
-            DataIdentifierCow::from_borrowed_and_owned(
-                DataMarkerAttributes::from_str_or_panic("reverse"),
-                locale!("ja").into()
-            ),
-            DataIdentifierCow::from_locale(locale!("la").into()),
-            DataIdentifierCow::from_locale(locale!("pt").into()),
-            DataIdentifierCow::from_locale(locale!("ro").into()),
-            DataIdentifierCow::from_locale(locale!("ru").into()),
-            DataIdentifierCow::from_locale(locale!("sr").into()),
-            DataIdentifierCow::from_locale(locale!("sr-Latn").into()),
-            DataIdentifierCow::from_locale(locale!("vi").into()),
-            DataIdentifierCow::from_locale(locale!("zh").into()),
-        ])
-    );
+    let ids = HelloWorldProvider.iter_ids().unwrap();
+
+    assert_eq!(ids.len(), HelloWorldProvider::DATA.len());
+
+    assert!(ids.contains(&DataIdentifierCow::from_borrowed_and_owned(
+        DataMarkerAttributes::from_str_or_panic("reverse"),
+        locale!("en").into()
+    )));
 }

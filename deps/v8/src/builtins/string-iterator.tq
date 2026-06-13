@@ -16,7 +16,7 @@ macro NewJSStringIterator(
   };
 }
 
-// ES6 #sec-string.prototype-@@iterator
+// https://tc39.es/ecma262/#sec-string.prototype-@@iterator
 transitioning javascript builtin StringPrototypeIterator(
     js-implicit context: NativeContext, receiver: JSAny)(): JSStringIterator {
   const name: String =
@@ -25,7 +25,7 @@ transitioning javascript builtin StringPrototypeIterator(
   return NewJSStringIterator(name, index);
 }
 
-// ES6 #sec-%stringiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-%stringiteratorprototype%.next
 transitioning javascript builtin StringIteratorPrototypeNext(
     js-implicit context: NativeContext, receiver: JSAny)(): JSObject {
   const iterator = Cast<JSStringIterator>(receiver) otherwise ThrowTypeError(

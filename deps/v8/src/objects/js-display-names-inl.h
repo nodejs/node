@@ -24,7 +24,6 @@ namespace internal {
 
 ACCESSORS(JSDisplayNames, internal, Tagged<Managed<DisplayNamesInternal>>,
           kInternalOffset)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisplayNames)
 
 inline void JSDisplayNames::set_style(Style style) {
   DCHECK(StyleBits::is_valid(style));

@@ -9,6 +9,7 @@ bitfield struct PrototypeInfoFlags extends uint31 {
 const kPrototypeInfoCachedHandlerCount: constexpr int31
     generates 'PrototypeInfo::kCachedHandlerCount';
 
+@cppObjectLayoutDefinition
 extern class PrototypeInfo extends Struct {
   // [module_namespace]: A backpointer to JSModuleNamespace from its
   // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace

@@ -156,7 +156,7 @@ macro TryFastPackedArrayReverse(implicit context: Context)(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.reverse
+// https://tc39.es/ecma262/#sec-array.prototype.reverse
 transitioning javascript builtin ArrayPrototypeReverse(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

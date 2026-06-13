@@ -14,15 +14,9 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-reducer-inl.h"
+#include "src/maglev/maglev-tracer.h"
 
 namespace v8::internal::maglev {
-
-#define TRACE(x)                                                               \
-  do {                                                                         \
-    if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) { \
-      StdoutStream() << x << std::endl;                                        \
-    }                                                                          \
-  } while (false)
 
 bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
                                            const MaglevCallSiteInfo* info2) {
@@ -56,22 +50,18 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
     }
   }
 
-  if (!has_heapnumber_input_output) {
-    TRACE("> Does not have heapnum in/out. Uses: "
-          << call_site->generic_call_node->use_repr_hints());
-    return false;
-  }
-
+  if (!has_heapnumber_input_output) return false;
   return call_site->bytecode_length <=
          flags_.max_inlined_bytecode_size_small_with_heapnum_in_out;
 }
 
 bool MaglevInliner::CanInlineCall() {
+  // We stop inlining entirely if the small budget is exhausted.
+  // Inlining decisions after that become bad if we stop inlining small
+  // functions, but keep inlining large ones.
   return !graph_->inlineable_calls().empty() &&
-         (graph_->total_inlined_bytecode_size() <
-              flags_.max_inlined_bytecode_size_cumulative ||
-          graph_->total_inlined_bytecode_size_small() <
-              flags_.max_inlined_bytecode_size_small_total);
+         graph_->total_inlined_bytecode_size_small() <
+             flags_.max_inlined_bytecode_size_small_total;
 }
 
 bool MaglevInliner::InlineCallSites() {
@@ -79,38 +69,44 @@ bool MaglevInliner::InlineCallSites() {
   while (!graph_->inlineable_calls().empty()) {
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
 
-    TRACE("Considering for inlining "
-          << graph_->graph_labeller()->NodeId(call_site->generic_call_node)
-          << " : " << call_site->generic_call_node->shared_function_info()
-          << " score:" << call_site->score);
+    compiler::SharedFunctionInfoRef shared =
+        call_site->generic_call_node->shared_function_info();
+    TRACE_INLINING(TraceTry(shared)
+                   << "Score: " << std::right << std::setw(6) << std::fixed
+                   << std::setprecision(2) << call_site->score << ", Node: n"
+                   << graph_->graph_labeller()->NodeId(
+                          call_site->generic_call_node));
 
+    bool main_exhausted = graph_->total_inlined_bytecode_size() >
+                          flags_.max_inlined_bytecode_size_cumulative;
+    bool small_exhausted = graph_->total_inlined_bytecode_size_small() >
+                           flags_.max_inlined_bytecode_size_small_total;
     bool is_small_with_heapnum_input_outputs =
         IsSmallWithHeapNumberInputsOutputs(call_site);
 
-    if (graph_->total_inlined_bytecode_size() >
-        flags_.max_inlined_bytecode_size_cumulative) {
-      TRACE("> Main budget exhausted ("
-            << graph_->total_inlined_bytecode_size() << " > "
-            << flags_.max_inlined_bytecode_size_cumulative << ")");
-      // We ran out of budget. Checking if this is a small-ish function that we
-      // can still inline.
-      if (graph_->total_inlined_bytecode_size_small() >
-          flags_.max_inlined_bytecode_size_small_total) {
-        graph_->compilation_info()->set_could_not_inline_all_candidates();
-        TRACE(">> Small budget exhausted ("
-              << graph_->total_inlined_bytecode_size_small() << " > "
-              << flags_.max_inlined_bytecode_size_small_total
-              << "), stopping.");
-        break;
-      }
+    if (small_exhausted) {
+      // We stop inlining entirely if the small budget is exhausted.
+      // Inlining decisions after that become bad if we stop inlining small
+      // functions, but keep inlining large ones.
+      graph_->compilation_info()->set_could_not_inline_all_candidates();
+      TRACE_INLINING(TraceIdent{}
+                     << TraceColor::kRed << "Small budget exhausted ("
+                     << graph_->total_inlined_bytecode_size_small() << " > "
+                     << flags_.max_inlined_bytecode_size_small_total << ")"
+                     << TraceColor::kReset);
+      TRACE_INLINING(TraceSkip(shared));
+      break;
+    }
 
-      if (!is_small_with_heapnum_input_outputs) {
-        graph_->compilation_info()->set_could_not_inline_all_candidates();
-        // Not that we don't break just rather just continue: next candidates
-        // might be inlineable.
-        TRACE(">> !is_small_with_heapnum_input_outputs, skipping");
-        continue;
-      }
+    if (!is_small_with_heapnum_input_outputs && main_exhausted) {
+      graph_->compilation_info()->set_could_not_inline_all_candidates();
+      TRACE_INLINING(TraceIdent{}
+                     << TraceColor::kRed << "Main budget exhausted ("
+                     << graph_->total_inlined_bytecode_size() << " > "
+                     << flags_.max_inlined_bytecode_size_cumulative << ")"
+                     << TraceColor::kReset);
+      TRACE_INLINING(TraceSkip(shared));
+      continue;
     }
 
     InliningResult result =
@@ -191,12 +187,12 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   if (!call_block || call_block->is_dead()) {
     // The block containing the call is unreachable, and it was previously
     // removed. Do not try to inline the call.
+    TRACE_INLINING(TraceSkip(shared)
+                   << "The block containing the call is unreachable.");
     return InliningResult::kFail;
   }
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) {
-    std::cout << "  non-eager inlining " << shared << std::endl;
-  }
+  TRACE_INLINING(TraceInline(shared));
 
   // Check if the catch block might become unreachable, ie, the call is the
   // only instance of a throwable node in this block to the same catch block.
@@ -244,7 +240,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // TODO(victorgomes): Check if we should maintain this. We could also clear
   // unstable maps here.
   call_site->caller_details.known_node_aspects
-      ->MarkAnyMapForAnyNodeIsUnstable();
+      ->MarkSideEffectsRequireInvalidation();
 
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
@@ -281,6 +277,39 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       call_node->TargetInput().node()->Unwrap(),
       call_node->NewTargetInput().node()->Unwrap());
 
+  // Budget accounting. We distinguish between small and regular function
+  // inlining budgets, where the small budget is
+  // essentially unlimited, while resources in the regular budget are scarce.
+  //
+  // Functions are "small" depending on their bytecode length
+  // (`is_small`); additionally, they may be "small" if the generated graph
+  // contains few nodes (`is_small_graph`).
+  //
+  // Note that `is_small_graph` may disagree with `is_small`, and thus
+  // accounting may use a different budget than the entry checks (ie whether
+  // the function should be inlined). These discrepancies are okay - the intent
+  // is that `is_small_graph` functions do not consume scarce regular budget
+  // resources.
+  const int generated_node_count = graph_->total_nodes() - start_node_count;
+  CHECK_GE(generated_node_count, 0);
+  const int bytecode_length = call_site->bytecode_length;
+  const bool is_small_graph =
+      generated_node_count <= v8_flags.maglev_max_small_graph_size;
+  if (is_small || is_small_graph) {
+    caller_details->is_small_function = true;
+    graph_->add_inlined_bytecode_size_small(bytecode_length);
+    TRACE_INLINING(TraceIdent{} << "Generated " << generated_node_count
+                                << " nodes. small_budget += " << bytecode_length
+                                << " ~~> "
+                                << graph_->total_inlined_bytecode_size_small());
+  } else {
+    graph_->add_inlined_bytecode_size(bytecode_length);
+    TRACE_INLINING(TraceIdent{}
+                   << "Generated " << generated_node_count
+                   << " nodes. regular_budget += " << bytecode_length << " ~~> "
+                   << graph_->total_inlined_bytecode_size());
+  }
+
   if (result.IsDoneWithAbort()) {
     if (inner_graph_builder.should_abort_compilation()) {
       return InliningResult::kAbort;
@@ -315,36 +344,6 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   DCHECK_NOT_NULL(final_block);
   final_block->exception_handlers().Append(
       std::move(rem_handlers_in_call_block));
-
-  // Budget accounting. We distinguish between small and regular function
-  // inlining budgets, where the small budget is
-  // essentially unlimited, while resources in the regular budget are scarce.
-  //
-  // Functions are "small" depending on their bytecode length
-  // (`is_small`); additionally, they may be "small" if the generated graph
-  // contains few nodes (`is_small_graph`).
-  //
-  // Note that `is_small_graph` may disagree with `is_small`, and thus
-  // accounting may use a different budget than the entry checks (ie whether
-  // the function should be inlined). These discrepancies are okay - the intent
-  // is that `is_small_graph` functions do not consume scarce regular budget
-  // resources.
-  const int generated_node_count = graph_->total_nodes() - start_node_count;
-  const int bytecode_length = call_site->bytecode_length;
-  const bool is_small_graph =
-      generated_node_count <= v8_flags.maglev_max_small_graph_size;
-  if (is_small || is_small_graph) {
-    caller_details->is_small_function = true;
-    graph_->add_inlined_bytecode_size_small(bytecode_length);
-    TRACE("> generated " << generated_node_count << " nodes. small_budget += "
-                         << bytecode_length << " ~~> "
-                         << graph_->total_inlined_bytecode_size_small());
-  } else {
-    graph_->add_inlined_bytecode_size(bytecode_length);
-    TRACE("> generated " << generated_node_count
-                         << " nodes. regular_budget += " << bytecode_length
-                         << " ~~> " << graph_->total_inlined_bytecode_size());
-  }
 
   // Update the predecessor of the successors of the {final_block}, that were
   // previously pointing to {call_block}.

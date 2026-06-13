@@ -74,6 +74,15 @@ namespace turboshaft {
 // in the linked list, setting all of their `hash` field to 0 (we prevent hashes
 // from being equal to 0, in order to detect empty entries: their hash is 0).
 
+#ifdef DEBUG
+#define TRACE(x)                                                           \
+  do {                                                                     \
+    if ((v8_flags.turboshaft_trace_gvn)) StdoutStream() << x << std::endl; \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
 template <class Next>
 class TypeInferenceReducer;
 
@@ -146,9 +155,13 @@ class ValueNumberingReducer : public Next {
     OpIndex next_index = Asm().output_graph().next_operation_index(); \
     USE(next_index);                                                  \
     OpIndex result = Next::Reduce##Name(args...);                     \
+    TRACE("GVN on " << result.id() << " type=" << #Name);             \
     UpdateEpoch<Name##Op>(next_index);                                \
     if (ShouldSkipOptimizationStep()) return result;                  \
-    if constexpr (!CanBeGVNed<Name##Op>()) return result;             \
+    if constexpr (!CanBeGVNed<Name##Op>()) {                          \
+      TRACE("> Operation incompatible with GVN.");                    \
+      return result;                                                  \
+    }                                                                 \
     DCHECK_EQ(next_index, result);                                    \
     return AddOrFind<Name##Op>(result);                               \
   }
@@ -163,11 +176,13 @@ class ValueNumberingReducer : public Next {
     }
     if (std::optional<OpEffects> effects = Op::EffectsIfStatic()) {
       if (effects.value().can_write()) {
+        TRACE("> incrementing epoch");
         current_epoch_++;
       }
     } else {
       const Op& op = Asm().Get(idx).template Cast<Op>();
       if (op.Effects().can_write()) {
+        TRACE("> incrementing epoch");
         current_epoch_++;
       }
     }
@@ -179,6 +194,19 @@ class ValueNumberingReducer : public Next {
     ResetToBlock(block);
     dominator_path_.push_back(block);
     depths_heads_.push_back(nullptr);
+
+#ifdef DEBUG
+    if ((v8_flags.turboshaft_trace_gvn)) {
+      TRACE("\nCurrently in GVN table: ");
+      for (size_t i = 0; i < table_.size(); i++) {
+        Entry& entry = table_[i];
+        if (!entry.IsEmpty()) {
+          TRACE(" - " << entry.value << " epoch=" << entry.epoch);
+        }
+      }
+      TRACE("");
+    }
+#endif
   }
 
   void RecordOldEpochAndSetNew(Block* block) {
@@ -278,6 +306,7 @@ class ValueNumberingReducer : public Next {
       // GVNing DeoptimizeIf is safe, despite the fact that it has the CanDeopt
       // property, which implies CanLeaveCurrentFunction, which is generally not
       // safe to GVN.
+      TRACE("> Effects or Opcode don't allow GVNing. Effects:" << op.Effects());
       return op_idx;
     }
     RehashIfNeeded();
@@ -286,6 +315,8 @@ class ValueNumberingReducer : public Next {
     Entry* entry = Find(op, &hash);
     if (entry->IsEmpty()) {
       // {op} is not present in the state, inserting it.
+      TRACE("> Could not GVN, but recording into table. epoch="
+            << current_epoch_);
       *entry = Entry{op_idx, Asm().current_block()->index(), hash,
                      depths_heads_.back(), current_epoch_};
       depths_heads_.back() = entry;
@@ -294,6 +325,7 @@ class ValueNumberingReducer : public Next {
     } else {
       // {op} is already present, removing it from the graph and returning the
       // previous one.
+      TRACE("> Will GVN!");
       Next::RemoveLast(op_idx);
       return entry->value;
     }
@@ -319,6 +351,7 @@ class ValueNumberingReducer : public Next {
       if (entry.IsEmpty()) {
         // We didn't find {op} in {table_}. Returning where it could be
         // inserted.
+        TRACE("> Found empty entry ==> won't GVN.");
         if (hash_ret) *hash_ret = hash;
         return &entry;
       }
@@ -329,7 +362,10 @@ class ValueNumberingReducer : public Next {
              entry.block == Asm().current_block()->index()) &&
             (!needs_epoch_check || (current_epoch_ == entry.epoch)) &&
             entry_op.Cast<Op>().EqualsForGVN(op)) {
+          TRACE("> Found! Will GVN.");
           return &entry;
+        } else {
+          TRACE("> Colliding entry: " << entry.value << "=" << entry_op);
         }
       }
       // Making sure that we don't have an infinite loop.
@@ -449,5 +485,7 @@ class ValueNumberingReducer : public Next {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE
 
 #endif  // V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_

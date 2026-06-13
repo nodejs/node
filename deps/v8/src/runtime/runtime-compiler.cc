@@ -49,19 +49,89 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
-Builtin GetTypedBinaryOpBuiltin(CompareOperationFeedback::Type hint) noexcept {
-  Builtin target_builtin = Builtin::kIllegal;
-  switch (hint) {
-#define TYPED_STRICTEQUAL_CASE(type)                          \
-  case CompareOperationFeedback::Type::k##type:               \
-    target_builtin = Builtin::kStrictEqual_##type##_Baseline; \
+Builtin GetTypedBinaryOpBuiltin(int hint, Builtin current_builtin) noexcept {
+  Builtin target_builtin = Builtin::kNoBuiltinId;
+
+#define TYPED_BINARY_OP_CASE(hint_type, op_type, hint_value)        \
+  case static_cast<int>(hint_type::Type::k##hint_value):            \
+    target_builtin = Builtin::k##op_type##_##hint_value##_Baseline; \
     break;
-    TYPED_STRICTEQUAL_STUB_LIST(TYPED_STRICTEQUAL_CASE)
-#undef TYPED_STRICTEQUAL_CASE
-    default:
-      target_builtin = Builtin::kStrictEqual_Generic_Baseline;
-  }
+#define TYPED_STRICTEQUAL_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, StrictEqual, hint_value)
+#define TYPED_EQUAL_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, Equal, hint_value)
+#define TYPED_LESSTHAN_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, LessThan, hint_value)
+#define TYPED_GREATERTHAN_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, GreaterThan, hint_value)
+#define TYPED_LESSTHANOREQUAL_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, LessThanOrEqual, hint_value)
+#define TYPED_GREATERTHANOREQUAL_CASE(hint_value) \
+  TYPED_BINARY_OP_CASE(CompareOperationFeedback, GreaterThanOrEqual, hint_value)
+
+#define TYPED_BINARY_OP_SWITCH(type_list_name, op_name, op_type)         \
+  if (IsTyped##op_type##Builtin(current_builtin)) {                      \
+    switch (hint) {                                                      \
+      TYPED_##type_list_name##_STUB_LIST(TYPED_##op_name##_CASE) default \
+          : target_builtin = Builtin::k##op_type##_Generic_Baseline;     \
+      break;                                                             \
+    }                                                                    \
+  } else
+
+#define TYPED_BINARY_OP_LIST(V)                           \
+  V(STRICTEQUAL, STRICTEQUAL, StrictEqual)                \
+  V(EQUAL, EQUAL, Equal)                                  \
+  V(RELATIONAL_COMPARE, LESSTHAN, LessThan)               \
+  V(RELATIONAL_COMPARE, GREATERTHAN, GreaterThan)         \
+  V(RELATIONAL_COMPARE, LESSTHANOREQUAL, LessThanOrEqual) \
+  V(RELATIONAL_COMPARE, GREATERTHANOREQUAL, GreaterThanOrEqual)
+
+  TYPED_BINARY_OP_LIST(TYPED_BINARY_OP_SWITCH)
+  /* else */ {}
+
   return target_builtin;
+#undef TYPED_BINARY_OP_LIST
+#undef TYPED_BINARY_OP_SWITCH
+#undef TYPED_GREATERTHANOREQUAL_CASE
+#undef TYPED_LESSTHANOREQUAL_CASE
+#undef TYPED_GREATERTHAN_CASE
+#undef TYPED_LESSTHAN_CASE
+#undef TYPED_EQUAL_CASE
+#undef TYPED_STRICTEQUAL_CASE
+#undef TYPED_BINARY_OP_CASE
+}
+
+V8_INLINE void UpdateEmbeddedFeedback(Tagged<BytecodeArray> bytecode_array,
+                                      int feedback_offset,
+                                      int current_feedback) {
+  feedback_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+  bytecode_array->set(feedback_offset, static_cast<uint8_t>(current_feedback));
+  bytecode_array->set(feedback_offset + 1,
+                      (static_cast<uint8_t>(current_feedback >> 8)));
+}
+
+V8_INLINE void TryPatchBaselineCode(Isolate* isolate, int current_feedback) {
+  DisallowGarbageCollection no_gc;
+  const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
+  Address* pc_address =
+      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
+  Address pc =
+      StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
+  Address current = Assembler::target_address_at(pc, kNullAddress);
+  // TODO(chromium:429351411): Consider using a cache.
+  Builtin current_builtin =
+      OffHeapInstructionStream::TryLookupCode(isolate, current);
+  Builtin target_builtin =
+      GetTypedBinaryOpBuiltin(current_feedback, current_builtin);
+
+  if (target_builtin != Builtin::kNoBuiltinId) {
+    Address target = Builtins::EntryOf(target_builtin, isolate);
+    WritableJitAllocation jit_allocation =
+        WritableJitAllocation::ForPatchableBaselineJIT(
+            pc, Assembler::kCallTargetAddressOffset);
+    Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
+                                     FLUSH_ICACHE_IF_NEEDED);
+  }
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 }  // namespace
@@ -803,42 +873,32 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
-RUNTIME_FUNCTION(Runtime_MaybePatchBinaryBaselineCode) {
+RUNTIME_FUNCTION(Runtime_PatchBaselineCode) {
   HandleScope scope(isolate);
   CHECK(v8_flags.sparkplug_plus);
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Boolean> compare_result = args.at<Boolean>(1);
-  if (!isolate->is_short_builtin_calls_enabled()) return *compare_result;
   int current_feedback = args.smi_value_at(0);
-  auto hint = static_cast<CompareOperationFeedback::Type>(current_feedback);
-
-  // update embedded feedback
-  Tagged<BytecodeArray> bytecode_array = TrustedCast<BytecodeArray>(args[2]);
-  int feedback_offset = static_cast<int>(args.number_value_at(3)) -
-                        BytecodeArray::kHeaderSize + kHeapObjectTag;
-  bytecode_array->set(feedback_offset, static_cast<uint8_t>(current_feedback));
-  bytecode_array->set(feedback_offset + 1,
-                      (static_cast<uint8_t>(current_feedback >> 8)));
-
-  DisallowGarbageCollection no_gc;
-  const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
-  Address* pc_address =
-      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-  Address pc =
-      StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
-
-  Builtin target_builtin = GetTypedBinaryOpBuiltin(hint);
-
-  if (target_builtin != Builtin::kIllegal) {
-    Address target = Builtins::EntryOf(target_builtin, isolate);
-    WritableJitAllocation jit_allocation =
-        WritableJitAllocation::ForPatchableBaselineJIT(
-            pc, Assembler::kCallTargetAddressOffset);
-    Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
-                                     FLUSH_ICACHE_IF_NEEDED);
-  }
+  UpdateEmbeddedFeedback(TrustedCast<BytecodeArray>(args[2]),
+                         static_cast<int>(args.number_value_at(3)),
+                         current_feedback);
+  TryPatchBaselineCode(isolate, current_feedback);
   return *compare_result;
+}
+
+RUNTIME_FUNCTION(Runtime_PatchBaselineCodeAndThrow) {
+  HandleScope scope(isolate);
+  CHECK(v8_flags.sparkplug_plus);
+  DCHECK_EQ(4, args.length());
+
+  DirectHandle<Object> exception = args.at<Object>(1);
+  int current_feedback = args.smi_value_at(0);
+  UpdateEmbeddedFeedback(TrustedCast<BytecodeArray>(args[2]),
+                         static_cast<int>(args.number_value_at(3)),
+                         current_feedback);
+  TryPatchBaselineCode(isolate, current_feedback);
+  return isolate->ReThrow(*exception);
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 

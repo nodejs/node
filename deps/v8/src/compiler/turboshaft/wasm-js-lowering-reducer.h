@@ -28,14 +28,26 @@ class WasmJSLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmJSLowering)
 
+  V<None> REDUCE(WasmTrap)(OptionalV<FrameState> frame_state, TrapId trap_id) {
+    LowerWasmTrap(frame_state, trap_id);
+    return V<None>::Invalid();
+  }
+
   V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
                          bool negated, TrapId trap_id) {
-    // All TrapIf nodes in JS need to have a FrameState.
+    V<Word32> should_trap = negated ? __ Word32Equal(condition, 0) : condition;
+    IF (UNLIKELY(should_trap)) {
+      LowerWasmTrap(frame_state, trap_id);
+    }
+
+    return V<None>::Invalid();
+  }
+
+ private:
+  void LowerWasmTrap(OptionalV<FrameState> frame_state, TrapId trap_id) {
+    // All WasmTrap nodes in JS need to have a FrameState.
     DCHECK(frame_state.valid());
     Builtin trap = static_cast<Builtin>(trap_id);
-    // The call is not marked as Operator::kNoDeopt. While it cannot actually
-    // deopt, deopt info based on the provided FrameState is required for stack
-    // trace creation of the wasm trap.
     const bool needs_frame_state = true;
     const CallDescriptor* tf_descriptor = GetBuiltinCallDescriptor(
         trap, Asm().graph_zone(), StubCallMode::kCallBuiltinPointer,
@@ -46,17 +58,11 @@ class WasmJSLoweringReducer : public Next {
 
     V<FrameState> new_frame_state =
         CreateFrameStateWithUpdatedBailoutId(frame_state.value());
-    V<Word32> should_trap = negated ? __ Word32Equal(condition, 0) : condition;
-    IF (UNLIKELY(should_trap)) {
-      OpIndex call_target = __ NumberConstant(static_cast<int>(trap));
-      __ Call(call_target, new_frame_state, {}, ts_descriptor);
-      __ Unreachable();  // The trap builtin never returns.
-    }
-
-    return V<None>::Invalid();
+    OpIndex call_target = __ NumberConstant(static_cast<int>(trap));
+    __ Call(call_target, new_frame_state, {}, ts_descriptor);
+    __ Unreachable();  // The trap builtin never returns.
   }
 
- private:
   OpIndex CreateFrameStateWithUpdatedBailoutId(V<FrameState> frame_state) {
     // Create new FrameState with the correct source position (the position of
     // the trap location).

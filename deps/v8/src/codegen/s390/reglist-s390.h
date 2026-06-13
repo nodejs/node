@@ -13,8 +13,10 @@ namespace internal {
 
 using RegList = RegListBase<Register>;
 using DoubleRegList = RegListBase<DoubleRegister>;
+using Simd128RegList = RegListBase<Simd128Register>;
 ASSERT_TRIVIALLY_COPYABLE(RegList);
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegList);
+ASSERT_TRIVIALLY_COPYABLE(Simd128RegList);
 
 // Register list in load/store instructions
 // Note that the bit values must match those used in actual instruction encoding

@@ -57,6 +57,31 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
+#ifdef V8_TEMPORAL_SUPPORT
+#define NATIVE_CONTEXT_FIELDS_TEMPORAL(V)                                      \
+  V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
+    temporal_duration_function)                                                \
+  V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
+  V(JS_TEMPORAL_PLAIN_DATE_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_date_function)                                              \
+  V(JS_TEMPORAL_PLAIN_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_date_time_function)                                         \
+  V(JS_TEMPORAL_PLAIN_MONTH_DAY_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_month_day_function)                                         \
+  V(JS_TEMPORAL_PLAIN_TIME_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_time_function)                                              \
+  V(JS_TEMPORAL_PLAIN_YEAR_MONTH_FUNCTION_INDEX, JSFunction,                   \
+    temporal_plain_year_month_function)                                        \
+  V(JS_TEMPORAL_TIME_ZONE_FUNCTION_INDEX, JSFunction,                          \
+    temporal_time_zone_function)                                               \
+  V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_zoned_date_time_function)                                         \
+  V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)
+
+#else
+#define NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
+#endif  // V8_TEMPORAL_SUPPORT
+
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
   /* TODO(ishell): Actually we store exactly EmbedderDataArray here but */     \
@@ -209,6 +234,7 @@ enum ContextLookupFlags {
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
   V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
   V(ITERATOR_CONCAT_HELPER_MAP_INDEX, Map, iterator_concat_helper_map)         \
+  V(ITERATOR_ZIP_HELPER_MAP_INDEX, Map, iterator_zip_helper_map)               \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -241,27 +267,9 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
-  V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
-    temporal_duration_function)                                                \
-  V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
-  V(JS_TEMPORAL_PLAIN_DATE_FUNCTION_INDEX, JSFunction,                         \
-    temporal_plain_date_function)                                              \
-  V(JS_TEMPORAL_PLAIN_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
-    temporal_plain_date_time_function)                                         \
-  V(JS_TEMPORAL_PLAIN_MONTH_DAY_FUNCTION_INDEX, JSFunction,                    \
-    temporal_plain_month_day_function)                                         \
-  V(JS_TEMPORAL_PLAIN_TIME_FUNCTION_INDEX, JSFunction,                         \
-    temporal_plain_time_function)                                              \
-  V(JS_TEMPORAL_PLAIN_YEAR_MONTH_FUNCTION_INDEX, JSFunction,                   \
-    temporal_plain_year_month_function)                                        \
-  V(JS_TEMPORAL_TIME_ZONE_FUNCTION_INDEX, JSFunction,                          \
-    temporal_time_zone_function)                                               \
-  V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
-    temporal_zoned_date_time_function)                                         \
   V(JSON_OBJECT, JSObject, json_object)                                        \
   V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
     promise_withresolvers_result_map)                                          \
-  V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)                        \
   /* Context maps */                                                           \
   V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -433,7 +441,8 @@ enum ContextLookupFlags {
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
   V(RETAINED_MAPS, Object, retained_maps)                                      \
   V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
-    shared_space_js_object_has_instance)
+    shared_space_js_object_has_instance)                                       \
+  NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
@@ -861,7 +870,7 @@ class ScriptContextTable
   using Shape = ScriptContextTableShape;
 
   static Handle<ScriptContextTable> New(
-      Isolate* isolate, int capacity,
+      Isolate* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung);
 
   inline int length(AcquireLoadTag) const;

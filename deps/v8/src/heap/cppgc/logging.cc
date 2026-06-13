@@ -11,17 +11,14 @@ namespace cppgc {
 namespace internal {
 
 void DCheckImpl(const char* message, SourceLocation loc) {
-  V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message);
+  V8_Dcheck(V8_LOG_ARGS_LOC(loc, message));
 }
 
 void FatalImpl(const char* message, SourceLocation loc) {
-#if DEBUG
-  V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()), "Check failed: %s.",
-           message);
-#elif !defined(OFFICIAL_BUILD)
-  V8_Fatal("Check failed: %s.", message);
+#if V8_LOGGING_LEVEL == 0
+  FATAL("ignored");
 #else
-  V8_Fatal("ignored");
+  FATAL_WITH_LOC(loc, "Check failed: %s.", message);
 #endif
 }
 

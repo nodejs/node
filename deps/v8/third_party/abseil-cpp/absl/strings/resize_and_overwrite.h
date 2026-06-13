@@ -53,9 +53,9 @@
 
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 
 #if defined(__cpp_lib_string_resize_and_overwrite) && \
     __cpp_lib_string_resize_and_overwrite >= 202110L
@@ -124,7 +124,7 @@ struct has_Resize_and_overwrite<
 template <typename T, typename Op>
 void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   if (ABSL_PREDICT_FALSE(n > str.max_size())) {
-    absl::base_internal::ThrowStdLengthError("absl::StringResizeAndOverwrite");
+    ThrowStdLengthError("absl::StringResizeAndOverwrite");
   }
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   auto old_size = str.size();
