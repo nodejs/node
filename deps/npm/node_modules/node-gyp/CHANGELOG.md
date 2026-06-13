@@ -1,5 +1,24 @@
 # Changelog
 
+## [12.4.0](https://github.com/nodejs/node-gyp/compare/v12.3.0...v12.4.0) (2026-05-15)
+
+
+### Features
+
+* update gyp-next to v0.22.2 ([#3316](https://github.com/nodejs/node-gyp/issues/3316)) ([8ea71e5](https://github.com/nodejs/node-gyp/commit/8ea71e5a0d5577f8f780df7597fa1f94089e1be4))
+
+
+### Bug Fixes
+
+* retry downloads on retryable errors ([#3308](https://github.com/nodejs/node-gyp/issues/3308)) ([0793489](https://github.com/nodejs/node-gyp/commit/0793489b961c2cbf6c6b2182d968d0c262c3b573))
+* stop testing end-of-life Node.js v20 ([#3315](https://github.com/nodejs/node-gyp/issues/3315)) ([5c0ec47](https://github.com/nodejs/node-gyp/commit/5c0ec47797a18d3e65f0c4c83e5812289191cfe1))
+* test on Node.js v26 ([#3314](https://github.com/nodejs/node-gyp/issues/3314)) ([0e65639](https://github.com/nodejs/node-gyp/commit/0e65639baa8b64b5fecec3820a4f07dc7c4a42ad))
+
+
+### Miscellaneous
+
+* add workflow_dispatch trigger to tests workflow ([#3299](https://github.com/nodejs/node-gyp/issues/3299)) ([b2fcdcd](https://github.com/nodejs/node-gyp/commit/b2fcdcdd6aebdf0ab6d7d296fcabccf188883e01))
+
 ## [12.3.0](https://github.com/nodejs/node-gyp/compare/v12.2.0...v12.3.0) (2026-04-21)
 
 

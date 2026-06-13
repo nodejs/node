@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-approve-scripts----11160">
+<h1 id="----npm-approve-scripts----11170">
     <span>npm-approve-scripts</span>
-    <span class="version">@11.16.0</span>
+    <span class="version">@11.17.0</span>
 </h1>
 <span class="description">Approve install scripts for specific dependencies</span>
 </header>
@@ -212,6 +212,13 @@ sources). This command is the recommended way to maintain that field.</p>
 <p>In the current release, this field is advisory: install scripts still run
 by default, but installs print a list of packages whose scripts have not
 been reviewed. A future release will block unreviewed install scripts.</p>
+<p>This command only works inside a project that has a <code>package.json</code>. Running
+it with <code>--global</code> (<code>-g</code>) fails with an <code>EGLOBAL</code> error, since global
+installs (<code>npm install -g</code>) and one-off executions (<code>npm exec</code> / <code>npx</code>) have
+no project <code>package.json</code> to write to. To allow install scripts in those
+contexts, use the <code>--allow-scripts</code> flag at install time (for example
+<code>npm install -g --allow-scripts=canvas,sharp</code>) or persist the setting with
+<code>npm config set allow-scripts=canvas,sharp --location=user</code>.</p>
 <p>There are three modes:</p>
 <pre><code class="language-bash">npm approve-scripts &lt;pkg&gt; [&lt;pkg&gt; ...]
 npm approve-scripts --all
@@ -250,9 +257,10 @@ npm approve-scripts --allow-scripts-pending
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.</p>
+<p>Show or act on all packages, not just the ones your project directly depends
+on. For <code>npm outdated</code> and <code>npm ls</code> this lists every outdated or installed
+package. For <code>npm approve-scripts</code> and <code>npm deny-scripts</code> it selects every
+package with pending install scripts.</p>
 <h4 id="allow-scripts-pending"><code>allow-scripts-pending</code></h4>
 <ul>
 <li>Default: false</li>

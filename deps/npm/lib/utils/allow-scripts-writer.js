@@ -1,6 +1,9 @@
 const npa = require('npm-package-arg')
 const { log } = require('proc-log')
-const { getTrustedRegistryIdentity } = require('@npmcli/arborist/lib/script-allowed.js')
+const {
+  getTrustedRegistryIdentity,
+  resolvedSourceSpecs,
+} = require('@npmcli/arborist/lib/script-allowed.js')
 
 // Pure helpers that implement the RFC's pin-mismatch table for
 // `npm approve-scripts` and `npm deny-scripts`.
@@ -12,6 +15,8 @@ const { getTrustedRegistryIdentity } = require('@npmcli/arborist/lib/script-allo
 // Denying always writes `"<name>": false`, regardless of `--allow-scripts-pin`, per the
 // RFC's asymmetric-pin rule.
 
+const primaryResolvedSource = (node) => resolvedSourceSpecs(node)[0] || ''
+
 // Convert an arborist Node into the spec string used for a versioned policy
 // entry. Returns `null` if the node cannot be represented as a versioned key
 // derived from trusted sources (lockfile URL for registry, hosted shortcut
@@ -21,8 +26,7 @@ const versionedKeyFor = (node) => {
   if (!node) {
     return null
   }
-  /* istanbul ignore next: callers guarantee a string resolved */
-  const resolved = typeof node.resolved === 'string' ? node.resolved : ''
+  const resolved = primaryResolvedSource(node)
   if (resolved.startsWith('git')) {
     try {
       const parsed = npa(resolved)
@@ -69,8 +73,7 @@ const nameKeyFor = (node) => {
   if (!node) {
     return null
   }
-  /* istanbul ignore next: callers guarantee a string resolved */
-  const resolved = typeof node.resolved === 'string' ? node.resolved : ''
+  const resolved = primaryResolvedSource(node)
   if (resolved.startsWith('git')) {
     try {
       const parsed = npa(resolved)
@@ -164,7 +167,8 @@ const keyTargetsNode = (key, node) => {
     case 'git': {
       let resolvedParsed
       try {
-        resolvedParsed = node.resolved ? npa(node.resolved) : null
+        const resolved = primaryResolvedSource(node)
+        resolvedParsed = resolved ? npa(resolved) : null
       } catch {
         /* istanbul ignore next */
         return false
@@ -176,7 +180,8 @@ const keyTargetsNode = (key, node) => {
     case 'file':
     case 'directory':
     case 'remote':
-      return node.resolved === parsed.saveSpec || node.resolved === parsed.fetchSpec
+      return resolvedSourceSpecs(node)
+        .some(resolved => resolved === parsed.saveSpec || resolved === parsed.fetchSpec)
     default:
       return false
   }

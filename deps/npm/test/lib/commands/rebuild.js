@@ -244,6 +244,31 @@ t.test('emits Phase 1 advisory warning for unreviewed install scripts', async t 
   )
 })
 
+t.test('global advisory warning points at npm config set, not approve-scripts', async t => {
+  const { npm, logs } = await setupMockNpm(t, {
+    config: {
+      global: true,
+    },
+    globalPrefixDir: {
+      node_modules: {
+        canvas: {
+          'index.js': '',
+          'package.json': JSON.stringify({
+            name: 'canvas',
+            version: '1.0.0',
+            scripts: { install: 'echo install' },
+          }),
+        },
+      },
+    },
+  })
+  await npm.exec('rebuild', [])
+  const warn = logs.warn.byTitle('rebuild').join('\n')
+  t.match(warn, /install scripts not yet covered by allowScripts/)
+  t.match(warn, /npm config set allow-scripts=canvas/)
+  t.notMatch(warn, /approve-scripts/)
+})
+
 t.test('no advisory warning when allowScripts covers the package', async t => {
   const { npm, logs } = await setupMockNpm(t, {
     prefixDir: {
@@ -280,4 +305,50 @@ t.test('no advisory warning when allowScripts covers the package', async t => {
   })
   await npm.exec('rebuild', [])
   t.strictSame(logs.warn.byTitle('rebuild'), [])
+})
+
+t.test('rebuild <name> never targets a bundled dependency', async t => {
+  const { npm, prefix: path } = await setupMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        dependencies: { parent: '1.0.0' },
+      }),
+      node_modules: {
+        parent: {
+          'index.js': '',
+          'package.json': JSON.stringify({
+            name: 'parent',
+            version: '1.0.0',
+            bundleDependencies: ['bcrypt'],
+            dependencies: { bcrypt: '1.0.0' },
+          }),
+          node_modules: {
+            bcrypt: {
+              'index.js': '',
+              'package.json': JSON.stringify({
+                name: 'bcrypt',
+                version: '1.0.0',
+                bin: 'index.js',
+                scripts: {
+                  install: "node -e \"require('fs').writeFileSync('ran', '')\"",
+                },
+              }),
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const ranFile = resolve(path, 'node_modules/parent/node_modules/bcrypt/ran')
+  t.throws(() => fs.statSync(ranFile))
+
+  await npm.exec('rebuild', ['bcrypt'])
+
+  t.throws(
+    () => fs.statSync(ranFile),
+    'bundled bcrypt install script must not run'
+  )
 })

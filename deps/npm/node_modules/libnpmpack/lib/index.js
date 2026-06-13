@@ -37,7 +37,7 @@ async function pack (spec = 'file:.', opts = {}) {
   // check for explicit `false` so the default behavior is to skip writing to disk
   if (opts.dryRun === false) {
     const filename = `${manifest.name}-${manifest.version}.tgz`
-      .replace(/^@/, '').replace(/\//, '-')
+      .replace(/^@/, '').replace(/[/\\]/g, '-')
     const destination = path.resolve(opts.packDestination, filename)
     await writeFile(destination, tarball)
   }
