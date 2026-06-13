@@ -12,6 +12,7 @@ npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
 npm access set mfa=none|publish|automation [<package>]
+npm access set 2fa=none|publish|automation [<package>]
 npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
 ```
@@ -30,6 +31,8 @@ For all of the subcommands, `npm access` will perform actions on the packages in
 ### Details
 
 `npm access` always operates directly on the current registry, configurable from the command line using `--registry=<registry url>`.
+
+The `2fa` setting is supported as an alias for `mfa`.
 
 Unscoped packages are *always public*.
 
