@@ -209,6 +209,8 @@ class Session::Application : public MemoryRetainer {
   // connects the webtransport session stream to stream object,
   // it also sends some initial bytes to the wire to signal
   // the other side, that this is a webtransport stream
+  // it is a noop, if we can not send on this stream incoming
+  // unidirectional stream
   virtual bool MakeWebtransportStream(const Stream& stream,
      int64_t sessionid)  {
       return false;
