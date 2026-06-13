@@ -963,3 +963,42 @@ t.test('bracket lovers', async t => {
     'any top-level item cannot be parsed with square bracket notation'
   )
 })
+
+t.test('forbidden keys', async t => {
+  // defensive cleanup in case any assertion below unexpectedly mutates the prototype
+  t.teardown(() => {
+    delete Object.prototype.scripts
+    delete Object.prototype.polluted
+  })
+
+  for (const key of ['__proto__', 'constructor', 'prototype']) {
+    t.throws(
+      () => new Queryable({ name: 'demo' }).set(`${key}.scripts.postinstall`, 'cmd'),
+      { code: 'EFORBIDDENKEY' },
+      `should throw EFORBIDDENKEY when '${key}' is used as a top-level key`
+    )
+  }
+
+  t.throws(
+    () => new Queryable({}).set('a.__proto__.scripts.postinstall', 'cmd'),
+    { code: 'EFORBIDDENKEY' },
+    'should throw when __proto__ appears nested in a dotted path'
+  )
+
+  t.throws(
+    () => new Queryable({}).set('foo[__proto__].scripts.postinstall', 'cmd'),
+    { code: 'EFORBIDDENKEY' },
+    'should throw when __proto__ is used via square bracket notation'
+  )
+
+  t.throws(
+    () => new Queryable({ scripts: { postinstall: 'x' } }).delete('__proto__.scripts'),
+    { code: 'EFORBIDDENKEY' },
+    'should block forbidden keys via delete() as well as set()'
+  )
+
+  t.notOk(
+    Object.prototype.scripts,
+    'Object.prototype must not be polluted by any forbidden-key attempt'
+  )
+})

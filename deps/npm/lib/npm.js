@@ -252,12 +252,13 @@ class Npm {
 
       // Check if help is requested for the subcommand
       if (this.config.get('usage')) {
-        const parentName = commandPath[0]
+        const parentName = commandPath.join(' ')
         return output.standard(SubCommand.getUsage(parentName))
       }
 
       // Create subcommand instance and recurse
       const subcommandInstance = new SubCommand(this)
+      subcommandInstance.parentName = commandPath.join(' ')
       const subcommandArgs = args.slice(1) // Remove subcommand name from args
       const subcommandPath = [...commandPath, subcommandName]
 

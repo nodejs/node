@@ -1,4 +1,6 @@
 const { log, output } = require('proc-log')
+const npa = require('npm-package-arg')
+const semver = require('semver')
 const pkgJson = require('@npmcli/package-json')
 const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
 const checkAllowScripts = require('./check-allow-scripts.js')
@@ -9,6 +11,28 @@ const {
   nameKeyFor,
 } = require('./allow-scripts-writer.js')
 const BaseCommand = require('../base-cmd.js')
+
+// Parse a positional arg into a name and an optional version range. A bare
+// name matches every installed version; `pkg@1.2.3` or `pkg@^1` narrows by
+// semver. npm-package-arg handles dotted and scoped names; fall back to the
+// raw string as the name if it can't be parsed.
+const parsePositional = (arg) => {
+  let parsed
+  try {
+    parsed = npa(arg)
+  } catch {
+    return { name: arg, range: null }
+  }
+  const name = parsed.name || arg
+  if (parsed.type === 'version' || parsed.type === 'range') {
+    const spec = parsed.fetchSpec
+    const range = (!spec || spec === '*' || parsed.rawSpec === '' || parsed.rawSpec === '*')
+      ? null
+      : spec
+    return { name, range }
+  }
+  return { name, range: null }
+}
 
 // Shared implementation for `npm approve-scripts` and `npm deny-scripts`.
 // Subclasses set `verb` to `'approve'` or `'deny'`.
@@ -62,7 +86,10 @@ class AllowScriptsCmd extends BaseCommand {
     })
     await arb.loadActual()
 
-    const unreviewed = await checkAllowScripts({ arb, npm: this.npm })
+    // Keep listing unreviewed packages even with ignore-scripts set, so
+    // you can move from a blanket ignore-scripts to an allowlist. This
+    // only lists; nothing runs.
+    const unreviewed = await checkAllowScripts({ arb, npm: this.npm, includeWhenIgnored: true })
 
     if (pending) {
       return this.runPending(unreviewed)
@@ -76,6 +103,10 @@ class AllowScriptsCmd extends BaseCommand {
   }
 
   runPending (unreviewed) {
+    if (this.npm.flatOptions.json) {
+      output.buffer({ allowScripts: this.pendingSummary(unreviewed) })
+      return
+    }
     if (unreviewed.length === 0) {
       output.standard('No packages with unreviewed install scripts.')
       return
@@ -102,38 +133,51 @@ class AllowScriptsCmd extends BaseCommand {
     )
   }
 
+  // Build the same `{ name, changes }` shape printSummary uses for writes,
+  // but tag every entry as `pending` since nothing is written. Names and
+  // versions are derived exactly like the text listing above.
+  pendingSummary (unreviewed) {
+    const groups = new Map()
+    for (const { node } of unreviewed) {
+      const { name, version } = trustedDisplay(node)
+      /* istanbul ignore next: every test node has a name */
+      const display = name || '<unknown>'
+      const key = version ? `${display}@${version}` : display
+      if (!groups.has(display)) {
+        groups.set(display, [])
+      }
+      groups.get(display).push({ key, change: 'pending' })
+    }
+    return [...groups].map(([name, changes]) => ({ name, changes }))
+  }
+
   async runAll (unreviewed) {
     if (unreviewed.length === 0) {
+      if (this.npm.flatOptions.json) {
+        output.buffer({ allowScripts: [] })
+        return
+      }
       output.standard('No packages with unreviewed install scripts.')
       return
     }
-    // Bundled dependencies cannot be allowlisted in Phase 1 (RFC defers
-    // this to a follow-up because matching by name@version from the
-    // bundled tarball would reintroduce manifest confusion). Exclude
-    // them from `--all` so we don't silently write a policy entry under
-    // attacker-controlled identity.
-    const candidates = unreviewed.filter(({ node }) => !node.inBundle)
-    const skipped = unreviewed.length - candidates.length
-    if (skipped > 0) {
-      /* istanbul ignore next: plural variant covered separately */
-      const noun = skipped === 1 ? 'dependency' : 'dependencies'
-      log.warn(
-        this.logTitle,
-        `Skipping ${skipped} bundled ${noun}; bundled deps with install ` +
-        'scripts cannot be allowlisted in this release.'
-      )
-    }
-    if (candidates.length === 0) {
-      output.standard('No packages eligible for approval.')
-      return
-    }
-    const groups = this.groupByPackage(candidates.map(({ node }) => node))
+    // Bundled dependencies never appear in `unreviewed` (checkAllowScripts
+    // skips them because they never run their install scripts and cannot
+    // be allowlisted), so there is nothing extra to filter here.
+    const groups = this.groupByPackage(unreviewed.map(({ node }) => node))
     await this.writePolicyChanges(groups)
   }
 
   async runPositional (args, arb) {
-    const matched = this.findNodesForArgs(args, arb)
+    const { matched, unmatched } = this.findNodesForArgs(args, arb)
+    if (unmatched.length > 0) {
+      throw Object.assign(
+        new Error(`No installed packages match: ${unmatched.join(', ')}`),
+        { code: 'ENOMATCH' }
+      )
+    }
     const groups = this.groupByPackage(matched)
+    /* istanbul ignore if: matched is non-empty here; groups only empties when a
+       matched node has no trusted key, which groupByPackage already warns on */
     if (Object.keys(groups).length === 0) {
       throw Object.assign(
         new Error(`No installed packages match: ${args.join(', ')}`),
@@ -144,22 +188,36 @@ class AllowScriptsCmd extends BaseCommand {
   }
 
   findNodesForArgs (args, arb) {
-    // Match positional args against each node's trusted name. Registry
-    // deps use the URL-derived name; non-registry deps fall back to the
-    // dependency edge name. Bundled deps are excluded for the same reason
-    // as --all.
-    const wanted = new Set(args)
+    // Match positional args against each node's trusted name. Registry deps
+    // use the URL-derived name; non-registry deps fall back to the dependency
+    // edge name. A version or range on the arg narrows the match to installed
+    // versions that satisfy it. Bundled deps are excluded for the same reason
+    // as --all. Args that match nothing are returned in `unmatched`.
     const matched = []
-    for (const node of arb.actualTree.inventory.values()) {
-      if (node.isProjectRoot || node.isWorkspace || node.inBundle) {
-        continue
+    const unmatched = []
+    for (const arg of args) {
+      const { name: wantName, range } = parsePositional(arg)
+      const found = []
+      for (const node of arb.actualTree.inventory.values()) {
+        if (node.isProjectRoot || node.isWorkspace || node.inBundle) {
+          continue
+        }
+        const { name, version } = trustedDisplay(node)
+        if (!name || name !== wantName) {
+          continue
+        }
+        if (range && (!version || !semver.satisfies(version, range, { loose: true }))) {
+          continue
+        }
+        found.push(node)
       }
-      const { name } = trustedDisplay(node)
-      if (name && wanted.has(name)) {
-        matched.push(node)
+      if (found.length === 0) {
+        unmatched.push(arg)
+      } else {
+        matched.push(...found)
       }
     }
-    return matched
+    return { matched, unmatched }
   }
 
   get logTitle () {

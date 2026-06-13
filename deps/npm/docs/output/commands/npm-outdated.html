@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-outdated----11160">
+<h1 id="----npm-outdated----11170">
     <span>npm-outdated</span>
-    <span class="version">@11.16.0</span>
+    <span class="version">@11.17.0</span>
 </h1>
 <span class="description">Check for outdated packages</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#an-example">An example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#an-example">An example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li><li><a href="#min-release-age-exclude"><code>min-release-age-exclude</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -208,7 +208,7 @@ Use <code>--all</code> to find all outdated meta-dependencies as well.</p>
 <p>In the output:</p>
 <ul>
 <li><code>wanted</code> is the maximum version of the package that satisfies the semver range specified in <code>package.json</code>.
-If there's no available semver range (i.e. you're running <code>npm outdated --global</code>, or the package isn't included in <code>package.json</code>), then <code>wanted</code> shows the currently-installed version.</li>
+If there's no available semver range (i.e. you're running <code>npm outdated --global</code>, or the package isn't included in <code>package.json</code>), then <code>wanted</code> shows the latest version.</li>
 <li><code>latest</code> is the version of the package tagged as latest in the registry.
 Running <code>npm publish</code> with no special configuration will publish the package with a dist-tag of <code>latest</code>.
 This may or may not be the maximum version of the package, or the most-recently published version of the package, depending on how the package's developer manages the latest <a href="../commands/npm-dist-tag.html">dist-tag</a>.</li>
@@ -255,9 +255,10 @@ Reinstalling <code>node_modules</code> from scratch or running <code>npm update<
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.</p>
+<p>Show or act on all packages, not just the ones your project directly depends
+on. For <code>npm outdated</code> and <code>npm ls</code> this lists every outdated or installed
+package. For <code>npm approve-scripts</code> and <code>npm deny-scripts</code> it selects every
+package with pending install scripts.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -333,6 +334,8 @@ wins (an explicit absolute date overrides a relative window). Across
 sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
 global), so a higher-priority source can always relax or override a
 lower-priority one.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
 <h4 id="min-release-age"><code>min-release-age</code></h4>
 <ul>
 <li>Default: null</li>
@@ -348,6 +351,29 @@ your <code>.npmrc</code> is preserved when npm internally spawns a sub-process w
 <code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
 apply, <code>before</code> wins within a single source and across sources the standard
 precedence rules apply.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="min-release-age-exclude"><code>min-release-age-exclude</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>A list of package names or <code>minimatch</code> glob patterns that are exempt from
+the <code>min-release-age</code> (and <code>before</code>) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.</p>
+<p>For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:</p>
+<pre><code>min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+</code></pre>
+<p>Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so <code>@myorg/*</code> matches <code>@myorg/shared-utils</code>.</p>
+<p>Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

@@ -2,6 +2,8 @@ const util = require('node:util')
 const _delete = Symbol('delete')
 const _append = Symbol('append')
 
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 const sqBracketsMatcher = str => str.match(/(.+)\[([^\]]+)\]\.?(.*)$/)
 
 // replaces any occurrence of an empty-brackets (e.g: []) with a special Symbol(append) to represent it
@@ -122,6 +124,9 @@ const setter = ({ data, key, value, force }) => {
   // e.g: ['foo', 'bar', 'baz'] -> { foo: { bar: { baz:  {} } }
   const keys = parseKeys(key)
   const setKeys = (_data, _key) => {
+    if (FORBIDDEN_KEYS.has(String(_key))) {
+      throw Object.assign(new Error(`Forbidden key: "${_key}"`), { code: 'EFORBIDDENKEY' })
+    }
     // handles array indexes, converting valid integers to numbers
     // note that occurrences of Symbol(append) will throw so we just ignore these for now
     let maybeIndex = Number.NaN

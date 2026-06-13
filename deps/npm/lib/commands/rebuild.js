@@ -2,10 +2,12 @@ const { resolve } = require('node:path')
 const { log, output } = require('proc-log')
 const npa = require('npm-package-arg')
 const semver = require('semver')
+const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const checkAllowScripts = require('../utils/check-allow-scripts.js')
 const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const strictAllowScriptsPreflight = require('../utils/strict-allow-scripts-preflight.js')
+const { configSetAllowScripts } = require('../utils/allow-scripts-remediation.js')
 
 class Rebuild extends ArboristWorkspaceCmd {
   static description = 'Rebuild a package'
@@ -56,7 +58,7 @@ class Rebuild extends ArboristWorkspaceCmd {
 
         return spec
       })
-      const nodes = tree.inventory.filter(node => this.isNode(specs, node))
+      const nodes = [...tree.inventory.filter(node => this.isNode(specs, node))]
 
       await strictAllowScriptsPreflight({ arb, npm: this.npm })
       await arb.rebuild({ nodes })
@@ -73,10 +75,17 @@ class Rebuild extends ArboristWorkspaceCmd {
     if (unreviewed.length > 0) {
       const count = unreviewed.length
       const noun = count === 1 ? 'package has' : 'packages have'
+      // `npm approve-scripts` writes to a project package.json, which doesn't
+      // exist for global rebuilds. Point global users at `npm config set`,
+      // which writes the `allow-scripts` setting to their user .npmrc.
+      const names = unreviewed.map(({ node }) => trustedDisplay(node).name)
+      const remediation = this.npm.global
+        ? `Run \`${configSetAllowScripts(names)}\` to allow their scripts.`
+        : 'Run `npm approve-scripts --allow-scripts-pending` to review.'
       log.warn(
         'rebuild',
         `${count} ${noun} install scripts not yet covered by allowScripts. ` +
-        'Run `npm approve-scripts --allow-scripts-pending` to review.'
+        remediation
       )
     }
 
@@ -84,6 +93,13 @@ class Rebuild extends ArboristWorkspaceCmd {
   }
 
   isNode (specs, node) {
+    // Bundled dependencies are never selected by name. Their identity comes
+    // from the bundling parent's tarball (a bundled folder can call itself
+    // anything), so `npm rebuild bcrypt` must never target a bundled
+    // `node_modules/bcrypt`. Their install scripts never run regardless.
+    if (node.inBundle) {
+      return false
+    }
     return specs.some(spec => {
       if (spec.type === 'directory') {
         return node.path === spec.fetchSpec

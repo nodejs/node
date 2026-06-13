@@ -303,6 +303,11 @@ class VerifySignatures {
       verifyAttestations: true,
       ...this.buildRegistryConfig(registry),
       ...this.npm.flatOptions,
+      // These versions are already installed, so the before/min-release-age
+      // filter doesn't apply here. It was already applied at install time, and
+      // leaving it set makes pacote throw ETARGET for any version newer than
+      // the cutoff. See npm/cli#9277.
+      before: null,
     })
     const signatures = _signatures || []
     const result = {
