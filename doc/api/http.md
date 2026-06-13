@@ -3707,7 +3707,7 @@ changes:
     **Default:** `false`.
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
-    similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
+    similarly on what is done in [`socket.setKeepAlive()`][].
     **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
@@ -4707,7 +4707,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`server.timeout`]: #servertimeout
 [`setHeader(name, value)`]: #requestsetheadername-value
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
-[`socket.setKeepAlive()`]: net.md#socketsetkeepaliveenable-initialdelay
+[`socket.setKeepAlive()`]: net.md#socketsetkeepalive
 [`socket.setNoDelay()`]: net.md#socketsetnodelaynodelay
 [`socket.setTimeout()`]: net.md#socketsettimeouttimeout-callback
 [`socket.unref()`]: net.md#socketunref
@@ -4719,4 +4719,4 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [information event]: #event-information
-[initial delay]: net.md#socketsetkeepaliveenable-initialdelay
+[initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count
