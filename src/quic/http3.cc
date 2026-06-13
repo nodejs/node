@@ -619,6 +619,9 @@ class Http3ApplicationImpl final : public Session::Application {
               "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
               stream.id(),
               sessionid);
+    // we only need to do this, if we can send data
+    if (stream.is_remote_unidirectional())
+      return true; // so bail out for remote unidirectional streams
     return nghttp3_conn_open_wt_data_stream(*this,
                                      sessionid,
                                      stream.id(),
