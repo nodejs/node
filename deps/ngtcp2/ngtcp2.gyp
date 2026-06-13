@@ -17,6 +17,7 @@
       'ngtcp2/lib/ngtcp2_crypto.c',
       'ngtcp2/lib/ngtcp2_dcidtr.c',
       'ngtcp2/lib/ngtcp2_err.c',
+      'ngtcp2/lib/ngtcp2_fmt.c',
       'ngtcp2/lib/ngtcp2_frame_chain.c',
       'ngtcp2/lib/ngtcp2_gaptr.c',
       'ngtcp2/lib/ngtcp2_idtr.c',
