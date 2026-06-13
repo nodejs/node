@@ -1472,6 +1472,11 @@ class Http3ApplicationImpl final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
 
     if (auto stream = app.FindOrCreateStream(stream_id)) [[likely]] {
+      if (!app.MakeWebtransportStream(*stream.get(), session_id)) {
+        stream->Destroy();  // close stream forcefully,
+        // may be use an assert instead?
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
+      }
       app.NotifyWTSession(*stream.get(), session_id);
       return NGTCP2_SUCCESS;
     }
