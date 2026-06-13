@@ -1265,7 +1265,6 @@ class Http3ApplicationImpl final : public Session::Application {
                                 void *stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto& session = app.session();
-    printf("on_receive_wt_data %d: %d %d %d\n", stream_id, data[0], data[1], data[2]);
     if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;
