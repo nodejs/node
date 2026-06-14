@@ -209,3 +209,99 @@ const { AsyncLocalStorage } = require('async_hooks');
   }), receiver, 'a', 'b');
   assert.strictEqual(result, 42);
 }
+
+// Test 11: TracingChannel traceSync respects bypass
+{
+  const { tracingChannel } = require('node:diagnostics_channel');
+  const key = Symbol('tracing-sync');
+  const tc = tracingChannel('test-bypass-tracing-sync');
+  const startHandler = common.mustNotCall();
+  const endHandler = common.mustNotCall();
+  const errorHandler = common.mustNotCall();
+
+  tc.subscribe({
+    start: startHandler,
+    end: endHandler,
+    error: errorHandler,
+  }, { bypassId: key });
+
+  bypass(key, common.mustCall(() => {
+    tc.traceSync(common.mustCall(), {});
+  }));
+
+  tc.unsubscribe({
+    start: startHandler,
+    end: endHandler,
+    error: errorHandler,
+  });
+}
+
+// Test 12: TracingChannel tracePromise respects bypass
+{
+  const { tracingChannel } = require('node:diagnostics_channel');
+  const key = Symbol('tracing-promise');
+  const tc = tracingChannel('test-bypass-tracing-promise');
+  const startHandler = common.mustNotCall();
+  const endHandler = common.mustNotCall();
+  const asyncStartHandler = common.mustNotCall();
+  const asyncEndHandler = common.mustNotCall();
+  const done = common.mustCall();
+
+  tc.subscribe({
+    start: startHandler,
+    end: endHandler,
+    asyncStart: asyncStartHandler,
+    asyncEnd: asyncEndHandler,
+  }, { bypassId: key });
+
+  bypass(key, common.mustCall(() => {
+    return tc.tracePromise(common.mustCall(() => Promise.resolve(42)), {});
+  })).then(common.mustCall(() => {
+    tc.unsubscribe({
+      start: startHandler,
+      end: endHandler,
+      asyncStart: asyncStartHandler,
+      asyncEnd: asyncEndHandler,
+    });
+    done();
+  }));
+}
+
+// Test 13: TracingChannel traceCallback respects bypass
+{
+  const { tracingChannel } = require('node:diagnostics_channel');
+  const key = Symbol('tracing-callback');
+  const tc = tracingChannel('test-bypass-tracing-callback');
+  const startHandler = common.mustNotCall();
+  const endHandler = common.mustNotCall();
+  const asyncStartHandler = common.mustNotCall();
+  const asyncEndHandler = common.mustNotCall();
+  const done = common.mustCall();
+
+  tc.subscribe({
+    start: startHandler,
+    end: endHandler,
+    asyncStart: asyncStartHandler,
+    asyncEnd: asyncEndHandler,
+  }, { bypassId: key });
+
+  bypass(key, common.mustCall(() => {
+    tc.traceCallback(
+      common.mustCall((cb) => setImmediate(cb, null, 'result')),
+      -1,
+      {},
+      null,
+      common.mustCall((err, res) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(res, 'result');
+        tc.unsubscribe({
+          start: startHandler,
+          end: endHandler,
+          asyncStart: asyncStartHandler,
+          asyncEnd: asyncEndHandler,
+        });
+        done();
+      })
+    );
+  }));
+}
