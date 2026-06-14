@@ -1,4 +1,3 @@
-#include "nghttp3/lib/nghttp3_conn.h"
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
