@@ -79,7 +79,6 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.match(stdout, /dep-b using dep-a-value/);
       assert.strictEqual(status, 0, stderr);
     });
-
   });
 
   describe('resolution boundaries', () => {
