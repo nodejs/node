@@ -37,6 +37,23 @@ const relativeTests = [
      ['c:\\İ\\a\\i̇', 'c:\\İ\\b\\İ\\test.txt', '..\\..\\b\\İ\\test.txt'],
      ['c:\\i̇\\a\\İ', 'c:\\İ\\b\\İ\\test.txt', '..\\..\\b\\İ\\test.txt'],
      ['c:\\ß\\a\\ß', 'c:\\ß\\b\\ß\\test.txt', '..\\..\\b\\ß\\test.txt'],
+     // Driveless rooted paths (absolute relative to the current drive). These
+     // are structurally equivalent to POSIX paths and must not glue the `..`
+     // segments to the destination tail or trip the device-root shortcuts.
+     // Refs: https://github.com/nodejs/node/issues/63600
+     ['\\aaaa\\bbbb', '\\aaaa', '..'],
+     ['\\aaaa\\bbbb', '\\cccc', '..\\..\\cccc'],
+     ['\\aaaa\\bbbb', '\\aaaa\\bbbb', ''],
+     ['\\aaaa\\bbbb', '\\aaaa\\cccc', '..\\cccc'],
+     ['\\aaaa\\', '\\aaaa\\cccc', 'cccc'],
+     ['\\', '\\aaaa\\bbbb', 'aaaa\\bbbb'],
+     ['\\aa\\bb', '\\a', '..\\..\\a'],
+     ['\\aa', '\\a', '..\\a'],
+     ['\\abc\\d', '\\ab', '..\\..\\ab'],
+     ['\\ab', '\\abcd', '..\\abcd'],
+     ['\\foo\\bar', '\\f', '..\\..\\f'],
+     ['\\a', '\\a\\b\\c', 'b\\c'],
+     ['\\page1\\page2\\foo', '\\', '..\\..\\..'],
     ],
   ],
   [ path.posix.relative,
