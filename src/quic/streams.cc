@@ -2000,7 +2000,6 @@ void Stream::EmitSessionid(stream_id session_id) {
   if (!env()->can_call_into_js()  || !state()->wants_sessionid) return;
   CallbackScope<Stream> cb_scope(this);
   Local<Value> sid = BigInt::New(env()->isolate(), session_id);
-  printf("EmitSessionid mark 2\n");
   MakeCallback(BindingData::Get(env()).stream_sessionid_callback(), 1, &sid);
 }
 
