@@ -630,6 +630,36 @@
     "hash": ""
   },
   {
+    "input": "http://é@é",
+    "base": null,
+    "href": "http://%C3%A9@xn--9ca/",
+    "origin": "http://xn--9ca",
+    "protocol": "http:",
+    "username": "%C3%A9",
+    "password": "",
+    "host": "xn--9ca",
+    "hostname": "xn--9ca",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://é@example.com",
+    "base": null,
+    "href": "http://%C3%A9@example.com/",
+    "origin": "http://example.com",
+    "protocol": "http:",
+    "username": "%C3%A9",
+    "password": "",
+    "host": "example.com",
+    "hostname": "example.com",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "http::@c:29",
     "base": "http://example.org/foo/bar",
     "href": "http://example.org/foo/:@c:29",
