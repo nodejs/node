@@ -1,14 +1,54 @@
 #!/usr/bin/env node
-// Regenerates src/compile_cache_zstd.dict, the zstd dictionary embedded in the
-// binary and used to compress compile-cache entries (see src/compile_cache.cc).
+// =============================================================================
+// train_compile_cache_dict.mjs
 //
-// The dictionary is trained on V8 code caches harvested via vm.compileFunction
-// (the same shape the CJS loader produces) from a fixed in-tree corpus, then
-// fed to `zstd --train`. The shipped src/compile_cache_zstd.dict is the source
-// of truth; this script documents and reproduces how it was made.
+// Maintainer tool that regenerates src/compile_cache_zstd.dict, the zstd
+// dictionary embedded in the node binary and used to shrink compile-cache
+// entries on disk (see src/compile_cache.cc).
 //
-// Reproducibility — the output is byte-for-byte stable only if all of the
-// following are pinned:
+// -----------------------------------------------------------------------------
+// What it does
+// -----------------------------------------------------------------------------
+// The node compile cache stores V8 code caches (the bytecode/metadata blob V8
+// produces when it compiles a module) so later runs can skip recompilation.
+// These blobs share a lot of structure across files, so we zstd-compress them
+// with a trained dictionary to cut the cache's on-disk footprint.
+//
+// This script builds that dictionary end to end:
+//
+//   1. Walks a fixed in-tree corpus (CORPUS below) in sorted order.
+//   2. For each .js file, harvests a V8 code cache via vm.compileFunction with
+//      produceCachedData — the same shape the CommonJS loader produces at
+//      runtime — and writes each blob to a temp directory.
+//   3. Feeds all the harvested blobs to `zstd --train`, capping the result at
+//      MAXDICT (16 KiB) bytes.
+//   4. Overwrites src/compile_cache_zstd.dict with the trained dictionary.
+//
+// The shipped src/compile_cache_zstd.dict is the source of truth; this script
+// exists to document and reproduce exactly how that file was made, so a future
+// maintainer can regenerate it (e.g. after a V8/corpus change) and review the
+// resulting diff.
+//
+// -----------------------------------------------------------------------------
+// Usage
+// -----------------------------------------------------------------------------
+//   node tools/train_compile_cache_dict.mjs
+//
+// Run from anywhere (paths are resolved relative to this file). The output is
+// written in place to src/compile_cache_zstd.dict; inspect the diff afterwards
+// and commit it if it looks right. Progress is printed to stderr.
+//
+// Prerequisites:
+//   * the `zstd` CLI on PATH, version REQUIRED_ZSTD (matching deps/zstd).
+//   * a built node on PATH (this is the node you invoke it with).
+//
+// Note: --predictable is added automatically (see below) — you do not need to
+// pass it yourself.
+//
+// -----------------------------------------------------------------------------
+// Reproducibility
+// -----------------------------------------------------------------------------
+// The output is byte-for-byte stable only if all of the following are pinned:
 //
 //   * node is run with --predictable. V8 otherwise randomizes the string hash
 //     seed per process, and that seed leaks into vm.compileFunction cachedData,
@@ -25,11 +65,10 @@
 // non-predictable caches: the dictionary only supplies shared substrings, and
 // Persist() keeps min(plain, dict) per entry, so a less-than-ideal dictionary
 // can never make any entry larger.
-//
-// Usage:  node tools/train_compile_cache_dict.mjs
+// =============================================================================
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, readdirSync,
+import { readFileSync, writeFileSync, mkdtempSync, readdirSync,
          rmSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -88,37 +127,42 @@ async function main() {
   files.sort();
 
   const samples = mkdtempSync(join(tmpdir(), 'cc-dict-'));
-  mkdirSync(samples, { recursive: true });
   const sampleFiles = [];
   let ok = 0;
-  for (const f of files) {
-    let code;
-    try { code = readFileSync(f, 'utf8'); } catch { continue; }
-    try {
-      const fn = vm.compileFunction(code, PARAMS,
-        { filename: f, produceCachedData: true });
-      const cd = fn.cachedData;
-      if (cd && cd.length > 0) {
-        const name = relative(ROOT, f).replace(/[\\/]/g, '_') + '.cache';
-        const out = join(samples, name);
-        writeFileSync(out, cd);
-        sampleFiles.push(out);
-        ok++;
-      }
-    } catch { /* skip modules V8 can't compile standalone */ }
-  }
-  sampleFiles.sort();
-  console.error(`harvested ${ok}/${files.length} code caches from ` +
-                `${CORPUS.join(', ')}`);
+  let r;
+  try {
+    for (const f of files) {
+      let code;
+      try { code = readFileSync(f, 'utf8'); } catch { continue; }
+      try {
+        const fn = vm.compileFunction(code, PARAMS,
+          { filename: f, produceCachedData: true });
+        const cd = fn.cachedData;
+        if (cd && cd.length > 0) {
+          const name = relative(ROOT, f).replace(/[\\/]/g, '_') + '.cache';
+          const out = join(samples, name);
+          writeFileSync(out, cd);
+          sampleFiles.push(out);
+          ok++;
+        }
+      } catch { /* skip modules V8 can't compile standalone */ }
+    }
+    sampleFiles.sort();
+    console.error(`harvested ${ok}/${files.length} code caches from ` +
+                  `${CORPUS.join(', ')}`);
 
-  const r = spawnSync('zstd',
-    ['--train', ...sampleFiles, `--maxdict=${MAXDICT}`, '-f', '-o', OUT],
-    { stdio: ['ignore', 'ignore', 'inherit'] });
-  rmSync(samples, { recursive: true, force: true });
+    // One sample path per file is spread on argv; the fixed corpus (~1.4k
+    // files, a few hundred KB of paths) stays well under ARG_MAX.
+    r = spawnSync('zstd',
+      ['--train', ...sampleFiles, `--maxdict=${MAXDICT}`, '-f', '-o', OUT],
+      { stdio: ['ignore', 'ignore', 'inherit'] });
+  } finally {
+    rmSync(samples, { recursive: true, force: true });
+  }
   if (r.status !== 0) { console.error('error: zstd --train failed'); process.exit(1); }
 
   const size = readFileSync(OUT).length;
   console.error(`wrote ${relative(ROOT, OUT)} (${size} bytes)`);
 }
 
-main();
+main().catch((e) => { console.error(e); process.exit(1); });
