@@ -45,7 +45,7 @@ nghttp3_callbacks_convert_to_latest(nghttp3_callbacks *dest,
     return src;
   }
 
-  memset(dest, 0, sizeof(*dest));
+  *dest = (nghttp3_callbacks){0};
 
   callbacks_copy(dest, src, callbacks_version);
 

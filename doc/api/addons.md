@@ -12,7 +12,7 @@ There are three options for implementing addons:
 
 * [Node-API][] (recommended)
 * `nan` ([Native Abstractions for Node.js][])
-* direct use of internal V8, libuv, and Node.js libraries
+* direct use of public V8, libuv, and Node.js interfaces
 
 This rest of this document focuses on the latter, requiring
 knowledge of multiple components and APIs:
@@ -35,8 +35,8 @@ knowledge of multiple components and APIs:
   offloading work via libuv to non-blocking system operations, worker threads,
   or a custom use of libuv threads.
 
-* Internal Node.js libraries: Node.js itself exports C++ APIs that addons can
-  use, the most important of which is the `node::ObjectWrap` class.
+* Public Node.js interfaces: Node.js itself exports C++ APIs that addons
+  and embedders can make use of.
 
 * Other statically linked libraries (including OpenSSL): These
   other libraries are located in the `deps/` directory in the Node.js source
@@ -815,7 +815,8 @@ NODE_MODULE(NODE_GYP_MODULE_NAME, InitAll)
 }  // namespace demo
 ```
 
-Then, in `myobject.h`, the wrapper class inherits from `node::ObjectWrap`:
+Then, in `myobject.h`, the wrapper class inherits from a helper `ObjectWrap`
+which handles tying the lifetime of the C++ object to the exposed JS object:
 
 <!-- addon-verify-file wrapping_c_objects/myobject.h -->
 
@@ -825,11 +826,11 @@ Then, in `myobject.h`, the wrapper class inherits from `node::ObjectWrap`:
 #define MYOBJECT_H
 
 #include <node.h>
-#include <node_object_wrap.h>
+#include "object_wrap.h"
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+class MyObject : public ObjectWrap {
  public:
   static void Init(v8::Local<v8::Object> exports);
 
@@ -845,6 +846,68 @@ class MyObject : public node::ObjectWrap {
 
 }  // namespace demo
 
+#endif
+```
+
+where `ObjectWrap` is defined as
+
+<!-- addon-verify-file wrapping_c_objects/object_wrap.h factory_of_wrapped_objects/object_wrap.h passing_wrapped_objects_around/object_wrap.h -->
+
+```cpp
+// object_wrap.h
+#ifndef OBJECTWRAP_H
+#define OBJECTWRAP_H
+
+#include <node.h>
+
+namespace demo {
+
+class ObjectWrap {
+ public:
+  ObjectWrap() : isolate_(v8::Isolate::GetCurrent()) {
+    node::AddEnvironmentCleanupHook(isolate_, CleanupHook, this);
+  }
+
+  virtual ~ObjectWrap() {
+    node::RemoveEnvironmentCleanupHook(isolate_, CleanupHook, this);
+  }
+
+  template <class T>
+  static T* Unwrap(v8::Local<v8::Object> handle) {
+    void* ptr = handle->GetAlignedPointerFromInternalField(
+        0, v8::kEmbedderDataTypeTagDefault);
+    ObjectWrap* wrap = static_cast<ObjectWrap*>(ptr);
+    return static_cast<T*>(wrap);
+  }
+
+  v8::Local<v8::Object> object() {
+    return handle_.Get(isolate_);
+  }
+
+ protected:
+  inline void Wrap(v8::Local<v8::Object> handle) {
+    handle->SetAlignedPointerInInternalField(
+        0, this, v8::kEmbedderDataTypeTagDefault);
+    handle_.Reset(isolate_, handle);
+  }
+
+  inline void MakeWeak() {
+    handle_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  }
+
+ private:
+  static void WeakCallback(
+      const v8::WeakCallbackInfo<ObjectWrap>& data) {
+    delete data.GetParameter();
+  }
+
+  static void CleanupHook(void* arg) { delete static_cast<ObjectWrap*>(arg); }
+
+  v8::Global<v8::Object> handle_;
+  v8::Isolate* isolate_;
+};
+
+}  // namespace demo
 #endif
 ```
 
@@ -912,6 +975,7 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
         0 : args[0]->NumberValue(context).FromMaybe(0);
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
+    obj->MakeWeak();
     args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
@@ -1039,11 +1103,11 @@ JavaScript:
 #define MYOBJECT_H
 
 #include <node.h>
-#include <node_object_wrap.h>
+#include "object_wrap.h"
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+class MyObject : public ObjectWrap {
  public:
   static void Init();
   static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -1063,7 +1127,8 @@ class MyObject : public node::ObjectWrap {
 #endif
 ```
 
-The implementation in `myobject.cc` is similar to the previous example:
+Our `ObjectWrap` helper remains the same as in the previous example,
+and implementation in `myobject.cc` is similar as well:
 
 <!-- addon-verify-file factory_of_wrapped_objects/myobject.cc -->
 
@@ -1125,6 +1190,7 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
         0 : args[0]->NumberValue(context).FromMaybe(0);
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
+    obj->MakeWeak();
     args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
@@ -1208,7 +1274,7 @@ console.log(obj2.plusOne());
 
 In addition to wrapping and returning C++ objects, it is possible to pass
 wrapped objects around by unwrapping them with the Node.js helper function
-`node::ObjectWrap::Unwrap`. The following examples shows a function `add()`
+`ObjectWrap::Unwrap`. The following examples shows a function `add()`
 that can take two `MyObject` objects as input arguments:
 
 <!-- addon-verify-file passing_wrapped_objects_around/addon.cc -->
@@ -1238,9 +1304,9 @@ void Add(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
-  MyObject* obj1 = node::ObjectWrap::Unwrap<MyObject>(
+  MyObject* obj1 = ObjectWrap::Unwrap<MyObject>(
       args[0]->ToObject(context).ToLocalChecked());
-  MyObject* obj2 = node::ObjectWrap::Unwrap<MyObject>(
+  MyObject* obj2 = ObjectWrap::Unwrap<MyObject>(
       args[1]->ToObject(context).ToLocalChecked());
 
   double sum = obj1->value() + obj2->value();
@@ -1270,11 +1336,11 @@ after unwrapping the object.
 #define MYOBJECT_H
 
 #include <node.h>
-#include <node_object_wrap.h>
+#include "object_wrap.h"
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+class MyObject : public ObjectWrap {
  public:
   static void Init();
   static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -1294,7 +1360,8 @@ class MyObject : public node::ObjectWrap {
 #endif
 ```
 
-The implementation of `myobject.cc` remains similar to the previous version:
+Our `ObjectWrap` helper remains the same as in the previous example,
+and implementation in `myobject.cc` is similar as well:
 
 <!-- addon-verify-file passing_wrapped_objects_around/myobject.cc -->
 
@@ -1352,6 +1419,7 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
         0 : args[0]->NumberValue(context).FromMaybe(0);
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
+    obj->MakeWeak();
     args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.

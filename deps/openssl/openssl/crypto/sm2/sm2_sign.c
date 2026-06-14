@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
@@ -60,6 +60,7 @@ int ossl_sm2_compute_z_digest(uint8_t *out,
         goto done;
     }
 
+    BN_CTX_start(ctx);
     p = BN_CTX_get(ctx);
     a = BN_CTX_get(ctx);
     b = BN_CTX_get(ctx);
@@ -141,6 +142,7 @@ int ossl_sm2_compute_z_digest(uint8_t *out,
 
 done:
     OPENSSL_free(buf);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     EVP_MD_CTX_free(hash);
     return rc;
@@ -322,6 +324,7 @@ done:
         BN_free(s);
     }
 
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     EC_POINT_free(kG);
     return sig;
@@ -405,8 +408,8 @@ static int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig,
         ret = 1;
 
 done:
-    BN_CTX_end(ctx);
     EC_POINT_free(pt);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     return ret;
 }

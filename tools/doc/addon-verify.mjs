@@ -5,7 +5,7 @@
 //
 // Each code block to extract is preceded by a marker in the markdown:
 //
-//   <!-- addon-verify-file worker_support/addon.cc -->
+//   <!-- addon-verify-file worker_support/addon.cc [...] -->
 //   ```cpp
 //   #include <node.h>
 //   ...
@@ -33,7 +33,7 @@ if (!values.input || !values.output) {
 
 const src = await open(values.input, 'r');
 
-const MARKER_RE = /^<!--\s*addon-verify-file\s+(\S+?)\/(\S+)\s*-->$/;
+const MARKER_RE = /^<!--\s*addon-verify-file\s+(?<filenames>((\S+?)\/(\S+)\s?)+)\s*-->$/;
 
 const entries = [];
 let nextBlockIsAddonVerifyFile = false;
@@ -47,7 +47,7 @@ for await (const line of src.readLines()) {
       continue;
     }
 
-    entries.at(-1).content += `${line}\n`;
+    entries.at(-1).contentRef.content += `${line}\n`;
   }
   if (nextBlockIsAddonVerifyFile) {
     if (line) {
@@ -59,8 +59,13 @@ for await (const line of src.readLines()) {
   const match = MARKER_RE.exec(line);
   if (match) {
     nextBlockIsAddonVerifyFile = true;
-    const [, dir, name] = match;
-    entries.push({ dir, name, content: '' });
+    const { filenames } = match.groups;
+    // Use a single contentRef for files with identical contents
+    const contentRef = { content: '' };
+    for (const filename of filenames.split(/\s+/).filter(Boolean)) {
+      const [dir, name] = filename.split('/');
+      entries.push({ dir, name, contentRef });
+    }
   }
 }
 
@@ -74,7 +79,7 @@ for (const [name, files] of sections) {
   mkdirSync(dir, { recursive: true });
 
   for (const file of files) {
-    let content = file.content;
+    let { content } = file.contentRef;
     if (file.name === 'test.js') {
       content =
         "'use strict';\n" +

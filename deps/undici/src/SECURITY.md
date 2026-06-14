@@ -81,7 +81,7 @@ meet the following criteria:
 **Undici trusts**:
 
 * The application code that uses its APIs, including all configuration,
-  options, and callbacks provided by the application.
+  options, callbacks, and decisions about which body-consuming APIs to call.
 * The operating system and its network stack.
 * The Node.js runtime undici is running on.
 * Dependencies installed by the application.
@@ -141,6 +141,17 @@ lead to a loss of confidentiality, integrity, or availability.
   large enough to impact performance or cause the runtime to run out of
   resources, that is not considered a vulnerability. Applications are
   responsible for setting appropriate limits on response sizes.
+
+#### Calling `body.formData()` on untrusted responses
+
+* `body.formData()` buffers and parses the entire response body. Multipart
+  parsing has inherent security risks, especially when the body is supplied by
+  an untrusted or user-controlled server. Applications must only call
+  `body.formData()` on responses from trusted servers. For untrusted responses,
+  applications should use a dedicated streaming multipart parser and enforce
+  application-specific limits. Resource exhaustion or parser exposure caused by
+  calling `body.formData()` on untrusted responses is considered an application
+  responsibility, not a vulnerability in undici.
 
 #### Application Misconfiguration
 

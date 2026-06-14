@@ -35,7 +35,7 @@ function buildAndValidateFilterCallsOptions (options = {}) {
 }
 
 function makeFilterCalls (parameterName) {
-  return (parameterValue, logs) => {
+  return (parameterValue, logs = this.logs) => {
     if (typeof parameterValue === 'string' || parameterValue == null) {
       return logs.filter((log) => {
         return log[parameterName] === parameterValue

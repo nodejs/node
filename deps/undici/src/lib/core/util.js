@@ -698,9 +698,8 @@ function isFormDataLike (object) {
 }
 
 function addAbortListener (signal, listener) {
-  if (signal instanceof AbortSignal) {
-    const disposable = addAbortListenerNative(signal, listener)
-    return () => disposable[Symbol.dispose]()
+  if (!signal || 'aborted' in signal) {
+    return addAbortListenerNative(signal, listener)[Symbol.dispose]
   }
 
   if (typeof signal.addEventListener === 'function') {
@@ -793,8 +792,9 @@ const rangeHeaderRegex = /^bytes (\d+)-(\d+)\/(\d+|\*)?$/
  */
 function parseRangeHeader (range) {
   if (range == null || range === '') return { start: 0, end: null, size: null }
+  if (!range) return null
 
-  const m = range ? range.match(rangeHeaderRegex) : null
+  const m = rangeHeaderRegex.exec(range)
   return m
     ? {
         start: parseInt(m[1]),
@@ -943,8 +943,10 @@ function getProtocolFromUrlString (urlString) {
   return urlString.slice(0, urlString.indexOf(':') + 1)
 }
 
-const kEnumerableProperty = Object.create(null)
-kEnumerableProperty.enumerable = true
+const kEnumerableProperty = {
+  __proto__: null,
+  enumerable: true
+}
 
 const normalizedMethodRecordsBase = {
   delete: 'DELETE',

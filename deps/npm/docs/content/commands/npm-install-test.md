@@ -375,6 +375,9 @@ sources, the standard precedence applies (cli > env > project > user >
 global), so a higher-priority source can always relax or override a
 lower-priority one.
 
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
 
 
 #### `min-release-age`
@@ -393,6 +396,37 @@ your `.npmrc` is preserved when npm internally spawns a sub-process with
 `--before` while preparing a `git:` or `github:` dependency); when both
 apply, `before` wins within a single source and across sources the standard
 precedence rules apply.
+
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
+This value is not exported to the environment for child processes.
+
+#### `min-release-age-exclude`
+
+* Default:
+* Type: String (can be set multiple times)
+
+A list of package names or `minimatch` glob patterns that are exempt from
+the `min-release-age` (and `before`) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.
+
+For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:
+
+```
+min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+```
+
+Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so `@myorg/*` matches `@myorg/shared-utils`.
+
+Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.
 
 This value is not exported to the environment for child processes.
 

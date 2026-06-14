@@ -1988,9 +1988,8 @@ var require_util = __commonJS({
     }
     __name(isFormDataLike, "isFormDataLike");
     function addAbortListener(signal, listener) {
-      if (signal instanceof AbortSignal) {
-        const disposable = addAbortListenerNative(signal, listener);
-        return () => disposable[Symbol.dispose]();
+      if (!signal || "aborted" in signal) {
+        return addAbortListenerNative(signal, listener)[Symbol.dispose];
       }
       if (typeof signal.addEventListener === "function") {
         signal.addEventListener("abort", listener, { once: true });
@@ -2298,7 +2297,8 @@ var require_util = __commonJS({
     var rangeHeaderRegex = /^bytes (\d+)-(\d+)\/(\d+|\*)?$/;
     function parseRangeHeader(range) {
       if (range == null || range === "") return { start: 0, end: null, size: null };
-      const m = range ? range.match(rangeHeaderRegex) : null;
+      if (!range) return null;
+      const m = rangeHeaderRegex.exec(range);
       return m ? {
         start: parseInt(m[1]),
         end: m[2] ? parseInt(m[2]) : null,
@@ -2391,8 +2391,10 @@ var require_util = __commonJS({
       return urlString.slice(0, urlString.indexOf(":") + 1);
     }
     __name(getProtocolFromUrlString, "getProtocolFromUrlString");
-    var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
-    kEnumerableProperty.enumerable = true;
+    var kEnumerableProperty = {
+      __proto__: null,
+      enumerable: true
+    };
     var normalizedMethodRecordsBase = {
       delete: "DELETE",
       DELETE: "DELETE",
@@ -3132,7 +3134,7 @@ var require_connect = __commonJS({
     var net = require("node:net");
     var assert = require("node:assert");
     var util = require_util();
-    var { InvalidArgumentError } = require_errors();
+    var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
     var tls;
     var SessionCache = class WeakSessionCache {
       static {
@@ -3177,7 +3179,7 @@ var require_connect = __commonJS({
         this._sessionRegistry.register(session, sessionKey);
       }
     };
-    function buildConnector({ allowH2, useH2c, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
+    function buildConnector({ allowH2, preferH2, useH2c, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError("maxCachedSessions must be a positive integer or zero");
       }
@@ -3203,7 +3205,7 @@ var require_connect = __commonJS({
             servername,
             session,
             localAddress,
-            ALPNProtocols: allowH2 ? ["http/1.1", "h2"] : ["http/1.1"],
+            ALPNProtocols: allowH2 ? preferH2 ? ["h2", "http/1.1"] : ["http/1.1", "h2"] : ["http/1.1"],
             socket: httpSocket,
             // upgrade socket connection
             port,
@@ -3244,13 +3246,29 @@ var require_connect = __commonJS({
           if (callback) {
             const cb = callback;
             callback = null;
-            cb(err);
+            cb(maybeNormalizeConnectError(err, this, { timeout, hostname, port }));
           }
         });
         return socket;
       }, "connect");
     }
     __name(buildConnector, "buildConnector");
+    function maybeNormalizeConnectError(err, socket, opts) {
+      if (err instanceof AggregateError && (err.code === "ETIMEDOUT" || err.errors.some((e) => e != null && e.code === "ETIMEDOUT"))) {
+        let message = "Connect Timeout Error";
+        if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+          message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")},`;
+        } else {
+          message += ` (attempted address: ${opts.hostname}:${opts.port},`;
+        }
+        message += ` timeout: ${opts.timeout}ms)`;
+        const wrapped = new ConnectTimeoutError(message);
+        wrapped.cause = err;
+        return wrapped;
+      }
+      return err;
+    }
+    __name(maybeNormalizeConnectError, "maybeNormalizeConnectError");
     module2.exports = buildConnector;
   }
 });
@@ -8186,7 +8204,9 @@ var require_client_h2 = __commonJS({
       RequestAbortedError,
       SocketError,
       InformationalError,
-      InvalidArgumentError
+      InvalidArgumentError,
+      HeadersTimeoutError,
+      BodyTimeoutError
     } = require_errors();
     var {
       kUrl,
@@ -8211,6 +8231,7 @@ var require_client_h2 = __commonJS({
       kSize,
       kHTTPContext,
       kClosed,
+      kHeadersTimeout,
       kBodyTimeout,
       kEnableConnectProtocol,
       kRemoteSettings,
@@ -8249,6 +8270,26 @@ var require_client_h2 = __commonJS({
       return session[kError] || (errorCode === NGHTTP2_NO_ERROR ? new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${errorCode}`) : new SocketError(`HTTP/2: "GOAWAY" frame received with code ${errorCode}`, util.getSocketInfo(session[kSocket])));
     }
     __name(getGoAwayError, "getGoAwayError");
+    function resetHttp2Session(session, err) {
+      const client = session[kClient];
+      const socket = session[kSocket];
+      if (client[kHTTP2Session] === session) {
+        client[kSocket] = null;
+        client[kHTTPContext] = null;
+        client[kHTTP2Session] = null;
+      }
+      if (socket != null && socket[kError] == null) {
+        socket[kError] = err;
+      }
+      if (!session.closed && !session.destroyed) {
+        try {
+          session.destroy(err);
+        } catch {
+        }
+      }
+      util.destroy(socket, err);
+    }
+    __name(resetHttp2Session, "resetHttp2Session");
     function getGoAwayPendingIdx(client, lastStreamID) {
       const maxAcceptedStreamID = Number.isInteger(lastStreamID) ? lastStreamID : Number.MAX_SAFE_INTEGER;
       for (let i = client[kRunningIdx]; i < client[kPendingIdx]; i++) {
@@ -8286,6 +8327,10 @@ var require_client_h2 = __commonJS({
       cleanup?.(stream);
     }
     __name(clearRequestStream, "clearRequestStream");
+    function requeueUnsentRequest(client, request) {
+      client[kQueue].splice(client[kPendingIdx] + 1, 0, request);
+    }
+    __name(requeueUnsentRequest, "requeueUnsentRequest");
     function canRetryRequestAfterGoAway(request) {
       const { body } = request;
       return body == null || util.isBuffer(body) || util.isBlobLike(body);
@@ -8684,7 +8729,7 @@ var require_client_h2 = __commonJS({
     __name(onUpgradeStreamEnd, "onUpgradeStreamEnd");
     function onUpgradeStreamTimeout() {
       const state = this[kRequestStreamState];
-      failUpgradeStream(state, new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`));
+      failUpgradeStream(state, new InformationalError(`HTTP/2: "stream timeout after ${state.headersTimeout}"`));
     }
     __name(onUpgradeStreamTimeout, "onUpgradeStreamTimeout");
     function onUpgradeResponse(headers, _flags) {
@@ -8704,7 +8749,7 @@ var require_client_h2 = __commonJS({
     }
     __name(onUpgradeResponse, "onUpgradeResponse");
     function setupUpgradeStream(stream, state) {
-      const { request, requestTimeout, session } = state;
+      const { request, headersTimeout, session } = state;
       stream[kHTTP2Stream] = true;
       stream[kHTTP2Session] = session;
       stream[kRequestStreamState] = state;
@@ -8716,11 +8761,12 @@ var require_client_h2 = __commonJS({
       stream.on("timeout", onUpgradeStreamTimeout);
       stream.once("close", onUpgradeStreamClose);
       ++session[kOpenStreams];
-      stream.setTimeout(requestTimeout);
+      stream.setTimeout(headersTimeout);
     }
     __name(setupUpgradeStream, "setupUpgradeStream");
     function writeH2(client, request) {
-      const requestTimeout = request.bodyTimeout ?? client[kBodyTimeout];
+      const headersTimeout = request.headersTimeout ?? client[kHeadersTimeout];
+      const bodyTimeout = request.bodyTimeout ?? client[kBodyTimeout];
       const session = client[kHTTP2Session];
       const { method, path, host, upgrade, expectContinue, signal, protocol, headers: reqHeaders } = request;
       let { body } = request;
@@ -8762,8 +8808,13 @@ var require_client_h2 = __commonJS({
         try {
           return session.request(headers2, options);
         } catch (err) {
-          if (err?.code !== "ERR_HTTP2_INVALID_CONNECTION_HEADERS") {
-            throw err;
+          if (err?.code === "ERR_HTTP2_INVALID_SESSION") {
+            const wrappedErr2 = new SocketError(err.message, util.getSocketInfo(session[kSocket]));
+            wrappedErr2.cause = err;
+            session[kError] = wrappedErr2;
+            resetHttp2Session(session, wrappedErr2);
+            requeueUnsentRequest(client, request);
+            return null;
           }
           const wrappedErr = new InformationalError(err.message, { cause: err });
           session[kError] = wrappedErr;
@@ -8788,7 +8839,8 @@ var require_client_h2 = __commonJS({
           abort,
           finalizeRequest,
           request,
-          requestTimeout,
+          headersTimeout,
+          bodyTimeout,
           responseReceived: false,
           session,
           stream: null
@@ -8872,7 +8924,8 @@ var require_client_h2 = __commonJS({
         expectsPayload,
         finalizeRequest,
         request,
-        requestTimeout,
+        headersTimeout,
+        bodyTimeout,
         responseReceived: false,
         session,
         stream: null
@@ -8887,9 +8940,8 @@ var require_client_h2 = __commonJS({
       stream[kHTTP2Stream] = true;
       stream[kRequestStreamState] = state;
       state.stream = stream;
-      bindRequestToStream(request, stream, null);
       ++session[kOpenStreams];
-      stream.setTimeout(requestTimeout);
+      stream.setTimeout(headersTimeout);
       stream[kHTTP2Session] = session;
       stream.once("close", onRequestStreamClose);
       bindRequestToStream(request, stream, releaseRequestStream);
@@ -8960,6 +9012,7 @@ var require_client_h2 = __commonJS({
       delete headers[HTTP2_HEADER_STATUS];
       request.onResponseStarted();
       state.responseReceived = true;
+      stream.setTimeout(state.bodyTimeout);
       if (request.aborted) {
         releaseRequestStream(stream);
         return;
@@ -9010,7 +9063,7 @@ var require_client_h2 = __commonJS({
       const stream = this;
       const state = stream[kRequestStreamState];
       releaseRequestStream(stream);
-      const err = new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`);
+      const err = state.responseReceived ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`) : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`);
       state.abort(err);
     }
     __name(onTimeout, "onTimeout");
@@ -9293,6 +9346,13 @@ var require_client = __commonJS({
       return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1;
     }
     __name(getPipelining, "getPipelining");
+    function getMaxConcurrent(client) {
+      if (client[kHTTPContext]?.version === "h2") {
+        return client[kMaxConcurrentStreams];
+      }
+      return getPipelining(client);
+    }
+    __name(getMaxConcurrent, "getMaxConcurrent");
     var Client = class extends DispatcherBase {
       static {
         __name(this, "Client");
@@ -9486,8 +9546,9 @@ var require_client = __commonJS({
         return !!this[kHTTPContext] && !this[kConnecting] && !this[kHTTPContext].destroyed;
       }
       get [kBusy]() {
+        const allowsMux = this[kHTTPContext]?.version === "h2";
         return Boolean(
-          this[kHTTPContext]?.busy(null) || this[kSize] >= (getPipelining(this) || 1) || this[kPending] > 0
+          this[kHTTPContext]?.busy(null) || this[kSize] >= (getMaxConcurrent(this) || 1) || this[kPending] > 0 && !allowsMux
         );
       }
       [kConnect](cb) {
@@ -9716,7 +9777,7 @@ var require_client = __commonJS({
         if (client[kPending] === 0) {
           return;
         }
-        if (client[kRunning] >= (getPipelining(client) || 1)) {
+        if (client[kRunning] >= (getMaxConcurrent(client) || 1)) {
           return;
         }
         const request = client[kQueue][client[kPendingIdx]];
@@ -12279,6 +12340,12 @@ var require_request2 = __commonJS({
       /** @type {Headers} */
       #headers;
       #state;
+      /**
+       * Removes the `abort` listener that makes this request's signal follow the
+       * passed signal. `null` when no such listener was registered.
+       * @type {(() => void) | null}
+       */
+      #abortCleanup = null;
       // https://fetch.spec.whatwg.org/#dom-request
       constructor(input, init = void 0) {
         webidl.util.markAsUncloneable(this);
@@ -12476,8 +12543,13 @@ var require_request2 = __commonJS({
             if (abortSignalHasEventHandlerLeakWarning && getMaxListeners(signal) === defaultMaxListeners) {
               setMaxListeners(1500, signal);
             }
-            util.addAbortListener(signal, abort);
+            const removeAbortListener = util.addAbortListener(signal, abort);
             requestFinalizer.register(ac, { signal, abort }, abort);
+            this.#abortCleanup = () => {
+              requestFinalizer.unregister(abort);
+              removeAbortListener();
+              this.#abortCleanup = null;
+            };
           }
         }
         this.#headers = new Headers(kConstruct);
@@ -12756,14 +12828,23 @@ var require_request2 = __commonJS({
       static setRequestState(request, newState) {
         request.#state = newState;
       }
+      /**
+       * Removes the `abort` listener that makes this request's signal follow the
+       * signal passed to its constructor, if any. Idempotent.
+       * @param {Request} request
+       */
+      static removeRequestAbortListener(request) {
+        request.#abortCleanup?.();
+      }
     };
-    var { setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState } = Request;
+    var { setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState, removeRequestAbortListener } = Request;
     Reflect.deleteProperty(Request, "setRequestSignal");
     Reflect.deleteProperty(Request, "getRequestDispatcher");
     Reflect.deleteProperty(Request, "setRequestDispatcher");
     Reflect.deleteProperty(Request, "setRequestHeaders");
     Reflect.deleteProperty(Request, "getRequestState");
     Reflect.deleteProperty(Request, "setRequestState");
+    Reflect.deleteProperty(Request, "removeRequestAbortListener");
     mixinBody(Request, getRequestState);
     function makeRequest(init) {
       return {
@@ -12960,7 +13041,8 @@ var require_request2 = __commonJS({
       fromInnerRequest,
       cloneRequest,
       getRequestDispatcher,
-      getRequestState
+      getRequestState,
+      removeRequestAbortListener
     };
   }
 });
@@ -13120,7 +13202,7 @@ var require_fetch = __commonJS({
       getResponseState
     } = require_response();
     var { HeadersList } = require_headers();
-    var { Request, cloneRequest, getRequestDispatcher, getRequestState } = require_request2();
+    var { Request, cloneRequest, getRequestDispatcher, getRequestState, removeRequestAbortListener } = require_request2();
     var zlib = require("node:zlib");
     var {
       makePolicyContainer,
@@ -13262,7 +13344,7 @@ var require_fetch = __commonJS({
       let responseObject = null;
       let locallyAborted = false;
       let controller = null;
-      addAbortListener(
+      const removeAbortListener = addAbortListener(
         requestObject.signal,
         () => {
           locallyAborted = true;
@@ -13272,16 +13354,22 @@ var require_fetch = __commonJS({
           abortFetch(p, request, realResponse, requestObject.signal.reason, controller.controller);
         }
       );
+      const cleanupAbortListeners = /* @__PURE__ */ __name(() => {
+        removeAbortListener();
+        removeRequestAbortListener(requestObject);
+      }, "cleanupAbortListeners");
       const processResponse = /* @__PURE__ */ __name((response) => {
         if (locallyAborted) {
           return;
         }
         if (response.aborted) {
           abortFetch(p, request, responseObject, controller.serializedAbortReason, controller.controller);
+          cleanupAbortListeners();
           return;
         }
         if (response.type === "error") {
           p.reject(new TypeError("fetch failed", { cause: response.error }));
+          cleanupAbortListeners();
           return;
         }
         responseObject = new WeakRef(fromInnerResponse(response, "immutable"));
@@ -13290,7 +13378,10 @@ var require_fetch = __commonJS({
       }, "processResponse");
       controller = fetching({
         request,
-        processResponseEndOfBody: handleFetchDone,
+        processResponseEndOfBody: /* @__PURE__ */ __name((response) => {
+          handleFetchDone(response);
+          cleanupAbortListeners();
+        }, "processResponseEndOfBody"),
         processResponse,
         dispatcher: getRequestDispatcher(requestObject),
         // undici

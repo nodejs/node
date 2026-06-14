@@ -39,48 +39,48 @@ typedef struct nghttp3_http_state nghttp3_http_state;
 /* HTTP related flags to enforce HTTP semantics */
 
 /* NGHTTP3_HTTP_FLAG_NONE indicates that no flag is set. */
-#define NGHTTP3_HTTP_FLAG_NONE 0x00u
+#define NGHTTP3_HTTP_FLAG_NONE 0x00U
 /* header field seen so far */
-#define NGHTTP3_HTTP_FLAG__AUTHORITY 0x01u
-#define NGHTTP3_HTTP_FLAG__PATH 0x02u
-#define NGHTTP3_HTTP_FLAG__METHOD 0x04u
-#define NGHTTP3_HTTP_FLAG__SCHEME 0x08u
+#define NGHTTP3_HTTP_FLAG__AUTHORITY 0x01U
+#define NGHTTP3_HTTP_FLAG__PATH 0x02U
+#define NGHTTP3_HTTP_FLAG__METHOD 0x04U
+#define NGHTTP3_HTTP_FLAG__SCHEME 0x08U
 /* host is not pseudo header, but we require either host or
    :authority */
-#define NGHTTP3_HTTP_FLAG_HOST 0x10u
-#define NGHTTP3_HTTP_FLAG__STATUS 0x20u
+#define NGHTTP3_HTTP_FLAG_HOST 0x10U
+#define NGHTTP3_HTTP_FLAG__STATUS 0x20U
 /* required header fields for HTTP request except for CONNECT
    method. */
 #define NGHTTP3_HTTP_FLAG_REQ_HEADERS                                          \
   (NGHTTP3_HTTP_FLAG__METHOD | NGHTTP3_HTTP_FLAG__PATH |                       \
    NGHTTP3_HTTP_FLAG__SCHEME)
-#define NGHTTP3_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED 0x40u
+#define NGHTTP3_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED 0x40U
 /* HTTP method flags */
-#define NGHTTP3_HTTP_FLAG_METH_CONNECT 0x80u
-#define NGHTTP3_HTTP_FLAG_METH_HEAD 0x0100u
-#define NGHTTP3_HTTP_FLAG_METH_OPTIONS 0x0200u
+#define NGHTTP3_HTTP_FLAG_METH_CONNECT 0x80U
+#define NGHTTP3_HTTP_FLAG_METH_HEAD 0x0100U
+#define NGHTTP3_HTTP_FLAG_METH_OPTIONS 0x0200U
 #define NGHTTP3_HTTP_FLAG_METH_ALL                                             \
   (NGHTTP3_HTTP_FLAG_METH_CONNECT | NGHTTP3_HTTP_FLAG_METH_HEAD |              \
    NGHTTP3_HTTP_FLAG_METH_OPTIONS)
 /* :path category */
 /* path starts with "/" */
-#define NGHTTP3_HTTP_FLAG_PATH_REGULAR 0x0400u
+#define NGHTTP3_HTTP_FLAG_PATH_REGULAR 0x0400U
 /* path "*" */
-#define NGHTTP3_HTTP_FLAG_PATH_ASTERISK 0x0800u
+#define NGHTTP3_HTTP_FLAG_PATH_ASTERISK 0x0800U
 /* scheme */
 /* "http" or "https" scheme */
-#define NGHTTP3_HTTP_FLAG_SCHEME_HTTP 0x1000u
+#define NGHTTP3_HTTP_FLAG_SCHEME_HTTP 0x1000U
 /* set if final response is expected */
-#define NGHTTP3_HTTP_FLAG_EXPECT_FINAL_RESPONSE 0x2000u
+#define NGHTTP3_HTTP_FLAG_EXPECT_FINAL_RESPONSE 0x2000U
 /* NGHTTP3_HTTP_FLAG__PROTOCOL is set when :protocol pseudo header
    field is seen. */
-#define NGHTTP3_HTTP_FLAG__PROTOCOL 0x4000u
+#define NGHTTP3_HTTP_FLAG__PROTOCOL 0x4000U
 /* NGHTTP3_HTTP_FLAG_PRIORITY is set when priority header field is
    processed. */
-#define NGHTTP3_HTTP_FLAG_PRIORITY 0x8000u
+#define NGHTTP3_HTTP_FLAG_PRIORITY 0x8000U
 /* NGHTTP3_HTTP_FLAG_BAD_PRIORITY is set when an error is encountered
    while parsing priority header field. */
-#define NGHTTP3_HTTP_FLAG_BAD_PRIORITY 0x010000u
+#define NGHTTP3_HTTP_FLAG_BAD_PRIORITY 0x010000U
 
 /*
  * This function is called when HTTP header field |nv| received for
@@ -98,7 +98,7 @@ typedef struct nghttp3_http_state nghttp3_http_state;
  *     Invalid HTTP header field was received but it can be treated as
  *     if it was not received because of compatibility reasons.
  */
-int nghttp3_http_on_header(nghttp3_http_state *http, nghttp3_qpack_nv *nv,
+int nghttp3_http_on_header(nghttp3_http_state *http, const nghttp3_qpack_nv *nv,
                            int request, int trailers, int connect_protocol);
 
 /*
@@ -131,7 +131,7 @@ int nghttp3_http_on_response_headers(nghttp3_http_state *http);
  * NGHTTP3_ERR_MALFORMED_HTTP_MESSAGING
  *     HTTP messaging is violated.
  */
-int nghttp3_http_on_remote_end_stream(nghttp3_stream *stream);
+int nghttp3_http_on_remote_end_stream(const nghttp3_stream *stream);
 
 /*
  * This function is called when chunk of data is received.  This

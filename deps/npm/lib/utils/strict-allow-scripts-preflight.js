@@ -1,4 +1,6 @@
 const checkAllowScripts = require('./check-allow-scripts.js')
+const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
+const { configSetAllowScripts } = require('./allow-scripts-remediation.js')
 
 // Pre-flight check for `--strict-allow-scripts`. Call after arborist has
 // been constructed but before `arb.reify()` runs, so that install scripts
@@ -46,13 +48,26 @@ const strictAllowScriptsPreflight = async ({ arb, npm, idealTreeOpts }) => {
     return `  ${label} (${events})`
   }).join('\n')
 
+  // `npm approve-scripts` / `npm deny-scripts` write to a project
+  // package.json, which doesn't exist for global installs. Point global
+  // users at the `--allow-scripts` flag and `npm config set allow-scripts`,
+  // which both work for global installs. Use the trusted display identity
+  // so the suggested `npm config set` value matches what the policy matches
+  // on, not the tarball's self-reported name.
+  const names = unreviewed.map(({ node }) => trustedDisplay(node).name)
+  const remediation = npm.global
+    ? 'Allow them with `--allow-scripts`, persist them with ' +
+      `\`${configSetAllowScripts(names)}\`, or bypass this ` +
+      'check with `--dangerously-allow-all-scripts`.'
+    : 'Approve them with `npm approve-scripts`, deny them with ' +
+      '`npm deny-scripts`, or bypass this check with ' +
+      '`--dangerously-allow-all-scripts`.'
+
   throw Object.assign(
     new Error(
       `--strict-allow-scripts: ${unreviewed.length} package(s) have install ` +
       `scripts not covered by allowScripts:\n${lines}\n` +
-      'Approve them with `npm approve-scripts`, deny them with ' +
-      '`npm deny-scripts`, or bypass this check with ' +
-      '`--dangerously-allow-all-scripts`.'
+      remediation
     ),
     { code: 'ESTRICTALLOWSCRIPTS' }
   )

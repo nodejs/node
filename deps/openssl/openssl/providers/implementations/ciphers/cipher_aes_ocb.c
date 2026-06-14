@@ -514,6 +514,19 @@ static int aes_ocb_cipher(void *vctx, unsigned char *out, size_t *outl,
         return 0;
     }
 
+    /*
+     * Mirror the streaming handler: refuse if the key has not been set,
+     * and push the buffered IV into the OCB context before any data is
+     * processed.  Without this, CRYPTO_ocb128_encrypt/decrypt runs with
+     * Offset_0 = 0 regardless of the caller's IV -- catastrophic
+     * (key, nonce) reuse, and a subsequent EVP_*Final_ex() emits a tag
+     * that is a function of (key, iv) only.
+     */
+    if (!ctx->key_set || !update_iv(ctx)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_CIPHER_OPERATION_FAILED);
+        return 0;
+    }
+
     if (!aes_generic_ocb_cipher(ctx, in, out, inl)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_CIPHER_OPERATION_FAILED);
         return 0;

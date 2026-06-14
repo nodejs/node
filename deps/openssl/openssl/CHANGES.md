@@ -28,6 +28,303 @@ OpenSSL Releases
 OpenSSL 3.5
 -----------
 
+### Changes between 3.5.6 and 3.5.7 [9 Jun 2026]
+
+ * Fixed heap use-after-free in `PKCS7_verify()`.
+
+   Severity: High
+
+   Issue summary: A specially crafted PKCS#7 or S/MIME signed message could
+   trigger a use-after-free during PKCS#7 signature verification.
+
+   Impact summary: A use-after-free may result in process crashes, heap
+   corruption, or, potentially, remote code execution.
+
+   Reported by: Thai Duong (Calif.io in collaboration with Claude
+   and Anthropic Research).
+
+   ([CVE-2026-45447])
+
+   *Igor Ustinov*
+
+ * Fixed CMS `AuthEnvelopedData` processing may accept forged messages.
+
+   Severity: Moderate
+
+   Issue Summary: Cryptographic Message Services (CMS) processing fails
+   to perform sufficient input validation on the cipher and tag length fields
+   of `AuthEnvelopedData` containers, leading to various potential compromises.
+
+   Impact Summary: Attackers making use of these vulnerabilities may achieve
+   key-equivalent functionality for a given CMS recipient and/or bypass
+   integrity validation for a given message.
+
+   Reported by: Asim Viladi Oglu Manizada, Alex Gaynor (Anthropic),
+   Ying Dong, and Haiyang Huang.
+
+   ([CVE-2026-34182])
+
+   *Neil Horman*
+
+ * Fixed unbounded memory growth in the QUIC `PATH_CHALLENGE` handler.
+
+   Severity: Moderate
+
+   Issue summary: Remote peer may exhaust heap memory of the QUIC server
+   or client by flooding it with packets containing `PATH_CHALLENGE` frames.
+
+   Impact summary: A malicious remote peer can cause an unbounded memory
+   allocation which can lead to an abnormal termination of the application
+   acting as a QUIC client or server and a Denial of Service.
+
+   Reported by: Abhinav Agarwal.
+
+   ([CVE-2026-34183])
+
+   *Abhinav Agarwal and Alexandr Nedvedicky*
+
+ * Fixed NULL pointer dereference in QUIC server initial packet handling.
+
+   Severity: Moderate
+
+   Issue summary: Receiving a QUIC initial packet with an invalid token
+   may trigger a NULL pointer dereference in the OpenSSL QUIC server
+   with address validation disabled.
+
+   Impact summary: NULL pointer dereference typically causes abnormal
+   termination of the affected QUIC server process and a Denial of Service.
+
+   Reported by: Sunwoo Lee (KENTECH), Hyuk Lim (KENTECH),
+   and Seunghyun Yoon (KENTECH).
+
+   ([CVE-2026-42764])
+
+   *Sunwoo Lee (KENTECH), Hyuk Lim (KENTECH), and Seunghyun Yoon (KENTECH)*
+
+ * Fixed AES-OCB IV ignored on `EVP_Cipher()` path.
+
+   Severity: Moderate
+
+   Issue summary: When an application drives an AES-OCB context through
+   the public `EVP_Cipher()` one-shot interface, the application-supplied
+   initialisation vector (IV) is silently discarded.
+
+   Impact summary: Every message encrypted under the same key uses the same
+   effective nonce regardless of the IV supplied by the caller, resulting
+   in `(key, nonce)` reuse and loss of confidentiality.  If the same code path
+   is used to compute the authentication tag, the tag depends only
+   on the `(key, IV)` pair and not on the plaintext or ciphertext, allowing
+   universal forgery of arbitrary ciphertext from a single captured message.
+
+   Reported by: Alex Gaynor (Anthropic).
+
+   ([CVE-2026-45445])
+
+   *Viktor Dukhovni*
+
+ * Fixed possible heap buffer overflow in ASN.1 multibyte string conversion.
+
+   Severity: Low
+
+   Issue summary: A signed integer overflow when sizing the destination
+   buffer for Unicode output in `ASN1_mbstring_ncopy()` can lead to a heap
+   buffer overflow.
+
+   Impact summary: A heap buffer overflow may lead to a crash or possibly
+   attacker controlled code execution or other undefined behaviour.
+
+   Reported by: Zehua Qiao and Jinwen He.
+
+   ([CVE-2026-7383])
+
+   *Viktor Dukhovni*
+
+ * Fixed out-of-bounds read in CMS password-based decryption.
+
+   Severity: Low
+
+   Issue summary: When CMS password-based decryption ([RFC 3211]/PWRI key
+   unwrap) processes attacker-supplied CMS data, an attacker-chosen stream-mode
+   KEK cipher can trigger a heap out-of-bounds read in `kek_unwrap_key()`.
+
+   Impact summary: A heap buffer over-read may trigger a crash, which leads
+   to Denial of Service for an application if the input buffer ends at a memory
+   page boundary and the following page is unmapped.  There is no information
+   disclosure, as the over-read bytes are not revealed to the attacker.
+
+   Reported by: Bhabani Sankar Das and Haruki Oyama (Waseda University).
+
+   ([CVE-2026-9076])
+
+   *Nikola Pajkovský*
+
+ * Fixed heap buffer over-read in ASN.1 content parsing.
+
+   Severity: Low
+
+   Issue summary: Parsing a crafted DER-encoded ASN.1 structure with a primitive
+   element whose content exceeds 2 gigabytes in length may cause a heap buffer
+   over-read on 64-bit Unix and Unix-like platforms.
+
+   Impact summary: The heap buffer over-read may crash the application (Denial
+   of Service) or to load into the decoded ASN.1 object contents of memory
+   beyond the end of the input buffer.  More typically, such ASN.1 elements
+   would instead be truncated.
+
+   Reported by: Frank Buss.
+
+   ([CVE-2026-34180])
+
+   *Viktor Dukhovni*
+
+ * Fixed PKCS#12 files with PBMAC1 are accepted with short HMAC keys.
+
+   Severity: Low
+
+   Issue Summary: The PKCS#12 file processing fails to perform sufficient input
+   validation for files that use Password-Based Message Authentication Code 1
+   (PBMAC1) integrity mechanism allowing a certificate and private key forgery.
+
+   Impact Summary: An attacker impersonating a user can cause a service reading
+   PKCS#12 files to accept forged certificates and private keys with a 1 in 256
+   probability.
+
+   Reported by: Pavol Žáčik (Red Hat) and Alex Gaynor (Anthropic).
+
+   ([CVE-2026-34181])
+
+   *Alicja Kario (Red Hat)*
+
+ * Fixed possible NULL dereference in password-dased CMS decryption.
+
+   Severity: Low
+
+   Issue summary: A specially crafted password-encrypted CMS message
+   could trigger a NULL pointer dereference during CMS decryption.
+
+   Impact summary: This NULL pointer dereference could lead to an application
+   crash and a Denial of Service.
+
+   Reported by: Mayank Jangid, Kushal Khemka, Hari Priandana,
+   Bhabani Sankar Das, and Qifan Zhang (Palo Alto Networks).
+
+   ([CVE-2026-42766])
+
+   *Igor Ustinov*
+
+ * Fixed NULL pointer dereference in CRMF `EncryptedValue` decryption.
+
+   Severity: Low
+
+   Issue summary: An attacker-controlled CMP (Certificate Management Protocol)
+   server could trigger a NULL pointer dereference in a CMP client application.
+
+   Impact summary: A NULL pointer dereference could cause a crash
+   of the application and a Denial of Service.
+
+   Reported by: Zhanpeng Liu (Tencent Xuanwu Lab),
+   Guannan Wang (Tencent Xuanwu Lab), and Guancheng Li (Tencent Xuanwu Lab).
+
+   ([CVE-2026-42767])
+
+   *Igor Ustinov*
+
+ * Fixed multi-`RecipientInfo` Bleichenbacher Oracle in `CMS_decrypt()`
+   and `PKCS7_decrypt()`.
+
+   Severity: Low
+
+   Issue summary: The `CMS_decrypt()` and `PKCS7_decrypt()` functions
+   are vulnerable to Bleichenbacher-style attack when an attacker is able
+   to provide CMS or S/MIME messages and observe the error code
+   and/or decryption output.
+
+   Impact summary: The Bleichenbacher-style attack allows an attacker to use
+   the victim's vulnerable application as a way to decrypt or sign messages
+   with the victim's private RSA key.
+
+   Reported by: Alex Gaynor (Anthropic).
+
+   ([CVE-2026-42768])
+
+   *Dmitry Belyavskiy (Red Hat) and Alicja Kario (Red Hat)*
+
+ * Fixed trust anchor substitution via `cert`/`issuer` typo in CMP
+   `rootCaKeyUpdate`.
+
+   Severity: Low
+
+   Issue Summary: An error in the callback used to verify the certificate
+   provided in a Root CA key update Certificate Management Protocol (CMP)
+   message response rendered the certificate validation ineffectual,
+   which could lead to escalation of credentials from the Registration
+   Authority (RA) level to the root Certification Authority (root CA) level.
+
+   Impact Summary: The Registration Authority could replace the root CA
+   certificate for the CMP clients with an arbitrary root CA certificate.
+
+   Reported by: Alex Gaynor (Anthropic).
+
+   ([CVE-2026-42769])
+
+   *Alex Gaynor (Anthropic) and Bob Beck*
+
+ * Fixed FFC-DH peer validation uses attacker-supplied `q`.
+
+   Severity: Low
+
+   Issue summary: When `EVP_PKEY_derive_set_peer()` is called with a DHX (X9.42)
+   peer key, the peer key is not properly checked for the subgroup membership.
+
+   Impact summary: A malicious peer which presents an X9.42 key carrying
+   the victim's `p` and `g` parameters, a forged `q = r` (a small prime factor
+   of the cofactor `(p − 1)/q_local`), and a public value `Y` of order `r` can
+   recover the victim's private key after a small number of key exchange
+   attempts.
+
+   Reported by: Alex Gaynor (Anthropic).
+
+   ([CVE-2026-42770])
+
+   *Alex Gaynor (Anthropic), Viktor Dukhovni, and Norbert Pócs*
+
+ * Fixed incorrect tag processing for empty messages in AES-GCM-SIV
+   and AES-SIV modes.
+
+   Severity: Low
+
+   Issue summary: The implementations of AES-SIV ([RFC 5297]) and AES-GCM-SIV
+   ([RFC 8452]) mishandle the authentication of AAD (Additional Authenticated
+   Data) with an empty ciphertext, allowing forgery of such messages.
+
+   Impact summary: An attacker can forge empty messages with arbitrary AAD
+   to the victim's application using these ciphers.
+
+   Reported by: Alex Gaynor (Anthropic).
+
+   ([CVE-2026-45446])
+
+   *Dmitry Belyavskiy (Red Hat)*
+
+ * Fixed TLS 1.3 server not sending `NewSessionTicket` message
+   after ciphersuite mismatch.
+   <!-- https://github.com/openssl/openssl/pull/30626 -->
+
+   *Daniel Kubec*
+
+ * Implemented validation of the minimal length of PSK identity
+   being of at least one byte long, as required per [RFC 8446].
+   <!-- https://github.com/openssl/openssl/pull/31058 -->
+
+   *Matt Caswell*
+
+ * Fixed usage of stale application buffer pointer by kTLS implementation
+   after incomplete writes when `SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER` is set,
+   that led to invalid memory reads and sending of incorrect data.
+   <!-- https://github.com/openssl/openssl/pull/31146 -->
+
+   *Ilya Maximets*
+
 ### Changes between 3.5.5 and 3.5.6 [7 Apr 2026]
 
  * Fixed incorrect failure handling in RSA KEM RSASVE encapsulation.
@@ -21961,6 +22258,8 @@ ndif
 [CVE-2025-69420]: https://openssl-library.org/news/vulnerabilities/#CVE-2025-69420
 [CVE-2025-69421]: https://openssl-library.org/news/vulnerabilities/#CVE-2025-69421
 [CVE-2026-2673]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-2673
+[CVE-2026-7383]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-7383
+[CVE-2026-9076]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-9076
 [CVE-2026-22795]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22795
 [CVE-2026-22796]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22796
 [CVE-2026-28387]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28387
@@ -21969,5 +22268,22 @@ ndif
 [CVE-2026-28390]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28390
 [CVE-2026-31789]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-31789
 [CVE-2026-31790]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-31790
+[CVE-2026-34180]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34180
+[CVE-2026-34181]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34181
+[CVE-2026-34182]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34182
+[CVE-2026-34183]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34183
+[CVE-2026-42764]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42764
+[CVE-2026-42766]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42766
+[CVE-2026-42767]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42767
+[CVE-2026-42768]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42768
+[CVE-2026-42769]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42769
+[CVE-2026-42770]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42770
+[CVE-2026-45445]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45445
+[CVE-2026-45446]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45446
+[CVE-2026-45447]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45447
 [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
 [RFC 2578 (STD 58), section 3.5]: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
+[RFC 3211]: https://datatracker.ietf.org/doc/html/rfc3211
+[RFC 5297]: https://datatracker.ietf.org/doc/html/rfc5297
+[RFC 8446]: https://datatracker.ietf.org/doc/html/rfc8446
+[RFC 8452]: https://datatracker.ietf.org/doc/html/rfc8452

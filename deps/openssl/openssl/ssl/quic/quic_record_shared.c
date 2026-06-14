@@ -87,9 +87,6 @@ static void el_teardown_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
-    if (!ossl_qrl_enc_level_set_has_keyslot(els, enc_level, el->state, keyslot))
-        return;
-
     if (el->cctx[keyslot] != NULL) {
         EVP_CIPHER_CTX_free(el->cctx[keyslot]);
         el->cctx[keyslot] = NULL;
@@ -98,26 +95,18 @@ static void el_teardown_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
     OPENSSL_cleanse(el->iv[keyslot], sizeof(el->iv[keyslot]));
 }
 
-static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
-    uint32_t enc_level,
-    unsigned char tgt_state,
-    size_t keyslot,
-    const unsigned char *secret,
-    size_t secret_len)
+static int el_build_keyslot(OSSL_QRL_ENC_LEVEL *el,
+    const unsigned char *secret, size_t secret_len,
+    EVP_CIPHER_CTX **out_cctx, unsigned char *out_iv, size_t *out_iv_len)
 {
-    OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
     unsigned char key[EVP_MAX_KEY_LENGTH];
     size_t key_len = 0, iv_len = 0;
     const char *cipher_name = NULL;
     EVP_CIPHER *cipher = NULL;
     EVP_CIPHER_CTX *cctx = NULL;
 
-    if (!ossl_assert(el != NULL
-            && ossl_qrl_enc_level_set_has_keyslot(els, enc_level,
-                tgt_state, keyslot))) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
-        return 0;
-    }
+    *out_cctx = NULL;
+    *out_iv_len = 0;
 
     cipher_name = ossl_qrl_get_suite_cipher_name(el->suite_id);
     iv_len = ossl_qrl_get_suite_cipher_iv_len(el->suite_id);
@@ -133,25 +122,15 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
         return 0;
     }
 
-    assert(el->cctx[keyslot] == NULL);
-
-    /* Derive "quic iv" key. */
-    if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-            el->md,
-            secret,
-            quic_v1_iv_label,
-            sizeof(quic_v1_iv_label),
-            NULL, 0,
-            el->iv[keyslot], iv_len, 1))
+    /* Derive "quic iv" into caller's buffer. */
+    if (!tls13_hkdf_expand_ex(el->libctx, el->propq, el->md, secret,
+            quic_v1_iv_label, sizeof(quic_v1_iv_label), NULL, 0,
+            out_iv, iv_len, 1))
         goto err;
 
-    /* Derive "quic key" key. */
-    if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-            el->md,
-            secret,
-            quic_v1_key_label,
-            sizeof(quic_v1_key_label),
-            NULL, 0,
+    /* Derive "quic key" into local. */
+    if (!tls13_hkdf_expand_ex(el->libctx, el->propq, el->md, secret,
+            quic_v1_key_label, sizeof(quic_v1_key_label), NULL, 0,
             key, key_len, 1))
         goto err;
 
@@ -173,12 +152,13 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
     }
 
     /* IV will be changed on RX/TX so we don't need to use a real value here. */
-    if (!EVP_CipherInit_ex(cctx, cipher, NULL, key, el->iv[keyslot], 0)) {
+    if (!EVP_CipherInit_ex(cctx, cipher, NULL, key, out_iv, 0)) {
         ERR_raise(ERR_LIB_SSL, ERR_R_EVP_LIB);
         goto err;
     }
 
-    el->cctx[keyslot] = cctx;
+    *out_cctx = cctx;
+    *out_iv_len = iv_len;
 
     /* Zeroize intermediate keys. */
     OPENSSL_cleanse(key, sizeof(key));
@@ -188,9 +168,45 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
 err:
     EVP_CIPHER_CTX_free(cctx);
     EVP_CIPHER_free(cipher);
-    OPENSSL_cleanse(el->iv[keyslot], sizeof(el->iv[keyslot]));
     OPENSSL_cleanse(key, sizeof(key));
+    OPENSSL_cleanse(out_iv, iv_len);
     return 0;
+}
+
+static void el_install_keyslot(OSSL_QRL_ENC_LEVEL *el, size_t keyslot,
+    EVP_CIPHER_CTX *new_cctx, const unsigned char *new_iv, size_t new_iv_len)
+{
+    assert(el->cctx[keyslot] == NULL);
+    assert(new_iv_len <= sizeof(el->iv[keyslot]));
+
+    el->cctx[keyslot] = new_cctx;
+    memcpy(el->iv[keyslot], new_iv, new_iv_len);
+}
+
+static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els, uint32_t enc_level,
+    unsigned char tgt_state, size_t keyslot, const unsigned char *secret,
+    size_t secret_len)
+{
+    OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
+    EVP_CIPHER_CTX *new_cctx = NULL;
+    unsigned char new_iv[EVP_MAX_IV_LENGTH];
+    size_t new_iv_len = EVP_MAX_IV_LENGTH;
+
+    if (!ossl_assert(el != NULL
+            && ossl_qrl_enc_level_set_has_keyslot(els, enc_level,
+                tgt_state, keyslot))) {
+        ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
+
+    if (!el_build_keyslot(el, secret, secret_len, &new_cctx, new_iv,
+            &new_iv_len))
+        return 0;
+
+    el_install_keyslot(el, keyslot, new_cctx, new_iv, new_iv_len);
+
+    OPENSSL_cleanse(new_iv, sizeof(new_iv));
+    return 1;
 }
 
 int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
@@ -346,6 +362,9 @@ int ossl_qrl_enc_level_set_key_update(OSSL_QRL_ENC_LEVEL_SET *els,
     uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
+    EVP_CIPHER_CTX *new_cctx = NULL;
+    unsigned char new_iv[EVP_MAX_IV_LENGTH];
+    size_t new_iv_len = EVP_MAX_IV_LENGTH;
     size_t secret_len;
     unsigned char new_ku[EVP_MAX_KEY_LENGTH];
 
@@ -383,12 +402,14 @@ int ossl_qrl_enc_level_set_key_update(OSSL_QRL_ENC_LEVEL_SET *els,
             new_ku, secret_len, 1))
         return 0;
 
-    el_teardown_keyslot(els, enc_level, 0);
-
-    /* Setup keyslot for CURRENT "quic ku" key. */
-    if (!el_setup_keyslot(els, enc_level, QRL_EL_STATE_PROV_NORMAL,
-            0, el->ku, secret_len))
+    /* Build new keyslot first so if it fails, teardown is not done. */
+    if (!el_build_keyslot(el, el->ku, secret_len, &new_cctx, new_iv,
+            &new_iv_len))
         return 0;
+
+    el_teardown_keyslot(els, enc_level, 0);
+    el_install_keyslot(el, 0, new_cctx, new_iv, new_iv_len);
+    OPENSSL_cleanse(new_iv, sizeof(new_iv));
 
     ++el->key_epoch;
     el->op_count = 0;

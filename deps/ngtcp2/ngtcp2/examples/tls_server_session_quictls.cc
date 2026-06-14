@@ -24,8 +24,6 @@
  */
 #include "tls_server_session_quictls.h"
 
-#include <iostream>
-
 #include <openssl/err.h>
 
 #include "tls_server_context_quictls.h"

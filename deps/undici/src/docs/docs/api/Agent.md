@@ -21,6 +21,9 @@ Extends: [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions)
 * **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Pool(origin, opts)`
 * **maxOrigins** `number` (optional) - Default: `Infinity` - Limits the total number of origins that can receive requests at a time, throwing an `MaxOriginsReachedError` error when attempting to dispatch when the max is reached. If `Infinity`, no limit is enforced.
 
+> [!NOTE]
+> Like `Pool`, `Agent` inherits all [`ClientOptions`](/docs/docs/api/Client.md#parameter-clientoptions). `allowH2` defaults to `true` and `maxConcurrentStreams` to `100`. The per-origin `Pool` it creates uses the default unlimited `connections`, so concurrent requests to the same origin land on separate `Client` instances and separate TCP/TLS sockets — HTTP/2 multiplexing on a shared session does not apply unless `connections` is set to a small value. See [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions).
+
 ## Instance Properties
 
 ### `Agent.closed`

@@ -21,6 +21,9 @@ Extends: [`ClientOptions`](/docs/docs/api/Client.md#parameter-clientoptions)
 * **connections** `number | null` (optional) - Default: `null` - The number of `Client` instances to create. When set to `null`, the `Pool` instance will create an unlimited amount of `Client` instances.
 * **clientTtl** `number | null` (optional) - Default: `null` - The amount of time before a `Client` instance is removed from the `Pool` and closed.   When set to `null`, `Client` instances will not be removed or closed based on age.
 
+> [!NOTE]
+> `Pool` inherits all [`ClientOptions`](/docs/docs/api/Client.md#parameter-clientoptions), including `allowH2` (default `true`) and `maxConcurrentStreams` (default `100`). With the unlimited default of `connections`, `Pool` will open a new `Client` — and therefore a new TCP/TLS socket — per concurrent dispatch, which defeats HTTP/2 multiplexing on a shared session. To benefit from h2 multiplexing on a single session, cap `connections` (e.g. `connections: 1`) so that concurrent requests share a session up to `maxConcurrentStreams`.
+
 ## Instance Properties
 
 ### `Pool.closed`

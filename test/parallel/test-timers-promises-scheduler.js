@@ -49,3 +49,17 @@ testCancelableWait2().then(common.mustCall());
 assert.throws(() => new scheduler.constructor(), {
   code: 'ERR_ILLEGAL_CONSTRUCTOR',
 });
+
+assert.throws(() => {
+  scheduler.yield.call({});
+}, {
+  code: 'ERR_INVALID_THIS',
+  message: /Scheduler/,
+});
+
+assert.throws(() => {
+  scheduler.wait.call({}, 10);
+}, {
+  code: 'ERR_INVALID_THIS',
+  message: /Scheduler/,
+});

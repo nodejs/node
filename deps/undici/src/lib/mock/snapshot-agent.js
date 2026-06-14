@@ -354,7 +354,15 @@ class SnapshotAgent extends MockAgent {
    * @returns {Promise<void>}
    */
   async close () {
-    await this[kSnapshotRecorder].close()
+    // In playback mode the recorder must not persist to disk. findSnapshot()
+    // mutates each matched snapshot's callCount, so saving on close would
+    // rewrite the snapshot file even though nothing new was recorded. Only
+    // record/update modes should write snapshots; playback just cleans up.
+    if (this[kSnapshotMode] === 'playback') {
+      this[kSnapshotRecorder].destroy()
+    } else {
+      await this[kSnapshotRecorder].close()
+    }
     await this[kRealAgent]?.close()
     await super.close()
   }

@@ -49,6 +49,9 @@ class Query extends BaseCommand {
     'include-workspace-root',
     'package-lock-only',
     'expect-results',
+    'before',
+    'min-release-age',
+    'min-release-age-exclude',
   ]
 
   constructor (...args) {

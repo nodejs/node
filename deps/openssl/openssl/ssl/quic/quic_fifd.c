@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -309,4 +309,47 @@ void ossl_quic_fifd_set_qlog_cb(QUIC_FIFD *fifd, QLOG *(*get_qlog_cb)(void *arg)
 {
     fifd->get_qlog_cb = get_qlog_cb;
     fifd->get_qlog_cb_arg = get_qlog_cb_arg;
+}
+
+static void txpim_pkt_remove_cfq_item(QUIC_TXPIM_PKT *pkt, QUIC_CFQ_ITEM *cfq_item)
+{
+    QUIC_CFQ_ITEM *prev = cfq_item->pkt_prev;
+
+    if (prev != NULL) {
+        prev->pkt_next = cfq_item->pkt_next;
+    } else {
+        pkt->retx_head = cfq_item->pkt_next;
+    }
+
+    if (cfq_item->pkt_next != NULL)
+        cfq_item->pkt_next->pkt_prev = prev;
+
+    cfq_item->pkt_prev = NULL;
+    cfq_item->pkt_next = NULL;
+}
+
+void ossl_quic_fifd_pkt_discard_unreliable(QUIC_FIFD *fifd, QUIC_TXPIM_PKT *pkt)
+{
+    QUIC_CFQ_ITEM *cfq_item, *cfq_next;
+
+    /*
+     * The packet has been written to network. We can discard frames we don't
+     * retransmit when loss is detected.
+     */
+    cfq_item = pkt->retx_head;
+    while (cfq_item != NULL) {
+        /*
+         * Discarded items are moved to free list. If item
+         * got moved to free list we must also remove it from
+         * cfq list kept in pkt, so ACKM does not find it when
+         * receives an ACK for pkt.
+         */
+        if (ossl_quic_cfq_discard_unreliable(fifd->cfq, cfq_item)) {
+            cfq_next = cfq_item->pkt_next;
+            txpim_pkt_remove_cfq_item(pkt, cfq_item);
+            cfq_item = cfq_next;
+        } else {
+            cfq_item = cfq_item->pkt_next;
+        }
+    }
 }
