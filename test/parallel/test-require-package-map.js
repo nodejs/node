@@ -79,6 +79,7 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.match(stdout, /dep-b using dep-a-value/);
       assert.strictEqual(status, 0, stderr);
     });
+
   });
 
   describe('resolution boundaries', () => {
@@ -299,6 +300,22 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
 
   describe('longest path wins', () => {
     const longestPathMap = fixtures.path('package-map/package-map-longest-path.json');
+
+    it('resolves from createRequire() paths with mixed separators', () => {
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map', longestPathMap,
+        '-e',
+        `const { createRequire } = require('node:module'); const req = createRequire(process.cwd() + '/node_modules/inner/index.js'); const dep = req('dep-a'); console.log(dep.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /dep-a-value/);
+      assert.strictEqual(status, 0, stderr);
+    });
 
     it('resolves nested package using its own dependencies, not the parent', () => {
       // Inner lives at ./root/node_modules/inner which is inside root's
