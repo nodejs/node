@@ -60,6 +60,35 @@ runDotCommandAfterRecoverable('.help', (replServer, output) => {
   assert.match(output.accumulator, /2\n/);
 });
 
+function runBufferedDotCommandAfterRecoverable(command, validate) {
+  const { replServer, input, output } =
+    startNewREPLServer({ terminal: false });
+
+  replServer.on('exit', common.mustCall());
+  input.run(['function a() {', command]);
+
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  validate(input, output);
+
+  replServer.close();
+}
+
+runBufferedDotCommandAfterRecoverable('.break', (input, output) => {
+  input.run(['1 + 1']);
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  assert.match(output.accumulator, /2\n/);
+});
+
+runBufferedDotCommandAfterRecoverable('.help', (input, output) => {
+  assert.match(output.accumulator, /\.break\s+Sometimes you get stuck/);
+  assert.match(output.accumulator, /\.help\s+Print this help message/);
+
+  input.run(['.break', '1 + 1']);
+
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+  assert.match(output.accumulator, /2\n/);
+});
+
 {
   const { replServer, output } = startNewREPLServer();
   let exited = false;
@@ -69,6 +98,20 @@ runDotCommandAfterRecoverable('.help', (replServer, output) => {
   }));
   replServer.write('function a() {\n');
   replServer.write('.exit\n');
+
+  assert.strictEqual(exited, true);
+  assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
+}
+
+{
+  const { replServer, input, output } =
+    startNewREPLServer({ terminal: false });
+  let exited = false;
+
+  replServer.on('exit', common.mustCall(() => {
+    exited = true;
+  }));
+  input.run(['function a() {', '.exit']);
 
   assert.strictEqual(exited, true);
   assert.doesNotMatch(output.accumulator, dotCommandSyntaxError);
