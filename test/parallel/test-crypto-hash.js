@@ -294,3 +294,25 @@ if (!process.features.openssl_is_boringssl) {
 {
   crypto.Hash('sha256');
 }
+
+// Regression test: Hash.prototype._transform should propagate
+// ERR_CRYPTO_HASH_UPDATE_FAILED when the native update call fails.
+// See https://github.com/nodejs/node/issues/63258
+{
+  const h = crypto.createHash('sha256');
+  const kHandle = Object.getOwnPropertySymbols(h)
+    .find((s) => s.toString() === 'Symbol(kHandle)');
+  const originalUpdate = h[kHandle].update;
+
+  // Mock the native update to simulate failure.
+  h[kHandle].update = () => false;
+
+  h.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_CRYPTO_HASH_UPDATE_FAILED');
+
+    // Restore original to avoid side effects.
+    h[kHandle].update = originalUpdate;
+  }));
+
+  h.write('data');
+}
