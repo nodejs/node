@@ -1411,9 +1411,19 @@ void Environment::RunAndClearInterrupts() {
   }
 }
 
+bool Environment::HasNativeImmediates() const {
+  return native_immediates_.size() > 0 ||
+         native_immediates_threadsafe_.size() > 0 ||
+         native_immediates_interrupts_.size() > 0;
+}
+
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
                "RunAndClearNativeImmediates");
+  if (!HasNativeImmediates()) {
+    return;
+  }
+
   HandleScope handle_scope(isolate_);
   // In case the Isolate is no longer accessible just use an empty Local. This
   // is not an issue for InternalCallbackScope as this case is already handled
@@ -1585,6 +1595,9 @@ void Environment::RunTimers(uv_timer_t* handle) {
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "CheckImmediate");
+
+  if (env->immediate_info()->count() == 0 && !env->HasNativeImmediates())
+    return;
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
