@@ -1,6 +1,6 @@
 // Flags: --expose-internals
-// This tests that probe mode keeps the initial --inspect-brk pause held until
-// startup has finished binding breakpoints.
+// This tests that probe mode ignores pauses until startup has finished binding
+// breakpoints.
 'use strict';
 
 const common = require('../common');
