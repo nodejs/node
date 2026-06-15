@@ -213,9 +213,26 @@ correct line numbers in stack traces; and Node.js does not generate them.
 
 ### Type stripping in dependencies
 
-To discourage package authors from publishing packages written in TypeScript,
-Node.js refuses to handle TypeScript files inside folders under a `node_modules`
-path.
+By default, Node.js refuses to strip types from TypeScript files inside folders
+under a `node_modules` path, to discourage shipping raw TypeScript without
+pre-computed type information.
+
+With the experimental [`--experimental-strip-types-in-node-modules-with-declarations`][] flag, a
+TypeScript file under `node_modules` is stripped and executed when a co-located
+declaration file sits beside it (for example, a `mod.d.ts` next to `mod.ts`, a
+`mod.d.mts` next to `mod.mts`, or a `mod.d.cts` next to `mod.cts`). This is the
+default layout emitted by `tsc --emitDeclarationOnly`.
+
+The presence of a co-located declaration acts as an opt-in: it signals that the
+author ran a declaration emitter and therefore pre-computed the explicit type
+boundaries that editors and type-checkers rely on, so they do not need to infer
+types from the raw source. Otherwise the
+`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` error is thrown.
+
+This unblocks workflows that copy first-party TypeScript into `node_modules` —
+such as `pnpm deploy`, packages installed from a private registry or a Git URL,
+and globally installed TypeScript CLIs — without requiring the source to be
+transpiled to JavaScript first.
 
 ### Paths aliases
 
@@ -226,6 +243,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`--experimental-strip-types-in-node-modules-with-declarations`]: cli.md#--experimental-strip-types-in-node-modules-with-declarations
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths

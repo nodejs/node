@@ -1407,6 +1407,20 @@ added:
 
 Enable the experimental [`node:stream/iter`][] module.
 
+### `--experimental-strip-types-in-node-modules-with-declarations`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Allow [TypeScript type-stripping][] for TypeScript files under `node_modules` when a co-located declaration file is
+present. By default, Node.js refuses to strip types from files under `node_modules`. With this flag, a file under
+`node_modules` is stripped and executed when a co-located declaration file sits beside it (for example, a `.d.ts` file
+alongside the `.ts` file), which is the default layout emitted by `tsc --emitDeclarationOnly`. Otherwise the
+`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` error is thrown.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -3816,6 +3830,7 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
+* `--experimental-strip-types-in-node-modules-with-declarations`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vfs`

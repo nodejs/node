@@ -3393,7 +3393,12 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for TypeScript files descendent of a `node_modules`
+directory. With the experimental `--experimental-strip-types-in-node-modules-with-declarations`
+flag, such a file is stripped and executed when a co-located declaration file
+sits beside it (for example, a `.d.ts` next to the `.ts`); otherwise this error
+is thrown. The declaration signals that the package author pre-computed the type
+boundaries that downstream tooling relies on.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 

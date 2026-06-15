@@ -194,6 +194,12 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --check or --eval can be used, not both");
   }
 
+  if (strip_types_in_node_modules_with_declarations && !strip_types) {
+    errors->push_back(
+        "--experimental-strip-types-in-node-modules-with-declarations "
+        "requires type-stripping (--strip-types) to be enabled");
+  }
+
   if (!unhandled_rejections.empty() &&
       unhandled_rejections != "warn-with-error-code" &&
       unhandled_rejections != "throw" &&
@@ -1204,6 +1210,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
+  AddOption("--experimental-strip-types-in-node-modules-with-declarations",
+            "Allow type-stripping for TypeScript files under node_modules when "
+            "the package provides a resolvable declaration for the module.",
+            &EnvironmentOptions::strip_types_in_node_modules_with_declarations,
+            kAllowedInEnvvar);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",

@@ -273,6 +273,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool strip_types = HAVE_AMARO;
+  bool strip_types_in_node_modules_with_declarations = false;
 
   std::vector<std::string> user_argv;
 

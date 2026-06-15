@@ -174,6 +174,53 @@ test('execute CommonJS TypeScript file from node_modules with require-module', a
   assert.strictEqual(result.code, 1);
 });
 
+test('strip a node_modules .ts with a co-located .d.ts when the flag is set', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-strip-types-in-node-modules-with-declarations',
+    fixtures.path('typescript/ts/test-import-ts-twin-node-modules.ts'),
+  ]);
+
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
+});
+
+// A declaration that is not co-located with the source (only reachable via the
+// `exports` "types" condition, in a separate directory) is not stripped: the
+// flag only recognizes a declaration file beside the source.
+test('node_modules .ts with a non-co-located declaration is not stripped', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types-in-node-modules-with-declarations',
+    fixtures.path('typescript/ts/test-import-ts-exports-types-node-modules.ts'),
+  ]);
+
+  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
+});
+
+test('node_modules .ts with declarations is still blocked without the flag', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    fixtures.path('typescript/ts/test-import-ts-twin-node-modules.ts'),
+  ]);
+
+  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
+});
+
+test('the node_modules declarations flag requires type-stripping enabled', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-strip-types',
+    '--experimental-strip-types-in-node-modules-with-declarations',
+    fixtures.path('typescript/ts/test-import-ts-twin-node-modules.ts'),
+  ]);
+
+  assert.match(result.stderr, /requires type-stripping \(--strip-types\) to be enabled/);
+  assert.strictEqual(result.code, 9);
+});
+
 test('execute a TypeScript file with CommonJS syntax requiring .cts', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
