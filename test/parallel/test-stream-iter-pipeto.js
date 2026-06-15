@@ -141,6 +141,31 @@ async function testPipeToSyncWithTransforms() {
   assert.strictEqual(chunks.join(''), 'HELLO');
 }
 
+async function testPipeToWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    write(chunk) { chunks.push(new TextDecoder().decode(chunk)); },
+  };
+
+  await pipeTo(from('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
+}
+
+async function testPipeToSyncWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    writeSync(chunk) {
+      chunks.push(new TextDecoder().decode(chunk));
+      return true;
+    },
+  };
+
+  pipeToSync(fromSync('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
+}
+
 // PipeTo with writev writer
 async function testPipeToWithWritevWriter() {
   const allChunks = [];
@@ -301,6 +326,8 @@ Promise.all([
   testPipeToWithSignal(),
   testPipeToWithTransforms(),
   testPipeToSyncWithTransforms(),
+  testPipeToWriterTransformMethodIgnored(),
+  testPipeToSyncWriterTransformMethodIgnored(),
   testPipeToWithWritevWriter(),
   testPipeToSyncFallback(),
   testPipeToPreventFail(),
