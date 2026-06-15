@@ -583,6 +583,64 @@ changes:
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
 
+### `module.enableModuleResolveCache([directory])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `directory` {string} Optional. Directory to store the module resolution
+  cache. If not specified, the directory specified by the
+  [`NODE_MODULE_RESOLVE_CACHE=dir`][] environment variable will be used if it's
+  set, or `path.join(os.tmpdir(), 'node-module-resolve-cache')` otherwise.
+* Returns: {string|undefined} The directory where the resolution cache is
+  stored, or `undefined` if it could not be enabled (for example, when the
+  [permission model][] denies access to the directory).
+
+Enable the persistent **module resolution cache** in the current Node.js
+instance.
+
+When resolving a specifier such as `require('foo')` or `import 'foo'`, Node.js
+performs a file system search across `node_modules` directories and reads
+`package.json` files. The resolution cache persists the resolved file path for
+each `(specifier, parent, conditions)` tuple to disk, so subsequent runs of the
+same project skip the search entirely. This can substantially speed up the
+startup of applications with large dependency trees.
+
+The cache is validated coarsely with a single generation token derived from the
+Node.js version and architecture, the resolution-affecting flags
+(such as `--preserve-symlinks`), `NODE_PATH`, and the project's lockfile
+signature (`package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`,
+`pnpm-lock.yaml` or `bun.lockb`, falling back to `package.json`). When any of
+these change — for example after a package manager updates the lockfile — the
+whole cache is discarded and rebuilt. Because validation does not stat every
+dependency, the per-process overhead is constant rather than proportional to
+the number of dependencies.
+
+Manual edits inside `node_modules` that are not reflected in the lockfile are
+not detected within a generation. This matches the assumption that
+`node_modules` is managed by a package manager.
+
+Like the [module compile cache][], this method does not throw when the cache
+cannot be enabled; it returns `undefined` instead.
+
+This method only affects the current Node.js instance. To enable it in child
+worker threads, either call this method there too, or set the
+`process.env.NODE_MODULE_RESOLVE_CACHE` value so the behavior is inherited.
+
+### `module.getModuleResolveCacheDir()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {string|undefined} Path to the module resolution cache directory if
+  it is enabled, or `undefined` otherwise.
+
 <i id="module_customization_hooks"></i>
 
 ## Customization Hooks
@@ -2059,6 +2117,7 @@ returned object contains the following keys:
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
+[`NODE_MODULE_RESOLVE_CACHE=dir`]: cli.md#node_module_resolve_cachedir
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`SourceMap`]: #class-modulesourcemap
