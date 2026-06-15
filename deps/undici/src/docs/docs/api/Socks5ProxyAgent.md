@@ -22,6 +22,7 @@ Extends: [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions)
 * **password** `string` (optional) - SOCKS5 proxy password for authentication. Can also be provided in the proxy URL.
 * **connect** `Function` (optional) - Custom connector function for the proxy connection.
 * **proxyTls** `BuildOptions` (optional) - TLS options for the proxy connection (when using SOCKS5 over TLS).
+* **requestTls** `BuildOptions` (optional) - TLS options applied to the HTTPS connection to the target server through the SOCKS5 tunnel. Use this to configure `ca`, `cert`, `key`, `rejectUnauthorized`, `servername`, etc. for the target HTTPS endpoint.
 
 Examples:
 

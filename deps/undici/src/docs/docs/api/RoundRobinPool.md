@@ -66,7 +66,7 @@ Implements [Client.destroyed](/docs/docs/api/Client.md#clientdestroyed)
 
 ### `RoundRobinPool.stats`
 
-Returns [`PoolStats`](PoolStats.md) instance for this pool.
+Returns [`PoolStats`](/docs/docs/api/PoolStats.md) instance for this pool.
 
 ## Instance Methods
 
