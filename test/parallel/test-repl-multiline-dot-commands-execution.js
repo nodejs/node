@@ -13,9 +13,11 @@ function runDotCommand(command, validate) {
 
   replServer.on('exit', common.mustCall());
   replServer.write('function a() {\n');
+  replServer.write('console.log("logging");\n');
   replServer.write(`${command}\n`);
   validate(replServer, output);
   replServer.write('arr = [1,\n');
+  replServer.write('console.log("logging");\n');
   replServer.write(`${command}\n`);
   validate(replServer, output);
   replServer.close();
