@@ -80,6 +80,33 @@ Arguments:
 
 Returns: `Cookie[]`
 
+## `parseCookie(cookie)`
+
+Parses a single `Set-Cookie` header value into a `Cookie` object.
+
+```js
+import { parseCookie } from 'undici'
+
+console.log(parseCookie('undici=getSetCookies; Secure; SameSite=Lax'))
+// {
+//   name: 'undici',
+//   value: 'getSetCookies',
+//   secure: true,
+//   sameSite: 'Lax'
+// }
+```
+
+Notes:
+
+* The cookie value is returned as it appears in the header. Percent-encoded sequences such as `%20` or `%0D%0A` are **not** decoded.
+* `sameSite` is only set for exact case-insensitive matches of `Strict`, `Lax`, or `None`.
+
+Arguments:
+
+* **cookie** `string`
+
+Returns: `Cookie | null`
+
 ## `setCookie(headers, cookie)`
 
 Appends a cookie to the `Set-Cookie` header.

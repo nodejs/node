@@ -212,6 +212,8 @@ declare namespace Dispatcher {
     get aborted(): boolean
     get paused(): boolean
     get reason(): Error | null
+    rawHeaders?: Buffer[] | string[] | IncomingHttpHeaders | null
+    rawTrailers?: Buffer[] | string[] | IncomingHttpHeaders | null
     abort(reason: Error): void
     pause(): void
     resume(): void
