@@ -15,6 +15,7 @@ using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
 using v8::Set;
@@ -23,22 +24,20 @@ using v8::Value;
 
 // Create a V8 string from an export_string variant, using fast path for ASCII
 template <typename T>
-inline Local<String> CreateString(Isolate* isolate, const T& str) {
+inline MaybeLocal<String> CreateString(Isolate* isolate, const T& str) {
   std::string_view sv = lexer::get_string_view(str);
 
   if (simdutf::validate_ascii(sv.data(), sv.size())) {
     return String::NewFromOneByte(isolate,
                                   reinterpret_cast<const uint8_t*>(sv.data()),
                                   NewStringType::kInternalized,
-                                  static_cast<int>(sv.size()))
-        .ToLocalChecked();
+                                  static_cast<int>(sv.size()));
   }
 
   return String::NewFromUtf8(isolate,
                              sv.data(),
                              NewStringType::kInternalized,
-                             static_cast<int>(sv.size()))
-      .ToLocalChecked();
+                             static_cast<int>(sv.size()));
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -71,14 +70,22 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   // Convert exports to JS Set
   Local<Set> exports_set = Set::New(isolate);
   for (const auto& exp : analysis.exports) {
-    exports_set->Add(context, CreateString(isolate, exp)).ToLocalChecked();
+    Local<String> exp_str;
+    if (!CreateString(isolate, exp).ToLocal(&exp_str) ||
+        exports_set->Add(context, exp_str).IsEmpty()) {
+      return;
+    }
   }
 
   // Convert reexports to JS array using batch creation
   LocalVector<Value> reexports_vec(isolate);
   reexports_vec.reserve(analysis.re_exports.size());
   for (const auto& reexp : analysis.re_exports) {
-    reexports_vec.push_back(CreateString(isolate, reexp));
+    Local<String> reexp_str;
+    if (!CreateString(isolate, reexp).ToLocal(&reexp_str)) {
+      return;
+    }
+    reexports_vec.push_back(reexp_str);
   }
 
   // Create result array [exports (Set), reexports (Array)]
