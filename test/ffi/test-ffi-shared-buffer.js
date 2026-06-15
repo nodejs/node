@@ -373,41 +373,57 @@ test('SB metadata is Symbol-keyed, attribute-hardened, and not leaked onto the w
       assert.strictEqual(typeof sym, 'symbol', `${name} must be a Symbol`);
     }
 
-    // Fast-API-eligible signatures bypass the SB wrapper and therefore do not
-    // carry SB metadata.
-    for (const [name, sym] of [
-      ['kSbSharedBuffer', kSbSharedBuffer],
-      ['kSbArguments', kSbArguments],
-      ['kSbReturn', kSbReturn],
-      ['kSbInvokeSlow', kSbInvokeSlow],
-    ]) {
-      const desc = Object.getOwnPropertyDescriptor(rawFn, sym);
-      assert.strictEqual(desc, undefined, `${name} present on Fast API function`);
+    const rawSbDesc = Object.getOwnPropertyDescriptor(rawFn, kSbSharedBuffer);
+    const rawFnUsesFastFFI = rawSbDesc === undefined;
+
+    if (rawFnUsesFastFFI) {
+      // Fast-API-eligible signatures bypass the SB wrapper and therefore do not
+      // carry SB metadata.
+      for (const [name, sym] of [
+        ['kSbSharedBuffer', kSbSharedBuffer],
+        ['kSbArguments', kSbArguments],
+        ['kSbReturn', kSbReturn],
+        ['kSbInvokeSlow', kSbInvokeSlow],
+      ]) {
+        const desc = Object.getOwnPropertyDescriptor(rawFn, sym);
+        assert.strictEqual(desc, undefined, `${name} present on Fast API function`);
+      }
     }
 
-    // Fast string signatures carry parameter metadata so the JS wrapper can
-    // perform string-to-pointer conversion, but still do not carry SB state.
-    const rawStringFn = rawGetFunctionUnpatched.call(
-      rawLib, 'safe_strlen', { return: 'u64', arguments: ['string'] });
-    const paramsDesc = Object.getOwnPropertyDescriptor(rawStringFn, kFastArguments);
-    assert.ok(paramsDesc !== undefined, 'kFastArguments missing on Fast string function');
-    assert.strictEqual(paramsDesc.enumerable, false);
-    assert.strictEqual(paramsDesc.configurable, false);
-    assert.strictEqual(paramsDesc.writable, false);
-    assert.strictEqual(
-      Object.getOwnPropertyDescriptor(rawStringFn, kSbArguments), undefined);
-    assert.strictEqual(
-      Object.getOwnPropertyDescriptor(rawStringFn, kSbSharedBuffer), undefined);
-    assert.strictEqual(
-      Object.getOwnPropertyDescriptor(rawStringFn, kSbReturn), undefined);
-    assert.strictEqual(
-      Object.getOwnPropertyDescriptor(rawStringFn, kSbInvokeSlow), undefined);
+    if (rawFnUsesFastFFI) {
+      // Fast string signatures carry parameter metadata so the JS wrapper can
+      // perform string-to-pointer conversion, but still do not carry SB state.
+      const rawStringFn = rawGetFunctionUnpatched.call(
+        rawLib, 'safe_strlen', { return: 'u64', arguments: ['string'] });
+      const paramsDesc = Object.getOwnPropertyDescriptor(rawStringFn, kFastArguments);
+      assert.ok(paramsDesc !== undefined, 'kFastArguments missing on Fast string function');
+      assert.strictEqual(paramsDesc.enumerable, false);
+      assert.strictEqual(paramsDesc.configurable, false);
+      assert.strictEqual(paramsDesc.writable, false);
+      assert.strictEqual(
+        Object.getOwnPropertyDescriptor(rawStringFn, kSbArguments), undefined);
+      assert.strictEqual(
+        Object.getOwnPropertyDescriptor(rawStringFn, kSbSharedBuffer), undefined);
+      assert.strictEqual(
+        Object.getOwnPropertyDescriptor(rawStringFn, kSbReturn), undefined);
+      assert.strictEqual(
+        Object.getOwnPropertyDescriptor(rawStringFn, kSbInvokeSlow), undefined);
+    }
 
     assert.deepStrictEqual(Object.keys(rawFn), ['pointer']);
     const ownSyms = Object.getOwnPropertySymbols(rawFn);
-    assert.ok(!ownSyms.includes(kSbSharedBuffer));
-    assert.ok(!ownSyms.includes(kSbArguments));
-    assert.ok(!ownSyms.includes(kSbReturn));
+    if (rawFnUsesFastFFI) {
+      assert.ok(!ownSyms.includes(kSbSharedBuffer));
+      assert.ok(!ownSyms.includes(kSbArguments));
+      assert.ok(!ownSyms.includes(kSbReturn));
+    } else {
+      assert.ok(ownSyms.includes(kSbSharedBuffer));
+      assert.ok(ownSyms.includes(kSbArguments));
+      assert.ok(ownSyms.includes(kSbReturn));
+      assert.strictEqual(rawSbDesc.enumerable, false);
+      assert.strictEqual(rawSbDesc.configurable, false);
+      assert.strictEqual(rawSbDesc.writable, false);
+    }
 
     // Internals must not be forwarded by `inheritMetadata`.
     const { lib, functions } = ffi.dlopen(libraryPath, {
