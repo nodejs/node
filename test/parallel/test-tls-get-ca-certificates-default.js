@@ -13,8 +13,5 @@ const { assertIsCAArray } = require('../common/tls');
 const certs = tls.getCACertificates();
 assertIsCAArray(certs);
 
-const certs2 = tls.getCACertificates('default');
-assert.strictEqual(certs, certs2);
-
 // It's cached on subsequent accesses.
 assert.strictEqual(certs, tls.getCACertificates('default'));
