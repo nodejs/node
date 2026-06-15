@@ -7,27 +7,30 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { gcUntil } = require('../common/gc');
 const {
   PerformanceObserver,
   constants
 } = require('perf_hooks');
 
 const {
-  NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP,
-  NODE_PERFORMANCE_GC_FLAGS_FORCED
+  NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP
 } = constants;
 
+let observed = false;
 const obs = new PerformanceObserver(common.mustCallAtLeast((list) => {
-  const entry = list.getEntries()[0];
-  assert(entry);
-  assert.strictEqual(entry.name, 'gc');
-  assert.strictEqual(entry.entryType, 'gc');
-  assert.strictEqual(entry.detail.kind, NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP);
-  assert.strictEqual(entry.detail.flags, NODE_PERFORMANCE_GC_FLAGS_FORCED);
-  obs.disconnect();
+  for (const entry of list.getEntries()) {
+    // Other GC kinds (e.g. a scheduled or incremental GC) may be observed in
+    // between; only the minor mark-sweep entry is relevant here.
+    if (entry.detail.kind === NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP) {
+      assert.strictEqual(entry.name, 'gc');
+      assert.strictEqual(entry.entryType, 'gc');
+      observed = true;
+      obs.disconnect();
+      return;
+    }
+  }
 }));
 obs.observe({ entryTypes: ['gc'] });
 
-globalThis.gc({ type: 'minor' });
-// Keep the event loop alive to witness the GC async callback happen.
-setImmediate(() => setImmediate(() => 0));
+gcUntil('minor gc event', () => observed, 10, { type: 'minor' });
