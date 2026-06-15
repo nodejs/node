@@ -462,7 +462,7 @@ class Stream final : public AsyncWrap,
 
   friend struct Impl;
   friend class PendingStream;
-  friend class Http3ApplicationImpl;
+  friend class Http3Application;
   friend class Session;
 
  public:
