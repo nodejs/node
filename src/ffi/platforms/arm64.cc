@@ -2,7 +2,7 @@
 
 #include "ffi/fast.h"
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_WIN32)
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -372,7 +372,7 @@ extern "C" void node_ffi_free_fast_trampoline(
   trampoline->size = 0;
 }
 
-#elif !defined(__x86_64__)
+#elif !defined(__x86_64__) || defined(_WIN32)
 
 extern "C" bool node_ffi_create_fast_trampoline(
     void* target,
@@ -390,6 +390,6 @@ extern "C" void node_ffi_free_fast_trampoline(
   // No code is allocated in the non-AArch64 stub.
 }
 
-#endif  // defined(__aarch64__) || defined(_M_ARM64)
+#endif  // (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_WIN32)
 
 #endif  // HAVE_FFI

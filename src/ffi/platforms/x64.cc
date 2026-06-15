@@ -2,7 +2,7 @@
 
 #include "ffi/fast.h"
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && !defined(_WIN32)
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -543,6 +543,6 @@ extern "C" void node_ffi_free_fast_trampoline(
   trampoline->size = 0;
 }
 
-#endif  // defined(__x86_64__)
+#endif  // defined(__x86_64__) && !defined(_WIN32)
 
 #endif  // HAVE_FFI

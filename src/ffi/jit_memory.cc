@@ -24,18 +24,19 @@ namespace {
 #if !defined(_WIN32)
 
 bool SelfTest() {
+#if !defined(__aarch64__) && !defined(_M_ARM64) && !defined(__x86_64__)
+  // No stub emitter for this platform; nothing to test.
+  return false;
+#else
 #if defined(__aarch64__) || defined(_M_ARM64)
   // AArch64 BR LR: 0xD65F03C0
   constexpr uint32_t kInstruction = 0xD65F03C0;
   constexpr size_t kInstructionSize = sizeof(uint32_t);
-#elif defined(__x86_64__)
+#else
   // x86_64 RET: 0xC3
   constexpr uint8_t kInstruction = 0xC3;
   constexpr size_t kInstructionSize = sizeof(uint8_t);
-#else
-  // No stub emitter for this platform; nothing to test.
-  return false;
-#endif  // __aarch64__ || _M_ARM64 || __x86_64__
+#endif
 
   const size_t page_size = static_cast<size_t>(getpagesize());
   void* page = mmap(nullptr,
@@ -82,6 +83,7 @@ bool SelfTest() {
   const bool ok = mprotect(page, page_size, PROT_READ | PROT_EXEC) == 0;
   munmap(page, page_size);
   return ok;
+#endif
 }
 
 #endif  // !defined(_WIN32)
