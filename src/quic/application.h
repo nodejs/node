@@ -36,7 +36,7 @@ class Session::Application : public MemoryRetainer {
   // data owned by the matching application's ticket hooks.
   enum class Type : uint8_t {
     DEFAULT = 1,  // Native opaque byte-match data (no application)
-    HTTP3 = 2,    // Http3Conn typed settings data
+    HTTP3 = 2,    // Http3Application typed settings data
   };
   virtual Type type() const = 0;
 
