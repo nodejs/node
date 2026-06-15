@@ -1710,6 +1710,13 @@ DataPointer DHPointer::getPrivateKey() const {
   return BignumPointer::Encode(pvt_key);
 }
 
+bool DHPointer::hasPrivateKey() const {
+  if (!dh_) return false;
+  const BIGNUM* pvt_key = nullptr;
+  DH_get0_key(dh_.get(), nullptr, &pvt_key);
+  return pvt_key != nullptr;
+}
+
 DataPointer DHPointer::generateKeys() const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!dh_) return {};

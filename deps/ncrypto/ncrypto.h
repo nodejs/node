@@ -1116,6 +1116,7 @@ class DHPointer final {
   DataPointer getGenerator() const;
   DataPointer getPublicKey() const;
   DataPointer getPrivateKey() const;
+  bool hasPrivateKey() const;
   DataPointer generateKeys() const;
   DataPointer computeSecret(const BignumPointer& peer) const;
 
