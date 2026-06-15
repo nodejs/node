@@ -1,15 +1,15 @@
 
-> undici@6.24.1 prebuild:wasm
+> undici@6.27.0 prebuild:wasm
 > node build/wasm.js --prebuild
 
 > docker build --platform=linux/x86_64 -t llhttp_wasm_builder -f /home/runner/work/node/node/deps/undici/src/build/Dockerfile /home/runner/work/node/node/deps/undici/src
 
 
 
-> undici@6.24.1 build:wasm
+> undici@6.27.0 build:wasm
 > node build/wasm.js --docker
 
-> docker run --rm -t --platform=linux/x86_64 --user 1000:1000 --mount type=bind,source=/home/runner/work/node/node/deps/undici/src/lib/llhttp,target=/home/node/undici/lib/llhttp llhttp_wasm_builder node build/wasm.js
+> docker run --rm -t --platform=linux/x86_64 --user 1001:1001 --mount type=bind,source=/home/runner/work/node/node/deps/undici/src/lib/llhttp,target=/home/node/undici/lib/llhttp llhttp_wasm_builder node build/wasm.js
 
 
 alpine-baselayout-3.4.3-r2
@@ -44,8 +44,8 @@ llvm17-libs-17.0.5-r0
 llvm17-linker-tools-17.0.5-r0
 mpc1-1.3.1-r1
 mpfr4-4.2.1-r0
-musl-1.2.4_git20230717-r5
-musl-dev-1.2.4_git20230717-r5
+musl-1.2.4_git20230717-r6
+musl-dev-1.2.4_git20230717-r6
 musl-utils-1.2.4_git20230717-r4
 scanelf-1.3.7-r2
 scudo-malloc-17.0.5-r0
