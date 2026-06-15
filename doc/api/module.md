@@ -245,6 +245,7 @@ changes:
   * `deregister()` {Function} Remove the registered hooks so that they are no
     longer called. Hooks are otherwise retained for the lifetime of the running
     process.
+  * `[Symbol.dispose]` {Function} The same as `deregister`.
 
 Register [hooks][] that customize Node.js module resolution and loading behavior.
 See [Customization hooks][]. The returned object can be used to
