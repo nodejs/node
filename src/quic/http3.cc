@@ -151,7 +151,7 @@ Http3Settings::operator const nghttp3_settings() const {
       .enable_connect_protocol = enable_connect_protocol,
       .h3_datagram = enable_datagrams,
       // origin_list is nullptr here because it is set directly on the
-      // nghttp3_settings in Http3ApplicationImpl::InitializeConnection()
+      // nghttp3_settings in Http3Application::InitializeConnection()
       // from the SNI configuration.
       .origin_list = nullptr,
       .glitch_ratelim_burst = 1000,
@@ -323,9 +323,9 @@ using Http3Header = NgHeader<Http3HeaderTraits>;
 
 // The Session::Application implementation for HTTP/3, which owns the nghttp3
 // connection and all HTTP/3 protocol logic and state.
-class Http3ApplicationImpl final : public Session::Application {
+class Http3Application final : public Session::Application {
  public:
-  Http3ApplicationImpl(Session* session, const Http3Settings& settings)
+  Http3Application(Session* session, const Http3Settings& settings)
       : Application(session),
         allocator_(BindingData::Get(session->env()).nghttp3_allocator()),
         options_(settings),
@@ -338,6 +338,59 @@ class Http3ApplicationImpl final : public Session::Application {
     }
     conn_ = InitializeConnection();
     session->set_priority_supported();
+  }
+
+  // ==========================================================================
+  // HTTP/3 events reported up to the session/JS layer. Each routes through
+  // Session::DeferOrRun, so an event raised before the session is surfaced to
+  // JS (in 0-RTT first-flight frames) is held and replayed after attach.
+
+  void EmitGoaway(stream_id last_stream_id) {
+    session().DeferOrRun([this, last_stream_id]() {
+      Session& s = session();
+      if (s.is_destroyed() || !s.env()->can_call_into_js()) return;
+      CallbackScope<Session> cb_scope(&s);
+      Local<Value> argv[] = {BigInt::New(s.env()->isolate(), last_stream_id)};
+      s.MakeCallback(BindingData::Get(s.env()).session_goaway_callback(),
+                     arraysize(argv),
+                     argv);
+    });
+  }
+
+  void EmitOrigins(std::vector<std::string>&& origins) {
+    auto held = std::make_shared<std::vector<std::string>>(std::move(origins));
+    session().DeferOrRun([this, held]() {
+      Session& s = session();
+      if (s.is_destroyed() || !s.env()->can_call_into_js()) return;
+      if (!s.has_origin_listener()) return;
+      CallbackScope<Session> cb_scope(&s);
+      auto* isolate = s.env()->isolate();
+      LocalVector<Value> elements(isolate, held->size());
+      for (size_t i = 0; i < held->size(); i++) {
+        Local<Value> str;
+        if (!ToV8Value(s.env()->context(), (*held)[i]).ToLocal(&str))
+            [[unlikely]] {
+          return;
+        }
+        elements[i] = str;
+      }
+      Local<Value> argv[] = {
+          Array::New(isolate, elements.data(), elements.size())};
+      s.MakeCallback(BindingData::Get(s.env()).session_origin_callback(),
+                     arraysize(argv),
+                     argv);
+    });
+  }
+
+  void EmitApplicationSettings() {
+    session().DeferOrRun([this]() {
+      Session& s = session();
+      if (s.is_destroyed() || !s.env()->can_call_into_js()) return;
+      CallbackScope<Session> cb_scope(&s);
+      s.MakeCallback(BindingData::Get(s.env()).session_application_callback(),
+                     0,
+                     nullptr);
+    });
   }
 
   // ==========================================================================
@@ -474,9 +527,9 @@ class Http3ApplicationImpl final : public Session::Application {
     stream_id emit_id = is_notice ? -1 : goaway_id;
 
     if (!is_notice) {
-      // Final GOAWAY: destroy client-initiated bidi streams with
-      // IDs > goaway_id. These were not processed by the peer and
-      // can be retried. Copy the map because Destroy modifies it.
+      // Final GOAWAY: destroy client-initiated bidi streams with IDs >
+      // goaway_id. These were not processed by the peer and can be retried.
+      // Copy the map because Destroy() modifies it.
       auto streams = session().streams();
       for (auto& [id, stream] : streams) {
         if (session().is_destroyed()) return;
@@ -498,7 +551,7 @@ class Http3ApplicationImpl final : public Session::Application {
     // when the peer sends CONNECTION_CLOSE after all streams finish.
     // Calling Close(GRACEFUL) would send a GOAWAY back and trigger
     // BeginShutdown, which can interfere with in-progress streams.
-    session().EmitGoaway(emit_id);
+    EmitGoaway(emit_id);
   }
 
   bool ReceiveStreamData(stream_id id,
@@ -638,9 +691,9 @@ class Http3ApplicationImpl final : public Session::Application {
     }
 
     int rv = nghttp3_conn_close_stream(*this, stream->id(), code);
-    // If the call is successful, the Http3ApplicationImpl::OnStreamClose callback will
-    // be invoked when the stream is ready to be closed. We'll handle
-    // destroying the actual Stream object there.
+    // If the call is successful, the Http3Application::OnStreamClose
+    // callback will be invoked when the stream is ready to be closed. We'll
+    // handle destroying the actual Stream object there.
     if (rv == 0) return;
 
     if (rv == NGHTTP3_ERR_STREAM_NOT_FOUND) {
@@ -880,8 +933,8 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(Http3ApplicationImpl)
-  SET_SELF_SIZE(Http3ApplicationImpl)
+  SET_MEMORY_INFO_NAME(Http3Application)
+  SET_SELF_SIZE(Http3Application)
 
  private:
   inline operator nghttp3_conn*() const {
@@ -1168,8 +1221,8 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application received updated settings: %s",
           options_);
-    // Report the negotiated settings up to the JS application layer.
-    session().EmitApplication();
+    // Report the negotiated settings up to the session/JS layer.
+    EmitApplicationSettings();
   }
 
   // Inbound header-block accumulation, keyed by stream id. Entries are
@@ -1210,9 +1263,9 @@ class Http3ApplicationImpl final : public Session::Application {
   // ==========================================================================
   // Static callbacks
 
-  static Http3ApplicationImpl* From(nghttp3_conn* conn, void* user_data) {
+  static Http3Application* From(nghttp3_conn* conn, void* user_data) {
     DCHECK_NOT_NULL(user_data);
-    auto app = static_cast<Http3ApplicationImpl*>(user_data);
+    auto app = static_cast<Http3Application*>(user_data);
     DCHECK_EQ(conn, app->conn_.get());
     return app;
   }
@@ -1329,7 +1382,7 @@ class Http3ApplicationImpl final : public Session::Application {
                                   void* conn_user_data,
                                   void* stream_user_data) {
     // This callback is invoked by nghttp3_conn_add_ack_offset() (called
-    // from Http3ApplicationImpl::AcknowledgeStreamData). We must NOT call
+    // from Http3Application::AcknowledgeStreamData). We must NOT call
     // AcknowledgeStreamData here — that would re-enter nghttp3 via
     // nghttp3_conn_add_ack_offset, triggering the NgHttp3CallbackScope
     // re-entrancy assertion. Instead, directly notify the stream that data
@@ -1553,7 +1606,7 @@ class Http3ApplicationImpl final : public Session::Application {
   static int on_end_origin(nghttp3_conn* conn, void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     if (!app.received_origins_.empty()) {
-      app.session().EmitOrigins(std::move(app.received_origins_));
+      app.EmitOrigins(std::move(app.received_origins_));
       app.received_origins_.clear();
     }
     return NGTCP2_SUCCESS;
@@ -1598,7 +1651,7 @@ Http3Settings ResolveHttp3Settings(const Session::Options& options) {
 
 std::unique_ptr<Session::Application> CreateHttp3Application(Session* session) {
   Debug(session, "Installing HTTP/3 application");
-  return std::make_unique<Http3ApplicationImpl>(
+  return std::make_unique<Http3Application>(
       session,
       ResolveHttp3Settings(std::as_const(*session).config().options));
 }

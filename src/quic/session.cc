@@ -3839,6 +3839,15 @@ void Session::ReplayDeferredEmits() {
   }
 }
 
+void Session::QueueDeferredEmit(std::function<void()> fn) {
+  impl_->deferred_emits_.emplace_back(std::move(fn));
+}
+
+bool Session::has_origin_listener() const {
+  return HasListenerFlag(impl_->state()->listener_flags,
+                         SessionListenerFlags::ORIGIN);
+}
+
 void Session::set_priority_supported(bool on) {
   DCHECK(!is_destroyed());
   impl_->state()->priority_supported = on ? 1 : 0;
@@ -4347,20 +4356,6 @@ void Session::set_max_datagram_size(uint16_t size) {
   }
 }
 
-void Session::EmitGoaway(stream_id last_stream_id) {
-  if (is_destroyed()) return;
-  if (!env()->can_call_into_js()) return;
-
-  CallbackScope<Session> cb_scope(this);
-
-  Local<Value> argv[] = {
-      BigInt::New(env()->isolate(), last_stream_id),
-  };
-
-  MakeCallback(
-      BindingData::Get(env()).session_goaway_callback(), arraysize(argv), argv);
-}
-
 void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
@@ -4545,18 +4540,6 @@ void Session::EmitSessionTicket(Store&& ticket) {
   }
 }
 
-void Session::EmitApplication() {
-  if (is_destroyed()) return;
-  if (!env()->can_call_into_js()) return;
-
-  // A bare notification that the installed application's negotiated options
-  // have been updated (e.g. an HTTP/3 SETTINGS frame arrived). The consumer
-  // reads the current values back through the application settings binding;
-  // the transport layer carries no protocol-specific data here.
-  CallbackScope<Session> cb_scope(this);
-  MakeCallback(
-      BindingData::Get(env()).session_application_callback(), 0, nullptr);
-}
 
 void Session::DestroyAllStreams(const QuicError& error) {
   DCHECK(!is_destroyed());
@@ -4662,31 +4645,6 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   MakeCallback(BindingData::Get(env()).session_version_negotiation_callback(),
                arraysize(argv),
                argv);
-}
-
-void Session::EmitOrigins(std::vector<std::string>&& origins) {
-  if (is_destroyed()) return;
-  if (!HasListenerFlag(impl_->state()->listener_flags,
-                       SessionListenerFlags::ORIGIN))
-    return;
-  if (!env()->can_call_into_js()) return;
-
-  CallbackScope<Session> cb_scope(this);
-
-  auto isolate = env()->isolate();
-
-  LocalVector<Value> elements(env()->isolate(), origins.size());
-  for (size_t i = 0; i < origins.size(); i++) {
-    Local<Value> str;
-    if (!ToV8Value(env()->context(), origins[i]).ToLocal(&str)) [[unlikely]] {
-      return;
-    }
-    elements[i] = str;
-  }
-
-  Local<Value> argv[] = {Array::New(isolate, elements.data(), elements.size())};
-  MakeCallback(
-      BindingData::Get(env()).session_origin_callback(), arraysize(argv), argv);
 }
 
 void Session::EmitKeylog(const char* line) {

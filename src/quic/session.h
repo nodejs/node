@@ -10,8 +10,10 @@
 #include <node_sockaddr.h>
 #include <timer_wrap.h>
 #include <util.h>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 #include "bindingdata.h"
 #include "cid.h"
 #include "data.h"
@@ -623,6 +625,21 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Called synchronously right after the new-session emit.
   void ReplayDeferredEmits();
 
+  // Runs fn now, or queues it for replay if emits are currently being
+  // deferred (must_defer_emits()) before the session is ready.
+  template <typename F>
+  void DeferOrRun(F&& fn) {
+    if (must_defer_emits()) {
+      QueueDeferredEmit(std::forward<F>(fn));
+    } else {
+      fn();
+    }
+  }
+
+  void QueueDeferredEmit(std::function<void()> fn);
+
+  bool has_origin_listener() const;
+
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
     // currently opened streams to be closed. An attempt will be made to
@@ -668,17 +685,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // JavaScript callouts
 
   void EmitClose(const QuicError& error = QuicError());
-  void EmitGoaway(stream_id last_stream_id);
 
   // Sets the max datagram payload size in the shared state. Used by
-  // Http3Conn to block datagram sends when the peer's
+  // Http3Application to block datagram sends when the peer's
   // SETTINGS_H3_DATAGRAM=0 (RFC 9297 §3).
   void set_max_datagram_size(uint16_t size);
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
   void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
-  void EmitOrigins(std::vector<std::string>&& origins);
 
   struct ValidatedPath {
     std::shared_ptr<SocketAddress> local;
@@ -697,7 +712,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
-  void EmitApplication();
   void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
@@ -750,7 +764,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   friend struct NgHttp3CallbackScope;
   friend class Application;
   friend class BindingData;
-  friend class Http3ApplicationImpl;
+  friend class Http3Application;
   friend class Endpoint;
   friend class SessionManager;
   friend class Stream;
