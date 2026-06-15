@@ -363,6 +363,44 @@ socket.bind({
 });
 ```
 
+### `socket.bindSync([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `port` {integer} If omitted or `0`, the operating system will assign an
+    arbitrary unused port. **Default:** `0`.
+  * `address` {string} A numeric IP address to bind to. Unlike
+    [`socket.bind()`][], no DNS resolution is performed, so a host name is not
+    accepted. If omitted, the operating system binds to all addresses
+    (`'0.0.0.0'` for `udp4` sockets, `'::'` for `udp6`).
+* Returns: {Object} The bound address as returned by [`socket.address()`][].
+
+The synchronous counterpart of [`socket.bind()`][]. `bind(2)` is a local,
+non-blocking system call, so the bind is performed inline and the resolved
+address is returned immediately, including the operating-system-assigned
+ephemeral port when `port` is `0`:
+
+```js
+const dgram = require('node:dgram');
+
+const socket = dgram.createSocket('udp4');
+const address = socket.bindSync({ address: '0.0.0.0', port: 0 });
+console.log(address); // e.g. { address: '0.0.0.0', family: 'IPv4', port: 53124 }
+```
+
+A bind failure such as `EADDRINUSE` is thrown synchronously rather than emitted
+as an `'error'` event. After `bindSync()` returns, [`socket.address()`][] is
+valid synchronously and the `'listening'` event is emitted on the next tick.
+
+`address` must be a numeric IP literal; `bindSync()` never performs DNS
+resolution (asynchronous name resolution being the only genuinely blocking part
+of binding). Incoming datagrams continue to be delivered asynchronously via the
+[`'message'`][] event. `bindSync()` always binds the socket's own handle and
+does not participate in [`cluster`][] handle sharing.
+
 ### `socket.close([callback])`
 
 <!-- YAML
@@ -1017,6 +1055,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [IPv6 Zone Indexes]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [`'close'`]: #event-close
+[`'message'`]: #event-message
 [`ERR_SOCKET_BAD_PORT`]: errors.md#err_socket_bad_port
 [`ERR_SOCKET_BUFFER_SIZE`]: errors.md#err_socket_buffer_size
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.md#err_socket_dgram_is_connected
@@ -1030,6 +1069,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`socket.address().address`]: #socketaddress
 [`socket.address().port`]: #socketaddress
+[`socket.address()`]: #socketaddress
 [`socket.bind()`]: #socketbindport-address-callback
 [`socket.close()`]: #socketclosecallback
 [byte length]: buffer.md#static-method-bufferbytelengthstring-encoding
