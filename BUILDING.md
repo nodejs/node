@@ -104,25 +104,25 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                          | Support Type | Notes                                          |
-| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                                |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                    |
-| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
-| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
-| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
-| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
-| macOS            | x64              | >= 13.5                           | Tier 2       | For notes about compilation see [^4]           |
-| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
-| SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
-| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
-| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                |
-| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                |
+| Operating System | Architectures    | Versions                          | Support Type | Notes                                                      |
+| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                                            |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                                |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                                |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                                  |
+| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                                |
+| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                            |
+| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7]             |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                                  |
+| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                            |
+| macOS            | x64              | >= 13.5                           | Tier 2       | Until early 2028[^8]. For notes about compilation see [^4] |
+| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                            |
+| SmartOS          | x64              | >= 18                             | Tier 2       |                                                            |
+| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                            |
+| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                            |
+| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                            |
 
 <!--lint disable final-definition-->
 
@@ -153,6 +153,13 @@ platforms. This is true regardless of entries in the table below.
     `-march=rv64gcv` and doesn't support the `target` attribute at all.
     Cross-compilation from x64 is unaffected (the code is behind
     `V8_HOST_ARCH_RISCV64`).
+
+[^8]: Our macOS testing infrastructure provider has announced end of support for
+    Intel-based architecture for early 2028. Past this date, the Node.js project
+    will no longer be able to test changes on any Intel-based macOS version, so
+    the only difference with Experimental tier is that the project intends to
+    keep creating universal binaries, compatible with both Apple Silicon-based
+    and Intel-based macOS versions.
 
 <!--lint enable final-definition-->
 
