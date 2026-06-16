@@ -555,6 +555,8 @@ ModulePhase to_phase_constant(ModuleImportPhase phase) {
   switch (phase) {
     case ModuleImportPhase::kEvaluation:
       return kEvaluationPhase;
+    case ModuleImportPhase::kDefer:
+      return kDeferPhase;
     case ModuleImportPhase::kSource:
       return kSourcePhase;
     default:
@@ -1682,6 +1684,7 @@ void ModuleWrap::CreatePerContextProperties(Local<Object> target,
   V(Module::Status, kErrored);
 
   V(ModulePhase, kEvaluationPhase);
+  V(ModulePhase, kDeferPhase);
   V(ModulePhase, kSourcePhase);
 #undef V
 }
