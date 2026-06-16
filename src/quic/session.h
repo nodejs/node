@@ -136,6 +136,37 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // (ALPN negotiated during handshake). Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
+
+  // The application data-plane dispatchers. Each routes to the installed
+  // Application when one exists; otherwise the session's native
+  // raw-stream implementation runs (the session schedules streams on its
+  // own send queue and pulls their data directly).
+  int GetStreamData(StreamData* data);
+  bool StreamCommit(StreamData* data, size_t datalen);
+  bool AcknowledgeStreamData(stream_id id, size_t datalen);
+  bool ReceiveStreamOpen(stream_id id);
+  bool ReceiveStreamData(stream_id id,
+                         const uint8_t* data,
+                         size_t datalen,
+                         const Stream::ReceiveDataFlags& flags,
+                         void* stream_user_data);
+  // Native-path scheduling: puts the stream on the session's send queue.
+  void ScheduleStream(stream_id id);
+
+  // True when the send pump may run: a session that requested a protocol
+  // application must not send until that application has been installed;
+  // a session with no application requested is always ready.
+  bool can_send_pending_data() const;
+
+  // True when the installed application manages stream FIN itself (e.g.
+  // HTTP/3 via nghttp3); false when no application is installed.
+  bool stream_fin_managed_by_application() const;
+
+  // The application-level "internal error" wire code in effect for this
+  // session (the installed application's code, or the raw QUIC default
+  // when none is installed).
+  error_code internal_error_code() const;
+
   // Controls which datagram to drop when the pending datagram queue is full.
   enum class DatagramDropPolicy : uint8_t {
     DROP_OLDEST = 0,  // Drop the oldest queued datagram (default).
@@ -752,7 +783,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   friend struct NgHttp3CallbackScope;
   friend class Application;
   friend class BindingData;
-  friend class DefaultApplication;
   friend class Http3ApplicationImpl;
   friend class Endpoint;
   friend class SessionManager;

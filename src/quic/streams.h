@@ -477,7 +477,7 @@ class Stream final : public AsyncWrap,
   friend struct Impl;
   friend class PendingStream;
   friend class Http3ApplicationImpl;
-  friend class DefaultApplication;
+  friend class Session;
 
  public:
   // The Queue/Schedule here are part of the mechanism used to
