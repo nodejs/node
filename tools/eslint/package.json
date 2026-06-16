@@ -5,6 +5,7 @@
   "dependencies": {
     "@babel/core": "^8.0.0-rc.6",
     "@babel/eslint-parser": "^8.0.0-rc.6",
+    "@babel/plugin-syntax-import-defer": "^8.0.0-rc.6",
     "@babel/plugin-syntax-import-source": "^8.0.0-rc.6",
     "@eslint/js": "^10.0.1",
     "@eslint/markdown": "^8.0.2",
