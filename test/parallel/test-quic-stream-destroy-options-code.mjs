@@ -5,8 +5,8 @@
 // caller-supplied code is sent on RESET_STREAM (and STOP_SENDING for
 // the readable side) so the peer observes exactly that code.
 //
-// For the test fixture's non-h3 ALPN (`quic-test`), the
-// DefaultApplication's `internalErrorCode` is `0x1n`. Without
+// For the test fixture's non-h3 ALPN (`quic-test`, a raw session
+// with no application), the native `internalErrorCode` is `0x1n`. Without
 // `options.code`, a plain `Error` would result in the peer seeing
 // `0x1n`. With `options.code = 0x42n`, the peer must see `0x42n`.
 

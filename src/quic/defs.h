@@ -290,11 +290,6 @@ enum class Side : uint8_t {
   SERVER,
 };
 
-enum class EndpointLabel : uint8_t {
-  LOCAL,
-  REMOTE,
-};
-
 enum class Direction : uint8_t {
   BIDIRECTIONAL,
   UNIDIRECTIONAL,
@@ -320,12 +315,6 @@ enum class StreamPriority : uint8_t {
 enum class StreamPriorityFlags : uint8_t {
   NON_INCREMENTAL,
   INCREMENTAL,
-};
-
-enum class HeadersSupportState : uint8_t {
-  UNKNOWN,
-  SUPPORTED,
-  UNSUPPORTED,
 };
 
 enum class PathValidationResult : uint8_t {
