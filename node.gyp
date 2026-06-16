@@ -170,7 +170,6 @@
       'src/node_types.cc',
       'src/node_url.cc',
       'src/node_url_pattern.cc',
-      'src/node_webstreams.cc',
       'src/node_util.cc',
       'src/node_v8.cc',
       'src/node_wasi.cc',

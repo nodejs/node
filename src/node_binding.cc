@@ -97,7 +97,6 @@
   V(v8)                                                                        \
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
-  V(webstreams)                                                                \
   V(watchdog)                                                                  \
   V(worker)                                                                    \
   V(zlib)
