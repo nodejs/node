@@ -141,7 +141,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/quic/state",
 #endif  // !OPENSSL_NO_QUIC
 #if !HAVE_FFI
-        "internal/ffi-shared-buffer",
+        "internal/ffi-shared-buffer", "internal/ffi/fast-api",
 #endif                  // !HAVE_FFI
         "ffi",          // Experimental.
         "quic",         // Experimental.

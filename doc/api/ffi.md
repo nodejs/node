@@ -120,6 +120,14 @@ is signed it behaves like `i8`; otherwise it behaves like `u8`.
 The `bool` type is marshaled as an 8-bit unsigned integer. Pass numeric values
 such as `0` and `1`; JavaScript `true` and `false` are not accepted.
 
+On optimized Fast FFI calls, `pointer`, `ptr`, and `function` parameters accept
+raw pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
+strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are
+converted on the JavaScript side before calling the optimized native wrapper.
+
+Optimized Fast FFI calls support at most 8 function arguments. Functions with
+more than 7 arguments use the generic FFI call path instead.
+
 ## Signature objects
 
 Functions and callbacks are described with signature objects.
