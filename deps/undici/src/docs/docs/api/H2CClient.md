@@ -17,7 +17,7 @@ const server = createServer((req, res) => {
 })
 
 server.listen()
-once(server, 'listening').then(() => {
+once(server, 'listening').then(async () => {
   const client = new H2CClient(`http://localhost:${server.address().port}/`)
 
   const response = await client.request({ path: '/', method: 'GET' })
