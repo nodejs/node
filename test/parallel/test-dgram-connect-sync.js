@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
+const net = require('net');
 
 // connectSync() connects synchronously, binding the socket first when needed,
 // and remoteAddress() is valid immediately.
@@ -113,6 +114,29 @@ const dgram = require('dgram');
     code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
   });
   sock.close();
+}
+
+// Throws synchronously for a blocked address, leaving the socket reusable.
+{
+  const blockList = new net.BlockList();
+  blockList.addAddress('127.0.0.1');
+  const sock = dgram.createSocket({ type: 'udp4', sendBlockList: blockList });
+  assert.throws(() => sock.connectSync(12345, '127.0.0.1'), {
+    code: 'ERR_IP_BLOCKED',
+  });
+  sock.connectSync(12345, '127.0.0.2');
+  assert.strictEqual(sock.remoteAddress().address, '127.0.0.2');
+  sock.close();
+}
+
+// Throws when an asynchronous bind() is still in progress.
+{
+  const sock = dgram.createSocket('udp4');
+  sock.bind(0, '127.0.0.1');
+  assert.throws(() => sock.connectSync(12345, '127.0.0.1'), {
+    code: 'ERR_SOCKET_ALREADY_BOUND',
+  });
+  sock.on('listening', common.mustCall(() => sock.close()));
 }
 
 // udp6 loopback default.

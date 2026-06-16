@@ -461,9 +461,12 @@ added: REPLACEME
 
 The synchronous counterpart of [`socket.connect()`][]. For a UDP socket
 `connect(2)` only records the default peer address and is a local, non-blocking
-system call, so the association is performed inline and any error such as
-`ECONNREFUSED` is thrown synchronously rather than reported via the `'error'`
-event:
+system call, so the association is performed inline. Any error raised by the
+call itself (for example `EAFNOSUPPORT` for a mismatched address family) is
+thrown synchronously rather than reported via the `'error'` event. Because
+`connect(2)` does not probe reachability, errors such as `ECONNREFUSED` are
+still surfaced asynchronously on a later send or receive, exactly as for
+[`socket.connect()`][]:
 
 ```js
 const dgram = require('node:dgram');
@@ -477,7 +480,9 @@ If the socket is still unbound it is bound synchronously first. After
 `connectSync()` returns, [`socket.remoteAddress()`][] is valid synchronously
 and the `'connect'` event is emitted on the next tick. Trying to call
 `connectSync()` on an already connected socket throws an
-[`ERR_SOCKET_DGRAM_IS_CONNECTED`][] exception.
+[`ERR_SOCKET_DGRAM_IS_CONNECTED`][] exception, and calling it while an
+asynchronous [`socket.bind()`][] is still in progress throws an
+[`ERR_SOCKET_ALREADY_BOUND`][] exception.
 
 `address` must be a numeric IP literal; `connectSync()` never performs DNS
 resolution (asynchronous name resolution being the only genuinely blocking part
@@ -1090,6 +1095,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [`'close'`]: #event-close
 [`'message'`]: #event-message
+[`ERR_SOCKET_ALREADY_BOUND`]: errors.md#err_socket_already_bound
 [`ERR_SOCKET_BAD_PORT`]: errors.md#err_socket_bad_port
 [`ERR_SOCKET_BUFFER_SIZE`]: errors.md#err_socket_buffer_size
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.md#err_socket_dgram_is_connected
