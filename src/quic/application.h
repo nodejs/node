@@ -2,10 +2,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <optional>
+#include <memory>
 #include <string_view>
-#include <variant>
-#include <vector>
 
 #include "base_object.h"
 #include "bindingdata.h"
@@ -16,45 +14,29 @@
 
 namespace node::quic {
 
-// Parsed session ticket application data, produced by
-// Application::ParseTicketData() before ALPN negotiation and consumed
-// by Application::ApplySessionTicketData() after.
-struct DefaultTicketData {
-  // The opaque application data carried in the ticket (after the type byte),
-  // byte-matched against the server's current `app_ticket_data` to gate 0-RTT.
-  std::vector<uint8_t> data;
-};
-struct Http3TicketData {
-  uint64_t max_field_section_size;
-  uint64_t qpack_max_dtable_capacity;
-  uint64_t qpack_encoder_max_dtable_capacity;
-  uint64_t qpack_blocked_streams;
-  bool enable_connect_protocol;
-  bool enable_datagrams;
-};
-using PendingTicketAppData =
-    std::variant<std::monostate, DefaultTicketData, Http3TicketData>;
+// Opaque application-typed session-ticket data, produced by a registered
+// application factory's ticket hook at decrypt time and consumed by
+// Application::ApplySessionTicketData() once the application is
+// installed. The QUIC core never inspects the contents; only the owning
+// application knows the concrete type.
+using PendingTicketAppData = std::shared_ptr<void>;
 
-// An Application implements the ALPN-protocol specific semantics on behalf
+// An Application implements the protocol-specific semantics on behalf
 // of a QUIC Session.
 class Session::Application : public MemoryRetainer {
  public:
-  using Options = Session::Application_Options;
-
-  Application(Session* session, const Options& options);
+  explicit Application(Session* session);
   DISALLOW_COPY_AND_MOVE(Application)
 
-  // Get the active options for this application. These may differ from the
-  // options passed at construction time since some options can be negotiated.
-  virtual const Options& options() const = 0;
-
-  // The type of Application, exposed via the session state so JS
-  // can observe which Application was selected after ALPN negotiation.
-  // This is used primarily for testing/debugging.
+  // The session-ticket app-data type byte: the leading byte of the
+  // application data embedded in session tickets, identifying how the
+  // remainder of the data is interpreted. DEFAULT tags the native opaque
+  // byte-match data used when no application is installed (the
+  // `appTicketData` option); application-typed values (e.g. HTTP3) tag
+  // data owned by the matching application's ticket hooks.
   enum class Type : uint8_t {
-    NONE = 0,     // Not yet selected (server pre-negotiation)
-    DEFAULT = 1,  // DefaultApplication (non-h3 ALPN)
-    HTTP3 = 2,    // Http3ApplicationImpl (h3 / h3-XX ALPN)
+    DEFAULT = 1,  // Native opaque byte-match data (no application)
+    HTTP3 = 2,    // Http3Conn typed settings data
   };
   virtual Type type() const = 0;
 
@@ -109,14 +91,6 @@ class Session::Application : public MemoryRetainer {
   // Application.
   virtual bool AcknowledgeStreamData(stream_id id, size_t datalen);
 
-  // Called to determine if a Header can be added to this application.
-  // Applications that do not support headers will always return false.
-  virtual bool CanAddHeader(size_t current_count,
-                            size_t current_headers_length,
-                            size_t this_header_length) {
-    return false;
-  }
-
   // Called when ngtcp2 reports NGTCP2_ERR_STREAM_SHUT_WR for a stream.
   // Applications that manage their own framing (e.g., HTTP/3) must inform
   // their protocol layer that the stream's write side is shut so it stops
@@ -131,14 +105,6 @@ class Session::Application : public MemoryRetainer {
   // Called when the session determines that there is outbound data available
   // to send for the given stream.
   virtual void ResumeStream(stream_id id) {}
-
-  // Called when the Session determines that the maximum number of
-  // remotely-initiated unidirectional streams has been extended. Not all
-  // Application types will require this notification so the default is to do
-  // nothing.
-  virtual void ExtendMaxStreams(EndpointLabel label,
-                                Direction direction,
-                                uint64_t max_streams) {}
 
   // Returns true if the application manages stream FIN internally (e.g.,
   // HTTP/3 uses nghttp3 which sends FIN via the fin flag in writev_stream).
@@ -162,31 +128,19 @@ class Session::Application : public MemoryRetainer {
   virtual void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const;
 
-  // Different Applications may set some application data in the session
-  // ticket (e.g. http/3 would set server settings in the application data).
-  // By default, there's nothing to get.
-  virtual SessionTicket::AppData::Status ExtractSessionTicketAppData(
-      const SessionTicket::AppData& app_data,
-      SessionTicket::AppData::Source::Flag flag);
-
-  // Validates parsed ticket data against current application options.
-  // Returns false if the stored settings are more permissive than the
-  // current config (e.g., a feature was enabled when the ticket was
-  // issued but is now disabled).
-  static bool ValidateTicketData(const PendingTicketAppData& data,
-                                 const Application_Options& options);
-
-  // Parse session ticket app data before ALPN negotiation. Reads the
-  // type byte and dispatches to the appropriate application-specific
-  // parser. Returns std::nullopt if parsing fails.
-  static std::optional<PendingTicketAppData> ParseTicketData(
-      const uv_buf_t& data);
-
-  // Called after ALPN negotiation to validate and apply previously
-  // parsed session ticket app data. Returns false if the data is
-  // incompatible (e.g., type mismatch or settings downgrade), which
+  // Called at install time to apply session ticket app data previously
+  // parsed (and validated) by this application's registered ticket hook
+  // at decrypt time. Returns false if the data is incompatible, which
   // causes the handshake to fail.
   virtual bool ApplySessionTicketData(const PendingTicketAppData& data) = 0;
+
+  // Returns a JS object describing the application's effective protocol
+  // settings (some values may have been updated by negotiation with the
+  // peer), or an empty result when the application exposes no settings.
+  // The shape is application-defined; the QUIC core never interprets it.
+  virtual v8::MaybeLocal<v8::Object> GetSettingsObject(Environment* env) {
+    return {};
+  }
 
   // Notifies the Application that the identified stream has been closed.
   virtual void ReceiveStreamClose(Stream* stream,
@@ -263,20 +217,41 @@ class Session::Application : public MemoryRetainer {
   Session* session_ = nullptr;
 };
 
-// Create a DefaultApplication for the given session.
-std::unique_ptr<Session::Application> CreateDefaultApplication(
-    Session* session, const Session::Application_Options& options);
+// The registration record for a protocol-specific Session::Application
+// implementation. Protocols register themselves under a name at binding
+// initialization (e.g. "http3"); a session installs one only when its
+// options request that name explicitly. The settings produced and
+// consumed by these hooks are opaque to the QUIC core: only the
+// registering protocol knows their shape or field names.
+struct ApplicationFactory {
+  // Creates the Application for the given session. Any parsed settings
+  // holder produced by parse_settings is carried on the session's
+  // options (application_settings); implementations resolve it from
+  // there (using their defaults when it is nullptr).
+  std::unique_ptr<Session::Application> (*create)(Session* session) = nullptr;
 
-// A factory for protocol-specific Session::Application implementations.
-// Protocols register themselves under a name at binding initialization
-// (e.g. "http3"); a session installs one only when its options request
-// that name explicitly.
-using ApplicationFactory = std::unique_ptr<Session::Application> (*)(
-    Session* session, const Session::Application_Options& options);
+  // Parses the application-specific settings value, supplied through an
+  // internal symbol by the application's consumer layer (e.g.
+  // node:http3), into an opaque holder carried on Session::Options.
+  // Called while session options are processed; invalid user-supplied
+  // values should throw and return Nothing.
+  v8::Maybe<std::shared_ptr<void>> (*parse_settings)(
+      Environment* env, v8::Local<v8::Value> value) = nullptr;
+
+  // Parses and validates application-typed session-ticket data (the
+  // full payload, including the leading type byte) against the session
+  // options at ticket-decrypt time, before the Application instance
+  // exists. Returns the parsed data for the ApplySessionTicketData()
+  // call at install time, or nullptr to reject the ticket (0-RTT is
+  // abandoned and the handshake falls back to a full 1-RTT exchange).
+  PendingTicketAppData (*parse_ticket)(const uv_buf_t& data,
+                                       const Session::Options& options) =
+      nullptr;
+};
 void RegisterApplicationFactory(std::string_view name,
-                                ApplicationFactory factory);
+                                const ApplicationFactory& factory);
 // Returns the factory registered under name, or nullptr.
-ApplicationFactory FindApplicationFactory(std::string_view name);
+const ApplicationFactory* FindApplicationFactory(std::string_view name);
 
 }  // namespace node::quic
 

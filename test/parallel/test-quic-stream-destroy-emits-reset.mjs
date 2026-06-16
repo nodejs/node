@@ -9,10 +9,10 @@
 // idle timer fired.
 //
 // Verified by observing the server-side `onreset` callback. The wire
-// code is the negotiated application's "internal error" code: for
-// the test fixture's non-h3 ALPN (`quic-test`) the C++
-// DefaultApplication reports `1n`, which propagates to the server
-// as `ERR_QUIC_APPLICATION_ERROR` exposing `errorCode === 1n`.
+// code is the session's "internal error" code: with no application
+// installed (the test fixture's raw `quic-test` ALPN) the native
+// default is `1n`, which propagates to the server as
+// `ERR_QUIC_APPLICATION_ERROR` exposing `errorCode === 1n`.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -31,7 +31,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      // The DefaultApplication's internal error code is 0x1n.
+      // The native (no application) internal error code is 0x1n.
       strictEqual(err.errorCode, 1n);
       serverResetSeen.resolve();
     });

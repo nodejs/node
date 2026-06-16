@@ -50,7 +50,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Create a bidi stream with the message as the body.
-// For DefaultApplication, the server's onstream fires when data arrives.
+// For raw QUIC sessions, the server's onstream fires when data arrives.
 const stream = await clientSession.createBidirectionalStream({
   body: body,
 });

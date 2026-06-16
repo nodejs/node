@@ -16,7 +16,6 @@
 #include <util-inl.h>
 #include <uv.h>
 #include <v8.h>
-#include <node_http_common-inl.h>
 #include <vector>
 #include "application.h"
 #include "bindingdata.h"
@@ -71,8 +70,7 @@ enum class SessionListenerFlags : uint32_t {
   DATAGRAM_STATUS = 1 << 2,
   SESSION_TICKET = 1 << 3,
   NEW_TOKEN = 1 << 4,
-  ORIGIN = 1 << 5,
-  APPLICATION = 1 << 6
+  ORIGIN = 1 << 5
 };
 
 inline SessionListenerFlags operator|(SessionListenerFlags a,
@@ -135,9 +133,9 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
-  V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
   V(WRAPPED, wrapped, uint8_t)                                                 \
-  V(APPLICATION_TYPE, application_type, uint8_t)                               \
+  V(IS_SERVER, is_server, uint8_t)                                             \
+  V(HAS_APPLICATION, has_application, uint8_t)                                 \
   V(NO_ERROR_CODE, no_error_code, error_code)                                  \
   V(INTERNAL_ERROR_CODE, internal_error_code, error_code)                      \
   V(MAX_DATAGRAM_SIZE, max_datagram_size, uint16_t)                            \
@@ -197,7 +195,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(SendDatagram, sendDatagram, SIDE_EFFECT)                                   \
   V(LocalTransportParams, localTransportParams, NO_SIDE_EFFECT)                \
   V(RemoteTransportParams, remoteTransportParams, NO_SIDE_EFFECT)              \
-  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)
+  V(ApplicationSettings, applicationSettings, NO_SIDE_EFFECT)
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -615,7 +613,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(applicationName) ||
+      !SET(application) ||
       !SET(handshake_timeout) || !SET(initial_rtt) ||
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
@@ -649,15 +647,24 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
     }
   }
 
-  // Parse the application-specific options (HTTP/3 qpack settings, etc.).
-  // These are used if the negotiated ALPN selects Http3ApplicationImpl.
-  {
-    Local<Value> app_val;
-    if (params->Get(env->context(), state.application_string())
-            .ToLocal(&app_val) &&
-        !app_val->IsUndefined()) {
-      if (!Application_Options::From(env, app_val)
-               .To(&options.application_options)) {
+  // When an application is requested, parse its settings (supplied by
+  // the application's consumer layer alongside the name) through the
+  // registered factory's parse hook. The result is carried opaquely on
+  // the options; the QUIC core never interprets it.
+  if (!options.application.empty()) {
+    // The application option is internal-only: a missing registration
+    // is a bug in the consumer layer, not a user error.
+    const auto* factory = FindApplicationFactory(options.application);
+    CHECK_NOT_NULL(factory);
+    CHECK_NOT_NULL(factory->parse_settings);
+    Local<Value> settings_val;
+    if (!params->Get(env->context(), state.application_settings_string())
+             .ToLocal(&settings_val)) {
+      return Nothing<Options>();
+    }
+    if (!settings_val->IsUndefined()) {
+      if (!factory->parse_settings(env, settings_val)
+               .To(&options.application_settings)) {
         return Nothing<Options>();
       }
     }
@@ -810,7 +817,7 @@ struct Session::Impl final : public MemoryRetainer {
   // the registered application factory's ticket hook early in the
   // handshake (at ticket decryption). Applied in SetApplication() once
   // the application is installed. Opaque to the session.
-  std::optional<PendingTicketAppData> pending_ticket_data_;
+  PendingTicketAppData pending_ticket_data_;
 
   // The native send queue used when no application is installed: streams
   // with pending outbound data are scheduled here and the send pump
@@ -1250,20 +1257,19 @@ struct Session::Impl final : public MemoryRetainer {
     }
   }
 
-  JS_METHOD(ApplicationOptions) {
+  JS_METHOD(ApplicationSettings) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     Local<Object> obj;
     if (!session->has_application()) {
-      // The application has not yet been selected (ALPN negotiation is not
-      // yet complete on the server) or the session has been destroyed. In
-      // either case, the application options are not available.
+      // No application is installed (none was requested, the server has
+      // not completed ALPN negotiation yet, or the session has been
+      // destroyed). In all of these cases there are no settings.
       return args.GetReturnValue().SetUndefined();
     }
-    auto& options = session->application().options();
-    if (options.ToObject(env).ToLocal(&obj)) {
+    if (session->application().GetSettingsObject(env).ToLocal(&obj)) {
       args.GetReturnValue().Set(obj);
     }
   }
@@ -1557,7 +1563,7 @@ struct Session::Impl final : public MemoryRetainer {
     // mismatch, or the session ticket data was rejected) and the
     // handshake must fail.
     if (!session->impl_->application_) {
-      return session->config().options.applicationName.empty()
+      return session->config().options.application.empty()
                  ? NGTCP2_SUCCESS
                  : NGTCP2_ERR_CALLBACK_FAILURE;
     }
@@ -2480,6 +2486,7 @@ Session::Session(Endpoint* endpoint,
   impl_->state()->no_error_code = NGTCP2_NO_ERROR;
   impl_->state()->internal_error_code = NGTCP2_INTERNAL_ERROR;
 
+  impl_->state()->is_server = config.side == Side::SERVER ? 1 : 0;
 
   // For clients, install the requested Application immediately - it is
   // known upfront from the options. For servers, application_ stays
@@ -2657,7 +2664,7 @@ void Session::Close(CloseMethod method) {
       // yet (a server before the TLS handshake completes ALPN) cannot do
       // an application-level graceful shutdown (GOAWAY, CONNECTION_CLOSE
       // etc.), so fall through to a silent close.
-      if (!impl_->application_ && !config().options.applicationName.empty()) {
+      if (!impl_->application_ && !config().options.application.empty()) {
         impl_->state()->silent_close = 1;
         return FinishClose();
       }
@@ -2837,7 +2844,7 @@ bool Session::can_send_pending_data() const {
   // scheduling from its first flight. With no application requested the
   // native path is always ready.
   return impl_->application_ != nullptr ||
-         config().options.applicationName.empty();
+         config().options.application.empty();
 }
 
 bool Session::stream_fin_managed_by_application() const {
@@ -2851,38 +2858,32 @@ error_code Session::internal_error_code() const {
 }
 
 std::unique_ptr<Session::Application> Session::SelectApplication() {
-  const auto& name = config().options.applicationName;
-  if (!name.empty()) {
-    auto factory = FindApplicationFactory(name);
-    CHECK_NOT_NULL(factory);
-    return factory(this, config().options.application_options);
-  }
-  // No application requested: run the native raw-stream path.
-  return nullptr;
+  const auto& name = config().options.application;
+  if (name.empty()) return nullptr;
+  const auto* factory = FindApplicationFactory(name);
+  CHECK_NOT_NULL(factory);
+  return factory->create(this);
 }
 
 void Session::SetApplication(std::unique_ptr<Application> app) {
   DCHECK(!impl_->application_);
+  DCHECK(app);
   // If we have pending ticket data from a session ticket that was
-  // parsed before ALPN negotiation, validate it against the selected
-  // application now. If the type doesn't match or the application
+  // parsed (and validated) by the application's ticket hook before ALPN
+  // negotiation, apply it to the application now. If the application
   // rejects the data, the handshake will fail (application_ stays null
   // and the caller returns an error).
-  if (impl_->pending_ticket_data_.has_value()) {
-    auto data = std::move(*impl_->pending_ticket_data_);
-    impl_->pending_ticket_data_.reset();
+  if (impl_->pending_ticket_data_) {
+    auto data = std::move(impl_->pending_ticket_data_);
     if (!app->ApplySessionTicketData(data)) {
       Debug(this, "Session ticket app data rejected by application");
       return;
     }
   }
-  impl_->state()->application_type = static_cast<uint8_t>(app->type());
-  impl_->state()->headers_supported = static_cast<uint8_t>(
-      app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
-                             : HeadersSupportState::UNSUPPORTED);
+  impl_->state()->has_application = 1;
   // Surface the application's "no error" and "internal error" codes via
   // session state so that JS-side code (e.g. the stream writer's fail()
-  // path) can resolve the right wire code for the negotiated ALPN
+  // path) can resolve the right wire code for the installed application
   // without duplicating the per-application table.
   impl_->state()->no_error_code = app->GetNoErrorCode();
   impl_->state()->internal_error_code = app->GetInternalErrorCode();
@@ -3653,53 +3654,62 @@ void Session::CollectSessionTicketAppData(
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
   DCHECK(!is_destroyed());
-  // If the application is already selected (client side, or server after
-  // ALPN), delegate directly.
   if (impl_->application_) {
-    return application().ExtractSessionTicketAppData(app_data, flag);
+    // I think this is unreacahable. If it ever happens, ignoring
+    // the ticket to fall back to 1RTT is fine.
+    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
-  // The application is not yet selected (server during ClientHello
-  // processing, before ALPN). Parse the ticket data now while the
-  // SSL_SESSION is still valid, and stash the result for validation
-  // after ALPN negotiation in SetApplication().
-  auto data = app_data.Get();
-  if (!data.has_value() || data->len == 0) {
-    // No app data in the ticket. Accept optimistically.
+  const auto accept = [&] {
     return flag == Flag::STATUS_RENEW
                ? SessionTicket::AppData::Status::TICKET_USE_RENEW
                : SessionTicket::AppData::Status::TICKET_USE;
+  };
+  auto data = app_data.Get();
+  if (!data.has_value() || data->len == 0) {
+    // No app data in the ticket. Accept optimistically.
+    return accept();
   }
-  auto parsed = Application::ParseTicketData(*data);
-  if (!parsed.has_value()) {
-    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
-  }
-  // Pre-validate the ticket data against the current configuration. If it
-  // does not match, reject the ticket so 0-RTT is not used. This must happen
-  // here (during TLS ticket processing) rather than in SetApplication,
-  // because by SetApplication time the TLS layer has already accepted
-  // the ticket and told the client 0-RTT is ok.
-  if (std::holds_alternative<DefaultTicketData>(*parsed)) {
-    // Generic opaque app-data (raw QUIC / non-h3): byte-match the stored
-    // bytes against the server's currently-configured `app_ticket_data`.
-    const auto& dtd = std::get<DefaultTicketData>(*parsed);
-    const auto& atd = config().options.app_ticket_data;
-    uv_buf_t cur =
-        atd.has_value() ? static_cast<uv_buf_t>(*atd) : uv_buf_init(nullptr, 0);
-    if (dtd.data.size() != cur.len ||
-        (cur.len > 0 && memcmp(dtd.data.data(), cur.base, cur.len) != 0)) {
-      Debug(this, "Session ticket app data does not match configured value");
+  // Validation must happen here (during TLS ticket processing) rather
+  // than later at install time, because by then the TLS layer has
+  // already accepted the ticket and told the client 0-RTT is ok.
+  const auto& application_name = config().options.application;
+  if (!application_name.empty()) {
+    // An application is configured but not yet installed (server during
+    // ClientHello processing, before ALPN completes). Route the data to
+    // the registered application's ticket hook: it parses and validates
+    // against the configured settings now - while the SSL_SESSION is
+    // still valid - and the parsed result is applied once the
+    // application installs in SetApplication().
+    const auto* factory = FindApplicationFactory(application_name);
+    CHECK_NOT_NULL(factory);
+    CHECK_NOT_NULL(factory->parse_ticket);
+    auto parsed = factory->parse_ticket(*data, config().options);
+    if (!parsed) {
+      Debug(this, "Session ticket app data rejected for application");
       return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
     }
-  } else if (!Application::ValidateTicketData(
-                 *parsed, config().options.application_options)) {
-    // Typed app-data (HTTP/3): the application's own asymmetric validation.
-    Debug(this, "Session ticket app data incompatible with current settings");
+    impl_->pending_ticket_data_ = std::move(parsed);
+    return accept();
+  }
+  // Native path (no application): only DEFAULT-typed opaque app data is
+  // usable - byte-match the stored bytes against the server's currently
+  // configured `app_ticket_data`. Application-typed tickets cannot be
+  // validated here and are rejected, falling back cleanly to a full
+  // 1-RTT handshake.
+  const auto* p = reinterpret_cast<const uint8_t*>(data->base);
+  if (p[0] != static_cast<uint8_t>(Application::Type::DEFAULT)) {
+    Debug(this, "Session ticket app data has an unusable type byte");
     return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
-  impl_->pending_ticket_data_ = std::move(parsed);
-  return flag == Flag::STATUS_RENEW
-             ? SessionTicket::AppData::Status::TICKET_USE_RENEW
-             : SessionTicket::AppData::Status::TICKET_USE;
+  const auto& atd = config().options.app_ticket_data;
+  uv_buf_t cur =
+      atd.has_value() ? static_cast<uv_buf_t>(*atd) : uv_buf_init(nullptr, 0);
+  if (data->len - 1 != cur.len ||
+      (cur.len > 0 && memcmp(p + 1, cur.base, cur.len) != 0)) {
+    Debug(this, "Session ticket app data does not match configured value");
+    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+  }
+  return accept();
 }
 
 void Session::MemoryInfo(MemoryTracker* tracker) const {
@@ -4535,27 +4545,13 @@ void Session::EmitApplication() {
   if (is_destroyed()) return;
   if (!env()->can_call_into_js()) return;
 
-  if (!has_application()) {
-    // The application has not yet been selected (ALPN negotiation is not
-    // yet complete on the server) or the session has been destroyed. In
-    // either case, the application options are not available.
-    // Should not happen, but we bail out
-    return;
-  }
-
-  if (!HasListenerFlag(impl_->state()->listener_flags,
-                       SessionListenerFlags::APPLICATION)) [[likely]] {
-    return;
-  }
-
+  // A bare notification that the installed application's negotiated options
+  // have been updated (e.g. an HTTP/3 SETTINGS frame arrived). The consumer
+  // reads the current values back through the application settings binding;
+  // the transport layer carries no protocol-specific data here.
   CallbackScope<Session> cb_scope(this);
-
-  Local<Value> argv;
-  auto& options = application().options();
-  if (options.ToObject(env()).ToLocal(&argv)) {
-    MakeCallback(
-        BindingData::Get(env()).session_application_callback(), 1, &argv);
-  }
+  MakeCallback(
+      BindingData::Get(env()).session_application_callback(), 0, nullptr);
 }
 
 void Session::DestroyAllStreams(const QuicError& error) {
@@ -4758,8 +4754,6 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_BIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_UNIDIRECTIONAL);
-  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LIST_PAIRS);
-  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MIN);
 

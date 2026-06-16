@@ -36,14 +36,14 @@ class SessionManager;
 
 // The callbacks are persistent v8::Function references that are set in the
 // quic::BindingState used to communicate data and events back out to the JS
-// environment. They are set once from the JavaScript side when the
-// internalBinding('quic') is first loaded.
+// environment. The protocol-neutral set is registered once from the
+// JavaScript side (via setCallbacks) when the internalBinding('quic') is
+// first loaded; the HTTP/3 application-event set is registered separately
+// (via setHttp3Callbacks) when the HTTP/3 consumer layer is first loaded.
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
   V(session_close, SessionClose)                                               \
-  V(session_application, SessionApplication)                                   \
   V(session_early_data_rejected, SessionEarlyDataRejected)                     \
-  V(session_goaway, SessionGoaway)                                             \
   V(session_datagram, SessionDatagram)                                         \
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
@@ -51,7 +51,6 @@ class SessionManager;
   V(session_qlog, SessionQlog)                                                 \
   V(session_new, SessionNew)                                                   \
   V(session_new_token, SessionNewToken)                                        \
-  V(session_origin, SessionOrigin)                                             \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
@@ -59,9 +58,21 @@ class SessionManager;
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \
   V(stream_drain, StreamDrain)                                                 \
+  V(stream_reset, StreamReset)
+
+// The HTTP/3 application-event callbacks, registered separately by the
+// HTTP/3 consumer layer (lib/internal/quic/http3.js) via setHttp3Callbacks.
+#define QUIC_HTTP3_JS_CALLBACKS(V)                                             \
+  V(session_application, SessionApplication)                                   \
+  V(session_goaway, SessionGoaway)                                             \
+  V(session_origin, SessionOrigin)                                             \
   V(stream_headers, StreamHeaders)                                             \
-  V(stream_reset, StreamReset)                                                 \
   V(stream_trailers, StreamTrailers)
+
+// All of the callback slots, regardless of which JS module registers them.
+#define QUIC_ALL_JS_CALLBACKS(V)                                               \
+  QUIC_JS_CALLBACKS(V)                                                         \
+  QUIC_HTTP3_JS_CALLBACKS(V)
 
 // The various JS strings the implementation uses.
 #define QUIC_STRINGS(V)                                                        \
@@ -74,6 +85,7 @@ class SessionManager;
   V(allow, "allow")                                                            \
   V(app_ticket_data, "appTicketData")                                          \
   V(application, "application")                                                \
+  V(application_settings, "applicationSettings")                               \
   V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
@@ -88,7 +100,6 @@ class SessionManager;
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(draining_period_multiplier, "drainingPeriodMultiplier")                    \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
-  V(applicationName, "applicationName")                                        \
   V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \
@@ -97,7 +108,6 @@ class SessionManager;
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
-  V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(initial_rtt, "initialRtt")                                                 \
   V(keep_alive_timeout, "keepAlive")                                           \
   V(initial_max_data, "initialMaxData")                                        \
@@ -295,6 +305,11 @@ class BindingData final
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
 
+  // Installs the HTTP/3 application-event callback functions. Registered
+  // separately from SetCallbacks by the HTTP/3 consumer layer when it
+  // is first loaded in a realm.
+  JS_METHOD(SetHttp3Callbacks);
+
   // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
   // routing so that any endpoint can route packets to any session.
   SessionManager& session_manager();
@@ -326,13 +341,13 @@ class BindingData final
   void set_transport_params_template(v8::Local<v8::DictionaryTemplate> tmpl);
   v8::Local<v8::DictionaryTemplate> transport_params_template() const;
 
-  void set_application_options_template(v8::Local<v8::DictionaryTemplate> tmpl);
-  v8::Local<v8::DictionaryTemplate> application_options_template() const;
+  void set_http3_settings_template(v8::Local<v8::DictionaryTemplate> tmpl);
+  v8::Local<v8::DictionaryTemplate> http3_settings_template() const;
 
 #define V(name, _)                                                             \
   void set_##name##_callback(v8::Local<v8::Function> fn);                      \
   v8::Local<v8::Function> name##_callback() const;
-  QUIC_JS_CALLBACKS(V)
+  QUIC_ALL_JS_CALLBACKS(V)
 #undef V
 
 #define V(name, _) v8::Local<v8::String> name##_string() const;
@@ -340,7 +355,7 @@ class BindingData final
 #undef V
 
 #define V(name, _) v8::Local<v8::String> on_##name##_string() const;
-  QUIC_JS_CALLBACKS(V)
+  QUIC_ALL_JS_CALLBACKS(V)
 #undef V
 
 #define V(name) v8::Global<v8::FunctionTemplate> name##_constructor_template_;
@@ -348,10 +363,10 @@ class BindingData final
 #undef V
 
   v8::Global<v8::DictionaryTemplate> transport_params_template_;
-  v8::Global<v8::DictionaryTemplate> application_options_template_;
+  v8::Global<v8::DictionaryTemplate> http3_settings_template_;
 
 #define V(name, _) v8::Global<v8::Function> name##_callback_;
-  QUIC_JS_CALLBACKS(V)
+  QUIC_ALL_JS_CALLBACKS(V)
 #undef V
 
 #define V(name, _) mutable v8::Eternal<v8::String> name##_string_;
@@ -359,7 +374,7 @@ class BindingData final
 #undef V
 
 #define V(name, _) mutable v8::Eternal<v8::String> on_##name##_string_;
-  QUIC_JS_CALLBACKS(V)
+  QUIC_ALL_JS_CALLBACKS(V)
 #undef V
 
   // Lazy cache backing error_name_string()

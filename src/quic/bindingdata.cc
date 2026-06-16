@@ -289,6 +289,7 @@ void nghttp3_debug_log(const char* fmt, va_list args) {
 void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   nghttp3_set_debug_vprintf_callback(nghttp3_debug_log);
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
+  SetMethod(realm->context(), target, "setHttp3Callbacks", SetHttp3Callbacks);
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
 
@@ -296,6 +297,7 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IllegalConstructor);
   registry->Register(SetCallbacks);
+  registry->Register(SetHttp3Callbacks);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
@@ -355,7 +357,7 @@ void BindingData::OnFlushCheck() {
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 #define V(name, _) tracker->TrackField(#name, name##_callback());
 
-  QUIC_JS_CALLBACKS(V)
+  QUIC_ALL_JS_CALLBACKS(V)
 
 #undef V
 
@@ -390,14 +392,14 @@ Local<DictionaryTemplate> BindingData::transport_params_template() const {
                                     transport_params_template_);
 }
 
-void BindingData::set_application_options_template(
+void BindingData::set_http3_settings_template(
     Local<DictionaryTemplate> tmpl) {
-  application_options_template_.Reset(env()->isolate(), tmpl);
+  http3_settings_template_.Reset(env()->isolate(), tmpl);
 }
 
-Local<DictionaryTemplate> BindingData::application_options_template() const {
+Local<DictionaryTemplate> BindingData::http3_settings_template() const {
   return PersistentToLocal::Default(env()->isolate(),
-                                    application_options_template_);
+                                    http3_settings_template_);
 }
 
 #define V(name, _)                                                             \
@@ -408,7 +410,7 @@ Local<DictionaryTemplate> BindingData::application_options_template() const {
     return PersistentToLocal::Default(env()->isolate(), name##_callback_);     \
   }
 
-QUIC_JS_CALLBACKS(V)
+QUIC_ALL_JS_CALLBACKS(V)
 
 #undef V
 
@@ -433,7 +435,7 @@ QUIC_STRINGS(V)
     return on_##name##_string_.Get(env()->isolate());                          \
   }
 
-QUIC_JS_CALLBACKS(V)
+QUIC_ALL_JS_CALLBACKS(V)
 
 #undef V
 
@@ -463,6 +465,28 @@ JS_METHOD_IMPL(BindingData::SetCallbacks) {
   } while (0);
 
   QUIC_JS_CALLBACKS(V)
+
+#undef V
+}
+
+JS_METHOD_IMPL(BindingData::SetHttp3Callbacks) {
+  auto env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
+  auto& state = Get(env);
+  CHECK(args[0]->IsObject());
+  Local<Object> obj = args[0].As<Object>();
+
+#define V(name, key)                                                           \
+  do {                                                                         \
+    Local<Value> val;                                                          \
+    if (!obj->Get(env->context(), state.on_##name##_string()).ToLocal(&val) || \
+        !val->IsFunction()) {                                                  \
+      return THROW_ERR_MISSING_ARGS(isolate, "Missing Callback: on" #key);     \
+    }                                                                          \
+    state.set_##name##_callback(val.As<Function>());                           \
+  } while (0);
+
+  QUIC_HTTP3_JS_CALLBACKS(V)
 
 #undef V
 }

@@ -3,7 +3,6 @@
 // Test: H3 0-RTT rejected when server reduces application settings.
 // 0-RTT rejected when max_field_section_size decreased
 // 0-RTT rejected when enable_connect_protocol disabled
-// 0-RTT rejected when enable_datagrams disabled
 // Each test creates two endpoints with the same key/cert/tokenSecret.
 // The first endpoint issues a ticket with generous H3 settings. The
 // second endpoint has reduced settings, causing the H3 session ticket
@@ -137,27 +136,13 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { enableConnectProtocol: true },
+    settings: { enableConnectProtocol: true },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // EnableConnectProtocol reduced from true to false.
-    application: { enableConnectProtocol: false },
-  }, ticket, token);
-}
-
-// enable_datagrams disabled.
-{
-  const { ticket, token } = await getTicket({
-    endpoint: { tokenSecret },
-    application: { enableDatagrams: true },
-  });
-
-  await attemptRejected0RTT({
-    endpoint: { tokenSecret },
-    // EnableDatagrams reduced from true to false.
-    application: { enableDatagrams: false },
+    settings: { enableConnectProtocol: false },
   }, ticket, token);
 }
 
@@ -165,12 +150,12 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { maxFieldSectionSize: 10000 },
+    settings: { maxFieldSectionSize: 10000 },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // MaxFieldSectionSize reduced from 10000 to 100.
-    application: { maxFieldSectionSize: 100 },
+    settings: { maxFieldSectionSize: 100 },
   }, ticket, token);
 }

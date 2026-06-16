@@ -8,7 +8,7 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok } = assert;
+const { strictEqual, ok, rejects } = assert;
 const { readKey } = fixtures;
 
 if (!hasQuic) {
@@ -29,6 +29,10 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((session) => {
   ok(session instanceof Http3Session);
+  // HTTP/3 requests are client-initiated only: a server session cannot
+  // open a request stream.
+  rejects(session.request(), { code: 'ERR_INVALID_STATE' })
+    .then(mustCall());
   session.onstream = mustCall((stream) => {
     ok(stream instanceof Http3Stream);
     stream.onheaders = mustCall((headers) => {

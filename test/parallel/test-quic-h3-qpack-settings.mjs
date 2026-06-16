@@ -66,14 +66,14 @@ async function makeRequest(clientSession, path) {
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     // Server disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
+    settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
     // Client also disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
+    settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
   await clientSession.opened;
 
@@ -105,13 +105,13 @@ async function makeRequest(clientSession, path) {
     }, 2);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
+    settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
+    settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;
 

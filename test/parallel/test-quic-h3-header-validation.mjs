@@ -157,3 +157,76 @@ const decoder = new TextDecoder();
   await clientSession.close();
   await serverEndpoint.close();
 }
+
+// Send-side validation. Invalid request headers reject before a stream
+// is opened and pseudo-headers in trailers are rejected.
+{
+  const serverDone = Promise.withResolvers();
+  const encoder = new TextEncoder();
+
+  const serverEndpoint = await listen(mustCall(async (ss) => {
+    // Exactly one stream must arrive: the invalid requests below must
+    // never hit the wire.
+    ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall(() => {
+        stream.sendHeaders({ ':status': '200' });
+        const w = stream.writer;
+        w.writeSync(encoder.encode('payload'));
+        w.endSync();
+      });
+      stream.onwanttrailers = mustCall(() => {
+        assert.throws(() => stream.sendTrailers({ ':status': '200' }),
+                      { code: 'ERR_HTTP2_INVALID_PSEUDOHEADER' });
+        stream.sendTrailers({ 'x-checksum': 'abc' });
+      });
+      await stream.closed;
+      ss.close();
+      serverDone.resolve();
+    });
+  }), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+  });
+  await clientSession.opened;
+
+  // Connection-specific headers are forbidden in HTTP/3. The request
+  // rejects during validation, before any stream is opened.
+  await assert.rejects(clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    'connection': 'keep-alive',
+  }), { code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS' });
+
+  // Unknown pseudo-headers are forbidden.
+  await assert.rejects(clientSession.request({
+    ':bogus': 'nope',
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }), { code: 'ERR_HTTP2_INVALID_PSEUDOHEADER' });
+
+  // The failed requests left nothing behind: the session is fully
+  // usable and the next stream gets the first stream id (0).
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    ontrailers: mustCall((trailers) => {
+      strictEqual(trailers['x-checksum'], 'abc');
+    }),
+  });
+  strictEqual(stream.id, 0n);
+
+  await Promise.all([bytes(stream), stream.closed, serverDone.promise]);
+  await clientSession.close();
+  await serverEndpoint.close();
+}
