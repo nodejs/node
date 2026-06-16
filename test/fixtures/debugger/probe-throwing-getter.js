@@ -13,9 +13,10 @@ function markProbesDone() {
 
 module.exports = { holder, markProbesDone };
 
-globalThis.probeLine1 = 1;
-globalThis.probeLine2 = 2;
-
 const interval = setInterval(() => {
+  // Keep these module bindings visible to probe evaluation from this callback.
+  void holder; void markProbesDone;
+  globalThis.probeLine1 = 1;
+  globalThis.probeLine2 = 2;
   if (probesDone) clearInterval(interval);
 }, 50);

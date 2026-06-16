@@ -12,16 +12,16 @@ const { assertProbeJson } = require('../common/debugger-probe');
 const cwd = fixtures.path('debugger');
 const fixture = 'probe-throwing-getter.js';
 const probes = [
-  { expr: 'holder.throwingGetter', target: { suffix: fixture, line: 16 } },
+  { expr: 'holder.throwingGetter', target: { suffix: fixture, line: 19 } },
   // This clears the interval so the process will exit naturally.
-  { expr: 'markProbesDone()', target: { suffix: fixture, line: 17 } },
+  { expr: 'markProbesDone()', target: { suffix: fixture, line: 20 } },
 ];
 const url = fixtures.fileURL('debugger', fixture).href;
 
 spawnSyncAndExit(process.execPath, [
   'inspect', '--json',
-  '--probe', `${fixture}:16`, '--expr', probes[0].expr,
-  '--probe', `${fixture}:17`, '--expr', probes[1].expr,
+  '--probe', `${fixture}:19`, '--expr', probes[0].expr,
+  '--probe', `${fixture}:20`, '--expr', probes[1].expr,
   fixture,
 ], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   status: 0,
@@ -34,7 +34,7 @@ spawnSyncAndExit(process.execPath, [
         probe: 0,
         event: 'hit',
         hit: 1,
-        location: { url, line: 16, column: 1 },
+        location: { url, line: 19, column: 3 },
         error: {
           message: 'Error: boom\n<stack>',
           details: {
@@ -53,7 +53,7 @@ spawnSyncAndExit(process.execPath, [
         probe: 1,
         event: 'hit',
         hit: 1,
-        location: { url, line: 17, column: 1 },
+        location: { url, line: 20, column: 3 },
         result: { type: 'undefined' },
       }, {
         event: 'completed',
