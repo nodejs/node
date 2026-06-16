@@ -1,0 +1,2011 @@
+#include "streams/writable_stream.h"
+#include "base_object-inl.h"
+#include "cppgc/allocation.h"
+#include "cppgc/visitor.h"
+#include "cppgc_helpers-inl.h"
+#include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "node_errors.h"
+#include "node_external_reference.h"
+#include "node_realm-inl.h"
+#include "streams/streams_binding.h"
+#include "util-inl.h"
+#include "v8.h"
+
+#include <cmath>
+#include <limits>
+#include <utility>
+
+namespace node {
+namespace webstreams {
+
+using v8::Array;
+using v8::Boolean;
+using v8::Context;
+using v8::Exception;
+using v8::Function;
+using v8::FunctionCallback;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Isolate;
+using v8::JustVoid;
+using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Nothing;
+using v8::Number;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::Promise;
+using v8::String;
+using v8::TryCatch;
+using v8::Undefined;
+using v8::Value;
+
+namespace {
+
+Local<Value> MakeCodedError(Isolate* isolate,
+                            Local<Context> context,
+                            bool range,
+                            const char* code,
+                            const char* message) {
+  Local<String> msg = OneByteString(isolate, message);
+  Local<Value> err = range ? Exception::RangeError(msg) : Exception::Error(msg);
+  err.As<Object>()
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "code"),
+            OneByteString(isolate, code))
+      .Check();
+  return err;
+}
+
+Local<Value> InvalidStateError(Isolate* isolate,
+                               Local<Context> context,
+                               const char* message) {
+  Local<String> msg = OneByteString(isolate, message);
+  Local<Value> err = Exception::TypeError(msg);
+  err.As<Object>()
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "code"),
+            FIXED_ONE_BYTE_STRING(isolate, "ERR_INVALID_STATE"))
+      .Check();
+  return err;
+}
+
+// Suppresses spurious unhandled-rejection warnings on internal promises.
+// Uses the realm's cached noop function (one Function total, not one per call).
+void MarkHandled(Environment* env, Local<Promise> promise) {
+  if (promise.IsEmpty()) return;
+  Local<Function> noop = NoopFunction(env);
+  if (!noop.IsEmpty()) USE(promise->Catch(env->context(), noop));
+}
+
+Local<Promise> ResolvedUndefined(Environment* env) {
+  Local<Context> context = env->context();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
+    return Local<Promise>();
+  USE(resolver->Resolve(context, Undefined(env->isolate())));
+  return resolver->GetPromise();
+}
+
+Local<Promise> RejectedWith(Environment* env, Local<Value> error) {
+  Local<Context> context = env->context();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
+    return Local<Promise>();
+  USE(resolver->Reject(context, error));
+  return resolver->GetPromise();
+}
+
+// Reaction callbacks. args.Data() is the controller (or stream) wrapper.
+void ReactStartFulfilled(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnStartFulfilled();
+}
+void ReactStartRejected(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnStartRejected(args[0]);
+}
+void ReactWriteFulfilled(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnWriteFulfilled();
+}
+void ReactWriteRejected(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnWriteRejected(args[0]);
+}
+void ReactCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnCloseFulfilled();
+}
+void ReactCloseRejected(const FunctionCallbackInfo<Value>& args) {
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnCloseRejected(args[0]);
+}
+void ReactAbortFulfilled(const FunctionCallbackInfo<Value>& args) {
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args.Data().As<Object>());
+  if (s != nullptr) s->OnAbortAlgorithmFulfilled();
+}
+void ReactAbortRejected(const FunctionCallbackInfo<Value>& args) {
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args.Data().As<Object>());
+  if (s != nullptr) s->OnAbortAlgorithmRejected(args[0]);
+}
+
+void ThenReact(Environment* env,
+               Local<Promise> promise,
+               Local<Object> data,
+               FunctionCallback on_fulfilled,
+               FunctionCallback on_rejected) {
+  Local<Context> context = env->context();
+  Local<Function> ff;
+  Local<Function> rj;
+  if (!Function::New(
+           context, on_fulfilled, data, 0, v8::ConstructorBehavior::kThrow)
+           .ToLocal(&ff) ||
+      !Function::New(
+           context, on_rejected, data, 0, v8::ConstructorBehavior::kThrow)
+           .ToLocal(&rj)) {
+    return;
+  }
+  USE(promise->Then(context, ff, rj));
+}
+
+// Like ThenReact, but reuses cached reaction functions (creating them on first
+// use), so the per-write hot path allocates no V8 Function. Mirrors the
+// readable side's ThenReactCached.
+void ThenReactCached(Environment* env,
+                     Local<Promise> promise,
+                     Local<Object> data,
+                     FunctionCallback on_fulfilled,
+                     FunctionCallback on_rejected,
+                     v8::TracedReference<Function>* ff_slot,
+                     v8::TracedReference<Function>* rj_slot) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Function> ff = ff_slot->Get(isolate);
+  if (ff.IsEmpty()) {
+    if (!Function::New(
+             context, on_fulfilled, data, 0, v8::ConstructorBehavior::kThrow)
+             .ToLocal(&ff)) {
+      return;
+    }
+    ff_slot->Reset(isolate, ff);
+  }
+  Local<Function> rj = rj_slot->Get(isolate);
+  if (rj.IsEmpty()) {
+    if (!Function::New(
+             context, on_rejected, data, 0, v8::ConstructorBehavior::kThrow)
+             .ToLocal(&rj)) {
+      return;
+    }
+    rj_slot->Reset(isolate, rj);
+  }
+  USE(promise->Then(context, ff, rj));
+}
+
+}  // namespace
+
+// ===========================================================================
+// PromiseSlot
+// ===========================================================================
+
+// The writer-released ready/closed rejection reason. Never constructed
+// eagerly in Release(): error construction captures a stack trace, which
+// dominates getWriter()/releaseLock() churn. Built only when an observed
+// promise must actually reject with it.
+static Local<Value> WriterReleasedError(Isolate* isolate,
+                                        Local<Context> context) {
+  return InvalidStateError(
+      isolate,
+      context,
+      "Writer was released and can no longer be used to monitor the stream's "
+      "state");
+}
+
+void PromiseSlot::SetPending(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kPendingLazy;
+    reason_.Reset();
+    return;
+  }
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
+  resolver_.Reset(isolate, resolver);
+  promise_.Reset(isolate, resolver->GetPromise());
+}
+
+void PromiseSlot::SetResolved(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kResolvedLazy;
+    reason_.Reset();
+    return;
+  }
+  Isolate* isolate = env->isolate();
+  Local<Promise> p = ResolvedUndefined(env);
+  resolver_.Reset();
+  promise_.Reset(isolate, p);
+}
+
+void PromiseSlot::Resolve(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    // resolve?.(): only a pending slot settles.
+    if (state_ == State::kPendingLazy) state_ = State::kResolvedLazy;
+    return;
+  }
+  if (resolver_.IsEmpty()) return;
+  Local<Promise::Resolver> r = resolver_.Get(env->isolate());
+  resolver_.Reset();
+  USE(r->Resolve(env->context(), Undefined(env->isolate())));
+}
+
+void PromiseSlot::RejectIfPendingHandled(Environment* env, Local<Value> error) {
+  if (state_ != State::kMaterialized) {
+    if (state_ == State::kPendingLazy || state_ == State::kNone) {
+      state_ = State::kRejectedLazy;
+      reason_.Reset(env->isolate(), error);
+    }
+    return;
+  }
+  if (resolver_.IsEmpty()) return;
+  Local<Promise::Resolver> r = resolver_.Get(env->isolate());
+  resolver_.Reset();
+  USE(r->Reject(env->context(), error));
+  MarkHandled(env, promise_.Get(env->isolate()));
+}
+
+void PromiseSlot::RejectOrReplaceHandled(Environment* env, Local<Value> error) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kRejectedLazy;
+    reason_.Reset(env->isolate(), error);
+    return;
+  }
+  Isolate* isolate = env->isolate();
+  if (!resolver_.IsEmpty()) {
+    Local<Promise::Resolver> r = resolver_.Get(isolate);
+    resolver_.Reset();
+    USE(r->Reject(env->context(), error));
+  } else {
+    promise_.Reset(isolate, RejectedWith(env, error));
+  }
+  MarkHandled(env, promise_.Get(isolate));
+}
+
+bool PromiseSlot::IsPending(Environment* env) const {
+  if (state_ != State::kMaterialized) return state_ == State::kPendingLazy;
+  if (promise_.IsEmpty()) return false;
+  return promise_.Get(env->isolate())->State() ==
+         Promise::PromiseState::kPending;
+}
+
+Local<Promise> PromiseSlot::promise(
+    Environment* env, v8::TracedReference<v8::Value>* shared_released_reason) {
+  if (state_ != State::kMaterialized && state_ != State::kNone) {
+    Isolate* isolate = env->isolate();
+    Local<Context> context = env->context();
+    State recorded = state_;
+    state_ = State::kMaterialized;
+    switch (recorded) {
+      case State::kPendingLazy: {
+        Local<Promise::Resolver> resolver;
+        if (!Promise::Resolver::New(context).ToLocal(&resolver))
+          return Local<Promise>();
+        resolver_.Reset(isolate, resolver);
+        promise_.Reset(isolate, resolver->GetPromise());
+        break;
+      }
+      case State::kResolvedLazy:
+        promise_.Reset(isolate, ResolvedUndefined(env));
+        break;
+      case State::kRejectedLazy:
+      case State::kRejectedReleasedLazy: {
+        Local<Value> reason;
+        if (recorded == State::kRejectedLazy) {
+          reason = reason_.Get(isolate);
+        } else if (shared_released_reason != nullptr &&
+                   !shared_released_reason->IsEmpty()) {
+          // The sibling slot already built the released error; reuse it so
+          // ready and closed reject with the same object.
+          reason = shared_released_reason->Get(isolate);
+        } else {
+          reason = WriterReleasedError(isolate, context);
+          if (shared_released_reason != nullptr)
+            shared_released_reason->Reset(isolate, reason);
+        }
+        reason_.Reset();
+        Local<Promise> p = RejectedWith(env, reason);
+        MarkHandled(env, p);
+        promise_.Reset(isolate, p);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+  if (promise_.IsEmpty()) return Local<Promise>();
+  return promise_.Get(env->isolate());
+}
+
+void PromiseSlot::Trace(cppgc::Visitor* visitor) const {
+  visitor->Trace(reason_);
+  visitor->Trace(promise_);
+  visitor->Trace(resolver_);
+}
+
+// ===========================================================================
+// WritableStreamDefaultController
+// ===========================================================================
+
+WritableStreamDefaultController::WritableStreamDefaultController(
+    Environment* env, Local<Object> object) {
+  // Untracked: created once per stream, default destructor (TracedReference
+  // cleanup is automatic), and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
+
+void WritableStreamDefaultController::Trace(cppgc::Visitor* visitor) const {
+  // The value queue (a plain vector) mutates as chunks enqueue/dequeue, so it
+  // cannot be iterated from a concurrent marking thread; defer to the mutator
+  // thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStreamDefaultController*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStreamDefaultController))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStreamDefaultController::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  queue_.ForEach(
+      [&](const TracedValueQueueEntry& entry) { visitor->Trace(entry.value); });
+  visitor->Trace(write_algorithm_);
+  visitor->Trace(close_algorithm_);
+  visitor->Trace(abort_algorithm_);
+  visitor->Trace(size_algorithm_);
+  visitor->Trace(algo_receiver_);
+  visitor->Trace(on_write_fulfilled_);
+  visitor->Trace(on_write_rejected_);
+}
+
+Local<FunctionTemplate> WritableStreamDefaultController::GetConstructorTemplate(
+    Environment* env) {
+  BindingData* bd = BindingData::Get(env);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> tmpl =
+      bd->writable_stream_default_controller_ctor.Get(isolate);
+  if (tmpl.IsEmpty()) {
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        WritableStreamDefaultController::kInternalFieldCount);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate, "WritableStreamDefaultController"));
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(isolate, "signal"),
+        NewGetter(isolate, "signal", GetSignal));
+    SetProtoMethodLen(isolate, tmpl, "error", Error, 0);
+    bd->writable_stream_default_controller_ctor.Reset(isolate, tmpl);
+  }
+  return tmpl;
+}
+
+void WritableStreamDefaultController::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetSignal);
+  registry->Register(Error);
+}
+
+Maybe<void> WritableStreamDefaultController::EnqueueValueWithSize(
+    Local<Value> value, double size) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (std::isnan(size) || size < 0 ||
+      size == std::numeric_limits<double>::infinity()) {
+    isolate->ThrowException(MakeCodedError(isolate,
+                                           context,
+                                           /* range */ true,
+                                           "ERR_INVALID_ARG_VALUE",
+                                           "The argument 'size' is invalid"));
+    return Nothing<void>();
+  }
+  queue_.emplace_back();
+  TracedValueQueueEntry& entry = queue_.back();
+  entry.value.Reset(isolate, value);
+  entry.size = size;
+  queue_total_size_ += size;
+  return JustVoid();
+}
+
+MaybeLocal<Value> WritableStreamDefaultController::DequeueValue() {
+  Isolate* isolate = env()->isolate();
+  CHECK(!queue_.empty());
+  TracedValueQueueEntry& entry = queue_.front();
+  Local<Value> value = entry.value.Get(isolate);
+  queue_total_size_ -= entry.size;
+  if (queue_total_size_ < 0) queue_total_size_ = 0;
+  entry.value.Reset();  // Eager: pop_front alone would pin the chunk.
+  queue_.pop_front();
+  return value;
+}
+
+void WritableStreamDefaultController::ResetQueue() {
+  queue_.clear();  // ~Global disposes each entry's handle.
+  queue_total_size_ = 0;
+  close_queued_ = false;
+}
+
+double WritableStreamDefaultController::GetDesiredSize() const {
+  return high_water_mark_ - queue_total_size_;
+}
+
+bool WritableStreamDefaultController::GetBackpressure() const {
+  return GetDesiredSize() <= 0;
+}
+
+double WritableStreamDefaultController::GetChunkSize(Local<Value> chunk) {
+  if (size_mode_ == SizeMode::kCountOne) return 1;
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  TryCatch try_catch(isolate);
+  double size = 1;
+  bool ok = true;
+  if (size_mode_ == SizeMode::kByteLength) {
+    Local<Object> obj;
+    Local<Value> bl;
+    if (!chunk->ToObject(context).ToLocal(&obj) ||
+        !obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "byteLength"))
+             .ToLocal(&bl) ||
+        !bl->NumberValue(context).To(&size)) {
+      ok = false;
+    }
+  } else {                                    // kUserFn
+    if (size_algorithm_.IsEmpty()) return 1;  // algorithms were cleared
+    Local<Function> size_fn = size_algorithm_.Get(isolate);
+    Local<Value> argv[] = {chunk};
+    Local<Value> size_val;
+    if (!size_fn->Call(context, Undefined(isolate), 1, argv)
+             .ToLocal(&size_val) ||
+        !size_val->NumberValue(context).To(&size)) {
+      ok = false;
+    }
+  }
+  if (!ok) {
+    Local<Value> exception = try_catch.Exception();
+    try_catch.Reset();
+    ErrorIfNeeded(exception);
+    return 1;
+  }
+  return size;
+}
+
+void WritableStreamDefaultController::Write(Local<Value> chunk,
+                                            double chunk_size) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  {
+    TryCatch try_catch(isolate);
+    if (EnqueueValueWithSize(chunk, chunk_size).IsNothing()) {
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      ErrorIfNeeded(exception);
+      return;
+    }
+  }
+  WritableStream* stream = this->stream();
+  if (!stream->CloseQueuedOrInFlight() &&
+      stream->state() == WritableState::kWritable) {
+    stream->UpdateBackpressure(GetBackpressure());
+  }
+  AdvanceQueueIfNeeded();
+}
+
+void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  WritableStream* stream = this->stream();
+  stream->MarkFirstWriteRequestInFlight();
+  Local<Function> write = write_algorithm_.Get(isolate);
+  Local<Object> controller_obj = object();
+  // The write algorithm is the user's raw function (no per-call async JS
+  // wrapper). The common cases — no write, or a synchronous write returning a
+  // non-object — complete through the shared per-realm reaction on a promise
+  // resolved with this controller's wrapper: same microtask timing as a
+  // promise return, no per-call Function allocation.
+  Local<Value> result;
+  if (write.IsEmpty()) {
+    result = Undefined(isolate);
+  } else {
+    Local<Value> recv = algo_receiver_.IsEmpty()
+                            ? Undefined(isolate).As<Value>()
+                            : algo_receiver_.Get(isolate);
+    Local<Value> argv[] = {chunk, controller_obj};
+    TryCatch try_catch(isolate);
+    if (!write->Call(context, recv, 2, argv).ToLocal(&result)) {
+      if (try_catch.HasTerminated()) return;
+      // A synchronous throw behaves as a rejected write promise.
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Reject(context, exception));
+      ThenReactCached(env,
+                      resolver->GetPromise(),
+                      controller_obj,
+                      ReactWriteFulfilled,
+                      ReactWriteRejected,
+                      &on_write_fulfilled_,
+                      &on_write_rejected_);
+      return;
+    }
+  }
+  if (result->IsPromise()) {
+    ThenReactCached(env,
+                    result.As<Promise>(),
+                    controller_obj,
+                    ReactWriteFulfilled,
+                    ReactWriteRejected,
+                    &on_write_fulfilled_,
+                    &on_write_rejected_);
+    return;
+  }
+  if (!result->IsObject()) {
+    // Synchronous write: enqueue OnWriteFulfilled directly as a microtask via
+    // the per-controller cached reaction — one API call, no promise; ordering
+    // is identical (CallableTask and PromiseReactionJob share the FIFO queue).
+    Local<Function> ff = on_write_fulfilled_.Get(isolate);
+    if (ff.IsEmpty()) {
+      if (!Function::New(context,
+                         ReactWriteFulfilled,
+                         controller_obj,
+                         0,
+                         v8::ConstructorBehavior::kThrow)
+               .ToLocal(&ff))
+        return;
+      on_write_fulfilled_.Reset(isolate, ff);
+    }
+    isolate->EnqueueMicrotask(ff);
+    return;
+  }
+  // Thenable (non-promise object): full promise resolution so its `then` is
+  // honored, reacted to with the per-controller cached functions.
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  USE(resolver->Resolve(context, result));
+  ThenReactCached(env,
+                  resolver->GetPromise(),
+                  controller_obj,
+                  ReactWriteFulfilled,
+                  ReactWriteRejected,
+                  &on_write_fulfilled_,
+                  &on_write_rejected_);
+}
+
+void WritableStreamDefaultController::OnWriteFulfilled() {
+  WritableStream* stream = this->stream();
+  stream->FinishInFlightWrite();
+  WritableState state = stream->state();
+  CHECK(state == WritableState::kWritable || state == WritableState::kErroring);
+  USE(DequeueValue());
+  if (!stream->CloseQueuedOrInFlight() && state == WritableState::kWritable)
+    stream->UpdateBackpressure(GetBackpressure());
+  AdvanceQueueIfNeeded();
+  // A completed write is the only event that frees up desiredSize, so this is
+  // the pipe pump's re-entry point (FinishErroring above disarms on error
+  // paths, making the armed check here sufficient).
+  if (stream->pump_armed()) RunPipePump(stream);
+}
+
+void WritableStreamDefaultController::OnWriteRejected(Local<Value> error) {
+  WritableStream* stream = this->stream();
+  if (stream->state() == WritableState::kWritable) ClearAlgorithms();
+  stream->FinishInFlightWriteWithError(error);
+}
+
+void WritableStreamDefaultController::ProcessClose() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  WritableStream* stream = this->stream();
+  stream->MarkCloseRequestInFlight();
+  close_queued_ = false;  // dequeue the close sentinel
+  CHECK(QueueIsEmpty());
+  Local<Function> close = close_algorithm_.Get(isolate);
+  Local<Value> result;
+  Local<Object> controller_obj = object();
+  // Called with the algorithm receiver (the sink for public streams — their
+  // wrapped close ignores `this` — and the transform stream for the shared
+  // transform trampolines, which recover it from the receiver).
+  Local<Value> close_recv = algo_receiver_.IsEmpty()
+                                ? Undefined(isolate).As<Value>()
+                                : algo_receiver_.Get(isolate);
+  bool got = close->Call(context, close_recv, 0, nullptr).ToLocal(&result);
+  ClearAlgorithms();
+  if (!got || !result->IsPromise()) return;
+  ThenReact(env,
+            result.As<Promise>(),
+            controller_obj,
+            ReactCloseFulfilled,
+            ReactCloseRejected);
+}
+
+void WritableStreamDefaultController::OnCloseFulfilled() {
+  stream()->FinishInFlightClose();
+}
+
+void WritableStreamDefaultController::OnCloseRejected(Local<Value> error) {
+  stream()->FinishInFlightCloseWithError(error);
+}
+
+void WritableStreamDefaultController::ErrorIfNeeded(Local<Value> error) {
+  if (stream()->state() == WritableState::kWritable) ErrorInternal(error);
+}
+
+void WritableStreamDefaultController::ErrorInternal(Local<Value> error) {
+  WritableStream* stream = this->stream();
+  CHECK(stream->state() == WritableState::kWritable);
+  ClearAlgorithms();
+  stream->StartErroring(error);
+}
+
+void WritableStreamDefaultController::CloseInternal() {
+  close_queued_ = true;  // enqueue the close sentinel (size 0)
+  AdvanceQueueIfNeeded();
+}
+
+void WritableStreamDefaultController::ClearAlgorithms() {
+  write_algorithm_.Reset();
+  close_algorithm_.Reset();
+  abort_algorithm_.Reset();
+  size_algorithm_.Reset();
+  algo_receiver_.Reset();
+  // Break the Global -> reaction Function -> wrapper -> controller cycle.
+  on_write_fulfilled_.Reset();
+  on_write_rejected_.Reset();
+}
+
+void WritableStreamDefaultController::AdvanceQueueIfNeeded() {
+  WritableStream* stream = this->stream();
+  if (!started_ || stream->has_in_flight_write_request()) return;
+  if (stream->state() == WritableState::kErroring) {
+    stream->FinishErroring();
+    return;
+  }
+  if (QueueIsEmpty()) return;
+  if (!queue_.empty()) {
+    Local<Value> chunk = queue_.front().value.Get(env()->isolate());
+    ProcessWrite(chunk);
+  } else {
+    // Only the close sentinel remains.
+    ProcessClose();
+  }
+}
+
+Local<Promise> WritableStreamDefaultController::AbortSteps(
+    Local<Value> reason) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Function> abort = abort_algorithm_.Get(isolate);
+  Local<Value> argv[] = {reason};
+  Local<Value> result;
+  Local<Promise> promise;
+  Local<Value> abort_recv = algo_receiver_.IsEmpty()
+                                ? Undefined(isolate).As<Value>()
+                                : algo_receiver_.Get(isolate);
+  if (!abort.IsEmpty() &&
+      abort->Call(context, abort_recv, 1, argv).ToLocal(&result) &&
+      result->IsPromise()) {
+    promise = result.As<Promise>();
+  } else {
+    promise = ResolvedUndefined(env);
+  }
+  ClearAlgorithms();
+  return promise;
+}
+
+void WritableStreamDefaultController::ErrorSteps() {
+  ResetQueue();
+}
+
+void WritableStreamDefaultController::OnStartFulfilled() {
+  started_ = true;
+  AdvanceQueueIfNeeded();
+}
+
+void WritableStreamDefaultController::OnStartRejected(Local<Value> error) {
+  started_ = true;
+  stream()->DealWithRejection(error);
+}
+
+bool WritableStreamDefaultController::Setup(Local<Function> start_algorithm,
+                                            Local<Function> write_algorithm,
+                                            Local<Function> close_algorithm,
+                                            Local<Function> abort_algorithm,
+                                            double high_water_mark,
+                                            SizeMode size_mode,
+                                            Local<Function> size_algorithm,
+                                            Local<Object> abort_controller,
+                                            Local<Value> algo_receiver) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  high_water_mark_ = high_water_mark;
+  size_mode_ = size_mode;
+  if (!write_algorithm.IsEmpty())
+    write_algorithm_.Reset(isolate, write_algorithm);
+  close_algorithm_.Reset(isolate, close_algorithm);
+  abort_algorithm_.Reset(isolate, abort_algorithm);
+  if (!algo_receiver.IsEmpty() && !algo_receiver->IsUndefined())
+    algo_receiver_.Reset(isolate, algo_receiver);
+  if (size_mode == SizeMode::kUserFn)
+    size_algorithm_.Reset(isolate, size_algorithm);
+  object()->SetInternalField(kAbortController, abort_controller);
+
+  WritableStream* stream = this->stream();
+  stream->UpdateBackpressure(GetBackpressure());
+
+  Local<Object> controller_obj = object();
+  if (start_algorithm.IsEmpty()) {
+    // No start algorithm at all: a TransformStream half whose transformer has
+    // no start(). Reproduce the spec's thenable-adoption microtask depth with
+    // the shared per-realm reaction — see the readable controller's Setup.
+    Local<Promise::Resolver> carrier;
+    if (!Promise::Resolver::New(context).ToLocal(&carrier)) return false;
+    USE(carrier->Resolve(context, controller_obj));
+    Local<Promise::Resolver> adopter;
+    if (!Promise::Resolver::New(context).ToLocal(&adopter)) return false;
+    USE(adopter->Resolve(context, carrier->GetPromise()));  // thenable adoption
+    ThenStartFulfilledWritable(env, adopter->GetPromise());
+    return true;
+  }
+  Local<Value> start_result;
+  Local<Value> argv[] = {controller_obj};
+  if (!start_algorithm->Call(context, Undefined(isolate), 1, argv)
+           .ToLocal(&start_result)) {
+    return false;
+  }
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
+  if (!start_result->IsObject()) {
+    // Common case (see the readable controllers' Setup): nothing to await, no
+    // thenable to chase, no possible rejection; reuse the shared per-realm
+    // start reaction.
+    USE(resolver->Resolve(context, controller_obj));
+    ThenStartFulfilledWritable(env, resolver->GetPromise());
+    return true;
+  }
+  USE(resolver->Resolve(context, start_result));
+  ThenReact(env,
+            resolver->GetPromise(),
+            controller_obj,
+            ReactStartFulfilled,
+            ReactStartRejected);
+  return true;
+}
+
+void WritableStreamDefaultController::GetSignal(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
+                                "WritableStreamDefaultController"))
+    return;
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.This().As<Object>());
+  if (c == nullptr) return;
+  Local<Value> ac = c->object()->GetInternalField(kAbortController).As<Value>();
+  if (!ac->IsObject()) return;
+  Local<Value> signal;
+  if (ac.As<Object>()
+          ->Get(context, FIXED_ONE_BYTE_STRING(env->isolate(), "signal"))
+          .ToLocal(&signal)) {
+    args.GetReturnValue().Set(signal);
+  }
+}
+
+void WritableStreamDefaultController::Error(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
+                                "WritableStreamDefaultController"))
+    return;
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.This().As<Object>());
+  if (c == nullptr) return;
+  if (c->stream()->state() != WritableState::kWritable) return;
+  c->ErrorInternal(args[0]);
+}
+
+// ===========================================================================
+// WritableStreamDefaultWriter
+// ===========================================================================
+
+WritableStreamDefaultWriter::WritableStreamDefaultWriter(Environment* env,
+                                                         Local<Object> object) {
+  // Untracked: writers are created in bulk (pipeTo acquires one per pipe),
+  // need no realm-shutdown Clean() (default destructor; TracedReference
+  // cleanup is automatic), and skipping the per-wrapper list node +
+  // WeakPersistent keeps acquisition allocation-free beyond the cppgc bump
+  // pointer.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
+
+void WritableStreamDefaultWriter::Trace(cppgc::Visitor* visitor) const {
+  // The promise slots' handles are reset/materialized as promises settle, so
+  // they cannot be traced from a concurrent marking thread; defer to the
+  // mutator thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStreamDefaultWriter*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStreamDefaultWriter))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStreamDefaultWriter::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  ready_.Trace(visitor);
+  closed_.Trace(visitor);
+  visitor->Trace(released_reason_);
+}
+
+Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
+    Environment* env) {
+  BindingData* bd = BindingData::Get(env);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> tmpl =
+      bd->writable_stream_default_writer_ctor.Get(isolate);
+  if (tmpl.IsEmpty()) {
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        WritableStreamDefaultWriter::kInternalFieldCount);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate, "WritableStreamDefaultWriter"));
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(isolate, "closed"),
+        NewPromiseGetter(isolate, "closed", GetClosed));
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(isolate, "ready"),
+        NewPromiseGetter(isolate, "ready", GetReady));
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
+        NewGetter(isolate, "desiredSize", GetDesiredSize));
+    SetProtoMethodPromise(isolate, tmpl, "write", Write, 0);
+    SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
+    SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
+    SetProtoMethodLen(isolate, tmpl, "releaseLock", ReleaseLock, 0);
+    bd->writable_stream_default_writer_ctor.Reset(isolate, tmpl);
+  }
+  return tmpl;
+}
+
+void WritableStreamDefaultWriter::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetClosed);
+  registry->Register(GetReady);
+  registry->Register(GetDesiredSize);
+  registry->Register(Write);
+  registry->Register(Close);
+  registry->Register(Abort);
+  registry->Register(ReleaseLock);
+}
+
+double WritableStreamDefaultWriter::GetDesiredSizeValue(bool* is_null) const {
+  WritableStream* stream = this->stream();
+  *is_null = false;
+  switch (stream->state()) {
+    case WritableState::kErrored:
+    case WritableState::kErroring:
+      *is_null = true;
+      return 0;
+    case WritableState::kClosed:
+      return 0;
+    default:
+      return stream->controller()->GetDesiredSize();
+  }
+}
+
+void WritableStreamDefaultWriter::EnsureReadyPromiseRejected(
+    Local<Value> error) {
+  ready_.RejectOrReplaceHandled(env(), error);
+}
+
+void WritableStreamDefaultWriter::EnsureClosedPromiseRejected(
+    Local<Value> error) {
+  closed_.RejectOrReplaceHandled(env(), error);
+}
+
+Local<Promise> WritableStreamDefaultWriter::WriteInternal(Local<Value> chunk) {
+  Environment* env = this->env();
+  WritableStream* stream0 = this->stream();
+  CHECK_NOT_NULL(stream0);
+  WritableStreamDefaultController* controller = stream0->controller();
+  double chunk_size = controller->GetChunkSize(chunk);
+  if (this->stream() != stream0) {
+    return RejectedWith(
+        env,
+        InvalidStateError(
+            env->isolate(), env->context(), "Mismatched WritableStreams"));
+  }
+  WritableState state = stream0->state();
+  if (state == WritableState::kErrored)
+    return RejectedWith(env, stream0->stored_error(env));
+  if (stream0->CloseQueuedOrInFlight() || state == WritableState::kClosed) {
+    return RejectedWith(
+        env,
+        InvalidStateError(
+            env->isolate(), env->context(), "WritableStream is closed"));
+  }
+  if (state == WritableState::kErroring)
+    return RejectedWith(env, stream0->stored_error(env));
+  CHECK(state == WritableState::kWritable);
+  Local<Promise> promise = stream0->AddWriteRequest();
+  controller->Write(chunk, chunk_size);
+  return promise;
+}
+
+Local<Promise> WritableStreamDefaultWriter::CloseInternal() {
+  return stream()->CloseStream();
+}
+
+Local<Promise> WritableStreamDefaultWriter::AbortInternal(Local<Value> reason) {
+  return stream()->Abort(reason);
+}
+
+Local<Promise> WritableStreamDefaultWriter::CloseWithErrorPropagation() {
+  Environment* env = this->env();
+  WritableStream* stream = this->stream();
+  WritableState state = stream->state();
+  if (stream->CloseQueuedOrInFlight() || state == WritableState::kClosed)
+    return ResolvedUndefined(env);
+  if (state == WritableState::kErrored)
+    return RejectedWith(env, stream->stored_error(env));
+  CHECK(state == WritableState::kWritable || state == WritableState::kErroring);
+  return CloseInternal();
+}
+
+bool WritableStreamDefaultWriter::SetupInternal(Local<Object> stream_obj) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  CHECK(WritableStream::GetConstructorTemplate(env)->HasInstance(stream_obj));
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(stream_obj);
+  CHECK_NOT_NULL(stream);
+  if (stream->locked()) {
+    isolate->ThrowException(
+        InvalidStateError(isolate, context, "WritableStream is locked"));
+    return false;
+  }
+  object()->SetInternalField(kStream, stream_obj);
+  stream_obj->SetInternalField(WritableStream::kWriter, object());
+  stream_cache_ = stream;
+  stream->set_writer_cache(this);
+
+  switch (stream->state()) {
+    case WritableState::kWritable:
+      if (!stream->CloseQueuedOrInFlight() && stream->backpressure())
+        ready_.SetPending(env);
+      else
+        ready_.SetResolved(env);
+      closed_.SetPending(env);
+      break;
+    case WritableState::kErroring:
+      ready_.RejectOrReplaceHandled(env, stream->stored_error(env));
+      closed_.SetPending(env);
+      break;
+    case WritableState::kClosed:
+      ready_.SetResolved(env);
+      closed_.SetResolved(env);
+      break;
+    case WritableState::kErrored:
+      ready_.RejectOrReplaceHandled(env, stream->stored_error(env));
+      closed_.RejectOrReplaceHandled(env, stream->stored_error(env));
+      break;
+  }
+  return true;
+}
+
+void WritableStreamDefaultWriter::Release() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  WritableStream* stream = this->stream();
+  CHECK_NOT_NULL(stream);
+  // Construct the released error only if an already-observed promise must
+  // reject with it now; otherwise record the lazy released state (error
+  // construction captures a stack trace — see WriterReleasedError).
+  if (ready_.IsMaterialized() || closed_.IsMaterialized()) {
+    Local<Value> released_error = WriterReleasedError(isolate, context);
+    EnsureReadyPromiseRejected(released_error);
+    EnsureClosedPromiseRejected(released_error);
+  } else {
+    ready_.SetRejectedReleased();
+    closed_.SetRejectedReleased();
+  }
+  stream->object()->SetInternalField(WritableStream::kWriter,
+                                     Undefined(isolate));
+  object()->SetInternalField(kStream, Undefined(isolate));
+  stream_cache_ = nullptr;
+  stream->set_writer_cache(nullptr);
+}
+
+void WritableStreamDefaultWriter::GetClosed(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
+    return;
+  }
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  args.GetReturnValue().Set(w->closed_.promise(env, &w->released_reason_));
+}
+
+void WritableStreamDefaultWriter::GetReady(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
+    return;
+  }
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  args.GetReturnValue().Set(w->ready_.promise(env, &w->released_reason_));
+}
+
+void WritableStreamDefaultWriter::GetDesiredSize(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
+                                "WritableStreamDefaultWriter"))
+    return;
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  if (w == nullptr) return;
+  if (!w->has_stream()) {
+    isolate->ThrowException(InvalidStateError(
+        isolate, context, "Writer is not bound to a WritableStream"));
+    return;
+  }
+  bool is_null = false;
+  double desired = w->GetDesiredSizeValue(&is_null);
+  if (is_null)
+    args.GetReturnValue().SetNull();
+  else
+    args.GetReturnValue().Set(desired);
+}
+
+void WritableStreamDefaultWriter::Write(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  if (!w->has_stream()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
+    return;
+  }
+  args.GetReturnValue().Set(w->WriteInternal(args[0]));
+}
+
+void WritableStreamDefaultWriter::Close(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  if (!w->has_stream()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
+    return;
+  }
+  if (w->stream()->CloseQueuedOrInFlight()) {
+    args.GetReturnValue().Set(
+        RejectedWith(env,
+                     InvalidStateError(
+                         isolate, context, "Failure to close WritableStream")));
+    return;
+  }
+  args.GetReturnValue().Set(w->CloseInternal());
+}
+
+void WritableStreamDefaultWriter::Abort(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  if (!w->has_stream()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
+    return;
+  }
+  args.GetReturnValue().Set(w->AbortInternal(args[0]));
+}
+
+void WritableStreamDefaultWriter::ReleaseLock(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
+                                "WritableStreamDefaultWriter"))
+    return;
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  if (w == nullptr) return;
+  if (!w->has_stream()) return;
+  w->Release();
+}
+
+// ===========================================================================
+// WritableStream
+// ===========================================================================
+
+WritableStream::WritableStream(Environment* env, Local<Object> object) {
+  // Untracked: created in bulk (every construction/transfer), default
+  // destructor, and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
+
+void WritableStream::Trace(cppgc::Visitor* visitor) const {
+  // write_requests_ (a plain vector) mutates as writes queue/settle, so it
+  // cannot be iterated from a concurrent marking thread; defer to the mutator
+  // thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStream*>(self)->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStream))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(stored_error_);
+  write_requests_.ForEach([&](const v8::TracedReference<Promise::Resolver>& r) {
+    visitor->Trace(r);
+  });
+  visitor->Trace(close_request_);
+  visitor->Trace(in_flight_write_request_);
+  visitor->Trace(in_flight_close_request_);
+  visitor->Trace(flush_resolver_);
+  visitor->Trace(pump_source_obj_);
+  visitor->Trace(pump_stall_resolver_);
+  visitor->Trace(pending_abort_promise_);
+  visitor->Trace(pending_abort_reason_);
+  visitor->Trace(processing_abort_resolver_);
+  visitor->Trace(closed_);
+}
+
+Local<FunctionTemplate> WritableStream::GetConstructorTemplate(
+    Environment* env) {
+  BindingData* bd = BindingData::Get(env);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> tmpl = bd->writable_stream_ctor.Get(isolate);
+  if (tmpl.IsEmpty()) {
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        WritableStream::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "WritableStream"));
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        FIXED_ONE_BYTE_STRING(isolate, "locked"),
+        NewGetter(isolate, "locked", GetLocked));
+    SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
+    SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
+    bd->writable_stream_ctor.Reset(isolate, tmpl);
+  }
+  return tmpl;
+}
+
+void WritableStream::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetLocked);
+  registry->Register(Abort);
+  registry->Register(Close);
+}
+
+bool WritableStream::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<Value> WritableStream::stored_error(Environment* env) const {
+  if (stored_error_.IsEmpty()) return Undefined(env->isolate());
+  return stored_error_.Get(env->isolate());
+}
+
+void WritableStream::SetController(Local<Object> controller_obj) {
+  object()->SetInternalField(kController, controller_obj);
+  controller_obj->SetInternalField(WritableStreamDefaultController::kStream,
+                                   object());
+  // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
+  auto* controller =
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(controller_obj);
+  CHECK_NOT_NULL(controller);
+  controller_cache_ = controller;
+  controller->set_stream_cache(this);
+}
+
+void WritableStream::SetWriter(Local<Object> writer_obj) {
+  object()->SetInternalField(kWriter, writer_obj);
+  writer_cache_ = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(writer_obj);
+}
+
+void WritableStream::ClearWriter() {
+  object()->SetInternalField(kWriter, Undefined(env()->isolate()));
+  writer_cache_ = nullptr;
+}
+
+Local<Promise> WritableStream::closed_promise(Environment* env) {
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = closed_.Get(isolate);
+  if (resolver.IsEmpty()) {
+    if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
+      return Local<Promise>();
+    closed_.Reset(isolate, resolver);
+    // Settle immediately if the stream is already in a terminal state, so a
+    // late requester (e.g. node:stream `finished()`) does not hang.
+    if (state_ == WritableState::kClosed) {
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+    } else if (state_ == WritableState::kErrored) {
+      Local<Promise> p = resolver->GetPromise();
+      USE(resolver->Reject(env->context(), stored_error(env)));
+      MarkHandled(env, p);
+    }
+  }
+  return resolver->GetPromise();
+}
+
+Local<Promise> WritableStream::Abort(Local<Value> reason) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (state_ == WritableState::kClosed || state_ == WritableState::kErrored)
+    return ResolvedUndefined(env);
+
+  // controller.abortController.abort(reason)
+  WritableStreamDefaultController* controller = this->controller();
+  Local<Value> ac =
+      controller->object()
+          ->GetInternalField(WritableStreamDefaultController::kAbortController)
+          .As<Value>();
+  if (ac->IsObject()) {
+    Local<Value> abort_fn;
+    if (ac.As<Object>()
+            ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "abort"))
+            .ToLocal(&abort_fn) &&
+        abort_fn->IsFunction()) {
+      Local<Value> argv[] = {reason};
+      USE(abort_fn.As<Function>()->Call(context, ac, 1, argv));
+    }
+  }
+
+  // Signalling abort may run a synchronous abort handler that transitions the
+  // stream to a terminal state; re-read it (spec: WritableStreamAbort steps
+  // after signalling) and resolve early instead of asserting.
+  if (state_ == WritableState::kClosed || state_ == WritableState::kErrored)
+    return ResolvedUndefined(env);
+
+  if (has_pending_abort_)
+    return pending_abort_promise_.Get(isolate)->GetPromise();
+
+  CHECK(state_ == WritableState::kWritable ||
+        state_ == WritableState::kErroring);
+
+  bool was_already_erroring = false;
+  if (state_ == WritableState::kErroring) {
+    was_already_erroring = true;
+    reason = Undefined(isolate);
+  }
+
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
+    return Local<Promise>();
+  has_pending_abort_ = true;
+  pending_abort_promise_.Reset(isolate, resolver);
+  pending_abort_reason_.Reset(isolate, reason);
+  pending_abort_was_already_erroring_ = was_already_erroring;
+
+  if (!was_already_erroring) StartErroring(reason);
+
+  return resolver->GetPromise();
+}
+
+Local<Promise> WritableStream::CloseStream() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (state_ == WritableState::kClosed || state_ == WritableState::kErrored) {
+    return RejectedWith(
+        env, InvalidStateError(isolate, context, "WritableStream is closed"));
+  }
+  CHECK(state_ == WritableState::kWritable ||
+        state_ == WritableState::kErroring);
+  CHECK(!CloseQueuedOrInFlight());
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
+    return Local<Promise>();
+  close_request_.Reset(isolate, resolver);
+  Local<Promise> promise = resolver->GetPromise();
+  WritableStreamDefaultWriter* writer = this->writer();
+  if (writer != nullptr && backpressure_ && state_ == WritableState::kWritable)
+    writer->ready().Resolve(env);
+  controller()->CloseInternal();
+  return promise;
+}
+
+void WritableStream::UpdateBackpressure(bool backpressure) {
+  CHECK(state_ == WritableState::kWritable);
+  CHECK(!CloseQueuedOrInFlight());
+  Environment* env = this->env();
+  // While the pipe pump is armed nothing can observe writer.ready (the writer
+  // is pipeTo's own and its step loop is parked on the stall promise), so the
+  // per-chunk pending/resolve churn on the ready slot is skipped; the slot is
+  // re-synced to backpressure_ when the pump disarms.
+  WritableStreamDefaultWriter* writer = pump_armed_ ? nullptr : this->writer();
+  if (writer != nullptr && backpressure_ != backpressure) {
+    if (backpressure)
+      writer->ready().SetPending(env);
+    else
+      writer->ready().Resolve(env);
+  }
+  backpressure_ = backpressure;
+}
+
+void WritableStream::StartErroring(Local<Value> reason) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  CHECK(stored_error_.IsEmpty());
+  CHECK(state_ == WritableState::kWritable);
+  WritableStreamDefaultController* controller = this->controller();
+  CHECK_NOT_NULL(controller);
+  state_ = WritableState::kErroring;
+  stored_error_.Reset(isolate, reason);
+  WritableStreamDefaultWriter* writer = this->writer();
+  if (writer != nullptr) writer->EnsureReadyPromiseRejected(reason);
+  if (!HasOperationMarkedInFlight() && controller->started()) FinishErroring();
+}
+
+void WritableStream::RejectCloseAndClosedPromiseIfNeeded() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  CHECK(state_ == WritableState::kErrored);
+  Local<Value> error = stored_error(env);
+  if (!close_request_.IsEmpty()) {
+    CHECK(in_flight_close_request_.IsEmpty());
+    USE(close_request_.Get(isolate)->Reject(context, error));
+    close_request_.Reset();
+  }
+  {
+    Local<Promise::Resolver> resolver = closed_.Get(isolate);
+    if (!resolver.IsEmpty()) {
+      Local<Promise> p = resolver->GetPromise();
+      USE(resolver->Reject(context, error));
+      MarkHandled(env, p);
+    }
+  }
+  WritableStreamDefaultWriter* writer = this->writer();
+  if (writer != nullptr) writer->closed().RejectIfPendingHandled(env, error);
+}
+
+void WritableStream::MarkFirstWriteRequestInFlight() {
+  CHECK(!write_request_in_flight_);
+  CHECK(!write_requests_.empty());
+  // The front slot may be empty (untracked fast-transfer write).
+  in_flight_write_request_ = std::move(write_requests_.front());
+  write_requests_.pop_front();
+  write_request_in_flight_ = true;
+}
+
+void WritableStream::MarkCloseRequestInFlight() {
+  CHECK(in_flight_close_request_.IsEmpty());
+  CHECK(!close_request_.IsEmpty());
+  in_flight_close_request_ = std::move(close_request_);
+  close_request_.Reset();
+}
+
+bool WritableStream::HasOperationMarkedInFlight() const {
+  return write_request_in_flight_ || !in_flight_close_request_.IsEmpty();
+}
+
+void WritableStream::FinishInFlightWrite() {
+  Environment* env = this->env();
+  CHECK(write_request_in_flight_);
+  if (!in_flight_write_request_.IsEmpty()) {
+    USE(in_flight_write_request_.Get(env->isolate())
+            ->Resolve(env->context(), Undefined(env->isolate())));
+    in_flight_write_request_.Reset();
+  }
+  write_request_in_flight_ = false;
+  MaybeSettleFlush();
+}
+
+void WritableStream::FinishInFlightWriteWithError(Local<Value> error) {
+  Environment* env = this->env();
+  CHECK(write_request_in_flight_);
+  if (!in_flight_write_request_.IsEmpty()) {
+    USE(in_flight_write_request_.Get(env->isolate())
+            ->Reject(env->context(), error));
+    in_flight_write_request_.Reset();
+  }
+  write_request_in_flight_ = false;
+  CHECK(state_ == WritableState::kWritable ||
+        state_ == WritableState::kErroring);
+  DealWithRejection(error);
+  MaybeSettleFlush();
+}
+
+void WritableStream::FinishInFlightClose() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  CHECK(!in_flight_close_request_.IsEmpty());
+  USE(in_flight_close_request_.Get(isolate)->Resolve(env->context(),
+                                                     Undefined(isolate)));
+  in_flight_close_request_.Reset();
+  if (state_ == WritableState::kErroring) {
+    stored_error_.Reset();
+    if (has_pending_abort_) {
+      USE(pending_abort_promise_.Get(isolate)->Resolve(env->context(),
+                                                       Undefined(isolate)));
+      has_pending_abort_ = false;
+      pending_abort_promise_.Reset();
+      pending_abort_reason_.Reset();
+      pending_abort_was_already_erroring_ = false;
+    }
+  }
+  state_ = WritableState::kClosed;
+  WritableStreamDefaultWriter* writer = this->writer();
+  if (writer != nullptr) writer->closed().Resolve(env);
+  {
+    Local<Promise::Resolver> resolver = closed_.Get(isolate);
+    if (!resolver.IsEmpty())
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+  }
+}
+
+void WritableStream::FinishInFlightCloseWithError(Local<Value> error) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  CHECK(!in_flight_close_request_.IsEmpty());
+  USE(in_flight_close_request_.Get(isolate)->Reject(env->context(), error));
+  in_flight_close_request_.Reset();
+  CHECK(state_ == WritableState::kWritable ||
+        state_ == WritableState::kErroring);
+  if (has_pending_abort_) {
+    USE(pending_abort_promise_.Get(isolate)->Reject(env->context(), error));
+    has_pending_abort_ = false;
+    pending_abort_promise_.Reset();
+    pending_abort_reason_.Reset();
+    pending_abort_was_already_erroring_ = false;
+  }
+  DealWithRejection(error);
+}
+
+void WritableStream::FinishErroring() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  CHECK(state_ == WritableState::kErroring);
+  CHECK(!HasOperationMarkedInFlight());
+  state_ = WritableState::kErrored;
+  controller()->ErrorSteps();
+  Local<Value> stored = stored_error(env);
+  while (!write_requests_.empty()) {
+    // Untracked fast-transfer slots are empty: nothing to reject.
+    if (!write_requests_.front().IsEmpty()) {
+      USE(write_requests_.front().Get(isolate)->Reject(context, stored));
+      write_requests_.front().Reset();  // eager: pop_front alone would pin it
+    }
+    write_requests_.pop_front();
+  }
+  // No write can ever run again: release the pipe pump (and its parked
+  // pipeTo step) and any flush waiter.
+  DisarmPumpAndSettleStall();
+  MaybeSettleFlush();
+
+  if (!has_pending_abort_) {
+    RejectCloseAndClosedPromiseIfNeeded();
+    return;
+  }
+
+  bool was_already_erroring = pending_abort_was_already_erroring_;
+  Local<Value> reason = pending_abort_reason_.IsEmpty()
+                            ? Undefined(isolate).As<Value>()
+                            : pending_abort_reason_.Get(isolate);
+  Local<Promise::Resolver> abort_resolver = pending_abort_promise_.Get(isolate);
+  has_pending_abort_ = false;
+  pending_abort_reason_.Reset();
+  pending_abort_was_already_erroring_ = false;
+  // Keep the resolver reachable for the reaction.
+  pending_abort_promise_.Reset();
+
+  if (was_already_erroring) {
+    USE(abort_resolver->Reject(context, stored));
+    MarkHandled(env, abort_resolver->GetPromise());
+    RejectCloseAndClosedPromiseIfNeeded();
+    return;
+  }
+
+  processing_abort_resolver_.Reset(isolate, abort_resolver);
+  Local<Promise> p = controller()->AbortSteps(reason);
+  ThenReact(env, p, object(), ReactAbortFulfilled, ReactAbortRejected);
+}
+
+void WritableStream::OnAbortAlgorithmFulfilled() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = processing_abort_resolver_.Get(isolate);
+  processing_abort_resolver_.Reset();
+  if (!resolver.IsEmpty())
+    USE(resolver->Resolve(env->context(), Undefined(isolate)));
+  RejectCloseAndClosedPromiseIfNeeded();
+}
+
+void WritableStream::OnAbortAlgorithmRejected(Local<Value> error) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = processing_abort_resolver_.Get(isolate);
+  processing_abort_resolver_.Reset();
+  if (!resolver.IsEmpty()) USE(resolver->Reject(env->context(), error));
+  RejectCloseAndClosedPromiseIfNeeded();
+}
+
+void WritableStream::DealWithRejection(Local<Value> error) {
+  if (state_ == WritableState::kWritable) {
+    StartErroring(error);
+    return;
+  }
+  CHECK(state_ == WritableState::kErroring);
+  FinishErroring();
+}
+
+bool WritableStream::CloseQueuedOrInFlight() const {
+  return !close_request_.IsEmpty() || !in_flight_close_request_.IsEmpty();
+}
+
+Local<Promise> WritableStream::AddWriteRequest() {
+  Environment* env = this->env();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
+    return Local<Promise>();
+  // emplace-empty + Reset: the TracedReference(isolate, local) constructor is
+  // an initializing store — no markbit and no write barrier during incremental
+  // marking — so a request parked on an already-traced stream would be zapped
+  // at the end of marking. Reset() is an assigning store and is safe.
+  write_requests_.emplace_back();
+  write_requests_.back().Reset(env->isolate(), resolver);
+  return resolver->GetPromise();
+}
+
+void WritableStream::AddWriteRequestUntracked() {
+  write_requests_.emplace_back();
+}
+
+Local<Promise> WritableStream::FlushPromise() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  if (state_ == WritableState::kErrored ||
+      (write_requests_.empty() && !write_request_in_flight_)) {
+    return ResolvedUndefined(env);
+  }
+  if (!flush_resolver_.IsEmpty())
+    return flush_resolver_.Get(isolate)->GetPromise();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
+    return Local<Promise>();
+  flush_resolver_.Reset(isolate, resolver);
+  return resolver->GetPromise();
+}
+
+void WritableStream::ArmPump(Local<Object> source_obj) {
+  pump_armed_ = true;
+  pump_source_obj_.Reset(env()->isolate(), source_obj);
+}
+
+Local<Promise> WritableStream::PumpStallPromise() {
+  CHECK(pump_stall_resolver_.IsEmpty());
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env()->context()).ToLocal(&resolver))
+    return Local<Promise>();
+  pump_stall_resolver_.Reset(env()->isolate(), resolver);
+  return resolver->GetPromise();
+}
+
+void WritableStream::DisarmPumpAndSettleStall() {
+  Environment* env = this->env();
+  if (pump_armed_) {
+    pump_armed_ = false;
+    pump_source_obj_.Reset();
+    // Ready-slot updates were suppressed while pumping (see
+    // UpdateBackpressure): re-sync the slot to the current backpressure state
+    // before pipeTo's step loop wakes and reads writer.ready. Error paths
+    // (state != writable) settle the slot themselves via
+    // EnsureReadyPromiseRejected.
+    WritableStreamDefaultWriter* writer = this->writer();
+    if (state_ == WritableState::kWritable && writer != nullptr) {
+      bool pending = writer->ready().IsPending(env);
+      if (backpressure_ && !pending)
+        writer->ready().SetPending(env);
+      else if (!backpressure_ && pending)
+        writer->ready().Resolve(env);
+    }
+  } else {
+    pump_source_obj_.Reset();
+  }
+  if (pump_stall_resolver_.IsEmpty()) return;
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = pump_stall_resolver_.Get(isolate);
+  pump_stall_resolver_.Reset();
+  USE(resolver->Resolve(env->context(), Undefined(isolate)));
+}
+
+void WritableStream::MaybeSettleFlush() {
+  if (flush_resolver_.IsEmpty()) return;
+  if (state_ != WritableState::kErrored &&
+      (!write_requests_.empty() || write_request_in_flight_)) {
+    return;
+  }
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = flush_resolver_.Get(isolate);
+  flush_resolver_.Reset();
+  USE(resolver->Resolve(env->context(), Undefined(isolate)));
+}
+
+void WritableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(
+          env, GetConstructorTemplate(env), args.This(), "WritableStream"))
+    return;
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
+  if (stream == nullptr) return;
+  args.GetReturnValue().Set(stream->locked());
+}
+
+void WritableStream::Abort(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!WritableStream::HasInstance(env, args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
+  if (stream->locked()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env, InvalidStateError(isolate, context, "WritableStream is locked")));
+    return;
+  }
+  args.GetReturnValue().Set(stream->Abort(args[0]));
+}
+
+void WritableStream::Close(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (!WritableStream::HasInstance(env, args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
+  if (stream->locked()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env, InvalidStateError(isolate, context, "WritableStream is locked")));
+    return;
+  }
+  if (stream->CloseQueuedOrInFlight()) {
+    args.GetReturnValue().Set(RejectedWith(
+        env,
+        InvalidStateError(isolate, context, "Failure closing WritableStream")));
+    return;
+  }
+  args.GetReturnValue().Set(stream->CloseStream());
+}
+
+// ===========================================================================
+// Binding entry points
+// ===========================================================================
+
+MaybeLocal<Object> NewWritableStream(Environment* env,
+                                     Local<Function> start_algorithm,
+                                     Local<Function> write_algorithm,
+                                     Local<Function> close_algorithm,
+                                     Local<Function> abort_algorithm,
+                                     double high_water_mark,
+                                     SizeMode size_mode,
+                                     Local<Function> size_algorithm,
+                                     Local<Object> abort_controller,
+                                     Local<Value> algo_receiver) {
+  Local<Context> context = env->context();
+  Local<Function> stream_ctor;
+  if (!WritableStream::GetConstructorTemplate(env)
+           ->GetFunction(context)
+           .ToLocal(&stream_ctor))
+    return MaybeLocal<Object>();
+  Local<Object> stream_obj;
+  if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj))
+    return MaybeLocal<Object>();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject stream).
+  auto* stream = cppgc::MakeGarbageCollected<WritableStream>(
+      env->cppgc_allocation_handle(), env, stream_obj);
+
+  Local<Function> controller_ctor;
+  if (!WritableStreamDefaultController::GetConstructorTemplate(env)
+           ->GetFunction(context)
+           .ToLocal(&controller_ctor))
+    return MaybeLocal<Object>();
+  Local<Object> controller_obj;
+  if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj))
+    return MaybeLocal<Object>();
+  auto* controller =
+      cppgc::MakeGarbageCollected<WritableStreamDefaultController>(
+          env->cppgc_allocation_handle(), env, controller_obj);
+
+  stream->SetController(controller_obj);
+
+  if (!controller->Setup(start_algorithm,
+                         write_algorithm,
+                         close_algorithm,
+                         abort_algorithm,
+                         high_water_mark,
+                         size_mode,
+                         size_algorithm,
+                         abort_controller,
+                         algo_receiver)) {
+    return MaybeLocal<Object>();  // start threw synchronously; exception
+                                  // pending.
+  }
+  return stream_obj;
+}
+
+void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // args: (start, write, close, abort, highWaterMark, sizeMode, size,
+  //        abortController, algoReceiver)
+  // write is the user's RAW write (or undefined), called with algoReceiver
+  // (the underlying sink) as `this`.
+  CHECK(args[0]->IsFunction());
+  CHECK(args[2]->IsFunction());
+  CHECK(args[3]->IsFunction());
+  CHECK(args[4]->IsNumber());
+  CHECK(args[5]->IsUint32());
+  CHECK(args[7]->IsObject());
+  Local<Function> write_algorithm;
+  if (args[1]->IsFunction()) write_algorithm = args[1].As<Function>();
+  Local<Function> size_algorithm;
+  if (args[6]->IsFunction()) size_algorithm = args[6].As<Function>();
+  Local<Object> stream_obj;
+  if (!NewWritableStream(
+           env,
+           args[0].As<Function>(),
+           write_algorithm,
+           args[2].As<Function>(),
+           args[3].As<Function>(),
+           args[4].As<Number>()->Value(),
+           static_cast<SizeMode>(args[5].As<v8::Uint32>()->Value()),
+           size_algorithm,
+           args[7].As<Object>(),
+           args[8])
+           .ToLocal(&stream_obj)) {
+    return;
+  }
+  args.GetReturnValue().Set(stream_obj);
+}
+
+void AcquireWritableStreamDefaultWriter(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  CHECK(args[0]->IsObject());
+  Local<Object> stream_obj = args[0].As<Object>();
+
+  Local<Function> writer_ctor;
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)
+           ->GetFunction(context)
+           .ToLocal(&writer_ctor))
+    return;
+  Local<Object> writer_obj;
+  if (!writer_ctor->NewInstance(context).ToLocal(&writer_obj)) return;
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject writer).
+  auto* writer = cppgc::MakeGarbageCollected<WritableStreamDefaultWriter>(
+      env->cppgc_allocation_handle(), env, writer_obj);
+
+  if (!writer->SetupInternal(stream_obj)) return;  // throws on lock
+  args.GetReturnValue().Set(writer_obj);
+}
+
+// Internal introspection for the node:stream interop layer
+// (kIsErrored/kIsWritable/kIsClosedPromise). Binding functions, not prototype
+// properties, so the public WebIDL surface is unchanged.
+void WritableStreamStateField(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(static_cast<uint32_t>(s->state()));
+}
+
+void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  Local<Promise> p = s->closed_promise(env);
+  if (!p.IsEmpty()) args.GetReturnValue().Set(p);
+}
+
+// The stream's stored error; used by pipeTo's synchronous priority checks
+// (isOrBecomesErrored) to act on an already-errored destination in order.
+void WritableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->stored_error(env));
+}
+
+// Whether the stream has a close request queued or in flight; used by pipeTo to
+// classify the destination state (close-queued vs errored vs writable).
+void WritableStreamCloseQueuedOrInFlight(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->CloseQueuedOrInFlight());
+}
+
+// pipeTo shutdown helper: a promise resolved (never rejected) once every
+// queued + in-flight write — including untracked fast-transfer writes, which
+// have no per-write promise — has settled or can no longer run (stream
+// errored). Internal-only.
+void WritableStreamFlushPromise(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->FlushPromise());
+}
+
+// Introspection helper for a controller's custom inspect: returns the
+// WritableStream a WritableStreamDefaultController belongs to. Internal-only
+// (the public surface exposes no controller->stream link).
+void WritableStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!WritableStreamDefaultController::GetConstructorTemplate(env)
+           ->HasInstance(args[0])) {
+    return;
+  }
+  auto* c =
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(args[0].As<Object>());
+  if (c == nullptr) return;
+  args.GetReturnValue().Set(c->stream()->object());
+}
+
+void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  auto expose = [&](const char* name, Local<FunctionTemplate> tmpl) {
+    Local<Function> fn;
+    if (tmpl->GetFunction(context).ToLocal(&fn))
+      USE(target->Set(context, OneByteString(isolate, name), fn));
+  };
+  expose("WritableStream", WritableStream::GetConstructorTemplate(env));
+  expose("WritableStreamDefaultWriter",
+         WritableStreamDefaultWriter::GetConstructorTemplate(env));
+  expose("WritableStreamDefaultController",
+         WritableStreamDefaultController::GetConstructorTemplate(env));
+}
+
+void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
+  SetMethod(isolate, target, "createWritableStream", CreateWritableStream);
+  SetMethod(isolate,
+            target,
+            "acquireWritableStreamDefaultWriter",
+            AcquireWritableStreamDefaultWriter);
+  SetMethod(
+      isolate, target, "writableStreamStateField", WritableStreamStateField);
+  SetMethod(isolate,
+            target,
+            "writableStreamClosedPromise",
+            WritableStreamClosedPromise);
+  SetMethod(isolate,
+            target,
+            "writableStreamCloseQueuedOrInFlight",
+            WritableStreamCloseQueuedOrInFlight);
+  SetMethod(
+      isolate, target, "writableStreamStoredError", WritableStreamStoredError);
+  SetMethod(isolate,
+            target,
+            "writableStreamFlushPromise",
+            WritableStreamFlushPromise);
+  SetMethod(isolate,
+            target,
+            "writableStreamControllerStream",
+            WritableStreamControllerStream);
+}
+
+void RegisterWritableStreamExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(CreateWritableStream);
+  registry->Register(AcquireWritableStreamDefaultWriter);
+  registry->Register(WritableStreamStateField);
+  registry->Register(WritableStreamClosedPromise);
+  registry->Register(WritableStreamCloseQueuedOrInFlight);
+  registry->Register(WritableStreamStoredError);
+  registry->Register(WritableStreamFlushPromise);
+  registry->Register(WritableStreamControllerStream);
+  WritableStream::RegisterExternalReferences(registry);
+  WritableStreamDefaultController::RegisterExternalReferences(registry);
+  WritableStreamDefaultWriter::RegisterExternalReferences(registry);
+}
+
+}  // namespace webstreams
+}  // namespace node

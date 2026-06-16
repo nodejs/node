@@ -28,6 +28,7 @@
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 #include "simdjson.h"
+#include "streams/streams_binding.h"
 #include "timers.h"
 
 #if HAVE_INSPECTOR

@@ -21,8 +21,8 @@ const {
 } = require('internal/webstreams/adapters');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
+  readableStreamState,
+} = require('internal/webstreams/readablestream');
 
 class MySource {
   constructor(value = new Uint8Array(10)) {
@@ -78,7 +78,7 @@ class MySource {
   readable.destroy();
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'closed');
+    assert.strictEqual(readableStreamState(readableStream), 'closed');
   }));
 }
 
@@ -99,7 +99,7 @@ class MySource {
   }));
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'closed');
+    assert.strictEqual(readableStreamState(readableStream), 'closed');
     assert.strictEqual(source.cancelReason, error);
   }));
 }
@@ -120,7 +120,7 @@ class MySource {
   }));
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'errored');
+    assert.strictEqual(readableStreamState(readableStream), 'errored');
   }));
 }
 

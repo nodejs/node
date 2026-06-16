@@ -21,8 +21,13 @@ const {
 } = require('stream');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
+  readableStreamState,
+} = require('internal/webstreams/readablestream');
+
+const {
+  writableStreamState,
+  writableStreamStoredError,
+} = require('internal/webstreams/writablestream');
 
 {
   const transform = new TransformStream();
@@ -34,8 +39,8 @@ const {
   duplex.destroy();
 
   duplex.on('close', common.mustCall(() => {
-    assert.strictEqual(transform.readable[kState].state, 'closed');
-    assert.strictEqual(transform.writable[kState].state, 'errored');
+    assert.strictEqual(readableStreamState(transform.readable), 'closed');
+    assert.strictEqual(writableStreamState(transform.writable), 'errored');
   }));
 }
 
@@ -53,9 +58,9 @@ const {
   }));
 
   duplex.on('close', common.mustCall(() => {
-    assert.strictEqual(transform.readable[kState].state, 'closed');
-    assert.strictEqual(transform.writable[kState].state, 'errored');
-    assert.strictEqual(transform.writable[kState].storedError, error);
+    assert.strictEqual(readableStreamState(transform.readable), 'closed');
+    assert.strictEqual(writableStreamState(transform.writable), 'errored');
+    assert.strictEqual(writableStreamStoredError(transform.writable), error);
   }));
 }
 
@@ -67,8 +72,8 @@ const {
   duplex.resume();
 
   duplex.on('close', common.mustCall(() => {
-    assert.strictEqual(transform.readable[kState].state, 'closed');
-    assert.strictEqual(transform.writable[kState].state, 'closed');
+    assert.strictEqual(readableStreamState(transform.readable), 'closed');
+    assert.strictEqual(writableStreamState(transform.writable), 'closed');
   }));
 }
 
@@ -92,8 +97,8 @@ const {
   duplex.on('end', common.mustCall());
 
   duplex.on('close', common.mustCall(() => {
-    assert.strictEqual(transform.readable[kState].state, 'closed');
-    assert.strictEqual(transform.writable[kState].state, 'closed');
+    assert.strictEqual(readableStreamState(transform.readable), 'closed');
+    assert.strictEqual(writableStreamState(transform.writable), 'closed');
   }));
 }
 

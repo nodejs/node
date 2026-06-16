@@ -9,7 +9,10 @@
 namespace node {
 
 template <typename T>
-void CppgcMixin::Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj) {
+void CppgcMixin::Wrap(T* ptr,
+                      Realm* realm,
+                      v8::Local<v8::Object> obj,
+                      Tracking tracking) {
   CHECK_GE(obj->InternalFieldCount(), T::kInternalFieldCount);
   ptr->realm_ = realm;
   v8::Isolate* isolate = realm->isolate();
@@ -23,12 +26,21 @@ void CppgcMixin::Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj) {
       realm->isolate_data()->embedder_id_for_cppgc(),
       EmbedderDataTag::kEmbedderType);
   obj->SetAlignedPointerInInternalField(kSlot, ptr, EmbedderDataTag::kDefault);
-  realm->TrackCppgcWrapper(ptr);
+  if (tracking == Tracking::kTracked) {
+    realm->TrackCppgcWrapper(ptr);
+  } else {
+    // No list node to purge; the destructor must also skip realm_ (an
+    // untracked wrapper swept after Realm teardown would use-after-free it).
+    ptr->tracked_ = false;
+  }
 }
 
 template <typename T>
-void CppgcMixin::Wrap(T* ptr, Environment* env, v8::Local<v8::Object> obj) {
-  Wrap(ptr, env->principal_realm(), obj);
+void CppgcMixin::Wrap(T* ptr,
+                      Environment* env,
+                      v8::Local<v8::Object> obj,
+                      Tracking tracking) {
+  Wrap(ptr, env->principal_realm(), obj, tracking);
 }
 
 template <typename T>
@@ -57,7 +69,9 @@ Environment* CppgcMixin::env() const {
 }
 
 CppgcMixin::~CppgcMixin() {
-  if (realm_ != nullptr) {
+  // Untracked wrappers have no list node to purge, and realm_ may already be
+  // gone by the time a late GC sweeps them — do not touch it.
+  if (tracked_ && realm_ != nullptr) {
     realm_->set_should_purge_empty_cppgc_wrappers(true);
   }
 }

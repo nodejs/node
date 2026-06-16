@@ -17,8 +17,8 @@ const {
 } = require('stream');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
+  readableStreamState,
+} = require('internal/webstreams/readablestream');
 
 {
   // Canceling the readableStream closes the readable.
@@ -68,7 +68,7 @@ const {
   readable.on('error', common.mustNotCall());
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'errored');
+    assert.strictEqual(readableStreamState(readableStream), 'errored');
   }));
 
   readable.destroy();
@@ -96,7 +96,7 @@ const {
   readable.on('error', common.mustNotCall());
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'closed');
+    assert.strictEqual(readableStreamState(readableStream), 'closed');
   }));
 
   readable.push(null);
@@ -126,7 +126,7 @@ const {
   }));
 
   readable.on('close', common.mustCall(() => {
-    assert.strictEqual(readableStream[kState].state, 'errored');
+    assert.strictEqual(readableStreamState(readableStream), 'errored');
   }));
 
   readable.destroy(error);

@@ -16,6 +16,7 @@ const {
 const {
   isReadableStream,
   isReadableByteStreamController,
+  readableStreamController,
 } = require('internal/webstreams/readablestream');
 
 const {
@@ -25,10 +26,6 @@ const {
 const {
   isTransformStream,
 } = require('internal/webstreams/transformstream');
-
-const {
-  kState,
-} = require('internal/webstreams/util');
 
 const {
   markTransferMode,
@@ -134,11 +131,11 @@ const theData = 'hello';
       controller.close();
     }),
   });
-  assert(isReadableByteStreamController(readable[kState].controller));
+  assert(isReadableByteStreamController(readableStreamController(readable)));
 
   port2.onmessage = common.mustCall(({ data }) => {
     assert(isReadableStream(data));
-    assert(!isReadableByteStreamController(data[kState].controller));
+    assert(!isReadableByteStreamController(readableStreamController(data)));
 
     const reader = data.getReader();
     reader.read().then(common.mustCall((chunk) => {
@@ -150,7 +147,7 @@ const theData = 'hello';
 
   port1.onmessage = common.mustCall(({ data }) => {
     assert(isReadableStream(data));
-    assert(!isReadableByteStreamController(data[kState].controller));
+    assert(!isReadableByteStreamController(readableStreamController(data)));
     assert(!data.locked);
     port1.postMessage(data, [data]);
     assert(data.locked);

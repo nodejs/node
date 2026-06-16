@@ -83,7 +83,9 @@ template <typename T>
 inline T* Realm::GetBindingData() {
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
-  auto ptr = binding_data_store_[binding_index];
+  // By reference: copying the BaseObjectPtr would churn the refcount through
+  // PointerData on every lookup, which is measurable on hot paths.
+  const auto& ptr = binding_data_store_[binding_index];
   if (!ptr) [[unlikely]] {
     return nullptr;
   }
