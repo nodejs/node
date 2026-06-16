@@ -62,6 +62,7 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     'sign_verify/mldsa.tentative.https.any.js');
 
   skipSubtests(
+    ['getPublicKey.tentative.https.any.js', /ml-(?:kem|dsa)/i],
     ['supports-modern.tentative.https.any.js', /ml-(?:kem|dsa)/i]);
 }
 
@@ -88,6 +89,7 @@ if (process.features.openssl_is_boringssl) {
     ['encap_decap/encap_decap_keys.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
+    ['getPublicKey.tentative.https.any.js', /(?:ed448|x448|ml-kem-512)/i],
     ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
     ['serialization/mlkem.tentative.https.any.js', /ml-kem-512/i],
     ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
@@ -103,53 +105,6 @@ function assertNoOverlap(fileSkips, subtestSkips) {
 }
 
 assertNoOverlap(conditionalFileSkips, conditionalSubtestSkips);
-
-const cshakeExpectedFailures = ['cSHAKE128', 'cSHAKE256'].flatMap((algorithm) => {
-  return [0, 256, 384, 512].flatMap((length) => {
-    return ['empty', 'short', 'medium'].flatMap((size) => {
-      const base = `${algorithm} with ${length} bit output and ${size} source data`;
-      return [
-        base,
-      ].concat(size !== 'empty' ? [
-        `${base} and altered buffer after call`,
-        `${base} and altered buffer during call`,
-        `${base} and transferred buffer after call`,
-        `${base} and transferred buffer during call`,
-      ] : []);
-    });
-  });
-});
-
-const kmacVectorNames = [
-  'KMAC128 with no customization',
-  'KMAC128 with customization',
-  'KMAC128 with large data and customization',
-  'KMAC256 with customization and 512-bit output',
-  'KMAC256 with large data and no customization',
-  'KMAC256 with large data and customization',
-];
-
-const kmacExpectedFailures = kmacVectorNames.flatMap((name) => {
-  return [
-    `${name} verification`,
-    `${name} verification with transferred signature during call`,
-    `${name} verification with transferred signature after call`,
-    `${name} verification with altered signature during call`,
-    `${name} verification with altered signature after call`,
-    `${name} with altered plaintext during call`,
-    `${name} with altered plaintext after call`,
-    `${name} with transferred plaintext during call`,
-    `${name} with transferred plaintext after call`,
-    `${name} no verify usage`,
-    `${name} round trip`,
-    `${name} verification failure due to wrong plaintext`,
-    `${name} verification failure due to wrong signature`,
-    `${name} verification failure due to short signature`,
-    `${name} verification failure due to wrong length parameter`,
-    `${name} signing with wrong algorithm name`,
-    `${name} verifying with wrong algorithm name`,
-  ];
-});
 
 module.exports = {
   ...conditionalFileSkips,
@@ -189,18 +144,6 @@ module.exports = {
         'Large length: Uint32Array',
         'Large length: BigUint64Array',
       ],
-    },
-  },
-  'digest/cshake.tentative.https.any.js': conditionalFileSkips['digest/cshake.tentative.https.any.js'] ?? {
-    'fail': {
-      'note': 'WPT still uses CShakeParams.length; implementation moved to CShakeParams.outputLength',
-      'expected': cshakeExpectedFailures,
-    },
-  },
-  'sign_verify/kmac.tentative.https.any.js': conditionalFileSkips['sign_verify/kmac.tentative.https.any.js'] ?? {
-    'fail': {
-      'note': 'WPT still uses KmacParams.length; implementation moved to KmacParams.outputLength',
-      'expected': kmacExpectedFailures,
     },
   },
 };
