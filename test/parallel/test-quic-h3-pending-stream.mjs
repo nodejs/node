@@ -73,11 +73,15 @@ const decoder = new TextDecoder();
   // Priority should reflect what was set even while pending.
   deepStrictEqual(stream.priority, { level: 'high', incremental: true });
 
+  // Reprioritize while still pending - sends deferred PRIORITY_UPDATE
+  stream.setPriority({ level: 'low', incremental: false });
+  deepStrictEqual(stream.priority, { level: 'low', incremental: false });
+
   // Now wait for the handshake.
   await clientSession.opened;
 
-  // Priority persists after stream opens.
-  deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+  // The reprioritized value persists after the stream opens.
+  deepStrictEqual(stream.priority, { level: 'low', incremental: false });
 
   // Headers were sent and server responded.
   const body = await bytes(stream);

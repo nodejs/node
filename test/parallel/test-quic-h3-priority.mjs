@@ -44,6 +44,8 @@ const decoder = new TextDecoder();
       // Attach onheaders synchronously in the onstream frame, before
       // any await.
       stream.onheaders = mustCall((headers) => {
+        stream.setPriority({ level: 'high', incremental: true });
+        deepStrictEqual(stream.priority, { level: 'high', incremental: true });
         stream.sendHeaders({ ':status': '200' });
         stream.writer.writeSync(encoder.encode(headers[':path']));
         stream.writer.endSync();

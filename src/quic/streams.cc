@@ -26,7 +26,6 @@ using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::FunctionCallbackInfo;
-using v8::Global;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
@@ -94,11 +93,8 @@ namespace quic {
 #define STREAM_JS_METHODS(V)                                                   \
   V(AttachSource, attachSource, false)                                         \
   V(Destroy, destroy, false)                                                   \
-  V(SendHeaders, sendHeaders, false)                                           \
   V(StopSending, stopSending, false)                                           \
   V(ResetStream, resetStream, false)                                           \
-  V(SetPriority, setPriority, false)                                           \
-  V(GetPriority, getPriority, true)                                            \
   V(GetReader, getReader, false)                                               \
   V(InitStreamingSource, initStreamingSource, false)                           \
   V(Write, write, false)                                                       \
@@ -222,17 +218,6 @@ void PendingStream::reject(QuicError error) {
   waiting_ = false;
   stream_->Destroy(error);
 }
-
-struct Stream::PendingHeaders {
-  HeadersKind kind;
-  Global<Array> headers;
-  HeadersFlags flags;
-  PendingHeaders(HeadersKind kind_, Global<Array> headers_, HeadersFlags flags_)
-      : kind(kind_), headers(std::move(headers_)), flags(flags_) {}
-  DISALLOW_COPY_AND_MOVE(PendingHeaders)
-};
-
-// ============================================================================
 
 struct Stream::State {
 #define V(_, name, type) type name;
@@ -441,39 +426,6 @@ struct Stream::Impl {
     }
   }
 
-  // Sends a block of headers to the peer. If the stream is not yet open,
-  // the headers will be queued and sent immediately when the stream is
-  // opened. Returns false if the application does not support headers.
-  JS_METHOD(SendHeaders) {
-    Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    CHECK(args[0]->IsUint32());  // Kind
-    CHECK(args[1]->IsArray());   // Headers
-    CHECK(args[2]->IsUint32());  // Flags
-
-    HeadersKind kind = FromV8Value<HeadersKind>(args[0]);
-    Local<Array> headers = args[1].As<Array>();
-    HeadersFlags flags = FromV8Value<HeadersFlags>(args[2]);
-
-    // Headers require an installed application that supports them
-    // (e.g. HTTP/3); with no application there is nowhere to send them.
-    if (!stream->session().has_application() ||
-        !stream->session().application().SupportsHeaders()) {
-      return args.GetReturnValue().Set(false);
-    }
-
-    // If the stream is pending, the headers will be queued until the
-    // stream is opened, at which time the queued header block will be
-    // immediately sent when the stream is opened.
-    if (stream->is_pending()) {
-      stream->EnqueuePendingHeaders(kind, headers, flags);
-      return args.GetReturnValue().Set(true);
-    }
-
-    args.GetReturnValue().Set(stream->session().application().SendHeaders(
-        *stream, kind, headers, flags));
-  }
-
   // Tells the peer to stop sending data for this stream. This has the effect
   // of shutting down the readable side of the stream for this peer. Any data
   // that has already been received is still readable.
@@ -527,57 +479,6 @@ struct Stream::Impl {
     } else {
       stream->pending_close_write_code_ = code;
     }
-  }
-
-  JS_METHOD(SetPriority) {
-    Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    CHECK(args[0]->IsUint32());  // Packed: (urgency << 1) | incremental
-
-    uint32_t packed = args[0].As<Uint32>()->Value();
-    StreamPriority priority = static_cast<StreamPriority>(packed >> 1);
-    StreamPriorityFlags flags = (packed & 1)
-                                    ? StreamPriorityFlags::INCREMENTAL
-                                    : StreamPriorityFlags::NON_INCREMENTAL;
-
-    // Always update the stored priority on the stream.
-    stream->priority_ = StoredPriority{
-        .priority = priority,
-        .flags = flags,
-        .pending = stream->is_pending(),
-    };
-
-    // Priority signaling is application-defined (e.g. HTTP/3 RFC 9218);
-    // with no application installed only the stored value is updated.
-    if (!stream->is_pending() && stream->session().has_application()) {
-      stream->session().application().SetStreamPriority(
-          *stream, priority, flags);
-    }
-  }
-
-  JS_METHOD(GetPriority) {
-    Stream* stream;
-    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-
-    // On the client side, priority is always read from the stream's
-    // stored value since the client is the one setting it. The same
-    // applies when no application is installed (nothing tracks peer
-    // priority signals). On the server side with an application, we
-    // delegate to the application which can read the peer's requested
-    // priority (e.g., from PRIORITY_UPDATE frames in HTTP/3).
-    if (!stream->session().is_server() ||
-        !stream->session().has_application()) {
-      auto& pri = stream->priority_;
-      uint32_t packed = (static_cast<uint32_t>(pri.priority) << 1) |
-                        (pri.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
-      return args.GetReturnValue().Set(packed);
-    }
-
-    auto result = stream->session().application().GetStreamPriority(*stream);
-    uint32_t packed =
-        (static_cast<uint32_t>(result.priority) << 1) |
-        (result.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
-    args.GetReturnValue().Set(packed);
   }
 
   // Returns a Blob::Reader that can be used to read data that has been
@@ -1081,25 +982,6 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
 #undef V
 
   NODE_DEFINE_CONSTANT(target, IDX_STATS_STREAM_COUNT);
-
-  constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
-      static_cast<uint8_t>(HeadersKind::HINTS);
-  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
-      static_cast<uint8_t>(HeadersKind::INITIAL);
-  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
-      static_cast<uint8_t>(HeadersKind::TRAILING);
-
-  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
-      static_cast<uint8_t>(HeadersFlags::NONE);
-  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
-      static_cast<uint8_t>(HeadersFlags::TERMINAL);
-
-  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
-  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
-  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
-
-  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
-  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
 }
 
 Stream* Stream::From(void* stream_user_data) {
@@ -1264,29 +1146,13 @@ void Stream::NotifyStreamOpened(stream_id id) {
   CHECK_EQ(ngtcp2_conn_set_stream_user_data(this->session(), id, this), 0);
   maybe_pending_stream_.reset();
 
-  if (priority_.pending) {
-    if (session().has_application()) {
-      session().application().SetStreamPriority(
-          *this, priority_.priority, priority_.flags);
-    }
-    priority_.pending = false;
-  }
-  if (!pending_headers_queue_.empty()) {
-    if (!session().has_application() ||
-        !session().application().SupportsHeaders()) {
-      // Headers were enqueued but the session has no application that
-      // supports them. This is a fatal mismatch.
-      Destroy(QuicError::ForApplication(session().internal_error_code()));
-      return;
-    }
-    decltype(pending_headers_queue_) queue;
-    pending_headers_queue_.swap(queue);
-    for (auto& headers : queue) {
-      session().application().SendHeaders(
-          *this,
-          headers->kind,
-          headers->headers.Get(env()->isolate()),
-          headers->flags);
+  if (!pending_open_callbacks_.empty()) {
+    BaseObjectPtr<Stream> self(this);
+    decltype(pending_open_callbacks_) callbacks;
+    pending_open_callbacks_.swap(callbacks);
+    for (auto& fn : callbacks) {
+      fn();
+      if (stats()->destroyed_at != 0) return;
     }
   }
   // If the stream is not a local undirectional stream and is_readable is
@@ -1318,12 +1184,12 @@ void Stream::NotifyWritableEnded(error_code code) {
   ngtcp2_conn_shutdown_stream_write(session(), 0, id(), code);
 }
 
-void Stream::EnqueuePendingHeaders(HeadersKind kind,
-                                   Local<Array> headers,
-                                   HeadersFlags flags) {
-  Debug(this, "Enqueuing headers for pending stream");
-  pending_headers_queue_.push_back(std::make_unique<PendingHeaders>(
-      kind, Global<Array>(env()->isolate(), headers), flags));
+void Stream::RunWhenOpen(std::function<void()> fn) {
+  if (is_pending()) {
+    pending_open_callbacks_.push_back(std::move(fn));
+  } else {
+    fn();
+  }
 }
 
 bool Stream::is_pending() const {

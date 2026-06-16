@@ -28,18 +28,6 @@ class Session::Application : public MemoryRetainer {
   explicit Application(Session* session);
   DISALLOW_COPY_AND_MOVE(Application)
 
-  // The session-ticket app-data type byte: the leading byte of the
-  // application data embedded in session tickets, identifying how the
-  // remainder of the data is interpreted. DEFAULT tags the native opaque
-  // byte-match data used when no application is installed (the
-  // `appTicketData` option); application-typed values (e.g. HTTP3) tag
-  // data owned by the matching application's ticket hooks.
-  enum class Type : uint8_t {
-    DEFAULT = 1,  // Native opaque byte-match data (no application)
-    HTTP3 = 2,    // Http3Application typed settings data
-  };
-  virtual Type type() const = 0;
-
   virtual bool Start();
 
   // Returns true if Start() has been called successfully.
@@ -121,12 +109,11 @@ class Session::Application : public MemoryRetainer {
     // By default do nothing.
   }
 
-  // Different Applications may wish to set some application data in the
-  // session ticket (e.g. http/3 would set server settings in the application
-  // data). The first byte written MUST be the Application::Type enum value.
-  // By default, writes just the type byte.
+  // Sets application data for the session ticket (e.g. http/3 settings).
+  // The format is private to the application: we route the data back to it by
+  // name at resumption via its registered ticket hook.
   virtual void CollectSessionTicketAppData(
-      SessionTicket::AppData* app_data) const;
+      SessionTicket::AppData* app_data) const = 0;
 
   // Called at install time to apply session ticket app data previously
   // parsed (and validated) by this application's registered ticket hook
@@ -158,21 +145,6 @@ class Session::Application : public MemoryRetainer {
   virtual void ReceiveStreamStopSending(Stream* stream,
                                         QuicError&& error = QuicError());
 
-  // Submits an outbound block of headers for the given stream. Not all
-  // Application types will support headers, in which case this function
-  // should return false.
-  virtual bool SendHeaders(const Stream& stream,
-                           HeadersKind kind,
-                           const v8::Local<v8::Array>& headers,
-                           HeadersFlags flags = HeadersFlags::NONE) {
-    return false;
-  }
-
-  // Returns true if the application protocol supports sending and
-  // receiving headers on streams (e.g. HTTP/3). Applications that
-  // do not support headers should return false (the default).
-  virtual bool SupportsHeaders() const { return false; }
-
   // Initiates application-level graceful shutdown signaling (e.g.,
   // HTTP/3 GOAWAY). Called when Session::Close(GRACEFUL) is invoked.
   virtual void BeginShutdown() {}
@@ -181,26 +153,6 @@ class Session::Application : public MemoryRetainer {
   // FinishClose() before CONNECTION_CLOSE is sent. For HTTP/3, this
   // sends the final GOAWAY with the actual last accepted stream ID.
   virtual void CompleteShutdown() {}
-
-  // Set the priority level of the stream if supported by the application. Not
-  // all applications support priorities, in which case this function is a
-  // non-op.
-  virtual void SetStreamPriority(
-      const Stream& stream,
-      StreamPriority priority = StreamPriority::DEFAULT,
-      StreamPriorityFlags flags = StreamPriorityFlags::NON_INCREMENTAL) {}
-
-  struct StreamPriorityResult {
-    StreamPriority priority;
-    StreamPriorityFlags flags;
-  };
-
-  // Get the priority level of the stream if supported by the application. Not
-  // all applications support priorities, in which case this function returns
-  // the default stream priority.
-  virtual StreamPriorityResult GetStreamPriority(const Stream& stream) {
-    return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
-  }
 
   virtual int GetStreamData(StreamData* data) = 0;
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;

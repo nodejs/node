@@ -9,10 +9,12 @@
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
+#include <node_external_reference.h>
 #include <node_http_common-inl.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
 #include <zlib.h>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include "application.h"
@@ -28,6 +30,9 @@ using v8::Array;
 using v8::BigInt;
 using v8::Boolean;
 using v8::DictionaryTemplate;
+using v8::FunctionCallbackInfo;
+using v8::Global;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
 using v8::Local;
@@ -36,15 +41,38 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::Uint32;
 using v8::Value;
 
 namespace quic {
 
+enum class HeadersKind : uint8_t {
+  HINTS,
+  INITIAL,
+  TRAILING,
+};
+
+enum class HeadersFlags : uint8_t {
+  NONE,
+  TERMINAL,
+};
+
+enum class StreamPriority : uint8_t {
+  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
+  LOW = NGHTTP3_URGENCY_LOW,
+  HIGH = NGHTTP3_URGENCY_HIGH,
+};
+
+enum class StreamPriorityFlags : uint8_t {
+  NON_INCREMENTAL,
+  INCREMENTAL,
+};
+
 namespace {
 constexpr uint8_t kSessionTicketAppDataVersion = 1;
-// Layout: [type(1)][version(1)][crc(4)][payload(34)] = 40 bytes
-constexpr size_t kSessionTicketAppDataSize = 40;
-constexpr size_t kSessionTicketAppDataHeaderSize = 6;  // type + version + crc
+// Layout: [version(1)][crc(4)][payload(34)] = 39 bytes.
+constexpr size_t kSessionTicketAppDataSize = 39;
+constexpr size_t kSessionTicketAppDataHeaderSize = 5;  // version + crc
 constexpr size_t kSessionTicketAppDataPayloadSize =
     kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
 
@@ -337,7 +365,6 @@ class Http3Application final : public Session::Application {
       BuildOriginPayload();
     }
     conn_ = InitializeConnection();
-    session->set_priority_supported();
   }
 
   // ==========================================================================
@@ -396,8 +423,6 @@ class Http3Application final : public Session::Application {
   // ==========================================================================
   // Session::Application
 
-  Type type() const override { return Type::HTTP3; }
-
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
 
   // HTTP/3 defines H3_INTERNAL_ERROR (0x102) for non-specific failures
@@ -436,8 +461,6 @@ class Http3Application final : public Session::Application {
     }
     return true;
   }
-
-  bool SupportsHeaders() const override { return true; }
 
   bool is_started() const override { return started_; }
 
@@ -641,8 +664,7 @@ class Http3Application final : public Session::Application {
   void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const override {
     uint8_t buf[kSessionTicketAppDataSize];
-    buf[0] = static_cast<uint8_t>(Type::HTTP3);
-    buf[1] = kSessionTicketAppDataVersion;
+    buf[0] = kSessionTicketAppDataVersion;
 
     uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
     WriteBE64(payload, options_.max_field_section_size);
@@ -654,7 +676,7 @@ class Http3Application final : public Session::Application {
 
     uLong crc = crc32(0L, Z_NULL, 0);
     crc = crc32(crc, payload, kSessionTicketAppDataPayloadSize);
-    WriteBE32(buf + 2, static_cast<uint32_t>(crc));
+    WriteBE32(buf + 1, static_cast<uint32_t>(crc));
 
     app_data->Set(
         uv_buf_init(reinterpret_cast<char*>(buf), kSessionTicketAppDataSize));
@@ -727,81 +749,66 @@ class Http3Application final : public Session::Application {
     header_state_.erase(id);
   }
 
-  bool SendHeaders(const Stream& stream,
-                   HeadersKind kind,
-                   const Local<Array>& headers,
-                   HeadersFlags flags) override {
+  struct StreamPriorityResult {
+    StreamPriority priority;
+    StreamPriorityFlags flags;
+  };
+
+  bool SubmitHeaders(const Stream& stream,
+                     const Local<Array>& headers,
+                     HeadersFlags flags) {
     Session::SendPendingDataScope send_scope(&session());
     Http3Headers nva(env(), headers);
+    static constexpr nghttp3_data_reader reader = {on_read_data_callback};
+    const nghttp3_data_reader* reader_ptr =
+        flags != HeadersFlags::TERMINAL ? &reader : nullptr;
 
-    switch (kind) {
-      case HeadersKind::HINTS: {
-        if (!session().is_server()) {
-          // Client side cannot send hints
-          return false;
-        }
-        Debug(&session(),
-              "Submitting %" PRIu64 " early hints for stream %" PRIu64,
-              nva.length(),
-              stream.id());
-        return nghttp3_conn_submit_info(
-                   *this, stream.id(), nva.data(), nva.length()) == 0;
-        break;
-      }
-      case HeadersKind::INITIAL: {
-        static constexpr nghttp3_data_reader reader = {on_read_data_callback};
-        const nghttp3_data_reader* reader_ptr = nullptr;
-
-        // If the terminal flag is set, that means that we know we're only
-        // sending headers and no body and the stream writable side should be
-        // closed immediately because there is no nghttp3_data_reader provided.
-        if (flags != HeadersFlags::TERMINAL) {
-          reader_ptr = &reader;
-        }
-
-        if (session().is_server()) {
-          // If this is a server, we're submitting a response...
-          Debug(&session(),
-                "Submitting %" PRIu64 " response headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_response(*this,
-                                              stream.id(),
-                                              nva.data(),
-                                              nva.length(),
-                                              reader_ptr) == 0;
-        } else {
-          // Otherwise we're submitting a request...
-          Debug(&session(),
-                "Submitting %" PRIu64 " request headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_request(*this,
-                                             stream.id(),
-                                             nva.data(),
-                                             nva.length(),
-                                             reader_ptr,
-                                             const_cast<Stream*>(&stream)) == 0;
-        }
-        break;
-      }
-      case HeadersKind::TRAILING: {
-        Debug(&session(),
-              "Submitting %" PRIu64 " trailing headers for stream %" PRIu64,
-              nva.length(),
-              stream.id());
-        return nghttp3_conn_submit_trailers(
-                   *this, stream.id(), nva.data(), nva.length()) == 0;
-        break;
-      }
+    if (session().is_server()) {
+      Debug(&session(),
+            "Submitting %" PRIu64 " response headers for stream %" PRIu64,
+            nva.length(),
+            stream.id());
+      return nghttp3_conn_submit_response(
+                 *this, stream.id(), nva.data(), nva.length(), reader_ptr) == 0;
     }
+    Debug(&session(),
+          "Submitting %" PRIu64 " request headers for stream %" PRIu64,
+          nva.length(),
+          stream.id());
+    return nghttp3_conn_submit_request(*this,
+                                       stream.id(),
+                                       nva.data(),
+                                       nva.length(),
+                                       reader_ptr,
+                                       const_cast<Stream*>(&stream)) == 0;
+  }
 
-    return false;
+  bool SubmitInfo(const Stream& stream, const Local<Array>& headers) {
+    if (!session().is_server()) return false;
+    Session::SendPendingDataScope send_scope(&session());
+    Http3Headers nva(env(), headers);
+    Debug(&session(),
+          "Submitting %" PRIu64 " early hints for stream %" PRIu64,
+          nva.length(),
+          stream.id());
+    return nghttp3_conn_submit_info(
+               *this, stream.id(), nva.data(), nva.length()) == 0;
+  }
+
+  bool SubmitTrailers(const Stream& stream, const Local<Array>& headers) {
+    Session::SendPendingDataScope send_scope(&session());
+    Http3Headers nva(env(), headers);
+    Debug(&session(),
+          "Submitting %" PRIu64 " trailing headers for stream %" PRIu64,
+          nva.length(),
+          stream.id());
+    return nghttp3_conn_submit_trailers(
+               *this, stream.id(), nva.data(), nva.length()) == 0;
   }
 
   void SetStreamPriority(const Stream& stream,
                          StreamPriority priority,
-                         StreamPriorityFlags flags) override {
+                         StreamPriorityFlags flags) {
     nghttp3_pri pri;
     pri.inc = (flags == StreamPriorityFlags::INCREMENTAL) ? 1 : 0;
     switch (priority) {
@@ -827,14 +834,13 @@ class Http3Application final : public Session::Application {
     }
   }
 
-  StreamPriorityResult GetStreamPriority(const Stream& stream) override {
+  StreamPriorityResult GetStreamPriority(const Stream& stream) {
     // nghttp3_conn_get_stream_priority is only available on the server
     // side, where it reflects the peer's requested priority (e.g., from
-    // PRIORITY_UPDATE frames). Client-side priority is tracked by the
-    // Stream itself and returned directly from GetPriority in streams.cc.
+    // PRIORITY_UPDATE frames). The client tracks its own requested priority
+    // in node:http3, and doesn't use this.
     if (!session().is_server()) {
-      auto& stored = stream.stored_priority();
-      return {stored.priority, stored.flags};
+      return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
     }
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
@@ -1638,6 +1644,234 @@ class Http3Application final : public Session::Application {
       on_receive_settings};
 };
 
+// The per-session JS-facing handle for HTTP/3 stream operations
+// (kHttp3Handle). One per session, with a weak reference to the Session,
+// operating on the Application reached from the passed stream handle.
+class Http3Binding final : public BaseObject {
+ public:
+  static BaseObjectPtr<Http3Binding> Create(Session* session);
+
+  Http3Binding(Environment* env, Local<Object> object)
+      : BaseObject(env, object) {
+    MakeWeak();
+  }
+
+  JS_CONSTRUCTOR(Http3Binding);
+
+  JS_METHOD(SendHeaders);
+  JS_METHOD(SendInformationalHeaders);
+  JS_METHOD(SendTrailers);
+  JS_METHOD(SetPriority);
+  JS_METHOD(GetPriority);
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(Http3Binding)
+  SET_SELF_SIZE(Http3Binding)
+};
+
+JS_CONSTRUCTOR_IMPL(Http3Binding, http3binding_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_CLASS(http3binding);
+  SetProtoMethod(env->isolate(), tmpl, "sendHeaders", SendHeaders);
+  SetProtoMethod(env->isolate(),
+                 tmpl,
+                 "sendInformationalHeaders",
+                 SendInformationalHeaders);
+  SetProtoMethod(env->isolate(), tmpl, "sendTrailers", SendTrailers);
+  SetProtoMethod(env->isolate(), tmpl, "setPriority", SetPriority);
+  SetProtoMethodNoSideEffect(env->isolate(), tmpl, "getPriority", GetPriority);
+})
+
+BaseObjectPtr<Http3Binding> Http3Binding::Create(Session* session) {
+  JS_NEW_INSTANCE_OR_RETURN(session->env(), obj, BaseObjectPtr<Http3Binding>());
+  return MakeBaseObject<Http3Binding>(session->env(), obj);
+}
+
+void Http3Binding::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(SendHeaders);
+  registry->Register(SendInformationalHeaders);
+  registry->Register(SendTrailers);
+  registry->Register(SetPriority);
+  registry->Register(GetPriority);
+}
+
+// The binding is only ever attached to an HTTP/3 session, so the session's
+// installed application is always an Http3Application.
+inline Http3Application& Http3App(Session& session) {
+  return static_cast<Http3Application&>(session.application());
+}
+
+JS_METHOD_IMPL(Http3Binding::SendHeaders) {
+  Http3Binding* binding;
+  ASSIGN_OR_RETURN_UNWRAP(&binding, args.This());
+  CHECK(args[1]->IsArray());   // headers
+  CHECK(args[2]->IsUint32());  // flags
+
+  Stream* stream = BaseObject::Unwrap<Stream>(args[0]);
+  if (stream == nullptr) return args.GetReturnValue().Set(false);
+
+  Session& session = stream->session();
+  if (!session.has_application()) return args.GetReturnValue().Set(false);
+
+  Local<Array> headers = args[1].As<Array>();
+  auto flags = static_cast<HeadersFlags>(args[2].As<Uint32>()->Value());
+
+  // A pending stream has no id yet; defer the submission until the transport
+  // opens it (the priority header, if any, rides along in this header block).
+  if (stream->is_pending()) {
+    auto held = std::make_shared<Global<Array>>(binding->env()->isolate(),
+                                                headers);
+    stream->RunWhenOpen([stream, flags, held]() {
+      Session& session = stream->session();
+      if (!session.has_application()) return;
+      Http3Application& app = Http3App(session);
+      Environment* env = stream->env();
+      HandleScope scope(env->isolate());
+      if (!app.SubmitHeaders(*stream, held->Get(env->isolate()), flags)) {
+        stream->Destroy(QuicError::ForApplication(app.GetInternalErrorCode()));
+      }
+    });
+    return args.GetReturnValue().Set(true);
+  }
+
+  args.GetReturnValue().Set(
+      Http3App(session).SubmitHeaders(*stream, headers, flags));
+}
+
+// Informational/trailing headers are only sent on open streams so they need
+// no pending-stream deferral.
+JS_METHOD_IMPL(Http3Binding::SendInformationalHeaders) {
+  Http3Binding* binding;
+  ASSIGN_OR_RETURN_UNWRAP(&binding, args.This());
+  CHECK(args[1]->IsArray());  // headers
+  Stream* stream = BaseObject::Unwrap<Stream>(args[0]);
+  if (stream == nullptr || stream->is_pending())
+    return args.GetReturnValue().Set(false);
+  Session& session = stream->session();
+  if (!session.has_application()) return args.GetReturnValue().Set(false);
+  args.GetReturnValue().Set(
+      Http3App(session).SubmitInfo(*stream, args[1].As<Array>()));
+}
+
+JS_METHOD_IMPL(Http3Binding::SendTrailers) {
+  Http3Binding* binding;
+  ASSIGN_OR_RETURN_UNWRAP(&binding, args.This());
+  CHECK(args[1]->IsArray());  // headers
+  Stream* stream = BaseObject::Unwrap<Stream>(args[0]);
+  if (stream == nullptr || stream->is_pending())
+    return args.GetReturnValue().Set(false);
+  Session& session = stream->session();
+  if (!session.has_application()) return args.GetReturnValue().Set(false);
+  args.GetReturnValue().Set(
+      Http3App(session).SubmitTrailers(*stream, args[1].As<Array>()));
+}
+
+JS_METHOD_IMPL(Http3Binding::SetPriority) {
+  Http3Binding* binding;
+  ASSIGN_OR_RETURN_UNWRAP(&binding, args.This());
+  CHECK(args[1]->IsUint32());  // packed: (urgency << 1) | incremental
+
+  Stream* stream = BaseObject::Unwrap<Stream>(args[0]);
+  if (stream == nullptr) return;
+  Session& session = stream->session();
+  if (!session.has_application()) return;
+
+  uint32_t packed = args[1].As<Uint32>()->Value();
+  auto priority = static_cast<StreamPriority>(packed >> 1);
+  StreamPriorityFlags flags = (packed & 1)
+                                  ? StreamPriorityFlags::INCREMENTAL
+                                  : StreamPriorityFlags::NON_INCREMENTAL;
+
+  // A PRIORITY_UPDATE needs the stream to exist in nghttp3, which only happens
+  // once the deferred header submission runs; defer until the stream opens.
+  if (stream->is_pending()) {
+    stream->RunWhenOpen([stream, priority, flags]() {
+      if (stream->session().has_application()) {
+        Http3App(stream->session()).SetStreamPriority(*stream, priority, flags);
+      }
+    });
+    return;
+  }
+  Http3App(session).SetStreamPriority(*stream, priority, flags);
+}
+
+JS_METHOD_IMPL(Http3Binding::GetPriority) {
+  Http3Binding* binding;
+  ASSIGN_OR_RETURN_UNWRAP(&binding, args.This());
+  Stream* stream = BaseObject::Unwrap<Stream>(args[0]);
+  if (stream == nullptr) return;
+  Session& session = stream->session();
+  if (!session.has_application() || stream->is_pending()) return;
+
+  auto result = Http3App(session).GetStreamPriority(*stream);
+  uint32_t packed =
+      (static_cast<uint32_t>(result.priority) << 1) |
+      (result.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
+  args.GetReturnValue().Set(packed);
+}
+
+namespace {
+std::unique_ptr<Session::Application> CreateHttp3Application(Session* session);
+}  // namespace
+
+void CreateHttp3Handle(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args[0]);
+
+  if (!session->has_application()) {
+    if (session->is_active()) {
+      THROW_ERR_INVALID_STATE(
+          session->env(),
+          "An application can only be attached to a QUIC session before it "
+          "becomes active (begins emitting events)");
+      return;
+    }
+    session->SetApplication(CreateHttp3Application(session));
+
+    if (session->is_server() && !session->application().Start()) {
+      // Start() failed (e.g. the peer's initial_max_streams_uni is < 3), so
+      // the application cannot run HTTP/3.
+      THROW_ERR_INVALID_STATE(
+          session->env(),
+          "The HTTP/3 application could not be started");
+      return;
+    }
+  }
+
+  BaseObjectPtr<Http3Binding> handle = Http3Binding::Create(session);
+  if (handle) args.GetReturnValue().Set(handle->object());
+}
+
+void RegisterHttp3ExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(CreateHttp3Handle);
+  Http3Binding::RegisterExternalReferences(registry);
+}
+
+void InitHttp3PerContext(Local<Object> target) {
+  // The HTTP/3 header kind/flags values consumed by node:http3 when calling
+  // the kHttp3Handle methods. These are http3-owned constants exposed on the
+  // quic binding object.
+  constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
+      static_cast<uint8_t>(HeadersKind::HINTS);
+  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
+      static_cast<uint8_t>(HeadersKind::INITIAL);
+  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
+      static_cast<uint8_t>(HeadersKind::TRAILING);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
+      static_cast<uint8_t>(HeadersFlags::NONE);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
+      static_cast<uint8_t>(HeadersFlags::TERMINAL);
+
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+}
+
 namespace {
 // Resolves the effective HTTP/3 settings for a session's options: the
 // consumer-supplied settings (or defaults). SETTINGS_H3_DATAGRAM stays
@@ -1676,14 +1910,12 @@ PendingTicketAppData ParseHttp3Ticket(const uv_buf_t& data,
 
   const uint8_t* buf = reinterpret_cast<const uint8_t*>(data.base);
 
-  // buf[0] is the type byte, buf[1] is the version.
-  if (buf[0] != static_cast<uint8_t>(Session::Application::Type::HTTP3) ||
-      buf[1] != kSessionTicketAppDataVersion) {
+  if (buf[0] != kSessionTicketAppDataVersion) {
     return nullptr;
   }
 
   const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
-  uint32_t stored_crc = ReadBE32(buf + 2);
+  uint32_t stored_crc = ReadBE32(buf + 1);
   uLong computed_crc = crc32(0L, Z_NULL, 0);
   computed_crc = crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
   if (stored_crc != static_cast<uint32_t>(computed_crc)) return nullptr;

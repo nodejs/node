@@ -30,6 +30,7 @@ class SessionManager;
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(endpoint)                                                                  \
+  V(http3binding)                                                              \
   V(session)                                                                   \
   V(stream)                                                                    \
   V(udp)
@@ -108,6 +109,7 @@ class SessionManager;
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
+  V(http3binding, "Http3Binding")                                              \
   V(initial_rtt, "initialRtt")                                                 \
   V(keep_alive_timeout, "keepAlive")                                           \
   V(initial_max_data, "initialMaxData")                                        \

@@ -132,7 +132,6 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(HANDSHAKE_COMPLETED, handshake_completed, uint8_t)                         \
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
-  V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(IS_SERVER, is_server, uint8_t)                                             \
   V(HAS_APPLICATION, has_application, uint8_t)                                 \
@@ -3635,24 +3634,12 @@ void Session::CollectSessionTicketAppData(
   if (impl_->application_) {
     return application().CollectSessionTicketAppData(app_data);
   }
-  // Native path: embed the configured opaque app_ticket_data behind the
-  // DEFAULT type byte. With no data configured write just the type byte.
-  static constexpr uint8_t kTypeByte =
-      static_cast<uint8_t>(Application::Type::DEFAULT);
+  // Native path: embed the configured opaque app_ticket_data directly so it
+  // can be checked at resumption.
   const auto& atd = config().options.app_ticket_data;
-  if (!atd.has_value() || atd->length() == 0) {
-    uint8_t buf[1] = {kTypeByte};
-    app_data->Set(uv_buf_init(reinterpret_cast<char*>(buf), 1));
-    return;
+  if (atd.has_value() && atd->length() != 0) {
+    app_data->Set(*atd);
   }
-  // Layout: [type byte][opaque app data].
-  uv_buf_t bytes = *atd;
-  std::vector<uint8_t> buf;
-  buf.reserve(1 + bytes.len);
-  buf.push_back(kTypeByte);
-  const auto* p = reinterpret_cast<const uint8_t*>(bytes.base);
-  buf.insert(buf.end(), p, p + bytes.len);
-  app_data->Set(uv_buf_init(reinterpret_cast<char*>(buf.data()), buf.size()));
 }
 
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
@@ -3695,21 +3682,14 @@ SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     impl_->pending_ticket_data_ = std::move(parsed);
     return accept();
   }
-  // Native path (no application): only DEFAULT-typed opaque app data is
-  // usable - byte-match the stored bytes against the server's currently
-  // configured `app_ticket_data`. Application-typed tickets cannot be
-  // validated here and are rejected, falling back cleanly to a full
-  // 1-RTT handshake.
+  // Native path (no application): byte-match the opaque app data against the
+  // server's currently configured `app_ticket_data`, or reject back to 1RTT.
   const auto* p = reinterpret_cast<const uint8_t*>(data->base);
-  if (p[0] != static_cast<uint8_t>(Application::Type::DEFAULT)) {
-    Debug(this, "Session ticket app data has an unusable type byte");
-    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
-  }
   const auto& atd = config().options.app_ticket_data;
   uv_buf_t cur =
       atd.has_value() ? static_cast<uv_buf_t>(*atd) : uv_buf_init(nullptr, 0);
-  if (data->len - 1 != cur.len ||
-      (cur.len > 0 && memcmp(p + 1, cur.base, cur.len) != 0)) {
+  if (data->len != cur.len ||
+      (cur.len > 0 && memcmp(p, cur.base, cur.len) != 0)) {
     Debug(this, "Session ticket app data does not match configured value");
     return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
@@ -3846,11 +3826,6 @@ void Session::QueueDeferredEmit(std::function<void()> fn) {
 bool Session::has_origin_listener() const {
   return HasListenerFlag(impl_->state()->listener_flags,
                          SessionListenerFlags::ORIGIN);
-}
-
-void Session::set_priority_supported(bool on) {
-  DCHECK(!is_destroyed());
-  impl_->state()->priority_supported = on ? 1 : 0;
 }
 
 void Session::ExtendStreamOffset(stream_id id, size_t amount) {

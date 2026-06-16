@@ -172,7 +172,6 @@ strictEqual(sessionState.isStatelessReset, false);
 strictEqual(sessionState.isHandshakeCompleted, false);
 strictEqual(sessionState.isHandshakeConfirmed, false);
 strictEqual(sessionState.isStreamOpenAllowed, false);
-strictEqual(sessionState.isPrioritySupported, false);
 strictEqual(sessionState.hasApplication, false);
 strictEqual(sessionState.isWrapped, false);
 strictEqual(sessionState.isServer, false);

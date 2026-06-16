@@ -10,6 +10,7 @@
 #include <v8.h>
 #include "bindingdata.h"
 #include "endpoint.h"
+#include "http3.h"
 #include "node_external_reference.h"
 
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
@@ -49,6 +50,7 @@ void CreatePerContextProperties(Local<Object> target,
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);
   Stream::InitPerContext(realm, target);
+  InitHttp3PerContext(target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

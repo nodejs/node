@@ -531,7 +531,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   bool is_destroyed_or_closing() const;
   size_t max_packet_size() const;
-  void set_priority_supported(bool on = true);
 
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be openen --

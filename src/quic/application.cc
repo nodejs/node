@@ -73,13 +73,6 @@ bool Session::Application::AcknowledgeStreamData(stream_id id, size_t datalen) {
   return true;
 }
 
-void Session::Application::CollectSessionTicketAppData(
-    SessionTicket::AppData* app_data) const {
-  // By default, write just the application type byte.
-  uint8_t buf[1] = {static_cast<uint8_t>(type())};
-  app_data->Set(uv_buf_init(reinterpret_cast<char*>(buf), 1));
-}
-
 void Session::Application::ReceiveStreamClose(Stream* stream,
                                               QuicError&& error) {
   DCHECK_NOT_NULL(stream);

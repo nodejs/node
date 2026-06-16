@@ -14,6 +14,7 @@
 #include "bindingdata.h"
 #include "data.h"
 
+#include <functional>
 #include <vector>
 
 namespace node::quic {
@@ -339,11 +340,8 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
-  // Currently, only HTTP/3 streams support headers. These methods are here
-  // to support that. They are not used when using any other QUIC application.
-
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
-  // reader_, and pending_headers_queue_.
+  // and reader_.
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Stream)
   SET_SELF_SIZE(Stream)
@@ -364,7 +362,6 @@ class Stream final : public AsyncWrap,
 
  private:
   struct Impl;
-  struct PendingHeaders;
 
   class Outbound;
 
@@ -412,9 +409,10 @@ class Stream final : public AsyncWrap,
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
   void NotifyStreamOpened(stream_id id);
-  void EnqueuePendingHeaders(HeadersKind kind,
-                             v8::Local<v8::Array> headers,
-                             HeadersFlags flags);
+
+  // Runs fn once the stream has a transport id: immediately if the stream is
+  // already open, otherwise queued and run in NotifyStreamOpened.
+  void RunWhenOpen(std::function<void()> fn);
 
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
@@ -429,22 +427,14 @@ class Stream final : public AsyncWrap,
   // and the stream id will be assigned.
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
-  std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
+  std::vector<std::function<void()>> pending_open_callbacks_;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
-
-  struct StoredPriority {
-    StreamPriority priority = StreamPriority::DEFAULT;
-    StreamPriorityFlags flags = StreamPriorityFlags::NON_INCREMENTAL;
-    bool pending = false;
-  };
-  StoredPriority priority_;
-
-  const StoredPriority& stored_priority() const { return priority_; }
 
   friend struct Impl;
   friend class PendingStream;
   friend class Http3Application;
+  friend class Http3Binding;
   friend class Session;
 
  public:
