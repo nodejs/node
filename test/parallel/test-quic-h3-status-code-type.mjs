@@ -11,7 +11,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -21,20 +21,19 @@ const codes = [200, 204, 404];
 let serverResponses = 0;
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (ss) => {
-  ss.onstream = mustCall(() => {
-    if (++serverResponses === codes.length) {
-      ss.close();
-      serverDone.resolve();
-    }
+const serverEndpoint = await listen(mustCall((serverSession) => {
+  serverSession.onstream = mustCall((stream) => {
+    stream.onheaders = mustCall(() => {
+      const status = codes[serverResponses++];
+      stream.sendHeaders({ ':status': String(status) }, { terminal: true });
+      if (serverResponses === codes.length) {
+        serverSession.close();
+        serverDone.resolve();
+      }
+    });
   }, codes.length);
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function() {
-    const status = codes[serverResponses - 1];
-    this.sendHeaders({ ':status': String(status) }, { terminal: true });
-    this.writer.endSync();
-  }, codes.length),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
@@ -44,14 +43,13 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 for (const expected of codes) {
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(typeof headers[':status'], 'number');
       assert.strictEqual(headers[':status'], expected);
     }),
