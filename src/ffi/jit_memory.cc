@@ -2,29 +2,31 @@
 
 #include "ffi/jit_memory.h"
 
-#if !defined(_WIN32)
-
-#include <sys/mman.h>
-#include <unistd.h>
-
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
 
 #if defined(__APPLE__)
 #include <libkern/OSCacheControl.h>
 #endif
 
-#endif  // !defined(_WIN32)
+#endif  // defined(_WIN32)
 
 namespace node::ffi {
 
 namespace {
 
-#if !defined(_WIN32)
-
 bool SelfTest() {
-#if !defined(__aarch64__) && !defined(_M_ARM64) && !defined(__x86_64__)
+#if !defined(__aarch64__) && !defined(_M_ARM64) && !defined(__x86_64__) &&     \
+    !defined(_M_X64) && !defined(__powerpc64__) && !defined(__ppc64__) &&      \
+    !defined(__PPC64__) && !defined(__loongarch64) &&                          \
+    !(defined(__riscv) && __riscv_xlen == 64) && !defined(__s390x__)
   // No stub emitter for this platform; nothing to test.
   return false;
 #else
@@ -32,12 +34,53 @@ bool SelfTest() {
   // AArch64 BR LR: 0xD65F03C0
   constexpr uint32_t kInstruction = 0xD65F03C0;
   constexpr size_t kInstructionSize = sizeof(uint32_t);
+#elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__)
+  // PPC64 BLR: 0x4E800020
+  constexpr uint32_t kInstruction = 0x4E800020;
+  constexpr size_t kInstructionSize = sizeof(uint32_t);
+#elif defined(__loongarch64)
+  // LoongArch64 JIRL zero, ra, 0
+  constexpr uint32_t kInstruction = 0x4C000020;
+  constexpr size_t kInstructionSize = sizeof(uint32_t);
+#elif defined(__riscv) && __riscv_xlen == 64
+  // RISC-V JALR zero, ra, 0
+  constexpr uint32_t kInstruction = 0x00008067;
+  constexpr size_t kInstructionSize = sizeof(uint32_t);
+#elif defined(__s390x__)
+  // s390x BR r14
+  constexpr uint16_t kInstruction = 0x07fe;
+  constexpr size_t kInstructionSize = sizeof(uint16_t);
 #else
   // x86_64 RET: 0xC3
   constexpr uint8_t kInstruction = 0xC3;
   constexpr size_t kInstructionSize = sizeof(uint8_t);
 #endif
 
+#if defined(_WIN32)
+  void* page = VirtualAlloc(
+      nullptr, kInstructionSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (page == nullptr) {
+    return false;
+  }
+
+  uint8_t* code = static_cast<uint8_t*>(page);
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(__powerpc64__) ||     \
+    defined(__ppc64__) || defined(__PPC64__) || defined(__loongarch64) ||      \
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+  std::memcpy(code, &kInstruction, kInstructionSize);
+#else
+  code[0] = kInstruction;
+#endif
+
+  FlushInstructionCache(GetCurrentProcess(), page, kInstructionSize);
+
+  DWORD old_protect;
+  const bool ok =
+      VirtualProtect(page, kInstructionSize, PAGE_EXECUTE_READ, &old_protect) !=
+      0;
+  VirtualFree(page, 0, MEM_RELEASE);
+  return ok;
+#else
   const size_t page_size = static_cast<size_t>(getpagesize());
   void* page = mmap(nullptr,
                     page_size,
@@ -50,7 +93,9 @@ bool SelfTest() {
   }
 
   uint8_t* code = static_cast<uint8_t*>(page);
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(__powerpc64__) ||     \
+    defined(__ppc64__) || defined(__PPC64__) || defined(__loongarch64) ||      \
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
   std::memcpy(code, &kInstruction, kInstructionSize);
 #elif defined(__x86_64__)
   code[0] = kInstruction;
@@ -84,25 +129,18 @@ bool SelfTest() {
   munmap(page, page_size);
   return ok;
 #endif
+#endif
 }
-
-#endif  // !defined(_WIN32)
 
 }  // namespace
 
 bool IsJitMemorySupported() {
-#if defined(_WIN32)
-  // Windows stub emitter and VirtualAlloc-based JIT memory support not yet
-  // implemented. Return false so the fast-call path falls back to libffi.
-  return false;
-#else
   // Run the self-test exactly once and publish only the final result, so
   // concurrent callers never observe a provisional value.
   static std::once_flag once;
   static bool supported = false;
   std::call_once(once, [] { supported = SelfTest(); });
   return supported;
-#endif
 }
 
 }  // namespace node::ffi
