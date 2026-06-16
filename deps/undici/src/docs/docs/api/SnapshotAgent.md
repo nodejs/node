@@ -634,6 +634,6 @@ SnapshotAgent provides similar functionality to nock but is specifically designe
 
 ## See Also
 
-- [MockAgent](./MockAgent.md) - Manual mocking for more control
-- [MockCallHistory](./MockCallHistory.md) - Inspecting request history
-- [Testing Best Practices](../best-practices/writing-tests.md) - General testing guidance
+- [MockAgent](/docs/docs/api/MockAgent.md) - Manual mocking for more control
+- [MockCallHistory](/docs/docs/api/MockCallHistory.md) - Inspecting request history
+- [Testing Best Practices](/docs/docs/best-practices/writing-tests.md) - General testing guidance

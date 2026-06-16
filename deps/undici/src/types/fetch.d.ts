@@ -57,6 +57,7 @@ export class BodyMixin {
   readonly formData: () => Promise<FormData>
   readonly json: () => Promise<unknown>
   readonly text: () => Promise<string>
+  readonly textStream: () => ReadableStream<string>
 }
 
 export interface SpecIterator<T, TReturn = any, TNext = undefined> {
