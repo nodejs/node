@@ -1267,6 +1267,22 @@
     "expected_match": null
   },
   {
+    "pattern": [{ "protocol": "https", "port": "443*" }],
+    "inputs": [{ "protocol": "https", "port": "4430" }],
+    "expected_match": {
+      "protocol": { "input": "https", "groups": {} },
+      "port": { "input": "4430", "groups": { "0": "0" }}
+    }
+  },
+  {
+    "pattern": [{ "protocol": "https", "port": "*443" }],
+    "inputs": [{ "protocol": "https", "port": "1443" }],
+    "expected_match": {
+      "protocol": { "input": "https", "groups": {} },
+      "port": { "input": "1443", "groups": { "0": "1" }}
+    }
+  },
+  {
     "pattern": [{ "pathname": "/foo/bar" }],
     "inputs": [{ "pathname": "/foo/./bar" }],
     "expected_match": {
