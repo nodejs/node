@@ -10,12 +10,11 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-readdirSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src/subdir', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
 myVfs.writeFileSync('/src/data.json', '{}');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 // Default (utf8 string array)
 {
