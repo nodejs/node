@@ -11,6 +11,8 @@
 
 // Integer operations.
 
+FFI_EXPORT void noop_void(void) {}
+
 FFI_EXPORT int8_t add_i8(int8_t a, int8_t b) {
   return a + b;
 }
@@ -41,6 +43,10 @@ FFI_EXPORT int64_t add_i64(int64_t a, int64_t b) {
 
 FFI_EXPORT uint64_t add_u64(uint64_t a, uint64_t b) {
   return a + b;
+}
+
+FFI_EXPORT int32_t identity_i32(int32_t value) {
+  return value;
 }
 
 FFI_EXPORT char identity_char(char value) {
@@ -75,6 +81,11 @@ FFI_EXPORT void* identity_pointer(void* ptr) {
   return ptr;
 }
 
+FFI_EXPORT uint8_t is_null_pointer(void* ptr) {
+  // NOLINTNEXTLINE (readability/null_usage)
+  return ptr == NULL;
+}
+
 FFI_EXPORT uint64_t pointer_to_usize(void* ptr) {
   return (uint64_t)(uintptr_t)ptr;
 }
@@ -87,6 +98,14 @@ FFI_EXPORT void* usize_to_pointer(uint64_t addr) {
 
 FFI_EXPORT uint64_t string_length(const char* str) {
   return str ? strlen(str) : 0;
+}
+
+FFI_EXPORT uint8_t string_first_char(const char* str) {
+  return str ? (uint8_t)str[0] : 0;
+}
+
+FFI_EXPORT uint8_t string_equals_hello(const char* str) {
+  return str && strcmp(str, "hello") == 0;
 }
 
 FFI_EXPORT char* string_concat(const char* a, const char* b) {
@@ -132,6 +151,10 @@ FFI_EXPORT void free_string(char* str) {
 }
 
 // Buffer/Array operations.
+
+FFI_EXPORT uint8_t first_byte(const uint8_t* buffer) {
+  return buffer ? buffer[0] : 0;
+}
 
 FFI_EXPORT void fill_buffer(uint8_t* buffer, uint64_t length, uint32_t value) {
   if (!buffer) {
@@ -368,6 +391,11 @@ sum_five_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
   return a + b + c + d + e;
 }
 
+FFI_EXPORT int32_t
+sum_5_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
+  return a + b + c + d + e;
+}
+
 FFI_EXPORT double sum_five_f64(
     double a, double b, double c, double d, double e) {
   return a + b + c + d + e;
@@ -384,6 +412,17 @@ FFI_EXPORT int32_t sum_4_i32(int32_t a, int32_t b, int32_t c, int32_t d) {
 FFI_EXPORT int32_t
 sum_6_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
   return a + b + c + d + e + f;
+}
+
+FFI_EXPORT int32_t sum_8_i32(int32_t a,
+                             int32_t b,
+                             int32_t c,
+                             int32_t d,
+                             int32_t e,
+                             int32_t f,
+                             int32_t g,
+                             int32_t h) {
+  return a + b + c + d + e + f + g + h;
 }
 
 FFI_EXPORT int32_t sum_7_i32(int32_t a,
