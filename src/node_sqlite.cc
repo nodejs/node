@@ -941,6 +941,19 @@ bool DatabaseSync::Open() {
     return false;
   }
 
+  // sqlite3_open_v2() assigns a database handle even when it fails. Such a
+  // handle is in a "sick" state and may only be used to retrieve the error
+  // and must then be released with sqlite3_close(). Close and reset the
+  // handle on any failure below so that a failed open() does not leave the
+  // database in an open state.
+  bool opened = false;
+  auto reset_connection_on_failure = OnScopeLeave([&]() {
+    if (!opened && connection_ != nullptr) {
+      sqlite3_close_v2(connection_);
+      connection_ = nullptr;
+    }
+  });
+
   // TODO(cjihrig): Support additional flags.
   int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
@@ -1003,6 +1016,7 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
+  opened = true;
   return true;
 }
 
