@@ -290,6 +290,7 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   nghttp3_set_debug_vprintf_callback(nghttp3_debug_log);
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
   SetMethod(realm->context(), target, "setHttp3Callbacks", SetHttp3Callbacks);
+  SetMethod(realm->context(), target, "createHttp3Handle", CreateHttp3Handle);
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
 
@@ -298,6 +299,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(IllegalConstructor);
   registry->Register(SetCallbacks);
   registry->Register(SetHttp3Callbacks);
+  RegisterHttp3ExternalReferences(registry);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)

@@ -2,7 +2,6 @@
 
 #include <aliased_struct.h>
 #include <env.h>
-#include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
 #include <uv.h>
@@ -293,28 +292,6 @@ enum class Side : uint8_t {
 enum class Direction : uint8_t {
   BIDIRECTIONAL,
   UNIDIRECTIONAL,
-};
-
-enum class HeadersKind : uint8_t {
-  HINTS,
-  INITIAL,
-  TRAILING,
-};
-
-enum class HeadersFlags : uint8_t {
-  NONE,
-  TERMINAL,
-};
-
-enum class StreamPriority : uint8_t {
-  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
-  LOW = NGHTTP3_URGENCY_LOW,
-  HIGH = NGHTTP3_URGENCY_HIGH,
-};
-
-enum class StreamPriorityFlags : uint8_t {
-  NON_INCREMENTAL,
-  INCREMENTAL,
 };
 
 enum class PathValidationResult : uint8_t {
