@@ -26,6 +26,10 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((session) => {
   assert.ok(session instanceof Http3Session);
+  // HTTP/3 requests are client-initiated only: a server session cannot
+  // open a request stream.
+  assert.rejects(session.request(), { code: 'ERR_INVALID_STATE' })
+    .then(mustCall());
   session.onstream = mustCall((stream) => {
     assert.ok(stream instanceof Http3Stream);
     stream.onheaders = mustCall((headers) => {

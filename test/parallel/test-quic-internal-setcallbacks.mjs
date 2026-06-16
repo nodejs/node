@@ -13,7 +13,6 @@ const callbacks = {
   onEndpointClose() {},
   onSessionNew() {},
   onSessionClose() {},
-  onSessionApplication() {},
   onSessionDatagram() {},
   onSessionDatagramStatus() {},
   onSessionHandshake() {},
@@ -23,8 +22,6 @@ const callbacks = {
   onSessionKeyLog() {},
   onSessionQlog() {},
   onSessionEarlyDataRejected() {},
-  onSessionOrigin() {},
-  onSessionGoaway() {},
   onSessionVersionNegotiation() {},
   onStreamCreated() {},
   onStreamBlocked() {},
@@ -32,8 +29,6 @@ const callbacks = {
   onStreamDrain() {},
   onStreamReset() {},
   onStreamStopSending() {},
-  onStreamHeaders() {},
-  onStreamTrailers() {},
 };
 // Fail if any callback is missing
 for (const fn of Object.keys(callbacks)) {
@@ -48,3 +43,26 @@ quic.setCallbacks(callbacks);
 
 // Multiple calls should just be ignored.
 quic.setCallbacks(callbacks);
+
+// The HTTP/3 application-event callbacks are registered separately (by the
+// HTTP/3 consumer layer) and validate their own set.
+const http3Callbacks = {
+  onSessionApplication() {},
+  onSessionGoaway() {},
+  onSessionOrigin() {},
+  onStreamHeaders() {},
+  onStreamTrailers() {},
+};
+// Fail if any callback is missing
+for (const fn of Object.keys(http3Callbacks)) {
+  // eslint-disable-next-line no-unused-vars
+  const { [fn]: _, ...rest } = http3Callbacks;
+  assert.throws(() => quic.setHttp3Callbacks(rest), {
+    code: 'ERR_MISSING_ARGS',
+  });
+}
+// If all callbacks are present it should work
+quic.setHttp3Callbacks(http3Callbacks);
+
+// Multiple calls should just be ignored.
+quic.setHttp3Callbacks(http3Callbacks);

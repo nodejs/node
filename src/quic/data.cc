@@ -426,8 +426,8 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
       (type() == Type::APPLICATION &&
        (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
       type() == Type::IDLE_CLOSE) {
-    // Application code 0 is the default no-error code for raw QUIC
-    // applications (DefaultApplication::GetNoErrorCode() returns 0).
+    // Application code 0 is the native no-error code for raw QUIC
+    // sessions (no application installed).
     // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
     // Idle close is always clean — the session timed out normally.
     return Undefined(env->isolate());
