@@ -326,6 +326,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   TLSSession& tls_session() const;
   bool has_application() const;
   Application& application() const;
+
+  // True once the session has started delivering events to JS, which we use
+  // as a gate for attaching an Application - it has to happen before this.
+  bool is_active() const { return active_; }
   const Config& config() const;
   const Options& options() const;
   const SocketAddress& remote_address() const;
@@ -520,7 +524,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   bool is_destroyed_or_closing() const;
   size_t max_packet_size() const;
-  void set_priority_supported(bool on = true);
 
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be openen --
@@ -757,6 +760,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   uint64_t rx_packet_ts_ = 0;
 
   bool hello_processed_ = false;
+
+  bool active_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
