@@ -805,10 +805,10 @@ Maybe<void> InitializeContextRuntime(Local<Context> context,
   // and ignores the ModifyCodeGenerationFromStrings callback. Set it to false
   // to delegate the code generation validation to
   // node::ModifyCodeGenerationFromStrings.
-  // The `IsCodeGenerationFromStringsAllowed` can be refreshed by V8 according
-  // to the runtime flags, propagate the value to the embedder data.
-  bool is_code_generation_from_strings_allowed =
-      context->IsCodeGenerationFromStringsAllowed();
+  // The `V8Option{}` was removed in node_options.cc for this flag, so V8's
+  // internal flag is never set and IsCodeGenerationFromStringsAllowed() always
+  // returns true. Instead, determine the value directly from the Node.js option.
+  bool is_code_generation_from_strings_allowed = true;
 
   // Check if the Node.js option --disallow-code-generation-from-strings is set
   // Use isolate_data if provided, otherwise fall back to per_process options
