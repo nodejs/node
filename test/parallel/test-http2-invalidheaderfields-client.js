@@ -14,6 +14,11 @@ server1.listen(0, common.mustCall(() => {
   }, {
     code: 'ERR_INVALID_HTTP_TOKEN'
   });
+  assert.throws(() => {
+    session.request({ 'x-bad-char': 'oʊmɪɡə' });
+  }, {
+    code: 'ERR_HTTP2_INVALID_HEADER_VALUE'
+  });
   session.close();
   server1.close();
 }));
