@@ -2241,6 +2241,77 @@ net.isIPv6('::1'); // returns true
 net.isIPv6('fhqwhgads'); // returns false
 ```
 
+## `net/promises` API
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `net/promises` API provides a set of `net` functions that return `Promise`
+objects rather than relying on events. The API is accessible via
+`require('node:net').promises` or `require('node:net/promises')`.
+
+### `netPromises.connect(options)`
+
+### `netPromises.connect(path)`
+
+### `netPromises.connect(port[, host])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} Accepts the same arguments as [`net.connect()`][]. May
+  include a `signal` {AbortSignal} that can be used to abort an in-progress
+  connection attempt.
+* Returns: {Promise} Fulfills with a connected [`net.Socket`][].
+
+A promise-based alternative to [`net.connect()`][]. The returned promise is
+fulfilled with the socket once its [`'connect'`][] event fires, and is rejected
+if the connection fails or the `signal` is aborted. When the promise rejects,
+the underlying socket is destroyed.
+
+This API is named for the action it performs and awaits — connecting — to
+parallel [`netPromises.listen()`][]. It is not named `createConnection()`,
+because that name belongs to the socket-factory taxonomy of the callback API,
+which has no counterpart here.
+
+```mjs
+import { connect } from 'node:net/promises';
+
+const socket = await connect({ port: 8124 });
+socket.write('hello world!');
+socket.end();
+```
+
+### `netPromises.listen([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} Accepts the same options as [`net.createServer()`][] and
+  [`server.listen()`][], plus:
+  * `connectionListener` {Function} Automatically set as a listener for the
+    [`'connection'`][] event.
+  * `signal` {AbortSignal} An `AbortSignal` that may be used to abort the
+    listening server.
+* Returns: {Promise} Fulfills with a listening [`net.Server`][].
+
+Creates a [`net.Server`][] and begins listening. The returned promise is
+fulfilled with the server once its [`'listening'`][] event fires, and is
+rejected if the server fails to bind or the `signal` is aborted. When the
+promise rejects, the server is closed.
+
+```mjs
+import { listen } from 'node:net/promises';
+
+const server = await listen({ port: 8124 });
+console.log('server bound to', server.address().port);
+```
+
 [IPC]: #ipc-support
 [Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
 [RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
@@ -2274,6 +2345,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createServer()`]: #netcreateserveroptions-connectionlistener
 [`net.getDefaultAutoSelectFamily()`]: #netgetdefaultautoselectfamily
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: #netgetdefaultautoselectfamilyattempttimeout
+[`netPromises.listen()`]: #netpromiseslistenoptions
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.address()`]: #serveraddress
