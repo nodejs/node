@@ -3308,8 +3308,6 @@ Does not perform any other validation checks on the certificate.
 added: v24.7.0
 -->
 
-> Stability: 1.2 - Release candidate
-
 * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * `parameters` {Object}
   * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
@@ -3393,8 +3391,6 @@ argon2('argon2id', parameters, (err, derivedKey) => {
 <!-- YAML
 added: v24.7.0
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * `parameters` {Object}
@@ -4119,8 +4115,6 @@ algorithm names.
 added: v24.7.0
 -->
 
-> Stability: 1.2 - Release candidate
-
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Private Key
 * `ciphertext` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `callback` {Function}
@@ -4187,8 +4181,6 @@ If the `callback` function is provided this function uses libuv's threadpool.
 <!-- YAML
 added: v24.7.0
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Public Key
 * `callback` {Function}
