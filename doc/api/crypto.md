@@ -6067,6 +6067,8 @@ changes:
     description: Custom engine support in OpenSSL 3 is deprecated.
 -->
 
+> Stability: 0 - Deprecated
+
 * `engine` {string}
 * `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
