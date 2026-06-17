@@ -1246,7 +1246,7 @@ test('setTime does not execute timers', (context) => {
 const assert = require('node:assert');
 const { test } = require('node:test');
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -1258,7 +1258,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -2728,8 +2731,8 @@ test('mocks a builtin module in both module systems', async (t) => {
   // cursorTo() is an export of the original 'node:readline' module.
   assert.strictEqual(esmImpl.cursorTo, undefined);
   assert.strictEqual(cjsImpl.cursorTo, undefined);
-  assert.strictEqual(esmImpl.fn(), 42);
-  assert.strictEqual(cjsImpl.fn(), 42);
+  assert.strictEqual(esmImpl.foo(), 42);
+  assert.strictEqual(cjsImpl.foo(), 42);
 
   mock.restore();
 
@@ -2739,8 +2742,8 @@ test('mocks a builtin module in both module systems', async (t) => {
 
   assert.strictEqual(typeof esmImpl.cursorTo, 'function');
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
-  assert.strictEqual(esmImpl.fn, undefined);
-  assert.strictEqual(cjsImpl.fn, undefined);
+  assert.strictEqual(esmImpl.foo, undefined);
+  assert.strictEqual(cjsImpl.foo, undefined);
 });
 ```
 
