@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.0">22.23.0</a><br/>
 <a href="#22.22.3">22.22.3</a><br/>
 <a href="#22.22.2">22.22.2</a><br/>
 <a href="#22.22.1">22.22.1</a><br/>
@@ -70,6 +71,56 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.0"></a>
+
+## 2026-06-18, Version 22.23.0 'Jod' (LTS), @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-48618) tls: normalize hostname for server identity checks (Matteo Collina) – High
+* (CVE-2026-48933) crypto: guard WebCrypto cipher output length (Filip Skokan) – High
+* (CVE-2026-48937) deps: fix integration issues with the latest nghttp2 – Medium
+* (CVE-2026-48930) dns,net: reject hostnames with embedded NUL bytes (Matteo Collina) – Medium
+* (CVE-2026-48619) http2: cap originSet size to prevent unbounded memory growth (Matteo Collina) – Medium
+* (CVE-2026-48615) lib,test: redact proxy credentials in tunnel errors (Matteo Collina) – Medium
+* (CVE-2026-48934) tls: bind reusable sessions to authenticated host (Matteo Collina) – Medium
+* (CVE-2026-48928) tls: fix case-sensitive SNI context matching (Matteo Collina) – Medium
+* (CVE-2026-48617) permission: handle process.chdir on writereport (RafaelGSS) – Low
+* (CVE-2026-48931) http: fix response queue poisoning in http.Agent (Matteo Collina) – Low
+* (CVE-2026-48935) permission: disable FileHandle utimes with permission model (RafaelGSS) – Low
+
+### Commits
+
+* \[[`38b4c5ed51`](https://github.com/nodejs/node/commit/38b4c5ed51)] - **(CVE-2026-48933)** **crypto**: guard WebCrypto cipher output length (Filip Skokan) [nodejs-private/node-private#878](https://github.com/nodejs-private/node-private/pull/878)
+* \[[`ad8a10c1bb`](https://github.com/nodejs/node/commit/ad8a10c1bb)] - **deps**: update llhttp to 9.4.2 (Antoine du Hamel) [nodejs-private/node-private#890](https://github.com/nodejs-private/node-private/pull/890)
+* \[[`ca825a87cc`](https://github.com/nodejs/node/commit/ca825a87cc)] - **deps**: update undici to 6.27.0 (aduh95) [#63711](https://github.com/nodejs/node/pull/63711)
+* \[[`a1a5bb9683`](https://github.com/nodejs/node/commit/a1a5bb9683)] - **(CVE-2026-48937)** **deps**: fix integration issues with the latest nghttp2 (Tim Perry) [#62891](https://github.com/nodejs/node/pull/62891)
+* \[[`0f48583512`](https://github.com/nodejs/node/commit/0f48583512)] - **(SEMVER-MAJOR)** **deps**: update nghttp2 to 1.69.0 (Node.js GitHub Bot) [#62891](https://github.com/nodejs/node/pull/62891)
+* \[[`38c869fc05`](https://github.com/nodejs/node/commit/38c869fc05)] - **deps**: update nghttp2 to 1.68.0 (nodejs-github-bot) [#61136](https://github.com/nodejs/node/pull/61136)
+* \[[`290667c84f`](https://github.com/nodejs/node/commit/290667c84f)] - **deps**: update nghttp2 to 1.67.1 (nodejs-github-bot) [#59790](https://github.com/nodejs/node/pull/59790)
+* \[[`c9f3da76aa`](https://github.com/nodejs/node/commit/c9f3da76aa)] - **deps**: update nghttp2 to 1.66.0 (Node.js GitHub Bot) [#58786](https://github.com/nodejs/node/pull/58786)
+* \[[`60890be563`](https://github.com/nodejs/node/commit/60890be563)] - **deps**: update nghttp2 to 1.65.0 (Node.js GitHub Bot) [#57269](https://github.com/nodejs/node/pull/57269)
+* \[[`5024c7d5d8`](https://github.com/nodejs/node/commit/5024c7d5d8)] - **deps**: update archs files for openssl-3.5.7 (Node.js GitHub Bot) [#63820](https://github.com/nodejs/node/pull/63820)
+* \[[`7f4eb5af2e`](https://github.com/nodejs/node/commit/7f4eb5af2e)] - **deps**: upgrade openssl sources to openssl-3.5.7 (Node.js GitHub Bot) [#63820](https://github.com/nodejs/node/pull/63820)
+* \[[`ebb4ec78a8`](https://github.com/nodejs/node/commit/ebb4ec78a8)] - **deps**: fix aix implicit declaration in OpenSSL (Abdirahim Musse) [#62656](https://github.com/nodejs/node/pull/62656)
+* \[[`5763d40826`](https://github.com/nodejs/node/commit/5763d40826)] - **deps**: update llhttp to 9.4.1 (Node.js GitHub Bot) [#63045](https://github.com/nodejs/node/pull/63045)
+* \[[`c551a51d0c`](https://github.com/nodejs/node/commit/c551a51d0c)] - **(CVE-2026-48930)** **dns,net**: reject hostnames with embedded NUL bytes (Matteo Collina) [nodejs-private/node-private#868](https://github.com/nodejs-private/node-private/pull/868)
+* \[[`0a22d40180`](https://github.com/nodejs/node/commit/0a22d40180)] - **(CVE-2026-48931)** **http**: fix response queue poisoning in http.Agent (Matteo Collina) [nodejs-private/node-private#846](https://github.com/nodejs-private/node-private/pull/846)
+* \[[`c79968e108`](https://github.com/nodejs/node/commit/c79968e108)] - **(CVE-2026-48619)** **http2**: cap originSet size to prevent unbounded memory growth (Matteo Collina) [nodejs-private/node-private#855](https://github.com/nodejs-private/node-private/pull/855)
+* \[[`0c37bff2ff`](https://github.com/nodejs/node/commit/0c37bff2ff)] - **http2**: fix DEP0194 message (KaKa) [#58669](https://github.com/nodejs/node/pull/58669)
+* \[[`ea5dc6b529`](https://github.com/nodejs/node/commit/ea5dc6b529)] - **(SEMVER-MAJOR)** **http2**: remove support for priority signaling (Matteo Collina) [#58293](https://github.com/nodejs/node/pull/58293)
+* \[[`9b6af26132`](https://github.com/nodejs/node/commit/9b6af26132)] - **(CVE-2026-48615)** **lib,test**: redact proxy credentials in tunnel errors (Matteo Collina) [nodejs-private/node-private#867](https://github.com/nodejs-private/node-private/pull/867)
+* \[[`28dcd38864`](https://github.com/nodejs/node/commit/28dcd38864)] - **(CVE-2026-48935)** **permission**: disable FileHandle utimes with permission model (RafaelGSS) [nodejs-private/node-private#873](https://github.com/nodejs-private/node-private/pull/873)
+* \[[`2f62693801`](https://github.com/nodejs/node/commit/2f62693801)] - **(CVE-2026-48617)** **permission**: handle process.chdir on writereport (RafaelGSS) [nodejs-private/node-private#870](https://github.com/nodejs-private/node-private/pull/870)
+* \[[`1662a3ea09`](https://github.com/nodejs/node/commit/1662a3ea09)] - **test**: add session reuse host verification regressions (Matteo Collina) [nodejs-private/node-private#854](https://github.com/nodejs-private/node-private/pull/854)
+* \[[`718d5d0e2c`](https://github.com/nodejs/node/commit/718d5d0e2c)] - **test**: skip `test-fs-utimes-y2K38` on armv7 (Richard Lau) [#63836](https://github.com/nodejs/node/pull/63836)
+* \[[`041185b61f`](https://github.com/nodejs/node/commit/041185b61f)] - **test**: skip test-cluster-dgram-reuse on AIX 7.3 (Stewart X Addison) [#62238](https://github.com/nodejs/node/pull/62238)
+* \[[`fd890ba01d`](https://github.com/nodejs/node/commit/fd890ba01d)] - **(CVE-2026-48934)** **tls**: bind reusable sessions to authenticated host (Matteo Collina) [nodejs-private/node-private#854](https://github.com/nodejs-private/node-private/pull/854)
+* \[[`39d1d09684`](https://github.com/nodejs/node/commit/39d1d09684)] - **(CVE-2026-48928)** **tls**: fix case-sensitive SNI context matching (Matteo Collina) [nodejs-private/node-private#857](https://github.com/nodejs-private/node-private/pull/857)
+* \[[`2197a47144`](https://github.com/nodejs/node/commit/2197a47144)] - **(CVE-2026-48618)** **tls**: normalize hostname for server identity checks (Matteo Collina) [nodejs-private/node-private#869](https://github.com/nodejs-private/node-private/pull/869)
 
 <a id="22.22.3"></a>
 
