@@ -14,7 +14,8 @@ permissions:
 
 jobs:
   lint-commit-message:
-    runs-on: ubuntu-slim
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
     steps:
       - name: Compute number of commits in the PR
         id: nb-of-commits
