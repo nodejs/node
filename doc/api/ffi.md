@@ -125,8 +125,13 @@ raw pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
 strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are
 converted on the JavaScript side before calling the optimized native wrapper.
 
-Optimized Fast FFI calls support at most 8 function arguments. Functions with
-more than 7 arguments use the generic FFI call path instead.
+Optimized Fast FFI calls support at most 8 function arguments, but the exact
+limit depends on the architecture and on the argument types, because each
+argument must fit in the registers used by the platform trampoline. Integer
+and pointer arguments are limited to 7 on AArch64 and to 6 on x86-64, while
+floating-point arguments can use up to 8 on both. Functions that exceed these
+limits, including any function with more than 8 arguments, use the generic FFI
+call path instead.
 
 ## Signature objects
 
