@@ -1718,7 +1718,7 @@ changes:
   * `resolution` {number} The sampling rate in milliseconds for interval-based
     sampling. Must be greater than zero. This option is ignored when
     `samplePerIteration` is `true`. **Default:** `10`.
-* Returns: {IntervalHistogram|ELDHistogram}
+* Returns: {ELDHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
@@ -2008,9 +2008,10 @@ added: v11.10.0
 
 The standard deviation of the recorded event loop delays.
 
-## Class: `IntervalHistogram extends Histogram`
+## Class: `ELDHistogram extends Histogram`
 
-A `Histogram` that records event loop delay using interval-based sampling.
+A `Histogram` that records event loop delay, returned by
+[`perf_hooks.monitorEventLoopDelay()`][].
 
 ### `histogram.disable()`
 
@@ -2051,17 +2052,11 @@ const { monitorEventLoopDelay } = require('node:perf_hooks');
 }
 ```
 
-### Cloning event loop delay histograms
+### Cloning an `ELDHistogram`
 
-{IntervalHistogram} and {ELDHistogram} instances can be cloned via
-{MessagePort}. On the receiving end, the histogram is cloned as a plain
-{Histogram} object that does not implement the `enable()` and `disable()`
-methods.
-
-## Class: `ELDHistogram extends Histogram`
-
-A `Histogram` that records event loop delay once per event loop iteration. It
-provides the same API as {IntervalHistogram}.
+{ELDHistogram} instances can be cloned via {MessagePort}. On the receiving end,
+the histogram is cloned as a plain {Histogram} object that does not implement
+the `enable()` and `disable()` methods.
 
 ## Class: `RecordableHistogram extends Histogram`
 
@@ -2369,6 +2364,7 @@ dns.promises.resolve('localhost');
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
+[`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
