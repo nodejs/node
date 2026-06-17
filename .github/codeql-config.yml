@@ -1,5 +1,11 @@
 name: CodeQL config
 
+queries:
+  - uses: security-extended
+    applies-to: [cpp, javascript, python]
+  - uses: security-and-quality
+    applies-to: [javascript, python]
+
 paths-ignore:
   - test
   - deps
