@@ -1,11 +1,13 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
-// Test: peer RESET_STREAM causes iterator to error.
-// When the server resets the stream, the client's async iterator
-// should throw or return early.
+// Test: a peer RESET_STREAM truncates the readable. The async iterator
+// delivers the data received before the reset, then throws
+// ERR_QUIC_STREAM_RESET (carrying the peer's code) at the end - rather than
+// ending cleanly.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import * as assert from 'node:assert';
+import { setTimeout as delay } from 'node:timers/promises';
+import assert from 'node:assert';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -13,52 +15,39 @@ if (!hasQuic) {
 
 const { listen, connect } = await import('../common/quic.mjs');
 
-const encoder = new TextEncoder();
-
-const serverReady = Promise.withResolvers();
-
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
-    // Reset the stream from the server side.
+    stream.writer.write(new Uint8Array(1000).fill(7));
+    while (stream.stats.maxOffsetAcknowledged < 1000n) await delay(5);
     stream.resetStream(42n);
-    await assert.rejects(stream.closed, mustCall((err) => {
-      assert.ok(err);
-      return true;
-    }));
-    serverReady.resolve();
-    await serverSession.closed;
+    stream.closed.catch(() => {});
   });
-}), { transportParams: { maxIdleTimeout: 1 } });
+}));
 
 const clientSession = await connect(serverEndpoint.address, {
   transportParams: { maxIdleTimeout: 1 },
 });
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream({
-  body: encoder.encode('will be reset by server'),
-});
+// Keep our write side open so the stream stays alive while we read.
+const stream = await clientSession.createBidirectionalStream();
+await stream.writer.write(new Uint8Array([1]));
+stream.closed.catch(() => {});
 
-// Set up the closed handler before the reset to avoid unhandled rejection.
-const closedPromise = assert.rejects(stream.closed, mustCall((err) => {
-  assert.ok(err);
-  return true;
-}));
-
-await serverReady.promise;
-
-// The async iterator should either throw or return early when the
-// peer resets the readable side.
+let received = 0;
+let threw;
 try {
-  for await (const batch of stream) {
-    // May receive some data before the reset arrives.
-    assert.ok(Array.isArray(batch));
+  for await (const chunk of stream) {
+    for (const c of chunk) received += c.byteLength;
   }
-} catch {
-  // The iterator may throw when the reset arrives mid-iteration.
+} catch (err) {
+  threw = err;
 }
 
-// Either way, the stream should close.
-await closedPromise;
-await clientSession.closed;
+// The buffered data was delivered before the error.
+assert.strictEqual(received, 1000);
+// The reset surfaced as a reset error (with its code), not a clean end.
+assert.strictEqual(threw?.code, 'ERR_QUIC_STREAM_RESET');
+
+clientSession.close();
 await serverEndpoint.close();
