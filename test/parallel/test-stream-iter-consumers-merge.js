@@ -100,10 +100,15 @@ async function testMergeSourceError() {
     yield [new TextEncoder().encode('x')];
     throw new Error('merge source boom');
   }
-  await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of merge(goodSource(), badSource())) { /* consume */ }
-  }, { message: 'merge source boom' });
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of merge(goodSource(), badSource())) {
+        /* consume */
+      }
+    },
+    { message: 'merge source boom' },
+  );
 }
 
 async function testMergeConsumerBreak() {
@@ -157,8 +162,7 @@ async function testMergeStringSources() {
   }
   // Each string becomes a single-batch source
   assert.strictEqual(batches.length >= 2, true);
-  const combined = new TextDecoder().decode(
-    Buffer.concat(batches.flat()));
+  const combined = new TextDecoder().decode(Buffer.concat(batches.flat()));
   // Both strings should appear (order may vary)
   assert.ok(combined.includes('hello'));
   assert.ok(combined.includes('world'));
@@ -185,6 +189,97 @@ async function testMergeObjectLikeSources() {
   assert.strictEqual(await text(merge(asyncStreamable)), 'jkl');
 }
 
+// =============================================================================
+// Merge cleanup error handling
+// =============================================================================
+
+function throwInFinally(message) {
+  throw new Error(message);
+}
+
+// Cleanup error with no primary error: iterator.return() throws during
+// normal completion. The cleanup error should propagate directly.
+async function testMergeCleanupErrorOnly() {
+  async function* source() {
+    yield [new TextEncoder().encode('data')];
+  }
+
+  async function* failingReturnSource() {
+    try {
+      yield [new TextEncoder().encode('more')];
+    } finally {
+      throwInFinally('cleanup boom');
+    }
+  }
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of merge(source(), failingReturnSource())) {
+        // Consume all - no primary error
+      }
+    },
+    { message: 'cleanup boom' },
+  );
+}
+
+// Primary error + cleanup error: a source throws during iteration AND
+// iterator.return() also throws. Should get a SuppressedError.
+async function testMergePrimaryAndCleanupError() {
+  async function* badSource() {
+    yield [new TextEncoder().encode('x')];
+    throw new Error('primary boom');
+  }
+
+  async function* failingReturnSource() {
+    try {
+      while (true) yield [new TextEncoder().encode('y')];
+    } finally {
+      throwInFinally('cleanup boom');
+    }
+  }
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of merge(badSource(), failingReturnSource())) {
+        // Consume until error
+      }
+    },
+    (err) => {
+      assert.ok(
+        err instanceof SuppressedError,
+        `Expected SuppressedError, got ${err.constructor.name}`,
+      );
+      assert.strictEqual(err.error.message, 'primary boom');
+      assert.strictEqual(err.suppressed.message, 'cleanup boom');
+      return true;
+    },
+  );
+}
+
+// Consumer break + cleanup error: consumer breaks and iterator.return()
+// throws. The cleanup error should propagate.
+async function testMergeBreakWithCleanupError() {
+  async function* failingReturnSource() {
+    try {
+      while (true) yield [new TextEncoder().encode('data')];
+    } finally {
+      throwInFinally('cleanup on break');
+    }
+  }
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of merge(failingReturnSource())) {
+        break;
+      }
+    },
+    { message: 'cleanup on break' },
+  );
+}
+
 Promise.all([
   testMergeTwoSources(),
   testMergeSingleSource(),
@@ -196,4 +291,7 @@ Promise.all([
   testMergeSignalMidIteration(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
+  testMergeCleanupErrorOnly(),
+  testMergePrimaryAndCleanupError(),
+  testMergeBreakWithCleanupError(),
 ]).then(common.mustCall());

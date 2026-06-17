@@ -95,21 +95,25 @@ async function testBlockBackpressure() {
   await writePromise;
 }
 
-async function testBlockWriteSyncEnqueues() {
-  // With block policy, writeSync should enqueue the data even when the buffer
-  // is full, returning false as a backpressure signal. The data IS accepted.
+async function testBlockWriteSyncDoesNotEnqueue() {
+  // With block policy, writeSync returns false when the buffer is full.
+  // The data is NOT accepted — writeSync only operates on the slots buffer.
+  // The caller should fall back to write() which uses the pending queue.
   const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
 
   // Fill the buffer
   assert.strictEqual(writer.writeSync('a'), true);
 
-  // Buffer full: writeSync should enqueue and return false (data accepted)
+  // Buffer full: writeSync returns false, data NOT enqueued
   assert.strictEqual(writer.writeSync('b'), false);
 
-  writer.endSync();
+  // Use the async write (try-fallback pattern) — this goes to pending queue
+  const consuming = text(readable);
+  await writer.write('b');
+  await writer.end();
 
-  // Both chunks should be delivered (drain flushes all slots into one batch)
-  const result = await text(readable);
+  // Both chunks should be delivered
+  const result = await consuming;
   assert.strictEqual(result, 'ab');
 }
 
@@ -151,6 +155,6 @@ Promise.all([
   testDropOldest(),
   testDropNewest(),
   testBlockBackpressure(),
-  testBlockWriteSyncEnqueues(),
+  testBlockWriteSyncDoesNotEnqueue(),
   testStrictPendingQueueOverflow(),
 ]).then(common.mustCall());
