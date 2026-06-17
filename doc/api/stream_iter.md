@@ -1649,7 +1649,7 @@ Creates a classic [`stream.Writable`][] backed by a stream/iter Writer.
 
 Each `_write()` / `_writev()` call attempts the Writer's synchronous method
 first (`writeSync` / `writevSync`), falling back to the async method if the
-sync path returns `false` or throws. Similarly, `_final()` tries `endSync()`
+sync path returns `false`. Similarly, `_final()` tries `endSync()`
 before `end()`. When the sync path succeeds, the callback is deferred via
 `queueMicrotask` to preserve the async resolution contract.
 

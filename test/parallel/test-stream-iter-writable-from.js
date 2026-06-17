@@ -537,18 +537,15 @@ function testHighWaterMarkIsMaxSafeInt() {
 }
 
 // =============================================================================
-// writeSync throws -- falls back to async
+// writeSync throws -- error propagates, does NOT fall back to async
 // =============================================================================
 
-async function testWriteSyncThrowsFallback() {
-  let asyncCalled = false;
-
+async function testWriteSyncThrowsPropagation() {
   const writer = {
     writeSync() {
       throw new Error('sync broken');
     },
-    write(chunk) {
-      asyncCalled = true;
+    write() {
       return Promise.resolve();
     },
     end() { return Promise.resolve(0); },
@@ -557,11 +554,12 @@ async function testWriteSyncThrowsFallback() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => {
-    writable.write('test', resolve);
-  });
-
-  assert.ok(asyncCalled, 'async write should be called as fallback');
+  await assert.rejects(new Promise((resolve, reject) => {
+    writable.write('test', (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  }), { message: 'sync broken' });
 }
 
 // =============================================================================
@@ -625,7 +623,7 @@ Promise.all([
   testWritevDelegation(),
   testWriteSyncFirst(),
   testWriteSyncFallback(),
-  testWriteSyncThrowsFallback(),
+  testWriteSyncThrowsPropagation(),
   testEndSyncFirst(),
   testEndSyncFallback(),
   testFinalDelegatesToEnd(),
