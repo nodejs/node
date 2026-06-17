@@ -324,6 +324,11 @@ void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       break;
   }
 
+  if (!dh.hasPrivateKey()) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "Cannot compute shared secret without a private key");
+  }
+
   auto dp = dh.computeSecret(key);
 
   Local<Value> buffer;
