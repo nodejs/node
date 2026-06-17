@@ -21,19 +21,10 @@ if (!common.hasCrypto)
 
 const assert = require('node:assert');
 const {
-  createHmac,
   KeyObject,
-  sign: cryptoSign,
-  verify: cryptoVerify,
 } = require('node:crypto');
 const { inspect } = require('node:util');
 const { subtle } = globalThis.crypto;
-
-common.expectWarning({
-  DeprecationWarning: {
-    DEP0203: 'Passing a CryptoKey to node:crypto functions is deprecated.',
-  },
-});
 
 (async () => {
   const key = await subtle.generateKey(
@@ -41,12 +32,6 @@ common.expectWarning({
     true,
     ['sign', 'verify'],
   );
-  const { publicKey: ecPublicKey, privateKey: ecPrivateKey } =
-    await subtle.generateKey(
-      { name: 'ECDSA', namedCurve: 'P-256' },
-      false,
-      ['sign', 'verify'],
-    );
   const { publicKey: rsaPublicKey } = await subtle.generateKey(
     {
       name: 'RSA-PSS',
@@ -182,23 +167,10 @@ common.expectWarning({
     assert.strictEqual(jwk.ext, true);
     assert.deepStrictEqual(jwk.key_ops.sort(), ['sign', 'verify']);
 
-    // 4) The Node.js crypto bridge must also read the real native
-    //    slots directly, both for KeyObject.from() and for deprecated
-    //    direct CryptoKey consumption.
+    // 4) KeyObject.from() must also read the real native slots directly.
     const keyObject = KeyObject.from(key);
     assert.strictEqual(keyObject.type, 'secret');
     assert.deepStrictEqual(keyObject.export(), Buffer.from(jwk.k, 'base64url'));
-
-    const payload = Buffer.from('payload');
-    const digest = createHmac('sha256', key).update(payload).digest('hex');
-    const expectedDigest =
-      createHmac('sha256', keyObject).update(payload).digest('hex');
-    assert.strictEqual(digest, expectedDigest);
-
-    const signature = cryptoSign('sha256', payload, ecPrivateKey);
-    assert.strictEqual(
-      cryptoVerify('sha256', payload, ecPublicKey, signature),
-      true);
 
     // 5) Importing back from the exported JWK must yield an equivalent
     //    key, i.e. the real algorithm and usages round-trip.

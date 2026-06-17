@@ -42,7 +42,14 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   assert.strictEqual(cryptoKey.algorithm.name, algorithm);
   assert.strictEqual(cryptoKey.extractable, extractable);
   assert.deepStrictEqual(cryptoKey.usages, usages);
-  assert.strictEqual(keyObject.equals(KeyObject.from(cryptoKey)), true);
+  if (extractable) {
+    assert.strictEqual(keyObject.equals(KeyObject.from(cryptoKey)), true);
+  } else {
+    assert.throws(() => KeyObject.from(cryptoKey), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /must be an extractable CryptoKey/,
+    });
+  }
 }
 
 function algorithmName(algorithm) {

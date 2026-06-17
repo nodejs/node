@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -12,10 +13,14 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { KeyObject } = crypto;
+const { getCryptoKeyHandle } = require('internal/crypto/keys');
 const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/ml-kem')();
+
+function getCryptoKeyData(key) {
+  return getCryptoKeyHandle(key).export();
+}
 
 async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }) {
   const [
@@ -154,9 +159,9 @@ async function testDecapsulateKey({ name, publicKeyPem, privateKeyPem, results }
   assert.strictEqual(decapsulatedKey.extractable, false);
   assert.deepStrictEqual(decapsulatedKey.usages, ['deriveBits']);
 
-  // Verify the keys are the same by using KeyObject.from() and comparing
-  const originalKeyData = KeyObject.from(encapsulated.sharedKey).export();
-  const decapsulatedKeyData = KeyObject.from(decapsulatedKey).export();
+  // Verify the non-extractable keys are the same.
+  const originalKeyData = getCryptoKeyData(encapsulated.sharedKey);
+  const decapsulatedKeyData = getCryptoKeyData(decapsulatedKey);
   assert(originalKeyData.equals(decapsulatedKeyData));
 
   // Test with test vector ciphertext and expected shared key
@@ -169,7 +174,7 @@ async function testDecapsulateKey({ name, publicKeyPem, privateKeyPem, results }
     ['deriveBits']
   );
 
-  const vectorKeyData = KeyObject.from(vectorDecapsulatedKey).export();
+  const vectorKeyData = getCryptoKeyData(vectorDecapsulatedKey);
   assert(vectorKeyData.equals(results.sharedKey));
 
   // Test failure when using wrong key type

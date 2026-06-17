@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -9,7 +10,7 @@ const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
-const { KeyObject } = require('crypto');
+const { getCryptoKeyHandle } = require('internal/crypto/keys');
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
@@ -211,8 +212,8 @@ const { KeyObject } = require('crypto');
           assert.strictEqual(derived.algorithm.length, expected);
         } else {
           // KDFs cannot be exportable and do not indicate their length
-          const secretKey = KeyObject.from(derived);
-          assert.strictEqual(secretKey.symmetricKeySize, expected / 8);
+          assert.strictEqual(getCryptoKeyHandle(derived).getSymmetricKeySize(),
+                             expected / 8);
         }
       }
     }
