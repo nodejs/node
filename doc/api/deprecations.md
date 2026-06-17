@@ -4059,7 +4059,7 @@ that are shorter than the default authentication tag length (i.e., shorter than
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/63966
     description: Runtime deprecation.
   - version:
     - v22.4.0

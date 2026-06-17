@@ -1896,7 +1896,7 @@ argument.
 added: v0.11.13
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options are runtime deprecated.
   - version:
@@ -2109,7 +2109,7 @@ permissible, use 2048 bits or larger for stronger security.
 added: v0.3.2
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine` option is runtime deprecated.
   - version:
     - v22.4.0

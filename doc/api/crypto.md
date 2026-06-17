@@ -6058,7 +6058,7 @@ added: v15.6.0
 added: v0.11.11
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/63966
     description: Runtime deprecation.
   - version:
     - v22.4.0

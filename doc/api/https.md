@@ -424,7 +424,7 @@ a `timeout` of 5 seconds.
 added: v0.3.6
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine` option is runtime deprecated.
   - version:
     - v22.4.0
