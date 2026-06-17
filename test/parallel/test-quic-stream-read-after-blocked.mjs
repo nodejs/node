@@ -58,6 +58,5 @@ await stream.closed;
 clientSession.close();
 done.resolve();
 
-await done.promise;
-await clientSession.closed;
+await Promise.all([done.promise, clientSession.closed]);
 await serverEndpoint.close();

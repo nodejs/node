@@ -1512,7 +1512,6 @@ void Stream::EndWriting() {
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
-  //
   if (session().is_destroyed()) return;
   Session::SendPendingDataScope send_scope(&session());
   session().ExtendStreamOffset(id(), amount);
