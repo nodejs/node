@@ -25,6 +25,20 @@ using v8::String;
 using v8::Uint32;
 using v8::Value;
 
+template <typename T>
+void StartHandleHistogram(Local<Value> receiver, bool reset) {
+  T* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStart(reset ? T::StartFlags::RESET : T::StartFlags::NONE);
+}
+
+template <typename T>
+void StopHandleHistogram(Local<Value> receiver) {
+  T* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStop();
+}
+
 Histogram::Histogram(const Options& options) {
   hdr_histogram* histogram;
   CHECK_EQ(0, hdr_init(options.lowest,
@@ -423,32 +437,25 @@ void IntervalHistogram::OnStop() {
 }
 
 void IntervalHistogram::Start(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
-  histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
+  StartHandleHistogram<IntervalHistogram>(args.This(), args[0]->IsTrue());
 }
 
 void IntervalHistogram::FastStart(Local<Value> receiver, bool reset) {
   TRACK_V8_FAST_API_CALL("histogram.start");
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
-  histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
+  StartHandleHistogram<IntervalHistogram>(receiver, reset);
 }
 
 void IntervalHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
-  histogram->OnStop();
+  StopHandleHistogram<IntervalHistogram>(args.This());
 }
 
 void IntervalHistogram::FastStop(Local<Value> receiver) {
   TRACK_V8_FAST_API_CALL("histogram.stop");
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
-  histogram->OnStop();
+  StopHandleHistogram<IntervalHistogram>(receiver);
 }
 
-Local<FunctionTemplate> IterationHistogram::GetConstructorTemplate(Environment* env) {
+Local<FunctionTemplate> IterationHistogram::GetConstructorTemplate(
+    Environment* env) {
   Local<FunctionTemplate> tmpl = env->iterationhistogram_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
@@ -515,7 +522,8 @@ void IterationHistogram::PrepareCB(uv_prepare_t* handle) {
 }
 
 void IterationHistogram::CheckCB(uv_check_t* handle) {
-  IterationHistogram* self = ContainerOf(&IterationHistogram::check_handle_, handle);
+  IterationHistogram* self =
+      ContainerOf(&IterationHistogram::check_handle_, handle);
   if (!self->enabled_) return;
 
   uint64_t check_time = uv_hrtime();
@@ -565,29 +573,21 @@ void IterationHistogram::Close(Local<Value> close_callback) {
 }
 
 void IterationHistogram::Start(const FunctionCallbackInfo<Value>& args) {
-  IterationHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
-  histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
+  StartHandleHistogram<IterationHistogram>(args.This(), args[0]->IsTrue());
 }
 
 void IterationHistogram::FastStart(Local<Value> receiver, bool reset) {
   TRACK_V8_FAST_API_CALL("histogram.eventLoopDelay.start");
-  IterationHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
-  histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
+  StartHandleHistogram<IterationHistogram>(receiver, reset);
 }
 
 void IterationHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
-  IterationHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
-  histogram->OnStop();
+  StopHandleHistogram<IterationHistogram>(args.This());
 }
 
 void IterationHistogram::FastStop(Local<Value> receiver) {
   TRACK_V8_FAST_API_CALL("histogram.eventLoopDelay.stop");
-  IterationHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
-  histogram->OnStop();
+  StopHandleHistogram<IterationHistogram>(receiver);
 }
 
 void HistogramImpl::GetCount(const FunctionCallbackInfo<Value>& args) {
@@ -753,7 +753,8 @@ HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
       HistogramImpl::kImplField, EmbedderDataTag::kDefault));
 }
 
-std::unique_ptr<worker::TransferData> IterationHistogram::CloneForMessaging() const {
+std::unique_ptr<worker::TransferData> IterationHistogram::CloneForMessaging()
+    const {
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 

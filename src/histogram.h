@@ -20,6 +20,11 @@ namespace node {
 
 class ExternalReferenceRegistry;
 
+template <typename T>
+void StartHandleHistogram(v8::Local<v8::Value> receiver, bool reset);
+template <typename T>
+void StopHandleHistogram(v8::Local<v8::Value> receiver);
+
 constexpr int kDefaultHistogramFigures = 3;
 
 class Histogram : public MemoryRetainer {
@@ -257,6 +262,11 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   void OnStart(StartFlags flags = StartFlags::RESET);
   void OnStop();
 
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
+
   bool enabled_ = false;
   int32_t interval_ = 0;
   std::function<void(Histogram&)> on_interval_;
@@ -311,6 +321,11 @@ class IterationHistogram final : public HandleWrap, public HistogramImpl {
   static void CheckCB(uv_check_t* handle);
   void OnStart(StartFlags flags = StartFlags::RESET);
   void OnStop();
+
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
 
   bool enabled_ = false;
   uv_prepare_t prepare_handle_;
