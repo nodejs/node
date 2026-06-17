@@ -4262,7 +4262,9 @@ an internal nodejs implementation rather than a public facing API, use `node:str
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+     - v24.2.0
+     - v22.23.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: End-of-Life.
   - version:

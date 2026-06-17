@@ -1071,7 +1071,9 @@ The `'origin'` event is only emitted when using a secure TLS connection.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v24.2.0
+  - version:
+     - v24.2.0
+     - v22.23.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: The `weight` option is now ignored, setting it will trigger a
                  runtime warning.
@@ -1493,7 +1495,9 @@ deprecated:
  - v22.17.0
  - v20.19.6
 changes:
-  - version: v24.2.0
+  - version:
+     - v24.2.0
+     - v22.23.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: This method no longer sets the priority of the stream. Using it
                  now triggers a runtime warning.
@@ -1599,7 +1603,9 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v24.2.0
+  - version:
+     - v24.2.0
+     - v22.23.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: The `state.weight` property is now always set to 16 and
                  `sumDependencyWeight` is always set to 0.
