@@ -9,3 +9,4 @@ queries:
 paths-ignore:
   - test
   - deps
+  - benchmark
