@@ -1525,7 +1525,7 @@ static void SetDetachKey(const FunctionCallbackInfo<Value>& args) {
 namespace {
 
 bool ReadNonNegativeInteger(Local<Value> value, uint64_t* result) {
-  constexpr double kMaxSafeInteger = 9007199254740991.0;
+  constexpr double kMaxSafeInteger = static_cast<double>((1LL << 53) - 1);
   double number = value.As<Number>()->Value();
   if (number < 0 || number > kMaxSafeInteger) {
     return false;
@@ -1582,22 +1582,14 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(ReadNonNegativeInteger(args[3], &source_offset));
   CHECK(ReadNonNegativeInteger(args[4], &bytes_to_copy));
 
-  const uint64_t destination_offset_u = destination_offset;
-  const uint64_t source_offset_u = source_offset;
-  const uint64_t bytes_to_copy_u = bytes_to_copy;
-  const uint64_t destination_byte_length_u = destination_byte_length;
-  const uint64_t source_byte_length_u = source_byte_length;
-  CHECK_LE(destination_offset_u, destination_byte_length_u);
-  CHECK_LE(source_offset_u, source_byte_length_u);
-  CHECK_LE(bytes_to_copy_u, destination_byte_length_u - destination_offset_u);
-  CHECK_LE(bytes_to_copy_u, source_byte_length_u - source_offset_u);
+  CHECK_LE(destination_offset, static_cast<uint64_t>(destination_byte_length));
+  CHECK_LE(source_offset, static_cast<uint64_t>(source_byte_length));
+  CHECK_LE(bytes_to_copy, static_cast<uint64_t>(destination_byte_length) - destination_offset);
+  CHECK_LE(bytes_to_copy, static_cast<uint64_t>(source_byte_length) - source_offset);
 
-  const size_t destination_offset_s = static_cast<size_t>(destination_offset_u);
-  const size_t source_offset_s = static_cast<size_t>(source_offset_u);
-  const size_t bytes_to_copy_s = static_cast<size_t>(bytes_to_copy_u);
-  uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset_s;
-  uint8_t* src = static_cast<uint8_t*>(source) + source_offset_s;
-  memcpy(dest, src, bytes_to_copy_s);
+  uint8_t* dest = static_cast<uint8_t*>(destination) + static_cast<size_t>(destination_offset);
+  uint8_t* src = static_cast<uint8_t*>(source) + static_cast<size_t>(source_offset);
+  memcpy(dest, src, static_cast<size_t>(bytes_to_copy));
 }
 
 // Converts a number parameter to size_t suitable for ArrayBuffer sizes
