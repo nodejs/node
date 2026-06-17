@@ -72,8 +72,9 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   Local<Set> exports_set = Set::New(isolate);
   for (const auto& exp : analysis.exports) {
     Local<String> exp_str;
-    if (CreateString(isolate, exp).ToLocal(&exp_str)) {
-      USE(exports_set->Add(context, exp_str));
+    if (CreateString(isolate, exp).ToLocal(&exp_str) &&
+        exports_set->Add(context, exp_str).IsEmpty()) {
+      return;
     }
   }
 
