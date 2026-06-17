@@ -12,9 +12,10 @@
 #include "util.h"
 #include "v8.h"
 
-#include <openssl/x509.h>
+#include <openssl/comp.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
+#include <openssl/x509.h>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -1444,6 +1445,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
             target,
             "startLoadingCertificatesOffThread",
             StartLoadingCertificatesOffThread);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getCertificateCompressionAlgorithms",
+                        GetCertificateCompressionAlgorithms);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1490,6 +1495,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(ResetRootCertStore);
   registry->Register(GetUserRootCertificates);
   registry->Register(StartLoadingCertificatesOffThread);
+  registry->Register(GetCertificateCompressionAlgorithms);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -1631,7 +1637,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // default when compression libraries are linked. Clear them so that
   // certificate compression (RFC 8879) is always opt-in for now, via
   // the certificateCompression option.
-#ifndef OPENSSL_NO_COMP_ALG
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
   SSL_CTX_set1_cert_comp_preference(sc->ctx_.get(), nullptr, 0);
 #endif
 
@@ -2161,6 +2167,7 @@ void SecureContext::SetCertificateCompression(
         "TLSv1.3");
   }
 
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
   // JS packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a single Uint32.
   // IDs match TLSEXT_comp_cert_zlib (1), _brotli (2), _zstd (3).
   uint32_t packed = args[0].As<v8::Uint32>()->Value();
@@ -2176,7 +2183,6 @@ void SecureContext::SetCertificateCompression(
         static_cast<int>(kMaxCompAlgs));
   }
 
-#ifndef OPENSSL_NO_COMP_ALG
   int algs[kMaxCompAlgs];
   for (size_t i = 0; i < len; i++) {
     algs[i] = (packed >> (8 * (i + 1))) & 0xff;
@@ -2218,6 +2224,22 @@ void SecureContext::SetCertificateCompression(
   return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
       env, "Certificate compression is not supported by this OpenSSL build");
 #endif
+}
+
+void SecureContext::GetCertificateCompressionAlgorithms(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  LocalVector<Value> algs(env->isolate());
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  if (BIO_f_zlib() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zlib"));
+  if (BIO_f_brotli() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "brotli"));
+  if (BIO_f_zstd() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zstd"));
+#endif
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), algs.data(), algs.size()));
 }
 
 void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {

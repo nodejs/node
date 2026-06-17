@@ -2387,6 +2387,25 @@ TLSv1.2 and below.
 console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ```
 
+## `tls.getCertificateCompressionAlgorithms()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string\[]}
+
+Returns an array with the names of the RFC 8879 certificate compression
+algorithms supported by the current OpenSSL build, suitable for use in the
+`certificateCompression` option of [`tls.createSecureContext()`][]. Possible
+values include `'zlib'`, `'brotli'`, and `'zstd'`.
+
+The array is empty when certificate compression is unavailable.
+
+```js
+console.log(tls.getCertificateCompressionAlgorithms()); // ['zlib', 'brotli', 'zstd']
+```
+
 ## `tls.rootCertificates`
 
 <!-- YAML

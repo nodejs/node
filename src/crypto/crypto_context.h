@@ -10,7 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_COMP_ALG
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
 #include <vector>
 #endif
 
@@ -51,7 +51,7 @@ class SecureContext final : public BaseObject {
   // the SecureContext.
   ncrypto::SSLCtxPointer& ctx() { return ctx_; }
 
-#ifndef OPENSSL_NO_COMP_ALG
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
   bool HasCertCompression() const {
     return cert_comp_prefs_len_ > 0;
   }
@@ -133,6 +133,8 @@ class SecureContext final : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCertificateCompression(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCertificateCompressionAlgorithms(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMinProto(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMaxProto(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMinProto(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -184,7 +186,7 @@ class SecureContext final : public BaseObject {
   unsigned char ticket_key_aes_[16];
   unsigned char ticket_key_hmac_[16];
 
-#ifndef OPENSSL_NO_COMP_ALG
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
   int cert_comp_prefs_[TLSEXT_comp_cert_limit] = {};
   size_t cert_comp_prefs_len_ = 0;
   std::vector<CompressedCertData> compressed_certs_;

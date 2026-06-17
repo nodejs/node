@@ -11,6 +11,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const fixtures = require('../common/fixtures');
+const { opensslCli } = require('../common/crypto');
+
+const supportedAlgs = tls.getCertificateCompressionAlgorithms();
+if (supportedAlgs.length === 0)
+  common.skip('certificate compression not supported by this OpenSSL build');
 
 // Use small fixture certs for input validation tests.
 const fixtureKey = fixtures.readKey('agent1-key.pem');
@@ -47,20 +52,16 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
   );
 
   // Valid single algorithms should not throw
-  tls.createSecureContext({
-    key: fixtureKey, cert: fixtureCert, certificateCompression: ['zlib'],
-  });
-  tls.createSecureContext({
-    key: fixtureKey, cert: fixtureCert, certificateCompression: ['brotli'],
-  });
-  tls.createSecureContext({
-    key: fixtureKey, cert: fixtureCert, certificateCompression: ['zstd'],
-  });
+  for (const algo of supportedAlgs) {
+    tls.createSecureContext({
+      key: fixtureKey, cert: fixtureCert, certificateCompression: [algo],
+    });
+  }
 
   // Valid multiple algorithms should not throw
   tls.createSecureContext({
     key: fixtureKey, cert: fixtureCert,
-    certificateCompression: ['zlib', 'brotli', 'zstd'],
+    certificateCompression: supportedAlgs,
   });
 
   // Default (no certificateCompression) still works
@@ -71,7 +72,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     () => tls.createSecureContext({
       key: fixtureKey, cert: fixtureCert,
       maxVersion: 'TLSv1.2',
-      certificateCompression: ['zlib'],
+      certificateCompression: [supportedAlgs[0]],
     }),
     /TLSv1\.3/,
   );
@@ -99,7 +100,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
   const probe = tls.connect({
     port: tcpServer.address().port,
     rejectUnauthorized: false,
-    certificateCompression: ['zlib', 'brotli', 'zstd'],
+    certificateCompression: supportedAlgs,
   });
   probe.on('error', () => {});
 
@@ -133,7 +134,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
   const server = tls.createServer({
     key: fixtureKey, cert: bigChain,
     minVersion: 'TLSv1.3',
-    certificateCompression: ['zlib'],
+    certificateCompression: [supportedAlgs[0]],
   }, common.mustNotCall());
 
   // The aborted handshake surfaces as a tlsClientError on the server too.
@@ -146,7 +147,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     port: server.address().port,
     rejectUnauthorized: false,
     minVersion: 'TLSv1.3',
-    certificateCompression: ['zlib'],
+    certificateCompression: [supportedAlgs[0]],
   });
   const [err] = await once(client, 'error');
   assert.strictEqual(err.code, 'ERR_SSL_EXCESSIVE_MESSAGE_SIZE');
@@ -160,6 +161,10 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
 // show easily testable differences. With a ~6 KB DER certificate, compression
 // reduces the total handshake bytes by roughly 40-50% (but we assert 75%).
 (async () => {
+  // Generating the large certificates needs the openssl CLI, which isn't
+  // available everywhere (Alpine). We just skip this in those envs.
+  if (!opensslCli) return;
+
   // Generate a large self-signed certificate for testing.
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tls-comp-'));
   const keyFile = path.join(tmpDir, 'key.pem');
@@ -170,7 +175,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     sans.push(`DNS:server${i}.example.com`);
   }
 
-  execFileSync('openssl', [
+  execFileSync(opensslCli, [
     'req', '-new', '-x509', '-nodes', '-days', '1',
     '-newkey', 'rsa:2048',
     '-keyout', keyFile, '-out', certFile,
@@ -230,8 +235,8 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
   // Test each compression algorithm produces a measurably smaller handshake.
   // Certificate compression (RFC 8879) compresses the Certificate message
   // during the TLS 1.3 handshake. With a ~6 KB certificate containing many
-  // SANs, all three algorithms achieve ratios well below 0.75.
-  for (const algo of ['zlib', 'brotli', 'zstd']) {
+  // SANs, all supported algorithms achieve ratios well below 0.75.
+  for (const algo of supportedAlgs) {
     const compressed = await measureHandshakeBytes(
       { key, cert, minVersion: 'TLSv1.3', certificateCompression: [algo] },
       { certificateCompression: [algo] },
@@ -254,7 +259,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
       if (hostname === 'compressed.example.com') {
         const ctx = tls.createSecureContext({
           key, cert,
-          certificateCompression: ['zlib'],
+          certificateCompression: [supportedAlgs[0]],
         });
         cb(null, ctx);
       } else {
@@ -270,7 +275,7 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
       },
       {
         servername: 'compressed.example.com',
-        certificateCompression: ['zlib'],
+        certificateCompression: [supportedAlgs[0]],
       },
     );
     const sniRatio = sniBytes / baseline;

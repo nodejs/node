@@ -1619,7 +1619,7 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     // context has certificate compression configured, set the compression
     // preferences on this connection and apply the cached compressed cert
     // data so the server can send CompressedCertificate messages.
-#ifndef OPENSSL_NO_COMP_ALG
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
     if (sc->HasCertCompression()) {
       SSL_set1_cert_comp_preference(
           w->ssl_.get(), sc->CertCompPrefs(), sc->CertCompPrefsLen());
