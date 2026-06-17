@@ -8,6 +8,12 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 
+common.expectWarning({
+  DeprecationWarning: {
+    DEP0183: 'OpenSSL engine-based APIs are deprecated.',
+  },
+});
+
 assert.throws(() => {
   tls.createSecureContext({ clientCertEngine: 'x' });
 }, (err) => {

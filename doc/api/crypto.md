@@ -6057,6 +6057,9 @@ added: v15.6.0
 <!-- YAML
 added: v0.11.11
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXX
+    description: Runtime deprecation.
   - version:
     - v22.4.0
     - v20.16.0
@@ -6068,7 +6071,8 @@ changes:
 * `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
-Support for custom engines in OpenSSL is deprecated from OpenSSL 3.
+Use of this API is deprecated because custom engine support has been deprecated
+since OpenSSL 3.
 
 `engine` could be either an id or a path to the engine's shared library.
 
