@@ -266,7 +266,7 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   static v8::CFunction fast_stop_;
 };
 
-class ELDHistogram final : public HandleWrap, public HistogramImpl {
+class IterationHistogram final : public HandleWrap, public HistogramImpl {
  public:
   enum InternalFields {
     kInternalFieldCount = std::max<uint32_t>(
@@ -280,13 +280,13 @@ class ELDHistogram final : public HandleWrap, public HistogramImpl {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
-  static BaseObjectPtr<ELDHistogram> Create(Environment* env,
-                                            const Histogram::Options& options);
+  static BaseObjectPtr<IterationHistogram> Create(
+      Environment* env, const Histogram::Options& options);
 
-  ELDHistogram(Environment* env,
-               v8::Local<v8::Object> wrap,
-               AsyncWrap::ProviderType type,
-               const Histogram::Options& options = Histogram::Options{});
+  IterationHistogram(Environment* env,
+                     v8::Local<v8::Object> wrap,
+                     AsyncWrap::ProviderType type,
+                     const Histogram::Options& options = Histogram::Options{});
 
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -303,8 +303,8 @@ class ELDHistogram final : public HandleWrap, public HistogramImpl {
       v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ELDHistogram)
-  SET_SELF_SIZE(ELDHistogram)
+  SET_MEMORY_INFO_NAME(IterationHistogram)
+  SET_SELF_SIZE(IterationHistogram)
 
  private:
   static void PrepareCB(uv_prepare_t* handle);

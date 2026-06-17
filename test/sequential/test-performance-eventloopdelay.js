@@ -153,9 +153,9 @@ const { sleep } = require('internal/util');
   // enable()/disable() return values for ELDHistogram (samplePerIteration: true)
   const histogram = monitorEventLoopDelay({ samplePerIteration: true });
   assert.strictEqual(histogram.enable(), true);
-  assert.strictEqual(histogram.enable(), false);  // already enabled, no-op
+  assert.strictEqual(histogram.enable(), false);  // Already enabled, no-op
   assert.strictEqual(histogram.disable(), true);
-  assert.strictEqual(histogram.disable(), false); // already disabled, no-op
+  assert.strictEqual(histogram.disable(), false); // Already disabled, no-op
   // Re-enabling after disable should work
   assert.strictEqual(histogram.enable(), true);
   setTimeout(common.mustCall(() => {
