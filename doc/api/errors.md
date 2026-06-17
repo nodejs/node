@@ -1737,7 +1737,7 @@ as specified through the `maxSessionInvalidFrames` option, has been exceeded.
 ### `ERR_HTTP2_TOO_MANY_ORIGINS`
 
 <!-- YAML
-added: REPLACEME
+added: v24.17.0
 -->
 
 The number of uniq origin sent by the server has exceeded the value defined in
