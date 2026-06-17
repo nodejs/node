@@ -502,7 +502,7 @@ corresponding argument. Supported specifiers are:
   `Symbol`.
 * `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
   `Symbol`.
-* `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
+* `%f`: `parseFloat(value)` is used for all values except `Symbol`.
 * `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
   circular references.
 * `%o`: `Object`. A string representation of an object with generic JavaScript
