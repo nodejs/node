@@ -41,7 +41,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V26.md#26.3.0">26.3.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V26.md#26.3.1">26.3.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V26.md#26.3.0">26.3.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.2.0">26.2.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.1.0">26.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V26.md#26.0.0">26.0.0</a><br/>

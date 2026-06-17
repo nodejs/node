@@ -1771,6 +1771,7 @@ as specified through the `maxSessionInvalidFrames` option, has been exceeded.
 
 <!-- YAML
 added:
+ - v26.3.1
  - v24.17.0
  - v22.23.0
 -->
