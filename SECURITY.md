@@ -374,6 +374,21 @@ the community they pose.
   responsibility to properly handle errors by attaching appropriate
   `'error'` event listeners to EventEmitters that may emit errors.
 
+#### Exceptions Thrown by Application Callbacks (CWE-248)
+
+* Node.js trusts the application code it is asked to run, including callbacks
+  that are invoked by Node.js APIs. If an application callback throws an
+  uncaught exception, any resulting crash is not considered a vulnerability in
+  Node.js.
+* For example, [CVE-2026-21637](https://www.cve.org/CVERecord?id=CVE-2026-21637)
+  was triaged as a Node.js vulnerability, but scenarios that require TLS
+  callbacks such as `ALPNCallback`, `SNICallback`, or `pskCallback` to throw
+  are outside the Node.js threat model. Future reports of similar issues,
+  where the crash depends on application callbacks throwing uncaught
+  exceptions, will not be treated as Node.js vulnerabilities. It is the
+  application's responsibility to handle unexpected callback input and report
+  errors without throwing uncaught exceptions.
+
 #### Permission Model Boundaries (`--permission`)
 
 The Node.js [Permission Model](https://nodejs.org/api/permissions.html)
