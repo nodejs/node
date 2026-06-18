@@ -1000,7 +1000,12 @@ static ExitCode InitializeNodeWithArgsInternal(
     uv_set_process_title(per_process::cli_options->title.c_str());
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  if (!(flags & ProcessInitializationFlags::kNoICU)) {
+  // The `node --run <script>` task runner only spawns a shell command and
+  // exits before V8/JS is ever initialized, so it never touches the Intl
+  // APIs. Loading and validating the ICU data file is pure startup overhead
+  // in that case, so skip it entirely when `--run` is in effect.
+  if (!(flags & ProcessInitializationFlags::kNoICU) &&
+      per_process::cli_options->run.empty()) {
     // If the parameter isn't given, use the env variable.
     if (per_process::cli_options->icu_data_dir.empty())
       credentials::SafeGetenv("NODE_ICU_DATA",
@@ -1133,7 +1138,15 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     result->early_return_ = true;
     task_runner::RunTask(
         result, per_process::cli_options->run, positional_args);
-    return result;
+    // On POSIX the task runner replaces this process with the script's shell
+    // via execve(), so control only reaches here when that fast path is
+    // unavailable (Windows) or exec() failed and we fell back to spawning a
+    // child. In that case this process never initialized V8/JS and has already
+    // produced all of its output, so skip the normal shutdown path (which would
+    // only tear down V8/ICU/OpenSSL static state for nothing) and exit straight
+    // away with the child's status.
+    fflush(nullptr);
+    std::_Exit(static_cast<int>(result->exit_code_enum()));
   }
 
   if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {
