@@ -612,8 +612,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(application) ||
-      !SET(handshake_timeout) || !SET(initial_rtt) ||
+      !SET(application) || !SET(handshake_timeout) || !SET(initial_rtt) ||
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
       !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
@@ -1612,10 +1611,9 @@ struct Session::Impl final : public MemoryRetainer {
     NGTCP2_CALLBACK_SCOPE(session)
     auto* stream = Stream::From(stream_user_data);
     if (stream == nullptr) return NGTCP2_SUCCESS;
-    QuicError error =
-        (flags & NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET)
-            ? QuicError::ForApplication(app_error_code)
-            : QuicError();
+    QuicError error = (flags & NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET)
+                          ? QuicError::ForApplication(app_error_code)
+                          : QuicError();
     if (session->impl_->application_) {
       session->application().ReceiveStreamClose(stream, std::move(error));
     } else {
@@ -2842,8 +2840,7 @@ bool Session::can_send_pending_data() const {
   // before the application is installed: the application owns stream
   // scheduling from its first flight. With no application requested the
   // native path is always ready.
-  return impl_->application_ != nullptr ||
-         config().options.application.empty();
+  return impl_->application_ != nullptr || config().options.application.empty();
 }
 
 bool Session::stream_fin_managed_by_application() const {
@@ -2867,8 +2864,7 @@ std::unique_ptr<Session::Application> Session::SelectApplication() {
 bool Session::AttachApplication(std::unique_ptr<Application> app) {
   if (config().options.app_ticket_data.has_value()) {
     THROW_ERR_INVALID_STATE(
-        env(),
-        "A QUIC application cannot be combined with appTicketData");
+        env(), "A QUIC application cannot be combined with appTicketData");
     return false;
   }
   SetApplication(std::move(app));
@@ -4348,9 +4344,8 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
 
   if (must_defer_emits()) {
     auto held = std::make_shared<Store>(std::move(datagram));
-    impl_->deferred_emits_.emplace_back([this, held, flag]() {
-      EmitDatagram(std::move(*held), flag);
-    });
+    impl_->deferred_emits_.emplace_back(
+        [this, held, flag]() { EmitDatagram(std::move(*held), flag); });
     return;
   }
 
@@ -4525,7 +4520,6 @@ void Session::EmitSessionTicket(Store&& ticket) {
     }
   }
 }
-
 
 void Session::DestroyAllStreams(const QuicError& error) {
   DCHECK(!is_destroyed());

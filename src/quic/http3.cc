@@ -210,8 +210,7 @@ std::string Http3Settings::ToString() const {
   return res;
 }
 
-Maybe<Http3Settings> Http3Settings::From(Environment* env,
-                                         Local<Value> value) {
+Maybe<Http3Settings> Http3Settings::From(Environment* env, Local<Value> value) {
   if (value.IsEmpty() || !value->IsObject()) [[unlikely]] {
     THROW_ERR_INVALID_ARG_TYPE(env, "settings must be an object");
     return Nothing<Http3Settings>();
@@ -249,15 +248,13 @@ Maybe<Http3Settings> Http3Settings::From(Environment* env,
 MaybeLocal<Object> Http3Settings::ToObject(Environment* env) const {
   auto& binding_data = BindingData::Get(env);
   auto tmpl = binding_data.http3_settings_template();
-  static constexpr std::string_view names[] = {
-      "maxHeaderPairs",
-      "maxHeaderLength",
-      "maxFieldSectionSize",
-      "qpackMaxDtableCapacity",
-      "qpackEncoderMaxDtableCapacity",
-      "qpackBlockedStreams",
-      "enableConnectProtocol"
-  };
+  static constexpr std::string_view names[] = {"maxHeaderPairs",
+                                               "maxHeaderLength",
+                                               "maxFieldSectionSize",
+                                               "qpackMaxDtableCapacity",
+                                               "qpackEncoderMaxDtableCapacity",
+                                               "qpackBlockedStreams",
+                                               "enableConnectProtocol"};
   if (tmpl.IsEmpty()) {
     tmpl = DictionaryTemplate::New(env->isolate(), names);
     binding_data.set_http3_settings_template(tmpl);
@@ -414,9 +411,8 @@ class Http3Application final : public Session::Application {
       Session& s = session();
       if (s.is_destroyed() || !s.env()->can_call_into_js()) return;
       CallbackScope<Session> cb_scope(&s);
-      s.MakeCallback(BindingData::Get(s.env()).session_application_callback(),
-                     0,
-                     nullptr);
+      s.MakeCallback(
+          BindingData::Get(s.env()).session_application_callback(), 0, nullptr);
     });
   }
 
@@ -874,12 +870,12 @@ class Http3Application final : public Session::Application {
     ssize_t ret = 0;
     Debug(&session(), "HTTP/3 application getting stream data");
     if (conn_ && session().max_data_left()) {
-      ret = nghttp3_conn_writev_stream(
-          *this,
-          &data->id,
-          &data->fin,
-          reinterpret_cast<nghttp3_vec*>(data->data),
-          data->count);
+      ret =
+          nghttp3_conn_writev_stream(*this,
+                                     &data->id,
+                                     &data->fin,
+                                     reinterpret_cast<nghttp3_vec*>(data->data),
+                                     data->count);
       // A negative return value indicates an error.
       if (ret < 0) {
         return static_cast<int>(ret);
@@ -1151,10 +1147,9 @@ class Http3Application final : public Session::Application {
     hs.headers.clear();
     hs.headers_length = 0;
 
-    Local<Value> argv[] = {
-        Array::New(env()->isolate(), values.data(), count),
-        Integer::NewFromUnsigned(env()->isolate(),
-                                 static_cast<uint32_t>(kind))};
+    Local<Value> argv[] = {Array::New(env()->isolate(), values.data(), count),
+                           Integer::NewFromUnsigned(
+                               env()->isolate(), static_cast<uint32_t>(kind))};
 
     stream->MakeCallback(
         binding.stream_headers_callback(), arraysize(argv), argv);
@@ -1722,8 +1717,8 @@ JS_METHOD_IMPL(Http3Binding::SendHeaders) {
   // A pending stream has no id yet; defer the submission until the transport
   // opens it (the priority header, if any, rides along in this header block).
   if (stream->is_pending()) {
-    auto held = std::make_shared<Global<Array>>(binding->env()->isolate(),
-                                                headers);
+    auto held =
+        std::make_shared<Global<Array>>(binding->env()->isolate(), headers);
     stream->RunWhenOpen([stream, flags, held]() {
       Session& session = stream->session();
       if (!session.has_application()) return;
@@ -1807,9 +1802,8 @@ JS_METHOD_IMPL(Http3Binding::GetPriority) {
   if (!session.has_application() || stream->is_pending()) return;
 
   auto result = Http3App(session).GetStreamPriority(*stream);
-  uint32_t packed =
-      (static_cast<uint32_t>(result.priority) << 1) |
-      (result.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
+  uint32_t packed = (static_cast<uint32_t>(result.priority) << 1) |
+                    (result.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
   args.GetReturnValue().Set(packed);
 }
 
@@ -1836,9 +1830,8 @@ void CreateHttp3Handle(const FunctionCallbackInfo<Value>& args) {
     if (session->is_server() && !session->application().Start()) {
       // Start() failed (e.g. the peer's initial_max_streams_uni is < 3), so
       // the application cannot run HTTP/3.
-      THROW_ERR_INVALID_STATE(
-          session->env(),
-          "The HTTP/3 application could not be started");
+      THROW_ERR_INVALID_STATE(session->env(),
+                              "The HTTP/3 application could not be started");
       return;
     }
   }
@@ -1888,8 +1881,7 @@ Http3Settings ResolveHttp3Settings(const Session::Options& options) {
 std::unique_ptr<Session::Application> CreateHttp3Application(Session* session) {
   Debug(session, "Installing HTTP/3 application");
   return std::make_unique<Http3Application>(
-      session,
-      ResolveHttp3Settings(std::as_const(*session).config().options));
+      session, ResolveHttp3Settings(std::as_const(*session).config().options));
 }
 
 Maybe<std::shared_ptr<void>> ParseHttp3Settings(Environment* env,

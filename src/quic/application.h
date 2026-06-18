@@ -199,9 +199,8 @@ struct ApplicationFactory {
   // exists. Returns the parsed data for the ApplySessionTicketData()
   // call at install time, or nullptr to reject the ticket (0-RTT is
   // abandoned and the handshake falls back to a full 1-RTT exchange).
-  PendingTicketAppData (*parse_ticket)(const uv_buf_t& data,
-                                       const Session::Options& options) =
-      nullptr;
+  PendingTicketAppData (*parse_ticket)(
+      const uv_buf_t& data, const Session::Options& options) = nullptr;
 };
 void RegisterApplicationFactory(std::string_view name,
                                 const ApplicationFactory& factory);

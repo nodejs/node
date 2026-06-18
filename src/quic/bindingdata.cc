@@ -7,7 +7,6 @@
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node.h>
-#include "http3.h"
 #include <node_errors.h>
 #include <node_external_reference.h>
 #include <node_mem-inl.h>
@@ -15,6 +14,7 @@
 #include <node_sockaddr-inl.h>
 #include <v8.h>
 #include "bindingdata.h"
+#include "http3.h"
 #include "session.h"
 #include "session_manager.h"
 
@@ -394,14 +394,12 @@ Local<DictionaryTemplate> BindingData::transport_params_template() const {
                                     transport_params_template_);
 }
 
-void BindingData::set_http3_settings_template(
-    Local<DictionaryTemplate> tmpl) {
+void BindingData::set_http3_settings_template(Local<DictionaryTemplate> tmpl) {
   http3_settings_template_.Reset(env()->isolate(), tmpl);
 }
 
 Local<DictionaryTemplate> BindingData::http3_settings_template() const {
-  return PersistentToLocal::Default(env()->isolate(),
-                                    http3_settings_template_);
+  return PersistentToLocal::Default(env()->isolate(), http3_settings_template_);
 }
 
 #define V(name, _)                                                             \
