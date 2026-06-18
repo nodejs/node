@@ -71,7 +71,6 @@ using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
-using v8::TracingController;
 using v8::TryCatch;
 using v8::Uint32;
 using v8::Undefined;
@@ -894,10 +893,9 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
 
-  if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
+  if (tracing::Agent* agent = tracing::Agent::GetInstance()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
-    if (TracingController* tracing_controller = writer->GetTracingController())
-      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+    agent->AddTraceStateObserver(trace_state_observer_.get());
   }
 
   destroy_async_id_list_.reserve(512);
@@ -1064,10 +1062,8 @@ Environment::~Environment() {
   principal_realm_.reset();
 
   if (trace_state_observer_) {
-    tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
-    CHECK_NOT_NULL(writer);
-    if (TracingController* tracing_controller = writer->GetTracingController())
-      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+    if (tracing::Agent* agent = tracing::Agent::GetInstance())
+      agent->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
