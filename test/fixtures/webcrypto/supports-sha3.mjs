@@ -20,12 +20,12 @@ export const vectors = {
   ],
   'generateKey': [
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
+    [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
     [!boringSSL, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'RSA-PSS', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'RSA-OAEP', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
+    [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA3-256', length: 0 }],
 
     // This interaction is not defined for now.
@@ -88,13 +88,13 @@ export const vectors = {
   'importKey': [
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256' }],
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
+    [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
     [!boringSSL, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'RSA-PSS', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'RSA-OAEP', hash: 'SHA3-256', ...RSA_KEY_GEN }],
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256' }],
     [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
+    [!boringSSL, { name: 'HMAC', hash: 'SHA3-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA3-256', length: 0 }],
   ],
   'get key length': [
