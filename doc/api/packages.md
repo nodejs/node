@@ -945,7 +945,25 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
-See [the package examples repository][] for details.
+When a package needs different entry points for Node.js and other runtimes,
+`"node"` and `"default"` conditions are usually a better fit than
+`"require"` and `"import"`. This avoids the dual package hazard in
+Node.js while still letting bundlers pick an ESM-friendly default:
+
+```json
+{
+  "exports": {
+    ".": {
+      "node": "./foo.cjs",
+      "default": "./foo.mjs"
+    }
+  }
+}
+```
+
+In Node.js, the `node` condition resolves to the CommonJS version. In other
+environments, the `default` condition can point to the alternative build.
+See [the package examples repository][] for more details.
 
 ## Package maps
 
