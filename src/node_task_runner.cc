@@ -251,7 +251,8 @@ FindPackageJson(const std::filesystem::path& cwd) {
 
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
-             const std::vector<std::string_view>& positional_args) {
+             const std::vector<std::string_view>& positional_args,
+             bool run_hooks) {
   auto cwd = std::filesystem::current_path();
   auto package_json = FindPackageJson(cwd);
 
@@ -300,6 +301,21 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     return;
   }
 
+  // When lifecycle hooks are enabled, resolve the matching "pre<script>" hook
+  // up front. We copy the command into an owned string and rewind the scripts
+  // object so the main script lookup below is unaffected. A missing hook, or a
+  // hook whose value is not a string, is simply ignored.
+  std::string pre_command;
+  std::string pre_script_name;
+  if (run_hooks) {
+    pre_script_name = "pre" + std::string(command_id);
+    std::string_view pre_view;
+    if (!scripts_object[pre_script_name].get_string().get(pre_view)) {
+      pre_command = std::string(pre_view);
+    }
+    scripts_object.reset();
+  }
+
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
   if (auto command_error =
@@ -337,6 +353,19 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
+  }
+
+  // Run the "pre<script>" lifecycle hook first when enabled and present.
+  // Mirroring npm, lifecycle hooks do not receive the positional arguments
+  // (those belong to the main script only), and a failing hook aborts the run
+  // before the main script is executed.
+  if (run_hooks && !pre_command.empty()) {
+    auto pre_runner = ProcessRunner(
+        result, path, pre_script_name, pre_command, path_env_var, {});
+    pre_runner.Run();
+    if (result->exit_code_ != ExitCode::kNoFailure) {
+      return;
+    }
   }
 
   auto runner = ProcessRunner(
