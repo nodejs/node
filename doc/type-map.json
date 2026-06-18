@@ -123,5 +123,19 @@
   "zlib options": "zlib.html#class-options",
   "zstd options": "zlib.html#class-zstdoptions",
   "HTTP/2 Headers Object": "http2.html#headers-object",
-  "HTTP/2 Settings Object": "http2.html#settings-object"
+  "HTTP/2 Settings Object": "http2.html#settings-object",
+  "Http3Session": "http3.html#class-http3session",
+  "Http3Stream": "http3.html#class-http3stream",
+  "Http3Settings": "http3.html#type-http3settings",
+  "http3.OnSessionCallback": "http3.html#callback-onsessioncallback",
+  "http3.OnStreamCallback": "http3.html#callback-onstreamcallback",
+  "http3.OnGoawayCallback": "http3.html#callback-ongoawaycallback",
+  "http3.OnOriginCallback": "http3.html#callback-onorigincallback",
+  "http3.OnSettingsCallback": "http3.html#callback-onsettingscallback",
+  "http3.OnHeadersCallback": "http3.html#callback-onheaderscallback",
+  "http3.OnInfoCallback": "http3.html#callback-oninfocallback",
+  "http3.OnTrailersCallback": "http3.html#callback-ontrailerscallback",
+  "http3.OnWantTrailersCallback": "http3.html#callback-onwanttrailerscallback",
+  "http3.OnResetCallback": "http3.html#callback-onresetcallback",
+  "http3.OnErrorCallback": "http3.html#callback-onerrorcallback"
 }
