@@ -467,7 +467,7 @@ for (const isolation of ['none', 'process']) {
 {
   if (process.features.inspector) {
     // https://github.com/nodejs/node/issues/58828
-    // Should not print report twice when --experimental-test-coverage is set via config file
+    // Should not print report twice when --test-coverage is set via config file
     const fixturePath = join(testFixtures, 'options-propagation');
     const args = [
       '--test-reporter=tap',

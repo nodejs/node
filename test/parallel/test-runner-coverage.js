@@ -85,7 +85,7 @@ test('test coverage report', async (t) => {
 
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       fixture,
     ];
@@ -102,7 +102,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       '--test-reporter',
       'tap',
@@ -120,7 +120,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       '--test-reporter',
       'tap',
@@ -140,7 +140,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       '--test-reporter',
       'spec',
@@ -158,7 +158,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       '--test-reporter',
       'spec',
@@ -177,7 +177,7 @@ test('single process coverage is the same with --test', skipIfNoInspector, () =>
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-coverage-exclude=!test/**',
     '--test-reporter',
     'tap',
@@ -215,7 +215,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   const fixture = fixtures.path('v8-coverage', 'combined_coverage');
   const args = [
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-coverage-exclude=!test/**',
     '--test-reporter',
     'tap',
@@ -257,7 +257,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCa
   const fixture = fixtures.path('v8-coverage', 'combined_coverage');
   const args = [
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-reporter',
     'tap',
     '--test-isolation=none',
@@ -277,7 +277,7 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
   const child = spawnSync(process.execPath,
                           [
                             '--test',
-                            '--experimental-test-coverage',
+                            '--test-coverage',
                             '--test-coverage-exclude=!test/**',
                             '--test-reporter',
                             fixtures.fileURL('test-runner/custom_reporters/coverage.mjs'),
@@ -357,7 +357,7 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
     '--import',
     './register-hooks.js',
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-coverage-exclude=!test/**',
     '--test-reporter',
     'tap',
@@ -394,7 +394,7 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
   const args = [
     '--import', './register-hooks.js',
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-coverage-exclude=!test/**',
     '--test-reporter', 'tap', 'sum.test.ts',
   ];
@@ -408,7 +408,7 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
 test('coverage with excluded files', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
-    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage', '--test-reporter', 'tap',
     '--test-coverage-exclude=test/*/test-runner/invalid-tap.js',
     '--test-coverage-exclude=!test/**',
     fixture];
@@ -443,7 +443,7 @@ test('coverage with excluded files', skipIfNoInspector, () => {
 test('coverage with included files', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
-    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage', '--test-reporter', 'tap',
     '--test-coverage-include=test/fixtures/test-runner/coverage.js',
     '--test-coverage-include=test/fixtures/v8-coverage/throw.js',
     '--test-coverage-exclude=!test/**',
@@ -480,7 +480,7 @@ test('coverage with included files', skipIfNoInspector, () => {
 test('coverage with included and excluded files', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
-    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage', '--test-reporter', 'tap',
     '--test-coverage-include=test/fixtures/test-runner/*.js',
     '--test-coverage-exclude=test/fixtures/test-runner/*-tap.js',
     fixture,
@@ -535,7 +535,7 @@ test('correctly prints the coverage report of files contained in parent director
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const args = [
     '--test',
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-coverage-exclude=!test/**',
     '--test-reporter',
     'tap',
@@ -555,7 +555,7 @@ test('correctly prints the coverage report of files contained in parent director
 test('coverage with directory and file named "file"', skipIfNoInspector, () => {
   const fixture = fixtures.path('test-runner', 'coverage-file-name', 'test.js');
   const args = [
-    '--experimental-test-coverage',
+    '--test-coverage',
     '--test-reporter',
     'tap',
     fixture,

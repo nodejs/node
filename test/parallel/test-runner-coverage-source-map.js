@@ -21,7 +21,7 @@ function generateReport(report) {
 const flags = [
   '--enable-source-maps',
   '--test',
-  '--experimental-test-coverage',
+  '--test-coverage',
   '--test-coverage-exclude=!test/**',
   '--test-reporter',
   'tap',
