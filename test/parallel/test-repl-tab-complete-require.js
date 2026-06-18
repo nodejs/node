@@ -67,11 +67,12 @@ const { startNewREPLServer } = require('../common/repl');
         assert.notStrictEqual(lastIndex, -1);
       }
       assert.strictEqual(data[0][lastIndex + 1], '');
-      // There is only one Node.js module that starts with n:
+      // The Node.js modules that start with n:
       assert.strictEqual(data[0][lastIndex + 2], 'net');
-      assert.strictEqual(data[0][lastIndex + 3], '');
+      assert.strictEqual(data[0][lastIndex + 3], 'net/promises');
+      assert.strictEqual(data[0][lastIndex + 4], '');
       // It's possible to pick up non-core modules too
-      for (const completion of data[0].slice(lastIndex + 4)) {
+      for (const completion of data[0].slice(lastIndex + 5)) {
         assert.match(completion, /^n/);
       }
     })

@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
+const { once } = require('events');
 const { listen } = require('net/promises');
 
 (async () => {
@@ -11,6 +12,18 @@ const { listen } = require('net/promises');
     assert.strictEqual(server.listening, true);
     assert.strictEqual(typeof server.address().port, 'number');
     server.close();
+  }
+
+  // The signal aborts the server for its entire lifetime, not just the
+  // pending listen: aborting after it is listening closes the server.
+  {
+    const controller = new AbortController();
+    const server = await listen({ port: 0, signal: controller.signal });
+    assert.strictEqual(server.listening, true);
+    const closed = once(server, 'close');
+    controller.abort();
+    await closed;
+    assert.strictEqual(server.listening, false);
   }
 
   // The connectionListener option receives incoming connections.
