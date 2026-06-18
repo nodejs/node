@@ -13,6 +13,15 @@
       'xcode_settings': {
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
       },
+      'conditions': [
+        [ 'clang==1 or OS!="win"', {
+          'cflags': [
+            '-Wno-atomic-alignment',
+            '-Wno-incompatible-pointer-types',
+            '-Wno-unused-function'
+          ]
+        }],
+      ],
       'include_dirs': ['src', 'include'],
       'direct_dependent_settings': {
         'include_dirs': [ 'src', 'include' ]
