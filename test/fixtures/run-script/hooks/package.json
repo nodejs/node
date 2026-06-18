@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "prebuild": "echo prebuild-output",
+    "build": "echo build-output",
+
+    "prefail-build": "echo prefail-output && exit 1",
+    "fail-build": "echo fail-build-main-output",
+
+    "prewith-args": "echo prehook-no-args",
+    "with-args": "echo main-output",
+
+    "no-hook": "echo no-hook-main-output",
+
+    "prebad-type": 123,
+    "bad-type": "echo bad-type-main-output"
+  }
+}

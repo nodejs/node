@@ -394,6 +394,7 @@ class PerProcessOptions : public Options {
   std::string snapshot_blob;
   std::string experimental_sea_config;
   std::string run;
+  bool enable_run_hooks = false;
   std::string build_sea;
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
