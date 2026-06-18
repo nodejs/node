@@ -1924,26 +1924,39 @@ added: v24.15.0
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Named cSHAKE variants are now accepted.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `functionName` member represents the function name, used by NIST to define
-functions based on cSHAKE.
-The Node.js Web Crypto API implementation only supports zero-length functionName
-which is equivalent to not providing functionName at all.
+The `functionName` member represents the NIST function-name byte string used to
+domain-separate functions built on top of cSHAKE. Accepted values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* the ASCII byte sequence `'KMAC'`
+* the ASCII byte sequence `'TupleHash'`
+* the ASCII byte sequence `'ParallelHash'`
 
 #### `cShakeParams.customization`
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Non-empty customization is now supported.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `customization` member represents the customization string.
-The Node.js Web Crypto API implementation only supports zero-length customization
-which is equivalent to not providing customization at all.
+The `customization` member represents the customization data. Accepted
+values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* up to 512 bytes of arbitrary data
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -2472,9 +2485,7 @@ added: v24.8.0
 added: v24.15.0
 -->
 
-* Type: {number}
-
-The length of the output in bytes. This must be a positive integer.
+* Type: {number} represents the requested output length in bits.
 
 #### `kmacParams.customization`
 

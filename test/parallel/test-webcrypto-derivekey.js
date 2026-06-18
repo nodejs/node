@@ -285,12 +285,19 @@ if (hasOpenSSL(3)) {
         baseKeyAlgorithm,
         false,
         ['deriveKey']);
-      await assert.rejects(
-        subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, false, usages),
-        {
-          name: 'DataError',
-          message: /KmacImportParams\.length cannot be 0/,
-        });
+      const derived = await subtle.deriveKey(
+        algorithm,
+        baseKey,
+        derivedKeyAlgorithm,
+        false,
+        usages);
+      assert.strictEqual(derived.algorithm.length, 0);
+
+      const signature = await subtle.sign({
+        name: 'KMAC128',
+        outputLength: 256,
+      }, derived, new Uint8Array());
+      assert.strictEqual(signature.byteLength, 32);
     }
   })().then(common.mustCall());
 }

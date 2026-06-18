@@ -61,13 +61,13 @@ function supportsRawSecret(alg) {
   return false;
 }
 
-function supports256RawSecret(alg) {
+function supportsEncapsulatedRawSecret(alg) {
   if (!supportsRawSecret(alg)) return false;
   switch (alg?.name?.toLowerCase?.()) {
     case 'hmac':
     case 'kmac128':
     case 'kmac256':
-      return typeof alg.length !== 'number' || alg.length === 256;
+      return typeof alg.length !== 'number' || Math.ceil(alg.length / 8) === 32;
     default:
       return true;
   }
@@ -75,7 +75,7 @@ function supports256RawSecret(alg) {
 
 for (const encap of vectors.encapsulateBits) {
   for (const imp of vectors.importKey) {
-    if (supports256RawSecret(imp[1])) {
+    if (supportsEncapsulatedRawSecret(imp[1])) {
       vectors.encapsulateKey.push([encap[0] && imp[0], encap[1], imp[1]]);
     } else {
       vectors.encapsulateKey.push([false, encap[1], imp[1]]);
@@ -85,7 +85,7 @@ for (const encap of vectors.encapsulateBits) {
 
 for (const decap of vectors.decapsulateBits) {
   for (const imp of vectors.importKey) {
-    if (supports256RawSecret(imp[1])) {
+    if (supportsEncapsulatedRawSecret(imp[1])) {
       vectors.decapsulateKey.push([decap[0] && imp[0], decap[1], imp[1]]);
     } else {
       vectors.decapsulateKey.push([false, decap[1], imp[1]]);

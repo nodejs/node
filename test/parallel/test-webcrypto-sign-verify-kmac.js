@@ -17,10 +17,14 @@ const vectors = require('../fixtures/crypto/kmac')();
 
 async function testVerify({ algorithm,
                             key,
+                            keyLength,
                             data,
                             customization,
                             outputLength,
                             expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     verifyKey,
     noVerifyKey,
@@ -29,13 +33,13 @@ async function testVerify({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['sign']),
     subtle.generateKey(
@@ -119,10 +123,14 @@ async function testVerify({ algorithm,
 
 async function testSign({ algorithm,
                           key,
+                          keyLength,
                           data,
                           customization,
                           outputLength,
                           expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     signKey,
     noSignKey,
@@ -131,13 +139,13 @@ async function testSign({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify', 'sign']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.generateKey(
@@ -190,4 +198,76 @@ async function testSign({ algorithm,
   }
 
   await Promise.all(variations);
+})().then(common.mustCall());
+
+(async function() {
+  const key = await subtle.importKey(
+    'raw-secret',
+    new Uint8Array(16),
+    { name: 'KMAC128' },
+    false,
+    ['sign', 'verify']);
+  const algorithm = {
+    name: 'KMAC128',
+    outputLength: 9,
+    customization: new Uint8Array(),
+  };
+  const data = new Uint8Array([1, 2, 3]);
+
+  const signature = await subtle.sign(algorithm, key, data);
+  assert.strictEqual(signature.byteLength, 2);
+  assert.strictEqual(new Uint8Array(signature)[1] & 0b01111111, 0);
+  assert(await subtle.verify(algorithm, key, signature, data));
+
+  const signature16 = new Uint8Array(await subtle.sign({
+    ...algorithm,
+    outputLength: 16,
+  }, key, data));
+  signature16[1] &= 0b10000000;
+  assert.notDeepStrictEqual(new Uint8Array(signature), signature16);
+
+  const invalidSignature = new Uint8Array(signature);
+  invalidSignature[1] |= 0b00000001;
+  assert(!(await subtle.verify(algorithm, key, invalidSignature, data)));
+
+  const nonByteKey = await subtle.importKey(
+    'raw-secret',
+    new Uint8Array([0xff, 0xff, 0xff, 0xff]),
+    { name: 'KMAC128', length: 25 },
+    false,
+    ['sign', 'verify']);
+  const nonByteKeySignature = await subtle.sign({
+    ...algorithm,
+    outputLength: 16,
+  }, nonByteKey, data);
+  assert.strictEqual(nonByteKeySignature.byteLength, 2);
+  assert(await subtle.verify({
+    ...algorithm,
+    outputLength: 16,
+  }, nonByteKey, nonByteKeySignature, data));
+})().then(common.mustCall());
+
+(async function() {
+  const data = new Uint8Array([1, 2, 3]);
+
+  for (const name of ['KMAC128', 'KMAC256']) {
+    for (const keyData of [
+      new Uint8Array(),
+      new Uint8Array([1]),
+      new Uint8Array([1, 2, 3]),
+    ]) {
+      const key = await subtle.importKey(
+        'raw-secret',
+        keyData,
+        { name },
+        true,
+        ['sign', 'verify']);
+      assert.strictEqual(key.algorithm.length, keyData.byteLength * 8);
+
+      const algorithm = { name, outputLength: 256 };
+      const signature = await subtle.sign(algorithm, key, data);
+      assert.strictEqual(signature.byteLength, 32);
+      assert(await subtle.verify(algorithm, key, signature, data));
+    }
+  }
 })().then(common.mustCall());

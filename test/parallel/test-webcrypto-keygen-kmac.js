@@ -17,7 +17,7 @@ const { subtle } = globalThis.crypto;
 const usages = ['sign', 'verify'];
 
 async function test(name, length) {
-  length = length ?? name === 'KMAC128' ? 128 : 256;
+  length ??= name === 'KMAC128' ? 128 : 256;
   const key = await subtle.generateKey({
     name,
     length,
@@ -34,12 +34,17 @@ async function test(name, length) {
   assert.strictEqual(key.algorithm.length, length);
   assert.strictEqual(key.algorithm, key.algorithm);
   assert.strictEqual(key.usages, key.usages);
+
+  const raw = await subtle.exportKey('raw-secret', key);
+  assert.strictEqual(raw.byteLength, Math.ceil(length / 8));
 }
 
 const kTests = [
+  ['KMAC128', 0],
   ['KMAC128', 128],
   ['KMAC128', 256],
   ['KMAC128'],
+  ['KMAC256', 0],
   ['KMAC256', 128],
   ['KMAC256', 256],
   ['KMAC256'],
