@@ -59,6 +59,7 @@
   V(http_parser)                                                               \
   V(inspector)                                                                 \
   V(internal_only_v8)                                                          \
+  V(ipc_serdes)                                                                \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
   V(locks)                                                                     \
