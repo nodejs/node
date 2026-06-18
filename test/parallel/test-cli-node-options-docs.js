@@ -121,6 +121,7 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
 }
 
 // add alias handling
+manPagesOptions.delete('-f');
 manPagesOptions.delete('-trace-events-enabled');
 manPagesOptions.delete('-experimental-default-config-file');
 

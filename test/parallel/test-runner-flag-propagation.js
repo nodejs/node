@@ -15,6 +15,10 @@ const runner = path.join(fixtureDir, 'runner.mjs');
 describe('test runner flag propagation', () => {
   describe('via command line', () => {
     const flagPropagationTests = [
+      ['-f', '', '', '--experimental-config-file',
+       'should not propagate -f to child tests'],
+      ['-f=node.config.json', '', '', '--experimental-config-file',
+       'should not propagate -f=node.config.json to child tests'],
       ['--experimental-config-file=node.config.json', '', '', '--experimental-config-file',
        'should not propagate --experimental-config-file to child tests'],
       ['--experimental-default-config-file', '', '', '--experimental-config-file',

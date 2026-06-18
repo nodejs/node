@@ -916,6 +916,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set config file path",
             &EnvironmentOptions::experimental_config_file_path,
             kDisallowedInEnvvar);
+  AddAlias("-f", "--experimental-config-file");
   AddAlias("--experimental-default-config-file", "--experimental-config-file");
   AddOption("--experimental-package-map",
             "use the specified file for package map resolution",
