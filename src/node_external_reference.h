@@ -82,6 +82,7 @@ class ExternalReferenceRegistry {
   V(heap_utils)                                                                \
   V(http_parser)                                                               \
   V(internal_only_v8)                                                          \
+  V(ipc_serdes)                                                                \
   V(locks)                                                                     \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
