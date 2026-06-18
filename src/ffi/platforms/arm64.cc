@@ -2,10 +2,14 @@
 
 #include "ffi/fast.h"
 
-#if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_WIN32)
+#if defined(__aarch64__) || defined(_M_ARM64)
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 #include <stdint.h>
 
@@ -163,6 +167,50 @@ unsigned Align16(unsigned value) {
   return (value + 15) & ~15;
 }
 
+void* AllocateCode(size_t code_size) {
+#if defined(_WIN32)
+  return VirtualAlloc(
+      nullptr, code_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+  void* code = mmap(nullptr,
+                    code_size,
+                    PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANON,
+                    -1,
+                    0);
+  return code == MAP_FAILED ? nullptr : code;
+#endif
+}
+
+void FreeCode(void* code, size_t code_size) {
+#if defined(_WIN32)
+  VirtualFree(code, 0, MEM_RELEASE);
+#else
+  munmap(code, code_size);
+#endif
+}
+
+void FlushCode(void* code, size_t written) {
+#if defined(_WIN32)
+  FlushInstructionCache(GetCurrentProcess(), code, written);
+#elif defined(__APPLE__)
+  // Make the just-written instructions visible to the CPU's instruction cache.
+  sys_icache_invalidate(code, written);
+#else
+  __builtin___clear_cache(static_cast<char*>(code),
+                          static_cast<char*>(code) + written);
+#endif
+}
+
+bool ProtectCode(void* code, size_t code_size) {
+#if defined(_WIN32)
+  DWORD old_protect;
+  return VirtualProtect(code, code_size, PAGE_EXECUTE_READ, &old_protect) != 0;
+#else
+  return mprotect(code, code_size, PROT_READ | PROT_EXEC) == 0;
+#endif
+}
+
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
@@ -218,13 +266,8 @@ extern "C" bool node_ffi_create_fast_trampoline(
   // Generate into writable anonymous memory first; the page is made executable
   // only after the instruction stream is complete and the instruction cache is
   // synchronized.
-  void* code = mmap(nullptr,
-                    code_size,
-                    PROT_READ | PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANON,
-                    -1,
-                    0);
-  if (code == MAP_FAILED) {
+  void* code = AllocateCode(code_size);
+  if (code == nullptr) {
     return false;
   }
 
@@ -340,18 +383,12 @@ extern "C" bool node_ffi_create_fast_trampoline(
   const size_t written = reinterpret_cast<uint8_t*>(cursor) -
                          static_cast<uint8_t*>(code);
 
-#if defined(__APPLE__)
-  // Make the just-written instructions visible to the CPU's instruction cache.
-  sys_icache_invalidate(code, written);
-#else
-  __builtin___clear_cache(static_cast<char*>(code),
-                          static_cast<char*>(code) + written);
-#endif
+  FlushCode(code, written);
 
   // Enforce W^X after code generation: the trampoline is executable but no
   // longer writable once published through FastFFITrampoline.
-  if (mprotect(code, code_size, PROT_READ | PROT_EXEC) != 0) {
-    munmap(code, code_size);
+  if (!ProtectCode(code, code_size)) {
+    FreeCode(code, code_size);
     return false;
   }
 
@@ -367,12 +404,15 @@ extern "C" void node_ffi_free_fast_trampoline(
   if (trampoline == nullptr || trampoline->code == nullptr) {
     return;
   }
-  munmap(trampoline->code, trampoline->size);
+  FreeCode(trampoline->code, trampoline->size);
   trampoline->code = nullptr;
   trampoline->size = 0;
 }
 
-#elif !defined(__x86_64__) || defined(_WIN32)
+#elif !defined(__x86_64__) && !defined(_M_X64) && \
+    !defined(__powerpc64__) && !defined(__ppc64__) && \
+    !defined(__loongarch64) && \
+    !(defined(__riscv) && __riscv_xlen == 64) && !defined(__s390x__)
 
 extern "C" bool node_ffi_create_fast_trampoline(
     void* target,
@@ -390,6 +430,6 @@ extern "C" void node_ffi_free_fast_trampoline(
   // No code is allocated in the non-AArch64 stub.
 }
 
-#endif  // (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_WIN32)
+#endif  // defined(__aarch64__) || defined(_M_ARM64)
 
 #endif  // HAVE_FFI

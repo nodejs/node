@@ -41,10 +41,9 @@ The implementation is split across these files:
 * `src/ffi/types.{h,cc}` parses public FFI signatures and implements
   `IsFastCallEligible()`, which rejects signatures that the current Fast API
   trampolines cannot represent.
-* `src/ffi/platforms/arm64.cc` and `src/ffi/platforms/x64.cc` contain the
-  platform trampoline generators. These files follow the contract exposed by
-  `node_ffi_create_fast_trampoline()` and release code with
-  `node_ffi_free_fast_trampoline()`.
+* `src/ffi/platforms/*.cc` contain the platform trampoline generators. These
+  files follow the contract exposed by `node_ffi_create_fast_trampoline()` and
+  release code with `node_ffi_free_fast_trampoline()`.
 * `src/node_ffi.cc` decides whether a function gets a Fast API callable,
   SharedBuffer callable, or generic callable, and attaches hidden metadata used
   by JavaScript wrappers.
@@ -88,8 +87,7 @@ true only on supported architectures when `IsJitMemorySupported()` succeeds.
 `IsJitMemorySupported()` runs a one-time self-test:
 
 * Map one writable anonymous page.
-* Write a minimal return instruction (`0xD65F03C0` on AArch64, `0xC3` on
-  x86\_64).
+* Write a minimal return instruction for the current architecture.
 * Flush the instruction cache where required.
 * Try to transition the page to read/execute with `mprotect(PROT_READ |
   PROT_EXEC)`.
@@ -99,8 +97,8 @@ The probe deliberately does not execute the generated instruction. Executing a
 freshly written capability probe could terminate the process on systems that
 block generated code. The real trampoline emitter performs the same writable to
 executable transition when creating a callable trampoline and falls back when it
-is rejected. Windows currently returns false because the branch does not yet
-have a Win64 trampoline emitter or `VirtualAlloc`-based JIT memory support.
+is rejected. Windows uses `VirtualAlloc`, `VirtualProtect`, and
+`FlushInstructionCache` for the same probe.
 
 ## Signature Eligibility
 
@@ -110,8 +108,8 @@ keeps unsupported cases out of the trampoline emitters and lets
 
 Eligibility requires:
 
-* A supported platform emitter: AArch64 or x86\_64 SysV. Win64 is currently
-  ineligible.
+* A supported platform emitter: AArch64, x86\_64 SysV, Win64 x64, PPC64LE
+  ELFv2, LoongArch64, RISC-V 64, or s390x.
 * A return type that is numeric, pointer, or `void`.
 * Argument types that are numeric or pointer. `void` cannot be an argument.
 * No `function` typed argument or return value.
@@ -140,6 +138,56 @@ x86\_64 SysV eligibility mirrors `src/ffi/platforms/x64.cc`:
 * Buffer-shaped arguments use a helper call and stay register-only, so the
   incoming GP count is capped at 5 and buffer-shaped arguments cannot coexist
   with FP arguments.
+
+Win64 x64 eligibility mirrors the conservative Windows emitter in
+`src/ffi/platforms/x64.cc`:
+
+* The JavaScript receiver occupies the first positional register slot.
+* Public arguments are shifted from positions 1..3 into positions 0..2.
+* Integer and FP arguments are handled according to their positional Win64
+  register slots.
+* Only scalar register-only signatures with at most three public arguments are
+  currently eligible.
+* Buffer-shaped arguments and stack-passed arguments fall back.
+
+PPC64LE eligibility mirrors `src/ffi/platforms/ppc64.cc`:
+
+* `r3` is occupied by V8's receiver, so user GP arguments arrive in `r4..r10`.
+* FP arguments use FPRs and are not shifted by the receiver slot.
+* The generated trampoline shifts only GP registers and tail-branches to the
+  target through `ctr`, with the target address in `r12` for ELFv2 global entry.
+* Only scalar register-only signatures are currently eligible.
+* Buffer-shaped arguments, stack-passed arguments, narrow returns, and PPC64BE
+  platforms fall back. AIX/PPC64BE is intentionally a non-target for the current
+  Fast FFI trampoline work because its ABI/linkage shape needs separate design.
+
+LoongArch64 eligibility mirrors `src/ffi/platforms/loong64.cc`:
+
+* `a0` is occupied by V8's receiver, so user GP arguments arrive in `a1..a7`.
+* FP arguments use `fa0..fa7` and are not shifted by the receiver slot.
+* The generated trampoline shifts only GP registers and tail-branches to the
+  target through `jirl`.
+* Only scalar register-only signatures are currently eligible.
+* Buffer-shaped arguments, stack-passed arguments, and narrow returns fall back.
+
+RISC-V 64 eligibility mirrors `src/ffi/platforms/riscv64.cc`:
+
+* `a0` is occupied by V8's receiver, so user GP arguments arrive in `a1..a7`.
+* FP arguments use `fa0..fa7` and are not shifted by the receiver slot.
+* The generated trampoline shifts only GP registers and tail-branches to the
+  target through `jalr`.
+* Only scalar register-only signatures are currently eligible.
+* Buffer-shaped arguments, stack-passed arguments, and narrow returns fall back.
+
+s390x eligibility mirrors `src/ffi/platforms/s390x.cc`:
+
+* `r2` is occupied by V8's receiver, so user GP arguments arrive in `r3..r6`.
+* FP arguments use `f0`, `f2`, `f4`, and `f6` and are not shifted by the receiver
+  slot.
+* The generated trampoline shifts only GP registers and tail-branches to the
+  target through `br`.
+* Only scalar register-only signatures are currently eligible.
+* Buffer-shaped arguments, stack-passed arguments, and narrow returns fall back.
 
 The native trampoline generator still repeats its own register checks. The
 eligibility function is the early, centralized rejection point; the generator
@@ -395,8 +443,21 @@ Important limits are:
 * No stack arguments in the current AArch64 trampoline.
 * At most one stack-loaded scalar GP argument in the current x86\_64 SysV
   trampoline.
+* No stack arguments or buffer-shaped arguments in the current Win64 x64
+  trampoline.
+* No stack arguments, buffer-shaped arguments, or narrow returns in the current
+  PPC64LE trampoline.
+* No stack arguments, buffer-shaped arguments, or narrow returns in the current
+  LoongArch64, RISC-V 64, and s390x trampolines.
 * No mixed buffer-shaped and FP arguments.
 * No `function` argument or return type in the Fast API path.
+
+Linux x86 and armv7 are experimental Node.js platforms, but the current Fast FFI
+trampoline model remains 64-bit only. They continue to use SharedBuffer or
+generic libffi fallback paths. Linux s390x is a Tier 2 Node.js platform, but
+bundled FFI is not currently enabled for that target; if built with
+`--shared-ffi`, scalar register-only Fast API FFI can use the s390x emitter. AIX
+PPC64BE is intentionally not covered by this implementation.
 
 These are optimization boundaries, not public FFI signature boundaries. User
 code can still call supported public FFI signatures through fallback paths.
