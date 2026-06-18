@@ -35,10 +35,15 @@
 
 #if __riscv_float_abi_double
 #define ABI_FLEN 64
-#define ABI_FLOAT double
+typedef union {
+    uint64_t i;
+    double d;
+} float_reg;
 #elif __riscv_float_abi_single
 #define ABI_FLEN 32
-#define ABI_FLOAT float
+typedef union {
+    float f;
+} float_reg;
 #endif
 
 #define NARGREG 8
@@ -48,7 +53,7 @@
 typedef struct call_context
 {
 #if ABI_FLEN
-    ABI_FLOAT fa[8];
+    float_reg fa[8];
 #endif
     size_t a[8];
     /* used by the assembly code to in-place construct its own stack frame */
@@ -127,6 +132,30 @@ static float_struct_info struct_passed_as_elements(call_builder *cb, ffi_type *t
 
     return ret;
 }
+
+#if ABI_FLEN >= 64
+/* Float values in wider RISC-V FP registers are NaN-boxed */
+static void marshal_float(call_builder *cb, void *data) {
+    union {
+        uint32_t i;
+        float f;
+    } value;
+
+    value.f = *(float *)data;
+    cb->aregs->fa[cb->used_float++].i =
+        UINT64_C(0xffffffff00000000) | value.i;
+}
+
+static void unmarshal_float(call_builder *cb, void *data) {
+    union {
+        uint32_t i;
+        float f;
+    } value;
+
+    value.i = (uint32_t)cb->aregs->fa[cb->used_float++].i;
+    *(float *)data = value.f;
+}
+#endif
 #endif
 
 /* allocates a single register, float register, or XLEN-sized stack slot to a datum */
@@ -146,17 +175,18 @@ static void marshal_atom(call_builder *cb, int type, void *data) {
 #endif
         case FFI_TYPE_POINTER: value = *(size_t *)data; break;
 
-        /* float values may be recoded in an implementation-defined way
-           by hardware conforming to 2.1 or earlier, so use asm to
-           reinterpret floats as doubles */
-#if ABI_FLEN >= 32
+#if ABI_FLEN >= 64
         case FFI_TYPE_FLOAT:
-            asm("" : "=f"(cb->aregs->fa[cb->used_float++]) : "0"(*(float *)data));
+            marshal_float(cb, data);
+            return;
+#elif ABI_FLEN >= 32
+        case FFI_TYPE_FLOAT:
+            asm("" : "=f"(cb->aregs->fa[cb->used_float++].f) : "0"(*(float *)data));
             return;
 #endif
 #if ABI_FLEN >= 64
         case FFI_TYPE_DOUBLE:
-            asm("" : "=f"(cb->aregs->fa[cb->used_float++]) : "0"(*(double *)data));
+            asm("" : "=f"(cb->aregs->fa[cb->used_float++].d) : "0"(*(double *)data));
             return;
 #endif
         default: FFI_ASSERT(0); break;
@@ -172,14 +202,18 @@ static void marshal_atom(call_builder *cb, int type, void *data) {
 static void unmarshal_atom(call_builder *cb, int type, void *data) {
     size_t value;
     switch (type) {
-#if ABI_FLEN >= 32
+#if ABI_FLEN >= 64
         case FFI_TYPE_FLOAT:
-            asm("" : "=f"(*(float *)data) : "0"(cb->aregs->fa[cb->used_float++]));
+            unmarshal_float(cb, data);
+            return;
+#elif ABI_FLEN >= 32
+        case FFI_TYPE_FLOAT:
+            asm("" : "=f"(*(float *)data) : "0"(cb->aregs->fa[cb->used_float++].f));
             return;
 #endif
 #if ABI_FLEN >= 64
         case FFI_TYPE_DOUBLE:
-            asm("" : "=f"(*(double *)data) : "0"(cb->aregs->fa[cb->used_float++]));
+            asm("" : "=f"(*(double *)data) : "0"(cb->aregs->fa[cb->used_float++].d));
             return;
 #endif
     }
