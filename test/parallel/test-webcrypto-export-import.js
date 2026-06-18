@@ -72,8 +72,8 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
         hash: 'SHA-256',
         length: 1
       }, false, ['sign', 'verify']), {
-        name: 'NotSupportedError',
-        message: 'Unsupported HmacImportParams.length'
+        name: 'DataError',
+        message: 'Invalid key length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -83,6 +83,55 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
         name: 'DataError',
         message: 'Invalid keyData'
       });
+  }
+
+  test().then(common.mustCall());
+}
+
+// HMAC non-byte key lengths
+{
+  async function test() {
+    const generated = await subtle.generateKey(
+      { name: 'HMAC', hash: 'SHA-256', length: 9 },
+      true,
+      ['sign', 'verify']);
+    const generatedRaw = await subtle.exportKey('raw', generated);
+    assert.strictEqual(generated.algorithm.length, 9);
+    assert.strictEqual(generatedRaw.byteLength, 2);
+    assert.strictEqual(new Uint8Array(generatedRaw)[1] & 0b01111111, 0);
+
+    const importedExplicit = await subtle.importKey(
+      'raw',
+      new Uint8Array([0xff, 0xff]),
+      { name: 'HMAC', hash: 'SHA-256', length: 9 },
+      true,
+      ['sign', 'verify']);
+    const importedExplicitRaw = await subtle.exportKey('raw', importedExplicit);
+    assert.strictEqual(importedExplicit.algorithm.length, 9);
+    assert.deepStrictEqual(
+      new Uint8Array(importedExplicitRaw),
+      new Uint8Array([0xff, 0x80]));
+
+    const importedImplicit = await subtle.importKey(
+      'raw',
+      new Uint8Array([0xff, 0xff]),
+      { name: 'HMAC', hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']);
+    const importedImplicitRaw = await subtle.exportKey('raw', importedImplicit);
+    assert.strictEqual(importedImplicit.algorithm.length, 16);
+    assert.deepStrictEqual(
+      new Uint8Array(importedImplicitRaw),
+      new Uint8Array([0xff, 0xff]));
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        new Uint8Array([0xff]),
+        { name: 'HMAC', hash: 'SHA-256', length: 9 },
+        true,
+        ['sign', 'verify']),
+      { name: 'DataError', message: 'Invalid key length' });
   }
 
   test().then(common.mustCall());
@@ -230,6 +279,69 @@ if (hasOpenSSL(3)) {
         true,
         [/* empty usages */]),
       { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
+
+    {
+      const importedZeroImplicit = await subtle.importKey(
+        'raw-secret',
+        new Uint8Array(),
+        name,
+        true,
+        ['sign', 'verify']);
+      const importedZeroImplicitRaw =
+        await subtle.exportKey('raw-secret', importedZeroImplicit);
+      assert.strictEqual(importedZeroImplicit.algorithm.length, 0);
+      assert.strictEqual(importedZeroImplicitRaw.byteLength, 0);
+
+      const importedZeroExplicit = await subtle.importKey(
+        'raw-secret',
+        new Uint8Array(),
+        { name, length: 0 },
+        true,
+        ['sign', 'verify']);
+      const importedZeroExplicitRaw =
+        await subtle.exportKey('raw-secret', importedZeroExplicit);
+      assert.strictEqual(importedZeroExplicit.algorithm.length, 0);
+      assert.strictEqual(importedZeroExplicitRaw.byteLength, 0);
+
+      await assert.rejects(
+        subtle.importKey(
+          'raw-secret',
+          new Uint8Array([0xff]),
+          { name, length: 0 },
+          true,
+          ['sign', 'verify']),
+        { name: 'DataError', message: 'Invalid key length' });
+
+      const generated = await subtle.generateKey(
+        { name, length: 9 },
+        true,
+        ['sign', 'verify']);
+      const generatedRaw = await subtle.exportKey('raw-secret', generated);
+      assert.strictEqual(generated.algorithm.length, 9);
+      assert.strictEqual(generatedRaw.byteLength, 2);
+      assert.strictEqual(new Uint8Array(generatedRaw)[1] & 0b01111111, 0);
+
+      const importedExplicit = await subtle.importKey(
+        'raw-secret',
+        new Uint8Array([0xff, 0xff]),
+        { name, length: 9 },
+        true,
+        ['sign', 'verify']);
+      const importedExplicitRaw = await subtle.exportKey('raw-secret', importedExplicit);
+      assert.strictEqual(importedExplicit.algorithm.length, 9);
+      assert.deepStrictEqual(
+        new Uint8Array(importedExplicitRaw),
+        new Uint8Array([0xff, 0x80]));
+
+      await assert.rejects(
+        subtle.importKey(
+          'raw-secret',
+          new Uint8Array([0xff]),
+          { name, length: 9 },
+          true,
+          ['sign', 'verify']),
+        { name: 'DataError', message: 'Invalid key length' });
+    }
   }
 
   test('KMAC128').then(common.mustCall());
