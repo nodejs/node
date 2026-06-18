@@ -1,0 +1,19 @@
+<project-root>/test/fixtures/es-modules/tla/a.mjs:3
+
+await new Promise((resolve) => {
+^
+
+Error [ERR_REQUIRE_ASYNC_MODULE]: require() cannot be used on an ESM graph with top-level await. Use import() instead.
+Require stack:
+- <project-root>/test/fixtures/es-modules/tla/require-nested-dep.js
+- <project-root>/test/fixtures/es-modules/tla/require-nested.js
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  code: 'ERR_REQUIRE_ASYNC_MODULE',
+  requireStack: [
+    '<project-root>/test/fixtures/es-modules/tla/require-nested-dep.js',
+    '<project-root>/test/fixtures/es-modules/tla/require-nested.js'
+  ]
+}
+
+Node.js <node-version>

@@ -940,23 +940,9 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (obj->HasAsyncGraph()) {
-    CHECK(env->options()->print_required_tla);
-    auto stalled_messages =
-        std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
-    if (stalled_messages.size() != 0) {
-      for (auto& message : stalled_messages) {
-        std::string reason = "Error: unexpected top-level await at ";
-        std::string info =
-            FormatErrorMessage(isolate, context, "", message, true);
-        reason += info;
-        FPrintF(stderr, "%s\n", reason);
-      }
-    }
-    THROW_ERR_REQUIRE_ASYNC_MODULE(env, args[0], args[1]);
-    return;
-  }
-
+  // Graphs with top-level await are rejected by the caller before evaluation
+  // starts, so the promise must have been settled synchronously.
+  CHECK(!obj->HasAsyncGraph());
   CHECK_EQ(promise->State(), Promise::PromiseState::kFulfilled);
 
   args.GetReturnValue().Set(module->GetModuleNamespace());
