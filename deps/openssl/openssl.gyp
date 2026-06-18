@@ -19,11 +19,6 @@
     {
       'target_name': 'openssl',
       'type': '<(library)',
-      'dependencies': [
-        '../zlib/zlib.gyp:zlib',
-        '../brotli/brotli.gyp:brotli',
-        '../zstd/zstd.gyp:zstd',
-      ],
       'includes': ['./openssl_common.gypi'],
       'defines': [
         # Compile out hardware engines.  Most are stubs that dynamically load
@@ -53,6 +48,15 @@
           'defines': [
             'MODULESDIR="<(modules_dir)"',
           ]
+        }],
+        ['node_shared_zlib=="false"', {
+          'dependencies': [ '../zlib/zlib.gyp:zlib' ],
+        }],
+        ['node_shared_brotli=="false"', {
+          'dependencies': [ '../brotli/brotli.gyp:brotli' ],
+        }],
+        ['node_shared_zstd=="false"', {
+          'dependencies': [ '../zstd/zstd.gyp:zstd' ],
         }],
       ],
       'direct_dependent_settings': {

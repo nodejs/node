@@ -6,12 +6,7 @@ const assert = require('assert');
 const tls = require('tls');
 const net = require('net');
 const { once } = require('events');
-const { execFileSync } = require('child_process');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const fixtures = require('../common/fixtures');
-const { opensslCli } = require('../common/crypto');
 
 const supportedAlgs = tls.getCertificateCompressionAlgorithms();
 if (supportedAlgs.length === 0)
@@ -156,35 +151,12 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
 })().then(common.mustCall());
 
 // Test: TLS connection with certificate compression reduces handshake size.
-//
-// To see meaningful compression, we generate a certificate with many SANs to
-// show easily testable differences. With a ~6 KB DER certificate, compression
-// reduces the total handshake bytes by roughly 40-50% (but we assert 75%).
 (async () => {
-  // Generating the large certificates needs the openssl CLI, which isn't
-  // available everywhere (Alpine). We just skip this in those envs.
-  if (!opensslCli) return;
+  const key = fixtureKey;
 
-  // Generate a large self-signed certificate for testing.
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tls-comp-'));
-  const keyFile = path.join(tmpDir, 'key.pem');
-  const certFile = path.join(tmpDir, 'cert.pem');
-
-  const sans = [];
-  for (let i = 0; i < 200; i++) {
-    sans.push(`DNS:server${i}.example.com`);
-  }
-
-  execFileSync(opensslCli, [
-    'req', '-new', '-x509', '-nodes', '-days', '1',
-    '-newkey', 'rsa:2048',
-    '-keyout', keyFile, '-out', certFile,
-    '-subj', '/CN=test',
-    '-addext', `subjectAltName=${sans.join(',')}`,
-  ]);
-
-  const key = fs.readFileSync(keyFile);
-  const cert = fs.readFileSync(certFile);
+  // Include a massive certificate list. Doesn't matter that they're not a valid chain,
+  // we'll send them all and the client uses rejectUnauthorized: false.
+  const cert = Buffer.concat(Array(20).fill(Buffer.from(fixtureCert)));
 
   // Helper: perform a TLS 1.3 handshake via a TCP proxy and return the total
   // raw bytes transferred. The proxy counts bytes to measure the on-the-wire
@@ -234,8 +206,8 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
 
   // Test each compression algorithm produces a measurably smaller handshake.
   // Certificate compression (RFC 8879) compresses the Certificate message
-  // during the TLS 1.3 handshake. With a ~6 KB certificate containing many
-  // SANs, all supported algorithms achieve ratios well below 0.75.
+  // during the TLS 1.3 handshake. With the large repeated cert list above, all
+  // supported algorithms achieve ratios well below 0.5.
   for (const algo of supportedAlgs) {
     const compressed = await measureHandshakeBytes(
       { key, cert, minVersion: 'TLSv1.3', certificateCompression: [algo] },
@@ -243,9 +215,9 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     );
     const ratio = compressed / baseline;
     assert.ok(
-      ratio < 0.75,
+      ratio < 0.5,
       `Expected ${algo} compressed handshake (${compressed} bytes, ` +
-      `ratio=${ratio.toFixed(3)}) to be <75% of baseline ` +
+      `ratio=${ratio.toFixed(3)}) to be <50% of baseline ` +
       `(${baseline} bytes)`
     );
   }
@@ -280,12 +252,10 @@ const fixtureCert = fixtures.readKey('agent1-cert.pem');
     );
     const sniRatio = sniBytes / baseline;
     assert.ok(
-      sniRatio < 0.75,
+      sniRatio < 0.5,
       `Expected SNI compressed handshake (${sniBytes} bytes, ` +
-      `ratio=${sniRatio.toFixed(3)}) to be <75% of baseline ` +
+      `ratio=${sniRatio.toFixed(3)}) to be <50% of baseline ` +
       `(${baseline} bytes)`
     );
   }
-
-  fs.rmSync(tmpDir, { recursive: true });
 })().then(common.mustCall());
