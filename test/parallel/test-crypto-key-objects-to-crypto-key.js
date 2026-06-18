@@ -129,16 +129,26 @@ function genericSecretVectors(name) {
   ];
 }
 
-function macInvalid(algorithm, invalidLengthMessage) {
+function macInvalid(algorithm, invalidLengthMessage, allowZeroKey = false) {
   const key = createSecretKey(randomBytes(32));
   const usages = ['sign', 'verify'];
 
-  assert.throws(() => {
-    createSecretKey(Buffer.alloc(0)).toCryptoKey(algorithm, true, usages);
-  }, {
-    name: 'DataError',
-    message: 'Zero-length key is not supported',
-  });
+  if (allowZeroKey) {
+    const zeroKey = createSecretKey(Buffer.alloc(0))
+      .toCryptoKey(algorithm, true, usages);
+    assert.strictEqual(zeroKey.algorithm.length, 0);
+
+    const explicitZeroKey = createSecretKey(Buffer.alloc(0))
+      .toCryptoKey({ ...algorithm, length: 0 }, true, usages);
+    assert.strictEqual(explicitZeroKey.algorithm.length, 0);
+  } else {
+    assert.throws(() => {
+      createSecretKey(Buffer.alloc(0)).toCryptoKey(algorithm, true, usages);
+    }, {
+      name: 'DataError',
+      message: 'Zero-length key is not supported',
+    });
+  }
 
   assert.throws(() => key.toCryptoKey(algorithm, true, []), {
     name: 'SyntaxError',
@@ -329,7 +339,7 @@ for (const name of ['KMAC128', 'KMAC256']) {
   if (name in kSupportedAlgorithms.importKey) {
     tests[name] = kmacVectors(name);
     invalid[name] = () => {
-      macInvalid({ name }, 'KmacImportParams.length cannot be 0');
+      macInvalid({ name }, 'Invalid key length', true);
     };
   }
 }
