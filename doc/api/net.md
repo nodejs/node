@@ -452,6 +452,35 @@ changes:
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.
 
+### `server[Symbol.asyncIterator]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {AsyncIterator} An async iterator that yields each incoming
+  [`net.Socket`][].
+
+Returns an async iterator over the server's incoming connections, allowing them
+to be consumed with `for await...of` as an alternative to the [`'connection'`][]
+event. Iteration ends when the server emits [`'close'`][], and rejects if the
+server emits [`'error'`][].
+
+```mjs
+import { createServer } from 'node:net';
+
+const server = createServer().listen(8124);
+for await (const socket of server) {
+  socket.end('hello world!');
+}
+```
+
+Connections are buffered while the loop body is busy; the server does not stop
+accepting them, so a consumer that is slower than the connection rate can buffer
+without bound. Use [`server.maxConnections`][] to bound concurrency.
+
 ### `server.getConnections(callback)`
 
 <!-- YAML
@@ -2297,19 +2326,26 @@ added: REPLACEME
   * `connectionListener` {Function} Automatically set as a listener for the
     [`'connection'`][] event.
   * `signal` {AbortSignal} An `AbortSignal` that may be used to abort the
-    listening server.
+    server. Aborting before the server is listening rejects the returned
+    promise with an `AbortError`; aborting at any later point closes the
+    server, matching the `signal` option of [`server.listen()`][].
 * Returns: {Promise} Fulfills with a listening [`net.Server`][].
 
 Creates a [`net.Server`][] and begins listening. The returned promise is
 fulfilled with the server once its [`'listening'`][] event fires, and is
-rejected if the server fails to bind or the `signal` is aborted. When the
-promise rejects, the server is closed.
+rejected if the server fails to bind or the `signal` is aborted before it is
+listening. When the promise rejects, the server is closed.
+
+The resolved server is async iterable, so incoming connections can be consumed
+with `for await...of` (see `server[Symbol.asyncIterator]()`).
 
 ```mjs
 import { listen } from 'node:net/promises';
 
 const server = await listen({ port: 8124 });
-console.log('server bound to', server.address().port);
+for await (const socket of server) {
+  socket.end('hello world!');
+}
 ```
 
 [IPC]: #ipc-support
