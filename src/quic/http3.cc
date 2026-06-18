@@ -1829,7 +1829,9 @@ void CreateHttp3Handle(const FunctionCallbackInfo<Value>& args) {
           "becomes active (begins emitting events)");
       return;
     }
-    session->SetApplication(CreateHttp3Application(session));
+    if (!session->AttachApplication(CreateHttp3Application(session))) {
+      return;
+    }
 
     if (session->is_server() && !session->application().Start()) {
       // Start() failed (e.g. the peer's initial_max_streams_uni is < 3), so

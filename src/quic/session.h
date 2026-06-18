@@ -90,11 +90,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // path and no Application is ever installed.
   std::unique_ptr<Application> SelectApplication();
 
-  // Install the Application on the session. Called at construction for
-  // clients or from OnSelectAlpn for servers (later in the handshake,
-  // after session-ticket decryption). Must be called before any
-  // application data is received.
+  // Installs the Application on the session WITHOUT validation. Called at
+  // construction for clients or from OnSelectAlpn for servers (later in the
+  // handshake, after session-ticket decryption).
   void SetApplication(std::unique_ptr<Application> app);
+
+  // Validating wrapper around SetApplication() for dynamic attachment of an
+  // application to a live session.
+  bool AttachApplication(std::unique_ptr<Application> app);
   // Controls which datagram to drop when the pending datagram queue is full.
   enum class DatagramDropPolicy : uint8_t {
     DROP_OLDEST = 0,  // Drop the oldest queued datagram (default).

@@ -2864,6 +2864,17 @@ std::unique_ptr<Session::Application> Session::SelectApplication() {
   return factory->create(this);
 }
 
+bool Session::AttachApplication(std::unique_ptr<Application> app) {
+  if (config().options.app_ticket_data.has_value()) {
+    THROW_ERR_INVALID_STATE(
+        env(),
+        "A QUIC application cannot be combined with appTicketData");
+    return false;
+  }
+  SetApplication(std::move(app));
+  return true;
+}
+
 void Session::SetApplication(std::unique_ptr<Application> app) {
   DCHECK(!impl_->application_);
   DCHECK(app);
