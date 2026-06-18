@@ -1,11 +1,15 @@
 #include "crypto/crypto_kmac.h"
 #include "async_wrap-inl.h"
+#include "crypto/crypto_hash.h"
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
 #if OPENSSL_WITH_EVP_MAC
 #include <openssl/core_names.h>
 #include <openssl/params.h>
+#include <array>
+#include <limits>
+#include <utility>
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "ncrypto.h"
@@ -22,6 +26,7 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
+using v8::Number;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -34,6 +39,7 @@ KmacConfig::KmacConfig(KmacConfig&& other) noexcept
       signature(std::move(other.signature)),
       customization(std::move(other.customization)),
       variant(other.variant),
+      key_length(other.key_length),
       length(other.length) {}
 
 KmacConfig& KmacConfig::operator=(KmacConfig&& other) noexcept {
@@ -96,18 +102,27 @@ Maybe<void> KmacTraits::AdditionalConfig(
   }
   // If undefined, params->customization remains uninitialized (size 0).
 
-  CHECK(args[offset + 4]->IsUint32());  // Length
-  params->length = args[offset + 4].As<Uint32>()->Value();
+  CHECK(args[offset + 4]->IsNumber());  // Key length
+  double key_length = args[offset + 4].As<Number>()->Value();
+  if (!(key_length >= 0) ||
+      key_length > static_cast<double>(std::numeric_limits<size_t>::max())) {
+    THROW_ERR_OUT_OF_RANGE(env, "key length is too big");
+    return Nothing<void>();
+  }
+  params->key_length = static_cast<size_t>(key_length);
 
-  ArrayBufferOrViewContents<char> data(args[offset + 5]);
+  CHECK(args[offset + 5]->IsUint32());  // Length
+  params->length = args[offset + 5].As<Uint32>()->Value();
+
+  ArrayBufferOrViewContents<char> data(args[offset + 6]);
   if (!data.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
   params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
-  if (!args[offset + 6]->IsUndefined()) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 6]);
+  if (!args[offset + 7]->IsUndefined()) {
+    ArrayBufferOrViewContents<char> signature(args[offset + 7]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
@@ -119,21 +134,81 @@ Maybe<void> KmacTraits::AdditionalConfig(
   return JustVoid();
 }
 
+namespace {
+
+static constexpr std::array<unsigned char, 4> kKmacFunctionName = {
+    'K', 'M', 'A', 'C'};
+static constexpr size_t kKmacMinOpenSSLKeySize = 4;
+// Keep the bit-aware path within OpenSSL's KMAC provider limits.
+static constexpr size_t kKmacMaxOpenSSLKeySize = 512;
+static constexpr size_t kKmacMaxOpenSSLCustomizationSize = 512;
+static constexpr size_t kKmacMaxOpenSSLOutputSize = 0xffffff / CHAR_BIT;
+
+bool KmacParamsWithinOpenSSLLimits(const KmacConfig& params,
+                                   size_t key_size,
+                                   size_t length_bytes) {
+  return key_size <= kKmacMaxOpenSSLKeySize &&
+         NumBitsToBytes(params.key_length) <= kKmacMaxOpenSSLKeySize &&
+         params.customization.size() <= kKmacMaxOpenSSLCustomizationSize &&
+         length_bytes <= kKmacMaxOpenSSLOutputSize;
+}
+
+bool DeriveBitsWithCShake(const KmacConfig& params,
+                          const void* key_data,
+                          size_t key_size,
+                          ByteSource* out) {
+  const size_t key_length_bytes = NumBitsToBytes(params.key_length);
+  if (key_size < key_length_bytes) return false;
+
+  CShakeBytepadInput key_input = {
+      .data = key_data,
+      .byte_length = key_length_bytes,
+      .bit_length = params.key_length,
+  };
+  CShakeParams cshake_params = {
+      .variant = params.variant == KmacVariant::KMAC128
+                     ? CShakeVariant::CSHAKE128
+                     : CShakeVariant::CSHAKE256,
+      .function_name_data = kKmacFunctionName.data(),
+      .function_name_size = kKmacFunctionName.size(),
+      .customization_data = params.customization.data(),
+      .customization_size = params.customization.size(),
+      .bytepad_input = &key_input,
+      .input_data = params.data.data(),
+      .input_size = params.data.size(),
+      .append_output_length = true,
+      .length = params.length,
+  };
+  return DeriveCShakeBits(cshake_params, out);
+}
+
+}  // namespace
+
 bool KmacTraits::DeriveBits(Environment* env,
                             const KmacConfig& params,
                             ByteSource* out,
                             CryptoJobMode mode) {
-  if (params.length == 0) {
-    *out = ByteSource();
-    return true;
-  }
+  const bool truncate_to_bit_length = params.length % CHAR_BIT != 0;
+  const size_t length_bytes =
+      NumBitsToBytes(static_cast<size_t>(params.length));
 
   // Get the key data.
   const void* key_data = params.key.GetSymmetricKey();
   size_t key_size = params.key.GetSymmetricKeySize();
 
-  if (key_size == 0) {
+  if (!KmacParamsWithinOpenSSLLimits(params, key_size, length_bytes)) {
     return false;
+  }
+
+  if (params.length == 0) {
+    *out = ByteSource();
+    return true;
+  }
+
+  // OpenSSL's EVP_MAC provider rejects KMAC keys shorter than 4 bytes.
+  if (params.length % CHAR_BIT != 0 || params.key_length % CHAR_BIT != 0 ||
+      key_size < kKmacMinOpenSSLKeySize) {
+    return DeriveBitsWithCShake(params, key_data, key_size, out);
   }
 
   // Fetch the KMAC algorithm
@@ -155,7 +230,7 @@ bool KmacTraits::DeriveBits(Environment* env,
   size_t params_count = 0;
 
   // Set output length (always required for KMAC).
-  size_t outlen = params.length;
+  size_t outlen = length_bytes;
   params_array[params_count++] =
       OSSL_PARAM_construct_size_t(OSSL_MAC_PARAM_SIZE, &outlen);
 
@@ -182,13 +257,14 @@ bool KmacTraits::DeriveBits(Environment* env,
   }
 
   // Finalize and get the result.
-  auto result = mac_ctx.final(params.length);
+  auto result = mac_ctx.final(length_bytes);
   if (!result) {
     return false;
   }
 
   auto buffer = result.release();
   *out = ByteSource::Allocated(buffer.data, buffer.len);
+  if (truncate_to_bit_length) TruncateToBitLength(params.length, out);
   return true;
 }
 
