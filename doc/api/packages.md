@@ -720,6 +720,8 @@ least specific in object order_.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
+When the goal is to avoid the dual package hazard, `"node"` and `"default"`
+conditions are usually a better fit.
 
 The `"node-addons"` condition can be used to provide an entry point which
 uses native C++ addons. However, this condition can be disabled via the
@@ -945,7 +947,21 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
-See [the package examples repository][] for details.
+When a package needs a Node.js-specific entry point and a fallback for other
+runtimes, prefer `"node"` and `"default"` conditions over separate
+`"require"` and `"import"` branches. For example:
+
+```json
+// package.json
+{
+  "exports": {
+    "node": "./foo.cjs",
+    "default": "./foo.mjs"
+  }
+}
+```
+
+See [the package examples repository][] for more details.
 
 ## Package maps
 
