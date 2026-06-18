@@ -9,6 +9,7 @@ const assert = require('assert');
 const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
 const { createHash, getHashes } = require('crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 const kTests = [
   ['SHA-1', ['sha1'], 160],
@@ -263,9 +264,151 @@ if (getHashes().includes('shake128')) {
       new Uint8Array(0),
     );
 
-    await assert.rejects(subtle.digest({ name: 'cSHAKE128', outputLength: 7 }, Buffer.alloc(1)), {
-      name: 'NotSupportedError',
-      message: 'Unsupported CShakeParams outputLength',
-    });
+    const digest = await subtle.digest({ name: 'cSHAKE128', outputLength: 7 }, Buffer.alloc(1));
+    assert.strictEqual(digest.byteLength, 1);
+    assert.strictEqual(new Uint8Array(digest)[0] & 0b00000001, 0);
+
+    await assert.rejects(
+      subtle.digest(
+        { name: 'cSHAKE128', outputLength: 0xffffffff },
+        Buffer.alloc(1)),
+      {
+        name: 'OperationError',
+        message: 'Invalid CShakeParams outputLength',
+      });
+
+    await assert.rejects(
+      subtle.digest(
+        {
+          name: 'cSHAKE128',
+          outputLength: 256,
+          functionName: Buffer.from('SHAKE'),
+        },
+        Buffer.alloc(1)),
+      {
+        name: 'NotSupportedError',
+        message: 'Unsupported CShakeParams functionName',
+      });
+
+    await assert.rejects(
+      subtle.digest(
+        {
+          name: 'cSHAKE128',
+          outputLength: 256,
+          customization: Buffer.alloc(513),
+        },
+        Buffer.alloc(1)),
+      {
+        name: 'OperationError',
+        message: 'CShakeParams.customization must be at most 512 bytes',
+      });
+
+    if (!hasOpenSSL(3)) return;
+
+    const nistCShakeShortInput = Buffer.from('00010203', 'hex');
+    const nistCShakeLongInput =
+      Buffer.from(Array.from({ length: 200 }, (_, i) => i));
+    const nistCShakeSample1 = {
+      algorithm: {
+        name: 'cSHAKE128',
+        outputLength: 256,
+        customization: Buffer.from('Email Signature'),
+      },
+      data: nistCShakeShortInput,
+      expected: 'c1c36925b6409a04f1b504fcbca9d82b' +
+                '4017277cb5ed2b2065fc1d3814d5aaf5',
+    };
+
+    for (const { algorithm, data, expected } of [
+      nistCShakeSample1,
+      {
+        algorithm: {
+          name: 'cSHAKE128',
+          outputLength: 256,
+          customization: Buffer.from('Email Signature'),
+        },
+        data: nistCShakeLongInput,
+        expected: 'c5221d50e4f822d96a2e8881a961420f' +
+                  '294b7b24fe3d2094baed2c6524cc166b',
+      },
+      {
+        algorithm: {
+          name: 'cSHAKE256',
+          outputLength: 512,
+          customization: Buffer.from('Email Signature'),
+        },
+        data: nistCShakeShortInput,
+        expected: 'd008828e2b80ac9d2218ffee1d070c48' +
+                  'b8e4c87bff32c9699d5b6896eee0edd1' +
+                  '64020e2be0560858d9c00c037e34a96' +
+                  '937c561a74c412bb4c746469527281c8c',
+      },
+      {
+        algorithm: {
+          name: 'cSHAKE256',
+          outputLength: 512,
+          customization: Buffer.from('Email Signature'),
+        },
+        data: nistCShakeLongInput,
+        expected: '07dc27b11e51fbac75bc7b3c1d983e8b' +
+                  '4b85fb1defaf218912ac864302730917' +
+                  '27f42b17ed1df63e8ec118f04b23633c' +
+                  '1dfb1574c8fb55cb45da8e25afb092bb',
+      },
+      {
+        algorithm: {
+          name: 'cSHAKE128',
+          outputLength: 312,
+          functionName: Buffer.from('KMAC'),
+          customization: Buffer.from(
+            '`kiEF`&I))7]yq0?*sKa q)[jP`4R=)lV_9tyvT$kAbH$)1}p].' +
+            'bbeomb.'),
+        },
+        data: Buffer.from('ca88f708fa', 'hex'),
+        expected: 'bebb534ccfccd300f731d2911fb4351d' +
+                  '5fcc95ac2509e9abae8f9dc51106e28d' +
+                  '7f25ae11738334',
+      },
+      {
+        algorithm: {
+          name: 'cSHAKE256',
+          outputLength: 264,
+          functionName: Buffer.from('TupleHash'),
+          customization: Buffer.from(
+            'q8gN}O&V*VDU4Y.^5J13tG2,1^Lw~C2rw $AB3.SX)=@z'),
+        },
+        data: Buffer.from('13d101da', 'hex'),
+        expected: '43163a57fc1ee8f1c501a2add927698c' +
+                  'a5a4b52c0d3ef3fd6d91d8d2386765e0ae',
+      },
+      {
+        algorithm: {
+          name: 'cSHAKE256',
+          outputLength: 312,
+          functionName: Buffer.from('ParallelHash'),
+          customization: Buffer.from(
+            'vD-1>T,f.R*V%ZA<NtW0$3UZD[$X%QVQE,H6E;xqYQI4co^F#Sf:' +
+            'CU!dmQkbPRbZ{V1x3,v3{fTPiBvT}[UOk</o*dGrN7@(nm7,^d4v]' +
+            'R>[ OyJ'),
+        },
+        data: Buffer.from('d5d7e7517f', 'hex'),
+        expected: '442be69b2afd7c8282839920a8446aaf' +
+                  '16a5049d3d018eac87e04cf9225870ef' +
+                  'ca6f88db415829',
+      },
+    ]) {
+      assert.strictEqual(
+        Buffer.from(await subtle.digest(algorithm, data)).toString('hex'),
+        expected);
+    }
+
+    const truncated = Buffer.from(await subtle.digest(
+      { ...nistCShakeSample1.algorithm, outputLength: 255 },
+      nistCShakeSample1.data));
+    const expected = Buffer.from(nistCShakeSample1.expected, 'hex');
+    assert.strictEqual(truncated.byteLength, expected.byteLength);
+    assert.deepStrictEqual(truncated.subarray(0, 31), expected.subarray(0, 31));
+    assert.strictEqual(truncated[31] & 0b00000001, 0);
+    assert.strictEqual(truncated[31] | 0b00000001, expected[31]);
   })().then(common.mustCall());
 }

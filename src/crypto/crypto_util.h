@@ -39,6 +39,11 @@ constexpr size_t kSizeOf_HMAC_CTX = 32;
 constexpr size_t kSizeOf_SSL_CTX = 240;
 constexpr size_t kSizeOf_X509 = 128;
 
+template <typename T>
+constexpr T NumBitsToBytes(T bits) {
+  return (bits / CHAR_BIT) + ((CHAR_BIT - 1 + (bits % CHAR_BIT)) / CHAR_BIT);
+}
+
 bool ProcessFipsOptions();
 
 bool InitCryptoOnce(v8::Isolate* isolate);
@@ -241,6 +246,8 @@ class ByteSource final {
       Environment* env, v8::Local<v8::Value> value);
 
  private:
+  friend void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
+
   const void* data_ = nullptr;
   void* allocated_data_ = nullptr;
   size_t size_ = 0;
@@ -248,6 +255,8 @@ class ByteSource final {
   ByteSource(const void* data, void* allocated_data, size_t size)
       : data_(data), allocated_data_(allocated_data), size_(size) {}
 };
+
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
 
 enum CryptoJobMode { kCryptoJobAsync, kCryptoJobSync, kCryptoJobWebCrypto };
 
