@@ -4,9 +4,11 @@ require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { describe, it } = require('node:test');
+const { once } = require('node:events');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 const fs = require('node:fs');
+const LcovReporter = require('internal/test_runner/reporter/lcov');
 
 const testFile = fixtures.path('test-runner/reporters.js');
 tmpdir.refresh();
@@ -103,6 +105,46 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.match(file2Contents, /▶ nested/);
     assert.match(file2Contents, /✔ ok/);
     assert.match(file2Contents, /✖ failing/);
+  });
+
+  it('should omit ignored branches from lcov output', async () => {
+    const reporter = new LcovReporter();
+    const chunks = [];
+    reporter.setEncoding('utf8');
+    reporter.on('data', common.mustCallAtLeast((chunk) => {
+      chunks.push(chunk);
+    }));
+
+    reporter.end({
+      type: 'test:coverage',
+      data: {
+        summary: {
+          workingDirectory: '/tmp/project',
+          files: [{
+            path: '/tmp/project/file.js',
+            functions: [],
+            totalFunctionCount: 0,
+            coveredFunctionCount: 0,
+            branches: [
+              { line: 1, count: 0, ignored: true },
+              { line: 2, count: 1, ignored: false },
+            ],
+            totalBranchCount: 2,
+            coveredBranchCount: 1,
+            lines: [],
+            totalLineCount: 0,
+            coveredLineCount: 0,
+          }],
+        },
+      },
+    });
+
+    await once(reporter, 'finish');
+    const output = chunks.join('');
+    assert.match(output, /BRDA:2,0,0,1/);
+    assert(!output.includes('BRDA:1,0,0,0'));
+    assert.match(output, /BRF:1/);
+    assert.match(output, /BRH:1/);
   });
 
   ['js', 'cjs', 'mjs'].forEach((ext) => {

@@ -310,9 +310,11 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
   await t.test('reports on branch coverage', () => {
     const uncalledBranch = file.branches.find((b) => b.line === 6);
     assert.strictEqual(uncalledBranch.count, 0);
+    assert.strictEqual(uncalledBranch.ignored, true);
 
     const calledTwice = file.branches.find((b) => b.line === 35);
     assert.strictEqual(calledTwice.count, 2);
+    assert.strictEqual(calledTwice.ignored, false);
   });
 
   await t.test('reports on line coverage', () => {
