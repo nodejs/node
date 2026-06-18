@@ -93,4 +93,12 @@ describe('tag-bearing event payloads', { concurrency: false }, () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
+
+  it('process isolation forwards --experimental-test-tag-filter to children', async () => {
+    const stream = run({ files: [fixture], testTagFilters: ['not nonexistent'] });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(13));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
 });
