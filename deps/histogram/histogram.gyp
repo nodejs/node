@@ -14,12 +14,26 @@
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
       },
       'conditions': [
-        [ 'clang==1 or OS!="win"', {
-          'cflags': [
-            '-Wno-atomic-alignment',
-            '-Wno-incompatible-pointer-types',
-            '-Wno-unused-function'
-          ]
+        [ 'clang==1', {
+          'conditions': [
+            [ 'OS=="win"', {
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'AdditionalOptions': [
+                    '-Wno-atomic-alignment',
+                    '-Wno-incompatible-pointer-types',
+                    '-Wno-unused-function'
+                  ],
+                },
+              },
+            }, {
+              'cflags': [
+                '-Wno-atomic-alignment',
+                '-Wno-incompatible-pointer-types',
+                '-Wno-unused-function'
+              ],
+            }],
+          ],
         }],
       ],
       'include_dirs': ['src', 'include'],
