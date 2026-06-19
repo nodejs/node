@@ -201,6 +201,7 @@ const customTypesMap = {
   'require': 'modules.html#requireid',
 
   'Handle': 'net.html#serverlistenhandle-backlog-callback',
+  'net.BoundSocket': 'net.html#class-netboundsocket',
   'net.BlockList': 'net.html#class-netblocklist',
   'net.Server': 'net.html#class-netserver',
   'net.Socket': 'net.html#class-netsocket',

@@ -2837,6 +2837,14 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SOCKET_HANDLE_ADOPTED"></a>
+
+### `ERR_SOCKET_HANDLE_ADOPTED`
+
+An operation was attempted on a [`BoundSocket`][] that had already been adopted
+by a [`net.Server`][] or [`net.Socket`][]. Once a bound socket is adopted, its
+`address()` and `close()` methods can no longer be used.
+
 <a id="ERR_SOURCE_MAP_CORRUPT"></a>
 
 ### `ERR_SOURCE_MAP_CORRUPT`
@@ -4410,6 +4418,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`BoundSocket`]: net.md#class-netboundsocket
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
@@ -4451,7 +4460,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`net.Server`]: net.md#class-netserver
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
+[`net.Socket`]: net.md#class-netsocket
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
