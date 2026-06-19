@@ -43,9 +43,9 @@ class Agent {
   virtual AgentWriterHandle* GetDefaultWriterHandle() = 0;
 
   virtual void AddTraceStateObserver(
-      v8::TracingController::TraceStateObserver* observer) = 0;
+      v8::TracingController::TraceStateObserver* observer) {}
   virtual void RemoveTraceStateObserver(
-      v8::TracingController::TraceStateObserver* observer) = 0;
+      v8::TracingController::TraceStateObserver* observer) {}
 
   struct Deleter {
     void operator()(Agent* agent);
@@ -88,6 +88,7 @@ class AgentWriterHandle {
 
   friend class Agent;
   friend class LegacyTracingAgent;
+  friend class PerfettoTracingAgent;
 };
 
 void AgentWriterHandle::reset() {

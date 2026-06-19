@@ -1,6 +1,12 @@
 #include "tracing/agent.h"
+
+#ifdef V8_USE_PERFETTO
+#include "tracing/agent_perfetto.h"
+#else
 #include "tracing/agent_legacy.h"
-#include "tracing/trace_event.h"
+#endif
+
+#include "tracing/trace_event_helper.h"
 
 namespace node {
 namespace tracing {
@@ -23,7 +29,11 @@ void Agent::Deleter::operator()(Agent* agent) {
 std::unique_ptr<Agent, Agent::Deleter> Agent::CreateDefault() {
   CHECK_NULL(g_agent);
 
+#ifdef V8_USE_PERFETTO
+  auto agent = new PerfettoTracingAgent();
+#else
   auto agent = new LegacyTracingAgent();
+#endif
 
   g_agent = agent;
   TraceEventHelper::SetTracingController(agent->GetTracingController());
