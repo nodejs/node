@@ -468,18 +468,31 @@ to be consumed with `for await...of` as an alternative to the [`'connection'`][]
 event. Iteration ends when the server emits [`'close'`][], and rejects if the
 server emits [`'error'`][].
 
+The loop only advances to the next connection once the current iteration's body
+has finished awaiting, so connection handling should be dispatched to a separate
+async task rather than awaited inline. Otherwise connections are serialized:
+each one waits for the previous to be fully handled.
+
 ```mjs
 import { createServer } from 'node:net';
 
 const server = createServer().listen(8124);
-for await (const socket of server) {
+
+async function handleConnection(socket) {
+  // ...handle the connection, awaiting as needed.
   socket.end('hello world!');
+}
+
+for await (const socket of server) {
+  // Dispatch handling to a separate task so the loop keeps accepting
+  // connections instead of serializing them.
+  handleConnection(socket);
 }
 ```
 
-Connections are buffered while the loop body is busy; the server does not stop
-accepting them, so a consumer that is slower than the connection rate can buffer
-without bound. Use [`server.maxConnections`][] to bound concurrency.
+The server does not stop accepting connections while the loop body runs, so a
+consumer slower than the connection rate can buffer them without bound. Use
+[`server.maxConnections`][] to bound concurrency.
 
 ### `server.getConnections(callback)`
 
@@ -2343,9 +2356,7 @@ with `for await...of` (see `server[Symbol.asyncIterator]()`).
 import { listen } from 'node:net/promises';
 
 const server = await listen({ port: 8124 });
-for await (const socket of server) {
-  socket.end('hello world!');
-}
+console.log('listening on', server.address().port);
 ```
 
 [IPC]: #ipc-support
