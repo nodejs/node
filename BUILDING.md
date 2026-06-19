@@ -155,11 +155,12 @@ platforms. This is true regardless of entries in the table below.
     `V8_HOST_ARCH_RISCV64`).
 
 [^8]: Our macOS testing infrastructure provider has announced end of support for
-    Intel-based architecture for early 2028. Past this date, the Node.js project
-    will no longer be able to test changes on any Intel-based macOS version, so
-    the only difference with Experimental tier is that the project intends to
-    keep creating universal binaries, compatible with both Apple Silicon-based
-    and Intel-based macOS versions.
+    Intel-based architecture for early 2028 at which time that platform will move to
+    experimental status as the Node.js project will no longer be able to test changes on any
+    Intel-based macOS version. When this change occurs the project intends to continue
+    creating universal binaries for versions of Node.js which are still in support which will
+    be compatible with both Apple Silicon-based and Intel-based macOS versions but
+    they will be untested.
 
 <!--lint enable final-definition-->
 
