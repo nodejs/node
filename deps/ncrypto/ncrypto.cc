@@ -4629,6 +4629,7 @@ bool extractP1363(const Buffer<const unsigned char>& buf,
 
 // ============================================================================
 
+#if !OPENSSL_WITH_EVP_MAC
 HMACCtxPointer::HMACCtxPointer() : ctx_(nullptr) {}
 
 HMACCtxPointer::HMACCtxPointer(HMAC_CTX* ctx) : ctx_(ctx) {}
@@ -4688,8 +4689,9 @@ bool HMACCtxPointer::digestInto(Buffer<void>* buf) {
 HMACCtxPointer HMACCtxPointer::New() {
   return HMACCtxPointer(HMAC_CTX_new());
 }
+#endif  // !OPENSSL_WITH_EVP_MAC
 
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 EVPMacPointer::EVPMacPointer(EVP_MAC* mac) : mac_(mac) {}
 
 EVPMacPointer::EVPMacPointer(EVPMacPointer&& other) noexcept
@@ -4777,7 +4779,92 @@ EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {
   if (!mac) return EVPMacCtxPointer();
   return EVPMacCtxPointer(EVP_MAC_CTX_new(mac));
 }
-#endif  // OPENSSL_WITH_KMAC
+
+HMACCtxPointer::HMACCtxPointer() = default;
+
+HMACCtxPointer::HMACCtxPointer(EVPMacPointer&& mac, EVPMacCtxPointer&& ctx)
+    : mac_(std::move(mac)), ctx_(std::move(ctx)) {}
+
+HMACCtxPointer::HMACCtxPointer(HMACCtxPointer&& other) noexcept
+    : mac_(std::move(other.mac_)),
+      ctx_(std::move(other.ctx_)),
+      md_size_(other.md_size_) {
+  other.md_size_ = 0;
+}
+
+HMACCtxPointer& HMACCtxPointer::operator=(HMACCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  mac_ = std::move(other.mac_);
+  ctx_ = std::move(other.ctx_);
+  md_size_ = other.md_size_;
+  other.md_size_ = 0;
+  return *this;
+}
+
+HMACCtxPointer::~HMACCtxPointer() {
+  reset();
+}
+
+void HMACCtxPointer::reset() {
+  ctx_.reset();
+  mac_.reset();
+  md_size_ = 0;
+}
+
+bool HMACCtxPointer::init(const Buffer<const void>& buf, const Digest& md) {
+  if (!ctx_ || !md) return false;
+
+  const char* md_name = EVP_MD_get0_name(md);
+  if (md_name == nullptr) return false;
+
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(
+          OSSL_MAC_PARAM_DIGEST, const_cast<char*>(md_name), 0),
+      OSSL_PARAM_construct_end(),
+  };
+
+  if (!ctx_.init(buf, params)) return false;
+  md_size_ = md.size();
+  return true;
+}
+
+bool HMACCtxPointer::update(const Buffer<const void>& buf) {
+  if (!ctx_) return false;
+  return ctx_.update(buf);
+}
+
+DataPointer HMACCtxPointer::digest() {
+  if (md_size_ == 0) return {};
+  auto data = DataPointer::Alloc(md_size_);
+  if (!data) return {};
+  Buffer<void> buf = data;
+  if (!digestInto(&buf)) return {};
+  return data.resize(buf.len);
+}
+
+bool HMACCtxPointer::digestInto(Buffer<void>* buf) {
+  if (!ctx_) return false;
+
+  size_t len = buf->len;
+  if (EVP_MAC_final(
+          ctx_.get(), static_cast<unsigned char*>(buf->data), &len, buf->len) !=
+      1)
+    return false;
+
+  buf->len = len;
+  return true;
+}
+
+HMACCtxPointer HMACCtxPointer::New() {
+  auto mac = EVPMacPointer::Fetch(OSSL_MAC_NAME_HMAC);
+  if (!mac) return {};
+
+  auto ctx = EVPMacCtxPointer::New(mac.get());
+  if (!ctx) return {};
+
+  return HMACCtxPointer(std::move(mac), std::move(ctx));
+}
+#endif  // OPENSSL_WITH_EVP_MAC
 
 DataPointer hashDigest(const Buffer<const unsigned char>& buf,
                        const EVP_MD* md) {

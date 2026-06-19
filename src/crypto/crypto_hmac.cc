@@ -30,9 +30,7 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-Hmac::Hmac(Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap),
-      ctx_(nullptr) {
+Hmac::Hmac(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
   MakeWeak();
 }
 

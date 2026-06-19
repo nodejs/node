@@ -10,7 +10,7 @@
 
 namespace node::crypto {
 
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 
 enum class KmacVariant { KMAC128, KMAC256 };
 
@@ -70,7 +70,7 @@ namespace Kmac {
 void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {}
 }  // namespace Kmac
-#endif  // OPENSSL_WITH_KMAC
+#endif  // OPENSSL_WITH_EVP_MAC
 
 }  // namespace node::crypto
 
