@@ -5078,18 +5078,15 @@ DirectHandle<Context> Factory::CreatePromiseResolvingFunctionsContext(
       isolate()->native_context(),
       PromiseBuiltins::PromiseResolvingFunctionContextSlot::
           kPromiseContextLength);
-  context->SetNoCell(
-      PromiseBuiltins::PromiseResolvingFunctionContextSlot::kPromiseSlot,
-      *promise);
   context->SetNoCell(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
-                         kAlreadyResolvedSlot,
-                     *false_value());
+                         kPromiseIfNotResolvedSlot,
+                     *promise);
   context->SetNoCell(
       PromiseBuiltins::PromiseResolvingFunctionContextSlot::kDebugEventSlot,
       *false_value());
   DCHECK_EQ(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
                 kPromiseContextLength,
-            Context::MIN_CONTEXT_SLOTS + 3);
+            Context::MIN_CONTEXT_SLOTS + 2);
   return context;
 }
 

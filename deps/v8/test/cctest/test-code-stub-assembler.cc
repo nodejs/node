@@ -3037,7 +3037,8 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   DirectHandle<Context> context_js = Cast<Context>(result);
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(IsJSPromise(context_js->GetNoCell(PromiseBuiltins::kPromiseSlot)));
+  CHECK(IsJSPromise(
+      context_js->GetNoCell(PromiseBuiltins::kPromiseIfNotResolvedSlot)));
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
            context_js->GetNoCell(PromiseBuiltins::kDebugEventSlot));
 }
@@ -3246,7 +3247,8 @@ TEST(NewPromiseCapability) {
       CHECK_EQ(*isolate->native_context(), callback_context->native_context());
       CHECK_EQ(PromiseBuiltins::kPromiseContextLength,
                callback_context->length());
-      CHECK_EQ(callback_context->GetNoCell(PromiseBuiltins::kPromiseSlot),
+      CHECK_EQ(callback_context->GetNoCell(
+                   PromiseBuiltins::kPromiseIfNotResolvedSlot),
                result->promise());
     }
   }

@@ -63,17 +63,14 @@ macro CreatePromiseResolvingFunctionsContext(
           nativeContext,
           PromiseResolvingFunctionContextSlot::kPromiseContextLength));
   InitContextSlot(
-      resolveContext, PromiseResolvingFunctionContextSlot::kPromiseSlot,
-      promise);
-  InitContextSlot(
-      resolveContext, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot,
-      False);
+      resolveContext,
+      PromiseResolvingFunctionContextSlot::kPromiseIfNotResolvedSlot, promise);
   InitContextSlot(
       resolveContext, PromiseResolvingFunctionContextSlot::kDebugEventSlot,
       debugEvent);
   static_assert(
       PromiseResolvingFunctionContextSlot::kPromiseContextLength ==
-      ContextSlot::MIN_CONTEXT_SLOTS + 3);
+      ContextSlot::MIN_CONTEXT_SLOTS + 2);
   return resolveContext;
 }
 
