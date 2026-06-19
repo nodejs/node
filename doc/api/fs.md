@@ -1436,6 +1436,8 @@ changes:
     not supported.
   * `followSymlinks` {boolean} When `true`, symbolic links to directories are
     followed while expanding `**` patterns. **Default:** `false`.
+  * `maxDepth` {integer} Maximum number of directory levels to traverse.
+    The `cwd` directory has a depth of `0`. **Default:** `Infinity`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -3590,6 +3592,8 @@ changes:
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `followSymlinks` {boolean} When `true`, symbolic links to directories are
     followed while expanding `**` patterns. **Default:** `false`.
+  * `maxDepth` {integer} Maximum number of directory levels to traverse.
+    The `cwd` directory has a depth of `0`. **Default:** `Infinity`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 
@@ -6220,6 +6224,8 @@ changes:
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `followSymlinks` {boolean} When `true`, symbolic links to directories are
     followed while expanding `**` patterns. **Default:** `false`.
+  * `maxDepth` {integer} Maximum number of directory levels to traverse.
+    The `cwd` directory has a depth of `0`. **Default:** `Infinity`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {string\[]} paths of files that match the pattern.
