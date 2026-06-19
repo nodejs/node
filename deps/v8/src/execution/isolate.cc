@@ -1253,9 +1253,12 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       DirectHandle<JSFunction> function(
           Cast<JSFunction>(reaction->fulfill_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
-      promise = direct_handle(
-          Cast<JSPromise>(context->GetNoCell(PromiseBuiltins::kPromiseSlot)),
-          isolate);
+      Tagged<Object> promise_or_undefined =
+          context->GetNoCell(PromiseBuiltins::kPromiseIfNotResolvedSlot);
+      if (!TryCast(direct_handle(promise_or_undefined, isolate), &promise)) {
+        DCHECK(IsUndefined(promise_or_undefined));
+        return;
+      }
     } else {
       // We have some generic promise chain here, so try to
       // continue with the chained promise on the reaction
