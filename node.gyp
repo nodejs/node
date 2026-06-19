@@ -455,6 +455,10 @@
       'src/node_crypto.h',
     ],
     'node_tracing_perfetto_sources': [
+      'src/tracing/agent_perfetto.cc',
+      'src/tracing/agent_perfetto.h',
+      'src/tracing/trace_event_perfetto.cc',
+      'src/tracing/trace_event_perfetto.h',
     ],
     'node_tracing_legacy_sources': [
       'src/tracing/agent_legacy.cc',
