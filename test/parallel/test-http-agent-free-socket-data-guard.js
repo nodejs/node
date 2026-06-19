@@ -8,8 +8,8 @@
 // writes a full HTTP response during this window, it is consumed as the
 // response for the *next* request — poisoning the response queue.
 //
-// The fix attaches a data guard listener + resume() on idle sockets so
-// that unsolicited data causes the socket to be destroyed.
+// The fix installs a read guard on idle sockets so that unsolicited data
+// causes the socket to be destroyed without adding public stream listeners.
 
 const common = require('../common');
 const assert = require('assert');
@@ -48,8 +48,9 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(agent.freeSockets[name]?.length, 1);
       const freeSocket = agent.freeSockets[name][0];
       assert.strictEqual(freeSocket.parser, null);
-      // With the fix, a data guard listener is attached
-      assert.strictEqual(freeSocket.listenerCount('data'), 1);
+      // With the fix, no public stream listeners are added.
+      assert.strictEqual(freeSocket.listenerCount('data'), 0);
+      assert.strictEqual(freeSocket.listenerCount('readable'), 0);
 
       // Step 2: Server injects a poisoned response while socket is idle
       serverSocket.write(
