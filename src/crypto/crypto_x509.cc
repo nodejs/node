@@ -44,6 +44,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -688,11 +689,12 @@ MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
 }
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
-  uint64_t exponent_word = static_cast<uint64_t>(BignumPointer::GetWord(e));
+  auto exponent_word = BignumPointer::GetWord(e);
+  if (!exponent_word) return Null(env->isolate());
   auto bio = BIOPointer::NewMem();
   if (!bio) [[unlikely]]
     return {};
-  BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
+  BIO_printf(bio.get(), "0x%" PRIx64, static_cast<uint64_t>(*exponent_word));
   return ToV8Value(env->context(), bio);
 }
 
