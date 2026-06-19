@@ -408,12 +408,16 @@ bool BignumPointer::setWord(unsigned long w) {  // NOLINT(runtime/int)
   return BN_set_word(bn_.get(), w) == 1;
 }
 
-unsigned long BignumPointer::GetWord(const BIGNUM* bn) {  // NOLINT(runtime/int)
-  return BN_get_word(bn);
+std::optional<unsigned long> BignumPointer::GetWord(  // NOLINT(runtime/int)
+    const BIGNUM* bn) {
+  BN_ULONG ret = BN_get_word(bn);
+  if (ret == static_cast<BN_ULONG>(-1)) return std::nullopt;
+  return ret;
 }
 
-unsigned long BignumPointer::getWord() const {  // NOLINT(runtime/int)
-  if (!bn_) return 0;
+std::optional<unsigned long> BignumPointer::getWord()  // NOLINT(runtime/int)
+    const {
+  if (!bn_) return std::nullopt;
   return GetWord(bn_.get());
 }
 

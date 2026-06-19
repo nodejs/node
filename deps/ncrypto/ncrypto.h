@@ -743,7 +743,7 @@ class BignumPointer final {
   bool isOne() const;
 
   bool setWord(unsigned long w);  // NOLINT(runtime/int)
-  unsigned long getWord() const;  // NOLINT(runtime/int)
+  std::optional<unsigned long> getWord() const;  // NOLINT(runtime/int)
 
   size_t byteLength() const;
 
@@ -782,7 +782,8 @@ class BignumPointer final {
                                  size_t size);
   static int GetBitCount(const BIGNUM* bn);
   static int GetByteCount(const BIGNUM* bn);
-  static unsigned long GetWord(const BIGNUM* bn);  // NOLINT(runtime/int)
+  static std::optional<unsigned long> GetWord(  // NOLINT(runtime/int)
+      const BIGNUM* bn);
   static const BIGNUM* One();
 
   BignumPointer clone();
