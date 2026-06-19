@@ -3771,6 +3771,10 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -3783,7 +3787,8 @@ changes:
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
-can be used to specify the desired output length in bytes.
+specifies the desired output length in bytes. It is required for XOF hash
+functions without a default output length.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -4889,6 +4894,10 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version:
      - v25.5.0
      - v24.13.1
@@ -4909,7 +4918,8 @@ changes:
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
   * `outputLength` {number} For XOF hash functions such as 'shake256',
-    the outputLength option can be used to specify the desired output length in bytes.
+    specifies the desired output length in bytes. This option is required for
+    XOF hash functions without a default output length.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than

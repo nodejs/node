@@ -151,8 +151,14 @@ if (!process.features.openssl_is_boringssl) {
 }
 validateList(crypto.getHashes());
 // Make sure all of the hashes are supported by OpenSSL
-for (const algo of crypto.getHashes())
-  crypto.createHash(algo);
+for (const algo of crypto.getHashes()) {
+  try {
+    crypto.createHash(algo);
+  } catch (err) {
+    if (err?.code !== 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH') throw err;
+    crypto.createHash(algo, { outputLength: 0 });
+  }
+}
 
 // Assume that we have at least secp384r1.
 assert.notStrictEqual(crypto.getCurves().length, 0);
