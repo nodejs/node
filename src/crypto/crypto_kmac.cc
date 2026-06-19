@@ -3,7 +3,7 @@
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include "crypto/crypto_keys.h"
@@ -218,4 +218,4 @@ void Kmac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif  // OPENSSL_WITH_KMAC
+#endif  // OPENSSL_WITH_EVP_MAC

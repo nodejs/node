@@ -68,6 +68,18 @@ function testHmac(algo, key, data, expected) {
            '19fd6e1ba73d9ed2224dd5094a71babe85d9a892');
 }
 
+{
+  // Historically, dss1 and DSS1 are SHA-1 aliases.
+  const expected =
+    crypto.createHmac('sha1', 'key').update('data').digest('hex');
+
+  for (const algo of ['dss1', 'DSS1']) {
+    assert.strictEqual(
+      crypto.createHmac(algo, 'key').update('data').digest('hex'),
+      expected);
+  }
+}
+
 // Test HMAC (Wikipedia Test Cases)
 const wikipedia = [
   {
