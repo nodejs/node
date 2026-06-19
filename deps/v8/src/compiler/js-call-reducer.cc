@@ -2543,10 +2543,8 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   // Allocate a promise context for the closures below.
   TNode<Context> promise_context = CreateFunctionContext(
       native_context, context, PromiseBuiltins::kPromiseContextLength);
-  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kPromiseSlot,
-                         promise);
-  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kAlreadyResolvedSlot,
-                         FalseConstant());
+  StoreContextNoCellSlot(promise_context,
+                         PromiseBuiltins::kPromiseIfNotResolvedSlot, promise);
   StoreContextNoCellSlot(promise_context, PromiseBuiltins::kDebugEventSlot,
                          TrueConstant());
 
