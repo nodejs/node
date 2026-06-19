@@ -6,6 +6,10 @@
 // This is an implementation of the legacy V8 tracing agent
 // defined in `libplatform/v8-tracing.h`.
 
+#ifdef V8_USE_PERFETTO
+#error Perfetto is enabled.
+#endif
+
 #include "libplatform/v8-tracing.h"
 #include "node_mutex.h"
 #include "tracing/agent.h"

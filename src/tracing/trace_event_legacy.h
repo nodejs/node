@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef SRC_TRACE_EVENT_COMMON_H
-#define SRC_TRACE_EVENT_COMMON_H
+#ifndef SRC_TRACING_TRACE_EVENT_LEGACY_H_
+#define SRC_TRACING_TRACE_EVENT_LEGACY_H_
+
+#ifdef V8_USE_PERFETTO
+#error Perfetto is enabled.
+#endif
 
 // This header file defines the set of trace_event macros without specifying
 // how the events actually get collected and stored. If you need to expose trace
@@ -1106,4 +1110,4 @@
 #define TRACE_EVENT_SCOPE_NAME_PROCESS ('p')
 #define TRACE_EVENT_SCOPE_NAME_THREAD ('t')
 
-#endif // SRC_TRACE_EVENT_COMMON_H
+#endif  // SRC_TRACING_TRACE_EVENT_LEGACY_H_
