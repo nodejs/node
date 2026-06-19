@@ -1572,7 +1572,7 @@ LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
-LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
+LINT_CPP_EXCLUDE += src/tracing/trace_event_legacy.h src/tracing/trace_event_legacy_inl.h
 
 # deps/ncrypto is included in this list, as it is maintained in
 # this repository, and should be linted. Eventually it should move

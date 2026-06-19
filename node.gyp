@@ -199,10 +199,7 @@
       'src/timers.cc',
       'src/timer_wrap.cc',
       'src/tracing/agent.cc',
-      'src/tracing/agent_legacy.cc',
-      'src/tracing/node_trace_buffer.cc',
-      'src/tracing/node_trace_writer.cc',
-      'src/tracing/trace_event.cc',
+      'src/tracing/trace_event_helper.cc',
       'src/tracing/traced_value.cc',
       'src/tty_wrap.cc',
       'src/udp_wrap.cc',
@@ -338,11 +335,8 @@
       'src/tcp_wrap.h',
       'src/timers.h',
       'src/tracing/agent.h',
-      'src/tracing/agent_legacy.h',
-      'src/tracing/node_trace_buffer.h',
-      'src/tracing/node_trace_writer.h',
+      'src/tracing/trace_event_helper.h',
       'src/tracing/trace_event.h',
-      'src/tracing/trace_event_common.h',
       'src/tracing/traced_value.h',
       'src/timer_wrap.h',
       'src/timer_wrap-inl.h',
@@ -448,6 +442,18 @@
       'src/crypto/crypto_x509.h',
       'src/node_crypto.cc',
       'src/node_crypto.h',
+    ],
+    'node_tracing_perfetto_sources': [
+    ],
+    'node_tracing_legacy_sources': [
+      'src/tracing/agent_legacy.cc',
+      'src/tracing/agent_legacy.h',
+      'src/tracing/node_trace_buffer.cc',
+      'src/tracing/node_trace_buffer.h',
+      'src/tracing/node_trace_writer.cc',
+      'src/tracing/node_trace_writer.h',
+      'src/tracing/trace_event_legacy_inl.h',
+      'src/tracing/trace_event_legacy.h',
     ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
@@ -952,6 +958,18 @@
             }],
           ],
         }],
+        [ 'v8_use_perfetto==1', {
+          'sources': [
+            '<@(node_tracing_perfetto_sources)',
+          ],
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          ],
+        }, {
+          'sources': [
+            '<@(node_tracing_legacy_sources)',
+          ],
+        }],
         [ 'v8_enable_inspector==1', {
           'includes' : [ 'src/inspector/node_inspector.gypi' ],
         }, {
@@ -1444,9 +1462,6 @@
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
         [ 'v8_use_perfetto==1', {
-          'defines': [
-            'PERFETTO_ENABLE_LEGACY_TRACE_EVENTS=1'
-          ],
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
@@ -1773,9 +1788,6 @@
           ],
         }],
         [ 'v8_use_perfetto==1', {
-          'defines': [
-            'PERFETTO_ENABLE_LEGACY_TRACE_EVENTS=1'
-          ],
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
