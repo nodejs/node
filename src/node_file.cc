@@ -153,10 +153,16 @@ static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
   if (GET_TRACE_ENABLED)                                                       \
     TRACE_EVENT_BEGIN(                                                         \
         TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall), ##__VA_ARGS__);
+#ifdef V8_USE_PERFETTO
+#define FS_SYNC_TRACE_END(syscall, ...)                                        \
+  if (GET_TRACE_ENABLED)                                                       \
+    TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), ##__VA_ARGS__);
+#else
 #define FS_SYNC_TRACE_END(syscall, ...)                                        \
   if (GET_TRACE_ENABLED)                                                       \
     TRACE_EVENT_END(                                                           \
         TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall), ##__VA_ARGS__);
+#endif
 
 #define FS_ASYNC_TRACE_BEGIN0(fs_type, id)                                     \
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(TRACING_CATEGORY_NODE2(fs, async),         \
