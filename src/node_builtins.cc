@@ -138,7 +138,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #endif  // !HAVE_OPENSSL
 #ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
-        "internal/quic/state",
+        "internal/quic/state", "internal/quic/diagnostics",
+        "internal/quic/http3",
 #endif  // !OPENSSL_NO_QUIC
 #if HAVE_DTLS
         "internal/dtls/dtls", "internal/dtls/symbols", "internal/dtls/stats",
@@ -149,6 +150,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #endif                  // !HAVE_FFI
         "dtls",         // Experimental.
         "ffi",          // Experimental.
+        "http3",        // Experimental.
         "quic",         // Experimental.
         "sqlite",       // Experimental.
         "stream/iter",  // Experimental.

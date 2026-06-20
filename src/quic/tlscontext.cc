@@ -357,24 +357,25 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
   }
 
   // ALPN negotiated successfully. *out/*outlen point to the selected
-  // protocol name (without the length prefix). Select the Application
-  // implementation based on the negotiated ALPN. This must happen now
-  // because early data (0-RTT) may arrive in the same ngtcp2_conn_read_pkt
-  // call and needs the Application to be ready.
+  // protocol name (without the length prefix). Install the session's
+  // Application now if its options request one (selection comes from the
+  // session's application option, not the negotiated ALPN value): early
+  // data (0-RTT) may arrive in the same ngtcp2_conn_read_pkt call and
+  // needs the Application to be ready. Sessions that request no
+  // application run the native raw-stream path and install nothing.
   std::string_view negotiated(reinterpret_cast<const char*>(*out), *outlen);
   Debug(&tls_session.session(),
         "ALPN negotiation succeeded: %s",
         std::string(negotiated).c_str());
 
   auto& session = tls_session.session();
-  auto app = session.SelectApplicationFromAlpn(negotiated);
-  if (!app) {
-    Debug(&session,
-          "Failed to create Application for ALPN %s",
-          std::string(negotiated).c_str());
-    return SSL_TLSEXT_ERR_NOACK;
+  if (auto app = session.SelectApplication()) {
+    // Note: SetApplication can still reject previously parsed session
+    // ticket app data, leaving the application uninstalled; the
+    // handshake then fails when the 1-RTT keys arrive.
+    session.SetApplication(std::move(app));
   }
-  session.SetApplication(std::move(app));
+  session.set_hello_processed();
 
   return SSL_TLSEXT_ERR_OK;
 }

@@ -15,7 +15,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -32,23 +32,21 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     serverSession = ss;
-    ss.onstream = mustCall(2);
-  }), {
-    sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall((headers, stream) => {
-      stream.sendHeaders({ ':status': '200' });
-      stream.writer.writeSync(headers[':path']);
-      stream.writer.endSync();
+    ss.onstream = mustCall((stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(headers[':path']);
+        stream.writer.endSync();
 
-      // Close after both responses are written. The
-      // close is deferred to exit the nghttp3 callback scope.
-      if (++requestCount === 2) {
-        setImmediate(mustCall(() => {
+        // Close after both responses are written.
+        if (++requestCount === 2) {
           serverSession.close();
           serverDone.resolve();
-        }));
-      }
-    }, 2),
+        }
+      });
+    }, 2);
+  }), {
+    sni: { '*': { keys: [key], certs: [cert] } },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -57,25 +55,23 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream1 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/one',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream1 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/one',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall((headers) => {
       strictEqual(headers[':status'], '200');
     }),
   });
 
-  const stream2 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/two',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream2 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/two',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall((headers) => {
       strictEqual(headers[':status'], '200');
     }),

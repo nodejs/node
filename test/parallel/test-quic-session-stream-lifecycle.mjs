@@ -34,7 +34,7 @@ const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
 
   serverDone.resolve();
   serverSession.close();
-}), { sni: { '*': { keys, certs } } });
+}), { alpn: ['h3'], sni: { '*': { keys, certs } } });
 
 strictEqual(serverEndpoint.busy, false);
 strictEqual(serverEndpoint.closing, false);
@@ -53,6 +53,7 @@ ok(epStats.createdAt > 0n);
 
 // Connect with a client
 const clientSession = await quic.connect(serverEndpoint.address, {
+  alpn: 'h3',
   verifyPeer: 'manual',
 });
 

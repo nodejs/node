@@ -10,11 +10,11 @@
 #include <memory_tracker.h>
 #include <node_blob.h>
 #include <node_bob.h>
-#include <node_http_common.h>
 #include <util.h>
 #include "bindingdata.h"
 #include "data.h"
 
+#include <functional>
 #include <vector>
 
 namespace node::quic {
@@ -202,8 +202,6 @@ class Stream final : public AsyncWrap,
                      public Ngtcp2Source,
                      public DataQueue::BackpressureListener {
  public:
-  using Header = NgHeaderBase<BindingData>;
-
   // Acquire a DataQueue from the given value if it is valid. The return
   // follows the typical V8 rules for Maybe types. If an error occurs,
   // the Maybe will be empty and an exception will be set on the isolate.
@@ -275,6 +273,7 @@ class Stream final : public AsyncWrap,
 
   // True if the stream wants to send trailing headers after the body.
   bool wants_trailers() const;
+  bool wants_headers() const;
 
   // Marks this stream as having received 0-RTT early data.
   void set_early();
@@ -341,18 +340,8 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
-  // Currently, only HTTP/3 streams support headers. These methods are here
-  // to support that. They are not used when using any other QUIC application.
-
-  void BeginHeaders(HeadersKind kind);
-  void set_headers_kind(HeadersKind kind);
-  // Returns false if the header cannot be added. This will typically happen
-  // if the application does not support headers, a maximum number of headers
-  // have already been added, or the maximum total header length is reached.
-  bool AddHeader(std::unique_ptr<Header> header);
-
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
-  // reader_, headers_, and pending_headers_queue_.
+  // and reader_.
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Stream)
   SET_SELF_SIZE(Stream)
@@ -373,7 +362,6 @@ class Stream final : public AsyncWrap,
 
  private:
   struct Impl;
-  struct PendingHeaders;
 
   class Outbound;
 
@@ -403,11 +391,6 @@ class Stream final : public AsyncWrap,
   // Notifies the JavaScript side that the stream has been reset.
   void EmitReset(const QuicError& error);
 
-  // Notifies the JavaScript side that the application is ready to receive
-  // trailing headers. Any trailing headers must be sent immediately, and
-  // synchronously when this callback is triggered.
-  void EmitWantTrailers();
-
   // Notifies the JavaScript side that sending data on the stream has been
   // blocked because of flow control restriction.
   void EmitBlocked();
@@ -420,18 +403,16 @@ class Stream final : public AsyncWrap,
   // and outbound buffer state. Emits drain if transitioning from 0 to > 0.
   void UpdateWriteDesiredSize();
 
-  // Delivers the set of inbound headers that have been collected.
-  void EmitHeaders();
-
   void NotifyReadableEnded(error_code code);
   void NotifyWritableEnded(error_code code);
 
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
   void NotifyStreamOpened(stream_id id);
-  void EnqueuePendingHeaders(HeadersKind kind,
-                             v8::Local<v8::Array> headers,
-                             HeadersFlags flags);
+
+  // Runs fn once the stream has a transport id: immediately if the stream is
+  // already open, otherwise queued and run in NotifyStreamOpened.
+  void RunWhenOpen(std::function<void()> fn);
 
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
@@ -446,49 +427,26 @@ class Stream final : public AsyncWrap,
   // and the stream id will be assigned.
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
-  std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
+  std::vector<std::function<void()>> pending_open_callbacks_;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 
-  struct StoredPriority {
-    StreamPriority priority = StreamPriority::DEFAULT;
-    StreamPriorityFlags flags = StreamPriorityFlags::NON_INCREMENTAL;
-    bool pending = false;
-  };
-  StoredPriority priority_;
-
-  const StoredPriority& stored_priority() const { return priority_; }
-
-  // The headers_ field holds a block of headers that have been received and
-  // are being buffered for delivery to the JavaScript side. Headers are
-  // stored as C++ objects during collection (AddHeader) and converted to
-  // V8 strings only when emitted (EmitHeaders), avoiding StrongRootAllocator
-  // mutex contention on the per-header hot path.
-  std::vector<std::unique_ptr<Header>> headers_;
-
-  // The headers_kind_ field indicates the kind of headers that are being
-  // buffered.
-  HeadersKind headers_kind_ = HeadersKind::INITIAL;
-
-  // The headers_length_ field holds the total length of the headers that have
-  // been buffered.
-  size_t headers_length_ = 0;
-
   friend struct Impl;
   friend class PendingStream;
-  friend class Http3ApplicationImpl;
-  friend class DefaultApplication;
+  friend class Http3Application;
+  friend class Http3Binding;
+  friend class Session;
 
  public:
   // The Queue/Schedule here are part of the mechanism used to
   // determine which streams have data to send on the session. When a stream
   // potentially has data available, it will be scheduled in the Queue. Then,
-  // when the Session::Application starts sending pending data, it will check
-  // the queue to see if there are streams waiting. If there are, it will grab
-  // one and check to see if there is data to send. When a stream does not have
-  // data to send (such as when it is initially created or is using an async
-  // source that is still waiting for data to be pushed) it will not appear in
-  // the queue.
+  // when the session (or its installed application) starts sending pending
+  // data, it will check the queue to see if there are streams waiting. If
+  // there are, it will grab one and check to see if there is data to send.
+  // When a stream does not have data to send (such as when it is initially
+  // created or is using an async source that is still waiting for data to be
+  // pushed) it will not appear in the queue.
   ListNode<Stream> stream_queue_;
   using Queue = ListHead<Stream, &Stream::stream_queue_>;
 

@@ -20,7 +20,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -33,24 +33,29 @@ const decoder = new TextDecoder();
   let requestCount = 0;
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall((ss) => {
     ss.onstream = mustCall((stream) => {
       // Server sees priority on the stream.
       const pri = stream.priority;
       strictEqual(typeof pri, 'object');
       strictEqual(typeof pri.level, 'string');
       strictEqual(typeof pri.incremental, 'boolean');
+
+      // Attach onheaders synchronously in the onstream frame, before
+      // any await.
+      stream.onheaders = mustCall((headers) => {
+        stream.setPriority({ level: 'high', incremental: true });
+        deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode(headers[':path']));
+        stream.writer.endSync();
+        if (++requestCount === 4) {
+          serverDone.resolve();
+        }
+      });
     }, 4);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode(headers[':path']));
-      this.writer.endSync();
-      if (++requestCount === 4) {
-        serverDone.resolve();
-      }
-    }, 4),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -60,13 +65,12 @@ const decoder = new TextDecoder();
   await clientSession.opened;
 
   // Priority set at creation time via options.
-  const stream1 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/high',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream1 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/high',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     priority: 'high',
     incremental: false,
     onheaders: mustCall(function(headers) {
@@ -78,13 +82,12 @@ const decoder = new TextDecoder();
   deepStrictEqual(stream1.priority, { level: 'high', incremental: false });
 
   // Priority 'low' + incremental at creation.
-  const stream2 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/low-inc',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream2 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/low-inc',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     priority: 'low',
     incremental: true,
     onheaders: mustCall(function(headers) {
@@ -94,13 +97,12 @@ const decoder = new TextDecoder();
   deepStrictEqual(stream2.priority, { level: 'low', incremental: true });
 
   // Default priority at creation.
-  const stream3 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/default',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream3 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/default',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall(function(headers) {
       strictEqual(headers[':status'], '200');
     }),
@@ -108,13 +110,12 @@ const decoder = new TextDecoder();
   deepStrictEqual(stream3.priority, { level: 'default', incremental: false });
 
   // setPriority after creation.
-  const stream4 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/changed',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream4 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/changed',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall(function(headers) {
       strictEqual(headers[':status'], '200');
     }),
@@ -167,6 +168,14 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      // Attach onheaders synchronously in the onstream frame, before
+      // any await.
+      stream.onheaders = mustCall(() => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
+
       // Read the request body — this acts as a signal that the
       // client's PRIORITY_UPDATE has been sent. The control stream
       // (carrying PRIORITY_UPDATE) is processed before bidi stream
@@ -186,11 +195,6 @@ const decoder = new TextDecoder();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -202,20 +206,19 @@ const decoder = new TextDecoder();
   // Create stream with default priority and a body. The body serves
   // as a signal — by the time it arrives at the server, the
   // PRIORITY_UPDATE (sent on the control stream) will have been
-  // processed. setPriority is called BEFORE createBidirectionalStream
+  // processed. setPriority is called BEFORE request()
   // so the PRIORITY_UPDATE is queued before the stream data.
   //
-  // Note: setPriority must be called after createBidirectionalStream
+  // Note: setPriority must be called after request()
   // because the stream handle is needed. But the PRIORITY_UPDATE
   // travels on the control stream which nghttp3 processes before
   // bidi stream data, so the ordering is guaranteed.
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'POST',
-      ':path': '/pri-update',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream = await clientSession.request({
+    ':method': 'POST',
+    ':path': '/pri-update',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     body: encoder.encode('signal'),
     onheaders: mustCall(function(headers) {
       strictEqual(headers[':status'], '200');

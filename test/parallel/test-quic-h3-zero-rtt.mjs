@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -37,6 +37,11 @@ const secondDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((ss) => {
   const num = ++serverSessionCount;
   ss.onstream = mustCall(async (stream) => {
+    stream.onheaders = mustCall((headers) => {
+      stream.sendHeaders({ ':status': '200' });
+      stream.writer.writeSync(encoder.encode(headers[':path']));
+      stream.writer.endSync();
+    });
     if (num === 2) {
       // Resolve with the stream so we can check stream.early after
       // data has been received (the early flag is set after
@@ -48,11 +53,6 @@ const serverEndpoint = await listen(mustCall((ss) => {
   });
 }, 2), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function(headers) {
-    this.sendHeaders({ ':status': '200' });
-    this.writer.writeSync(encoder.encode(headers[':path']));
-    this.writer.endSync();
-  }, 2),
 });
 
 // --- First connection: establish H3 session, receive ticket ---
@@ -78,14 +78,13 @@ strictEqual(info1.earlyDataAccepted, false);
 
 await Promise.all([gotTicket.promise, gotToken.promise]);
 
-const s1 = await cs1.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/first',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
-  onheaders: mustCall(function(headers) {
+const s1 = await cs1.request({
+  ':method': 'GET',
+  ':path': '/first',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  onheaders: mustCall((headers) => {
     strictEqual(headers[':status'], '200');
   }),
 });
@@ -106,14 +105,13 @@ const cs2 = await connect(serverEndpoint.address, {
 });
 
 // Send H3 request BEFORE handshake completes — true 0-RTT.
-const s2 = await cs2.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/early',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
-  onheaders: mustCall(function(headers) {
+const s2 = await cs2.request({
+  ':method': 'GET',
+  ':path': '/early',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  onheaders: mustCall((headers) => {
     strictEqual(headers[':status'], '200');
   }),
 });

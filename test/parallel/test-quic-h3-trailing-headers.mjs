@@ -21,7 +21,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -52,32 +52,32 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
+    stream.onheaders = mustCall((headers) => {
+      // Send response headers.
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+
+      // Write body and close.
+      const w = stream.writer;
+      w.writeSync(encoder.encode(responseBody));
+      w.endSync();
+    });
+    // Fires after the body is fully sent (EOF + NO_END_STREAM).
+    // The server provides trailing headers here.
+    stream.onwanttrailers = mustCall(() => {
+      stream.sendTrailers({
+        'x-checksum': 'abc123',
+        'x-request-id': '42',
+      });
+    });
     await stream.closed;
     serverSession.close();
     serverDone.resolve();
   });
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function(headers) {
-    // Send response headers.
-    this.sendHeaders({
-      ':status': '200',
-      'content-type': 'text/plain',
-    });
-
-    // Write body and close.
-    const w = this.writer;
-    w.writeSync(encoder.encode(responseBody));
-    w.endSync();
-  }),
-  // Fires after the body is fully sent (EOF + NO_END_STREAM).
-  // The server provides trailing headers here.
-  onwanttrailers: mustCall(function() {
-    this.sendTrailers({
-      'x-checksum': 'abc123',
-      'x-request-id': '42',
-    });
-  }),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
@@ -89,18 +89,17 @@ await clientSession.opened;
 const clientHeadersReceived = Promise.withResolvers();
 const clientTrailersReceived = Promise.withResolvers();
 
-const stream = await clientSession.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/with-trailers',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
-  onheaders: mustCall(function(headers) {
+const stream = await clientSession.request({
+  ':method': 'GET',
+  ':path': '/with-trailers',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  onheaders: mustCall((headers) => {
     strictEqual(headers[':status'], '200');
     clientHeadersReceived.resolve();
   }),
-  ontrailers: mustCall(function(trailers) {
+  ontrailers: mustCall((trailers) => {
     strictEqual(trailers['x-checksum'], 'abc123');
     strictEqual(trailers['x-request-id'], '42');
     clientTrailersReceived.resolve();

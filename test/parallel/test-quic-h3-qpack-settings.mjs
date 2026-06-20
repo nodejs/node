@@ -20,7 +20,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -30,14 +30,13 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 async function makeRequest(clientSession, path) {
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': path,
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': path,
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       strictEqual(headers[':status'], '200');
     }),
   });
@@ -54,26 +53,27 @@ async function makeRequest(clientSession, path) {
   let requestCount = 0;
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
-    ss.onstream = mustCall(2);
+    ss.onstream = mustCall((stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode(headers[':path']));
+        stream.writer.endSync();
+        if (++requestCount === 2) {
+          serverDone.resolve();
+        }
+      });
+    }, 2);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     // Server disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode(headers[':path']));
-      this.writer.endSync();
-      if (++requestCount === 2) {
-        serverDone.resolve();
-      }
-    }, 2),
+    settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
     // Client also disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
+    settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
   await clientSession.opened;
 
@@ -93,24 +93,25 @@ async function makeRequest(clientSession, path) {
   let requestCount = 0;
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
-    ss.onstream = mustCall(2);
+    ss.onstream = mustCall((stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode(headers[':path']));
+        stream.writer.endSync();
+        if (++requestCount === 2) {
+          serverDone.resolve();
+        }
+      });
+    }, 2);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode(headers[':path']));
-      this.writer.endSync();
-      if (++requestCount === 2) {
-        serverDone.resolve();
-      }
-    }, 2),
+    settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
+    settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;
 
