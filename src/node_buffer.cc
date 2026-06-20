@@ -1584,11 +1584,15 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_LE(destination_offset, static_cast<uint64_t>(destination_byte_length));
   CHECK_LE(source_offset, static_cast<uint64_t>(source_byte_length));
-  CHECK_LE(bytes_to_copy, static_cast<uint64_t>(destination_byte_length) - destination_offset);
-  CHECK_LE(bytes_to_copy, static_cast<uint64_t>(source_byte_length) - source_offset);
+  CHECK_LE(bytes_to_copy,
+           static_cast<uint64_t>(destination_byte_length) - destination_offset);
+  CHECK_LE(bytes_to_copy,
+           static_cast<uint64_t>(source_byte_length) - source_offset);
 
-  uint8_t* dest = static_cast<uint8_t*>(destination) + static_cast<size_t>(destination_offset);
-  uint8_t* src = static_cast<uint8_t*>(source) + static_cast<size_t>(source_offset);
+  uint8_t* dest = static_cast<uint8_t*>(destination) +
+                  static_cast<size_t>(destination_offset);
+  uint8_t* src =
+      static_cast<uint8_t*>(source) + static_cast<size_t>(source_offset);
   memcpy(dest, src, static_cast<size_t>(bytes_to_copy));
 }
 
