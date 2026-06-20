@@ -341,10 +341,16 @@ async function spawnFlaky(fixture, stateName) {
   return { code, stdout, stderr, state };
 }
 
-test('flaky: expectFailure that unexpectedly passes is not retried', async () => {
-  const { state } = await spawnFlaky(
-    fixtures.path('test-runner/flaky/expectfailure-no-retry.js'), 'xf-noretry.txt');
-  assert.strictEqual(state.length, 1, `body ran ${state.length}x; expectFailure must not retry`);
+test('flaky: expectFailure that unexpectedly passes is retried', async () => {
+  // An unexpected pass (xpass) is a verdict failure, so a flaky expectFailure
+  // test is retried like any other flaky failure. It never reaches the expected
+  // failure, so it exhausts its retry budget and is reported as a failure;
+  // retryCount === 5 confirms it was retried rather than run once.
+  const file = fixtures.path('test-runner/flaky/expectfailure-unexpected-pass.js');
+  const events = await collectEvents(file);
+  const fails = byName(events.fail, 'flaky expectFailure unexpected pass');
+  assert.strictEqual(fails.length, 1);
+  assert.strictEqual(fails[0].retryCount, 5);
 });
 
 test('flaky: parent retries when only a subtest fails', async () => {
