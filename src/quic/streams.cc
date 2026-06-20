@@ -62,6 +62,8 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a sessionid event handler */                      \
   V(WANTS_SESSIONID, wants_sessionid, uint8_t)                                 \
+  /* Set when the stream has a event handler for closing a WT session */       \
+  V(WANTS_WTSESSIONCLOSE, wants_wtsessionclose, uint8_t)                       \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
@@ -1617,12 +1619,18 @@ bool Stream::AddHeader(std::unique_ptr<Header> header) {
   return true;
 }
 
- void Stream::NotifyWTSession(stream_id session_id) {
+void Stream::NotifyWTSession(stream_id session_id) {
   if (state()->session_id != session_id) {
     state()->session_id = session_id;
     EmitSessionid(session_id);
   }
- }
+}
+
+void Stream::NotifyWTSessionClose(uint32_t wt_error_code,
+                                   const uint8_t *msg,
+                                   size_t msglen) {
+  EmitWTSessionClose(wt_error_code, msg, msglen);
+}
 
 void Stream::Acknowledge(size_t datalen) {
   if (outbound_ == nullptr) return;
@@ -2001,6 +2009,22 @@ void Stream::EmitSessionid(stream_id session_id) {
   CallbackScope<Stream> cb_scope(this);
   Local<Value> sid = BigInt::New(env()->isolate(), session_id);
   MakeCallback(BindingData::Get(env()).stream_sessionid_callback(), 1, &sid);
+}
+
+  
+void Stream::EmitWTSessionClose(uint32_t wt_error_code,
+                                const uint8_t *msg,
+                                size_t msglen) {       
+  if (!env()->can_call_into_js()  || !state()->wants_wtsessionclose) return;
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> argv[] = {
+      Integer::NewFromUnsigned(env()->isolate(),
+                               wt_error_code),
+      String::NewFromUtf8(env()->isolate(), reinterpret_cast<const char *>(msg), 
+          v8::NewStringType::kNormal, msglen).ToLocalChecked()
+  };
+  MakeCallback(BindingData::Get(env()).stream_wtsessionclose_callback(), 
+    arraysize(argv), argv);
 }
 
 void Stream::EmitReset(const QuicError& error) {
