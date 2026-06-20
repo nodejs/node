@@ -67,25 +67,26 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
 
   const auto& analysis = result.value();
 
-  // Convert exports to JS Set
+  // Convert exports to JS Set, omitting any name that cannot be turned into a
+  // V8 string (e.g. on string allocation failure) instead of aborting.
   Local<Set> exports_set = Set::New(isolate);
   for (const auto& exp : analysis.exports) {
     Local<String> exp_str;
-    if (!CreateString(isolate, exp).ToLocal(&exp_str) ||
+    if (CreateString(isolate, exp).ToLocal(&exp_str) &&
         exports_set->Add(context, exp_str).IsEmpty()) {
       return;
     }
   }
 
-  // Convert reexports to JS array using batch creation
+  // Convert reexports to JS array, omitting any name that cannot be turned into
+  // a V8 string.
   LocalVector<Value> reexports_vec(isolate);
   reexports_vec.reserve(analysis.re_exports.size());
   for (const auto& reexp : analysis.re_exports) {
     Local<String> reexp_str;
-    if (!CreateString(isolate, reexp).ToLocal(&reexp_str)) {
-      return;
+    if (CreateString(isolate, reexp).ToLocal(&reexp_str)) {
+      reexports_vec.push_back(reexp_str);
     }
-    reexports_vec.push_back(reexp_str);
   }
 
   // Create result array [exports (Set), reexports (Array)]
