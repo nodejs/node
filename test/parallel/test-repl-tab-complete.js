@@ -355,10 +355,10 @@ describe('REPL tab completion (core functionality)', () => {
     replServer.close();
   });
 
-  it('works on context properties', () => {
-    const { replServer, input } = startNewREPLServer();
+  it('works on context properties', async () => {
+    const { replServer, run } = startNewREPLServer();
 
-    input.run(['var custom = "test";']);
+    await run(['var custom = "test";']);
 
     replServer.complete(
       'cus',
@@ -537,10 +537,10 @@ describe('REPL tab completion (core functionality)', () => {
     replServer.close();
   });
 
-  it('works with lexically scoped variables', () => {
-    const { replServer, input } = startNewREPLServer();
+  it('works with lexically scoped variables', async () => {
+    const { replServer, run } = startNewREPLServer();
 
-    input.run([
+    await run([
       'let lexicalLet = true;',
       'const lexicalConst = true;',
       'class lexicalKlass {}',

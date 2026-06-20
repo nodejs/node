@@ -1,22 +1,18 @@
-'use strict';
-
-const common = require('../common');
-const assert = require('assert');
-const { startNewREPLServer } = require('../common/repl');
-
-common.skipIfInspectorDisabled();
+import * as common from '../common/index.mjs';
+import assert from 'node:assert';
+import { startNewREPLServer } from '../common/repl.js';
 
 // This test verifies that the V8 inspector API is usable in the REPL.
 
-const { replServer, input, output } = startNewREPLServer();
+const { replServer, run, output } = startNewREPLServer();
 
-input.run(['const myVariable = 42']);
+await run(['const myVariable = 42']);
 
 replServer.complete('myVar', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['myVariable'], 'myVar']);
 }));
 
-input.run([
+await run([
   'const inspector = require("inspector")',
   'const session = new inspector.Session()',
   'session.connect()',

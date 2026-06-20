@@ -130,17 +130,20 @@ describe('REPL completion in relation of getters', () => {
                         });
       });
 
-      ['foo.name.', 'foo["name"].'].forEach((test) => {
-        replServer.complete(
-          test,
-          common.mustCall((error, data) => {
-            // The context's nameGetterRun variable hasn't been set
-            assert.strictEqual(replServer.context.nameGetterRun, undefined);
-            // No errors has been thrown
-            assert.strictEqual(error, null);
-          })
-        );
-      });
+      for (const test of ['foo.name.', 'foo["name"].']) {
+        await new Promise((resolve, reject) => {
+          replServer.complete(
+            test,
+            common.mustCall((error, data) => {
+              // The context's nameGetterRun variable hasn't been set
+              assert.strictEqual(replServer.context.nameGetterRun, undefined);
+              // No errors has been thrown
+              assert.strictEqual(error, null);
+              resolve();
+            })
+          );
+        });
+      }
     });
   });
 

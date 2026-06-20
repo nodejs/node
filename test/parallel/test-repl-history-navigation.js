@@ -13,6 +13,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
@@ -393,7 +395,6 @@ const tests = [
       // 6. Backspace. Refresh
       '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`,
       '\x1B[14G', '\x1B[16G', ' // e',
-      '\x1B[14G', '\x1B[16G', ' // e',
       '\x1B[14G', '\x1B[16G',
       // 7. Go to end. Cleanup
       '\x1B[0K', '\x1B[14G', '\x1B[2C',
@@ -416,7 +417,7 @@ const tests = [
       '\x1B[0K',
       // 12. ENTER
       '\r\n',
-      'Uncaught ReferenceError: autocompleteM is not defined\n',
+      'Uncaught ReferenceError: autocompleteM is not defined\n    at REPL32:1:1\n',
       '\x1B[1G', '\x1B[0J',
       // 13. UP
       prompt, '\x1B[3G', '\x1B[1G', '\x1B[0J',
@@ -430,7 +431,7 @@ const tests = [
       // 15. ENTER
       '\x1B[0K', '\x1B[15G', '\x1B[1C',
       '\r\n',
-      'Uncaught ReferenceError: autocompleteM is not defined\n',
+      'Uncaught ReferenceError: autocompleteM is not defined\n    at REPL33:1:1\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
       // 16. UP
@@ -767,11 +768,7 @@ const tests = [
       ...'super', // New Line, the user pressed ENTER
       '| ',
       ...'broken` line\'', // New Line, the user pressed ENTER
-      "[broken` line'\n" +
-      '        ^^^^\n' +
-      '\n' +
-      "Uncaught SyntaxError: Unexpected identifier 'line'\n" +
-      '] {\n' +
+      "Uncaught [SyntaxError: Unexpected identifier 'line'] {\n" +
       '  [stack]: [Getter/Setter],\n' +
       `  [message]: "Unexpected identifier 'line'"\n` +
       '}\n',

@@ -13,6 +13,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 common.allowGlobals('aaaa');
 
 const tmpdir = require('../common/tmpdir');
