@@ -82,6 +82,8 @@ typedef struct nghttp3_http_state nghttp3_http_state;
    while parsing priority header field. */
 #define NGHTTP3_HTTP_FLAG_BAD_PRIORITY 0x010000U
 
+#define NGHTTP3_HTTP_FLAG_WEBTRANSPORT 0x020000U
+
 /*
  * This function is called when HTTP header field |nv| received for
  * |http|.  This function will validate |nv| against the current state
