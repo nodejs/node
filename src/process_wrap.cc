@@ -49,9 +49,17 @@ using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 namespace {
+
+enum ProcessFlags : uint32_t {
+  kProcessFlagNone = 0,
+  kProcessFlagDetached = 1 << 0,
+  kProcessFlagWindowsHide = 1 << 1,
+  kProcessFlagWindowsVerbatimArguments = 1 << 2,
+};
 
 class ProcessWrap : public HandleWrap {
  public:
@@ -71,6 +79,12 @@ class ProcessWrap : public HandleWrap {
     SetProtoMethod(isolate, constructor, "kill", Kill);
 
     SetConstructorFunction(context, target, "Process", constructor);
+
+    Local<Object> constants = Object::New(isolate);
+    NODE_DEFINE_CONSTANT(constants, kProcessFlagDetached);
+    NODE_DEFINE_CONSTANT(constants, kProcessFlagWindowsHide);
+    NODE_DEFINE_CONSTANT(constants, kProcessFlagWindowsVerbatimArguments);
+    target->Set(context, env->constants_string(), constants).Check();
   }
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -118,14 +132,9 @@ class ProcessWrap : public HandleWrap {
 
   static Maybe<void> ParseStdioOptions(
       Environment* env,
-      Local<Object> js_options,
+      Local<Value> stdios_val,
       std::vector<uv_stdio_container_t>* options_stdio) {
     Local<Context> context = env->context();
-    Local<String> stdio_key = env->stdio_string();
-    Local<Value> stdios_val;
-    if (!js_options->Get(context, stdio_key).ToLocal(&stdios_val)) {
-      return Nothing<void>();
-    }
     if (!stdios_val->IsArray()) {
       THROW_ERR_INVALID_ARG_TYPE(env, "options.stdio must be an array");
       return Nothing<void>();
@@ -188,34 +197,21 @@ class ProcessWrap : public HandleWrap {
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     int err = 0;
 
-    if (!args[0]->IsObject()) {
-      return THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
-    }
-
-    Local<Object> js_options = args[0].As<Object>();
-
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
 
     options.exit_cb = OnExit;
 
-    // options.file
-    Local<Value> file_v;
-    if (!js_options->Get(context, env->file_string()).ToLocal(&file_v)) {
-      return;
-    }
-    CHECK(file_v->IsString());
-    node::Utf8Value file(env->isolate(), file_v);
+    // args[0] file
+    CHECK(args[0]->IsString());
+    node::Utf8Value file(env->isolate(), args[0]);
     options.file = *file;
 
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kChildProcess, file.ToStringView());
 
-    // options.uid
-    Local<Value> uid_v;
-    if (!js_options->Get(context, env->uid_string()).ToLocal(&uid_v)) {
-      return;
-    }
+    // args[6] uid
+    Local<Value> uid_v = args[6];
     if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
       CHECK(uid_v->IsInt32());
       const int32_t uid = uid_v.As<Int32>()->Value();
@@ -223,11 +219,8 @@ class ProcessWrap : public HandleWrap {
       options.uid = static_cast<uv_uid_t>(uid);
     }
 
-    // options.gid
-    Local<Value> gid_v;
-    if (!js_options->Get(context, env->gid_string()).ToLocal(&gid_v)) {
-      return;
-    }
+    // args[7] gid
+    Local<Value> gid_v = args[7];
     if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
       CHECK(gid_v->IsInt32());
       const int32_t gid = gid_v.As<Int32>()->Value();
@@ -244,15 +237,11 @@ class ProcessWrap : public HandleWrap {
       err = UV_EINVAL;
 #endif
 
-    // options.args
-    Local<Value> argv_v;
-    if (!js_options->Get(context, env->args_string()).ToLocal(&argv_v)) {
-      return;
-    }
+    // args[1] args
     std::vector<char*> options_args;
     std::vector<std::string> args_vals;
-    if (argv_v->IsArray()) {
-      Local<Array> js_argv = argv_v.As<Array>();
+    if (args[1]->IsArray()) {
+      Local<Array> js_argv = args[1].As<Array>();
       int argc = js_argv->Length();
       CHECK_LT(argc, INT_MAX);  // Check for overflow.
       args_vals.reserve(argc);
@@ -273,26 +262,18 @@ class ProcessWrap : public HandleWrap {
       options.args = options_args.data();
     }
 
-    // options.cwd
-    Local<Value> cwd_v;
-    if (!js_options->Get(context, env->cwd_string()).ToLocal(&cwd_v)) {
-      return;
-    }
+    // args[2] cwd
     node::Utf8Value cwd(env->isolate(),
-                        cwd_v->IsString() ? cwd_v : Local<Value>());
+                        args[2]->IsString() ? args[2] : Local<Value>());
     if (cwd.length() > 0) {
       options.cwd = *cwd;
     }
 
-    // options.env
-    Local<Value> env_v;
-    if (!js_options->Get(context, env->env_pairs_string()).ToLocal(&env_v)) {
-      return;
-    }
+    // args[3] envPairs
     std::vector<char*> options_env;
     std::vector<std::string> env_vals;
-    if (env_v->IsArray()) {
-      Local<Array> env_opt = env_v.As<Array>();
+    if (args[3]->IsArray()) {
+      Local<Array> env_opt = args[3].As<Array>();
       int envc = env_opt->Length();
       CHECK_LT(envc, INT_MAX);            // Check for overflow.
       env_vals.reserve(envc);
@@ -313,22 +294,19 @@ class ProcessWrap : public HandleWrap {
       options.env = options_env.data();
     }
 
-    // options.stdio
+    // args[4] stdio
     std::vector<uv_stdio_container_t> options_stdio;
-    if (ParseStdioOptions(env, js_options, &options_stdio).IsNothing()) {
+    if (ParseStdioOptions(env, args[4], &options_stdio).IsNothing()) {
       return;
     }
     options.stdio = options_stdio.data();
     options.stdio_count = options_stdio.size();
 
-    // options.windowsHide
-    Local<Value> hide_v;
-    if (!js_options->Get(context, env->windows_hide_string())
-             .ToLocal(&hide_v)) {
-      return;
-    }
+    // args[5] flags (detached, windowsHide, windowsVerbatimArguments)
+    CHECK(args[5]->IsUint32());
+    const uint32_t flags = args[5].As<Uint32>()->Value();
 
-    if (hide_v->IsTrue()) {
+    if (flags & kProcessFlagWindowsHide) {
       options.flags |= UV_PROCESS_WINDOWS_HIDE;
     }
 
@@ -336,25 +314,11 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
     }
 
-    // options.windows_verbatim_arguments
-    Local<Value> wva_v;
-    if (!js_options->Get(context, env->windows_verbatim_arguments_string())
-             .ToLocal(&wva_v)) {
-      return;
-    }
-
-    if (wva_v->IsTrue()) {
+    if (flags & kProcessFlagWindowsVerbatimArguments) {
       options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
     }
 
-    // options.detached
-    Local<Value> detached_v;
-    if (!js_options->Get(context, env->detached_string())
-             .ToLocal(&detached_v)) {
-      return;
-    }
-
-    if (detached_v->IsTrue()) {
+    if (flags & kProcessFlagDetached) {
       options.flags |= UV_PROCESS_DETACHED;
     }
 

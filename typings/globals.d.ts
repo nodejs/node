@@ -18,6 +18,7 @@ import { MessagingBinding } from './internalBinding/messaging';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
+import { ProcessWrapBinding } from './internalBinding/process_wrap';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { StringDecoderBinding } from './internalBinding/string_decoder';
@@ -55,6 +56,7 @@ interface InternalBindingMap {
   options: OptionsBinding;
   os: OSBinding;
   process: ProcessBinding;
+  process_wrap: ProcessWrapBinding;
   sea: SeaBinding;
   serdes: SerdesBinding;
   string_decoder: StringDecoderBinding;
