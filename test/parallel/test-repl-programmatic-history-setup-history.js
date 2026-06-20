@@ -8,6 +8,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 
+common.skipIfInspectorDisabled();
+
 if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }

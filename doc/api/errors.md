@@ -768,12 +768,6 @@ An operation outside the bounds of a `Buffer` was attempted.
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
 
-<a id="ERR_CANNOT_WATCH_SIGINT"></a>
-
-### `ERR_CANNOT_WATCH_SIGINT`
-
-Node.js was unable to watch for the `SIGINT` signal.
-
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 
 ### `ERR_CHILD_CLOSED_BEFORE_REPLY`
@@ -2143,13 +2137,6 @@ An invalid `options.protocol` was passed to `http.request()`.
 
 Both `breakEvalOnSigint` and `eval` options were set in the [`REPL`][] config,
 which is not supported.
-
-<a id="ERR_INVALID_REPL_INPUT"></a>
-
-### `ERR_INVALID_REPL_INPUT`
-
-The input may not be used in the [`REPL`][]. The conditions under which this
-error is used are described in the [`REPL`][] documentation.
 
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 

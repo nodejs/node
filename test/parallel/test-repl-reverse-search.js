@@ -13,6 +13,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 common.allowGlobals('aaaa');
 
 const tmpdir = require('../common/tmpdir');
@@ -190,7 +192,6 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     showEscapeCodes: true,
-    skip: !process.features.inspector,
     checkTotal: true,
     useColors: false,
     test: [
@@ -287,13 +288,7 @@ function runTest() {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  const { expected, skip } = opts;
-
-  // Test unsupported on platform.
-  if (skip) {
-    setImmediate(runTestWrap, true);
-    return;
-  }
+  const { expected } = opts;
 
   const lastChunks = [];
   let i = 0;

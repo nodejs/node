@@ -1,6 +1,9 @@
 'use strict';
 
-const { mustCall } = require('../common');
+const { mustCall, skipIfInspectorDisabled } = require('../common');
+
+skipIfInspectorDisabled();
+
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { spawn } = require('node:child_process');

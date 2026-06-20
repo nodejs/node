@@ -18,39 +18,35 @@ tests.forEach(function(test) {
   test();
 });
 
-function testSloppyMode() {
-  const { input, output } = startNewREPLServer({ replMode: repl.REPL_MODE_SLOPPY, terminal: false, prompt: '> ' });
+async function testSloppyMode() {
+  const { run, output } = startNewREPLServer({ replMode: repl.REPL_MODE_SLOPPY, terminal: false, prompt: '> ' });
 
-  input.emit('data', 'x = 3\n');
+  await run('x = 3\n');
   assert.strictEqual(output.accumulator, '> 3\n> ');
   output.accumulator = '';
 
-  input.emit('data', 'let y = 3\n');
+  await run('let y = 3\n');
   assert.strictEqual(output.accumulator, 'undefined\n> ');
 }
 
-function testStrictMode() {
-  const { input, output } = startNewREPLServer({
+async function testStrictMode() {
+  const { run, output } = startNewREPLServer({
     replMode: repl.REPL_MODE_STRICT, terminal: false, prompt: '> '
   });
 
-  input.emit('data', 'x = 3\n');
+  await run('x = 3\n');
   assert.match(output.accumulator, /ReferenceError: x is not defined/);
   output.accumulator = '';
 
-  input.emit('data', 'let y = 3\n');
+  await run('let y = 3\n');
   assert.strictEqual(output.accumulator, 'undefined\n> ');
 }
 
-function testStrictModeTerminal() {
-  if (!process.features.inspector) {
-    console.warn('Test skipped: V8 inspector is disabled');
-    return;
-  }
+async function testStrictModeTerminal() {
   // Verify that ReferenceErrors are reported in strict mode previews.
-  const { input, output } = startNewREPLServer({ replMode: repl.REPL_MODE_STRICT, prompt: '> ' });
+  const { run, output } = startNewREPLServer({ replMode: repl.REPL_MODE_STRICT, prompt: '> ' });
 
-  input.emit('data', 'xyz ');
+  await run('xyz ');
   assert.ok(
     output.accumulator.includes('\n// ReferenceError: xyz is not defined')
   );
