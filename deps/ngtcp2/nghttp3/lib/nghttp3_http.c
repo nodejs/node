@@ -384,6 +384,12 @@ static int http_request_on_header(nghttp3_http_state *http,
         !check_pseudo_header(http, nv, NGHTTP3_HTTP_FLAG__PROTOCOL)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
+
+    if (lstrieq("webtransport-h3", nv->value->base, nv->value->len) ||
+        lstrieq("webtransport", nv->value->base, nv->value->len)) {
+      http->flags |= NGHTTP3_HTTP_FLAG_WEBTRANSPORT;
+    }
+
     break;
   case NGHTTP3_QPACK_TOKEN_HOST:
     if (!check_authority(nv->value->base, nv->value->len)) {
