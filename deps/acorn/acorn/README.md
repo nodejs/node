@@ -86,6 +86,9 @@ required):
   will be valid, even if `ecmaVersion` is less than 6. If set to `"commonjs"`,
   it is the same as `"script"` except that the top-level scope behaves like a function.
 
+- **strict**: When set to true, enable strict parsing mode even if
+  `sourceType` is `"script"`.
+
 - **onInsertedSemicolon**: If given a callback, that callback will be
   called whenever a missing semicolon is inserted by the parser. The
   callback will be given the character offset of the point where the
