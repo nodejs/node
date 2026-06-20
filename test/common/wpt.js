@@ -563,7 +563,7 @@ class WPTRunner {
     // memories(27 from a fresh node repl). Limit the concurrency to avoid
     // creating too many wasm memories that would fail.
     if (process.arch === 'riscv64' || process.arch === 'riscv32') {
-      concurrency = Math.min(10, concurrency);
+      concurrency = Math.min(5, concurrency);
     }
 
     this.path = path;
