@@ -295,6 +295,9 @@ class Stream final : public AsyncWrap,
   // True if a Blob::Reader has been created for the inbound data.
   bool has_reader() const;
 
+  bool is_local_unidirectional() const;
+  bool is_remote_unidirectional() const;
+
   // Returns the Blob::Reader for the inbound data, or nullptr.
   Blob::Reader* reader() const;
 
@@ -435,8 +438,6 @@ class Stream final : public AsyncWrap,
   void WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args);
   void EndWriting();
 
-  bool is_local_unidirectional() const;
-  bool is_remote_unidirectional() const;
   void ReleaseArenaSlots();
 
   // JavaScript callouts
