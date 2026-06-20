@@ -63,6 +63,7 @@ struct QuicAllocState;
   V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
   V(stream_sessionid, StreamSessionId)                                         \
+  V(stream_wtsessionclose, StreamWTSessionClose)                               \
   V(stream_reset, StreamReset)                                                 \
   V(stream_stop_sending, StreamStopSending)                                    \
   V(stream_trailers, StreamTrailers)
@@ -299,7 +300,7 @@ class BindingData final
   JS_METHOD(SendHeaders);
   JS_METHOD(SetHeadersInterest);
   JS_METHOD(MakeWebtransportStream);
-  JS_METHOD(SetSessionIdInterest);
+  JS_METHOD(SetWebtransportInterest);
 
   // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
   // routing so that any endpoint can route packets to any session.

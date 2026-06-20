@@ -26,6 +26,7 @@ using v8::Global;
 using v8::Integer;
 using v8::Local;
 using v8::LocalVector;
+using v8::String;
 using v8::Value;
 
 namespace quic {
@@ -160,6 +161,7 @@ struct Http3StreamState final : public StreamApplicationState {
   bool wants_headers = false;
   bool wants_trailers = false;
   bool wants_session_id = false;
+  bool wants_wtsessionclose = false;
   int64_t pending_webtransport_session = -1;
   // Until is is clear, that this has a session stream, it is kMaxStreamId
   // after this it is -1, if it is not a webtransport stream
@@ -596,10 +598,12 @@ class Http3ApplicationImpl final : public Session::Application {
     state.wants_trailers = wants_trailers;
   }
 
-  void SetSessionIdInterest(Stream& stream,
-                            bool wants_sessionid) override {
+  void SetWebtransportInterest(Stream& stream,
+                            bool wants_sessionid,
+                            bool wants_wtsessionclose) override {
     auto& state = GetOrCreateStreamState(stream);
     state.wants_session_id = wants_sessionid;
+    state.wants_wtsessionclose  = wants_wtsessionclose;
   }
 
   bool MakeWebtransportStream(Stream& stream, int64_t sessionid) override {
@@ -890,6 +894,13 @@ class Http3ApplicationImpl final : public Session::Application {
     }
   }
 
+  void NotifyWTSessionClose(Stream& stream,
+                                    uint32_t wt_error_code,
+                                    const uint8_t *msg,
+                                    size_t msglen) {
+    EmitWTSessionClose(stream, wt_error_code, msg, msglen);
+  }
+
   void EmitHeaders(Stream& stream) {
     auto& state = GetOrCreateStreamState(stream);
     stream.RecordReceivedActivity();
@@ -935,6 +946,24 @@ class Http3ApplicationImpl final : public Session::Application {
     stream.MakeCallback(
       binding.stream_sessionid_callback(), 1, &sid);
   }
+
+  void EmitWTSessionClose(Stream& stream,
+                          uint32_t wt_error_code,
+                          const uint8_t *msg,
+                          size_t msglen) {
+    auto* state = GetStreamState(stream);  
+    if (!env()->can_call_into_js()  || !state->wants_wtsessionclose) return;
+    CallbackScope<Stream> cb_scope(&stream);
+    auto& binding = BindingData::Get(env());
+    Local<Value> argv[] = {
+        Integer::NewFromUnsigned(env()->isolate(),
+                                 wt_error_code),
+        String::NewFromUtf8(env()->isolate(), reinterpret_cast<const char *>(msg), 
+            v8::NewStringType::kNormal, msglen).ToLocalChecked()
+    };
+    stream.MakeCallback(binding.stream_wtsessionclose_callback(), 
+      arraysize(argv), argv);
+}
 
   void EmitWantTrailers(Stream& stream) {
     auto* state = GetStreamState(stream);
@@ -1485,6 +1514,21 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
+  static int on_recv_wt_close_session(nghttp3_conn *conn,
+                                      int64_t session_id,
+                                      uint32_t wt_error_code,
+                                      const uint8_t *msg,
+                                      size_t msglen,
+                                      void *conn_user_data,
+                                      void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    if (auto stream = app.FindOrCreateStream(session_id)) [[likely]] {
+      app.NotifyWTSessionClose(*stream.get(), wt_error_code, msg, msglen);
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
   static int on_deferred_consume(nghttp3_conn* conn,
                                  stream_id id,
                                  size_t consumed,
@@ -1689,7 +1733,8 @@ class Http3ApplicationImpl final : public Session::Application {
       // ReceiveStreamClose requests it, when we've already handled this.
       nullptr,
       on_receive_wt_data,
-      on_wt_data_stream_open};
+      on_wt_data_stream_open,
+      on_recv_wt_close_session};
 };
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
