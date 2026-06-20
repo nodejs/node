@@ -58,3 +58,48 @@ const assert = require('assert');
     assert.deepStrictEqual(chunks, ['🎉']);
   });
 }
+
+{
+  // Call .setEncoding() before the stream starts flowing, after _read()
+  // has buffered the first chunk of a split character.
+  const chunks = [
+    Buffer.from([0xf0, 0x9f]),
+    Buffer.from([0x8e, 0x89]),
+    null,
+  ];
+  const r = new Readable({
+    read() {
+      this.push(chunks.shift());
+    },
+  });
+
+  r.read(0);
+  assert.strictEqual(r.readableFlowing, null);
+  assert.strictEqual(r.readableLength, 2);
+
+  r.setEncoding('utf8');
+  const received = [];
+  r.on('data', (chunk) => received.push(chunk));
+
+  process.nextTick(() => {
+    assert.deepStrictEqual(received, ['🎉']);
+  });
+}
+
+{
+  // Call .setEncoding() after EOF while the buffer contains an
+  // incomplete character.
+  const r = new Readable({ read() {} });
+
+  r.push(Buffer.from([0xf0]));
+  r.push(Buffer.from([0x9f]));
+  r.push(null);
+
+  r.setEncoding('utf8');
+  const chunks = [];
+  r.on('data', (chunk) => chunks.push(chunk));
+
+  process.nextTick(() => {
+    assert.deepStrictEqual(chunks, ['�']);
+  });
+}
