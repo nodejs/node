@@ -21,6 +21,11 @@ const bench = common.createBenchmark(main, {
 
     'ReadableStream.tee',
   ],
+}, {
+  // Each case collects garbage right before bench.start() so that the
+  // timed window measures the work under test rather than leftover
+  // GC work from the setup phase.
+  flags: ['--expose-gc'],
 });
 
 let readableStream;
@@ -33,6 +38,7 @@ let teeResult;
 function main({ n, kind }) {
   switch (kind) {
     case 'ReadableStream':
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         readableStream = new ReadableStream();
@@ -42,6 +48,7 @@ function main({ n, kind }) {
       assert.ok(readableStream);
       break;
     case 'WritableStream':
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         writableStream = new WritableStream();
@@ -51,6 +58,7 @@ function main({ n, kind }) {
       assert.ok(writableStream);
       break;
     case 'TransformStream':
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         transformStream = new TransformStream();
@@ -62,6 +70,7 @@ function main({ n, kind }) {
     case 'ReadableStreamDefaultReader': {
       const readers = Array.from({ length: n }, () => new ReadableStream());
 
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         readableStreamDefaultReader = new ReadableStreamDefaultReader(readers[i]);
@@ -74,6 +83,7 @@ function main({ n, kind }) {
     case 'ReadableStreamBYOBReader': {
       const readers = Array.from({ length: n }, () => new ReadableStream({ type: 'bytes' }));
 
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         readableStreamBYOBReader = new ReadableStreamBYOBReader(readers[i]);
@@ -86,6 +96,7 @@ function main({ n, kind }) {
     case 'ReadableStream.tee': {
       const streams = Array.from({ length: n }, () => new ReadableStream());
 
+      globalThis.gc();
       bench.start();
       for (let i = 0; i < n; ++i)
         teeResult = streams[i].tee();
