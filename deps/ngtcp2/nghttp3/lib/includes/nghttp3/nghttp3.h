@@ -356,7 +356,6 @@ typedef uint64_t nghttp3_duration;
  * buffering WebTransport data stream was rejected.
  */
 #define NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED -613
-
 /**
  * @macro
  *
@@ -556,7 +555,6 @@ typedef uint64_t nghttp3_duration;
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15
  */
-
 #define NGHTTP3_WT_REQUIREMENTS_NOT_MET 0x212C0D48
 
 /**
@@ -2353,6 +2351,27 @@ typedef int (*nghttp3_wt_data_stream_open)(nghttp3_conn *conn,
                                            void *conn_user_data,
                                            void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_wt_close_session` is a callback function which
+ * is invoked when WT_CLOSE_SESSION Capsule is received.  The
+ * WebTransport session is identified by |session_id|.
+ * |wt_error_code| is Application Error Code.  The buffer pointed by
+ * |msg| of length |msglen| contains Application Error Message.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_recv_wt_close_session)(nghttp3_conn *conn,
+                                             int64_t session_id,
+                                             uint32_t wt_error_code,
+                                             const uint8_t *msg, size_t msglen,
+                                             void *conn_user_data,
+                                             void *stream_user_data);
+
 #define NGHTTP3_CALLBACKS_V1 1
 #define NGHTTP3_CALLBACKS_V2 2
 #define NGHTTP3_CALLBACKS_V3 3
@@ -2499,6 +2518,11 @@ typedef struct nghttp3_callbacks {
    * stream.
    */
   nghttp3_wt_data_stream_open wt_data_stream_open;
+  /**
+   * :member:`recv_wt_close_session` is a callback function which is
+   * invoked when WT_CLOSE_SESSION Capsule is received.
+   */
+  nghttp3_recv_wt_close_session recv_wt_close_session;
 } nghttp3_callbacks;
 
 /**
@@ -3494,8 +3518,8 @@ NGHTTP3_EXTERN int nghttp3_conn_is_drained2(const nghttp3_conn *conn);
  *
  * The application must also set the following settings:
  *
- * - :member:`nghttp3_settings.h3_datagram = 1
- * - :member:`nghttp3_settings.wt_enabled = 1
+ * - :member:`nghttp3_settings.h3_datagram` = 1
+ * - :member:`nghttp3_settings.wt_enabled` = 1
  *
  * It also must send the following QUIC transport parameters:
  *

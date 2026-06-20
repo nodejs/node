@@ -2135,7 +2135,7 @@ nghttp3_ssize nghttp3_conn_on_data(nghttp3_conn *conn, nghttp3_stream *stream,
      been confirmed. */
   assert(stream->wt.session->flags & NGHTTP3_WT_SESSION_FLAG_CONFIRMED);
 
-  rv = nghttp3_wt_session_read_stream(stream->wt.session, data, datalen);
+  rv = nghttp3_conn_read_wt_ctrl_stream(conn, stream, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -4034,4 +4034,155 @@ int64_t nghttp3_conn_get_stream_wt_session_id(const nghttp3_conn *conn,
   }
 
   return stream->wt.session->session_id;
+}
+
+int nghttp3_conn_read_wt_ctrl_stream(nghttp3_conn *conn,
+                                     const nghttp3_stream *stream,
+                                     const uint8_t *src, size_t srclen) {
+  const uint8_t *p, *end;
+  nghttp3_wt_session *wts = stream->wt.session;
+  nghttp3_wt_ctrl_read_state *rstate = &wts->rstate;
+  nghttp3_varint_read_state *rvint = &rstate->rvint;
+  nghttp3_ssize nread;
+  nghttp3_exfr_cpsl *cpsl = &rstate->cpsl;
+  size_t len;
+  size_t i;
+  int rv;
+
+  if (srclen == 0) {
+    return 0;
+  }
+
+  p = src;
+  end = src + srclen;
+
+  for (; p != end;) {
+    switch (rstate->state) {
+    case NGHTTP3_WT_CTRL_STREAM_STATE_TYPE:
+      assert(end - p > 0);
+      nread = nghttp3_read_varint(rvint, p, end, /* fin = */ 0);
+
+      assert(nread > 0);
+
+      p += nread;
+      if (rvint->left) {
+        return 0;
+      }
+
+      rstate->cpsl.hd.type = rvint->acc;
+
+      nghttp3_varint_read_state_reset(rvint);
+      rstate->state = NGHTTP3_WT_CTRL_STREAM_STATE_LENGTH;
+      if (p == end) {
+        return 0;
+      }
+      /* Fall through */
+    case NGHTTP3_WT_CTRL_STREAM_STATE_LENGTH:
+      assert(end - p > 0);
+      nread = nghttp3_read_varint(rvint, p, end, /* fin = */ 0);
+      assert(nread > 0);
+
+      p += nread;
+      if (rvint->left) {
+        return 0;
+      }
+
+      rstate->left = rvint->acc;
+      nghttp3_varint_read_state_reset(rvint);
+
+      switch (rstate->cpsl.hd.type) {
+      case NGHTTP3_EXFR_CPSL_WT_CLOSE_SESSION:
+        if (rstate->left < sizeof(uint32_t) ||
+            rstate->left > sizeof(uint32_t) + /* largest message size */ 1024) {
+          /* TODO Find better error code */
+          return NGHTTP3_ERR_H3_MESSAGE_ERROR;
+        }
+
+        rstate->field_left = sizeof(uint32_t);
+        rstate->state =
+          NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_CODE;
+
+        break;
+      default:
+        /* TODO Add rate limit after we implement all supported
+           capsules. */
+        if (rstate->left == 0) {
+          nghttp3_wt_ctrl_read_state_reset(rstate);
+          break;
+        }
+
+        rstate->state = NGHTTP3_WT_CTRL_STREAM_STATE_IGN;
+      }
+
+      break;
+    case NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_CODE:
+      len = nghttp3_min(rstate->field_left, (size_t)(end - p));
+
+      for (i = 0; i < len; ++i) {
+        cpsl->wt_close_session.error_code <<= 8;
+        cpsl->wt_close_session.error_code += *p++;
+      }
+
+      rstate->left -= len;
+      rstate->field_left -= len;
+      if (rstate->field_left) {
+        break;
+      }
+
+      wts->rx.error_code = cpsl->wt_close_session.error_code;
+
+      rstate->state = NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_MSG;
+
+      if (rstate->left) {
+        wts->rx.error_msg.base =
+          nghttp3_mem_malloc(conn->mem, (size_t)rstate->left);
+        if (!wts->rx.error_msg.base) {
+          return NGHTTP3_ERR_NOMEM;
+        }
+      }
+
+      /* Fall through */
+    case NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_MSG:
+      len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
+
+      if (len) {
+        memcpy(wts->rx.error_msg.base + wts->rx.error_msg.len, p, len);
+        wts->rx.error_msg.len += len;
+
+        p += len;
+        rstate->left -= len;
+      }
+
+      if (rstate->left) {
+        break;
+      }
+
+      if (conn->callbacks.recv_wt_close_session) {
+        rv = conn->callbacks.recv_wt_close_session(
+          conn, wts->session_id, wts->rx.error_code, wts->rx.error_msg.base,
+          wts->rx.error_msg.len, conn->user_data, stream->user_data);
+        if (rv != 0) {
+          return NGHTTP3_ERR_CALLBACK_FAILURE;
+        }
+      }
+
+      nghttp3_wt_ctrl_read_state_reset(rstate);
+
+      return NGHTTP3_ERR_WT_SESSION_GONE;
+    case NGHTTP3_WT_CTRL_STREAM_STATE_IGN:
+      len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
+      p += len;
+      rstate->left -= len;
+
+      if (rstate->left) {
+        return 0;
+      }
+
+      nghttp3_wt_ctrl_read_state_reset(rstate);
+
+      break;
+    }
+  }
+
+  return 0;
 }

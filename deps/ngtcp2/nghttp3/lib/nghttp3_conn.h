@@ -274,4 +274,8 @@ int nghttp3_conn_shutdown_wt_data_stream(nghttp3_conn *conn,
                                          nghttp3_stream *stream,
                                          uint64_t error_code);
 
+int nghttp3_conn_read_wt_ctrl_stream(nghttp3_conn *conn,
+                                     const nghttp3_stream *stream,
+                                     const uint8_t *src, size_t srclen);
+
 #endif /* !defined(NGHTTP3_CONN_H) */

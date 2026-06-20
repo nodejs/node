@@ -61,9 +61,12 @@ typedef struct nghttp3_wt_session {
   struct {
     nghttp3_vec error_msg;
   } tx;
+  struct {
+    nghttp3_vec error_msg;
+    uint32_t error_code;
+  } rx;
   int64_t session_id;
   nghttp3_stream *head;
-  uint32_t error_code;
   uint32_t flags;
 } nghttp3_wt_session;
 
@@ -77,9 +80,6 @@ int nghttp3_wt_session_new(nghttp3_wt_session **pwts, int64_t stream_id,
                            const nghttp3_mem *mem);
 
 void nghttp3_wt_session_del(nghttp3_wt_session *wts, const nghttp3_mem *mem);
-
-int nghttp3_wt_session_read_stream(nghttp3_wt_session *wts, const uint8_t *data,
-                                   size_t datalen);
 
 void nghttp3_wt_ctrl_read_state_reset(nghttp3_wt_ctrl_read_state *rstate);
 
