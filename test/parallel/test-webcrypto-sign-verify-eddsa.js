@@ -15,6 +15,44 @@ const vectors = require('../fixtures/crypto/eddsa')();
 
 const supportsContext = hasOpenSSL(3, 2);
 
+const smallOrderVerifyVectors = [
+  {
+    name: 'Ed25519',
+    publicKey: Buffer.from(
+      'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa',
+      'hex'),
+    signature: Buffer.from(
+      'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a' +
+      '0000000000000000000000000000000000000000000000000000000000000000',
+      'hex'),
+    data: Buffer.from(
+      '8c93255d71dcab10e8f379c26200f3c7bd5f09d9bc3068d3ef4edeb4853022b6',
+      'hex'),
+  },
+];
+
+if (!process.features.openssl_is_boringssl) {
+  smallOrderVerifyVectors.push({
+    name: 'Ed448',
+    publicKey: Buffer.concat([Buffer.from([1]), Buffer.alloc(56)]),
+    signature: Buffer.concat([Buffer.from([1]), Buffer.alloc(113)]),
+    data: Buffer.from([1, 2, 3]),
+  });
+}
+
+async function testSmallOrderVerify({ name, publicKey, signature, data }) {
+  const key = await subtle.importKey(
+    'raw',
+    publicKey,
+    { name },
+    false,
+    ['verify']);
+
+  assert.strictEqual(
+    await subtle.verify({ name }, key, signature, data),
+    false);
+}
+
 async function testVerify({ name,
                             context,
                             publicKeyBuffer,
@@ -259,6 +297,9 @@ async function testSign({ name,
     if (!supportsContext && vector.context?.byteLength) return;
     variations.push(testVerify(vector));
     variations.push(testSign(vector));
+  });
+  smallOrderVerifyVectors.forEach((vector) => {
+    variations.push(testSmallOrderVerify(vector));
   });
 
   await Promise.all(variations);
