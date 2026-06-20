@@ -1,8 +1,6 @@
-'use strict';
-
-const common = require('../common');
-const assert = require('assert');
-const { startNewREPLServer } = require('../common/repl');
+import * as common from '../common/index.mjs';
+import assert from 'node:assert';
+import { startNewREPLServer } from '../common/repl.js';
 
 if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
@@ -14,13 +12,13 @@ if (process.env.TERM === 'dumb') {
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
-function run({ input: inputStr, output: outputStr, event, checkTerminalCodes = true }) {
+async function run({ input: inputStr, output: outputStr, event, checkTerminalCodes = true }) {
   let expected =
     `${terminalCode}.editor\n` +
     '// Entering editor mode (Ctrl+D to finish, Ctrl+C to cancel)\n' +
     `${inputStr}${outputStr}\n${terminalCode}`;
 
-  const { replServer, input, output } = startNewREPLServer({
+  const { replServer, input, output, waitForIdle } = startNewREPLServer({
     prompt: '> ',
     terminal: true,
     useColors: false
@@ -29,6 +27,7 @@ function run({ input: inputStr, output: outputStr, event, checkTerminalCodes = t
   input.emit('data', '.editor\n');
   input.emit('data', inputStr);
   replServer.write('', event);
+  await waitForIdle();
   replServer.close();
 
   let found = output.accumulator;
@@ -69,11 +68,13 @@ const tests = [
   },
 ];
 
-tests.forEach(run);
+for (const test of tests) {
+  await run(test);
+}
 
 // Auto code alignment for .editor mode
-function testCodeAlignment({ input: inputStr, cursor = 0, line = '' }) {
-  const { replServer, input } = startNewREPLServer({
+async function testCodeAlignment({ input: inputStr, cursor = 0, line = '' }) {
+  const { replServer, input, waitForIdle } = startNewREPLServer({
     prompt: '> ',
     terminal: true,
     useColors: false
@@ -86,6 +87,7 @@ function testCodeAlignment({ input: inputStr, cursor = 0, line = '' }) {
   assert.strictEqual(cursor, replServer.cursor);
 
   replServer.write('', { ctrl: true, name: 'd' });
+  await waitForIdle();
   replServer.close();
   // Ensure that empty lines are not saved in history
   assert.notStrictEqual(replServer.history[0].trim(), '');
@@ -112,4 +114,6 @@ const codeAlignmentTests = [
   },
 ];
 
-codeAlignmentTests.forEach(testCodeAlignment);
+for (const test of codeAlignmentTests) {
+  await testCodeAlignment(test);
+}
