@@ -4,6 +4,8 @@ const { start } = require('node:repl');
 const { PassThrough } = require('node:stream');
 const assert = require('node:assert');
 
+common.skipIfInspectorDisabled();
+
 // This test verifies that uncaught exceptions in the REPL
 // do not bring down the process, even if stdin may already
 // have been ended at that point (and the REPL closed as

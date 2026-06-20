@@ -25,6 +25,8 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 const os = require('os');
 
+common.skipIfInspectorDisabled();
+
 const args = [
   '-e',
   'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;',

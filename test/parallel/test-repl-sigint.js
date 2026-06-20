@@ -14,6 +14,8 @@ if (!isMainThread) {
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
+common.skipIfInspectorDisabled();
+
 process.env.REPL_TEST_PPID = process.pid;
 const child = spawn(process.execPath, [ '-i' ], {
   stdio: [null, null, 2]

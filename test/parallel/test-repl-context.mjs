@@ -1,12 +1,12 @@
-'use strict';
-require('../common');
-const assert = require('assert');
-const vm = require('vm');
-const { startNewREPLServer } = require('../common/repl');
+import '../common/index.mjs';
+import assert from 'node:assert';
+import vm from 'node:vm';
+import { Console } from 'node:console';
+import { startNewREPLServer } from '../common/repl.js';
 
 // Test context when useGlobal is false.
 {
-  const { replServer, output } = startNewREPLServer({
+  const { replServer, output, run } = startNewREPLServer({
     terminal: false,
     useGlobal: false
   });
@@ -18,13 +18,13 @@ const { startNewREPLServer } = require('../common/repl');
   assert.notStrictEqual(replServer.context.console, console);
   assert.notStrictEqual(replServer.context.Object, Object);
 
-  replServer.write('({} instanceof Object)\n');
+  await run('({} instanceof Object)\n');
 
   assert.strictEqual(output.accumulator, 'true\n');
 
   const context = replServer.createContext();
   // Ensure that the repl context gets its own "console" instance.
-  assert(context.console instanceof require('console').Console);
+  assert(context.console instanceof Console);
 
   // Ensure that the repl's global property is the context.
   assert.strictEqual(context.global, context);
@@ -36,7 +36,7 @@ const { startNewREPLServer } = require('../common/repl');
 
 // Test for context side effects.
 {
-  const { replServer } = startNewREPLServer({
+  const { replServer, run } = startNewREPLServer({
     useGlobal: false
   });
 
@@ -44,7 +44,7 @@ const { startNewREPLServer } = require('../common/repl');
   assert.strictEqual(replServer.lines.length, 0);
 
   // An assignment to '_' in the repl server
-  replServer.write('_ = 500;\n');
+  await run('_ = 500;\n');
   assert.ok(replServer.underscoreAssigned);
   assert.strictEqual(replServer.lines.length, 1);
   assert.strictEqual(replServer.lines[0], '_ = 500;');

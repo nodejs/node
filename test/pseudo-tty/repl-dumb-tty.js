@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
 const process = require('process');
 
 process.env.TERM = 'dumb';

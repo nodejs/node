@@ -1,13 +1,14 @@
 'use strict';
 require('../common');
+const { startNewREPLServer } = require('../common/repl');
 
 // This test ensures that the repl does not
 // crash or emit error when throwing `null|undefined`
 // ie `throw null` or `throw undefined`.
 
-const r = require('repl').start();
+const { replServer } = startNewREPLServer();
 
 // Should not throw.
-r.write('throw null\n');
-r.write('throw undefined\n');
-r.write('.exit\n');
+replServer.write('throw null\n');
+replServer.write('throw undefined\n');
+replServer.write('.exit\n');
