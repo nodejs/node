@@ -33,6 +33,7 @@ const callbacks = {
   onStreamReset() {},
   onStreamStopSending() {},
   onStreamHeaders() {},
+  onStreamSessionId() {},
   onStreamTrailers() {},
 };
 // Fail if any callback is missing
