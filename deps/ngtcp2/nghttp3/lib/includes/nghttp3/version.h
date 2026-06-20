@@ -31,7 +31,7 @@
  *
  * Version number of the nghttp3 library release.
  */
-#define NGHTTP3_VERSION "1.18.0"
+#define NGHTTP3_VERSION "1.18.0-DEV"
 
 /**
  * @macro
