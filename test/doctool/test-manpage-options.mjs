@@ -1,8 +1,13 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
+
 import assert from 'node:assert';
 import { createReadStream, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';
+
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
 
 // This test checks that all the CLI flags defined in the public CLI documentation (doc/api/cli.md)
 // are also documented in the manpage file (doc/node.1)
@@ -14,7 +19,7 @@ const rootDir = resolve(import.meta.dirname, '..', '..');
 const cliMdPath = join(rootDir, 'doc', 'api', 'cli.md');
 const cliMdContentsStream = createReadStream(cliMdPath);
 
-const manPagePath = join(rootDir, 'doc', 'node.1');
+const manPagePath = join(rootDir, 'out', 'doc', 'node.1');
 const manPageContents = readFileSync(manPagePath, { encoding: 'utf8' });
 
 let insideOptionsSection = false;
@@ -50,7 +55,7 @@ for await (const line of rl) {
           flagNames.length === 1 ? '' : 's'
         } (present in \`doc/api/cli.md\`) ${flagNames.length === 1 ? 'is' : 'are'} missing in the \`doc/node.1\` file: ${
           flagNames.map((flag) => `"-${flag}"`).join(', ')
-        }`
+        }`,
       );
     }
   }
