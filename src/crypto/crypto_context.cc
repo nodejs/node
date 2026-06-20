@@ -12,7 +12,9 @@
 #include "util.h"
 #include "v8.h"
 
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
 #include <openssl/comp.h>
+#endif
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
