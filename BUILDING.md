@@ -252,7 +252,7 @@ tarball and/or browse the git repository checked out at the relevant tag.
 Installation via Linux package manager can be achieved with:
 
 * Nix, NixOS: `nix-shell`
-* Ubuntu, Debian: `sudo apt-get install python3 g++-12 gcc-12 make python3-pip`
+* Ubuntu, Debian: `sudo apt-get install python3 g++-13 gcc-13 make python3-pip`
 * Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
 * CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
 * OpenSUSE: `sudo zypper install python3 gcc-c++ make python3-pip`
