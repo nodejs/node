@@ -1204,6 +1204,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
+  AddOption("--experimental-strip-private-modules",
+            "Type-stripping for TypeScript files under node_modules "
+            "belonging to packages marked \"private\": true",
+            &EnvironmentOptions::experimental_strip_private_modules,
+            kAllowedInEnvvar);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
