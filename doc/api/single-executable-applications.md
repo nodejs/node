@@ -71,7 +71,7 @@ binary.
    * On macOS:
 
    ```bash
-   codesign --sign - hello
+   codesign --sign - sea
    ```
 
    * On Windows (optional):
@@ -80,7 +80,7 @@ binary.
    binary would still be runnable.
 
    ```powershell
-   signtool sign /fd SHA256 hello.exe
+   signtool sign /fd SHA256 sea.exe
    ```
 
 5. Run the binary:
@@ -88,14 +88,14 @@ binary.
    * On systems other than Windows
 
    ```console
-   $ ./hello world
+   $ ./sea world
    Hello, world!
    ```
 
    * On Windows
 
    ```console
-   $ .\hello.exe world
+   $ .\sea.exe world
    Hello, world!
    ```
 
