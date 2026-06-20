@@ -840,8 +840,9 @@ ignored by the decompression classes.
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  trailing input is detected after the end of the compressed stream.
-  **Default:** `false`
+  trailing input is detected after the end of the compressed stream. This
+  includes unreadable bytes and, when decompressing gzip, additional gzip
+  members following the first member. **Default:** `false`
 
 See the [`deflateInit2` and `inflateInit2`][] documentation for more
 information.
@@ -873,8 +874,7 @@ Each Brotli-based class takes an `options` object. All options are optional.
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  trailing input is detected after the end of the compressed stream.
-  **Default:** `false`
+  input remains after the first complete compressed stream. **Default:** `false`
 
 For example:
 
@@ -1119,8 +1119,7 @@ Each Zstd-based class takes an `options` object. All options are optional.
   improve compression efficiency when compressing or decompressing data that
   shares common patterns with the dictionary.
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  trailing input is detected after the end of the compressed stream.
-  **Default:** `false`
+  input remains after the first complete compressed stream. **Default:** `false`
 
 For example:
 
