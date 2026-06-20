@@ -196,6 +196,7 @@ class ZlibContext final : public MemoryRetainer {
             int window_bits,
             int mem_level,
             int strategy,
+            bool reject_garbage_after_end,
             std::vector<unsigned char>&& dictionary);
   CompressionError SetParams(int level, int strategy);
 
@@ -223,6 +224,7 @@ class ZlibContext final : public MemoryRetainer {
   node_zlib_mode mode_ = NONE;
   int strategy_ = 0;
   int window_bits_ = 0;
+  bool reject_garbage_after_end_ = false;
   unsigned int gzip_id_bytes_read_ = 0;
   std::vector<unsigned char> dictionary_;
 
@@ -749,9 +751,10 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
           "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
           "that is compatible with Node.js 9 and above.\n");
     }
-    CHECK(args.Length() == 7 &&
-      "init(windowBits, level, memLevel, strategy, writeResult, writeCallback,"
-      " dictionary)");
+    CHECK((args.Length() == 7 || args.Length() == 8) &&
+          "init(windowBits, level, memLevel, strategy, writeResult, "
+          "writeCallback,"
+          " dictionary[, rejectGarbageAfterEnd])");
 
     ZlibStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
@@ -791,10 +794,20 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
           data + Buffer::Length(args[6]));
     }
 
+    bool reject_garbage_after_end = false;
+    if (args.Length() == 8) {
+      CHECK(args[7]->IsBoolean());
+      reject_garbage_after_end = args[7]->IsTrue();
+    }
+
     wrap->InitStream(write_result, write_js_callback);
 
     AllocScope alloc_scope(wrap);
-    wrap->context()->Init(level, window_bits, mem_level, strategy,
+    wrap->context()->Init(level,
+                          window_bits,
+                          mem_level,
+                          strategy,
+                          reject_garbage_after_end,
                           std::move(dictionary));
   }
 
@@ -1124,10 +1137,8 @@ void ZlibContext::DoThreadPoolWork() {
         }
       }
 
-      while (strm_.avail_in > 0 &&
-             mode_ == GUNZIP &&
-             err_ == Z_STREAM_END &&
-             strm_.next_in[0] != 0x00) {
+      while (strm_.avail_in > 0 && mode_ == GUNZIP && err_ == Z_STREAM_END &&
+             !reject_garbage_after_end_ && strm_.next_in[0] != 0x00) {
         // Bytes remain in input buffer. Perhaps this is another compressed
         // member in the same archive, or just trailing garbage.
         // Trailing zero bytes are okay, though, since they are frequently
@@ -1226,9 +1237,12 @@ CompressionError ZlibContext::ResetStream() {
   return SetDictionary();
 }
 
-void ZlibContext::Init(
-    int level, int window_bits, int mem_level, int strategy,
-    std::vector<unsigned char>&& dictionary) {
+void ZlibContext::Init(int level,
+                       int window_bits,
+                       int mem_level,
+                       int strategy,
+                       bool reject_garbage_after_end,
+                       std::vector<unsigned char>&& dictionary) {
   // Set allocation functions
   strm_.zalloc = CompressionStreamMemoryOwner::AllocForZlib;
   strm_.zfree = CompressionStreamMemoryOwner::FreeForZlib;
@@ -1259,6 +1273,7 @@ void ZlibContext::Init(
   window_bits_ = window_bits;
   mem_level_ = mem_level;
   strategy_ = strategy;
+  reject_garbage_after_end_ = reject_garbage_after_end;
 
   flush_ = Z_NO_FLUSH;
 
