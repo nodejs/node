@@ -80,7 +80,7 @@ uint8_t *nghttp3_qpack_huffman_encode(uint8_t *dest, const uint8_t *src,
 void nghttp3_qpack_huffman_decode_context_init(
   nghttp3_qpack_huffman_decode_context *ctx) {
   *ctx = (nghttp3_qpack_huffman_decode_context){
-    .flags = NGHTTP3_QPACK_HUFFMAN_ACCEPTED,
+    .flags = NGHTTP3_QPACK_HUFFMAN_FLAG_ACCEPTED,
   };
 }
 
@@ -103,12 +103,12 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
   for (; src != end;) {
     c = *src++;
     t = qpack_huffman_decode_table[t.fstate][c >> 4];
-    if (t.flags & NGHTTP3_QPACK_HUFFMAN_SYM) {
+    if (t.flags & NGHTTP3_QPACK_HUFFMAN_FLAG_SYM) {
       *p++ = t.sym;
     }
 
     t = qpack_huffman_decode_table[t.fstate][c & 0xFU];
-    if (t.flags & NGHTTP3_QPACK_HUFFMAN_SYM) {
+    if (t.flags & NGHTTP3_QPACK_HUFFMAN_FLAG_SYM) {
       *p++ = t.sym;
     }
   }
@@ -116,7 +116,7 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
   ctx->fstate = t.fstate;
   ctx->flags = t.flags;
 
-  if (fin && !(ctx->flags & NGHTTP3_QPACK_HUFFMAN_ACCEPTED)) {
+  if (fin && !(ctx->flags & NGHTTP3_QPACK_HUFFMAN_FLAG_ACCEPTED)) {
     return NGHTTP3_ERR_QPACK_FATAL;
   }
 
