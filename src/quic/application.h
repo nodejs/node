@@ -194,8 +194,9 @@ class Session::Application : public MemoryRetainer {
                                   bool wants_trailers) {}
   // Updates JavaScript callback interest concerning new webtransport sessions
   // Applications without Webtransport support ignore this
-  virtual void SetSessionIdInterest(Stream& stream,
-                                    bool wants_sessionid) {}
+  virtual void SetWebtransportInterest(Stream& stream,
+                                       bool wants_sessionid,
+                                       bool wants_wtsessionclose) {}
 
   // connects the webtransport session stream to stream object,
   // it also sends some initial bytes to the wire to signal
