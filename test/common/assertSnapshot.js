@@ -234,14 +234,15 @@ function replaceJunitDuration(str) {
 // This transform picks only the first line and then the lines from the test
 // file.
 function pickTestFileFromLcov(str) {
+  const expectedFile = 'output.js';
   const lines = str.split(/\n/);
   const firstLineOfTestFile = lines.findIndex(
-    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js'),
+    (line) => line.startsWith('SF:') && line.trim().endsWith(expectedFile),
   );
 
   if (firstLineOfTestFile === -1) {
     assert.fail(
-      'Could not find coverage for test/fixtures/test-runner/output/output.js ' +
+      `Could not find LCOV source record ending with ${expectedFile} ` +
       `in LCOV output:\n${str || '<empty>'}`,
     );
   }
@@ -252,7 +253,7 @@ function pickTestFileFromLcov(str) {
 
   if (lastLineOfTestFile === -1) {
     assert.fail(
-      'Could not find end_of_record for test/fixtures/test-runner/output/output.js ' +
+      `Could not find end_of_record for LCOV source record ending with ${expectedFile} ` +
       `in LCOV output:\n${str}`,
     );
   }
