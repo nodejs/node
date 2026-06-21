@@ -36,6 +36,10 @@ function createAgent(domain, calls, gates) {
   agent.setBlackboxPatterns = method('setBlackboxPatterns');
   agent.setPauseOnExceptions = method('setPauseOnExceptions');
   agent.runIfWaitingForDebugger = method('runIfWaitingForDebugger');
+  agent.getScriptSource = async () => {
+    calls.push(`${domain}.getScriptSource`);
+    return { scriptSource: 'let x = 1;\nx = x + 1;\n' };
+  };
   return agent;
 }
 
@@ -56,7 +60,30 @@ function evalCommand(repl, command) {
   });
 }
 
-async function assertCommandWaitsForInit(repl, command, gate, calls) {
+function emitInitialPause(inspector) {
+  inspector.Debugger.emit('paused', {
+    reason: 'Break on start',
+    callFrames: [{
+      callFrameId: 'call-frame-id',
+      functionName: '',
+      location: {
+        scriptId: '1',
+        lineNumber: 0,
+        columnNumber: 0,
+      },
+      scopeChain: [],
+    }],
+  });
+}
+
+async function assertCommandWaitsForInitAndPauseDisplay(
+  repl,
+  command,
+  gate,
+  pauseDisplayGate,
+  calls,
+  inspector,
+) {
   let settled = false;
   const promise = evalCommand(repl, command).then(() => {
     settled = true;
@@ -70,6 +97,22 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
   );
 
   gate.resolve();
+  await new Promise(setImmediate);
+  assert.strictEqual(
+    settled,
+    false,
+    `${command} resolved before initial pause was displayed: ${calls}`,
+  );
+
+  emitInitialPause(inspector);
+  await new Promise(setImmediate);
+  assert.strictEqual(
+    settled,
+    false,
+    `${command} resolved before pause display completed: ${calls}`,
+  );
+
+  pauseDisplayGate.resolve();
   await promise;
   assert.strictEqual(settled, true);
 }
@@ -78,17 +121,26 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
   const calls = [];
   const runGate = createGate();
   const restartGate = createGate();
+  const runPauseDisplayGate = createGate();
+  const restartPauseDisplayGate = createGate();
   const gates = [null, runGate, restartGate];
+  const pauseDisplayGates = [runPauseDisplayGate, restartPauseDisplayGate];
   const inspector = {
+    child: null,
     client: new EventEmitter(),
     domainNames: ['Debugger', 'HeapProfiler', 'Profiler', 'Runtime'],
     stdin: new PassThrough(),
     stdout: new PassThrough(),
     run: common.mustCall(async () => {
       calls.push('inspector.run');
+      inspector.child = {};
     }, 2),
+    print(text, addNewline = true) {
+      inspector.stdout.write(addNewline ? `${text}\n` : text);
+    },
     suspendReplWhile(fn) {
-      return fn();
+      const pauseDisplayGate = pauseDisplayGates.shift();
+      return Promise.resolve(fn()).then(() => pauseDisplayGate.promise);
     },
   };
 
@@ -98,8 +150,22 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
 
   const repl = await createRepl(inspector)();
 
-  await assertCommandWaitsForInit(repl, 'run', runGate, calls);
-  await assertCommandWaitsForInit(repl, 'restart', restartGate, calls);
+  await assertCommandWaitsForInitAndPauseDisplay(
+    repl,
+    'run',
+    runGate,
+    runPauseDisplayGate,
+    calls,
+    inspector,
+  );
+  await assertCommandWaitsForInitAndPauseDisplay(
+    repl,
+    'restart',
+    restartGate,
+    restartPauseDisplayGate,
+    calls,
+    inspector,
+  );
 
   assert.deepStrictEqual(
     calls.filter((call) => (
