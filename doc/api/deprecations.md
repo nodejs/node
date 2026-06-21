@@ -4354,6 +4354,9 @@ npx codemod@latest @nodejs/types-is-native-error
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: End-of-Life.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59008
     description: Runtime deprecation.
@@ -4365,9 +4368,10 @@ changes:
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
+Creating SHAKE-128 and SHAKE-256 digests without an explicit
+`options.outputLength` is no longer supported.
 
 ### DEP0199: `require('node:_http_*')`
 

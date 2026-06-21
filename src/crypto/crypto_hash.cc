@@ -246,6 +246,39 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 #endif
 }
 
+void MarkInvalidXofLength() {
+  EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+}
+
+// DEP0198 EOL requires XOFs without an OpenSSL-defined default output length
+// to fail when outputLength is omitted. OpenSSL 3.4 and later report a digest
+// size of 0 for such XOFs, including SHAKE, which had weak historical defaults
+// before OpenSSL 3.4. For older OpenSSL versions, identify those resolved
+// EVP_MD values explicitly to keep the missing-outputLength error
+// version-independent.
+#if !OPENSSL_VERSION_PREREQ(3, 4)
+bool IsShakeDigest(const EVP_MD* md) {
+#if OPENSSL_VERSION_MAJOR >= 3
+  return EVP_MD_is_a(md, "SHAKE128") || EVP_MD_is_a(md, "SHAKE256");
+#else
+  const char* name = OBJ_nid2sn(EVP_MD_type(md));
+  return name != nullptr &&
+         (strcmp(name, "SHAKE128") == 0 || strcmp(name, "SHAKE256") == 0);
+#endif
+}
+#endif
+
+bool ShouldRejectMissingXofLength(const EVP_MD* md, size_t default_length) {
+  if (default_length == 0) return true;
+
+#if !OPENSSL_VERSION_PREREQ(3, 4)
+  return IsShakeDigest(md);
+#else
+  static_cast<void>(md);
+  return false;
+#endif
+}
+
 // crypto.digest(algorithm, algorithmId, algorithmCache,
 //               input, outputEncoding, outputEncodingId, outputLength)
 void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
@@ -287,18 +320,10 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
   } else if (is_xof) {
     if (!args[6]->IsUndefined()) {
       output_length = args[6].As<Uint32>()->Value();
-    } else if (output_length == 0) {
-      // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
-      // default lengths
-      // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
-      const char* name = OBJ_nid2sn(EVP_MD_type(md));
-      if (name != nullptr) {
-        if (strcmp(name, "SHAKE128") == 0) {
-          output_length = 16;
-        } else if (strcmp(name, "SHAKE256") == 0) {
-          output_length = 32;
-        }
-      }
+    } else if (ShouldRejectMissingXofLength(md, output_length)) {
+      MarkInvalidXofLength();
+      return ThrowCryptoError(
+          env, ERR_get_error(), "Digest method not supported");
     }
   }
 
@@ -387,6 +412,12 @@ void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsUint32());
+    xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
+  }
+
   const Hash* orig = nullptr;
   const EVP_MD* md = nullptr;
   if (args[0]->IsObject()) {
@@ -395,12 +426,6 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     md = orig->mdctx_.getDigest();
   } else {
     md = GetDigestImplementation(env, args[0], args[2], args[3]);
-  }
-
-  Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
-  if (!args[1]->IsUndefined()) {
-    CHECK(args[1]->IsUint32());
-    xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
   }
 
   Hash* hash = new Hash(env, args.This());
@@ -423,18 +448,11 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 
   md_len_ = mdctx_.getDigestSize();
 
-  // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
-  // default lengths
-  // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
-  if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() && md_len_ == 0) {
-    const char* name = OBJ_nid2sn(EVP_MD_type(md));
-    if (name != nullptr) {
-      if (strcmp(name, "SHAKE128") == 0) {
-        md_len_ = 16;
-      } else if (strcmp(name, "SHAKE256") == 0) {
-        md_len_ = 32;
-      }
-    }
+  if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() &&
+      ShouldRejectMissingXofLength(md, md_len_)) {
+    MarkInvalidXofLength();
+    mdctx_.reset();
+    return false;
   }
 
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
