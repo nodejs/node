@@ -28,6 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include <ffi_common.h>
 #include "internal.h"
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h> /* FlushInstructionCache */
 #endif
 #include <tramp.h>
@@ -387,7 +388,7 @@ extend_hfa_type (void *dest, void *src, int h)
   void *x0;
 
 #define BTI_J "hint #36"
-  asm volatile (
+  __asm__ volatile (
 	"adr	%0, 0f\n"
 "	add	%0, %0, %1\n"
 "	br	%0\n"
@@ -467,18 +468,18 @@ compress_hfa_type (void *dest, void *reg, int h)
 	*(float *)dest = *(float *)reg;
       break;
     case AARCH64_RET_S2:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "st2 { v16.s, v17.s }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17");
       break;
     case AARCH64_RET_S3:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "ldr q18, [%1, #32]\n\t"
 	   "st3 { v16.s, v17.s, v18.s }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17", "v18");
       break;
     case AARCH64_RET_S4:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "ldp q18, q19, [%1, #32]\n\t"
 	   "st4 { v16.s, v17.s, v18.s, v19.s }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17", "v18", "v19");
@@ -495,18 +496,18 @@ compress_hfa_type (void *dest, void *reg, int h)
 	*(double *)dest = *(double *)reg;
       break;
     case AARCH64_RET_D2:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "st2 { v16.d, v17.d }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17");
       break;
     case AARCH64_RET_D3:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "ldr q18, [%1, #32]\n\t"
 	   "st3 { v16.d, v17.d, v18.d }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17", "v18");
       break;
     case AARCH64_RET_D4:
-      asm ("ldp q16, q17, [%1]\n\t"
+      __asm__ ("ldp q16, q17, [%1]\n\t"
 	   "ldp q18, q19, [%1, #32]\n\t"
 	   "st4 { v16.d, v17.d, v18.d, v19.d }[0], [%0]"
 	   : : "r"(dest), "r"(reg) : "memory", "v16", "v17", "v18", "v19");
@@ -535,6 +536,32 @@ allocate_int_to_reg_or_stack (struct call_context *context,
 
   state->ngrn = N_X_ARG_REG;
   return allocate_to_stack (state, stack, size, size);
+}
+
+static void *
+allocate_int128_to_reg_or_stack (struct call_context *context,
+			         struct arg_state *state, void *stack)
+{
+  unsigned ngrn = state->ngrn;
+  void *ret;
+
+  /* The normal AArch64 ABI requires even Xreg; Darwin does not. */
+#ifndef __APPLE__
+  ngrn += ngrn & 1;
+#endif
+
+  if (ngrn < N_X_ARG_REG)
+    {
+      ret = &context->x[ngrn];
+      ngrn += 2;
+    }
+  else
+    {
+      ret = allocate_to_stack (state, stack, 16, 16);
+      ngrn = N_X_ARG_REG;
+    }
+  state->ngrn = ngrn;
+  return ret;
 }
 
 ffi_status FFI_HIDDEN
@@ -574,6 +601,11 @@ ffi_prep_cif_machdep (ffi_cif *cif)
       break;
     case FFI_TYPE_POINTER:
       flags = (sizeof(void *) == 4 ? AARCH64_RET_UINT32 : AARCH64_RET_INT64);
+      break;
+
+    case FFI_TYPE_UINT128:
+    case FFI_TYPE_SINT128:
+      flags = AARCH64_RET_INT128;
       break;
 
     case FFI_TYPE_FLOAT:
@@ -739,6 +771,12 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
 #endif
 	      }
 	  }
+	  break;
+
+	case FFI_TYPE_UINT128:
+	case FFI_TYPE_SINT128:
+	  dest = allocate_int128_to_reg_or_stack (context, &state, stack);
+	  memcpy (dest, a, 16);
 	  break;
 
 	case FFI_TYPE_FLOAT:
@@ -1021,6 +1059,11 @@ ffi_closure_SYSV_inner (ffi_cif *cif,
 	case FFI_TYPE_SINT64:
 	case FFI_TYPE_POINTER:
 	  avalue[i] = allocate_int_to_reg_or_stack (context, &state, stack, s);
+	  break;
+
+	case FFI_TYPE_UINT128:
+	case FFI_TYPE_SINT128:
+	  avalue[i] = allocate_int128_to_reg_or_stack (context, &state, stack);
 	  break;
 
 	case FFI_TYPE_FLOAT:

@@ -150,32 +150,15 @@ typedef enum ffi_abi {
 # define FFI_GO_CLOSURES 1
 #endif
 
-/* ppc_closure.S and linux64_closure.S expect this.  */
-#define FFI_PPC_TYPE_LAST FFI_TYPE_POINTER
-
-/* We define additional types below.  If generic types are added that
-   must be supported by powerpc libffi then it is likely that
-   FFI_PPC_TYPE_LAST needs increasing *and* the jump tables in
-   ppc_closure.S and linux64_closure.S be extended.  */
-
-#if !(FFI_TYPE_LAST == FFI_PPC_TYPE_LAST		\
-      || (FFI_TYPE_LAST == FFI_TYPE_COMPLEX		\
-	  && !defined FFI_TARGET_HAS_COMPLEX_TYPE))
-# error "You likely have a broken powerpc libffi"
+/* Complex types are supported on ELFv2 (the only PowerPC64 variant where
+   the assembly and C-side passing/return logic has been wired up).  Under
+   ELFv2, float/double _Complex are passed and returned as a 2-element
+   homogeneous floating-point aggregate, but each scalar half consumes a
+   GPR shadow slot of its own — i.e. the same way the underlying C ABI
+   handles them, which is what GCC's split_complex_arg emits.  */
+#if defined(POWERPC64) && _CALL_ELF == 2
+# define FFI_TARGET_HAS_COMPLEX_TYPE
 #endif
-
-/* Needed for soft-float long-double-128 support.  */
-#define FFI_TYPE_UINT128 (FFI_PPC_TYPE_LAST + 1)
-
-/* Needed for FFI_SYSV small structure returns.  */
-#define FFI_SYSV_TYPE_SMALL_STRUCT (FFI_PPC_TYPE_LAST + 2)
-
-/* Used by ELFv2 for homogenous structure returns.  */
-#define FFI_V2_TYPE_VECTOR		(FFI_PPC_TYPE_LAST + 1)
-#define FFI_V2_TYPE_VECTOR_HOMOG	(FFI_PPC_TYPE_LAST + 2)
-#define FFI_V2_TYPE_FLOAT_HOMOG		(FFI_PPC_TYPE_LAST + 3)
-#define FFI_V2_TYPE_DOUBLE_HOMOG	(FFI_PPC_TYPE_LAST + 4)
-#define FFI_V2_TYPE_SMALL_STRUCT	(FFI_PPC_TYPE_LAST + 5)
 
 #if _CALL_ELF == 2
 # define FFI_TRAMPOLINE_SIZE 32
@@ -189,16 +172,6 @@ typedef enum ffi_abi {
 # else /* POWERPC || POWERPC_AIX */
 #  define FFI_TRAMPOLINE_SIZE 40
 # endif
-#endif
-
-#ifndef LIBFFI_ASM
-#if defined(POWERPC_DARWIN) || defined(POWERPC_AIX)
-struct ffi_aix_trampoline_struct {
-    void * code_pointer;	/* Pointer to ffi_closure_ASM */
-    void * toc;			/* TOC */
-    void * static_chain;	/* Pointer to closure */
-};
-#endif
 #endif
 
 #endif

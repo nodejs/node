@@ -32,6 +32,13 @@
 
 #include <stdlib.h>
 
+
+struct ffi_aix_trampoline_struct {
+    void * code_pointer;	/* Pointer to ffi_closure_ASM */
+    void * toc;			/* TOC */
+    void * static_chain;	/* Pointer to closure */
+};
+
 extern void ffi_closure_ASM (void);
 
 #if defined (FFI_GO_CLOSURES)
@@ -1442,7 +1449,40 @@ ffi_closure_helper_common (ffi_cif* cif,
   (fun) (cif, rvalue, avalue, user_data);
 
   /* Tell ffi_closure_ASM to perform return type promotions.  */
-  return cif->rtype;
+  switch (cif->rtype->type)
+    {
+    case FFI_TYPE_VOID:
+    case FFI_TYPE_STRUCT:
+      return PPC_LD_NONE;
+    case FFI_TYPE_FLOAT:
+      return PPC_LD_F32;
+    case FFI_TYPE_DOUBLE:
+      return PPC_LD_F64;
+#if FFI_TYPE_DOUBLE != FFI_TYPE_LONGDOUBLE
+    case FFI_TYPE_LONGDOUBLE:
+      return PPC_LD_F128;
+#endif
+    case FFI_TYPE_UINT8:
+      return PPC_LD_U8;
+    case FFI_TYPE_SINT8:
+      return PPC_LD_S8;
+    case FFI_TYPE_UINT16:
+      return PPC_LD_U16;
+    case FFI_TYPE_SINT16:
+      return PPC_LD_S16;
+    case FFI_TYPE_UINT32:
+      return PPC_LD_U32;
+    case FFI_TYPE_INT:
+    case FFI_TYPE_SINT32:
+      return PPC_LD_S32;
+    case FFI_TYPE_POINTER:
+      return PPC_LD_PTR;
+    case FFI_TYPE_UINT64:
+    case FFI_TYPE_SINT64:
+      return PPC_LD_I64;
+    default:
+      abort();
+    }
 }
 
 ffi_type *

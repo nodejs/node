@@ -64,6 +64,7 @@ typedef enum ffi_abi {
 #define FFI_NATIVE_RAW_API 0
 #define FFI_EXTRA_CIF_FIELDS unsigned riscv_nfixedargs; unsigned riscv_unused
 #define FFI_TARGET_SPECIFIC_VARIADIC
+#define FFI_TARGET_HAS_INT128
 
 #endif
 

@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 
-LIBFFI_VERSION = '3.5.2'
-LIBFFI_VERSION_NUMBER = '30502'
+LIBFFI_VERSION = '3.6.0'
+LIBFFI_VERSION_NUMBER = '30600'
 
 def normalize_arch(target_arch):
     aliases = {
@@ -45,7 +45,7 @@ def get_target(os_name, target_arch):
         return ('RISCV', 'riscv')
 
     if target_arch == 'loong64':
-        return ('LOONGARCH64', 'loongarch64')
+        return ('LOONGARCH64', 'loongarch')
 
     if target_arch in ('mips', 'mipsel', 'mips64el'):
         if os_name in ('freebsd', 'linux', 'openbsd'):
