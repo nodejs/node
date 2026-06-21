@@ -840,6 +840,13 @@ corresponding executable address.
 @defun void ffi_closure_free (void *@var{writable})
 Free memory allocated using @code{ffi_closure_alloc}.  The argument is
 the writable address that was returned.
+
+It is not safe to free a closure while it may still be invoked, including
+from within the closure's own callback (that is, you must not free a closure
+from the function it dispatches to while that call is in progress).  Doing so
+frees the executable trampoline that is still in use.  The caller is
+responsible for ensuring no thread is, or can begin, calling the closure
+before it is freed.
 @end defun
 
 Once you have allocated the memory for a closure, you must construct a

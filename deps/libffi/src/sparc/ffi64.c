@@ -469,7 +469,7 @@ ffi_call_go(ffi_cif *cif, void (*fn)(void), void *rvalue,
 static inline void
 ffi_flush_icache (void *p)
 {
-  asm volatile ("flush	%0; flush %0+8" : : "r" (p) : "memory");
+  __asm__ volatile ("flush	%0; flush %0+8" : : "r" (p) : "memory");
 }
 #else
 extern void ffi_flush_icache (void *) FFI_HIDDEN;

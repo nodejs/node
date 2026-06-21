@@ -91,3 +91,11 @@ LIBFFI_GO_CLOSURE_8.0 {
 	ffi_prep_go_closure;
 } LIBFFI_CLOSURE_8.0;
 #endif
+
+#ifdef FFI_TARGET_HAS_INT128
+LIBFFI_INT128_8.3 {
+  global:
+	ffi_type_sint128;
+	ffi_type_uint128;
+} LIBFFI_BASE_8.1;
+#endif

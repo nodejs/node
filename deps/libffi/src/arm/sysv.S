@@ -120,7 +120,7 @@
 #endif
 
 
-#ifndef __clang__
+#ifdef __ELF__
 	/* We require interworking on LDM, which implies ARMv5T,
 	   which implies the existance of BLX.  */
  	.arch	armv5t

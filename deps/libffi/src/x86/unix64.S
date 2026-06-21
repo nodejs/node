@@ -201,6 +201,13 @@ E(L(store_table), UNIX64_RET_ST_XMM0_XMM1)
 E(L(store_table), UNIX64_RET_ST_RAX_RDX)
 	_CET_ENDBR
 	movq	%rdx, 8(%rsi)
+	jmp	L(s2)
+E(L(store_table), UNIX64_RET_XMM128)
+	_CET_ENDBR
+	movups	%xmm0, (%rdi)
+	ret
+
+	.balign 8
 L(s2):
 	movq	%rax, (%rsi)
 	shrl	$UNIX64_SIZE_SHIFT, %ecx
@@ -386,6 +393,13 @@ E(L(load_table), UNIX64_RET_ST_XMM0_XMM1)
 E(L(load_table), UNIX64_RET_ST_RAX_RDX)
 	_CET_ENDBR
 	movq	8(%rsi), %rdx
+	jmp	L(l2)
+E(L(load_table), UNIX64_RET_XMM128)
+	_CET_ENDBR
+	movups	(%rsi), %xmm0
+	ret
+
+	.balign	8
 L(l2):
 	movq	(%rsi), %rax
 	ret
@@ -558,6 +572,10 @@ EHFrame0:
 #endif
 
 #ifdef HAVE_AS_X86_PCREL
+# define PCREL(X)	X - .
+#elif defined(__clang__)
+/* clang's integrated assembler rejects the X@rel variant (#947); the
+   pc-relative label difference works wherever @rel would.  */
 # define PCREL(X)	X - .
 #else
 # define PCREL(X)	X@rel
