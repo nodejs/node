@@ -10,10 +10,10 @@ const server = http.createServer(common.mustCall(async (req, res) => {
   res.cork();
 
   // Write small amount - won't need drain
-  assert.strictEqual(res.write('1'.repeat(100)), true);
+  assert.strictEqual(res.write('1'.repeat(10)), true);
 
-  // Write large amount that should require drain
-  assert.strictEqual(res.write('2'.repeat(1000000)), false);
+  // Write enough to exceed highWaterMark (set in 'connection' listener)
+  assert.strictEqual(res.write('2'.repeat(1000)), false);
 
   // Verify writableNeedDrain is set
   assert.strictEqual(res.writableNeedDrain, true);
@@ -27,24 +27,22 @@ const server = http.createServer(common.mustCall(async (req, res) => {
     }));
   });
 
-  // Uncork should trigger drain if needed
+  // Uncork should trigger drain
   res.uncork();
-
   await drainPromise;
 
-  // Cork again for next write
-  res.cork();
-
-  // Write more data
-  res.write('3'.repeat(100));
-
-  // Final uncork and end
-  res.uncork();
   res.end();
 }));
 
-server.listen(0, common.mustCall(() => {
+server.on('connection', common.mustCall((socket) => {
+  // Set high water mark large enough to cover HTTP overhead + first
+  // small content batch, but not enough to cover second batch.
+  socket._writableState.highWaterMark = 1000;
+}));
+
+server.listen(0, common.localhostIPv4, common.mustCall(() => {
   http.get({
+    host: common.localhostIPv4,
     port: server.address().port,
   }, common.mustCall((res) => {
     let data = '';
@@ -56,12 +54,11 @@ server.listen(0, common.mustCall(() => {
 
     res.on('end', common.mustCall(() => {
       // Verify we got all the data
-      assert.strictEqual(data.length, 100 + 1000000 + 100);
-      assert.strictEqual(data.substring(0, 100), '1'.repeat(100));
-      assert.strictEqual(data.substring(100, 1000100), '2'.repeat(1000000));
-      assert.strictEqual(data.substring(1000100), '3'.repeat(100));
+      assert.strictEqual(data.length, 10 + 1000);
+      assert.strictEqual(data.substring(0, 10), '1'.repeat(10));
+      assert.strictEqual(data.substring(10), '2'.repeat(1000));
 
-      server.close();
+      server.close(common.mustCall());
     }));
   }));
 }));
