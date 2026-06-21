@@ -238,9 +238,25 @@ function pickTestFileFromLcov(str) {
   const firstLineOfTestFile = lines.findIndex(
     (line) => line.startsWith('SF:') && line.trim().endsWith('output.js'),
   );
+
+  if (firstLineOfTestFile === -1) {
+    assert.fail(
+      'Could not find coverage for test/fixtures/test-runner/output/output.js ' +
+      `in LCOV output:\n${str || '<empty>'}`,
+    );
+  }
+
   const lastLineOfTestFile = lines.findIndex(
     (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record',
   );
+
+  if (lastLineOfTestFile === -1) {
+    assert.fail(
+      'Could not find end_of_record for test/fixtures/test-runner/output/output.js ' +
+      `in LCOV output:\n${str}`,
+    );
+  }
+
   return (
     lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
   );
