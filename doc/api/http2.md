@@ -4189,6 +4189,53 @@ removeAllHeaders(request.headers);
 assert(request.url);   // Fails because the :path header has been removed
 ```
 
+#### `request.headersDistinct`
+
+<!-- YAML
+added:
+  - v18.3.0
+  - v16.17.0
+-->
+
+* Type: {Object}
+
+Similar to [`request.headers`][], but there is no join logic and the values are
+always arrays of strings, even for headers received just once.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
+```js
+// Prints something like:
+//
+// { 'user-agent': ['curl/7.22.0'],
+//   host: ['127.0.0.1:8000'],
+//   accept: ['*/*'] }
+console.log(request.headersDistinct);
+```
+
+<!-- YAML
+added: v8.4.0
+-->
+
+* Type: {Object}
+
+Similar to `request.headers`, but preserves duplicate header values.
+Each property is an array containing all values received for that header.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
+```js
+// Prints something like:
+//
+// {
+//   host: ['127.0.0.1:8000'],
+//   accept: ['text/html', 'application/json']
+// }
+console.log(request.headersDistinct);
+```
+
 #### `request.httpVersion`
 
 <!-- YAML
