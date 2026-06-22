@@ -128,7 +128,7 @@ true !== false
 	<testcase name="immediate throw - passes but warns" time="*" classname="test" file="*"/>
 	<testcase name="immediate reject - passes but warns" time="*" classname="test" file="*"/>
 	<testcase name="immediate resolve pass" time="*" classname="test" file="*"/>
-	<testsuite name="subtest sync throw fail" time="*" disabled="0" errors="0" tests="1" failures="1" skipped="0" hostname="HOSTNAME">
+	<testsuite name="subtest sync throw fail" time="*" disabled="0" errors="0" tests="1" failures="1" skipped="0" timestamp="*" hostname="HOSTNAME">
 		<testcase name="+sync throw fail" time="*" classname="test" file="*" failure="thrown from subtest sync throw fail">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
@@ -151,15 +151,15 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 [Error [ERR_TEST_FAILURE]: Symbol(thrown symbol from sync throw non-error fail)] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: Symbol(thrown symbol from sync throw non-error fail) }
 		</failure>
 	</testcase>
-	<testsuite name="level 0a" time="*" disabled="0" errors="0" tests="4" failures="0" skipped="0" hostname="HOSTNAME">
+	<testsuite name="level 0a" time="*" disabled="0" errors="0" tests="4" failures="0" skipped="0" timestamp="*" hostname="HOSTNAME">
 		<testcase name="level 1a" time="*" classname="test" file="*"/>
 		<testcase name="level 1b" time="*" classname="test" file="*"/>
 		<testcase name="level 1c" time="*" classname="test" file="*"/>
 		<testcase name="level 1d" time="*" classname="test" file="*"/>
 	</testsuite>
-	<testsuite name="top level" time="*" disabled="0" errors="0" tests="2" failures="0" skipped="0" hostname="HOSTNAME">
+	<testsuite name="top level" time="*" disabled="0" errors="0" tests="2" failures="0" skipped="0" timestamp="*" hostname="HOSTNAME">
 		<testcase name="+long running" time="*" classname="test" file="*"/>
-		<testsuite name="+short running" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
+		<testsuite name="+short running" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="*" hostname="HOSTNAME">
 			<testcase name="++short running" time="*" classname="test" file="*"/>
 		</testsuite>
 	</testsuite>
@@ -266,7 +266,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		</failure>
 	</testcase>
 	<testcase name="callback async throw after done" time="*" classname="test" file="*"/>
-	<testsuite name="only is set on subtests but not in only mode" time="*" disabled="0" errors="0" tests="3" failures="0" skipped="0" hostname="HOSTNAME">
+	<testsuite name="only is set on subtests but not in only mode" time="*" disabled="0" errors="0" tests="3" failures="0" skipped="0" timestamp="*" hostname="HOSTNAME">
 		<testcase name="running subtest 1" time="*" classname="test" file="*"/>
 		<testcase name="running subtest 3" time="*" classname="test" file="*"/>
 		<testcase name="running subtest 4" time="*" classname="test" file="*"/>
@@ -288,7 +288,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 }
 		</failure>
 	</testcase>
-	<testsuite name="subtest sync throw fails" time="*" disabled="0" errors="0" tests="2" failures="2" skipped="0" hostname="HOSTNAME">
+	<testsuite name="subtest sync throw fails" time="*" disabled="0" errors="0" tests="2" failures="2" skipped="0" timestamp="*" hostname="HOSTNAME">
 		<testcase name="sync throw fails at first" time="*" classname="test" file="*" failure="thrown from subtest sync throw fails at first">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
