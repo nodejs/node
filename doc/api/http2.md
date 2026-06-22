@@ -4831,7 +4831,7 @@ response.writeEarlyHints({
 #### `response.writeInformation(statusCode[, headers])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * `statusCode` {number} An HTTP 1xx informational status code, between `100`

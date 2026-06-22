@@ -2,7 +2,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1010,7 +1010,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1131,7 +1131,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version: v24.8.0
@@ -1282,7 +1282,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version: v24.15.0
@@ -2344,13 +2344,13 @@ added: v15.0.0
 ### Class: `KangarooTwelveParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 #### `kangarooTwelveParams.customization`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -2360,7 +2360,7 @@ The optional customization string for KangarooTwelve.
 #### `kangarooTwelveParams.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos]
@@ -2368,7 +2368,7 @@ added: REPLACEME
 #### `kangarooTwelveParams.outputLength`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2746,13 +2746,13 @@ The length (in bytes) of the random salt to use.
 ### Class: `TurboShakeParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 #### `turboShakeParams.domainSeparation`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {number|undefined}
@@ -2762,7 +2762,7 @@ The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
 #### `turboShakeParams.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos]
@@ -2770,7 +2770,7 @@ added: REPLACEME
 #### `turboShakeParams.outputLength`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.

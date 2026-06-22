@@ -1026,7 +1026,7 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 #### `endpointOptions.reusePort`
 
 <!-- YAML
-added: REPLACEME
+added: v24.18.0
 -->
 
 * Type: {boolean}
