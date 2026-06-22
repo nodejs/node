@@ -120,6 +120,7 @@ try {
   const { stderr: stderr2, stdout: stdout2 } = await failedRestart;
   assert.match(stderr2, /SyntaxError: Invalid or unexpected token/);
   assert.deepStrictEqual(stdout2, [
+    `Change detected in ${inspect(file)}`,
     `Restarting ${inspect(file)}`,
     `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
   ]);
@@ -132,6 +133,7 @@ try {
   // Verify it recovered and ran successfully
   assert.strictEqual(stderr3, '');
   assert.deepStrictEqual(stdout3, [
+    `Change detected in ${inspect(file)}`,
     `Restarting ${inspect(file)}`,
     'hello again, world',
     `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
