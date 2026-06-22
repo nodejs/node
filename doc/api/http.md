@@ -3716,7 +3716,7 @@ changes:
     needs to wait for additional incoming data, after it has finished writing
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
-    **Default:** `5000`.
+    **Default:** `65000`.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
