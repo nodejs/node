@@ -47,7 +47,7 @@ on:
       - vcbuild.bat
       - .**
       - '!.github/workflows/test-shared.yml'
-      - '!.github/actions/build-shared/**'
+      - '!.github/workflows/build-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -98,14 +98,11 @@ on:
       - vcbuild.bat
       - .**
       - '!.github/workflows/test-shared.yml'
-      - '!.github/actions/build-shared/**'
+      - '!.github/workflows/build-shared.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-
-env:
-  FLAKY_TESTS: keep_retrying
 
 permissions:
   contents: read
@@ -151,20 +148,15 @@ jobs:
           - runner: macos-latest
             system: aarch64-darwin
     name: '${{ matrix.system }}: with shared libraries'
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/actions
-          sparse-checkout-cone-mode: false
-      - uses: ./.github/actions/build-shared
-        name: Build and test Node.js
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          extra-nix-flags: |
-            --arg useSeparateDerivationForV8 true \
-            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+    uses: ./.github/workflows/build-shared.yml
+    with:
+      runner: ${{ matrix.runner }}
+      with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      extra-nix-flags: |
+        --arg useSeparateDerivationForV8 true \
+        ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   build-aarch64-linux-v8:
     needs: build-tarball
@@ -247,34 +239,23 @@ jobs:
       matrix:
         openssl: ${{ fromJSON(needs.build-aarch64-linux-v8.outputs.matrix) }}
     name: 'aarch64-linux: with shared ${{ matrix.openssl.name }}'
-    runs-on: ubuntu-24.04-arm
-    continue-on-error: false
-    env:
-      OPENSSL_ATTR: ${{ matrix.openssl.attr }}
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/actions
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        if: ${{ needs.build-aarch64-linux-v8.outputs.local-cache }}
-        with:
-          name: libv8-aarch64-linux.nar
-
-      - uses: ./.github/actions/build-shared
-        name: Build and test Node.js
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          # Override just the `openssl` attr of the default shared-lib set with
-          # the matrix-selected nixpkgs attribute (e.g. `openssl_3_6`). All
-          # other shared libs (brotli, cares, libuv, …) keep their defaults.
-          # `permittedInsecurePackages` whitelists just the matrix-selected
-          # release (e.g. `openssl-1.1.1w`) so EOL-with-extended-support
-          # cycles evaluate without relaxing nixpkgs' meta check globally.
-          extra-nix-flags: |
-            --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8-aarch64-linux.nar)"' || 'true' }} \
-            --arg sharedLibDeps "(import $TAR_DIR/tools/nix/sharedLibDeps.nix {}) // {
-                openssl = (import $TAR_DIR/tools/nix/openssl-matrix.nix {}).$OPENSSL_ATTR;
-              }" \
+    uses: ./.github/workflows/build-shared.yml
+    with:
+      runner: ubuntu-24.04-arm
+      download-nar: ${{ needs.build-aarch64-linux-v8.outputs.local-cache && 'libv8-aarch64-linux.nar' }}
+      openssl-attr: ${{ matrix.openssl.attr }}
+      # Override just the `openssl` attr of the default shared-lib set with
+      # the matrix-selected nixpkgs attribute (e.g. `openssl_3_6`). All
+      # other shared libs (brotli, cares, libuv, …) keep their defaults.
+      # `permittedInsecurePackages` whitelists just the matrix-selected
+      # release (e.g. `openssl-1.1.1w`) so EOL-with-extended-support
+      # cycles evaluate without relaxing nixpkgs' meta check globally.
+      extra-nix-flags: |
+        --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8-aarch64-linux.nar)"' || 'true' }} \
+        --arg sharedLibDeps "(import $TAR_DIR/tools/nix/sharedLibDeps.nix {}) // {
+            openssl = builtins.getAttr \"${{
+              !contains(matrix.openssl.attr, '$') && !contains(matrix.openssl.attr, '\"') && !contains(matrix.openssl.attr, '\') && !contains(matrix.openssl.attr, '`') && matrix.openssl.attr
+            }}\" (import $TAR_DIR/tools/nix/openssl-matrix.nix {});
+          }" \
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
