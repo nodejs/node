@@ -51,6 +51,30 @@ async function testBytesAsyncAbort() {
   );
 }
 
+async function testAsyncConsumersAbortPendingNext() {
+  const consumers = [
+    ['bytes', bytes],
+    ['text', text],
+    ['arrayBuffer', arrayBuffer],
+    ['array', array],
+  ];
+
+  for (const [name, consumer] of consumers) {
+    const ac = new AbortController();
+    const reason = new Error(`${name} boom`);
+
+    async function* never() {
+      await new Promise(() => {});
+      yield [];
+    }
+
+    const promise = consumer(never(), { __proto__: null, signal: ac.signal });
+    ac.abort(reason);
+
+    await assert.rejects(promise, reason);
+  }
+}
+
 async function testBytesEmpty() {
   const data = await bytes(from([]));
   assert.ok(data instanceof Uint8Array);
@@ -203,6 +227,7 @@ Promise.all([
   testBytesAsync(),
   testBytesAsyncLimit(),
   testBytesAsyncAbort(),
+  testAsyncConsumersAbortPendingNext(),
   testBytesEmpty(),
   testArrayBufferSyncBasic(),
   testArrayBufferAsync(),
