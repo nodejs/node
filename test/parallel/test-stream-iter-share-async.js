@@ -196,6 +196,25 @@ async function testShareAbortSignalWhileSourcePullPending() {
   await Promise.all([rejected1, rejected2]);
 }
 
+async function testSharePullAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('pull aborted');
+  const shared = share(
+    // eslint-disable-next-line require-yield
+    (async function* never() {
+      await new Promise(() => {});
+    })(),
+  );
+  const iter = shared.pull({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+  shared.cancel();
+}
+
 async function testShareAlreadyAborted() {
   const ac = new AbortController();
   ac.abort();
@@ -343,6 +362,7 @@ Promise.all([
   testShareCancelWithReason(),
   testShareAbortSignal(),
   testShareAbortSignalWhileSourcePullPending(),
+  testSharePullAbortSignalRejectsPendingNext(),
   testShareAlreadyAborted(),
   testShareSourceError(),
   testShareLateJoiningConsumer(),
