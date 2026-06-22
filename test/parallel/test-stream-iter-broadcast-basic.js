@@ -174,6 +174,19 @@ async function testPendingNextSettlesAfterReturn() {
   assert.strictEqual(result.value, undefined);
 }
 
+async function testPushAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('push aborted');
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+}
+
 // =============================================================================
 // Writer fail detaches consumers
 // =============================================================================
@@ -300,6 +313,7 @@ Promise.all([
   testCancelWithReason(),
   testCancelWithFalsyReason(),
   testPendingNextSettlesAfterReturn(),
+  testPushAbortSignalRejectsPendingNext(),
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
