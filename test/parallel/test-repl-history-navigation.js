@@ -68,8 +68,6 @@ const ESCAPE = { name: 'escape', meta: true };
 const prompt = '> ';
 const WAIT = '€';
 
-const prev = process.features.inspector;
-
 let completions = 0;
 
 const tests = [
@@ -89,26 +87,26 @@ const tests = [
     test: [UP, UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN],
     expected: [prompt,
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
-               prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
+               '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
                  '144, 169, 196, 225, 256, 289, 324, 361, 400, 441, 484, 529,' +
                  ' 576, 625, 676, 729, 784, 841, 900, 961, 1024, 1089, 1156, ' +
                  '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
                  ' 2025, 2116, 2209,...',
                `${prompt}{key : {key2 :[] }}`,
-               prev && '\n// { key: { key2: [] } }',
+               '\n// { key: { key2: [] } }',
                `${prompt}let autocompleteMe = 123`,
                `${prompt}555 + 909`,
-               prev && '\n// 1464',
+               '\n// 1464',
                `${prompt}let ab = 45`,
                prompt,
                `${prompt}let ab = 45`,
                `${prompt}555 + 909`,
-               prev && '\n// 1464',
+               '\n// 1464',
                `${prompt}let autocompleteMe = 123`,
                `${prompt}{key : {key2 :[] }}`,
-               prev && '\n// { key: { key2: [] } }',
+               '\n// { key: { key2: [] } }',
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
-               prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
+               '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
                  '144, 169, 196, 225, 256, 289, 324, 361, 400, 441, 484, 529,' +
                  ' 576, 625, 676, 729, 784, 841, 900, 961, 1024, 1089, 1156, ' +
                  '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
@@ -163,7 +161,6 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       // あ is a full width character with a length of one.
       // 🐕 is a full width character with a length of two.
@@ -206,7 +203,6 @@ const tests = [
     columns: 250,
     checkTotal: true,
     showEscapeCodes: true,
-    skip: !process.features.inspector,
     test: [
       UP,
       UP,
@@ -330,7 +326,6 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     showEscapeCodes: true,
-    skip: !process.features.inspector,
     checkTotal: true,
     test: [
       'au',
@@ -453,7 +448,6 @@ const tests = [
   {
     // Check changed inspection defaults.
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       'util.inspect.replDefaults.showHidden',
       ENTER,
@@ -463,7 +457,6 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     checkTotal: true,
     test: [
       '[ ]',
@@ -504,7 +497,6 @@ const tests = [
         callback(null, [[' Always visible'], line]);
       }
     },
-    skip: !process.features.inspector,
     test: [
       WAIT, // The first call is awaited before new input is triggered!
       BACKSPACE,
@@ -587,8 +579,9 @@ const tests = [
     expected: [
       prompt, ...'const util = {}',
       'undefined\n',
-      prompt, ...'ut', ...(prev ? [' // il', '\n// {}',
-                                   'il', '\n// {}'] : ['il']),
+      prompt, ...'ut',
+      ' // il', '\n// {}',
+      'il', '\n// {}',
       '{}\n',
       prompt,
     ],
@@ -608,7 +601,8 @@ const tests = [
       'undefined\n',
       prompt, ...'globalThis.util = {}',
       '{}\n',
-      prompt, ...'ut', ...(prev ? [' // il', 'il' ] : ['il']),
+      prompt, ...'ut',
+      ' // il', 'il',
       '{}\n',
       prompt, ...'Reflect.defineProperty(globalThis, "util", utilDesc)',
       'true\n',
@@ -619,7 +613,6 @@ const tests = [
   {
     // Test that preview should not be removed when pressing ESCAPE key
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       '1+1',
       ESCAPE,
@@ -637,7 +630,6 @@ const tests = [
   {
     // Test that the multiline history is correctly navigated and it can be edited
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       'let a = ``',
       ENTER,
@@ -682,7 +674,6 @@ const tests = [
     // Test that the previous multiline history can only be accessed going through the entirety of the current
     // One navigating its all lines first.
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       'let b = ``',
       ENTER,
@@ -742,7 +733,6 @@ const tests = [
   {
     // Test that we can recover from a line with a syntax error
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       'let d = ``',
       ENTER,
@@ -793,7 +783,6 @@ const tests = [
   {
     // Test that multiline history is not duplicated
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    skip: !process.features.inspector,
     test: [
       "let f = ''",
       ENTER,
@@ -851,13 +840,8 @@ function runTest() {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  const { expected, skip } = opts;
+  const { expected } = opts;
 
-  // Test unsupported on platform.
-  if (skip) {
-    setImmediate(runTestWrap, true);
-    return;
-  }
   const lastChunks = [];
   let i = 0;
 

@@ -548,10 +548,7 @@ describe('REPL tab completion (core functionality)', () => {
 
     ['Let', 'Const', 'Klass'].forEach((type) => {
       const query = `lexical${type[0]}`;
-      const hasInspector = process.features.inspector;
-      const expected = hasInspector ?
-        [[`lexical${type}`], query] :
-        [[], `lexical${type[0]}`];
+      const expected = [[`lexical${type}`], query];
       replServer.complete(
         query,
         common.mustCall((error, data) => {

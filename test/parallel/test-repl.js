@@ -716,13 +716,11 @@ const errorTests = [
       / {2}dirxml: \[Function: (dirxml|log)],/,
       / {2}groupCollapsed: \[Function: (groupCollapsed|group)],/,
       / {2}Console: \[Function: Console],?/,
-      ...process.features.inspector ? [
-        '  profile: [Function: profile],',
-        '  profileEnd: [Function: profileEnd],',
-        '  timeStamp: [Function: timeStamp],',
-        '  context: [Function: context],',
-        '  createTask: [Function: createTask]',
-      ] : [],
+      '  profile: [Function: profile],',
+      '  profileEnd: [Function: profileEnd],',
+      '  timeStamp: [Function: timeStamp],',
+      '  context: [Function: context],',
+      '  createTask: [Function: createTask]',
       '}',
     ]
   },
