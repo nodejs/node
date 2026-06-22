@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.1">22.23.1</a><br/>
 <a href="#22.23.0">22.23.0</a><br/>
 <a href="#22.22.3">22.22.3</a><br/>
 <a href="#22.22.2">22.22.2</a><br/>
@@ -75,6 +76,18 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.1"></a>
+
+## 2026-06-23, Version 22.23.1 'Jod' (LTS), @RafaelGSS
+
+This release includes a fix for an unexpected behavior introduced
+by the recent security release (22.23.0).
+
+### Commits
+
+* \[[`41d2ee13be`](https://github.com/nodejs/node/commit/41d2ee13be)] - **build**: switch coverage-windows to `windows-2022` (Richard Lau) [#63940](https://github.com/nodejs/node/pull/63940)
+* \[[`eaa292549e`](https://github.com/nodejs/node/commit/eaa292549e)] - **http**: avoid stream listeners on idle agent sockets (Matteo Collina) [#64004](https://github.com/nodejs/node/pull/64004)
 
 <a id="22.23.0"></a>
 
