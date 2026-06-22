@@ -226,6 +226,7 @@ function replaceJunitDuration(str) {
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
+    .replaceAll(/timestamp="[^"]*"/g, 'timestamp="*"')
     .replaceAll(/file="[^"]*"/g, 'file="*"');
 }
 
