@@ -4575,7 +4575,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63624
     description: Runtime deprecation.
-  - version: v26.2.0
+  - version:
+    - v26.2.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->

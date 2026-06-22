@@ -2703,7 +2703,9 @@ will result in a [`TypeError`][] being thrown.
 ### `response.writeInformation(statusCode[, headers][, callback])`
 
 <!-- YAML
-added: v26.2.0
+added:
+  - v26.2.0
+  - v24.18.0
 -->
 
 * `statusCode` {number} An HTTP 1xx informational status code, between `100`

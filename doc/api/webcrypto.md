@@ -4,6 +4,7 @@
 changes:
   - version:
      - v25.9.0
+     - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1014,6 +1015,7 @@ added: v15.0.0
 changes:
   - version:
      - v25.9.0
+     - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1134,7 +1136,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version: v24.8.0
@@ -1285,7 +1289,9 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version:
@@ -2368,6 +2374,7 @@ added: v15.0.0
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 #### `kangarooTwelveParams.customization`
@@ -2375,6 +2382,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -2386,6 +2394,7 @@ The optional customization string for KangarooTwelve.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos].
@@ -2395,6 +2404,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2776,6 +2786,7 @@ The length (in bytes) of the random salt to use.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 #### `turboShakeParams.domainSeparation`
@@ -2783,6 +2794,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number|undefined}
@@ -2794,6 +2806,7 @@ The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos].
@@ -2803,6 +2816,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.

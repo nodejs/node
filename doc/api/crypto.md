@@ -2401,7 +2401,9 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -3953,7 +3955,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -4011,7 +4015,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -4178,7 +4184,9 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62527
     description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
