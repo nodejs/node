@@ -6,28 +6,32 @@ const { describe, test } = require('node:test');
 
 const { startNewREPLServer } = require('../common/repl');
 
-function runCompletionTests(replInit, tests) {
-  const { replServer: testRepl, input } = startNewREPLServer();
-  input.run([replInit]);
+async function runCompletionTests(replInit, tests) {
+  const { replServer: testRepl, run } = startNewREPLServer();
 
-  tests.forEach(([query, expectedCompletions]) => {
-    testRepl.complete(query, common.mustCall((error, data) => {
-      const actualCompletions = data[0];
-      if (expectedCompletions.length === 0) {
-        assert.deepStrictEqual(actualCompletions, []);
-      } else {
-        expectedCompletions.forEach((expectedCompletion) =>
-          assert(actualCompletions.includes(expectedCompletion), `completion '${expectedCompletion}' not found`)
-        );
-      }
-    }));
-  });
+  await run([replInit]);
+
+  for (const [query, expectedCompletions] of tests) {
+    await new Promise((resolve) => {
+      testRepl.complete(query, common.mustCall((error, data) => {
+        const actualCompletions = data[0];
+        if (expectedCompletions.length === 0) {
+          assert.deepStrictEqual(actualCompletions, []);
+        } else {
+          expectedCompletions.forEach((expectedCompletion) =>
+            assert(actualCompletions.includes(expectedCompletion), `completion '${expectedCompletion}' not found`)
+          );
+        }
+        resolve();
+      }));
+    });
+  }
 }
 
 describe('REPL completion in relation of getters', () => {
   describe('standard behavior without proxies/getters', () => {
-    test('completion of nested properties of an undeclared objects', () => {
-      runCompletionTests('', [
+    test('completion of nested properties of an undeclared objects', async () => {
+      await runCompletionTests('', [
         ['nonExisting.', []],
         ['nonExisting.f', []],
         ['nonExisting.foo', []],
@@ -36,8 +40,8 @@ describe('REPL completion in relation of getters', () => {
       ]);
     });
 
-    test('completion of nested properties on plain objects', () => {
-      runCompletionTests('const plainObj = { foo: { bar: { baz: {} } } };', [
+    test('completion of nested properties on plain objects', async () => {
+      await runCompletionTests('const plainObj = { foo: { bar: { baz: {} } } };', [
         ['plainObj.', ['plainObj.foo']],
         ['plainObj.f', ['plainObj.foo']],
         ['plainObj.foo', ['plainObj.foo']],
@@ -50,8 +54,8 @@ describe('REPL completion in relation of getters', () => {
   });
 
   describe('completions on an object with getters', () => {
-    test(`completions are generated for properties that don't trigger getters`, () => {
-      runCompletionTests(
+    test(`completions are generated for properties that don't trigger getters`, async () => {
+      await runCompletionTests(
         `
         const fooKey = "foo";
 
@@ -81,8 +85,8 @@ describe('REPL completion in relation of getters', () => {
         ]);
     });
 
-    test('no completions are generated for properties that trigger getters', () => {
-      runCompletionTests(
+    test('no completions are generated for properties that trigger getters', async () => {
+      await runCompletionTests(
         `
         function getGFooKey() {
           return "g" + "Foo";
@@ -148,8 +152,8 @@ describe('REPL completion in relation of getters', () => {
   });
 
   describe('completions on proxies', () => {
-    test('no completions are generated for a proxy object', () => {
-      runCompletionTests(
+    test('no completions are generated for a proxy object', async () => {
+      await runCompletionTests(
         `
         function getFooKey() {
           return "foo";
@@ -176,8 +180,8 @@ describe('REPL completion in relation of getters', () => {
         ]);
     });
 
-    test('no completions are generated for a proxy present in a standard object', () => {
-      runCompletionTests(
+    test('no completions are generated for a proxy present in a standard object', async () => {
+      await runCompletionTests(
         'const objWithProxy = { foo: { bar: new Proxy({ baz: {} }, {}) } };', [
           ['objWithProxy.', ['objWithProxy.foo']],
           ['objWithProxy.foo', ['objWithProxy.foo']],
