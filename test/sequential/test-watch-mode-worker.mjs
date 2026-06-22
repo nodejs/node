@@ -19,6 +19,10 @@ function restart(file) {
   return () => clearInterval(timer);
 }
 
+function changeDetected(file) {
+  return `Change detected in ${inspect(file)}`;
+}
+
 let tmpFiles = 0;
 function createTmpFile(content = 'console.log(\'running\');', ext = '.js', basename = tmpdir.path) {
   const file = path.join(basename, `${tmpFiles++}${ext}`);
@@ -108,6 +112,7 @@ const w = new Worker(${JSON.stringify(worker)});
     assert.deepStrictEqual(stdout, [
       'worker running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(worker),
       `Restarting ${inspect(file)}`,
       'worker running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -142,6 +147,7 @@ const w = new Worker(${JSON.stringify(worker)});
     assert.deepStrictEqual(stdout, [
       'dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dep),
       `Restarting ${inspect(file)}`,
       'dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -182,6 +188,7 @@ const w = new Worker(${JSON.stringify(worker)});
     assert.deepStrictEqual(stdout, [
       'sub-dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(subDep),
       `Restarting ${inspect(file)}`,
       'sub-dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -210,6 +217,7 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
     assert.deepStrictEqual(stdout, [
       'worker running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(worker),
       `Restarting ${inspect(file)}`,
       'worker running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -244,6 +252,7 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
     assert.deepStrictEqual(stdout, [
       'dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dep),
       `Restarting ${inspect(file)}`,
       'dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -284,6 +293,7 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
     assert.deepStrictEqual(stdout, [
       'sub-dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(subDep),
       `Restarting ${inspect(file)}`,
       'sub-dep v1',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
