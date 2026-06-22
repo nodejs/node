@@ -60,17 +60,17 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.commit }}
 
-      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe  # v31.10.3
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
         with:
           extra_nix_config: sandbox = true
 
-      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c  # v17
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
         with:
           # We do not pass any `authToken` to avoid polluting the cache with potentially untrusted code.
           name: nodejs
 
       - name: Configure sccache
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         with:
           script: |
             core.exportVariable('SCCACHE_GHA_VERSION', 'on');
@@ -175,7 +175,7 @@ jobs:
           merge-multiple: true
           path: raw-results
 
-      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe  # v31.10.3
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
         with:
           extra_nix_config: sandbox = true
 
