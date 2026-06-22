@@ -3,7 +3,9 @@
 #include "node_buffer.h"
 #include "node_test_fixture.h"
 
+#include <cstring>
 #include <string>
+#include <vector>
 
 using node::Environment;
 
@@ -205,6 +207,148 @@ TEST_F(IPCSerdesTest, BufferRoundTripsAsBuffer) {
       out->GetPrototypeV2()->StrictEquals(env->buffer_prototype_object()));
   EXPECT_EQ(node::Buffer::Length(out), static_cast<size_t>(6));
   EXPECT_EQ(memcmp(node::Buffer::Data(out), "Hello!", 6), 0);
+}
+
+// --- IPCChannelFramer (native read-path framing) ---
+
+// Serializes `input` into a complete `advanced` frame (4-byte length prefix
+// included), as written on the wire by writeChannelMessage().
+v8::Local<v8::Value> SerializeFrame(v8::Local<v8::Context> context,
+                                    v8::Local<v8::Function> serialize,
+                                    v8::Local<v8::Value> input) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Value> buffer_ctor =
+      context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "Buffer"))
+          .ToLocalChecked();
+  v8::Local<v8::Value> args[] = {input, buffer_ctor};
+  return serialize->Call(context, v8::Undefined(isolate), 2, args)
+      .ToLocalChecked();
+}
+
+v8::Local<v8::Object> NewFramer(v8::Local<v8::Context> context,
+                                v8::Local<v8::Object> binding) {
+  v8::Local<v8::Function> ctor =
+      GetFunction(context, binding, "IPCChannelFramer");
+  return ctor->NewInstance(context, 0, nullptr).ToLocalChecked();
+}
+
+v8::Local<v8::Uint8Array> MakeChunk(v8::Local<v8::Context> context,
+                                    const void* data,
+                                    size_t length) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, length);
+  if (length > 0) memcpy(ab->Data(), data, length);
+  return v8::Uint8Array::New(ab, 0, length);
+}
+
+v8::Local<v8::Array> FramerRead(v8::Local<v8::Context> context,
+                                v8::Local<v8::Object> framer,
+                                v8::Local<v8::Value> chunk) {
+  v8::Local<v8::Function> read = GetFunction(context, framer, "read");
+  return read->Call(context, framer, 1, &chunk)
+      .ToLocalChecked()
+      .As<v8::Array>();
+}
+
+bool FramerBuffering(v8::Local<v8::Context> context,
+                     v8::Local<v8::Object> framer) {
+  v8::Local<v8::Function> buffering = GetFunction(context, framer, "buffering");
+  return buffering->Call(context, framer, 0, nullptr)
+      .ToLocalChecked()
+      ->BooleanValue(v8::Isolate::GetCurrent());
+}
+
+TEST_F(IPCSerdesTest, FramerRoundTripsSingleMessage) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::Local<v8::Object> binding = GetIpcSerdesBinding(*test_env, context);
+  v8::Local<v8::Function> serialize =
+      GetFunction(context, binding, "serialize");
+
+  v8::Local<v8::Value> input = v8::Number::New(isolate_, 42);
+  v8::Local<v8::Value> frame = SerializeFrame(context, serialize, input);
+
+  v8::Local<v8::Object> framer = NewFramer(context, binding);
+  v8::Local<v8::Array> messages = FramerRead(context, framer, frame);
+
+  ASSERT_EQ(messages->Length(), 1u);
+  EXPECT_TRUE(messages->Get(context, 0).ToLocalChecked()->StrictEquals(input));
+  EXPECT_FALSE(FramerBuffering(context, framer));
+}
+
+TEST_F(IPCSerdesTest, FramerSplitsMultipleMessagesInOneRead) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::Local<v8::Object> binding = GetIpcSerdesBinding(*test_env, context);
+  v8::Local<v8::Function> serialize =
+      GetFunction(context, binding, "serialize");
+
+  v8::Local<v8::Value> frame1 =
+      SerializeFrame(context, serialize, v8::Number::New(isolate_, 1));
+  v8::Local<v8::Value> frame2 = SerializeFrame(
+      context, serialize, v8::String::NewFromUtf8Literal(isolate_, "two"));
+
+  node::ArrayBufferViewContents<uint8_t> b1(frame1);
+  node::ArrayBufferViewContents<uint8_t> b2(frame2);
+  std::vector<uint8_t> combined;
+  combined.insert(combined.end(), b1.data(), b1.data() + b1.length());
+  combined.insert(combined.end(), b2.data(), b2.data() + b2.length());
+
+  v8::Local<v8::Object> framer = NewFramer(context, binding);
+  v8::Local<v8::Array> messages = FramerRead(
+      context, framer, MakeChunk(context, combined.data(), combined.size()));
+
+  ASSERT_EQ(messages->Length(), 2u);
+  EXPECT_EQ(messages->Get(context, 0)
+                .ToLocalChecked()
+                ->Int32Value(context)
+                .FromJust(),
+            1);
+  v8::String::Utf8Value second(isolate_,
+                               messages->Get(context, 1).ToLocalChecked());
+  EXPECT_STREQ(*second, "two");
+  EXPECT_FALSE(FramerBuffering(context, framer));
+}
+
+TEST_F(IPCSerdesTest, FramerBuffersPartialAdvancedFrame) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env{handle_scope, argv};
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::Local<v8::Object> binding = GetIpcSerdesBinding(*test_env, context);
+  v8::Local<v8::Function> serialize =
+      GetFunction(context, binding, "serialize");
+
+  v8::Local<v8::Value> frame = SerializeFrame(
+      context, serialize, v8::String::NewFromUtf8Literal(isolate_, "spanning"));
+  node::ArrayBufferViewContents<uint8_t> bytes(frame);
+  const size_t total = bytes.length();
+  // Split inside the 4-byte length header to exercise that path too.
+  const size_t split = 2;
+  ASSERT_GT(total, split);
+
+  v8::Local<v8::Object> framer = NewFramer(context, binding);
+
+  v8::Local<v8::Array> first =
+      FramerRead(context, framer, MakeChunk(context, bytes.data(), split));
+  EXPECT_EQ(first->Length(), 0u);
+  EXPECT_TRUE(FramerBuffering(context, framer));
+
+  v8::Local<v8::Array> second = FramerRead(
+      context, framer, MakeChunk(context, bytes.data() + split, total - split));
+  ASSERT_EQ(second->Length(), 1u);
+  v8::String::Utf8Value value(isolate_,
+                              second->Get(context, 0).ToLocalChecked());
+  EXPECT_STREQ(*value, "spanning");
+  EXPECT_FALSE(FramerBuffering(context, framer));
 }
 
 }  // namespace
