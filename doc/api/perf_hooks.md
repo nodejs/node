@@ -639,6 +639,7 @@ The value may be one of:
 
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_MAJOR`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
 
@@ -650,6 +651,7 @@ When `performanceEntry.type` is equal to `'gc'`, the
 * `kind` {number} One of:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MAJOR`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR`
+  * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
 * `flags` {number} One of:
