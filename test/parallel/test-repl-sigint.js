@@ -5,6 +5,8 @@ if (common.isWindows) {
   common.skip('platform not supported');
 }
 
+common.skipIfInspectorDisabled();
+
 const { isMainThread } = require('worker_threads');
 
 if (!isMainThread) {
