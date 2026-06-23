@@ -98,6 +98,10 @@ changes:
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
+Requests that specify a custom `checkServerIdentity` option are not eligible
+for connection reuse or TLS session reuse by an `https.Agent`, unless the
+`checkServerIdentity` option was specified when constructing the Agent.
+
 #### Event: `'keylog'`
 
 <!-- YAML
