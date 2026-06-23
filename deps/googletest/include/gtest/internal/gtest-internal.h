@@ -96,6 +96,12 @@
 
 namespace proto2 {
 class [[nodiscard]] MessageLite;
+
+// Dummy forward declaration of `DynamicCastMessage`. Does not match any actual
+// overloads of `DynamicCastMessage`, but can be used to assist name resolution
+// in templates.
+template <typename T>
+T DynamicCastMessage() = delete;
 }
 
 namespace testing {
