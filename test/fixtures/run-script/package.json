@@ -9,6 +9,7 @@
     "custom-env-windows": "custom-env.bat",
     "path-env": "path-env",
     "path-env-windows": "path-env.bat",
+    "repeat-args": "node repeat-args.js",
     "special-env-variables": "special-env-variables",
     "special-env-variables-windows": "special-env-variables.bat",
     "pwd": "pwd",

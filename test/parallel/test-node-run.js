@@ -156,6 +156,20 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('handles positional arguments with quotes', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'repeat-args', '--', 'I think therefore I\'m'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.deepStrictEqual(child, {
+      stdout: `["I think therefore I'm"]\n`,
+      stderr: '',
+      code: 0,
+      signal: null,
+    });
+  });
+
   it('should set PATH environment variable with paths appended with node_modules/.bin', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
