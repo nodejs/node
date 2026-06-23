@@ -558,7 +558,7 @@ NODE=/path/to/node make doc-only
 To read the man page:
 
 ```bash
-man out/doc/node.1
+man doc/node.1
 ```
 
 If you prefer to read the full documentation in a browser, run the following.

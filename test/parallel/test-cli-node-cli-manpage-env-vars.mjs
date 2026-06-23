@@ -1,13 +1,8 @@
-import * as common from '../common/index.mjs';
-
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';
-
-if (common.isWindows) {
-  common.skip('`make doc` does not run on Windows');
-}
 
 // This test checks that all the environment variables defined in the public CLI documentation (doc/api/cli.md)
 // are also documented in the manpage file (doc/node.1) and vice-versa (that all the environment variables
@@ -19,11 +14,11 @@ const cliMdEnvVarNames = await collectCliMdEnvVarNames();
 const manpageEnvVarNames = await collectManPageEnvVarNames();
 
 assert(cliMdEnvVarNames.size > 0,
-       'Unexpectedly not even a single env variable was detected when scanning the `doc/api/cli.md` file',
+       'Unexpectedly not even a single env variable was detected when scanning the `doc/api/cli.md` file'
 );
 
 assert(manpageEnvVarNames.size > 0,
-       'Unexpectedly not even a single env variable was detected when scanning the `doc/node.1` file',
+       'Unexpectedly not even a single env variable was detected when scanning the `doc/node.1` file'
 );
 
 for (const envVarName of cliMdEnvVarNames) {
@@ -40,7 +35,7 @@ if (manpageEnvVarNames.size > 0) {
 }
 
 async function collectManPageEnvVarNames() {
-  const manPagePath = join(rootDir, 'out', 'doc', 'node.1');
+  const manPagePath = join(rootDir, 'doc', 'node.1');
   const fileStream = createReadStream(manPagePath);
 
   const rl = createInterface({
