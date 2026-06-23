@@ -532,7 +532,7 @@ a server once.
 ## `quic.listEndpoints([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * `options` {object}
@@ -1069,7 +1069,7 @@ has been destroyed. Read only.
 ### `session.onapplication`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * Type: {quic.OnApplicationCallback}

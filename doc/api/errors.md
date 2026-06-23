@@ -2542,7 +2542,7 @@ package specifier mapping.
 ### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A module attempted to resolve a bare specifier using the [package map][], but
@@ -2562,7 +2562,7 @@ covers the importing file.
 ### `ERR_PACKAGE_MAP_INVALID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 The [package map][] configuration file is invalid. This can occur when:
@@ -2583,7 +2583,7 @@ Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file n
 ### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A package's `dependencies` object in the [package map][] references a package

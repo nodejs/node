@@ -1309,7 +1309,7 @@ Enable experimental support for the network inspection with Chrome DevTools.
 ### `--experimental-package-map=<path>`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -1453,7 +1453,7 @@ inheriting tags.
 ### `--experimental-vfs`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental
