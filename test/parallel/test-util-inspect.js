@@ -3419,6 +3419,21 @@ assert.strictEqual(
 }
 
 {
+  // A node_modules segment that is the last path component (no trailing
+  // separator after the module name) must not send markNodeModules into an
+  // infinite loop that exhausts the heap.
+  // https://github.com/nodejs/node/issues/64011
+  const err = new Error('boom');
+  err.stack = 'Error: boom\n    at /app/node_modules/foo.js:1:1';
+  const out = util.inspect(err, { colors: true });
+  assert.strictEqual(
+    out,
+    'Error: boom\n' +
+      '    at /app/node_modules/\x1B[4mfoo.js:1:1\x1B[24m',
+  );
+}
+
+{
   // Cross platform checks.
   const err = new Error('foo');
   util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
