@@ -237,7 +237,7 @@ added:
   - v26.1.0
   - v24.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.4.0
     pr-url: https://github.com/nodejs/node/pull/63704
     description: Add per-probe `--max-hit <n>` option to limit evaluated hits and finish
         with a `completed` terminal event as soon as any probe reaches its limit.

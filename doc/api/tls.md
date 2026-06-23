@@ -1899,7 +1899,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options are runtime deprecated.
-  - version: REPLACEME
+  - version: v26.4.0
     pr-url: https://github.com/nodejs/node/pull/62217
     description: The `certificateCompression` option has been added.
   - version:
@@ -2397,7 +2397,7 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ## `tls.getCertificateCompressionAlgorithms()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * Returns: {string\[]}

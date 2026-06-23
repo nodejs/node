@@ -1940,7 +1940,7 @@ added:
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: REPLACEME
+  - version: v26.4.0
     pr-url: https://github.com/nodejs/node/pull/63988
     description: Named cSHAKE variants are now accepted.
 -->
@@ -1960,7 +1960,7 @@ domain-separate functions built on top of cSHAKE. Accepted values are:
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: REPLACEME
+  - version: v26.4.0
     pr-url: https://github.com/nodejs/node/pull/63988
     description: Non-empty customization is now supported.
 -->
