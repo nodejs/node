@@ -114,8 +114,7 @@ void PrintBytesInObjectToImpl(const unsigned char* obj_bytes, size_t count,
 // char32_t.
 template <typename CharType>
 char32_t ToChar32(CharType in) {
-  return static_cast<char32_t>(
-      static_cast<typename std::make_unsigned<CharType>::type>(in));
+  return static_cast<char32_t>(static_cast<std::make_unsigned_t<CharType>>(in));
 }
 
 }  // namespace
