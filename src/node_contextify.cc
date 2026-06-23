@@ -155,7 +155,11 @@ ContextifyContext* ContextifyContext::New(Environment* env,
 
   MicrotaskQueue* queue =
       options->own_microtask_queue
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+          ? options->own_microtask_queue
+#else
           ? options->own_microtask_queue.get()
+#endif
           : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
@@ -176,9 +180,14 @@ ContextifyContext::ContextifyContext(Environment* env,
                                      Local<Object> wrapper,
                                      Local<Context> v8_context,
                                      ContextOptions* options)
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    : microtask_queue_(options->own_microtask_queue)
+#else
     : microtask_queue_(options->own_microtask_queue
                            ? options->own_microtask_queue.release()
-                           : nullptr) {
+                           : nullptr)
+#endif
+{
   CppgcMixin::Wrap(this, env, wrapper);
 
   context_.Reset(env->isolate(), v8_context);
