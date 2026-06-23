@@ -268,6 +268,7 @@ t.test('packs from git spec', async t => {
     config: {
       audit: false,
       yes: true,
+      'allow-git': 'all',
     },
   })
   try {

@@ -52,11 +52,6 @@ class ArboristNode {
     if (bd && bd.length) {
       this.bundleDependencies = bd
     }
-    if (tree.inShrinkwrap) {
-      this.inShrinkwrap = true
-    } else if (tree.hasShrinkwrap) {
-      this.hasShrinkwrap = true
-    }
     if (tree.error) {
       this.error = treeError(tree.error)
     }

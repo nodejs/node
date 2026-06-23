@@ -23,7 +23,7 @@ See [`npm config`](/commands/npm-config), [`npmrc`](/configuring-npm/npmrc), and
 Authentication configuration such as auth tokens and certificates are configured specifically scoped to an individual registry.
 See [Auth Related Configuration](/configuring-npm/npmrc#auth-related-configuration)
 
-When the default registry is used in a package-lock or shrinkwrap it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
+When the default registry is used in a package-lock it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
 
 ### Does npm send any information about me back to the registry?
 

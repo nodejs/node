@@ -76,7 +76,7 @@ const explainDependents = ({ dependents }, depth, chalk, seen) => {
 }
 
 const explainEdge = (
-  { name, type, bundled, from, spec, rawSpec, overridden },
+  { name, type, bundled, from, spec, rawSpec, overridden, packageExtensions },
   depth, chalk, seen = new Set()
 ) => {
   let dep = type === 'workspace'
@@ -88,9 +88,14 @@ const explainEdge = (
 
   const fromMsg = ` from ${explainFrom(from, depth, chalk, seen)}`
 
+  // note an edge created by a root packageExtensions repair
+  const extMsg = packageExtensions
+    ? chalk.dim(` (added by packageExtensions["${packageExtensions.selector}"].${packageExtensions.field}.${name})`)
+    : ''
+
   return (type === 'prod' ? '' : `${colorType(type, chalk)} `) +
     (bundled ? `${colorType('bundled', chalk)} ` : '') +
-    `${dep}${fromMsg}`
+    `${dep}${fromMsg}${extMsg}`
 }
 
 const explainFrom = (from, depth, chalk, seen) => {

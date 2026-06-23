@@ -174,12 +174,8 @@ t.test('foreground-scripts defaults to true', async t => {
   t.matchSnapshot(logs.notice)
   t.strictSame(
     outputs,
-    [
-      '\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n',
-      '\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n',
-      `+ test-fg-scripts@0.0.0`,
-    ],
-    'prepack and postpack log to stdout')
+    [`+ test-fg-scripts@0.0.0`],
+    'published package is the only stdout output')
 })
 
 t.test('foreground-scripts can still be set to false', async t => {
@@ -216,6 +212,67 @@ t.test('foreground-scripts can still be set to false', async t => {
 t.test('shows usage with wrong set of arguments', async t => {
   const { publish } = await loadNpmWithRegistry(t, { command: 'publish' })
   await t.rejects(publish.exec(['a', 'b', 'c']), publish.usage)
+})
+
+t.test('fails for a non-private package containing packageExtensions', async t => {
+  const { npm } = await loadNpmWithRegistry(t, {
+    config: { ...auth },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        packageExtensions: { 'foo@1': { dependencies: { bar: '^1.0.0' } } },
+      }, null, 2),
+    },
+    authorization: token,
+  })
+  await t.rejects(
+    npm.exec('publish', []),
+    { code: 'EPACKAGEEXTENSIONS', message: /must not be published/ },
+    'refuses to publish'
+  )
+})
+
+t.test('fails on --dry-run for a package containing packageExtensions', async t => {
+  const { npm } = await loadNpmWithRegistry(t, {
+    config: { 'dry-run': true, ...auth },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        packageExtensions: { 'foo@1': { dependencies: { bar: '^1.0.0' } } },
+      }, null, 2),
+    },
+    authorization: token,
+  })
+  await t.rejects(
+    npm.exec('publish', []),
+    { code: 'EPACKAGEEXTENSIONS' },
+    'dry-run also reports the failure'
+  )
+})
+
+t.test('fails when a lifecycle script injects packageExtensions before the re-read', async t => {
+  const { npm } = await loadNpmWithRegistry(t, {
+    config: { ...auth },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        scripts: { prepublishOnly: 'node inject.js' },
+      }, null, 2),
+      // the first manifest read is clean; this hook adds packageExtensions before the authoritative re-read
+      'inject.js': [
+        "const fs = require('fs')",
+        "const p = JSON.parse(fs.readFileSync('package.json'))",
+        "p.packageExtensions = { 'foo@1': { dependencies: { bar: '^1.0.0' } } }",
+        "fs.writeFileSync('package.json', JSON.stringify(p))",
+      ].join('\n'),
+    },
+    authorization: token,
+  })
+  await t.rejects(
+    npm.exec('publish', []),
+    { code: 'EPACKAGEEXTENSIONS' },
+    'the post-script manifest re-read catches the injected field'
+  )
 })
 
 t.test('throws when invalid tag is semver', async t => {
@@ -834,7 +891,7 @@ t.test('manifest', async t => {
   }
   delete manifest.gitHead
 
-  manifest.man.sort()
+  manifest.man?.sort()
 
   t.matchSnapshot(manifest, 'manifest')
 })

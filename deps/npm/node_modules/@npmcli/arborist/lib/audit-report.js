@@ -6,6 +6,7 @@ const pickManifest = require('npm-pick-manifest')
 
 const Vuln = require('./vuln.js')
 const Calculator = require('@npmcli/metavuln-calculator')
+const { isReleaseAgeExcluded } = require('./release-age-exclude.js')
 
 const { log, time } = require('proc-log')
 
@@ -173,6 +174,11 @@ class AuditReport extends Map {
                 // depends on root.
                 this.topVulns.set(vuln.name, vuln)
                 vuln.topNodes.add(dep)
+              } else {
+                // An in-range fix exists, but a `min-release-age`/`before`
+                // window may put the patched version out of reach, leaving the
+                // vulnerable version installed.
+                vuln.fixBlockedByReleaseAge = this.#fixBlockedByReleaseAge(vuln, spec)
               }
             } else {
             // calculate a metavuln, if necessary
@@ -249,6 +255,53 @@ class AuditReport extends Map {
     } catch (er) {
       return false
     }
+  }
+
+  // A fix that `#fixAvailable` reports as installable in-range can still be
+  // unreachable when a release-age window (`before` / `min-release-age`) is set,
+  // because the patched version was published after the cutoff. `npm audit fix`
+  // then resolves back to a version that is still vulnerable, so detect that
+  // here and let callers warn about it. Only meaningful when an in-range fix
+  // exists (fixAvailable === true). Returns the blocked fix as
+  // `{ version, before }`, or `false` when nothing is blocked.
+  #fixBlockedByReleaseAge (vuln, spec) {
+    const { before, minReleaseAgeExclude } = this.options
+    // No window, or this package is explicitly exempt from it.
+    if (!before || isReleaseAgeExcluded(vuln.name, minReleaseAgeExclude)) {
+      return false
+    }
+
+    // For `npm:` aliases the fix resolves against the alias target, so feed
+    // pickManifest the underlying range rather than the alias spec (which it
+    // rejects). Mirrors `#fixAvailable`.
+    const specObj = npa(spec)
+    if (specObj.subSpec) {
+      spec = specObj.subSpec.rawSpec
+    }
+
+    // The version that would be installed if the window were lifted.
+    const { version } = pickManifest(vuln.packument, spec, {
+      ...this.options,
+      before: null,
+      avoid: vuln.range,
+    })
+
+    // What resolution can actually reach within the window. This mirrors how
+    // `build-ideal-tree` re-resolves the edge (non-strict avoid + `before`).
+    let windowed
+    try {
+      windowed = pickManifest(vuln.packument, spec, {
+        ...this.options,
+        avoid: vuln.range,
+      })
+    } catch {
+      // Nothing is old enough to install at all: the fix is blocked.
+      return { version, before }
+    }
+
+    // `_shouldAvoid` means the best version available within the window is still
+    // in the vulnerable range, so the only non-vulnerable fix is too new.
+    return windowed._shouldAvoid ? { version, before } : false
   }
 
   set () {

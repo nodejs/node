@@ -1,4 +1,4 @@
-.TH "NPM-LINK" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-LINK" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-link\fR - Symlink a package folder
 .SS "Synopsis"
@@ -193,7 +193,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
@@ -251,7 +251,7 @@ Limits the ability for npm to install dependencies from tarball files. That is, 
 .SS "\fBallow-git\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
@@ -259,17 +259,21 @@ Type: "all", "none", or "root"
 .P
 Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
 .P
+As of npm 12 the default is \fBnone\fR. Git dependencies run \fBgit\fR against a remote repo and may install configuration the project does not control. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you need git deps.
+.P
 \fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched and installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-remote\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
 
 .P
 Limits the ability for npm to fetch dependencies from urls. That is, dependencies that point to a tarball url instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
+.P
+As of npm 12 the default is \fBnone\fR. Tarballs that share a hostname with the configured registry (the typical case for the npm registry, GitHub Packages, and most private registries) are still installed normally. If your registry serves tarballs from a different host, set \fBreplace-registry-host\fR or override this setting. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you intentionally install from a URL.
 .P
 \fBall\fR allows any url to be installed. \fBnone\fR prevents any url from being installed. \fBroot\fR only allows urls defined in your project's package.json to be installed. Also allows url dependencies to be used for other commands like \fBnpm view\fR
 .SS "\fBaudit\fR"

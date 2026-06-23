@@ -101,4 +101,4 @@ This value is not exported to the environment for child processes.
 * [npm profile](/commands/npm-profile)
 * [npm publish](/commands/npm-publish)
 * [npm registry](/using-npm/registry)
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)

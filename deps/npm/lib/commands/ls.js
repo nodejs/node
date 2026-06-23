@@ -278,6 +278,21 @@ const augmentItemWithIncludeMetadata = (node, item) => {
   return item
 }
 
+// Render a node's packageExtensions provenance as a short "field.name" list, empty when none.
+const formatPackageExtensions = (applied) => {
+  if (!applied) {
+    return ''
+  }
+  const fields = ['dependencies', 'optionalDependencies', 'peerDependencies', 'peerDependenciesMeta']
+  const parts = []
+  for (const field of fields) {
+    for (const name of applied[field] || []) {
+      parts.push(`${field}.${name}`)
+    }
+  }
+  return parts.join(', ')
+}
+
 const getHumanOutputItem = (node, { args, chalk, global, long }) => {
   const { pkgid, path } = node
   const workspacePkgId = chalk.blueBright(pkgid)
@@ -333,6 +348,16 @@ const getHumanOutputItem = (node, { args, chalk, global, long }) => {
         ? ' ' + chalk.dim('overridden')
         : ''
     ) +
+    (
+      node.patched
+        ? ' ' + chalk.cyan(`[patched: ${node.patched.path}]`)
+        : ''
+    ) +
+    (
+      formatPackageExtensions(node.packageExtensionsApplied)
+        ? ' ' + chalk.dim(`packageExtensions: ${formatPackageExtensions(node.packageExtensionsApplied)}`)
+        : ''
+    ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `\n${node.package.description || ''}` : '')
@@ -355,6 +380,10 @@ const getJsonOutputItem = (node, { global, long }) => {
   // the project root can't be overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json` is ran in an empty directory since we end up printing an object with only an overridden prop
   if (!node.isProjectRoot) {
     item.overridden = node.overridden
+  }
+
+  if (node.packageExtensionsApplied) {
+    item.packageExtensionsApplied = node.packageExtensionsApplied
   }
 
   item[_name] = node.name
@@ -387,6 +416,10 @@ const getJsonOutputItem = (node, { global, long }) => {
 
   if (node[_invalid]) {
     item.invalid = node[_invalid]
+  }
+
+  if (node.patched) {
+    item.patched = node.patched.path
   }
 
   if (node[_missing] && !isOptional(node)) {

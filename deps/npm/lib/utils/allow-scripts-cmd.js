@@ -115,7 +115,7 @@ class AllowScriptsCmd extends BaseCommand {
     const has = count === 1 ? 'has' : 'have'
     const pkg = count === 1 ? 'package' : 'packages'
     output.standard(
-      `${count} ${pkg} ${has} install scripts not yet covered by allowScripts:`
+      `${count} ${pkg} ${has} install scripts blocked because they are not covered by allowScripts:`
     )
     for (const { node, scripts } of unreviewed) {
       const { name, version } = trustedDisplay(node)

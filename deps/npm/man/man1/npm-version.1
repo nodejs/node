@@ -1,4 +1,4 @@
-.TH "NPM-VERSION" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-VERSION" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-version\fR - Bump a package version
 .SS "Synopsis"
@@ -176,7 +176,7 @@ If true, npm does not run scripts specified in package.json files.
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "Description"
 .P
-Run this in a package directory to bump the version and write the new data back to \fBpackage.json\fR, \fBpackage-lock.json\fR, and, if present, \fBnpm-shrinkwrap.json\fR.
+Run this in a package directory to bump the version and write the new data back to \fBpackage.json\fR and \fBpackage-lock.json\fR.
 .P
 The \fBnewversion\fR argument should be a valid semver string, a valid second argument to \fBsemver.inc\fR \fI\(lahttps://github.com/npm/node-semver#functions\(ra\fR (one of \fBpatch\fR, \fBminor\fR, \fBmajor\fR, \fBprepatch\fR, \fBpreminor\fR, \fBpremajor\fR, \fBprerelease\fR), or \fBfrom-git\fR. In the second case, the existing version will be incremented by 1 in the specified field. \fBfrom-git\fR will try to read the latest git tag, and use that as the new npm version.
 .P

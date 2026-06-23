@@ -1,4 +1,4 @@
-.TH "NPM-EXEC" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-EXEC" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-exec\fR - Run a command from a local or remote npm package
 .SS "Synopsis"
@@ -190,9 +190,9 @@ Type: Boolean
 .RE 0
 
 .P
-If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts that is not covered by \fBallowScripts\fR will fail the install instead of being blocked with a warning.
 .P
-Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries (packages with install scripts that are neither approved nor denied). \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
 .SS "\fBdangerously-allow-all-scripts\fR"
 .RS 0
 .IP \(bu 4

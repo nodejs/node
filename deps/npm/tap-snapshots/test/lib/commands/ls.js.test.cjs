@@ -556,6 +556,12 @@ exports[`test/lib/commands/ls.js TAP ls overridden dep w/ color > should contain
 [0m[0m
 `
 
+exports[`test/lib/commands/ls.js TAP ls packageExtensions dep > human output annotates the extended node 1`] = `
+test-package-extensions@1.0.0 {CWD}/prefix
+\`-- foo@1.0.0 packageExtensions: dependencies.bar
+  \`-- bar@1.0.0
+`
+
 exports[`test/lib/commands/ls.js TAP ls print deduped symlinks > should output tree containing linked deps 1`] = `
 print-deduped-symlinks@1.0.0 {CWD}/prefix
 +-- a@1.0.0
@@ -565,7 +571,7 @@ print-deduped-symlinks@1.0.0 {CWD}/prefix
 
 exports[`test/lib/commands/ls.js TAP ls resolved points to git ref > should output tree containing git refs 1`] = `
 test-npm-ls@1.0.0 {CWD}/prefix
-\`-- abbrev@1.1.1 (git+ssh://git@github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c)
+\`-- abbrev@1.1.1 (git+https://github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c)
 `
 
 exports[`test/lib/commands/ls.js TAP ls unmet optional dep > should output tree with empty entry for missing optional deps 1`] = `

@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL-TEST" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-INSTALL-TEST" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-install-test\fR - Install package(s) and run tests
 .SS "Synopsis"
@@ -102,7 +102,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
@@ -220,7 +220,7 @@ Limits the ability for npm to install dependencies from tarball files. That is, 
 .SS "\fBallow-git\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
@@ -228,17 +228,21 @@ Type: "all", "none", or "root"
 .P
 Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
 .P
+As of npm 12 the default is \fBnone\fR. Git dependencies run \fBgit\fR against a remote repo and may install configuration the project does not control. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you need git deps.
+.P
 \fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched and installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-remote\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
 
 .P
 Limits the ability for npm to fetch dependencies from urls. That is, dependencies that point to a tarball url instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
+.P
+As of npm 12 the default is \fBnone\fR. Tarballs that share a hostname with the configured registry (the typical case for the npm registry, GitHub Packages, and most private registries) are still installed normally. If your registry serves tarballs from a different host, set \fBreplace-registry-host\fR or override this setting. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you intentionally install from a URL.
 .P
 \fBall\fR allows any url to be installed. \fBnone\fR prevents any url from being installed. \fBroot\fR only allows urls defined in your project's package.json to be installed. Also allows url dependencies to be used for other commands like \fBnpm view\fR
 .SS "\fBallow-scripts\fR"
@@ -264,9 +268,9 @@ Type: Boolean
 .RE 0
 
 .P
-If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts that is not covered by \fBallowScripts\fR will fail the install instead of being blocked with a warning.
 .P
-Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries (packages with install scripts that are neither approved nor denied). \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
 .SS "\fBdangerously-allow-all-scripts\fR"
 .RS 0
 .IP \(bu 4
@@ -302,6 +306,9 @@ If the requested version is a \fBdist-tag\fR and the given tag does not pass the
 .P
 If \fBbefore\fR and \fBmin-release-age\fR are both set in the same source, \fBbefore\fR wins (an explicit absolute date overrides a relative window). Across sources, the standard precedence applies (cli > env > project > user > global), so a higher-priority source can always relax or override a lower-priority one.
 .P
+As with \fBmin-release-age\fR, when this cutoff blocks a fix that \fBnpm audit
+fix\fR would install, npm keeps the vulnerable version, warns, and exits with a non-zero code.
+.P
 Packages whose names match \fBmin-release-age-exclude\fR are exempt from this filter.
 .SS "\fBmin-release-age\fR"
 .RS 0
@@ -315,6 +322,8 @@ Type: null or Number
 If set, npm will build the npm tree such that only versions that were available more than the given number of days ago will be installed. If there are no versions available for the current set of dependencies, the command will error.
 .P
 This flag is a complement to \fBbefore\fR, which accepts an exact date instead of a relative number of days. The two may coexist (e.g. \fBmin-release-age\fR in your \fB.npmrc\fR is preserved when npm internally spawns a sub-process with \fB--before\fR while preparing a \fBgit:\fR or \fBgithub:\fR dependency); when both apply, \fBbefore\fR wins within a single source and across sources the standard precedence rules apply.
+.P
+When this window stops \fBnpm audit fix\fR from installing a patched version (because the fix was published too recently), npm keeps the package at its vulnerable version, warns that the fix was blocked, and exits with a non-zero code. To install the fix, add the package to \fBmin-release-age-exclude\fR, or relax \fBmin-release-age\fR or \fBbefore\fR.
 .P
 Packages whose names match \fBmin-release-age-exclude\fR are exempt from this filter.
 .P

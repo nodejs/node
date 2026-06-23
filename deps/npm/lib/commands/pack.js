@@ -62,10 +62,8 @@ class Pack extends BaseCommand {
       tarballs.push(await getContents(manifest, tarballData))
     }
 
-    for (const [index, tar] of Object.entries(tarballs)) {
-      // XXX(BREAKING_CHANGE): publish outputs a json object with package names as keys.
-      // Pack should do the same here instead of an array
-      logTar(tar, { unicode, json, key: index })
+    for (const tar of tarballs) {
+      logTar(tar, { unicode, json, key: tar.name })
       if (!json) {
         output.standard(tar.filename.replace(/^@/, '').replace(/\//, '-'))
       }

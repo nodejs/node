@@ -29,10 +29,21 @@ const tarball = (manifest, opts) => {
     return nodeModulesTarball(manifest, opts)
   }
 
-  return pacote.tarball(manifest._resolved, {
-    ...opts,
-    Arborist,
-  })
+  // pacote re-parses manifest._resolved as type=remote, so allow-remote=none
+  // would mis-fire on the tarball URL the registry just handed us. mirror
+  // arborist reify's carve-out: trust resolved tarballs for registry-typed specs.
+  const tarballOpts = { ...opts, Arborist }
+  let fromSpec
+  try {
+    fromSpec = manifest._from ? npa(manifest._from) : null
+  } catch {
+    fromSpec = null
+  }
+  if (fromSpec?.registry) {
+    tarballOpts.allowRemote = 'all'
+  }
+
+  return pacote.tarball(manifest._resolved, tarballOpts)
 }
 
 module.exports = tarball

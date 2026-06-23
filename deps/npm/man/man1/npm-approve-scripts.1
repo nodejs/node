@@ -1,4 +1,4 @@
-.TH "NPM-APPROVE-SCRIPTS" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-APPROVE-SCRIPTS" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-approve-scripts\fR - Approve install scripts for specific dependencies
 .SS "Synopsis"
@@ -16,7 +16,7 @@ Note: This command is unaware of workspaces.
 .P
 Manages the \fBallowScripts\fR field in your project's \fBpackage.json\fR, which records which of your dependencies are permitted to run install scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry sources). This command is the recommended way to maintain that field.
 .P
-In the current release, this field is advisory: install scripts still run by default, but installs print a list of packages whose scripts have not been reviewed. A future release will block unreviewed install scripts.
+Dependency install scripts are blocked by default. Install commands silently skip lifecycle scripts for any dependency that does not have a matching entry in \fBallowScripts\fR, and end with a list of the packages whose scripts were skipped so you can review them with this command.
 .P
 This command only works inside a project that has a \fBpackage.json\fR. Running it with \fB--global\fR (\fB-g\fR) fails with an \fBEGLOBAL\fR error, since global installs (\fBnpm install -g\fR) and one-off executions (\fBnpm exec\fR / \fBnpx\fR) have no project \fBpackage.json\fR to write to. To allow install scripts in those contexts, use the \fB--allow-scripts\fR flag at install time (for example \fBnpm install -g --allow-scripts=canvas,sharp\fR) or persist the setting with \fBnpm config set allow-scripts=canvas,sharp --location=user\fR.
 .P

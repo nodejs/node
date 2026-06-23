@@ -118,6 +118,10 @@ class FetcherBase {
       // we need the actual things, not just the lockfile
       '--no-package-lock-only',
       '--no-dry-run',
+      // override npm_config_global from the parent process: this inner
+      // `npm install` is preparing deps inside a tmp git clone, and it
+      // must reify into that clone's cwd, never the outer global prefix.
+      '--global=false',
     ]
   }
 

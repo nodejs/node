@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----packagejson----11170">
+<h1 id="----packagejson----1200-pre1">
     <span>package.json</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">Specifics of npm's package.json handling</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#exports">exports</a></li><li><a href="#main">main</a></li><li><a href="#type">type</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#gypfile">gypfile</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundledependencies">bundleDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><ul><li><a href="#replacing-a-dependency-with-a-fork">Replacing a dependency with a fork</a></li></ul><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#libc">libc</a></li><li><a href="#devengines">devEngines</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#exports">exports</a></li><li><a href="#main">main</a></li><li><a href="#type">type</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#gypfile">gypfile</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundledependencies">bundleDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><ul><li><a href="#replacing-a-dependency-with-a-fork">Replacing a dependency with a fork</a></li></ul><li><a href="#packageextensions">packageExtensions</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#libc">libc</a></li><li><a href="#devengines">devEngines</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -418,7 +418,7 @@ If there is a <code>.gitignore</code> file, and <code>.npmignore</code> is missi
 <li><code>config.gypi</code></li>
 <li><code>node_modules</code></li>
 <li><code>npm-debug.log</code></li>
-<li><code>package-lock.json</code> (use <a href="../configuring-npm/npm-shrinkwrap-json.html"><code>npm-shrinkwrap.json</code></a> if you wish it to be published)</li>
+<li><code>package-lock.json</code></li>
 <li><code>pnpm-lock.yaml</code></li>
 <li><code>yarn.lock</code></li>
 <li><code>bun.lockb</code></li>
@@ -485,8 +485,11 @@ For example:</p>
 <p>Note that you can also set the executable files using <a href="#directoriesbin">directories.bin</a>.</p>
 <p>See <a href="../configuring-npm/folders#executables.html">folders</a> for more info on executables.</p>
 <h3 id="man">man</h3>
-<p>Specify either a single file or an array of filenames to put in place for the <code>man</code> program to find.</p>
-<p>If only a single file is provided, then it's installed such that it is the result from <code>man &lt;pkgname&gt;</code>, regardless of its actual filename.
+<blockquote>
+<p><strong>Note:</strong> As of npm v12, man pages are no longer registered with the system <code>man</code> program. This field is retained for backward compatibility with package metadata and tools that consume it, but <code>man &lt;pkgname&gt;</code> will not work after a global install. Use <code>npm help &lt;pkgname&gt;</code> instead where supported.</p>
+</blockquote>
+<p>Specify either a single file or an array of filenames to include as man pages.</p>
+<p>If only a single file is provided, then it corresponds to <code>man &lt;pkgname&gt;</code>, regardless of its actual filename.
 For example:</p>
 <pre><code class="language-json">{
   "name": "foo",
@@ -496,7 +499,7 @@ For example:</p>
   "man": "./man/doc.1"
 }
 </code></pre>
-<p>would link the <code>./man/doc.1</code> file in such that it is the target for <code>man foo</code></p>
+<p>would associate the <code>./man/doc.1</code> file such that it is the target for <code>man foo</code></p>
 <p>If the filename doesn't start with the package name, then it's prefixed.
 So, this:</p>
 <pre><code class="language-json">{
@@ -510,9 +513,9 @@ So, this:</p>
   ]
 }
 </code></pre>
-<p>will create files to do <code>man foo</code> and <code>man foo-bar</code>.</p>
+<p>will correspond to <code>man foo</code> and <code>man foo-bar</code>.</p>
 <p>Man files must end with a number, and optionally a <code>.gz</code> suffix if they are compressed.
-The number dictates which man section the file is installed into.</p>
+The number dictates which man section the file belongs to.</p>
 <pre><code class="language-json">{
   "name": "foo",
   "version": "1.2.3",
@@ -535,7 +538,7 @@ If you look at <a href="https://registry.npmjs.org/npm/latest">npm's package.jso
 If you want to specify individual files, use <code>bin</code>, and for all the files in an existing <code>bin</code> directory, use <code>directories.bin</code>.</p>
 <h4 id="directoriesman">directories.man</h4>
 <p>A folder that is full of man pages.
-Sugar to generate a "man" array by walking the folder.</p>
+Sugar to generate a "man" array by walking the folder. See the note on <a href="#man"><code>man</code></a> above: as of npm v12, these are no longer installed into the system <code>man</code> path.</p>
 <h3 id="repository">repository</h3>
 <p>Specify the place where your code lives.
 This is helpful for people who want to contribute.
@@ -805,6 +808,13 @@ A value of <code>true</code> will bundle all dependencies, a value of <code>fals
 This is a map of package name to version or URL, just like the <code>dependencies</code> object.
 The difference is that build failures do not cause installation to fail.
 Running <code>npm install --omit=optional</code> will prevent these dependencies from being installed.</p>
+<p>For example:</p>
+<pre><code class="language-json">{
+  "optionalDependencies": {
+    "@npm/foo": "^1.0.0"
+  }
+}
+</code></pre>
 <p>It is still your program's responsibility to handle the lack of the dependency.
 For example, something like this:</p>
 <pre><code class="language-js">try {
@@ -830,7 +840,7 @@ if (foo) {
 These changes can be scoped as specific or as vague as desired.</p>
 <p>Overrides are only considered in the root <code>package.json</code> file for a project.
 Overrides in installed dependencies (including <a href="../using-npm/workspaces.html">workspaces</a>) are not considered in dependency tree resolution.
-Published packages may dictate their resolutions by pinning dependencies or using an <a href="../configuring-npm/npm-shrinkwrap-json.html"><code>npm-shrinkwrap.json</code></a> file.</p>
+Published packages may dictate their resolutions by pinning dependencies or using <a href="#bundledependencies"><code>bundleDependencies</code></a>.</p>
 <p>To make sure the package <code>@npm/foo</code> is always installed as version <code>1.0.0</code> no matter what version your dependencies rely on:</p>
 <pre><code class="language-json">{
   "overrides": {
@@ -942,6 +952,56 @@ For example, to replace a transitive dependency with a fork:</p>
   }
 }
 </code></pre>
+<h3 id="packageextensions">packageExtensions</h3>
+<p><code>packageExtensions</code> lets a project apply small, declarative repairs to the manifests of third-party dependencies before npm resolves the dependency tree.
+Use it to add a missing <code>dependencies</code>, <code>optionalDependencies</code>, or <code>peerDependencies</code> entry, or to correct <code>peerDependencies</code> and <code>peerDependenciesMeta</code>, while you wait for the upstream package to publish a fix.</p>
+<p>This is especially useful with <a href="../using-npm/config#install-strategy.html"><code>install-strategy=linked</code></a>, where dependencies are fully isolated and a package only sees what it actually declared.
+A package that worked under a hoisted layout because a dependency happened to be hoisted above it can fail under <code>linked</code>; <code>packageExtensions</code> records the missing edge as explicit, reviewable, root-owned policy.</p>
+<p><code>packageExtensions</code> complements <a href="#overrides"><code>overrides</code></a>: <code>overrides</code> changes what an existing dependency edge resolves to, while <code>packageExtensions</code> adds or corrects the dependency metadata that creates the edge in the first place.
+For changing the resolved version of a dependency that is already declared, use <code>overrides</code>.</p>
+<p>Like <code>overrides</code>, <code>packageExtensions</code> is only honored in the root <code>package.json</code> of a project (the workspace root in a workspace).
+The field in installed dependencies and in non-root workspace packages is ignored.
+Because it is root-only project policy, npm refuses to publish a non-private package that contains <code>packageExtensions</code>; it remains available to private packages and unpublished local projects.</p>
+<p>Each key is a package selector: a package name with an optional semver range.</p>
+<pre><code class="language-json">{
+  "packageExtensions": {
+    "broken-package@1": {
+      "dependencies": {
+        "missing-runtime-dep": "^2.0.0"
+      }
+    },
+    "typescript-plugin@4.3.0": {
+      "peerDependencies": {
+        "typescript": "&gt;=5"
+      },
+      "peerDependenciesMeta": {
+        "typescript": {
+          "optional": true
+        }
+      }
+    },
+    "@scope/uses-types@2": {
+      "dependencies": {
+        "@types/node": "^22.0.0"
+      }
+    }
+  }
+}
+</code></pre>
+<ul>
+<li><code>"foo"</code> matches all versions of <code>foo</code>.</li>
+<li><code>"foo@1"</code> matches versions satisfying <code>1</code>.</li>
+<li><code>"@scope/foo@^2.3.0"</code> matches versions satisfying <code>^2.3.0</code>.</li>
+</ul>
+<p>Selectors match a candidate package's own <code>name</code> and <code>version</code>. They do not accept dist-tags, git, file, directory, URL, or <code>npm:</code> alias specs. For aliases, the selector matches the underlying package name. At most one selector may match a given package; overlapping selectors that both match the same package fail the install.</p>
+<p>Only <code>dependencies</code>, <code>optionalDependencies</code>, <code>peerDependencies</code>, and <code>peerDependenciesMeta</code> may be extended. The merge rules are:</p>
+<ul>
+<li><code>dependencies</code> and <code>optionalDependencies</code> entries add a missing dependency only. Adding a name that the package already declares in either field is an error; use <code>overrides</code> to change a version.</li>
+<li><code>peerDependencies</code> entries are merged by name, replacing an existing range.</li>
+<li><code>peerDependenciesMeta</code> entries are merged by name and then by key, so you can add <code>optional: true</code> without dropping other metadata. Every <code>peerDependenciesMeta</code> entry must correspond to a <code>peerDependencies</code> entry.</li>
+</ul>
+<p>Deletion is not supported; a <code>null</code>, <code>false</code>, or <code>"-"</code> value is an error.</p>
+<p><code>packageExtensions</code> does not rewrite the installed package's <code>package.json</code> on disk and does not modify <code>bundleDependencies</code>. Affected packages are recorded in <code>package-lock.json</code> and surfaced by <a href="../commands/npm-explain.html"><code>npm explain</code></a> and <a href="../commands/npm-ls.html"><code>npm ls</code></a>, so each repair is easy to audit and to remove once upstream is fixed.</p>
 <h3 id="engines">engines</h3>
 <p>You can specify the version of node that your stuff works on:</p>
 <pre><code class="language-json">{

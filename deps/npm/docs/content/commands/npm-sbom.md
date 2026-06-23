@@ -207,7 +207,7 @@ SBOMs can be generated in either [SPDX](https://spdx.dev/) or [CycloneDX](https:
 
 ### Package lock only mode
 
-If package-lock-only is enabled, only the information in the package lock (or shrinkwrap) is loaded.
+If package-lock-only is enabled, only the information in the package lock is loaded.
 This means that information from the package.json files of your dependencies will not be included in the result set (e.g.
 description, homepage, engines).
 
@@ -222,8 +222,7 @@ description, homepage, engines).
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.

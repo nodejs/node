@@ -172,6 +172,10 @@ sources, the standard precedence applies (cli > env > project > user >
 global), so a higher-priority source can always relax or override a
 lower-priority one.
 
+As with `min-release-age`, when this cutoff blocks a fix that `npm audit
+fix` would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.
+
 Packages whose names match `min-release-age-exclude` are exempt from this
 filter.
 
@@ -193,6 +197,12 @@ your `.npmrc` is preserved when npm internally spawns a sub-process with
 `--before` while preparing a `git:` or `github:` dependency); when both
 apply, `before` wins within a single source and across sources the standard
 precedence rules apply.
+
+When this window stops `npm audit fix` from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+`min-release-age-exclude`, or relax `min-release-age` or `before`.
 
 Packages whose names match `min-release-age-exclude` are exempt from this
 filter.

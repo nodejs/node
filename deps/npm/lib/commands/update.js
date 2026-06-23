@@ -3,6 +3,7 @@ const { log } = require('proc-log')
 const reifyFinish = require('../utils/reify-finish.js')
 const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const strictAllowScriptsPreflight = require('../utils/strict-allow-scripts-preflight.js')
+const { patchRelaxOpts } = require('../utils/cli-only-flag.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Update extends ArboristWorkspaceCmd {
@@ -64,6 +65,7 @@ class Update extends ArboristWorkspaceCmd {
       save,
       workspaces: this.workspaceNames,
       allowScripts: allowScriptsPolicy,
+      ...patchRelaxOpts(this.npm.config),
     }
     const arb = new Arborist(opts)
 

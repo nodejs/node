@@ -62,11 +62,13 @@ package.json
 `
 
 exports[`test/lib/commands/diff.js TAP various options using diff option > must match snapshot 1`] = `
-diff --git a/index.js b/index.js
+diff --git bar/index.js foo/index.js
 index v2.0.0..v3.0.0 100644
---- a/index.js
-+++ b/index.js
-@@ -18,7 +18,7 @@
+--- bar/index.js
++++ foo/index.js
+@@ -16,11 +16,11 @@
+ 15
+ 16
  17
  18
  19
@@ -75,10 +77,12 @@ index v2.0.0..v3.0.0 100644
  21
  22
  23
-diff --git a/package.json b/package.json
+ 24
+ 25
+diff --git bar/package.json foo/package.json
 index v2.0.0..v3.0.0 100644
---- a/package.json
-+++ b/package.json
+--- bar/package.json
++++ foo/package.json
 @@ -1,4 +1,4 @@
  {
    "name": "bar",

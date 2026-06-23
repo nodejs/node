@@ -1,4 +1,4 @@
-.TH "REGISTRY" "7" "June 2026" "NPM@11.17.0" ""
+.TH "REGISTRY" "7" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBRegistry\fR - The JavaScript Package Registry
 .SS "Description"
@@ -13,7 +13,7 @@ npm's package registry implementation supports several write APIs as well, to al
 .P
 The registry URL used is determined by the scope of the package (see npm help scope. If no scope is specified, the default registry is used, which is supplied by the \fB\[rs]fBregistry\[rs]fR config\fR \fI\(la/using-npm/config#registry\(ra\fR parameter. See npm help config, npm help npmrc, and npm help config for more on managing npm's configuration. Authentication configuration such as auth tokens and certificates are configured specifically scoped to an individual registry. See \fBAuth Related Configuration\fR \fI\(la/configuring-npm/npmrc#auth-related-configuration\(ra\fR
 .P
-When the default registry is used in a package-lock or shrinkwrap it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
+When the default registry is used in a package-lock it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
 .SS "Does npm send any information about me back to the registry?"
 .P
 Yes.

@@ -1,7 +1,7 @@
 {
   "name": "libnpmteam",
   "description": "npm Team management APIs",
-  "version": "8.0.2",
+  "version": "9.0.0-pre.0",
   "author": "GitHub Inc.",
   "license": "ISC",
   "main": "lib/index.js",
@@ -17,8 +17,8 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.1",
-    "@npmcli/template-oss": "4.29.0",
-    "nock": "^13.3.3",
+    "@npmcli/template-oss": "5.1.1",
+    "nock": "^14.0.0",
     "tap": "^16.3.8"
   },
   "repository": {
@@ -33,17 +33,21 @@
   "homepage": "https://npmjs.com/package/libnpmteam",
   "dependencies": {
     "aproba": "^2.0.0",
-    "npm-registry-fetch": "^19.0.0"
+    "npm-registry-fetch": "^20.0.1"
   },
   "engines": {
-    "node": "^20.17.0 || >=22.9.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.29.0",
+    "version": "5.1.1",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {
+    "node-arg": [
+      "--require",
+      "../../scripts/disable-agent-for-tests.js"
+    ],
     "nyc-arg": [
       "--exclude",
       "tap-snapshots/**"

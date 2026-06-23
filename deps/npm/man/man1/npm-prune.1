@@ -1,4 +1,4 @@
-.TH "NPM-PRUNE" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-PRUNE" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-prune\fR - Remove extraneous packages
 .SS "Synopsis"
@@ -33,7 +33,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P

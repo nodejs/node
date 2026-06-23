@@ -1,0 +1,146 @@
+.TH "NPM-PATCH" "1" "June 2026" "NPM@12.0.0-pre.1" ""
+.SH "NAME"
+\fBnpm-patch\fR - Apply local patches to installed dependencies
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm patch <pkg>\[lB]@<version>\[rB]
+npm patch add <pkg>\[lB]@<version>\[rB] \[lB]--edit-dir <path>\[rB] \[lB]--ignore-existing\[rB]
+npm patch commit <edit-dir> \[lB]--patches-dir <dir>\[rB] \[lB]--keep-edit-dir\[rB]
+npm patch update <pkg>\[lB]@<old-version>\[rB] \[lB]--to <new-version>\[rB] \[lB]--patches-dir <dir>\[rB]
+npm patch ls
+npm patch rm <pkg>\[lB]@<version>\[rB]
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+\fBnpm patch\fR lets you apply small, local modifications to an installed dependency and have them re-applied automatically on every install. Patches are declared in the \fBpatchedDependencies\fR field of your root \fBpackage.json\fR, stored as plain unified diffs under the \fBpatches/\fR directory, and recorded with a content hash in \fBpackage-lock.json\fR.
+.P
+Because patches are applied during the install itself, they work regardless of \fBinstall-strategy\fR, apply to transitive dependencies, and are \fBnot\fR disabled by \fB--ignore-scripts\fR.
+.P
+The bare form \fBnpm patch <pkg>\fR is shorthand for \fBnpm patch add <pkg>\fR. A package literally named like a subcommand must use the explicit form, e.g. \fBnpm patch add add\fR.
+.RS 0
+.IP \(bu 4
+\fBnpm patch add <pkg>\[lB]@<version>\[rB]\fR
+.P
+Prepares a package for editing. npm extracts a clean copy of the resolved package tarball into a temporary directory outside \fBnode_modules\fR and prints its path. Edit the files there, then run \fBnpm patch commit\fR.
+.P
+If more than one version of \fB<pkg>\fR is installed, re-run with an exact selector such as \fBnpm patch add lodash@4.17.21\fR.
+.IP \(bu 4
+\fBnpm patch commit <edit-dir>\fR
+.P
+Diffs the edited directory against a clean copy of the original tarball, writes the unified diff to \fB<patches-dir>/<name>@<version>.patch\fR, adds the entry to \fBpatchedDependencies\fR, and updates \fBpackage-lock.json\fR.
+.IP \(bu 4
+\fBnpm patch ls\fR
+.P
+Lists registered patches and how many installed nodes each one matches.
+.IP \(bu 4
+\fBnpm patch rm <pkg>\[lB]@<version>\[rB]\fR
+.P
+Removes the matching entries from \fBpatchedDependencies\fR, deletes the patch file when no other entry references it, and updates \fBpackage-lock.json\fR. If \fB<version>\fR is omitted, all entries for \fB<pkg>\fR are removed.
+.RE 0
+
+.SS "Failure modes"
+.P
+By default any patch problem is a hard error that aborts the install: a patch that fails to apply, a registered patch that matches no installed package, a missing patch file, or a patch whose hash does not match the lockfile.
+.P
+Two CLI-only flags relax this for one-off cases: \fB--allow-unused-patches\fR and \fB--ignore-patch-failures\fR.
+.SS "Configuration"
+.SS "\fBpatches-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: "patches"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The directory, relative to the project root, where \fBnpm patch commit\fR writes patch files for \fBpatchedDependencies\fR.
+.SS "\fBallow-unused-patches\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Install even when a registered patch in \fBpatchedDependencies\fR matches no installed package. Does not silence patch apply failures.
+.P
+This flag is only honored when passed on the command line; it is ignored in \fB.npmrc\fR and environment variables, and rejected by \fBnpm ci\fR.
+.SS "\fBignore-patch-failures\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Install even when a registered patch fails to apply, with a warning per failure. Intended for incident response only.
+.P
+This flag is only honored when passed on the command line; it is ignored in \fB.npmrc\fR and environment variables, and rejected by \fBnpm ci\fR.
+.SS "\fBedit-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Path
+.RE 0
+
+.P
+Override the temporary directory used by \fBnpm patch add\fR to prepare a package for editing.
+.SS "\fBignore-existing\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+With \fBnpm patch add\fR, discard a previous unfinished edit directory and start fresh.
+.SS "\fBkeep-edit-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+With \fBnpm patch commit\fR, do not remove the edit directory after committing the patch.
+.SS "\fBto\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Used by \fBnpm patch update\fR to set the version to rebase a patch onto when it cannot be read from \fBpackage-lock.json\fR \[em] for example an exact-version selector, or a version that has not been installed yet.
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SH "SEE ALSO"
+.RS 0
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help ci
+.IP \(bu 4
+\fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR
+.IP \(bu 4
+npm help config
+.RE 0

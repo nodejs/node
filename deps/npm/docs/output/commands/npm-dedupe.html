@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-dedupe----11170">
+<h1 id="----npm-dedupe----1200-pre1">
     <span>npm-dedupe</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">Reduce duplication in the package tree</span>
 </header>
@@ -298,8 +298,7 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
-<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
-physically installed on disk.</p>
+<code>package-lock.json</code> file. They are just not physically installed on disk.</p>
 <p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
@@ -353,7 +352,7 @@ project's package.json to be installed. Also allows tarball file
 dependencies to be used for other commands like <code>npm view</code></p>
 <h4 id="allow-git"><code>allow-git</code></h4>
 <ul>
-<li>Default: "all"</li>
+<li>Default: "none"</li>
 <li>Type: "all", "none", or "root"</li>
 </ul>
 <p>Limits the ability for npm to fetch dependencies from git references. That
@@ -361,6 +360,10 @@ is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.</p>
+<p>As of npm 12 the default is <code>none</code>. Git dependencies run <code>git</code> against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in <code>.npmrc</code>) or per command (on the CLI) when you
+need git deps.</p>
 <p><code>all</code> allows any git dependencies to be fetched and installed. <code>none</code>
 prevents any git dependencies from being fetched and installed. <code>root</code> only
 allows git dependencies defined in your project's package.json to be fetched
@@ -368,7 +371,7 @@ and installed. Also allows git dependencies to be fetched for other commands
 like <code>npm view</code></p>
 <h4 id="allow-remote"><code>allow-remote</code></h4>
 <ul>
-<li>Default: "all"</li>
+<li>Default: "none"</li>
 <li>Type: "all", "none", or "root"</li>
 </ul>
 <p>Limits the ability for npm to fetch dependencies from urls. That is,
@@ -376,6 +379,12 @@ dependencies that point to a tarball url instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.</p>
+<p>As of npm 12 the default is <code>none</code>. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set <code>replace-registry-host</code> or
+override this setting. Opt in explicitly per project (in <code>.npmrc</code>) or per
+command (on the CLI) when you intentionally install from a URL.</p>
 <p><code>all</code> allows any url to be installed. <code>none</code> prevents any url from being
 installed. <code>root</code> only allows urls defined in your project's package.json to
 be installed. Also allows url dependencies to be used for other commands

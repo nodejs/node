@@ -194,7 +194,7 @@ access tokens with the `npm token create` command.
 
 ### See Also
 
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)
 * [npm registry](/using-npm/registry)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

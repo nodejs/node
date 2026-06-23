@@ -173,16 +173,7 @@ Then go into the node-repl, and try using require("my-thing") to bring in your m
 
 ### Create a User Account
 
-Create a user with the adduser command.
-It works like this:
-
-```bash
-npm adduser
-```
-
-and then follow the prompts.
-
-This is documented better in [npm adduser](/commands/npm-adduser).
+Create a user account on the [npm website](https://www.npmjs.com/signup).
 
 ### Publish your Package
 
@@ -211,5 +202,5 @@ Tell the world how easy it is to install your program!
 * [package.json](/configuring-npm/package-json)
 * [npm scripts](/using-npm/scripts)
 * [npm publish](/commands/npm-publish)
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)
 * [npm registry](/using-npm/registry)

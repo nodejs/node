@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-deny-scripts----11170">
+<h1 id="----npm-deny-scripts----1200-pre1">
     <span>npm-deny-scripts</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">Deny install scripts for specific dependencies</span>
 </header>
@@ -208,10 +208,10 @@ npm deny-scripts --all
 Writes <code>false</code> entries into the <code>allowScripts</code> field of your project's
 <code>package.json</code>, recording that a dependency must not run install scripts
 even if a future version would otherwise be eligible.</p>
-<p>In the current release, install scripts still run by default, so <code>deny-scripts</code>
-only affects how installs of denied packages are reported. A future release
-will block unreviewed install scripts and respect deny entries at install
-time.</p>
+<p>Dependency install scripts are blocked by default. Adding a <code>false</code>
+entry with <code>deny-scripts</code> makes the denial explicit (so it survives
+<code>npm approve-scripts --all</code>) and excludes the package from any future
+<code>--allow-scripts-pending</code> review prompts.</p>
 <pre><code class="language-bash">npm deny-scripts &lt;pkg&gt; [&lt;pkg&gt; ...]
 npm deny-scripts --all
 </code></pre>

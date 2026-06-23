@@ -13,6 +13,7 @@ const calcDepFlags = require('../calc-dep-flags.js')
 const Node = require('../node.js')
 const Link = require('../link.js')
 const realpath = require('../realpath.js')
+const PackageExtensions = require('../package-extensions.js')
 
 // public symbols
 const _changePath = Symbol.for('_changePath')
@@ -172,6 +173,8 @@ module.exports = cls => class ActualLoader extends cls {
       }
       await Promise.all(promises)
     }
+
+    this.#applyPackageExtensions()
 
     if (!ignoreMissing) {
       await this.#findMissingEdges()
@@ -349,6 +352,34 @@ module.exports = cls => class ActualLoader extends cls {
           })))
     } catch {
       // error in the readdir is not fatal, just means no kids
+    }
+  }
+
+  // packageExtensions never rewrite a package's package.json, so a filesystem-scanned actual tree lacks the extension-created edges and provenance.
+  // Re-derive them from the root rule set, as buildIdealTree does.
+  // This is always required under the linked strategy, whose store layout forces the filesystem-scan path.
+  #applyPackageExtensions () {
+    const rootPkg = this.#actualTree.target?.package
+    const pe = new PackageExtensions(rootPkg?.packageExtensions)
+    if (!pe.present || !pe.selectors.length) {
+      return
+    }
+    for (const node of this.#actualTree.inventory.values()) {
+      // only installed dependencies are extended, never the root or a workspace
+      if (node.isLink || node.isProjectRoot || !node.name || !node.inNodeModules()) {
+        continue
+      }
+      const res = pe.apply(node.package)
+      if (res) {
+        node.package = res.pkg
+        node.packageExtensionsApplied = res.applied
+      }
+    }
+    // mirror the provenance onto links so the logical tree location reports it too
+    for (const node of this.#actualTree.inventory.values()) {
+      if (node.isLink && node.target?.packageExtensionsApplied) {
+        node.packageExtensionsApplied = node.target.packageExtensionsApplied
+      }
     }
   }
 

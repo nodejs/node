@@ -217,8 +217,7 @@ on deeper dependencies. Sets `--install-strategy=shallow`.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.
@@ -330,11 +329,12 @@ the package's self-reported name. `--ignore-scripts` and
 * Type: Boolean
 
 If `true`, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by `allowScripts` will fail
-the install instead of running with a notice.
+any dependency with install scripts that is not covered by `allowScripts`
+will fail the install instead of being blocked with a warning.
 
 Dependencies explicitly denied with `false` in `allowScripts` are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 `--ignore-scripts` and `--dangerously-allow-all-scripts` both override this
 setting.
 
@@ -385,6 +385,10 @@ sources, the standard precedence applies (cli > env > project > user >
 global), so a higher-priority source can always relax or override a
 lower-priority one.
 
+As with `min-release-age`, when this cutoff blocks a fix that `npm audit
+fix` would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.
+
 Packages whose names match `min-release-age-exclude` are exempt from this
 filter.
 
@@ -406,6 +410,12 @@ your `.npmrc` is preserved when npm internally spawns a sub-process with
 `--before` while preparing a `git:` or `github:` dependency); when both
 apply, `before` wins within a single source and across sources the standard
 precedence rules apply.
+
+When this window stops `npm audit fix` from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+`min-release-age-exclude`, or relax `min-release-age` or `before`.
 
 Packages whose names match `min-release-age-exclude` are exempt from this
 filter.
@@ -548,7 +558,6 @@ workspaces.
 
 * [npm install](/commands/npm-install)
 * [npm outdated](/commands/npm-outdated)
-* [npm shrinkwrap](/commands/npm-shrinkwrap)
 * [npm registry](/using-npm/registry)
 * [npm folders](/configuring-npm/folders)
 * [npm ls](/commands/npm-ls)

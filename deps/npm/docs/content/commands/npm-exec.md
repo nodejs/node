@@ -186,11 +186,12 @@ the package's self-reported name. `--ignore-scripts` and
 * Type: Boolean
 
 If `true`, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by `allowScripts` will fail
-the install instead of running with a notice.
+any dependency with install scripts that is not covered by `allowScripts`
+will fail the install instead of being blocked with a warning.
 
 Dependencies explicitly denied with `false` in `allowScripts` are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 `--ignore-scripts` and `--dangerously-allow-all-scripts` both override this
 setting.
 
