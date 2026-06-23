@@ -211,9 +211,11 @@ class JSBindingsConnection : public BaseObject {
     CHECK(info[0]->IsString());
 
     if (session->session_) {
-      session->session_->Dispatch(
-          ToInspectorString(info.GetIsolate(), info[0])->string());
-      info.GetIsolate()->PerformMicrotaskCheckpoint();
+      Isolate* isolate = info.GetIsolate();
+      session->session_->Dispatch(ToInspectorString(isolate, info[0])->string());
+      if (!isolate->IsExecutionTerminating()) {
+        isolate->PerformMicrotaskCheckpoint();
+      }
     }
   }
 
