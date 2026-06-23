@@ -2,7 +2,7 @@
 // parent process argv when spawning the watch child.
 import * as common from '../common/index.mjs';
 import assert from 'node:assert';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from 'node:test';
 import tmpdir from '../common/tmpdir.js';
@@ -11,8 +11,10 @@ import { skipIfNoWatch } from '../common/watch.js';
 skipIfNoWatch();
 tmpdir.refresh();
 
+const watchedDir = join(tmpdir.path, 'watched');
 const marker = join(tmpdir.path, 'marker');
-writeFileSync(join(tmpdir.path, 'test.js'), `
+mkdirSync(watchedDir);
+writeFileSync(join(watchedDir, 'test.js'), `
 const test = require('node:test');
 const { writeFileSync } = require('node:fs');
 
@@ -23,7 +25,7 @@ test('test ran from cwd', () => {
 
 const controller = new AbortController();
 const stream = run({
-  cwd: tmpdir.path,
+  cwd: watchedDir,
   watch: true,
   signal: controller.signal,
   isolation: 'none',
