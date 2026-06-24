@@ -9,7 +9,10 @@ new Worker(path.join(__dirname, 'grow-and-set-near-heap-limit.js'), {
   },
   resourceLimits: {
     maxOldGenerationSizeMb:
-      parseInt(process.env.TEST_OLD_SPACE_SIZE) || 20
-  }
+      parseInt(process.env.TEST_OLD_SPACE_SIZE) || 20,
+    ...(process.env.TEST_YOUNG_SPACE_SIZE !== undefined && {
+      maxYoungGenerationSizeMb: parseInt(process.env.TEST_YOUNG_SPACE_SIZE),
+    }),
+  },
 });
 

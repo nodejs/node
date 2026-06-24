@@ -22,6 +22,7 @@ const env = {
     env: {
       TEST_SNAPSHOTS: 1,
       TEST_OLD_SPACE_SIZE: 50,
+      TEST_YOUNG_SPACE_SIZE: 16,
       ...env
     }
   });
