@@ -75,6 +75,23 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     await handle.close();
   }
 
+  // ===== readFile through an open real fd survives backing path rename =====
+  {
+    fs.writeFileSync(path.join(root, 'rename-read.txt'), 'still readable');
+    const syncHandle = await myVfs.provider.open('/rename-read.txt', 'r');
+    const asyncHandle = await myVfs.provider.open('/rename-read.txt', 'r');
+    fs.renameSync(path.join(root, 'rename-read.txt'),
+                  path.join(root, 'rename-read-renamed.txt'));
+    try {
+      assert.strictEqual(syncHandle.readFileSync('utf8'), 'still readable');
+      assert.strictEqual(await asyncHandle.readFile('utf8'), 'still readable');
+    } finally {
+      await syncHandle.close();
+      await asyncHandle.close();
+      fs.unlinkSync(path.join(root, 'rename-read-renamed.txt'));
+    }
+  }
+
   // ===== EBADF after close =====
   {
     await myVfs.promises.writeFile('/h.txt', 'hello');
