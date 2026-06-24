@@ -49,6 +49,16 @@ const { sleep } = require('internal/util');
       }
     );
   });
+
+  [null, 'a', 1, {}, []].forEach((i) => {
+    assert.throws(
+      () => monitorEventLoopDelay({ samplePerIteration: i }),
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_TYPE',
+      }
+    );
+  });
 }
 
 {
@@ -112,6 +122,101 @@ const { sleep } = require('internal/util');
     }
   }
   spinAWhile();
+}
+
+{
+  const histogram = monitorEventLoopDelay({ samplePerIteration: true });
+  histogram.enable();
+  setTimeout(common.mustCall(() => {
+    histogram.disable();
+    assert(histogram.count > 0,
+           `Expected samples to be recorded, got count=${histogram.count}`);
+    assert(histogram.min > 0);
+    assert(histogram.max > 0);
+    assert(histogram.mean > 0);
+    assert(histogram.percentiles.size > 0);
+    for (let n = 1; n < 100; n = n + 10) {
+      assert(histogram.percentile(n) >= 0);
+    }
+    // reset() should restore the histogram to its initial state
+    histogram.reset();
+    assert.strictEqual(histogram.count, 0);
+    assert.strictEqual(histogram.max, 0);
+    assert.strictEqual(histogram.min, 9223372036854776000);
+    assert(Number.isNaN(histogram.mean));
+    assert(Number.isNaN(histogram.stddev));
+    assert.strictEqual(histogram.percentiles.size, 1);
+  }), common.platformTimeout(20));
+}
+
+{
+  // enable()/disable() return values for ELDHistogram (samplePerIteration: true)
+  const histogram = monitorEventLoopDelay({ samplePerIteration: true });
+  assert.strictEqual(histogram.enable(), true);
+  assert.strictEqual(histogram.enable(), false);  // Already enabled, no-op
+  assert.strictEqual(histogram.disable(), true);
+  assert.strictEqual(histogram.disable(), false); // Already disabled, no-op
+  // Re-enabling after disable should work
+  assert.strictEqual(histogram.enable(), true);
+  setTimeout(common.mustCall(() => {
+    histogram.disable();
+    assert(histogram.count > 0,
+           `Expected samples after re-enable, got count=${histogram.count}`);
+  }), common.platformTimeout(20));
+}
+
+{
+  // Verify that samplePerIteration records exactly one sample per event loop iteration.
+  const N = 10;
+  const histogram = monitorEventLoopDelay({ samplePerIteration: true });
+  histogram.enable();
+
+  let iterations = 0;
+  const verify = common.mustCall(() => {
+    histogram.disable();
+    assert(
+      histogram.count >= N - 1,
+      `Expected at least ${N - 1} samples for ${N} iterations, got ${histogram.count}`
+    );
+  });
+
+  function tick() {
+    if (++iterations < N) {
+      setImmediate(tick);
+    } else {
+      verify();
+    }
+  }
+  setImmediate(tick);
+}
+
+{
+  // samplePerIteration should sample per event loop iteration, independent of
+  // the timer resolution used by the legacy monitorEventLoopDelay path.
+  const N = 10;
+  const histogram = monitorEventLoopDelay({
+    samplePerIteration: true,
+    resolution: 60 * 1000,
+  });
+  histogram.enable();
+
+  let iterations = 0;
+  const verify = common.mustCall(() => {
+    histogram.disable();
+    assert(
+      histogram.count >= N - 1,
+      `Expected samples despite large resolution, got count=${histogram.count}`
+    );
+  });
+
+  function tick() {
+    if (++iterations < N) {
+      setImmediate(tick);
+    } else {
+      verify();
+    }
+  }
+  setImmediate(tick);
 }
 
 // Make sure that the histogram instances can be garbage-collected without
