@@ -1701,23 +1701,32 @@ are not guaranteed to reflect any correct state of the event loop.
 
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62935
+    description: Added the `samplePerIteration` option.
 -->
 
 * `options` {Object}
-  * `resolution` {number} The sampling rate in milliseconds. Must be greater
-    than zero. **Default:** `10`.
-* Returns: {IntervalHistogram}
+  * `samplePerIteration` {boolean} When `true`, samples are taken once per
+    event loop iteration. **Default:** `false`.
+  * `resolution` {number} The sampling rate in milliseconds for interval-based
+    sampling. Must be greater than zero. This option is ignored when
+    `samplePerIteration` is `true`. **Default:** `10`.
+* Returns: {ELDHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
-Creates an `IntervalHistogram` object that samples and reports the event loop
-delay over time. The delays will be reported in nanoseconds.
+Creates a histogram object that samples and reports the event loop delay over
+time. The delays will be reported in nanoseconds.
 
-Using a timer to detect approximate event loop delay works because the
-execution of timers is tied specifically to the lifecycle of the libuv
-event loop. That is, a delay in the loop will cause a delay in the execution
-of the timer, and those delays are specifically what this API is intended to
-detect.
+By default, the histogram is updated by a timer using the configured
+`resolution`. When `samplePerIteration` is `true`, samples are taken once per
+event loop iteration using `uv_prepare_t` and `uv_check_t` hooks. In that mode,
+the histogram does not keep the loop alive or force additional iterations when
+the application is idle.
+The two sampling modes produce significantly different results and should not
+be compared directly.
 
 ```mjs
 import { monitorEventLoopDelay } from 'node:perf_hooks';
@@ -1992,9 +2001,10 @@ added: v11.10.0
 
 The standard deviation of the recorded event loop delays.
 
-## Class: `IntervalHistogram extends Histogram`
+## Class: `ELDHistogram extends Histogram`
 
-A `Histogram` that is periodically updated on a given interval.
+A `Histogram` that records event loop delay, returned by
+[`perf_hooks.monitorEventLoopDelay()`][].
 
 ### `histogram.disable()`
 
@@ -2004,7 +2014,7 @@ added: v11.10.0
 
 * Returns: {boolean}
 
-Disables the update interval timer. Returns `true` if the timer was
+Disables event loop delay sampling. Returns `true` if sampling was
 stopped, `false` if it was already stopped.
 
 ### `histogram.enable()`
@@ -2015,7 +2025,7 @@ added: v11.10.0
 
 * Returns: {boolean}
 
-Enables the update interval timer. Returns `true` if the timer was
+Enables event loop delay sampling. Returns `true` if sampling was
 started, `false` if it was already started.
 
 ### `histogram[Symbol.dispose]()`
@@ -2024,7 +2034,7 @@ started, `false` if it was already started.
 added: v24.2.0
 -->
 
-Disables the update interval timer when the histogram is disposed.
+Disables event loop delay sampling when the histogram is disposed.
 
 ```js
 const { monitorEventLoopDelay } = require('node:perf_hooks');
@@ -2035,11 +2045,11 @@ const { monitorEventLoopDelay } = require('node:perf_hooks');
 }
 ```
 
-### Cloning an `IntervalHistogram`
+### Cloning an `ELDHistogram`
 
-{IntervalHistogram} instances can be cloned via {MessagePort}. On the receiving
-end, the histogram is cloned as a plain {Histogram} object that does not
-implement the `enable()` and `disable()` methods.
+{ELDHistogram} instances can be cloned via {MessagePort}. On the receiving end,
+the histogram is cloned as a plain {Histogram} object that does not implement
+the `enable()` and `disable()` methods.
 
 ## Class: `RecordableHistogram extends Histogram`
 
@@ -2352,6 +2362,7 @@ dns.promises.resolve('localhost');
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
+[`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
