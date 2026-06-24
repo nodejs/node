@@ -20,6 +20,11 @@ namespace node {
 
 class ExternalReferenceRegistry;
 
+template <typename T>
+void StartHandleHistogram(v8::Local<v8::Value> receiver, bool reset);
+template <typename T>
+void StopHandleHistogram(v8::Local<v8::Value> receiver);
+
 constexpr int kDefaultHistogramFigures = 3;
 
 class Histogram : public MemoryRetainer {
@@ -257,10 +262,77 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   void OnStart(StartFlags flags = StartFlags::RESET);
   void OnStop();
 
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
+
   bool enabled_ = false;
   int32_t interval_ = 0;
   std::function<void(Histogram&)> on_interval_;
   uv_timer_t timer_;
+
+  static v8::CFunction fast_start_;
+  static v8::CFunction fast_stop_;
+};
+
+class IterationHistogram final : public HandleWrap, public HistogramImpl {
+ public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(
+        HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
+  };
+
+  enum class StartFlags { NONE, RESET };
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static BaseObjectPtr<IterationHistogram> Create(
+      Environment* env, const Histogram::Options& options);
+
+  IterationHistogram(Environment* env,
+                     v8::Local<v8::Object> wrap,
+                     AsyncWrap::ProviderType type,
+                     const Histogram::Options& options = Histogram::Options{});
+
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void FastStart(v8::Local<v8::Value> receiver, bool reset);
+  static void FastStop(v8::Local<v8::Value> receiver);
+
+  BaseObject::TransferMode GetTransferMode() const override {
+    return TransferMode::kCloneable;
+  }
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+  void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(IterationHistogram)
+  SET_SELF_SIZE(IterationHistogram)
+
+ private:
+  static void PrepareCB(uv_prepare_t* handle);
+  static void CheckCB(uv_check_t* handle);
+  void OnStart(StartFlags flags = StartFlags::RESET);
+  void OnStop();
+
+  template <typename T>
+  friend void StartHandleHistogram(v8::Local<v8::Value>, bool);
+  template <typename T>
+  friend void StopHandleHistogram(v8::Local<v8::Value>);
+
+  bool enabled_ = false;
+  uv_prepare_t prepare_handle_;
+  uv_check_t check_handle_;
+  uint64_t prepare_time_ = 0;
+  uint64_t check_time_ = 0;
+  int64_t timeout_ = 0;
 
   static v8::CFunction fast_start_;
   static v8::CFunction fast_stop_;

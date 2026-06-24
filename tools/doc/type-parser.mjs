@@ -213,8 +213,8 @@ const customTypesMap = {
   'os.constants.dlopen': 'os.html#dlopen-constants',
 
   'Histogram': 'perf_hooks.html#class-histogram',
-  'IntervalHistogram':
-     'perf_hooks.html#class-intervalhistogram-extends-histogram',
+  'ELDHistogram':
+     'perf_hooks.html#class-eldhistogram-extends-histogram',
   'RecordableHistogram':
      'perf_hooks.html#class-recordablehistogram-extends-histogram',
   'PerformanceEntry': 'perf_hooks.html#class-performanceentry',
