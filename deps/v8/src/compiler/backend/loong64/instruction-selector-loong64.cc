@@ -48,6 +48,20 @@ class Loong64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseRegisterAtEndOrImmediateZero(OpIndex node) {
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat32 &&
+           constant->float32().get_bits() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat64 &&
+           constant->float64().get_bits() == 0)) {
+        return UseImmediate(node);
+      }
+    }
+    return UseRegisterAtEnd(node);
+  }
+
   bool IsIntegerConstant(OpIndex node) {
     int64_t unused;
     return selector()->MatchSignedIntegralConstant(node, &unused);
@@ -307,7 +321,7 @@ static void VisitBinop(InstructionSelector* selector, turboshaft::OpIndex node,
                        InstructionCode reverse_opcode,
                        FlagsContinuation* cont) {
   Loong64OperandGenerator g(selector);
-  InstructionOperand inputs[2];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
@@ -329,6 +343,13 @@ static void VisitBinop(InstructionSelector* selector, turboshaft::OpIndex node,
   } else {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseOperand(right_node, opcode);
+  }
+
+  if (cont->IsSelect()) {
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->true_value());
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->false_value());
   }
 
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -2169,9 +2190,14 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                                  ? OperandGenerator::kUniqueRegister
                                  : OperandGenerator::kRegister;
 
-  InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-  static constexpr int input_count = arraysize(inputs);
+  InstructionOperand inputs[3];
+  int input_count = 0;
+  inputs[input_count++] = g.UseRegisterWithMode(value, register_mode);
 
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
   EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
                        temp_count, temps, cont);
 }

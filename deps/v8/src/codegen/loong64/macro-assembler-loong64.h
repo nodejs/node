@@ -140,6 +140,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
+  // Select v_true if cond is non-zero, otherwise select v_false.
+  void SelectWord(Register result, Register cond, Register v_true,
+                  Register v_false);
+
   void CompareWord(Condition cond, Register dst, Register lhs,
                    const Operand& rhs);
   void Branch(Label* label, bool need_link = false);
