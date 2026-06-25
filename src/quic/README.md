@@ -77,7 +77,7 @@ data channels that carry application data.
 
 Every entry point that may generate outbound data creates a
 `SendPendingDataScope`. Scopes nest — an internal depth counter ensures
-`Application::SendPendingData()` is called exactly once, when the outermost
+`Session::SendPendingData()` is called exactly once, when the outermost
 scope exits:
 
 ```cpp
@@ -218,13 +218,13 @@ Session::Receive()
 
 ```text
 SendPendingDataScope::~SendPendingDataScope()
- → Application::SendPendingData()
+ → Session::SendPendingData()
     Loop (up to max_packet_count):
-     ├── GetStreamData()           // pull data from next stream
-     │   └── stream->Pull()        // bob pull from Outbound→DataQueue
-     ├── WriteVStream()            // ngtcp2_conn_writev_stream()
+     ├── application().GetStreamData()  // pull data from next stream
+     │   └── stream->Pull()             // bob pull from Outbound→DataQueue
+     ├── WriteVStream()                 // ngtcp2_conn_writev_stream()
      │                              encrypts, frames, paces
-     ├── if ndatalen > 0: StreamCommit()
+     ├── if ndatalen > 0: application().StreamCommit()
      │                              stream->Commit(datalen, fin)
      ├── if nwrite > 0:  Send()    // uv_udp_send()
      ├── if WRITE_MORE:  continue  // room for more in this packet

@@ -1520,8 +1520,7 @@ void Stream::EntryRead(size_t amount) {
   // Extend the flow control window so the sender can transmit more.
   if (session().is_destroyed()) return;
   Session::SendPendingDataScope send_scope(&session());
-  session().ExtendStreamOffset(id(), amount);
-  session().ExtendOffset(amount);
+  session().Consume(id(), amount);
 }
 
 void Stream::BeforePull() {

@@ -27,6 +27,25 @@ namespace node::quic {
 
 class Endpoint;
 
+// A block of pending outbound stream data, passed between the application
+// layer (which fills it via GetStreamData) and the send pump (which hands
+// it to ngtcp2_conn_writev_stream and commits the accepted length).
+struct StreamData final {
+  // The actual number of vectors in the struct, up to kMaxVectorCount.
+  size_t count = 0;
+  // The stream identifier. If this is a negative value then no stream is
+  // identified.
+  stream_id id = -1;
+  int fin = 0;
+  ngtcp2_vec data[kMaxVectorCount]{};
+  BaseObjectPtr<Stream> stream;
+
+  inline operator const ngtcp2_vec*() const { return data; }
+  inline operator ngtcp2_vec*() { return data; }
+
+  std::string ToString() const;
+};
+
 // A Session represents one half of a persistent connection between two QUIC
 // peers. Every Session is established first by performing a TLS handshake in
 // which the client sends an initial packet to the server containing a TLS
@@ -417,6 +436,36 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // bindingdata.cc doesn't need the full Application type definition.
   void FlushPendingData();
 
+  // The send pump: the primary driver for serializing outbound data.
+  // Loops through available stream data (pulled from the application
+  // layer via GetStreamData/StreamCommit) and pending datagrams,
+  // generating packets until there is no more data to send or the
+  // packet budget for this call is exhausted.
+  void SendPendingData();
+
+  Packet::Ptr CreateStreamDataPacket();
+
+  // Tries to pack a pending datagram into the current packet buffer.
+  // If < 0 is returned, either NGTCP2_ERR_WRITE_MORE or a fatal error is
+  // returned; the caller must check. If > 0 is returned, the packet is done
+  // and the value is the size of the finalized packet. If 0 is returned,
+  // the datagram is either congestion limited or was abandoned.
+  ssize_t TryWritePendingDatagram(PathStorage* path,
+                                  uint8_t* dest,
+                                  size_t destlen,
+                                  uint64_t ts);
+
+  // Write the given stream_data into the buffer. The PacketInfo out-param
+  // is populated by ngtcp2 with per-packet metadata (e.g., ECN codepoint)
+  // that should be applied when sending the packet.
+  ssize_t WriteVStream(PathStorage* path,
+                       PacketInfo* pi,
+                       uint8_t* buf,
+                       ssize_t* ndatalen,
+                       size_t max_packet_size,
+                       const StreamData& stream_data,
+                       uint64_t ts);
+
   // Send a batch of packets accumulated by SendPendingData. Uses
   // Endpoint::SendBatch (uv_udp_try_send2 / sendmmsg) for synchronous
   // batched delivery when called from the deferred flush path.
@@ -485,6 +534,20 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void ExtendOffset(size_t amount);
   void SetLastError(QuicError&& error);
   uint64_t max_data_left() const;
+
+  // Transport operations that protocol applications (e.g. HTTP/3) invoke on
+  // the session, encapsulating ngtcp2 transport details here.
+
+  // Open a unidirectional stream, setting *id on success, or returning false
+  bool OpenUni(stream_id* id);
+
+  void ExtendMaxStreams(Direction direction, uint64_t max);
+
+  // Signal that we've consumed $len bytes on stream $id to update flow control
+  void Consume(stream_id id, size_t len);
+
+  // Record an application-level error on the connection without closing it.
+  void SetApplicationError(error_code app_error_code);
 
   PendingStream::PendingStreamQueue& pending_bidi_stream_queue() const;
   PendingStream::PendingStreamQueue& pending_uni_stream_queue() const;
