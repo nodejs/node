@@ -689,12 +689,12 @@ MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
 }
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
-  auto exponent_word = BignumPointer::GetWord(e);
-  if (!exponent_word) return Null(env->isolate());
+  if (e == nullptr) return Null(env->isolate());
   auto bio = BIOPointer::NewMem();
   if (!bio) [[unlikely]]
     return {};
-  BIO_printf(bio.get(), "0x%" PRIx64, static_cast<uint64_t>(*exponent_word));
+  BIO_puts(bio.get(), "0x");
+  BN_print(bio.get(), e);
   return ToV8Value(env->context(), bio);
 }
 
