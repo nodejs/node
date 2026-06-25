@@ -13,7 +13,7 @@ const {
 } = require('node:test');
 
 const bench = common.createBenchmark(main, {
-  n: [1, 10, 100, 1000],
+  n: [1000],
   hook: ['before', 'after', 'beforeEach', 'afterEach'],
 }, {
   // We don't want to test the reporter here.
