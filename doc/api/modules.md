@@ -478,7 +478,7 @@ RESOLVE_ESM_MATCH(MATCH)
 3. THROW "not found"
 ```
 
-The "ESM resolver" is defined [in the ESM documentation](esm.md#resolver-algorithm-specification).
+The "ESM resolver" is defined [in the ESM documentation](esm.md#resolution-and-loading-algorithm).
 
 ## Caching
 
