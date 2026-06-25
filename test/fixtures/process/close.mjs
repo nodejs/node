@@ -1,7 +1,9 @@
 import { strictEqual } from 'assert'
 
+let obj
+
 function setup() {
-  const obj = { foo: 'bar' }
+  obj = { foo: 'bar' }
   process.finalization.register(obj, shutdown)
 }
 
@@ -14,5 +16,6 @@ function shutdown(obj) {
 setup()
 
 process.on('exit', function () {
+  strictEqual(obj.foo, 'bar')
   strictEqual(shutdownCalled, true)
 })
