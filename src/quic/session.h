@@ -536,10 +536,31 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // before the handshake completes.
   void PopulateEarlyTransportParamsState();
 
+  void set_hello_processed() { hello_processed_ = true; }
+
   // It's a terrible name but "wrapped" here means that the Session has been
   // passed out to JavaScript and should be "wrapped" by whatever handler is
   // defined there to manage it.
   void set_wrapped();
+
+  // True while JS emits must be held for later replay, before the handshake
+  // is complete and the server session event has been emitted.
+  bool must_defer_emits() const;
+
+  // Replays, in order, any emits held while must_defer_emits() was true.
+  // Called synchronously right after the new-session emit.
+  void ReplayDeferredEmits();
+
+  // Queues fn to be replayed by ReplayDeferredEmits(). Out-of-line so the
+  // header does not need the full Impl definition.
+  void QueueDeferredEmit(std::function<void()> fn);
+
+  template <typename F>
+  bool DeferEmit(F&& fn) {
+    if (!must_defer_emits()) return false;
+    QueueDeferredEmit(std::forward<F>(fn));
+    return true;
+  }
 
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
@@ -655,6 +676,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint8_t prefer_try_send : 1 = 0;
   };
   Flags flags_;
+
+  bool hello_processed_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
