@@ -196,7 +196,7 @@ void New(const FunctionCallbackInfo<Value>& args) {
 #endif
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
-    if (bn_g.getWord() < 2) {
+    if (bn_g.getWord().has_value() && bn_g.getWord().value() < 2) {
 #ifndef OPENSSL_IS_BORINGSSL
       ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
 #else
