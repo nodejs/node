@@ -6,7 +6,7 @@ const reporter = require('../fixtures/empty-test-reporter');
 const { test } = require('node:test');
 
 const bench = common.createBenchmark(main, {
-  n: [1, 10, 100, 1000],
+  n: [10000],
   selected: [1],
 }, {
   // We don't want to test the reporter here.

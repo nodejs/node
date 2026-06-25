@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
 
 const bench = common.createBenchmark(main, {
-  n: [1, 10, 100, 1000],
+  n: [1000],
   mode: [
     'enable-empty-apis',
     'enable-setTimeout',
