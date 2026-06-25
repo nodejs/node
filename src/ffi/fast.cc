@@ -222,7 +222,10 @@ FastFFIMetadata::~FastFFIMetadata() {
 
 bool IsFastCallSupported() {
   // Fast call requires both a platform stub emitter and working JIT memory.
-#if defined(__aarch64__) || defined(_M_ARM64) || defined(__x86_64__)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(__x86_64__) ||        \
+    defined(_M_X64) || defined(__powerpc64__) || defined(__ppc64__) ||         \
+    defined(__PPC64__) || defined(__loongarch64) ||                            \
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
   return IsJitMemorySupported();
 #else
   return false;

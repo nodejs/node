@@ -60,11 +60,13 @@ bool SignaturesMatch(const FFIFunction& fn,
 // Eligibility checks: every arg type and the return type are
 // numeric-or-pointer, no `function`-typed args/return, arg count
 // within V8 fast-call cap (8), and register-passed arg counts within
-// per-ABI limits. Trampoline emitters currently exist only for AArch64
-// (≤ 7 GP + ≤ 8 FP) and x86_64 SysV (≤ 6 GP + ≤ 8 FP; buffer args cap GP at
-// 5 and cannot coexist with FP args). Platforms without an emitter
-// (including Win64) are reported ineligible so the caller falls back to
-// libffi.
+// per-ABI limits. Trampoline emitters currently exist for AArch64
+// (≤ 7 GP + ≤ 8 FP), x86_64 SysV (≤ 6 GP + ≤ 8 FP; buffer args cap GP at 5 and
+// cannot coexist with FP args), Win64 x64 (≤ 3 register-only scalar args), and
+// PPC64LE ELFv2, LoongArch64, and RISC-V 64 (≤ 7 GP + ≤ 8 FP scalar args, no
+// narrow returns), and s390x (≤ 4 GP + ≤ 4 FP scalar args, no narrow returns).
+// Platforms without an emitter are reported ineligible so the caller falls back
+// to libffi.
 bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason);
 
 // True if the FFI type can be read from / written to a raw byte buffer

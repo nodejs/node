@@ -1,3 +1,17 @@
+## 8.17.0 (2026-06-11)
+
+### New features
+
+The new `strict` option can be used to start script sources in strict mode.
+
+### Bug fixes
+
+Fix a number of corner case bugs when `using` or `await using` appear in `for` loop specs.
+
+Disallow `new super()` expressions.
+
+Don't allow the conditional in a ternary expression to be a (naked) arrow function.
+
 ## 8.16.0 (2026-02-19)
 
 ### New features

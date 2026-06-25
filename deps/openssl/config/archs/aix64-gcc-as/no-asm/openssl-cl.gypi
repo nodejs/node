@@ -4,6 +4,9 @@
       'NDEBUG',
       'B_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_aix64-gcc-as': [
@@ -12,7 +15,7 @@
       '-O',
     ],
     'openssl_ex_libs_aix64-gcc-as': [
-      '-pthread',
+      '-lm -pthread',
     ],
     'openssl_cli_srcs_aix64-gcc-as': [
       'openssl/apps/lib/cmp_mock_srv.c',

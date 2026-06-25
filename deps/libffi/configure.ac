@@ -2,7 +2,7 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.68])
 
-AC_INIT([libffi],[3.5.2],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.6.0],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
 FFI_VERSION_STRING="3.5.2"
@@ -119,6 +119,10 @@ fi
 AC_SUBST(HAVE_LONG_DOUBLE)
 AC_SUBST(HAVE_LONG_DOUBLE_VARIANT)
 
+AC_CHECK_TYPE(__int128_t,
+	      AC_DEFINE(HAVE_INT128, 1,
+			[Define if __int128_t and __uint128_t are supported.]))
+
 AC_C_BIGENDIAN
 
 GCC_AS_CFI_PSEUDO_OP
@@ -190,6 +194,13 @@ case "$TARGET" in
     fi
     CFLAGS="$CFLAGS -sMEMORY64=$WASM64_MEMORY64"
     ;;
+  LOONGARCH64)
+    CFLAGS="$CFLAGS -mcmodel=medium"
+    ;;
+  LOONGARCH32)
+    # No special for LoongArch32 now.
+    ;;
+
 esac
 
 AC_CACHE_CHECK([whether compiler supports pointer authentication],
@@ -392,7 +403,8 @@ case "$target" in
        fi
      ;;
      *arm*-*-linux-* | aarch64*-*-linux-* | i*86-*-linux-* | x86_64-*-linux-* \
-     | loongarch*-*-linux-* | s390x*-linux-* | powerpc*-linux-*)
+     | loongarch*-*-linux-* | s390x*-linux-* | powerpc*-linux-* \
+     | riscv*-linux-*)
        AC_DEFINE(FFI_EXEC_STATIC_TRAMP, 1,
                  [Define this if you want statically defined trampolines])
      ;;

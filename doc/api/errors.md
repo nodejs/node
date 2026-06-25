@@ -714,6 +714,14 @@ An attempt was made to register something that is not a function as an
 An operation related to module loading is customized by an asynchronous loader
 hook that never settled the promise before the loader thread exits.
 
+<a id="ERR_ASYNC_RESOURCE_DOMAIN_REMOVED"></a>
+
+### `ERR_ASYNC_RESOURCE_DOMAIN_REMOVED`
+
+The `domain` property on `AsyncResource` has been removed. The domain module
+now uses `AsyncLocalStorage` for context propagation instead of `async_hooks`.
+Use `AsyncLocalStorage` instead for context propagation.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`
@@ -2554,7 +2562,7 @@ package specifier mapping.
 ### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A module attempted to resolve a bare specifier using the [package map][], but
@@ -2574,7 +2582,7 @@ covers the importing file.
 ### `ERR_PACKAGE_MAP_INVALID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 The [package map][] configuration file is invalid. This can occur when:
@@ -2595,7 +2603,7 @@ Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file n
 ### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A package's `dependencies` object in the [package map][] references a package
@@ -2985,6 +2993,14 @@ disconnected socket.
 ### `ERR_SOCKET_DGRAM_NOT_RUNNING`
 
 A call was made and the UDP subsystem was not running.
+
+<a id="ERR_SOCKET_HANDLE_ADOPTED"></a>
+
+### `ERR_SOCKET_HANDLE_ADOPTED`
+
+An operation was attempted on a [`BoundSocket`][] that had already been adopted
+by a [`net.Server`][] or [`net.Socket`][]. Once a bound socket is adopted, its
+`address()` and `close()` methods can no longer be used.
 
 <a id="ERR_SOURCE_MAP_CORRUPT"></a>
 
@@ -4566,6 +4582,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`BoundSocket`]: net.md#class-netboundsocket
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
@@ -4609,7 +4626,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`net.Server`]: net.md#class-netserver
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
+[`net.Socket`]: net.md#class-netsocket
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options

@@ -114,7 +114,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
 | GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
+| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5] |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
 | macOS            | x64              | >= 13.5                           | Tier 2       | For notes about compilation see [^4]           |
@@ -147,7 +147,7 @@ platforms. This is true regardless of entries in the table below.
 [^4]: Our macOS Binaries are compiled with 13.5 as a target. Xcode 16 is
     required to compile.
 
-[^7]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
+[^5]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
     includes `<riscv_vector.h>` and uses `target("arch=+v")` in
     `deps/v8/src/base/cpu.cc`. GCC 13's `riscv_vector.h` errors out without
     `-march=rv64gcv` and doesn't support the `target` attribute at all.
@@ -172,7 +172,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 
 | Binary package          | Platform and Toolchain                                        |
 | ----------------------- | ------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                       |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with Clang 20.1                       |
 | darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
 | darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
 | linux-arm64             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
@@ -188,9 +188,6 @@ The package name for the `libatomic` runtime is typically `libatomic` or `libato
 on your Linux distribution.
 
 <!--lint disable final-definition-->
-
-[^5]: Binaries produced on these systems require libstdc++12, available
-    from the [AIX toolbox][].
 
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
@@ -252,7 +249,7 @@ tarball and/or browse the git repository checked out at the relevant tag.
 Installation via Linux package manager can be achieved with:
 
 * Nix, NixOS: `nix-shell`
-* Ubuntu, Debian: `sudo apt-get install python3 g++-12 gcc-12 make python3-pip`
+* Ubuntu, Debian: `sudo apt-get install python3 g++-13 gcc-13 make python3-pip`
 * Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
 * CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
 * OpenSUSE: `sudo zypper install python3 gcc-c++ make python3-pip`
@@ -1152,7 +1149,6 @@ version of a dependency), please reserve and use a custom `NODE_MODULE_VERSION`
 by opening a pull request against the registry available at
 <https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 
-[AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
 [Developer Mode]: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode
 [Python downloads]: https://www.python.org/downloads/
 [Python versions]: https://devguide.python.org/versions/

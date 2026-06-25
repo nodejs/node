@@ -22,6 +22,7 @@ on:
       - deps/histogram/**
       - deps/icu-small/**
       - deps/icu-tmp/**
+      - deps/libffi/**
       - deps/llhttp/**
       - deps/merve/**
       - deps/nbytes/**
@@ -73,6 +74,7 @@ on:
       - deps/histogram/**
       - deps/icu-small/**
       - deps/icu-tmp/**
+      - deps/libffi/**
       - deps/llhttp/**
       - deps/merve/**
       - deps/nbytes/**

@@ -394,9 +394,7 @@ L(UW24):
 L(UW25):
 	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
-	mov	ecx, [esp+closure_FS-4] 	/* load retaddr */
-	mov	eax, [esp+closure_FS]		/* load closure */
-	mov	[esp+closure_FS], ecx		/* move retaddr */
+	mov	eax, [esp+closure_FS-4] 	/* load closure */
 	jmp	L(do_closure_REGISTER)
 L(UW26):
 	/* cfi_endproc */
@@ -776,6 +774,10 @@ EHFrame0:
 #endif
 
 #ifdef HAVE_AS_X86_PCREL
+# define PCREL(X)	X - .
+#elif defined(__clang__)
+/* clang's integrated assembler rejects the X@rel variant (#947); the
+   pc-relative label difference works wherever @rel would.  */
 # define PCREL(X)	X - .
 #else
 # define PCREL(X)	X@rel

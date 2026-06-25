@@ -76,9 +76,11 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     value = Undefined(isolate);
     rejectionsHandledAfter++;
     TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
-                  "rejections",
-                  "unhandled", unhandledRejections,
-                  "handledAfter", rejectionsHandledAfter);
+                   "rejections",
+                   "unhandled",
+                   unhandledRejections,
+                   "handledAfter",
+                   rejectionsHandledAfter);
   } else {
     return;
   }

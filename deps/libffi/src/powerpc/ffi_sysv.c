@@ -30,6 +30,7 @@
 
 #include "ffi.h"
 #include <tramp.h>
+#include <stdlib.h>
 
 #ifndef POWERPC64
 #include "ffi_common.h"
@@ -921,13 +922,63 @@ ffi_closure_helper_SYSV (ffi_cif *cif,
 
   /* Tell ffi_closure_SYSV how to perform return type promotions.
      Because the FFI_SYSV ABI returns the structures <= 8 bytes in
-     r3/r4 we have to tell ffi_closure_SYSV how to treat them.  We
-     combine the base type FFI_SYSV_TYPE_SMALL_STRUCT with the size of
-     the struct less one.  We never have a struct with size zero.
-     See the comment in ffitarget.h about ordering.  */
-  if (rtypenum == FFI_TYPE_STRUCT
-      && (cif->abi & FFI_SYSV_STRUCT_RET) != 0 && size <= 8)
-    return FFI_SYSV_TYPE_SMALL_STRUCT - 1 + size;
-  return rtypenum;
+     r3/r4 we have to tell ffi_closure_SYSV how to treat them. */
+  switch (rtypenum)
+    {
+    case FFI_TYPE_VOID:
+      return PPC_LD_NONE;
+    case FFI_TYPE_FLOAT:
+      return PPC_LD_F32;
+    case FFI_TYPE_DOUBLE:
+      return PPC_LD_F64;
+#if FFI_TYPE_DOUBLE != FFI_TYPE_LONGDOUBLE
+    case FFI_TYPE_LONGDOUBLE:
+      return PPC_LD_F128;
+#endif
+    case FFI_TYPE_UINT8:
+      return PPC_LD_U8;
+    case FFI_TYPE_SINT8:
+      return PPC_LD_S8;
+    case FFI_TYPE_UINT16:
+      return PPC_LD_U16;
+    case FFI_TYPE_SINT16:
+      return PPC_LD_S16;
+    case FFI_TYPE_UINT32:
+      return PPC_LD_U32;
+    case FFI_TYPE_INT:
+    case FFI_TYPE_SINT32:
+      return PPC_LD_S32;
+    case FFI_TYPE_POINTER:
+      return PPC_LD_PTR;
+    case FFI_TYPE_UINT64:
+    case FFI_TYPE_SINT64:
+      return PPC_LD_I64;
+    case FFI_TYPE_UINT128:
+      return PPC32_LD_R3R6;
+    case FFI_TYPE_STRUCT:
+      if (cif->abi & FFI_SYSV_STRUCT_RET)
+	switch (size)
+	  {
+	  case 1:
+	    return PPC_LD_U8;
+	  case 2:
+	    return PPC_LD_U16;
+	  case 3:
+	    return PPC32_SYSV_LD_STRUCT_3;
+	  case 4:
+	    return PPC_LD_U32;
+	  case 5:
+	    return PPC32_SYSV_LD_STRUCT_5;
+	  case 6:
+	    return PPC32_SYSV_LD_STRUCT_6;
+	  case 7:
+	    return PPC32_SYSV_LD_STRUCT_7;
+	  case 8:
+	    return PPC_LD_I64;
+	  }
+      return PPC_LD_NONE;
+    default:
+      abort();
+    }
 }
 #endif

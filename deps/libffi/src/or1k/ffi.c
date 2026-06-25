@@ -269,7 +269,7 @@ void ffi_closure_SYSV(unsigned long r3, unsigned long r4, unsigned long r5,
       long long rvalue;
       (closure->fun) (cif, &rvalue, avalue, closure->user_data);
       if (cif->rtype)
-        asm ("l.ori r12, %0, 0x0\n l.lwz r11, 0(r12)\n l.lwz r12, 4(r12)" : : "r" (&rvalue));
+        __asm__ ("l.ori r12, %0, 0x0\n l.lwz r11, 0(r12)\n l.lwz r12, 4(r12)" : : "r" (&rvalue));
     }
 }
 

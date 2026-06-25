@@ -543,6 +543,230 @@ extern "C" void node_ffi_free_fast_trampoline(
   trampoline->size = 0;
 }
 
-#endif  // defined(__x86_64__) && !defined(_WIN32)
+#elif defined(_M_X64)
+
+#include <windows.h>
+
+#include <stdint.h>
+
+namespace {
+
+using node::ffi::FastFFIType;
+
+constexpr unsigned kRax = 0;
+constexpr unsigned kRcx = 1;
+constexpr unsigned kRdx = 2;
+constexpr unsigned kRsp = 4;
+constexpr unsigned kR8 = 8;
+constexpr unsigned kR9 = 9;
+constexpr unsigned kR11 = 11;
+
+constexpr unsigned kWin64GPRegisters[] = {kRcx, kRdx, kR8, kR9};
+
+bool IsFloatType(FastFFIType type) {
+  return type == FastFFIType::kFloat32 || type == FastFFIType::kFloat64;
+}
+
+bool IsBufferType(FastFFIType type) {
+  return type == FastFFIType::kBuffer;
+}
+
+void Emit8(uint8_t** cursor, uint8_t value) {
+  *(*cursor)++ = value;
+}
+
+void Emit32(uint8_t** cursor, uint32_t value) {
+  for (unsigned i = 0; i < 4; i++) {
+    Emit8(cursor, (value >> (i * 8)) & 0xff);
+  }
+}
+
+void Emit64(uint8_t** cursor, uint64_t value) {
+  for (unsigned i = 0; i < 8; i++) {
+    Emit8(cursor, (value >> (i * 8)) & 0xff);
+  }
+}
+
+void EmitRex(uint8_t** cursor, bool wide, unsigned reg, unsigned rm) {
+  Emit8(cursor, 0x40 | (wide ? 0x08 : 0) | ((reg >> 3) << 2) | (rm >> 3));
+}
+
+void EmitModRM(uint8_t** cursor, unsigned reg, unsigned rm) {
+  Emit8(cursor, 0xc0 | ((reg & 7) << 3) | (rm & 7));
+}
+
+void EmitMov(uint8_t** cursor, unsigned dst, unsigned src) {
+  EmitRex(cursor, true, src, dst);
+  Emit8(cursor, 0x89);
+  EmitModRM(cursor, src, dst);
+}
+
+void EmitMovaps(uint8_t** cursor, unsigned dst, unsigned src) {
+  // movaps xmm_dst, xmm_src. Used only for register-to-register argument
+  // shuffles; it preserves the payload bits for both f32 and f64 arguments.
+  EmitRex(cursor, false, dst, src);
+  Emit8(cursor, 0x0f);
+  Emit8(cursor, 0x28);
+  EmitModRM(cursor, dst, src);
+}
+
+void EmitMovImm64(uint8_t** cursor, unsigned reg, uintptr_t value) {
+  EmitRex(cursor, true, 0, reg);
+  Emit8(cursor, 0xb8 | (reg & 7));
+  Emit64(cursor, value);
+}
+
+void EmitCall(uint8_t** cursor, unsigned reg) {
+  EmitRex(cursor, true, 0, reg);
+  Emit8(cursor, 0xff);
+  EmitModRM(cursor, 2, reg);
+}
+
+void EmitJmp(uint8_t** cursor, unsigned reg) {
+  EmitRex(cursor, true, 0, reg);
+  Emit8(cursor, 0xff);
+  EmitModRM(cursor, 4, reg);
+}
+
+void EmitSubRsp(uint8_t** cursor, unsigned value) {
+  EmitRex(cursor, true, 5, kRsp);
+  Emit8(cursor, 0x81);
+  Emit8(cursor, 0xec);
+  Emit32(cursor, value);
+}
+
+void EmitAddRsp(uint8_t** cursor, unsigned value) {
+  EmitRex(cursor, true, 0, kRsp);
+  Emit8(cursor, 0x81);
+  Emit8(cursor, 0xc4);
+  Emit32(cursor, value);
+}
+
+void EmitRet(uint8_t** cursor) {
+  Emit8(cursor, 0xc3);
+}
+
+void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
+  EmitRex(cursor, false, reg, reg);
+  Emit8(cursor, 0x0f);
+  Emit8(cursor, opcode);
+  EmitModRM(cursor, reg, reg);
+}
+
+bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
+  switch (type) {
+    case FastFFIType::kBool:
+    case FastFFIType::kUint8:
+      EmitNarrowInstruction(cursor, 0xb6, reg);
+      return true;
+    case FastFFIType::kInt8:
+      EmitNarrowInstruction(cursor, 0xbe, reg);
+      return true;
+    case FastFFIType::kUint16:
+      EmitNarrowInstruction(cursor, 0xb7, reg);
+      return true;
+    case FastFFIType::kInt16:
+      EmitNarrowInstruction(cursor, 0xbf, reg);
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool NeedsNarrow(FastFFIType type) {
+  switch (type) {
+    case FastFFIType::kBool:
+    case FastFFIType::kUint8:
+    case FastFFIType::kInt8:
+    case FastFFIType::kUint16:
+    case FastFFIType::kInt16:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void FreeCode(void* code, size_t code_size) {
+  VirtualFree(code, 0, MEM_RELEASE);
+}
+
+}  // namespace
+
+extern "C" bool node_ffi_create_fast_trampoline(
+    void* target,
+    const node::ffi::FastFFIType* args,
+    size_t argc,
+    node::ffi::FastFFIType result,
+    node::ffi::FastFFITrampoline* out) {
+  if (target == nullptr || out == nullptr || argc > 3) {
+    return false;
+  }
+
+  for (size_t i = 0; i < argc; i++) {
+    if (IsBufferType(args[i])) {
+      return false;
+    }
+  }
+
+  constexpr size_t kCodeSize = 512;
+  void* code = VirtualAlloc(
+      nullptr, kCodeSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (code == nullptr) {
+    return false;
+  }
+
+  uint8_t* cursor = static_cast<uint8_t*>(code);
+  const bool tail_call = !NeedsNarrow(result);
+
+  // Win64 uses positional registers. The V8 receiver occupies position 0, so
+  // public arguments arrive in positions 1..3 and must be shifted down.
+  for (size_t i = 0; i < argc; i++) {
+    if (IsFloatType(args[i])) {
+      EmitMovaps(&cursor, static_cast<unsigned>(i), static_cast<unsigned>(i + 1));
+    } else {
+      EmitMov(&cursor, kWin64GPRegisters[i], kWin64GPRegisters[i + 1]);
+    }
+  }
+
+  EmitMovImm64(&cursor, kR11, reinterpret_cast<uintptr_t>(target));
+  if (tail_call) {
+    // The caller already provided Win64 shadow space for the trampoline; after
+    // the receiver-slot shuffle, the target can reuse the same stack shape.
+    EmitJmp(&cursor, kR11);
+  } else {
+    // Reserve 32 bytes of shadow space plus 8 bytes for 16-byte stack alignment
+    // before making a nested call from inside the trampoline.
+    EmitSubRsp(&cursor, 40);
+    EmitCall(&cursor, kR11);
+    EmitAddRsp(&cursor, 40);
+    EmitNarrowReturn(&cursor, result, kRax);
+    EmitRet(&cursor);
+  }
+
+  const size_t written = cursor - static_cast<uint8_t*>(code);
+  FlushInstructionCache(GetCurrentProcess(), code, written);
+
+  DWORD old_protect;
+  if (VirtualProtect(code, kCodeSize, PAGE_EXECUTE_READ, &old_protect) == 0) {
+    FreeCode(code, kCodeSize);
+    return false;
+  }
+
+  out->code = code;
+  out->size = kCodeSize;
+  return true;
+}
+
+extern "C" void node_ffi_free_fast_trampoline(
+    node::ffi::FastFFITrampoline* trampoline) {
+  if (trampoline == nullptr || trampoline->code == nullptr) {
+    return;
+  }
+  FreeCode(trampoline->code, trampoline->size);
+  trampoline->code = nullptr;
+  trampoline->size = 0;
+}
+
+#endif  // defined(_M_X64)
 
 #endif  // HAVE_FFI

@@ -1408,7 +1408,13 @@ bool Stream::is_readable() const {
 }
 
 BaseObjectPtr<Blob::Reader> Stream::get_reader() {
-  if (!is_readable() || state()->has_reader) return {};
+  if (state()->has_reader || !inbound_) return {};
+  // Local unidirectional streams are never readable.
+  if (!is_pending() && direction() == Direction::UNIDIRECTIONAL &&
+      ngtcp2_conn_is_local_stream(session(), id())) {
+    return {};
+  }
+
   state()->has_reader = 1;
   auto reader = Blob::Reader::Create(env(), Blob::Create(env(), inbound_));
   reader_ = reader;
@@ -1512,6 +1518,8 @@ void Stream::EndWriting() {
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
+  if (session().is_destroyed()) return;
+  Session::SendPendingDataScope send_scope(&session());
   session().ExtendStreamOffset(id(), amount);
   session().ExtendOffset(amount);
 }

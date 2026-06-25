@@ -2297,16 +2297,20 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61095
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17417
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Users of `MakeCallback` that add the `domain` property to carry context,
-should start using the `async_context` variant of `MakeCallback` or
-`CallbackScope`, or the high-level `AsyncResource` class.
+The `domain` property on async resources and `MakeCallback` has been removed.
+The domain module now uses `AsyncLocalStorage` for context propagation instead
+of `async_hooks`. Accessing the `domain` property on `AsyncResource` will throw
+an error. Use `AsyncLocalStorage` instead for context propagation.
 
 ### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
 
@@ -4058,6 +4062,9 @@ that are shorter than the default authentication tag length (i.e., shorter than
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: Runtime deprecation.
   - version:
     - v22.4.0
     - v20.16.0
@@ -4065,7 +4072,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 OpenSSL 3 has deprecated support for custom engines with a recommendation to
 switch to its new provider model. The `clientCertEngine` option for
@@ -4351,6 +4358,9 @@ npx codemod@latest @nodejs/types-is-native-error
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: End-of-Life.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59008
     description: Runtime deprecation.
@@ -4362,9 +4372,10 @@ changes:
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
+Creating SHAKE-128 and SHAKE-256 digests without an explicit
+`options.outputLength` is no longer supported.
 
 ### DEP0199: `require('node:_http_*')`
 
@@ -4564,7 +4575,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63624
     description: Runtime deprecation.
-  - version: v26.2.0
+  - version:
+    - v26.2.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->

@@ -950,7 +950,7 @@ See [the package examples repository][] for details.
 ## Package maps
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with [`--experimental-package-map`][].

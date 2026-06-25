@@ -2401,7 +2401,9 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -3771,6 +3773,10 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -3783,7 +3789,8 @@ changes:
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
-can be used to specify the desired output length in bytes.
+specifies the desired output length in bytes. It is required for XOF hash
+functions without a default output length.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -3948,7 +3955,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -4006,7 +4015,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
@@ -4173,7 +4184,9 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62527
     description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
@@ -4889,6 +4902,10 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version:
      - v25.5.0
      - v24.13.1
@@ -4909,7 +4926,8 @@ changes:
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
   * `outputLength` {number} For XOF hash functions such as 'shake256',
-    the outputLength option can be used to specify the desired output length in bytes.
+    specifies the desired output length in bytes. This option is required for
+    XOF hash functions without a default output length.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than
@@ -6086,6 +6104,9 @@ added: v15.6.0
 <!-- YAML
 added: v0.11.11
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: Runtime deprecation.
   - version:
     - v22.4.0
     - v20.16.0
@@ -6093,11 +6114,14 @@ changes:
     description: Custom engine support in OpenSSL 3 is deprecated.
 -->
 
+> Stability: 0 - Deprecated
+
 * `engine` {string}
 * `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
-Support for custom engines in OpenSSL is deprecated from OpenSSL 3.
+Use of this API is deprecated because custom engine support has been deprecated
+since OpenSSL 3.
 
 `engine` could be either an id or a path to the engine's shared library.
 
