@@ -1039,8 +1039,8 @@ changes:
   * `recvBufferSize` {number} Sets the `SO_RCVBUF` socket value.
   * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
-    When the default is used, a literal IP address of the socket's family
-    resolves to itself without calling [`dns.lookup()`][].
+    A literal IP address of the socket's family resolves to itself; the lookup
+    function is not called for it.
   * `signal` {AbortSignal} An AbortSignal that may be used to close a socket.
   * `receiveBlockList` {net.BlockList} `receiveBlockList` can be used for discarding
     inbound datagram to specific IP addresses, IP ranges, or IP subnets. This does not
