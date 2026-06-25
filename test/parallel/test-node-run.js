@@ -5,6 +5,7 @@ common.requireNoPackageJSONAbove();
 
 const { it, describe } = require('node:test');
 const assert = require('node:assert');
+const path = require('node:path');
 
 const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
@@ -160,7 +161,10 @@ describe('node --run [command]', () => {
     const child = await common.spawnPromisified(
       process.execPath,
       [ '--run', 'repeat-args', '--', 'I think therefore I\'m'],
-      { cwd: fixtures.path('run-script') },
+      {
+        cwd: fixtures.path('run-script'),
+        env: { ...process.env, PATH: `${path.dirname(process.execPath)}:${process.env.PATH}` },
+      },
     );
     assert.deepStrictEqual(child, {
       stdout: `["I think therefore I'm"]\n`,
