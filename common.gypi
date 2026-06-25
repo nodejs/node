@@ -14,6 +14,7 @@
     'enable_pgo_use%': '0',
     'clang_profile_lib%': '',
     'python%': 'python',
+    'emulator%': [],
 
     'node_shared%': 'false',
     'node_enable_experimentals%': 'false',
