@@ -72,6 +72,7 @@ class SessionManager;
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
   V(allow, "allow")                                                            \
+  V(app_ticket_data, "appTicketData")                                          \
   V(application, "application")                                                \
   V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \

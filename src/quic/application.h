@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <variant>
+#include <vector>
 
 #include "base_object.h"
 #include "bindingdata.h"
@@ -17,7 +18,11 @@ namespace node::quic {
 // Parsed session ticket application data, produced by
 // Application::ParseTicketData() before ALPN negotiation and consumed
 // by Application::ApplySessionTicketData() after.
-struct DefaultTicketData {};
+struct DefaultTicketData {
+  // The opaque application data carried in the ticket (after the type byte),
+  // matched exactly against the server's current `app_ticket_data`.
+  std::vector<uint8_t> data;
+};
 struct Http3TicketData {
   uint64_t max_field_section_size;
   uint64_t qpack_max_dtable_capacity;
@@ -163,12 +168,13 @@ class Session::Application : public MemoryRetainer {
       const SessionTicket::AppData& app_data,
       SessionTicket::AppData::Source::Flag flag);
 
-  // Validates parsed ticket data against current application options.
-  // Returns false if the stored settings are more permissive than the
-  // current config (e.g., a feature was enabled when the ticket was
-  // issued but is now disabled).
+  // Validates parsed ticket data against the current session configuration.
+  // For HTTP/3 tickets this rejects settings more permissive than the
+  // current config (e.g. a feature enabled when the ticket was issued but
+  // now disabled); for default (opaque) tickets it requires the embedded data
+  // to exactly match the configured app_ticket_data. Returns false to reject.
   static bool ValidateTicketData(const PendingTicketAppData& data,
-                                 const Application_Options& options);
+                                 const Session::Options& session_options);
 
   // Parse session ticket app data before ALPN negotiation. Reads the
   // type byte and dispatches to the appropriate application-specific

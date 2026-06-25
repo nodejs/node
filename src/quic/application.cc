@@ -225,8 +225,13 @@ std::optional<PendingTicketAppData> Session::Application::ParseTicketData(
   auto app_type =
       static_cast<Type>(reinterpret_cast<const uint8_t*>(data.base)[0]);
   switch (app_type) {
-    case Type::DEFAULT:
-      return DefaultTicketData{};
+    case Type::DEFAULT: {
+      // Everything after the leading type byte is opaque application data.
+      DefaultTicketData dtd;
+      const auto* p = reinterpret_cast<const uint8_t*>(data.base);
+      if (data.len > 1) dtd.data.assign(p + 1, p + data.len);
+      return dtd;
+    }
     case Type::HTTP3:
       return ParseHttp3TicketData(data);
     default:
@@ -235,10 +240,11 @@ std::optional<PendingTicketAppData> Session::Application::ParseTicketData(
 }
 
 bool Session::Application::ValidateTicketData(
-    const PendingTicketAppData& data, const Application_Options& options) {
+    const PendingTicketAppData& data, const Session::Options& session_options) {
   if (std::holds_alternative<Http3TicketData>(data)) {
     // TODO(@jasnell): This validation probably belongs in http3.cc but keeping
     // it here for now.
+    const auto& options = session_options.application_options;
     const auto& ticket = std::get<Http3TicketData>(data);
     return options.max_field_section_size >= ticket.max_field_section_size &&
            options.qpack_max_dtable_capacity >=
@@ -250,8 +256,19 @@ bool Session::Application::ValidateTicketData(
             options.enable_connect_protocol) &&
            (!ticket.enable_datagrams || options.enable_datagrams);
   }
-  // DefaultTicketData always validates.
-  return true;
+  if (std::holds_alternative<DefaultTicketData>(data)) {
+    // Opaque app-data (raw QUIC / non-h3): the embedded bytes must exactly
+    // match the server's currently-configured app_ticket_data.
+    const auto& dtd = std::get<DefaultTicketData>(data);
+    uv_buf_t cur = session_options.app_ticket_data.has_value()
+                       ? static_cast<uv_buf_t>(*session_options.app_ticket_data)
+                       : uv_buf_init(nullptr, 0);
+    return dtd.data.size() == cur.len &&
+           (cur.len == 0 || memcmp(dtd.data.data(), cur.base, cur.len) == 0);
+  }
+  // Unknown/unparsed ticket data -> fail closed so no 0-RTT (falls back to
+  // 1-RTT, so limited impact but avoids invalid resumptions).
+  return false;
 }
 
 Packet::Ptr Session::Application::CreateStreamDataPacket() {
@@ -732,6 +749,23 @@ class DefaultApplication final : public Session::Application {
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }
+  }
+
+  void CollectSessionTicketAppData(
+      SessionTicket::AppData* app_data) const override {
+    // Layout: [type byte][optional opaque app data]. With no app data this
+    // degenerates to the single type byte written by the base class.
+    const auto& atd = session().config().options.app_ticket_data;
+    uv_buf_t bytes =
+        atd.has_value() ? static_cast<uv_buf_t>(*atd) : uv_buf_init(nullptr, 0);
+    std::vector<uint8_t> buf;
+    buf.reserve(1 + bytes.len);
+    buf.push_back(static_cast<uint8_t>(type()));  // Type::DEFAULT
+    if (bytes.len > 0) {
+      const auto* p = reinterpret_cast<const uint8_t*>(bytes.base);
+      buf.insert(buf.end(), p, p + bytes.len);
+    }
+    app_data->Set(uv_buf_init(reinterpret_cast<char*>(buf.data()), buf.size()));
   }
 
   bool ApplySessionTicketData(const PendingTicketAppData& data) override {

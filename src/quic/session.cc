@@ -710,6 +710,18 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
     }
   }
 
+  // Parse the optional opaque application data to embed in session tickets.
+  Local<Value> app_ticket_data_val;
+  if (params->Get(env->context(), state.app_ticket_data_string())
+          .ToLocal(&app_ticket_data_val) &&
+      app_ticket_data_val->IsArrayBufferView()) {
+    Store app_ticket_data_store;
+    if (Store::From(app_ticket_data_val.As<ArrayBufferView>())
+            .To(&app_ticket_data_store)) {
+      options.app_ticket_data = std::move(app_ticket_data_store);
+    }
+  }
+
   return Just<Options>(options);
 }
 
@@ -2880,16 +2892,13 @@ SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
   if (!parsed.has_value()) {
     return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
-  // Pre-validate the ticket data against the current application options.
-  // If the stored settings are more permissive than the current config
-  // (e.g., a feature was enabled when the ticket was issued but is now
-  // disabled), reject the ticket so 0-RTT is not used. This must happen
+  // Pre-validate the ticket data against the current configuration. If it
+  // does not match, reject the ticket so 0-RTT is not used. This must happen
   // here (during TLS ticket processing) rather than in SetApplication,
   // because by SetApplication time the TLS layer has already accepted
   // the ticket and told the client 0-RTT is ok.
-  if (!Application::ValidateTicketData(*parsed,
-                                       config().options.application_options)) {
-    Debug(this, "Session ticket app data incompatible with current settings");
+  if (!Application::ValidateTicketData(*parsed, config().options)) {
+    Debug(this, "Session ticket app data incompatible with current config");
     return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
   impl_->pending_ticket_data_ = std::move(parsed);

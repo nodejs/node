@@ -379,7 +379,9 @@ Two pieces of state from a prior connection make this possible:
 If the server accepts the session ticket, any data sent before the handshake
 completes is 0-RTT early data. On the server side, `stream.early` is `true`
 for streams carrying early data. The server can reject the 0-RTT attempt
-(for example, if its configuration has changed since the ticket was issued).
+(for example, if its configuration has changed since the ticket was issued);
+[`sessionOptions.appTicketData`][] lets a server gate this explicitly, rejecting
+early data whose ticket does not exactly match the server's current value.
 When this happens, all streams opened during the 0-RTT phase are destroyed and
 the client's [`session.onearlyrejected`][] callback fires. The connection
 falls back to a normal 1-RTT handshake and the application can reopen streams.
@@ -2880,6 +2882,26 @@ await listen((session) => { /* ... */ }, {
 });
 ```
 
+#### `sessionOptions.appTicketData` (server only)
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBufferView}
+
+Opaque application data to embed in the session tickets this server issues.
+On resumption, the data carried by the presented ticket is compared
+against the value currently configured here; if it does not match exactly,
+the ticket's 0-RTT early data is rejected and the connection falls back to a
+full 1-RTT handshake. Use it to bind 0-RTT acceptance to server-side state
+that must agree between the original and resumed connection - rotating the
+value invalidates the 0-RTT of all previously issued tickets.
+
+This applies to the default QUIC application. HTTP/3 sessions carry their own
+session-ticket data, so `appTicketData` is ignored when the negotiated ALPN
+is `h3`.
+
 #### `sessionOptions.ca` (client only)
 
 <!-- YAML
@@ -4493,6 +4515,7 @@ throughput issues caused by flow control.
 [`session.onsessionticket`]: #sessiononsessionticket
 [`session.onstream`]: #sessiononstream
 [`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
+[`sessionOptions.appTicketData`]: #sessionoptionsappticketdata-server-only
 [`sessionOptions.cc`]: #sessionoptionscc
 [`sessionOptions.ciphers`]: #sessionoptionsciphers
 [`sessionOptions.datagramDropPolicy`]: #sessionoptionsdatagramdroppolicy
