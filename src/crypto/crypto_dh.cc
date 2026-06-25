@@ -449,10 +449,9 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     if (!dh) return {};
 
     key_params = EVPKeyPointer::NewDH(std::move(dh));
-  } else if (std::get_if<int>(&params->params.prime)) {
+  } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
     auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
 #ifndef OPENSSL_IS_BORINGSSL
-    int* prime_size = std::get_if<int>(&params->params.prime);
     if (!param_ctx.initForParamgen() ||
         !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
       return {};
