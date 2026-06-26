@@ -106,7 +106,7 @@ static ares_bool_t get_REG_SZ(HKEY hKey, const WCHAR *leafKeyName, char **outptr
 
   /* Get the value for real */
   res = RegQueryValueExW(hKey, leafKeyName, 0, NULL, (BYTE *)val, &size);
-  if (res != ERROR_SUCCESS || size == 1) {
+  if (res != ERROR_SUCCESS || size == sizeof(WCHAR)) {
     ares_free(val);
     return ARES_FALSE;
   }
