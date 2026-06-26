@@ -59,7 +59,7 @@ jobs:
         with:
           version: v0.16.0
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Build
         working-directory: node
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --experimental-quic"

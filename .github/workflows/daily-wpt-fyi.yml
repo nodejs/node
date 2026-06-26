@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
 
       # install a version and checkout
       - name: Get latest nightly
