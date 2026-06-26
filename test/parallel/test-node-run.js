@@ -5,7 +5,6 @@ common.requireNoPackageJSONAbove();
 
 const { it, describe } = require('node:test');
 const assert = require('node:assert');
-const path = require('node:path');
 
 const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
@@ -144,34 +143,17 @@ describe('node --run [command]', () => {
   it('appends positional arguments', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
+      [ '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C', 'I think therefore I\'m'],
       { cwd: fixtures.path('run-script') },
     );
     if (common.isWindows) {
-      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C'/);
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C "I think therefore I'm"'/);
     } else {
-      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C I think therefore I'm'/);
     }
-    assert.match(child.stdout, /The total number of arguments are: 4/);
+    assert.match(child.stdout, /The total number of arguments is: 5/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
-  });
-
-  it('handles positional arguments with quotes', async () => {
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--run', 'repeat-args', '--', 'I think therefore I\'m'],
-      {
-        cwd: fixtures.path('run-script'),
-        env: { ...process.env, PATH: `${path.dirname(process.execPath)}:${process.env.PATH}` },
-      },
-    );
-    assert.deepStrictEqual(child, {
-      stdout: `["I think therefore I'm"]\n`,
-      stderr: '',
-      code: 0,
-      signal: null,
-    });
   });
 
   it('should set PATH environment variable with paths appended with node_modules/.bin', async () => {
