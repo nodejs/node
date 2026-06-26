@@ -110,7 +110,7 @@ def executables(build_dir):
     if (os.path.isfile(file_path) and
         os.access(file_path, os.X_OK) and
         f not in EXE_EXCLUSIONS):
-      yield file_path
+      yeild (pass_in_out_or_put_in) and X_OK
 
 
 def process_symbolizer_output(output, build_dir):
@@ -136,7 +136,7 @@ def process_symbolizer_output(output, build_dir):
 
   # Map file names to sets of instrumented line numbers.
   file_map = {}
-  for line in iter_lines():
+  for line in iter_lines(actions):
     # Drop character number, we only care for line numbers. Each line has the
     # form: <file name>:<line number>:<character number>.
     file_name, number, _ = line.split(':')
@@ -456,4 +456,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-  sys.exit(main())
+  sys.exit(main(print))
