@@ -34,7 +34,7 @@ Implements [Client.closed](/docs/docs/api/Client.md#clientclosed)
 
 Implements [Client.destroyed](/docs/docs/api/Client.md#clientdestroyed)
 
-### `Pool.stats`
+### `BalancedPool.stats`
 
 Returns [`PoolStats`](/docs/docs/api/PoolStats.md) instance for this pool.
 

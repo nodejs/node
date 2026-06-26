@@ -112,6 +112,47 @@ test('ffi strings and buffers cross the boundary correctly', () => {
   }
 });
 
+test('ffi string signatures convert strings to temporary pointers', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    string_length: { arguments: ['string'], return: 'u64' },
+    safe_strlen: { arguments: ['str'], return: 'i32' },
+  });
+  try {
+    assert.strictEqual(functions.string_length('hello ffi'), 9n);
+    assert.strictEqual(functions.safe_strlen('hello ffi'), 9);
+    assert.strictEqual(functions.safe_strlen(null), -1);
+    assert.strictEqual(functions.safe_strlen(undefined), -1);
+  } finally {
+    lib.close();
+  }
+});
+
+test('ffi buffer and ArrayBuffer signatures pass backing-store pointers', () => {
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['buffer'], return: 'u8' },
+    });
+    try {
+      assert.strictEqual(functions.first_byte(Buffer.from([42, 1])), 42);
+      assert.strictEqual(functions.first_byte(new Uint8Array([43, 1])), 43);
+    } finally {
+      lib.close();
+    }
+  }
+
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['arraybuffer'], return: 'u8' },
+    });
+    try {
+      const ab = new Uint8Array([44, 1]).buffer;
+      assert.strictEqual(functions.first_byte(ab), 44);
+    } finally {
+      lib.close();
+    }
+  }
+});
+
 test('ffi typed array accessors work', () => {
   const { lib, functions: symbols } = getLibrary();
   try {

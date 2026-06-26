@@ -4,6 +4,7 @@
 changes:
   - version:
      - v25.9.0
+     - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1014,6 +1015,7 @@ added: v15.0.0
 changes:
   - version:
      - v25.9.0
+     - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1134,7 +1136,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version: v24.8.0
@@ -1285,7 +1289,9 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v26.1.0
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version:
@@ -1933,26 +1939,39 @@ added:
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Named cSHAKE variants are now accepted.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `functionName` member represents the function name, used by NIST to define
-functions based on cSHAKE.
-The Node.js Web Crypto API implementation only supports zero-length functionName
-which is equivalent to not providing functionName at all.
+The `functionName` member represents the NIST function-name byte string used to
+domain-separate functions built on top of cSHAKE. Accepted values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* the ASCII byte sequence `'KMAC'`
+* the ASCII byte sequence `'TupleHash'`
+* the ASCII byte sequence `'ParallelHash'`
 
 #### `cShakeParams.customization`
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Non-empty customization is now supported.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `customization` member represents the customization string.
-The Node.js Web Crypto API implementation only supports zero-length customization
-which is equivalent to not providing customization at all.
+The `customization` member represents the customization data. Accepted
+values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* up to 512 bytes of arbitrary data
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -2355,6 +2374,7 @@ added: v15.0.0
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 #### `kangarooTwelveParams.customization`
@@ -2362,6 +2382,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -2373,6 +2394,7 @@ The optional customization string for KangarooTwelve.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos].
@@ -2382,6 +2404,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2489,9 +2512,7 @@ added:
  - v24.15.0
 -->
 
-* Type: {number}
-
-The length of the output in bytes. This must be a positive integer.
+* Type: {number} represents the requested output length in bits.
 
 #### `kmacParams.customization`
 
@@ -2765,6 +2786,7 @@ The length (in bytes) of the random salt to use.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 #### `turboShakeParams.domainSeparation`
@@ -2772,6 +2794,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number|undefined}
@@ -2783,6 +2806,7 @@ The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos].
@@ -2792,6 +2816,7 @@ added:
 <!-- YAML
 added:
  - v25.9.0
+ - v24.18.0
 -->
 
 * Type: {number} represents the requested output length in bits.

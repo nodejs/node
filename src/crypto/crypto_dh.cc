@@ -196,7 +196,7 @@ void New(const FunctionCallbackInfo<Value>& args) {
 #endif
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
-    if (bn_g.getWord() < 2) {
+    if (bn_g.getWord().has_value() && bn_g.getWord().value() < 2) {
 #ifndef OPENSSL_IS_BORINGSSL
       ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
 #else
@@ -324,6 +324,11 @@ void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       break;
   }
 
+  if (!dh.hasPrivateKey()) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "Cannot compute shared secret without a private key");
+  }
+
   auto dp = dh.computeSecret(key);
 
   Local<Value> buffer;
@@ -449,10 +454,9 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     if (!dh) return {};
 
     key_params = EVPKeyPointer::NewDH(std::move(dh));
-  } else if (std::get_if<int>(&params->params.prime)) {
+  } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
     auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
 #ifndef OPENSSL_IS_BORINGSSL
-    int* prime_size = std::get_if<int>(&params->params.prime);
     if (!param_ctx.initForParamgen() ||
         !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
       return {};

@@ -102,6 +102,20 @@ enum x86_64_reg_class
 
 #define SSE_CLASS_P(X)	((X) >= X86_64_SSE_CLASS && X <= X86_64_SSEUP_CLASS)
 
+/* On most x86-64 targets `long double` is the 80-bit x87 type: classified
+   X87/X87UP, passed in memory, returned in st(0).  But some targets (notably
+   x86_64 Android, and anything built with -mlong-double-128) make `long double`
+   the IEEE binary128 quad type, which the psABI passes and returns in SSE
+   registers exactly like __float128 (class SSE/SSEUP -> one %xmm register).
+   Detect that at compile time and classify long double accordingly.  A mantissa
+   of 113 bits uniquely identifies binary128 (x87 extended is 64).  */
+#if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE \
+    && defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ == 113
+# define FFI_LONGDOUBLE_BINARY128 1
+#else
+# define FFI_LONGDOUBLE_BINARY128 0
+#endif
+
 /* x86-64 register passing implementation.  See x86-64 ABI for details.  Goal
    of this code is to classify each 8bytes of incoming argument by the register
    class and assign registers accordingly.  */
@@ -171,6 +185,8 @@ classify_argument (ffi_type *type, enum x86_64_reg_class classes[],
     case FFI_TYPE_SINT32:
     case FFI_TYPE_UINT64:
     case FFI_TYPE_SINT64:
+    case FFI_TYPE_UINT128:
+    case FFI_TYPE_SINT128:
     case FFI_TYPE_POINTER:
     do_integer:
       {
@@ -211,8 +227,14 @@ classify_argument (ffi_type *type, enum x86_64_reg_class classes[],
       return 1;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
     case FFI_TYPE_LONGDOUBLE:
+#if FFI_LONGDOUBLE_BINARY128
+      /* IEEE binary128: one %xmm register, like __float128.  */
+      classes[0] = X86_64_SSE_CLASS;
+      classes[1] = X86_64_SSEUP_CLASS;
+#else
       classes[0] = X86_64_X87_CLASS;
       classes[1] = X86_64_X87UP_CLASS;
+#endif
       return 2;
 #endif
     case FFI_TYPE_STRUCT:
@@ -322,6 +344,10 @@ classify_argument (ffi_type *type, enum x86_64_reg_class classes[],
 	  case FFI_TYPE_SINT64:
 	    goto do_integer;
 
+	  case FFI_TYPE_SINT128:
+	  case FFI_TYPE_UINT128:
+	    return 0;
+
 	  case FFI_TYPE_FLOAT:
 	    classes[0] = X86_64_SSE_CLASS;
 	    if (byte_offset % 8)
@@ -335,8 +361,13 @@ classify_argument (ffi_type *type, enum x86_64_reg_class classes[],
 	    return 2;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
 	  case FFI_TYPE_LONGDOUBLE:
+#if FFI_LONGDOUBLE_BINARY128
+	    /* _Complex binary128 is 32 bytes -> passed/returned in memory.  */
+	    return 0;
+#else
 	    classes[0] = X86_64_COMPLEX_X87_CLASS;
 	    return 1;
+#endif
 #endif
 	  }
       }
@@ -445,6 +476,10 @@ ffi_prep_cif_machdep (ffi_cif *cif)
     case FFI_TYPE_SINT64:
       flags = UNIX64_RET_INT64;
       break;
+    case FFI_TYPE_UINT128:
+    case FFI_TYPE_SINT128:
+      flags = UNIX64_RET_ST_RAX_RDX | (16 << UNIX64_SIZE_SHIFT);
+      break;
     case FFI_TYPE_POINTER:
       flags = (sizeof(void *) == 4 ? UNIX64_RET_UINT32 : UNIX64_RET_INT64);
       break;
@@ -456,7 +491,11 @@ ffi_prep_cif_machdep (ffi_cif *cif)
       break;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
     case FFI_TYPE_LONGDOUBLE:
+#if FFI_LONGDOUBLE_BINARY128
+      flags = UNIX64_RET_XMM128;	/* returned in %xmm0 (16 bytes) */
+#else
       flags = UNIX64_RET_X87;
+#endif
       break;
 #endif
     case FFI_TYPE_STRUCT:
@@ -514,9 +553,20 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	  break;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
 	case FFI_TYPE_LONGDOUBLE:
+#if FFI_LONGDOUBLE_BINARY128
+	  /* _Complex binary128 (32 bytes) is returned in memory.  */
+	  gprcount++;
+	  flags = UNIX64_RET_VOID | UNIX64_FLAG_RET_IN_MEM;
+#else
 	  flags = UNIX64_RET_X87_2;
+#endif
 	  break;
 #endif
+	case FFI_TYPE_SINT128:
+	case FFI_TYPE_UINT128:
+	  gprcount++;
+	  flags = UNIX64_RET_VOID | UNIX64_FLAG_RET_IN_MEM;
+	  break;
 	default:
 	  return FFI_BAD_TYPEDEF;
 	}
@@ -633,7 +683,13 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
 	      switch (classes[j])
 		{
 		case X86_64_NO_CLASS:
+		  break;
 		case X86_64_SSEUP_CLASS:
+		  /* The upper 8 bytes of the same %xmm register written by
+		     the preceding SSE class (e.g. the high half of a
+		     binary128 long double).  */
+		  memcpy ((char *) &reg_args->sse[ssecount - 1] + 8, a,
+			  size < 8 ? size : 8);
 		  break;
 		case X86_64_INTEGER_CLASS:
 		case X86_64_INTEGERSI_CLASS:
@@ -890,7 +946,12 @@ ffi_closure_unix64_inner(ffi_cif *cif,
 	  avalue[i] = a;
 	  for (j = 0; j < n; j++, a += 8)
 	    {
-	      if (SSE_CLASS_P (classes[j]))
+	      if (classes[j] == X86_64_SSEUP_CLASS)
+		/* The high half of the same %xmm register as the preceding
+		   SSE class (e.g. the upper bits of a binary128 long double);
+		   it does not consume another register.  */
+		memcpy (a, (char *) &reg_args->sse[ssecount - 1] + 8, 8);
+	      else if (SSE_CLASS_P (classes[j]))
 		memcpy (a, &reg_args->sse[ssecount++], 8);
 	      else
 		memcpy (a, &reg_args->gpr[gprcount++], 8);

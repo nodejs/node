@@ -52,11 +52,11 @@ import { setGlobalDispatcher, fetch, EnvHttpProxyAgent } from 'undici'
 const envHttpProxyAgent = new EnvHttpProxyAgent()
 setGlobalDispatcher(envHttpProxyAgent)
 
-const { status, json } = await fetch('http://localhost:3000/foo')
+const response = await fetch('http://localhost:3000/foo')
 
-console.log('response received', status) // response received 200
+console.log('response received', response.status) // response received 200
 
-const data = await json() // data { foo: "bar" }
+const data = await response.json() // data { foo: "bar" }
 ```
 
 #### Example - Basic Proxy Request with global agent dispatcher
@@ -102,14 +102,11 @@ import { EnvHttpProxyAgent, fetch } from 'undici'
 
 const envHttpProxyAgent = new EnvHttpProxyAgent()
 
-const {
-  status,
-  json
-} = await fetch('http://localhost:3000/foo', { dispatcher: envHttpProxyAgent })
+const response = await fetch('http://localhost:3000/foo', { dispatcher: envHttpProxyAgent })
 
-console.log('response received', status) // response received 200
+console.log('response received', response.status) // response received 200
 
-const data = await json() // data { foo: "bar" }
+const data = await response.json() // data { foo: "bar" }
 ```
 
 ## Instance Methods

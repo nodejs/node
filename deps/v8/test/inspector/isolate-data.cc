@@ -401,10 +401,7 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
         v8_inspector::StringView(reinterpret_cast<const uint8_t*>(reason_str),
                                  strlen(reason_str)));
     return;
-  } else if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
-             data.GetEvent() == v8::kPromiseResolveAfterResolved) {
-    // Ignore reject/resolve after resolved, like the blink handler.
-    return;
+
   }
 
   v8::Local<v8::Value> exception = data.GetValue();

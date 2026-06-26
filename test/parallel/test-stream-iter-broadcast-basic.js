@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setTimeout } = require('timers/promises');
 const { broadcast, text } = require('stream/iter');
 
 // =============================================================================
@@ -173,6 +174,19 @@ async function testPendingNextSettlesAfterReturn() {
   assert.strictEqual(result.value, undefined);
 }
 
+async function testPushAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('push aborted');
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+}
+
 // =============================================================================
 // Writer fail detaches consumers
 // =============================================================================
@@ -255,6 +269,38 @@ async function testLateJoinerSeesBufferedData() {
   assert.strictEqual(result, 'before-join');
 }
 
+async function testOverlappingNextKeepsEarlierRead() {
+  const { writer, broadcast: bc } = broadcast();
+  const it = bc.push()[Symbol.asyncIterator]();
+
+  const first = it.next();
+  const second = it.next();
+
+  await writer.write('x');
+
+  const secondResult = await Promise.race([
+    second.then((value) => ({ __proto__: null, settled: true, value })),
+    setTimeout(common.platformTimeout(50),
+               { __proto__: null, settled: false }),
+  ]);
+  assert.deepStrictEqual(secondResult, {
+    __proto__: null,
+    settled: false,
+  });
+
+  const result = await first;
+  assert.strictEqual(result.done, false);
+  assert.strictEqual(Buffer.concat(result.value).toString(), 'x');
+
+  writer.endSync();
+  assert.deepStrictEqual(await second, {
+    __proto__: null,
+    done: true,
+    value: undefined,
+  });
+  assert.strictEqual(bc.consumerCount, 0);
+}
+
 Promise.all([
   testBasicBroadcast(),
   testMultipleWrites(),
@@ -267,7 +313,9 @@ Promise.all([
   testCancelWithReason(),
   testCancelWithFalsyReason(),
   testPendingNextSettlesAfterReturn(),
+  testPushAbortSignalRejectsPendingNext(),
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
+  testOverlappingNextKeepsEarlierRead(),
 ]).then(common.mustCall());

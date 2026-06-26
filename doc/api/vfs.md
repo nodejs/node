@@ -1,9 +1,9 @@
 # Virtual File System
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v26.4.0-->
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -49,7 +49,7 @@ shape of the [`node:fs`][] API. All paths are POSIX-style and absolute
 ## `vfs.create([provider][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * `provider` {VirtualProvider} The provider to use. **Default:**
@@ -74,7 +74,7 @@ const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/sandbox'));
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A `VirtualFileSystem` wraps a [`VirtualProvider`][] and exposes a
@@ -83,7 +83,7 @@ A `VirtualFileSystem` wraps a [`VirtualProvider`][] and exposes a
 ### `new VirtualFileSystem([provider][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * `provider` {VirtualProvider} The provider to use. **Default:**
@@ -95,7 +95,7 @@ added: REPLACEME
 ### `vfs.provider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * {VirtualProvider}
@@ -105,7 +105,7 @@ The provider backing this VFS instance.
 ### `vfs.readonly`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * {boolean}
@@ -183,7 +183,7 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 ## Class: `VirtualProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 The base class for all VFS providers. Subclasses implement the essential
@@ -222,7 +222,7 @@ provider with `EROFS`.
 ## Class: `MemoryProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 The default in-memory provider. Stores files, directories, and symbolic
@@ -232,7 +232,7 @@ true`), and supports watching (`supportsWatch === true`).
 ### `memoryProvider.setReadOnly()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 Locks the provider into read-only mode. Subsequent writes through any
@@ -254,7 +254,7 @@ myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 ## Class: `RealFSProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 A provider that wraps a directory (i.e. one on the actual file system) and exposes its
@@ -265,7 +265,7 @@ outside the root are rejected.
 ### `new RealFSProvider(rootPath)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * `rootPath` {string} The absolute file-system path to use as the root.
@@ -281,7 +281,7 @@ realVfs.writeFileSync('/file.txt', 'hello'); // writes /tmp/sandbox/file.txt
 ### `realFSProvider.rootPath`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * {string}

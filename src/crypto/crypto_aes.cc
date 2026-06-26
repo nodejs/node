@@ -120,7 +120,17 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
 
   size_t total = 0;
-  int buf_len = data_len + ctx.getBlockSize() + (encrypt ? tag_len : 0);
+  const int block_size = ctx.getBlockSize();
+  if (block_size < 0) {
+    return WebCryptoCipherStatus::FAILED;
+  }
+  int buf_len;
+  if (!TryGetIntCipherOutputLength(
+          data_len,
+          static_cast<size_t>(block_size) + (encrypt ? tag_len : 0),
+          &buf_len)) {
+    return WebCryptoCipherStatus::FAILED;
+  }
   int out_len;
 
   ncrypto::Buffer<const unsigned char> buffer = {
@@ -156,7 +166,7 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  out_len = ctx.getBlockSize();
+  out_len = block_size;
   if (!ctx.update({}, ptr + total, &out_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }
@@ -374,7 +384,9 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
     return status;
   }
 
-  BN_ULONG input_size_part1 = remaining_until_reset.getWord() * kAesBlockSize;
+  std::optional<BN_ULONG> remaining_blocks = remaining_until_reset.getWord();
+  CHECK(remaining_blocks.has_value());
+  BN_ULONG input_size_part1 = remaining_blocks.value() * kAesBlockSize;
 
   // Encrypt the first part...
   auto status =

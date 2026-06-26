@@ -580,7 +580,7 @@ mockAgent.getCallHistory()?.firstCall()
 ```js
 const mockAgent = new MockAgent()
 
-mockAgent.clearAllCallHistory()
+mockAgent.clearCallHistory()
 ```
 
 #### Example - call history instance class method

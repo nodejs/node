@@ -19,6 +19,7 @@ const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
+const babelPluginImportDefer = resolveEslintTool('@babel/plugin-syntax-import-defer');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: regexpPlugin } = await importEslintTool('eslint-plugin-regexp');
 const { default: markdown } = await importEslintTool('@eslint/markdown');
@@ -105,6 +106,7 @@ export default [
         babelOptions: {
           plugins: [
             babelPluginSyntaxImportSource,
+            babelPluginImportDefer,
           ],
         },
         requireConfigFile: false,

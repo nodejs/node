@@ -4,6 +4,7 @@
 
 #include "base_object.h"
 #include "ffi.h"
+#include "ffi/fast.h"
 #include "uv.h"
 
 #include <cstdint>
@@ -54,6 +55,8 @@ class FFIFunctionInfo final : public BaseObject {
  private:
   std::shared_ptr<FFIFunction> fn;
   std::shared_ptr<v8::BackingStore> sb_backing;
+  std::unique_ptr<FastFFIMetadata> fast_metadata;
+  std::unique_ptr<FastFFIMetadata> fast_buffer_metadata;
 
   friend class DynamicLibrary;
 };

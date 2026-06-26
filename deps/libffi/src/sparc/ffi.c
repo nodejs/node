@@ -332,7 +332,7 @@ static inline void
 ffi_flush_icache (void *p)
 {
   /* SPARC v8 requires 5 instructions for flush to be visible */
-  asm volatile ("iflush	%0; iflush %0+8; nop; nop; nop; nop; nop"
+  __asm__ volatile ("iflush	%0; iflush %0+8; nop; nop; nop; nop; nop"
 		: : "r" (p) : "memory");
 }
 #else

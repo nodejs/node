@@ -4,6 +4,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_BSD-x86': [
@@ -12,7 +15,7 @@
       '-Wall -O3 -fomit-frame-pointer',
     ],
     'openssl_ex_libs_BSD-x86': [
-      '-pthread',
+      '-lm -pthread',
     ],
     'openssl_cli_srcs_BSD-x86': [
       'openssl/apps/lib/cmp_mock_srv.c',
