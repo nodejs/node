@@ -1079,6 +1079,18 @@ passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
 
+### `--experimental-import-text`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for importing modules with
+`with { type: 'text' }`.
+
 ### `--experimental-inspector-network-resource`
 
 <!-- YAML
@@ -3529,6 +3541,7 @@ one is included in the list below.
 * `--experimental-detect-module`
 * `--experimental-eventsource`
 * `--experimental-import-meta-resolve`
+* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
