@@ -12,6 +12,9 @@ class ResolvedThenable {
   then(resolve) {
     return new ResolvedThenable(resolve(this.#result));
   }
+  customMethod() {
+    return this.#result;
+  }
 }
 
 const channel = dc.tracingChannel('test');
@@ -49,7 +52,10 @@ const result = channel.tracePromise(common.mustCall(function(value) {
 }), input, thisArg, expectedResult);
 
 assert(result instanceof ResolvedThenable);
-assert.notStrictEqual(result, innerThenable);
+// With branching then, the original thenable is returned directly so that
+// extra methods defined on it remain accessible to the caller.
+assert.strictEqual(result, innerThenable);
+assert.deepStrictEqual(result.customMethod(), expectedResult);
 result.then(common.mustCall((value) => {
   assert.deepStrictEqual(value, expectedResult);
 }));
