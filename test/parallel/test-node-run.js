@@ -147,7 +147,7 @@ describe('node --run [command]', () => {
       { cwd: fixtures.path('run-script') },
     );
     if (common.isWindows) {
-      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C "I think therefore I'm"'/);
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C I think therefore I'm'/);
     } else {
       assert.match(child.stdout, /Arguments: '--help "hello world test" A B C I think therefore I'm'/);
     }
