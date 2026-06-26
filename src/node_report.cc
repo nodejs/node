@@ -855,13 +855,6 @@ std::string TriggerNodeReport(Isolate* isolate,
       filename = *DiagnosticFilename(
           env != nullptr ? env->thread_id() : 0, "report", "json");
     }
-    if (env != nullptr) {
-      THROW_IF_INSUFFICIENT_PERMISSIONS(
-          env,
-          permission::PermissionScope::kFileSystemWrite,
-          Environment::GetCwd(env->exec_path()),
-          filename);
-    }
   }
 
   // Open the report file stream for writing. Supports stdout/err,
@@ -879,12 +872,21 @@ std::string TriggerNodeReport(Isolate* isolate,
       report_directory = per_process::cli_options->report_directory;
     }
     // Regular file. Append filename to directory path if one was specified
+    std::string pathname;
     if (report_directory.length() > 0) {
-      std::string pathname = report_directory + kPathSeparator + filename;
-      outfile.open(pathname, std::ios::out | std::ios::binary);
+      pathname = report_directory + kPathSeparator + filename;
     } else {
-      outfile.open(filename, std::ios::out | std::ios::binary);
+      pathname = filename;
     }
+
+    // We may not always be in a great state when generating a node report.
+    // Allow for the case where we don't have an env.
+    if (env != nullptr) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env, permission::PermissionScope::kFileSystemWrite, pathname, "");
+    }
+
+    outfile.open(pathname, std::ios::out | std::ios::binary);
     // Check for errors on the file open
     if (!outfile.is_open()) {
       std::cerr << "\nFailed to open Node.js report file: " << filename;
