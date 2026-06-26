@@ -495,7 +495,7 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-The snapshot currently only supports loding a single entrypoint during the
+The snapshot currently only supports loading a single entrypoint during the
 snapshot building process, which can load built-in modules, but not additional user-land modules.
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
@@ -1320,7 +1320,7 @@ Enable experimental support for the network inspection with Chrome DevTools.
 ### `--experimental-package-map=<path>`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -1468,7 +1468,7 @@ inheriting tags.
 ### `--experimental-vfs`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental

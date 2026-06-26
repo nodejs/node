@@ -165,7 +165,7 @@ Parameters :
 
 - criteria : the first parameter. a function, regexp or object.
   - function : filter MockCallHistoryLog when the function returns false
-  - regexp : filter MockCallHistoryLog when the regexp does not match on MockCallHistoryLog.toString() ([see](./MockCallHistoryLog.md#to-string))
+  - regexp : filter MockCallHistoryLog when the regexp does not match on MockCallHistoryLog.toString() ([see](/docs/docs/api/MockCallHistoryLog.md#to-string))
   - object : an object with MockCallHistoryLog properties as keys to apply multiple filters. each values are a [filter parameter](/docs/docs/api/MockCallHistory.md#filter-parameter)
 - options : the second parameter. an object.
   - options.operator : `'AND'` or `'OR'` (default `'OR'`). Used only if criteria is an object. see below

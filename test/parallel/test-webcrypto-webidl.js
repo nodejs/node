@@ -178,8 +178,13 @@ function assertJsonWebKey(actual, expected) {
     const resizable = new ArrayBuffer(8, { maxByteLength: 16 });
     const view = new Uint8Array(resizable);
 
-    // TODO(panva): Reject resizable backing stores in a semver-major
-    assert.deepStrictEqual(converters.BigInteger(view), view);
+    const resizableError = {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: `${prefix}: ${context} is backed by a resizable ` +
+        'ArrayBuffer, which is not allowed.',
+    };
+    assert.throws(() => converters.BigInteger(view, opts), resizableError);
   }
 }
 
@@ -223,32 +228,21 @@ function assertJsonWebKey(actual, expected) {
     const view = new Uint8Array(resizable);
     const dataView = new DataView(resizable);
 
-    // TODO(panva): Reject resizable backing stores in a semver-major by
-    // removing the crypto/webidl BufferSource override.
-    assert.deepStrictEqual(converters.BufferSource(resizable), resizable);
-    assert.deepStrictEqual(converters.BufferSource(view), view);
-    assert.deepStrictEqual(converters.BufferSource(dataView), dataView);
     const resizableError = {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
       message: `${prefix}: ${context} is backed by a resizable ` +
         'ArrayBuffer, which is not allowed.',
     };
-    assert.throws(() => converters.BufferSource(resizable, {
-      __proto__: null,
-      ...opts,
-      allowResizable: false,
-    }), resizableError);
-    assert.throws(() => converters.BufferSource(view, {
-      __proto__: null,
-      ...opts,
-      allowResizable: false,
-    }), resizableError);
-    assert.throws(() => converters.BufferSource(dataView, {
-      __proto__: null,
-      ...opts,
-      allowResizable: false,
-    }), resizableError);
+    assert.throws(
+      () => converters.BufferSource(resizable, opts),
+      resizableError);
+    assert.throws(
+      () => converters.BufferSource(view, opts),
+      resizableError);
+    assert.throws(
+      () => converters.BufferSource(dataView, opts),
+      resizableError);
   }
 }
 

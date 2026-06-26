@@ -6,6 +6,15 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+
+common.expectWarning({
+  'internal/test/binding':
+    'These APIs are for internal testing only. Do not use them.',
+  'DeprecationWarning': {
+    DEP0183: 'OpenSSL engine-based APIs are deprecated.',
+  },
+});
+
 // Monkey-patch SecureContext
 const { internalBinding } = require('internal/test/binding');
 const binding = internalBinding('crypto');

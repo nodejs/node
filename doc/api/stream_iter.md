@@ -1469,7 +1469,7 @@ added: v26.1.0
 > Stability: 1 - Experimental
 
 * `readable` {stream.Readable|Object} A classic Readable stream or any object
-  with `read()` and `on()` methods.
+  with `read()`, `on()`, and `off()` methods.
 * Returns: {AsyncIterable\<Uint8Array\[]>} A stream/iter async iterable source.
 
 Converts a classic Readable stream (or duck-typed equivalent) into a
@@ -1478,8 +1478,8 @@ stream/iter async iterable source that can be passed to [`from()`][],
 
 If the object implements the [`toAsyncStreamable`][] protocol (as
 `stream.Readable` does), that protocol is used. Otherwise, the function
-duck-types on `read()` and `on()` (EventEmitter) and wraps the stream with
-a batched async iterator.
+duck-types on `read()`, `on()`, and `off()` (EventEmitter) and wraps the
+stream with a batched async iterator.
 
 The result is cached per instance -- calling `fromReadable()` twice with the
 same stream returns the same iterable.
@@ -1675,7 +1675,7 @@ Creates a classic [`stream.Writable`][] backed by a stream/iter Writer.
 
 Each `_write()` / `_writev()` call attempts the Writer's synchronous method
 first (`writeSync` / `writevSync`), falling back to the async method if the
-sync path returns `false` or throws. Similarly, `_final()` tries `endSync()`
+sync path returns `false`. Similarly, `_final()` tries `endSync()`
 before `end()`. When the sync path succeeds, the callback is deferred via
 `queueMicrotask` to preserve the async resolution contract.
 

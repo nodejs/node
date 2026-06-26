@@ -149,6 +149,8 @@ server.listen(0, common.mustCall(() => {
 function checkListeners(socket) {
   const callback = common.mustCall(() => {
     if (!socket.destroyed) {
+      // Sockets have no public stream guard listeners while in the free pool.
+      assert.strictEqual(socket.listenerCount('readable'), 0);
       assert.strictEqual(socket.listenerCount('data'), 0);
       assert.strictEqual(socket.listenerCount('drain'), 0);
       // Sockets have freeSocketErrorListener.

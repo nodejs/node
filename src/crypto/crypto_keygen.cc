@@ -64,7 +64,13 @@ Maybe<void> SecretKeyGenTraits::AdditionalConfig(
     SecretKeyGenConfig* params) {
   CHECK(args[*offset]->IsUint32());
   uint32_t bits = args[*offset].As<Uint32>()->Value();
-  params->length = bits / CHAR_BIT;
+  params->length_bits = bits;
+  if (mode == kCryptoJobWebCrypto) {
+    params->length = NumBitsToBytes(static_cast<size_t>(bits));
+    params->truncate_to_bit_length = bits % CHAR_BIT != 0;
+  } else {
+    params->length = bits / CHAR_BIT;
+  }
   *offset += 1;
   return JustVoid();
 }
@@ -77,6 +83,8 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
     return KeyGenJobStatus::FAILED;
   }
   params->out = ByteSource::Allocated(bytes.release());
+  if (params->truncate_to_bit_length)
+    TruncateToBitLength(params->length_bits, &params->out);
   return KeyGenJobStatus::OK;
 }
 

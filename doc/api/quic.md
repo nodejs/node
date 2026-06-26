@@ -532,7 +532,7 @@ a server once.
 ## `quic.listEndpoints([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * `options` {object}
@@ -1071,7 +1071,7 @@ has been destroyed. Read only.
 ### `session.onapplication`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 * Type: {quic.OnApplicationCallback}
@@ -1424,11 +1424,12 @@ what this endpoint advertises to the peer as its own maximum.
 added: v26.2.0
 -->
 
-* Type: {Object|undefined}
+* Type: {crypto.X509Certificate|undefined}
 
-The local certificate as an object with properties such as `subject`,
-`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
-if the session is destroyed or no certificate is available.
+The local certificate as a [`crypto.X509Certificate`][] instance. Server
+sessions return the certificate configured for the negotiated SNI host.
+Client sessions return `undefined` unless a client certificate was sent.
+Returns `undefined` if the session is destroyed.
 
 ### `session.peerCertificate`
 
@@ -1436,11 +1437,11 @@ if the session is destroyed or no certificate is available.
 added: v26.2.0
 -->
 
-* Type: {Object|undefined}
+* Type: {crypto.X509Certificate|undefined}
 
-The peer's certificate as an object with properties such as `subject`,
-`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
-if the session is destroyed or the peer did not present a certificate.
+The peer's certificate as a [`crypto.X509Certificate`][] instance. Returns
+`undefined` if the peer did not present a certificate or the session is
+destroyed.
 
 ### `session.ephemeralKeyInfo`
 
@@ -2615,7 +2616,9 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 #### `endpointOptions.reusePort`
 
 <!-- YAML
-added: v26.3.0
+added:
+  - v26.3.0
+  - v24.18.0
 -->
 
 * Type: {boolean}
@@ -4450,6 +4453,7 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal

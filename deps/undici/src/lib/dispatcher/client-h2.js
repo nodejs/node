@@ -35,6 +35,7 @@ const {
   kSize,
   kHTTPContext,
   kClosed,
+  kKeepAliveDefaultTimeout,
   kHeadersTimeout,
   kBodyTimeout,
   kEnableConnectProtocol,
@@ -152,6 +153,21 @@ function requeueUnsentRequest (client, request) {
   client[kQueue].splice(client[kPendingIdx] + 1, 0, request)
 }
 
+function completeRequest (client, request, resetPendingIdx = false) {
+  const index = client[kQueue].indexOf(request, client[kRunningIdx])
+
+  if (index === -1 || index >= client[kPendingIdx]) {
+    return
+  }
+
+  client[kQueue].splice(index, 1)
+  client[kPendingIdx]--
+
+  if (resetPendingIdx && client[kPendingIdx] < client[kRunningIdx]) {
+    client[kPendingIdx] = client[kRunningIdx]
+  }
+}
+
 function canRetryRequestAfterGoAway (request) {
   const { body } = request
 
@@ -191,6 +207,7 @@ function connectH2 (client, socket) {
   session[kClient] = client
   session[kSocket] = socket
   session[kHTTP2SessionState] = {
+    idleTimeout: null,
     ping: {
       interval: client[kPingInterval] === 0 ? null : setInterval(onHttp2SendPing, client[kPingInterval], session).unref()
     }
@@ -279,10 +296,10 @@ function connectH2 (client, socket) {
         if (client[kRunning] > 0) {
           // We are already processing requests
 
-          // Non-idempotent request cannot be retried.
-          // Ensure that no other requests are inflight and
-          // could cause failure.
-          if (request.idempotent === false) return true
+          // Unlike HTTP/1.1 pipelining, HTTP/2 multiplexes requests on
+          // independent streams, so non-idempotent requests can be dispatched
+          // concurrently. Retry eligibility is handled by stream/session error
+          // handling instead of by serializing all non-idempotent requests.
           // Don't dispatch an upgrade until all preceding requests have completed.
           // Possibly, we do not have remote settings confirmed yet.
           if ((request.upgrade === 'websocket' || request.method === 'CONNECT') && session[kRemoteSettings] === false) return true
@@ -308,16 +325,66 @@ function connectH2 (client, socket) {
 
 function resumeH2 (client) {
   const socket = client[kSocket]
+  const session = client[kHTTP2Session]
 
   if (socket?.destroyed === false) {
     if (client[kSize] === 0 || client[kMaxConcurrentStreams] === 0) {
       socket.unref()
-      client[kHTTP2Session].unref()
+      session.unref()
     } else {
       socket.ref()
-      client[kHTTP2Session].ref()
+      session.ref()
+    }
+
+    if (client[kSize] === 0 && session[kOpenStreams] === 0) {
+      setHttp2IdleTimeout(session)
+    } else {
+      clearHttp2IdleTimeout(session)
     }
   }
+}
+
+function clearHttp2IdleTimeout (session) {
+  const state = session[kHTTP2SessionState]
+
+  if (state?.idleTimeout != null) {
+    clearTimeout(state.idleTimeout)
+    state.idleTimeout = null
+  }
+}
+
+function setHttp2IdleTimeout (session) {
+  const client = session[kClient]
+
+  if (client[kHTTP2Session] !== session || session.closed || session.destroyed) {
+    return
+  }
+
+  if (session[kOpenStreams] !== 0 || client[kSize] !== 0) {
+    clearHttp2IdleTimeout(session)
+    return
+  }
+
+  const state = session[kHTTP2SessionState]
+  if (state.idleTimeout == null) {
+    state.idleTimeout = setTimeout(onHttp2SessionIdleTimeout, client[kKeepAliveDefaultTimeout], session).unref()
+  }
+}
+
+function onHttp2SessionIdleTimeout (session) {
+  const client = session[kClient]
+  const socket = session[kSocket]
+  const state = session[kHTTP2SessionState]
+
+  state.idleTimeout = null
+
+  if (client[kHTTP2Session] !== session || session[kOpenStreams] !== 0 || client[kSize] !== 0 || session.closed || session.destroyed) {
+    return
+  }
+
+  const err = new InformationalError('socket idle timeout')
+  socket[kError] = err
+  util.destroy(socket, err)
 }
 
 function applyConnectionWindowSize (connectionWindowSize) {
@@ -445,6 +512,8 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
     client[kHTTP2Session] = null
   }
 
+  clearHttp2IdleTimeout(this)
+
   if (!this.closed && !this.destroyed) {
     this.close()
   }
@@ -467,6 +536,8 @@ function onHttp2SessionClose () {
     client[kHTTP2Session] = null
   }
 
+  clearHttp2IdleTimeout(this)
+
   if (state.ping.interval != null) {
     clearInterval(state.ping.interval)
     state.ping.interval = null
@@ -479,7 +550,9 @@ function onHttp2SessionClose () {
     const requests = client[kQueue].splice(client[kRunningIdx])
     for (let i = 0; i < requests.length; i++) {
       const request = requests[i]
-      util.errorRequest(client, request, err)
+      if (request != null) {
+        util.errorRequest(client, request, err)
+      }
     }
   }
 }
@@ -542,6 +615,7 @@ function closeStreamSession (stream) {
   session[kOpenStreams] -= 1
   if (session[kOpenStreams] === 0) {
     session.unref()
+    setHttp2IdleTimeout(session)
   }
 }
 
@@ -556,6 +630,19 @@ function onUpgradeStreamClose () {
 }
 
 function onRequestStreamClose () {
+  const state = this[kRequestStreamState]
+
+  if (state) {
+    // Release the stream first so request references are cleared,
+    // then complete the response with trailers if available.
+    releaseRequestStream(this)
+
+    if (state.pendingEnd && !state.request.aborted && !state.request.completed) {
+      state.request.onResponseEnd(state.trailers || {})
+      state.finalizeRequest()
+    }
+  }
+
   this.off('data', onData)
   this.off('error', noop)
   closeStreamSession(this)
@@ -698,6 +785,7 @@ function setupUpgradeStream (stream, state) {
   stream.on('timeout', onUpgradeStreamTimeout)
   stream.once('close', onUpgradeStreamClose)
 
+  clearHttp2IdleTimeout(session)
   ++session[kOpenStreams]
   stream.setTimeout(headersTimeout)
 }
@@ -729,11 +817,7 @@ function writeH2 (client, request) {
     }
 
     requestFinalized = true
-    client[kQueue][client[kRunningIdx]++] = null
-
-    if (resetPendingIdx) {
-      client[kPendingIdx] = client[kRunningIdx]
-    }
+    completeRequest(client, request, resetPendingIdx)
 
     client[kResume]()
   }
@@ -970,6 +1054,7 @@ function writeH2 (client, request) {
   state.stream = stream
 
   // Increment counter as we have new streams open
+  clearHttp2IdleTimeout(session)
   ++session[kOpenStreams]
   stream.setTimeout(headersTimeout)
 
@@ -1081,14 +1166,14 @@ function onEnd () {
 
   stream.off('end', onEnd)
 
-  releaseRequestStream(stream)
-  // If we received a response, this is a normal completion
+  // If we received a response, this is a normal completion.
+  // Defer actual completion to onRequestStreamClose so that
+  // onTrailers (which may fire after 'end' on Windows) can
+  // store trailers first.
   if (state.responseReceived) {
     if (!request.aborted && !request.completed) {
-      request.onResponseEnd({})
+      state.pendingEnd = true
     }
-
-    state.finalizeRequest()
   } else {
     // Stream ended without receiving a response - this is an error
     // (e.g., server destroyed the stream before sending headers)
@@ -1101,8 +1186,6 @@ function onError (err) {
   const state = stream[kRequestStreamState]
 
   stream.off('error', onError)
-
-  releaseRequestStream(stream)
   state.abort(err)
 }
 
@@ -1111,8 +1194,6 @@ function onFrameError (type, code) {
   const state = stream[kRequestStreamState]
 
   stream.off('frameError', onFrameError)
-
-  releaseRequestStream(stream)
   state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
 }
 
@@ -1124,7 +1205,8 @@ function onTimeout () {
   const stream = this
   const state = stream[kRequestStreamState]
 
-  releaseRequestStream(stream)
+  // Remove self so timeout doesn't fire again after we handle it
+  stream.off('timeout', onTimeout)
 
   const err = state.responseReceived
     ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
@@ -1138,14 +1220,14 @@ function onTrailers (trailers) {
   const { request } = state
 
   stream.off('trailers', onTrailers)
+  stream.off('data', onData)
 
   if (request.aborted || request.completed) {
     return
   }
 
-  releaseRequestStream(stream)
-  request.onResponseEnd(trailers)
-  state.finalizeRequest()
+  // Store trailers for onRequestStreamClose to use when completing
+  state.trailers = trailers
 }
 
 function writeBodyH2 () {

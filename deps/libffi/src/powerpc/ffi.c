@@ -114,6 +114,26 @@ ffi_call_int (ffi_cif *cif,
   if (rvalue && ecif.rvalue == smst_buffer)
     {
       unsigned int rsize = cif->rtype->size;
+#ifdef FFI_TARGET_HAS_COMPLEX_TYPE
+      /* Integer-typed _Complex: the .Lsmall_struct return path stored
+	 r3 at buffer offset 0 and r4 at offset 8.  Extract one inner-
+	 sized half from each slot — right-justified on BE, low-address
+	 on LE — and lay them out as the natural packed complex value
+	 the caller expects (real@0, imag@hsize).  */
+      if (cif->rtype->type == FFI_TYPE_COMPLEX
+	  && (cif->flags & (FLAG_RETURNS_FP | FLAG_RETURNS_VEC)) == 0)
+	{
+	  size_t hsize = cif->rtype->elements[0]->size;
+#ifndef __LITTLE_ENDIAN__
+	  size_t off = 8 - hsize;
+#else
+	  size_t off = 0;
+#endif
+	  memcpy ((char *) rvalue,         (char *) smst_buffer + off, hsize);
+	  memcpy ((char *) rvalue + hsize, (char *) smst_buffer + 8 + off, hsize);
+	}
+      else
+#endif
 #ifndef __LITTLE_ENDIAN__
       /* The SYSV ABI returns a structure of up to 4 bytes in size
 	 left-padded in r3.  */

@@ -146,6 +146,12 @@ E(0b, FFI_TYPE_POINTER)
 	epilogue
 E(0b, FFI_TYPE_COMPLEX)
 	call	PLT(C(abort))
+E(0b, FFI_TYPE_UINT128)
+	movdqu	xmmword ptr [r8], xmm0
+	epilogue
+E(0b, FFI_TYPE_SINT128)
+	movdqu	xmmword ptr [r8], xmm0
+	epilogue
 E(0b, FFI_TYPE_SMALL_STRUCT_1B)
 	mov byte ptr [r8], al ; movb	%al, (%r8)
 	epilogue

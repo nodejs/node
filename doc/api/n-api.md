@@ -2786,7 +2786,9 @@ Language Specification.
 added: v8.0.0
 napiVersion: 1
 changes:
-  - version: v26.2.0
+  - version:
+    - v26.2.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62710
     description: Added support for `SharedArrayBuffer`.
 -->

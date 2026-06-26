@@ -12,12 +12,6 @@ extern transitioning runtime RejectPromise(
 extern transitioning runtime PromiseRevokeReject(
     implicit context: Context)(JSPromise): JSAny;
 
-extern transitioning runtime PromiseRejectAfterResolved(
-    implicit context: Context)(JSPromise, JSAny): JSAny;
-
-extern transitioning runtime PromiseResolveAfterResolved(
-    implicit context: Context)(JSPromise, JSAny): JSAny;
-
 extern transitioning runtime PromiseRejectEventFromStack(
     implicit context: Context)(JSPromise, JSAny): JSAny;
 }
@@ -271,8 +265,8 @@ const kPromiseCapabilitySize:
 type PromiseResolvingFunctionContext extends FunctionContext;
 extern enum PromiseResolvingFunctionContextSlot extends intptr
     constexpr 'PromiseBuiltins::PromiseResolvingFunctionContextSlot' {
-  kPromiseSlot: Slot<PromiseResolvingFunctionContext, JSPromise>,
-  kAlreadyResolvedSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
+  kPromiseIfNotResolvedSlot:
+      Slot<PromiseResolvingFunctionContext, JSPromise|Undefined>,
   kDebugEventSlot: Slot<PromiseResolvingFunctionContext, Boolean>,
   kPromiseContextLength
 }
@@ -396,25 +390,29 @@ transitioning builtin NewPromiseCapability(
 transitioning javascript builtin PromiseCapabilityDefaultReject(
     js-implicit context: Context, receiver: JSAny)(reason: JSAny): JSAny {
   const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
-  // 2. Let promise be F.[[Promise]].
-  const promise =
-      *ContextSlot(context, PromiseResolvingFunctionContextSlot::kPromiseSlot);
+  // 2. Let promise be promiseOrEmpty.[[Value]].
+  const promiseOrEmpty =
+      *ContextSlot(
+      context, PromiseResolvingFunctionContextSlot::kPromiseIfNotResolvedSlot);
 
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved = *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  if (alreadyResolved == True) {
-    return runtime::PromiseRejectAfterResolved(promise, reason);
+  // 1. If promiseOrEmpty.[[Value]] is ~empty~, return undefined.
+  let promise: JSPromise;
+  typeswitch (promiseOrEmpty) {
+    case (Undefined): {
+      return Undefined;
+    }
+    case (p: JSPromise): {
+      promise = p;
+    }
   }
 
-  // 5. Set alreadyResolved.[[Value]] to true.
+  // 3. Set promiseOrEmpty.[[Value]] to ~empty~.
   *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot) =
-      True;
+      context, PromiseResolvingFunctionContextSlot::kPromiseIfNotResolvedSlot) =
+      Undefined;
 
-  // 6. Return RejectPromise(promise, reason).
+  // 4. Perform RejectPromise(promise, reason).
+  // 5. Return undefined.
   const debugEvent = *ContextSlot(
       context, PromiseResolvingFunctionContextSlot::kDebugEventSlot);
   return RejectPromise(promise, reason, debugEvent);
@@ -424,23 +422,26 @@ transitioning javascript builtin PromiseCapabilityDefaultReject(
 transitioning javascript builtin PromiseCapabilityDefaultResolve(
     js-implicit context: Context, receiver: JSAny)(resolution: JSAny): JSAny {
   const context = %RawDownCast<PromiseResolvingFunctionContext>(context);
-  // 2. Let promise be F.[[Promise]].
-  const promise: JSPromise =
-      *ContextSlot(context, PromiseResolvingFunctionContextSlot::kPromiseSlot);
+  // 2. Let promise be promiseOrEmpty.[[Value]].
+  const promiseOrEmpty =
+      *ContextSlot(
+      context, PromiseResolvingFunctionContextSlot::kPromiseIfNotResolvedSlot);
 
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved: Boolean = *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  if (alreadyResolved == True) {
-    return runtime::PromiseResolveAfterResolved(promise, resolution);
+  // 1. If promiseOrEmpty.[[Value]] is ~empty~, return undefined.
+  let promise: JSPromise;
+  typeswitch (promiseOrEmpty) {
+    case (Undefined): {
+      return Undefined;
+    }
+    case (p: JSPromise): {
+      promise = p;
+    }
   }
 
-  // 5. Set alreadyResolved.[[Value]] to true.
+  // 3. Set promiseOrEmpty.[[Value]] to ~empty~.
   *ContextSlot(
-      context, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot) =
-      True;
+      context, PromiseResolvingFunctionContextSlot::kPromiseIfNotResolvedSlot) =
+      Undefined;
 
   // The rest of the logic (and the catch prediction) is
   // encapsulated in the dedicated ResolvePromise builtin.

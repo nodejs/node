@@ -30,6 +30,7 @@
 #include <ffi_common.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <tramp.h>
 
 #ifdef X86_WIN64
@@ -115,6 +116,7 @@ EFI64(ffi_prep_cif_machdep)(ffi_cif *cif)
 #if defined(_MSC_VER)
 #pragma runtime_checks("s", off)
 #endif
+FFI_ASAN_NO_SANITIZE
 static void
 ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
 	      void **avalue, void *closure)
@@ -128,13 +130,33 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
 
   FFI_ASSERT(cif->abi == FFI_GNUW64 || cif->abi == FFI_WIN64);
 
-  /* If we have any large structure arguments, make a copy so we are passing
-     by value.  */
+  /* If we have any int128 or irregularly sized structure arguments,
+     make a copy so we are passing by value.  */
   for (i = 0; i < nargs; i++)
     {
       ffi_type *at = arg_types[i];
       int size = at->size;
-      if (at->type == FFI_TYPE_STRUCT && size > 8)
+      bool needcopy = false;
+
+      switch (at->type)
+	{
+	case FFI_TYPE_UINT128:
+	case FFI_TYPE_SINT128:
+	  needcopy = true;
+	  break;
+	case FFI_TYPE_STRUCT:
+	  switch (size)
+	    {
+	    case 1:
+	    case 2:
+	    case 4:
+	    case 8:
+	      break;
+	    default:
+	      needcopy = true;
+	    }
+	}
+      if (needcopy)
         {
           char *argcopy = alloca (size);
           memcpy (argcopy, avalue[i], size);

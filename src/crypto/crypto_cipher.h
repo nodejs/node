@@ -10,6 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#include <climits>
 #include <string>
 
 namespace node {
@@ -123,6 +124,18 @@ enum class WebCryptoCipherStatus {
   INVALID_KEY_TYPE,
   FAILED
 };
+
+inline bool TryGetIntCipherOutputLength(size_t input_len,
+                                        size_t output_overhead,
+                                        int* output_len) {
+  static constexpr size_t kMaxLength = INT_MAX;
+  if (output_overhead > kMaxLength ||
+      input_len > kMaxLength - output_overhead) {
+    return false;
+  }
+  *output_len = static_cast<int>(input_len + output_overhead);
+  return true;
+}
 
 // CipherJob is a base implementation class for implementations of
 // one-shot sync and async ciphers. It has been added primarily to

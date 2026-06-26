@@ -52,14 +52,14 @@ extern void ffi_go_closure_osf(void) FFI_HIDDEN;
 static inline UINT64 lds(void *ptr)
 {
   UINT64 ret;
-  asm("lds %0,%1" : "=f"(ret) : "m"(*(UINT32 *)ptr));
+  __asm__("lds %0,%1" : "=f"(ret) : "m"(*(UINT32 *)ptr));
   return ret;
 }
 
 /* And the reverse.  */
 static inline void sts(void *ptr, UINT64 val)
 {
-  asm("sts %1,%0" : "=m"(*(UINT32 *)ptr) : "f"(val));
+  __asm__("sts %1,%0" : "=m"(*(UINT32 *)ptr) : "f"(val));
 }
 
 ffi_status FFI_HIDDEN
@@ -95,6 +95,8 @@ ffi_prep_cif_machdep(ffi_cif *cif)
 	  bytes += 8;
 	  break;
 
+	case FFI_TYPE_SINT128:
+	case FFI_TYPE_UINT128:
 	case FFI_TYPE_VOID:
 	case FFI_TYPE_STRUCT:
 	  /* Passed by value in N slots.  */
@@ -149,6 +151,8 @@ ffi_prep_cif_machdep(ffi_cif *cif)
     case FFI_TYPE_POINTER:
       flags = ALPHA_FLAGS(ALPHA_ST_INT, ALPHA_LD_INT64);
       break;
+    case FFI_TYPE_SINT128:
+    case FFI_TYPE_UINT128:
     case FFI_TYPE_LONGDOUBLE:
     case FFI_TYPE_STRUCT:
       /* Passed in memory, with a hidden pointer.  */
@@ -281,6 +285,8 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
 	  argp[argn++] = (unsigned long)valp;
 	  break;
 
+	case FFI_TYPE_SINT128:
+	case FFI_TYPE_UINT128:
 	case FFI_TYPE_VOID:
 	case FFI_TYPE_STRUCT:
 	  size = ty->size;
@@ -351,7 +357,7 @@ ffi_prep_closure_loc (ffi_closure* closure,
      instead, since both Compaq as and gas can handle it.
 
      0x86 is PAL_imb in Tru64 UNIX <alpha/pal.h>.  */
-  asm volatile ("call_pal 0x86" : : : "memory");
+  __asm__ volatile ("call_pal 0x86" : : : "memory");
 
   return FFI_OK;
 }
@@ -418,6 +424,8 @@ ffi_closure_osf_inner (ffi_cif *cif,
 	  argn += 1;
 	  break;
 
+	case FFI_TYPE_SINT128:
+	case FFI_TYPE_UINT128:
 	case FFI_TYPE_VOID:
 	case FFI_TYPE_STRUCT:
 	  size = ty->size;

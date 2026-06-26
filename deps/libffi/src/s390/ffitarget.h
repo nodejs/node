@@ -54,6 +54,7 @@ typedef enum ffi_abi {
 
 #define FFI_TARGET_SPECIFIC_STACK_SPACE_ALLOCATION
 #define FFI_TARGET_HAS_COMPLEX_TYPE
+#define FFI_TARGET_HAS_INT128
 
 /* ---- Definitions for closures ----------------------------------------- */
 

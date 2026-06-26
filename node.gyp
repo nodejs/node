@@ -136,6 +136,7 @@
       'src/node_http_parser.cc',
       'src/node_http2.cc',
       'src/node_i18n.cc',
+      'src/node_ipc_serdes.cc',
       'src/node_locks.cc',
       'src/node_main_instance.cc',
       'src/node_messaging.cc',
@@ -485,8 +486,18 @@
     'node_ffi_sources': [
       'src/node_ffi.cc',
       'src/node_ffi.h',
+      'src/ffi/platforms/arm64.cc',
+      'src/ffi/platforms/loong64.cc',
+      'src/ffi/platforms/ppc64.cc',
+      'src/ffi/platforms/riscv64.cc',
+      'src/ffi/platforms/s390x.cc',
+      'src/ffi/platforms/x64.cc',
       'src/ffi/data.cc',
       'src/ffi/data.h',
+      'src/ffi/fast.cc',
+      'src/ffi/fast.h',
+      'src/ffi/jit_memory.cc',
+      'src/ffi/jit_memory.h',
       'src/ffi/types.cc',
       'src/ffi/types.h',
     ],
@@ -1081,6 +1092,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
+            '<@(emulator)',
             '<(node_js2c_exec)',
             '<@(_outputs)',
             'lib',
@@ -1147,6 +1159,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(emulator)',
                     '<(node_mksnapshot_exec)',
                     '--build-snapshot',
                     '<(node_snapshot_main)',
@@ -1166,6 +1179,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(emulator)',
                     '<@(_inputs)',
                     '<@(_outputs)',
                   ],
@@ -1824,6 +1838,7 @@
                '<(PRODUCT_DIR)/<(node_core_target_name).def',
              ],
              'action': [
+               '<@(emulator)',
                '<(PRODUCT_DIR)/gen_node_def.exe',
                '<@(_inputs)',
                '<@(_outputs)',

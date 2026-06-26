@@ -275,7 +275,7 @@ void ffi_closure_eabi (unsigned arg1, unsigned arg2, unsigned arg3,
       /* Allocate space for the return value and call the function.  */
       long long rvalue;
       (closure->fun) (cif, &rvalue, avalue, closure->user_data);
-      asm ("mov $r12, %0\n ld.l $r0, ($r12)\n ldo.l $r1, 4($r12)" : : "r" (&rvalue));
+      __asm__ ("mov $r12, %0\n ld.l $r0, ($r12)\n ldo.l $r1, 4($r12)" : : "r" (&rvalue));
     }
 }
 

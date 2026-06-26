@@ -200,6 +200,12 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stdout.toString(), '');
     const fileContents = fs.readFileSync(file, 'utf8');
     assert.match(fileContents, /<testsuite .*name="nested".*tests="2".*failures="1".*skipped="0".*>/);
+    // The exact timestamp format is intentionally not pinned here (still under
+    // discussion); assert only that the value is present and a real date.
+    const { 1: timestamp } = fileContents.match(/<testsuite [^>]*timestamp="([^"]+)"/) ?? [];
+    assert.ok(timestamp, 'testsuite should have a timestamp attribute');
+    assert.match(timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)), `expected a valid date, got ${timestamp}`);
     assert.match(fileContents, /<testcase .*name="failing".*>\s*<failure .*type="testCodeFailure".*message="error".*>/);
     assert.match(fileContents, /<testcase .*name="ok".*classname="test".*\/>/);
     assert.match(fileContents, /<testcase .*name="top level".*classname="test".*\/>/);

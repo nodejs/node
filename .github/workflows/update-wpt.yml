@@ -52,6 +52,14 @@ jobs:
       - name: Update WPT for subsystem ${{ matrix.subsystem }}
         run: |
           git node wpt "$SUBSYSTEM"
+          # TODO: Remove this workaround after @node-core/utils stops
+          # regenerating test/fixtures/wpt/README.md for every subsystem
+          # update.
+          # git node wpt currently rewrites test/fixtures/wpt/README.md with a
+          # generated summary for every subsystem update. versions.json is the
+          # authoritative metadata, and keeping the README stable avoids
+          # conflicts between concurrent WPT update PRs.
+          git restore test/fixtures/wpt/README.md
         env:
           SUBSYSTEM: ${{ matrix.subsystem }}
 
