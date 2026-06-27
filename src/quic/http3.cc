@@ -668,6 +668,27 @@ class Http3ApplicationImpl final : public Session::Application {
                                      == 0;
   }
 
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  // msg is optional
+  // msg length is maximum 1024
+  bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) override {
+    Session::SendPendingDataScope send_scope(&session());
+    Debug(&session(),
+          "Close webtransport session stream %" PRIu64,
+          stream.id());
+    return nghttp3_conn_close_wt_session(*this,
+                                         stream.id(),
+                                         wt_error_code,
+                                         msg,
+                                         msglen) == 0;
+  }
+
   void SetStreamPriority(const Stream& stream,
                          StreamPriority priority,
                          StreamPriorityFlags flags) override {
