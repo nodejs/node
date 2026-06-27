@@ -12,7 +12,7 @@ const filename = tmpdir.resolve(`.removeme-benchmark-garbage-${process.pid}`);
 const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
   filesize: [1000 * 1024],
-  highWaterMark: [1024, 4096, 65535, 1024 * 1024],
+  highWaterMark: [1024, 65535, 1024 * 1024],
   n: 1024,
 });
 

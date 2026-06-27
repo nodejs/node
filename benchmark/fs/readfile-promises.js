@@ -17,8 +17,6 @@ const bench = common.createBenchmark(main, {
     1024,
     512 * 1024,
     4 * 1024 ** 2,
-    8 * 1024 ** 2,
-    16 * 1024 ** 2,
     32 * 1024 ** 2,
   ],
   concurrent: [1, 10],
