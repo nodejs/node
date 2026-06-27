@@ -291,6 +291,22 @@ describe('JSONConsumer', () => {
       assert.strictEqual(log.userId, 123);
       assert.strictEqual(typeof log.time, 'number');
     });
+
+    it('should include logger name when provided', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+      const logger = new Logger({ level: 'info', name: 'api' });
+
+      logger.info({ msg: 'named logger', userId: 123 });
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log.name, 'api');
+      assert.strictEqual(log.msg, 'named logger');
+      assert.strictEqual(log.userId, 123);
+    });
   });
 
   describe('additional fields', () => {
