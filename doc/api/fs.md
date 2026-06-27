@@ -242,6 +242,9 @@ added: v10.0.0
 Closes the file handle after waiting for any pending operation on the handle to
 complete.
 
+The promise is rejected if closing the file handle fails. In case of an error,
+the error's `code` will be one of [Common System Errors][].
+
 ```mjs
 import { open } from 'node:fs/promises';
 
@@ -838,6 +841,9 @@ changes:
   * `bigint` {boolean} Whether the numeric values in the returned {fs.Stats} object should be `bigint`. **Default:** `false`.
   * `signal` {AbortSignal} An AbortSignal to cancel the operation. **Default:** `undefined`.
 * Returns: {Promise} Fulfills with an {fs.Stats} for the file.
+
+The promise is rejected if the stat operation fails. In case of an error, the
+error's `code` will be one of [Common System Errors][].
 
 #### `filehandle.sync()`
 
