@@ -29,6 +29,7 @@ jobs:
     permissions:
       issues: write  # for actions/stale to close stale issues
       pull-requests: write  # for actions/stale to close stale PRs
+      actions: write # for actions/stale to cache stale saved state
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     steps:
@@ -46,5 +47,5 @@ jobs:
           close-pr-message: ${{ format(env.CLOSE_MESSAGE, 'pull request') }}
           stale-pr-message: ${{ format(env.WARN_MESSAGE, 'pull request') }}
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
-          operations-per-run: 500
+          operations-per-run: 2500
           remove-stale-when-updated: true
