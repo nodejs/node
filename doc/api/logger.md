@@ -104,6 +104,9 @@ added: REPLACEME
 
 * `options` {Object}
   * `level` {string} Minimum log level. **Default:** `'info'`.
+  * `name` {string} Optional logger name. Included in every log record as the
+    `name` field. Useful for identifying the source of logs when multiple
+    loggers share the same consumer.
   * `bindings` {Object} Context fields added to all log records.
   * `serializers` {Object} Custom serializer functions for specific fields.
     **Default:** `{}`.
@@ -385,17 +388,10 @@ added: REPLACEME
 The `LogConsumer` class is the base class for log consumers. Consumers
 subscribe to `diagnostics_channel` events and process log records.
 
-One channel is published per log level. The channel names are:
-
-* `log:trace`
-* `log:debug`
-* `log:info`
-* `log:warn`
-* `log:error`
-* `log:fatal`
-
-Advanced users may subscribe to these channels directly via
-`diagnostics_channel.channel(name)` instead of using a `LogConsumer`.
+All log records are published to a single channel named `'log'`. Advanced
+users may subscribe to it directly via `diagnostics_channel.channel('log')`
+instead of using a `LogConsumer`. Each record carries a numeric `levelValue`
+field that can be used to filter by severity.
 
 ### `new LogConsumer([options])`
 
@@ -472,11 +468,13 @@ added: REPLACEME
 -->
 
 * `record` {Object} The log record to handle.
-  * `level` {string} Log level.
+  * `level` {string} Log level name (e.g. `'info'`).
+  * `levelValue` {number} Numeric log level (RFC 5424 ordering, e.g. `30`).
+  * `name` {string|undefined} Logger name, if set.
   * `msg` {string} Log message.
-  * `time` {number} Timestamp in milliseconds.
-  * `bindingsStr` {string} Pre-serialized bindings JSON string.
-  * `fields` {Object} Additional log fields.
+  * `time` {number} Timestamp in milliseconds since the Unix epoch.
+  * `bindings` {Object} Context fields from the logger and its parents.
+  * `fields` {Object} Additional fields passed at the call site.
 
 Handles a log record. Subclasses must implement this method.
 
