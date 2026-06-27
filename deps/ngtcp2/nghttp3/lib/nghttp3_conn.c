@@ -4131,27 +4131,42 @@ int nghttp3_conn_read_wt_ctrl_stream(nghttp3_conn *conn,
 
       wts->rx.error_code = cpsl->wt_close_session.error_code;
 
+      if (rstate->left == 0) {
+        if (conn->callbacks.recv_wt_close_session) {
+          rv = conn->callbacks.recv_wt_close_session(
+            conn, wts->session_id, wts->rx.error_code, NULL, 0, conn->user_data,
+            stream->user_data);
+          if (rv != 0) {
+            return NGHTTP3_ERR_CALLBACK_FAILURE;
+          }
+        }
+
+        nghttp3_wt_ctrl_read_state_reset(rstate);
+
+        return NGHTTP3_ERR_WT_SESSION_GONE;
+      }
+
       rstate->state = NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_MSG;
 
-      if (rstate->left) {
-        wts->rx.error_msg.base =
-          nghttp3_mem_malloc(conn->mem, (size_t)rstate->left);
-        if (!wts->rx.error_msg.base) {
-          return NGHTTP3_ERR_NOMEM;
-        }
+      wts->rx.error_msg.base =
+        nghttp3_mem_malloc(conn->mem, (size_t)rstate->left);
+      if (!wts->rx.error_msg.base) {
+        return NGHTTP3_ERR_NOMEM;
+      }
+
+      if (p == end) {
+        return 0;
       }
 
       /* Fall through */
     case NGHTTP3_WT_CTRL_STREAM_STATE_WT_CLOSE_SESSION_ERROR_MSG:
       len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
 
-      if (len) {
-        memcpy(wts->rx.error_msg.base + wts->rx.error_msg.len, p, len);
-        wts->rx.error_msg.len += len;
+      memcpy(wts->rx.error_msg.base + wts->rx.error_msg.len, p, len);
+      wts->rx.error_msg.len += len;
 
-        p += len;
-        rstate->left -= len;
-      }
+      p += len;
+      rstate->left -= len;
 
       if (rstate->left) {
         break;

@@ -30,12 +30,14 @@
 
 int nghttp3_wt_session_new(nghttp3_wt_session **pwts, int64_t session_id,
                            const nghttp3_mem *mem) {
-  *pwts = nghttp3_mem_calloc(mem, 1, sizeof(**pwts));
+  *pwts = nghttp3_mem_malloc(mem, sizeof(**pwts));
   if (*pwts == NULL) {
     return NGHTTP3_ERR_NOMEM;
   }
 
-  (*pwts)->session_id = session_id;
+  **pwts = (nghttp3_wt_session){
+    .session_id = session_id,
+  };
 
   return 0;
 }
