@@ -48,7 +48,7 @@ permissions:
 jobs:
   coverage-linux-without-intl:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
