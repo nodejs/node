@@ -216,6 +216,17 @@ class Session::Application : public MemoryRetainer {
       return false;
   }
 
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  virtual bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) {
+      return false;
+  }
+
   // Returns true if the application protocol supports sending and
   // receiving headers on streams (e.g. HTTP/3). Applications that
   // do not support headers should return false (the default).
