@@ -4793,4 +4793,4 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [information event]: #event-information
-[initial delay]: net.md#socketsetkeepaliveenable-initialdelay
+[initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count
