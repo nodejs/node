@@ -77,6 +77,7 @@ constexpr int kSessionStateSending = 0x10;
 constexpr int kSessionStateWriteInProgress = 0x20;
 constexpr int kSessionStateReadingStopped = 0x40;
 constexpr int kSessionStateReceivePaused = 0x80;
+constexpr int kSessionStateReceiving = 0x100;
 
 // The Padding Strategy determines the method by which extra padding is
 // selected for HEADERS and DATA frames. These are configurable via the
@@ -669,6 +670,7 @@ class Http2Session : public AsyncWrap,
   IS_FLAG(write_in_progress, kSessionStateWriteInProgress)
   IS_FLAG(reading_stopped, kSessionStateReadingStopped)
   IS_FLAG(receive_paused, kSessionStateReceivePaused)
+  IS_FLAG(receiving, kSessionStateReceiving)
 
 #undef IS_FLAG
 
