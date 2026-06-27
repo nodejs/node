@@ -103,6 +103,7 @@ namespace quic {
   V(Destroy, destroy, false)                                                   \
   V(SendHeaders, sendHeaders, false)                                           \
   V(MakeWebtransportStream, makeWebtransportStream, false)                     \
+  V(CloseWebtransportSessionStream, closeWebtransportSessionStream, false)     \
   V(StopSending, stopSending, false)                                           \
   V(ResetStream, resetStream, false)                                           \
   V(SetPriority, setPriority, false)                                           \
@@ -481,7 +482,7 @@ struct Stream::Impl {
   }
 
   // Connects a stream to a webtransport session stream,
-  // also sends the initial bytes of a stream to signel the wt stream
+  // also sends the initial bytes of a stream to signal the wt stream
   // also connects the readers
   JS_METHOD(MakeWebtransportStream) {
     Stream* stream;
@@ -498,6 +499,40 @@ struct Stream::Impl {
       *stream,
       session->id()
     ));
+  }
+
+  // Closes a webtransport session stream,
+  // also closes connected data streams
+  JS_METHOD(CloseWebtransportSessionStream) {
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    CHECK(args.Length() > 0);
+    CHECK(args[0]->IsObject());
+    uint32_t wt_error_code = 0;
+    if (args.Length() > 1) {
+      CHECK(args[1]->IsUint32());
+      wt_error_code = FromV8Value<uint32_t>(args[0]);
+    }
+    uint8_t * msg = nullptr;
+    size_t msglen = 0;
+    if (args.Length() > 2) {
+      CHECK(args[2]->IsString());
+      Local<String> msgstr = args[2].As<String>();
+      const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
+      msg = new  uint8_t[length];
+      msgstr->WriteUtf8V2(
+        args.GetIsolate(), reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
+      msglen = std::min<size_t>(length, 1024);
+    }
+    args.GetReturnValue().Set(stream->session().application().CloseWebtransportSessionStream(
+      *stream,
+      wt_error_code,
+      msg,
+      msglen
+    ));
+    if (msg) {
+      delete[] msg;
+    }
   }
 
   // Tells the peer to stop sending data for this stream. This has the effect

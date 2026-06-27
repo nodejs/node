@@ -216,6 +216,17 @@ class Session::Application : public MemoryRetainer {
       return false;
   }
 
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  virtual bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) {
+      return false;
+  }
+
   // Signals to the Application that it should serialize and transmit any
   // pending session and stream packets it has accumulated.
   void SendPendingData();
