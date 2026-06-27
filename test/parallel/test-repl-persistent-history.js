@@ -183,8 +183,10 @@ function cleanupTmpFile() {
 }
 
 // Copy our fixture to the tmp directory
+const writeStream = fs.createWriteStream(historyPath);
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+  .pipe(writeStream);
+writeStream.on('finish', () => runTest());
 
 const runTestWrap = common.mustCall(runTest, numtests);
 
