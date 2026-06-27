@@ -21,3 +21,10 @@ for (let n = 0; n <= 0xFFFF; n++) {
 ].forEach((i) => assert.throws(() => validatePort(i), {
   code: 'ERR_SOCKET_BAD_PORT'
 }));
+
+// When `allowZero` is false, both the number `0` and the string `'0'` (and
+// other numeric-zero string forms) must be rejected.
+[0, '0', '0x0', '0o0', '0b0'].forEach((i) => assert.throws(
+  () => validatePort(i, 'Port', false),
+  { code: 'ERR_SOCKET_BAD_PORT' },
+));

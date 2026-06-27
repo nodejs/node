@@ -55,7 +55,7 @@ assert.throws(() => {
   code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
 });
 
-[ 0, null, 78960, undefined ].forEach((port) => {
+[ 0, '0', null, 78960, undefined ].forEach((port) => {
   assert.throws(() => {
     client.connect(port);
   }, {
