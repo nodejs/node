@@ -1360,19 +1360,52 @@ void FastSwap64(Local<Value> receiver,
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
 
+static bool ValidateUtf8(Local<Value> value, bool* was_detached) {
+  ArrayBufferViewContents<char> abv(value);
+  *was_detached = abv.WasDetached();
+  return !*was_detached && simdutf::validate_utf8(abv.data(), abv.length());
+}
+
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  bool was_detached;
+  const bool result = ValidateUtf8(args[0], &was_detached);
+  if (was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));
+  args.GetReturnValue().Set(result);
+}
+
+static bool FastIsUtf8(Local<Value> receiver,
+                       Local<Value> value,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isUtf8");
+  HandleScope scope(options.isolate);
+
+  bool was_detached;
+  const bool result = ValidateUtf8(value, &was_detached);
+  if (was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result;
+}
+
+static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
+
+static bool ValidateAscii(Local<Value> value, bool* was_detached) {
+  ArrayBufferViewContents<char> abv(value);
+  *was_detached = abv.WasDetached();
+  return !*was_detached &&
+         !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error;
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
@@ -1380,16 +1413,35 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  bool was_detached;
+  const bool result = ValidateAscii(args[0], &was_detached);
+  if (was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(
-      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
+  args.GetReturnValue().Set(result);
 }
+
+static bool FastIsAscii(Local<Value> receiver,
+                        Local<Value> value,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isAscii");
+  HandleScope scope(options.isolate);
+
+  bool was_detached;
+  const bool result = ValidateAscii(value, &was_detached);
+  if (was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result;
+}
+
+static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
@@ -1762,8 +1814,9 @@ void Initialize(Local<Object> target,
   SetFastMethod(context, target, "swap32", Swap32, &fast_swap32);
   SetFastMethod(context, target, "swap64", Swap64, &fast_swap64);
 
-  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
-  SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
+  SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
+  SetFastMethodNoSideEffect(
+      context, target, "isAscii", IsAscii, &fast_is_ascii);
 
   target
       ->Set(context,
@@ -1836,7 +1889,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_swap64);
 
   registry->Register(IsUtf8);
+  registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
+  registry->Register(fast_is_ascii);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
