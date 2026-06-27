@@ -586,6 +586,39 @@ import { setGlobalDispatcher } from 'undici';
 setGlobalDispatcher(new MyAgent());
 ```
 
+### Differences from the standard
+
+The Node.js `fetch` implementation is based on [undici][] and runs in a
+server-side environment, so it differs from browser-based Fetch
+implementations in several ways:
+
+* **No CORS enforcement.** Browsers restrict cross-origin requests via
+  [CORS][]. Node.js does not send preflight requests or validate
+  `Access-Control-Allow-Origin` headers, since server-side requests do
+  not have an origin. All cross-origin requests are allowed by default.
+* **Fewer forbidden headers.** The [Fetch Standard][] forbids setting
+  certain headers (such as `Cookie`, `Host`, and `Origin`) in browser
+  contexts. Node.js removes most of these restrictions (for example,
+  `Cookie` and `Origin` can be set freely), but some headers such as
+  `Host` remain restricted for security reasons.
+* **`Response` accepts async iterables.** `new Response(body)` accepts
+  async iterables as the `body` argument. This is a Node.js extension
+  not present in the Fetch Standard.
+* **Response bodies must be consumed.** In browsers, garbage collection
+  eventually releases unused response bodies. The Node.js garbage
+  collector is less aggressive, so not consuming or canceling response
+  bodies can lead to connection leaks. Always consume the body (e.g.,
+  with `response.text()` or `response.body.cancel()`) or use `HEAD`
+  requests when only headers are needed.
+* **`Content-Encoding` layer limit.** Node.js limits the number of
+  `Content-Encoding` layers (e.g., nested gzip) in a response to 5, to
+  prevent resource exhaustion attacks. Browsers do not impose this
+  limit.
+* **Manual redirect returns the actual response.** When the `redirect`
+  option is set to `"manual"`, Node.js returns the actual redirect
+  response. Browsers return a filtered response with type
+  `"opaqueredirect"` instead.
+
 ### Related classes
 
 The following globals are available to use with `fetch`:
@@ -1352,9 +1385,11 @@ changes:
 
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
+[CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS
 [CommonJS module]: modules.md
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
+[Fetch Standard]: https://fetch.spec.whatwg.org/
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
@@ -1428,5 +1463,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
+[undici]: https://undici.nodejs.org
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
 [webassembly-org]: https://webassembly.org
