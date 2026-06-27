@@ -5,6 +5,8 @@ import { describe, it } from 'node:test';
 
 describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   const tests = [
+    { name: 'source-map/output/source_map_assert_no_source_map.mjs' },
+    { name: 'source-map/output/source_map_assert_ok_no_source_map.cjs' },
     { name: 'source-map/output/source_map_disabled_by_api.js' },
     { name: 'source-map/output/source_map_disabled_by_process_api.js' },
     { name: 'source-map/output/source_map_enabled_by_api.js' },
