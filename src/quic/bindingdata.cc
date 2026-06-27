@@ -386,6 +386,39 @@ JS_METHOD_IMPL(BindingData::MakeWebtransportStream) {
                       session->id()));
 }
 
+// Closes a webtransport session stream,
+// also closes connected data streams
+JS_METHOD_IMPL(BindingData::CloseWebtransportSessionStream) {
+  Stream* stream;
+  CHECK_GT(args.Length(), 1);
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  uint32_t wt_error_code = 0;
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsUint32());
+    wt_error_code = FromV8Value<uint32_t>(args[1]);
+  }
+  uint8_t * msg = nullptr;
+  size_t msglen = 0;
+  if (args.Length() > 2) {
+    CHECK(args[2]->IsString());
+    Local<String> msgstr = args[2].As<String>();
+    const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
+    msg = new  uint8_t[length];
+    msgstr->WriteUtf8V2(
+      args.GetIsolate(), reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
+    msglen = std::min<size_t>(length, 1024);
+  }
+  args.GetReturnValue().Set(stream->session().application().CloseWebtransportSessionStream(
+    *stream,
+    wt_error_code,
+    msg,
+    msglen
+  ));
+  if (msg) {
+    delete[] msg;
+  }
+}
+
 BindingData::BindingData(Realm* realm, Local<Object> object)
     : BaseObject(realm, object),
       flush_check_(env(), [this]() { OnFlushCheck(); }) {
