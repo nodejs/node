@@ -61,7 +61,14 @@ cp.exec('where bash', common.mustCall((error, stdout) => {
   const lines = stdout.trim().split(/[\r\n]+/g);
   for (let i = 0; i < lines.length; ++i) {
     const bashPath = lines[i].trim();
+    const bashPathLower = bashPath.toLowerCase();
+
+    const isWSLBash =
+      bashPathLower.includes('windowsapps') ||
+      bashPathLower.includes('\\system32\\bash.exe');
+
     test(bashPath);
-    testCopy(`bash_${i}.exe`, bashPath);
+    // Skip WSL bash (cannot be symlinked)
+    if (!isWSLBash) testCopy(`bash_${i}.exe`, bashPath);
   }
 }));
