@@ -1180,6 +1180,34 @@ test('Strict equal with identical objects that are not identical ' +
   );
 });
 
+test('Strict equal skips line diff for very large objects', () => {
+  const buffer = Buffer.alloc(1_000);
+
+  assert.throws(
+    () => assert.strictEqual(buffer, [buffer]),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: /Skipped lines[\s\S]*Buffer\(1000\)/
+    }
+  );
+});
+
+test('Deep strict equal preserves line diff for large values with the same root', () => {
+  const actual = new Array(1_000).fill(0);
+  const expected = new Array(1_000).fill(0);
+  expected[10] = 1;
+
+  assert.throws(
+    () => assert.deepStrictEqual(actual, expected),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: /- {3}1/
+    }
+  );
+});
+
 test('Basic valueOf check', () => {
   const a = new String(1);
   a.valueOf = undefined;
