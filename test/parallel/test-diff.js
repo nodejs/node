@@ -31,7 +31,7 @@ describe('diff', () => {
     const expected = ['1', '2'];
 
     assert.throws(() => diff(actual, expected), {
-      message: 'The "actual[1]" argument must be of type string. Received an instance of Object'
+      message: 'The "actual[1]" property must be of type string. Received an instance of Object'
     });
   });
 
