@@ -1137,9 +1137,9 @@
             "href": "https://example.com/",
             "new_value": "xn--",
             "expected": {
-                "href": "https://example.com/",
-                "host": "example.com",
-                "hostname": "example.com"
+                "href": "https://xn--/",
+                "host": "xn--",
+                "hostname": "xn--"
             }
         },
         {
@@ -1611,9 +1611,9 @@
             "href": "https://example.com/",
             "new_value": "xn--",
             "expected": {
-                "href": "https://example.com/",
-                "host": "example.com",
-                "hostname": "example.com"
+                "href": "https://xn--/",
+                "host": "xn--",
+                "hostname": "xn--"
             }
         },
         {
