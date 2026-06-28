@@ -33,7 +33,8 @@ class NonIdempotentDataQueueReader;
 
 class EntryImpl : public DataQueue::Entry {
  public:
-  virtual std::shared_ptr<DataQueue::Reader> get_reader() = 0;
+  std::shared_ptr<DataQueue::Reader> get_reader(
+      Environment* env = nullptr) override = 0;
 };
 
 class DataQueueImpl final : public DataQueue,
@@ -188,7 +189,7 @@ class DataQueueImpl final : public DataQueue,
     return !backpressure_listeners_.empty();
   }
 
-  std::shared_ptr<Reader> get_reader() override;
+  std::shared_ptr<Reader> get_reader(Environment* env = nullptr) override;
   SET_MEMORY_INFO_NAME(DataQueue)
   SET_SELF_SIZE(DataQueueImpl)
 
@@ -549,7 +550,7 @@ class NonIdempotentDataQueueReader final
   bool pull_pending_ = false;
 };
 
-std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader() {
+std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader(Environment* env) {
   if (is_idempotent()) {
     return std::make_shared<IdempotentDataQueueReader>(shared_from_this());
   }
@@ -601,7 +602,7 @@ class EmptyEntry final : public EntryImpl {
   EmptyEntry& operator=(const EmptyEntry&) = delete;
   EmptyEntry& operator=(EmptyEntry&&) = delete;
 
-  std::shared_ptr<DataQueue::Reader> get_reader() override {
+  std::shared_ptr<DataQueue::Reader> get_reader(Environment* env) override {
     return std::make_shared<EmptyReader>();
   }
 
@@ -689,7 +690,7 @@ class InMemoryEntry final : public EntryImpl {
   InMemoryEntry& operator=(const InMemoryEntry&) = delete;
   InMemoryEntry& operator=(InMemoryEntry&&) = delete;
 
-  std::shared_ptr<DataQueue::Reader> get_reader() override {
+  std::shared_ptr<DataQueue::Reader> get_reader(Environment* env) override {
     return std::make_shared<InMemoryReader>(*this);
   }
 
@@ -760,8 +761,8 @@ class DataQueueEntry : public EntryImpl {
   DataQueueEntry& operator=(const DataQueueEntry&) = delete;
   DataQueueEntry& operator=(DataQueueEntry&&) = delete;
 
-  std::shared_ptr<DataQueue::Reader> get_reader() override {
-    return std::make_shared<ReaderImpl>(data_queue_->get_reader());
+  std::shared_ptr<DataQueue::Reader> get_reader(Environment* env) override {
+    return std::make_shared<ReaderImpl>(data_queue_->get_reader(env));
   }
 
   std::unique_ptr<Entry> slice(
@@ -872,8 +873,8 @@ class FdEntry final : public EntryImpl {
     CHECK_LE(start, end);
   }
 
-  std::shared_ptr<DataQueue::Reader> get_reader() override {
-    return ReaderImpl::Create(this);
+  std::shared_ptr<DataQueue::Reader> get_reader(Environment* env) override {
+    return ReaderImpl::Create(this, env);
   }
 
   std::unique_ptr<Entry> slice(
@@ -929,7 +930,8 @@ class FdEntry final : public EntryImpl {
                            public StreamListener,
                            public std::enable_shared_from_this<ReaderImpl> {
    public:
-    static std::shared_ptr<ReaderImpl> Create(FdEntry* entry) {
+    static std::shared_ptr<ReaderImpl> Create(FdEntry* entry,
+                                                Environment* env) {
       uv_fs_t req;
       auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
       int file =
@@ -938,7 +940,8 @@ class FdEntry final : public EntryImpl {
         uv_fs_close(nullptr, &req, file, nullptr);
         return nullptr;
       }
-      Realm* realm = entry->env()->principal_realm();
+      Environment* reader_env = env ? env : entry->env();
+      Realm* realm = reader_env->principal_realm();
       return std::make_shared<ReaderImpl>(
           BaseObjectPtr<fs::FileHandle>(
               fs::FileHandle::New(realm->GetBindingData<fs::BindingData>(),
