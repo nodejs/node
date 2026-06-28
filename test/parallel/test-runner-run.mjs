@@ -836,6 +836,22 @@ describe('env', () => {
     delete process.env.ABC;
   });
 
+  it('should inherit process.env when the env option is omitted', async () => {
+    // Set a variable on the main process env and confirm the spawned test
+    // inherits it when the env option is omitted (the default behavior).
+    process.env.INHERITED_VAR = 'XYZ';
+
+    try {
+      const stream = run({ files: [join(testFixtures, 'process-env-inherited.js')] });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    } finally {
+      delete process.env.INHERITED_VAR;
+    }
+  });
+
   it('should throw error when env is specified with isolation=none', async () => {
     assert.throws(() => run({ env: { foo: 'bar' }, isolation: 'none' }), {
       code: 'ERR_INVALID_ARG_VALUE',
