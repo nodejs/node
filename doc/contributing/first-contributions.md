@@ -198,8 +198,8 @@ merged, regardless of what GitHub shows.
 
 ### Q: When will my change be released?
 
-Commits merged into the `main` are released according to the release schedule,
-which are displayed in the [Release Working Group's pinned issues](https://github.com/nodejs/Release/issues).
+Commits merged into the `main` branch are released according to the release schedule of each release line.
+These are displayed in the [Release Working Group's pinned issues](https://github.com/nodejs/Release/issues).
 
 If the pull request is not labeled `dont-land-*` or `semver-major`, it will be included in the next
 "current" release. If the change is labeled `dont-land-*`, it will be held back from release until
