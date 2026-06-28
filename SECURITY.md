@@ -532,6 +532,7 @@ In addition, these individuals have access:
 * [cjihrig](https://github.com/cjihrig) **Colin Ihrig**
 * [joesepi](https://github.com/joesepi) - **Joe Sepi**
 * [juanarbol](https://github.com/juanarbol) **Juan Jose Arboleda**
+* [sxa](https://github.com/sxa) - **Stewart X Addison**
 * [ulisesgascon](https://github.com/ulisesgascon) **Ulises Gascón**
 * [vdeturckheim](https://github.com/vdeturckheim) - **Vladimir de Turckheim**
 
@@ -546,6 +547,7 @@ the Node.js program on HackerOne.
 * [@anonrig](https://github.com/anonrig) - Yagiz Nizipli
 * [@bengl](https://github.com/bengl) - Bryan English
 * [@benjamingr](https://github.com/benjamingr) - Benjamin Gruenbaum
+* [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
 * [@bmeck](https://github.com/bmeck) - Bradley Farias
 * [@bnoordhuis](https://github.com/bnoordhuis) - Ben Noordhuis
 * [@BridgeAR](https://github.com/BridgeAR) - Ruben Bridgewater
@@ -568,6 +570,7 @@ the Node.js program on HackerOne.
 * [@ruyadorno](https://github.com/ruyadorno) - Ruy Adorno
 * [@santigimeno](https://github.com/santigimeno) - Santiago Gimeno
 * [@ShogunPanda](https://github.com/ShogunPanda) - Paolo Insogna
+* [@sxa](https://github.com/sxa) - Stewart X Addison
 * [@targos](https://github.com/targos) - Michaël Zasso
 * [@tniessen](https://github.com/tniessen) - Tobias Nießen
 * [@UlisesGascon](https://github.com/UlisesGascon) - Ulises Gascón
