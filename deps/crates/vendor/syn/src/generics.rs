@@ -6,11 +6,12 @@ use crate::path::Path;
 use crate::punctuated::{Iter, IterMut, Punctuated};
 use crate::token;
 use crate::ty::Type;
+use alloc::vec::Vec;
+#[cfg(all(feature = "printing", feature = "extra-traits"))]
+use core::fmt::{self, Debug};
+#[cfg(all(feature = "printing", feature = "extra-traits"))]
+use core::hash::{Hash, Hasher};
 use proc_macro2::TokenStream;
-#[cfg(all(feature = "printing", feature = "extra-traits"))]
-use std::fmt::{self, Debug};
-#[cfg(all(feature = "printing", feature = "extra-traits"))]
-use std::hash::{Hash, Hasher};
 
 ast_struct! {
     /// Lifetimes and type parameters attached to a declaration of a function,
@@ -385,7 +386,7 @@ impl LifetimeParam {
 impl From<Ident> for TypeParam {
     fn from(ident: Ident) -> Self {
         TypeParam {
-            attrs: vec![],
+            attrs: Vec::new(),
             ident,
             colon_token: None,
             bounds: Punctuated::new(),
@@ -644,7 +645,7 @@ pub(crate) mod parsing {
                     let mut bounds = Punctuated::new();
                     if has_colon {
                         loop {
-                            if input.peek(Token![,]) || input.peek(Token![>]) {
+                            if input.is_empty() || input.peek(Token![,]) || input.peek(Token![>]) {
                                 break;
                             }
                             let value = input.parse()?;
@@ -705,7 +706,11 @@ pub(crate) mod parsing {
             let mut bounds = Punctuated::new();
             if colon_token.is_some() {
                 loop {
-                    if input.peek(Token![,]) || input.peek(Token![>]) || input.peek(Token![=]) {
+                    if input.is_empty()
+                        || input.peek(Token![,])
+                        || input.peek(Token![>])
+                        || input.peek(Token![=])
+                    {
                         break;
                     }
                     bounds.push_value({

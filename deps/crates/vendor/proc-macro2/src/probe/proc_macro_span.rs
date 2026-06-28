@@ -2,10 +2,14 @@
 // If the current toolchain is able to compile it, then proc-macro2 is able to
 // offer these APIs too.
 
+#![cfg_attr(procmacro2_build_probe, no_std)]
 #![cfg_attr(procmacro2_build_probe, feature(proc_macro_span))]
 
+extern crate alloc;
 extern crate proc_macro;
+extern crate std;
 
+use alloc::string::String;
 use core::ops::{Range, RangeBounds};
 use proc_macro::{Literal, Span};
 use std::path::PathBuf;

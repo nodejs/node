@@ -13,8 +13,7 @@ use crate::rata_die::{Moment, RataDie};
 use core_maths::*;
 
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L2206>
-pub(crate) const FIXED_HEBREW_EPOCH: RataDie =
-    crate::julian::fixed_from_julian_book_version(-3761, 10, 7);
+pub const HEBREW_EPOCH: RataDie = crate::julian::fixed_from_julian_book_version(-3761, 10, 7);
 
 /// Biblical Hebrew dates. The months are reckoned a bit strangely, with the new year occurring on
 /// Tishri (as in the civil calendar) but the months being numbered in a different order
@@ -116,7 +115,7 @@ impl BookHebrew {
             + ((235.0 * y as f64 - 234.0) / 19.0).floor(); // Months until New Year.
 
         Moment::new(
-            FIXED_HEBREW_EPOCH.to_f64_date() - (876.0 / 25920.0)
+            HEBREW_EPOCH.to_f64_date() - (876.0 / 25920.0)
                 + months_elapsed * (29.0 + (1.0 / 2.0) + (793.0 / 25920.0)),
         )
     }
@@ -166,7 +165,7 @@ impl BookHebrew {
     /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L2294>
     pub fn book_hebrew_new_year(book_year: i32) -> RataDie {
         RataDie::new(
-            FIXED_HEBREW_EPOCH.to_i64_date()
+            HEBREW_EPOCH.to_i64_date()
                 + Self::book_hebrew_calendar_elapsed_days(book_year) as i64
                 + Self::book_hebrew_year_length_correction(book_year) as i64,
         )
@@ -256,7 +255,7 @@ impl BookHebrew {
     /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L2352>
     pub fn book_hebrew_from_fixed(date: RataDie) -> BookHebrew {
         let approx = i64_to_i32(
-            1 + ((date - FIXED_HEBREW_EPOCH) as f64).div_euclid(35975351.0 / 98496.0) as i64, //  The value 35975351/98496, the average length of a BookHebrew year, can be approximated by 365.25
+            1 + ((date - HEBREW_EPOCH) as f64).div_euclid(35975351.0 / 98496.0) as i64, //  The value 35975351/98496, the average length of a BookHebrew year, can be approximated by 365.25
         )
         .unwrap_or_else(|e| e.saturate());
 
@@ -573,7 +572,7 @@ mod tests {
     #[test]
     fn test_hebrew_epoch() {
         // page 119 of the Calendrical Calculations book
-        assert_eq!(FIXED_HEBREW_EPOCH, RataDie::new(-1373427));
+        assert_eq!(HEBREW_EPOCH, RataDie::new(-1373427));
     }
 
     #[test]

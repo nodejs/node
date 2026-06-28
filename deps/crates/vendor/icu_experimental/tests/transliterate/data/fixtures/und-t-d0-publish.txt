@@ -1,0 +1,52 @@
+"The" "(quick)" ('brown')	“The” “(quick)” (‘brown’)
+`fox' ` jumped --     "over?"	‘fox’ ‘ jumped — “over?”
+Foo bar baz	Foo bar baz
+(c)2016	©2016
+(C)2016	©2016
+Trademark(tm)	Trademark™
+Trademark(TM)	Trademark™
+Registered(R)	Registered®
+Registered(r)	Registered®
+c/o Unicode	℅ Unicode
+Hello...	Hello…
+a!=b	a≠b
+a<=b	a≤b
+a>=b	a≥b
+a<-->b	a↔b
+a<--b	a←b
+a-->b	a→b
+a<-/->b	a↮b
+a<-/-b	a↚b
+a-/->b	a↛b
+a<--->b	a⟷b
+a<---b	a⟵b
+a--->b	a⟶b
+a<==>b	a⇔b
+a<==b	a⇐b
+a==>b	a⇒b
+a<===>b	a⟺b
+a<===b	a⟸b
+a===>b	a⟹b
++-7	±7
+-+7	∓7
+x~=y	x≅y
+A1/2	A½
+A½	A½
+A11/2	A11/2
+81/2	81/2
+1/28	1/28
+B1/3	B⅓
+C2/3	C⅔
+D1/4	D¼
+E3/4	E¾
+F1/5	F⅕
+G2/5	G⅖
+H3/5	H⅗
+I4/5	I⅘
+J1/6	J⅙
+K5/6	K⅚
+L1/8	L⅛
+M3/8	M⅜
+N5/8	N⅝
+O7/8	O⅞
+2/3x	⅔x

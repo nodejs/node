@@ -1,0 +1,57 @@
+// @generated
+/// Implement `DataProvider<UnitsNamesDurationExtendedV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_units_names_duration_extended_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1>, icu_provider::DataError> {
+                Err(icu_provider::DataErrorKind::IdentifierNotFound.with_req(<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1 as icu_provider::DataMarker>::INFO, req))
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_units_names_duration_extended_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BTreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok(Default::default())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_units_names_duration_extended_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                Err(icu_provider::DataErrorKind::IdentifierNotFound.with_req(<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1 as icu_provider::DataMarker>::INFO, req))
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_units_names_duration_extended_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                Err(icu_provider::DataErrorKind::IdentifierNotFound.with_req(<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1 as icu_provider::DataMarker>::INFO, req))
+            }
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::experimental::dimension::provider::units::categorized_display_names::UnitsNamesDurationExtendedV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BTreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok(Default::default())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_units_names_duration_extended_v1 as impl_units_names_duration_extended_v1;

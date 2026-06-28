@@ -19,6 +19,5 @@ use crate::support::Float;
 #[inline]
 pub fn fmin<F: Float>(x: F, y: F) -> F {
     let res = if y.is_nan() || x < y { x } else { y };
-    // Canonicalize
-    res * F::ONE
+    res.canonicalize()
 }

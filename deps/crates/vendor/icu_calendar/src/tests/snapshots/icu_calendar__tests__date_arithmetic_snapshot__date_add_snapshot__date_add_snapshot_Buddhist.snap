@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(2566-1-1, be era, for calendar Buddhist))
+    +10d → Date(2566-1-11, be era, for calendar Buddhist)
+    +2m → Date(2566-3-1, be era, for calendar Buddhist)
+    +1y → Date(2567-1-1, be era, for calendar Buddhist)
+    +1y 3m 15d → Date(2567-4-16, be era, for calendar Buddhist)
+
+2024-6-15
+  (start: Date(2567-6-15, be era, for calendar Buddhist))
+    +10d → Date(2567-6-25, be era, for calendar Buddhist)
+    +2m → Date(2567-8-15, be era, for calendar Buddhist)
+    +1y → Date(2568-6-15, be era, for calendar Buddhist)
+    +1y 3m 15d → Date(2568-9-30, be era, for calendar Buddhist)
+
+2025-12-31
+  (start: Date(2568-12-31, be era, for calendar Buddhist))
+    +10d → Date(2569-1-10, be era, for calendar Buddhist)
+    +2m → Date(2569-2-28, be era, for calendar Buddhist)
+    +1y → Date(2569-12-31, be era, for calendar Buddhist)
+    +1y 3m 15d → Date(2570-4-15, be era, for calendar Buddhist)

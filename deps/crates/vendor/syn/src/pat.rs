@@ -5,6 +5,8 @@ use crate::path::{Path, QSelf};
 use crate::punctuated::Punctuated;
 use crate::token;
 use crate::ty::Type;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use proc_macro2::TokenStream;
 
 pub use crate::expr::{
@@ -256,6 +258,8 @@ pub(crate) mod parsing {
     use crate::stmt::Block;
     use crate::token;
     use crate::verbatim;
+    use alloc::boxed::Box;
+    use alloc::vec::Vec;
     use proc_macro2::TokenStream;
 
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]

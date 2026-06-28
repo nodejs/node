@@ -2,6 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+// #![warn(missing_docs)]
+
 //! Zero-copy vector abstractions for arbitrary types, backed by byte slices.
 //!
 //! `zerovec` enables a far wider range of types — beyond just `&[u8]` and `&str` — to participate in
@@ -51,7 +64,7 @@
 //!
 //! # Examples
 //!
-//! Serialize and deserialize a struct with ZeroVec and VarZeroVec with Bincode:
+//! Serialize and deserialize a struct with [`ZeroVec`] and [`VarZeroVec`] with Bincode:
 //!
 //! ```
 //! # #[cfg(feature = "serde")] {
@@ -87,7 +100,7 @@
 //! # } // feature = "serde"
 //! ```
 //!
-//! Use custom types inside of ZeroVec:
+//! Use custom types inside of [`ZeroVec`]:
 //!
 //! ```rust
 //! # #[cfg(all(feature = "serde", feature = "derive"))] {
@@ -167,7 +180,7 @@
 //! `zerovec` is designed for fast deserialization from byte buffers with zero memory allocations
 //! while minimizing performance regressions for common vector operations.
 //!
-//! Benchmark results on x86_64:
+//! Benchmark results on `x86_64`:
 //!
 //! | Operation | `Vec<T>` | `zerovec` |
 //! |---|---|---|
@@ -193,21 +206,6 @@
 //! `zeromap` benches are named by convention, e.g. `zeromap/deserialize/small`, `zeromap/lookup/large`. The type
 //! is appended for baseline comparisons, e.g. `zeromap/lookup/small/hashmap`.
 
-// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
-#![cfg_attr(not(any(test, doc)), no_std)]
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::indexing_slicing,
-        clippy::unwrap_used,
-        clippy::expect_used,
-        clippy::panic,
-        clippy::exhaustive_structs,
-        clippy::exhaustive_enums,
-        clippy::trivially_copy_pass_by_ref,
-        missing_debug_implementations,
-    )
-)]
 // this crate does a lot of nuanced lifetime manipulation, being explicit
 // is better here.
 #![allow(clippy::needless_lifetimes)]
@@ -224,6 +222,8 @@ mod map;
 mod map2d;
 #[cfg(test)]
 pub mod samples;
+#[cfg(feature = "schemars")]
+mod schemars;
 mod varzerovec;
 mod zerovec;
 
@@ -416,7 +416,7 @@ pub use zerovec_derive::make_ule;
 ///
 /// This can be attached to structs containing only [`AsULE`] types with the last fields being
 /// [`Cow<'a, str>`](alloc::borrow::Cow), [`ZeroSlice`], or [`VarZeroSlice`]. If there is more than one such field, it will be represented
-/// using [`MultiFieldsULE`](crate::ule::MultiFieldsULE) and getters will be generated. Other VarULE fields will be detected if they are
+/// using [`MultiFieldsULE`](crate::ule::MultiFieldsULE) and getters will be generated. Other [`VarULE`] fields will be detected if they are
 /// tagged with `#[zerovec::varule(NameOfVarULETy)]`.
 ///
 /// The type must be [`PartialEq`] and [`Eq`].
@@ -542,7 +542,6 @@ pub use zerovec_derive::make_varule;
 #[cfg(target_pointer_width = "64")]
 mod tests {
     use super::*;
-    use core::mem::size_of;
 
     /// Checks that the size of the type is one of the given sizes.
     /// The size might differ across Rust versions or channels.

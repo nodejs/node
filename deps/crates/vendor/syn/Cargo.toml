@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.68"
+rust-version = "1.71"
 name = "syn"
-version = "2.0.111"
+version = "2.0.117"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 build = false
 include = [
@@ -262,7 +262,7 @@ version = "1"
 version = "1"
 
 [target."cfg(not(miri))".dev-dependencies.reqwest]
-version = "0.12"
+version = "0.13"
 features = ["blocking"]
 
 [target."cfg(not(miri))".dev-dependencies.tar]

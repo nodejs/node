@@ -1,0 +1,14 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+# Source - unicode-org/test-corpora
+# Files -  gutenberg/Carroll-11/out/google/txt/es/8860606395858576540_11-h-1.htm.txt (Continued into h-2, h-3)
+# Language - Spanish
+
+No había nada de extraordinario en eso; ni a Alicia le pareció tan extraño oír al Conejo decirse a sí mismo: "¡Ay, Dios mío! ¡Ay, Dios mío! ¡Llegaré tarde!" (Cuando lo pensó después, se le ocurrió que debería haberse sorprendido, pero en ese momento todo le pareció bastante natural); pero cuando el Conejo sacó un reloj del bolsillo del chaleco , lo miró y luego se apresuró a seguir adelante, Alicia se puso de pie de un salto, pues recordó que nunca antes había visto un conejo con un bolsillo del chaleco ni un reloj que sacar de él, y, ardiendo de curiosidad, corrió por el campo tras él, y afortunadamente llegó justo a tiempo de verlo caer por una gran madriguera bajo el seto.
+Un instante después, Alicia se lanzó tras él, sin pensar ni una sola vez en cómo iba a salir de nuevo.
+La madriguera del conejo seguía recta como un túnel durante un trecho, y luego descendía de repente, tan de repente que Alicia no tuvo un momento para pensar en detenerse antes de encontrarse cayendo en un pozo muy profundo.
+O bien el pozo era muy profundo, o bien cayó muy despacio, pues tuvo tiempo de sobra mientras bajaba para mirar a su alrededor y preguntarse qué sucedería después. Primero, intentó mirar hacia abajo y descifrar adónde se dirigía, pero estaba demasiado oscuro para ver nada; luego miró a los lados del pozo y notó que estaban llenos de armarios y estanterías; aquí y allá vio mapas y cuadros colgados de ganchos. Bajó un frasco de uno de los estantes al pasar; estaba etiquetado como «Mermelada de naranja», pero para su gran decepción estaba vacío: no quería dejar caer el frasco por miedo a matar a alguien que estuviera debajo, así que logró meterlo en uno de los armarios al caer junto a él.
+—¡Vaya! —pensó Alicia—. ¡Después de una caída como esta, no me importará caerme por las escaleras! ¡Qué valiente me considerarán todos en casa! ¡Ni aunque me cayera del tejado! (Lo cual probablemente era cierto).
+Abajo, abajo, abajo. ¿Acaso la caída nunca terminaría? «¿Cuántos kilómetros habré caído ya?», dijo en voz alta. «Debo estar acercándome al centro de la Tierra. Veamos: creo que serían seis mil kilómetros de caída...» (porque, verán, Alicia había aprendido varias cosas así en sus clases, y aunque esta no era una buena oportunidad para demostrar sus conocimientos, ya que no había nadie que la escuchara, era una buena práctica repetirlo). «Sí, esa es más o menos la distancia correcta, pero luego me pregunto a qué latitud o longitud habré llegado.» (Alicia no tenía ni idea de qué era latitud ni longitud, pero le parecían palabras bonitas y grandilocuentes).

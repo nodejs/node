@@ -4,9 +4,13 @@
 
 use super::{ZeroSlice, ZeroVec};
 use crate::ule::*;
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 use core::marker::PhantomData;
-use serde::de::{self, Deserialize, Deserializer, Visitor};
+#[cfg(feature = "alloc")]
+use serde::de::SeqAccess;
+use serde::de::{Deserialize, Deserializer, Error, Visitor};
 #[cfg(feature = "serde")]
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 
@@ -34,20 +38,20 @@ where
 
     fn visit_borrowed_bytes<E>(self, bytes: &'de [u8]) -> Result<Self::Value, E>
     where
-        E: de::Error,
+        E: Error,
     {
-        ZeroVec::parse_bytes(bytes).map_err(de::Error::custom)
+        ZeroVec::parse_bytes(bytes).map_err(Error::custom)
     }
 
     #[cfg(feature = "alloc")]
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
-        A: serde::de::SeqAccess<'de>,
+        A: SeqAccess<'de>,
     {
-        let mut vec: alloc::vec::Vec<T::ULE> = if let Some(capacity) = seq.size_hint() {
-            alloc::vec::Vec::with_capacity(capacity)
+        let mut vec: Vec<T::ULE> = if let Some(capacity) = seq.size_hint() {
+            Vec::with_capacity(capacity)
         } else {
-            alloc::vec::Vec::new()
+            Vec::new()
         };
         while let Some(value) = seq.next_element::<T>()? {
             vec.push(T::to_unaligned(value));
@@ -98,7 +102,7 @@ where
 
 /// This impl requires enabling the optional `serde` Cargo feature of the `zerovec` crate
 #[cfg(feature = "alloc")]
-impl<'de, T> Deserialize<'de> for alloc::boxed::Box<ZeroSlice<T>>
+impl<'de, T> Deserialize<'de> for Box<ZeroSlice<T>>
 where
     T: Deserialize<'de> + AsULE + 'static,
 {
@@ -123,7 +127,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            Err(de::Error::custom(
+            Err(Error::custom(
                 "&ZeroSlice cannot be deserialized from human-readable formats",
             ))
         } else {
@@ -131,7 +135,7 @@ where
             let borrowed = if let Some(b) = deserialized.as_maybe_borrowed() {
                 b
             } else {
-                return Err(de::Error::custom(
+                return Err(Error::custom(
                     "&ZeroSlice can only deserialize in zero-copy ways",
                 ));
             };

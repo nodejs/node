@@ -1,0 +1,3 @@
+ＴＥＳＴ	TEST
+m̱a̱c̱ṟo̱ṉ below	macron below
+cldrbug:1̱0̱1̱2̱3̱	cldrbug:10123

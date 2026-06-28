@@ -1,0 +1,15 @@
+# we are inside a recursive call.
+
+# first we get abc, with only `b` modifiable.
+
+Xa { b > 'bad' ; # must not match - X is not part of the input
+b } c X > 'bad' ; # must not match - X is not part of the input
+
+b } c > | B ; # must match
+
+B c > 'bad' ; # must not match - c is outside the filter
+^ . { B } c $ > WORKED ; # must match - the surrounding X's are not part of the input, so anchors should match
+
+# the passed 'd' and 'e' do not pass the filter, so they should have no effect
+
+d { .? > 'replaced empty match' ;

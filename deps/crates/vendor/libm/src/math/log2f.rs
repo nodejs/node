@@ -13,8 +13,6 @@
  * See comments in log2.c.
  */
 
-use core::f32;
-
 const IVLN2HI: f32 = 1.4428710938e+00; /* 0x3fb8b000 */
 const IVLN2LO: f32 = -1.7605285393e-04; /* 0xb9389ad4 */
 /* |(log(1+s)-log(1-s))/s - Lg(s)| < 2**-34.24 (~[-4.95e-11, 4.97e-11]). */
@@ -24,7 +22,7 @@ const LG3: f32 = 0.28498786688; /* 0x91e9ee.0p-25 */
 const LG4: f32 = 0.24279078841; /* 0xf89e26.0p-26 */
 
 /// The base 2 logarithm of `x` (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn log2f(mut x: f32) -> f32 {
     let x1p25f = f32::from_bits(0x4c000000); // 0x1p25f === 2 ^ 25
 

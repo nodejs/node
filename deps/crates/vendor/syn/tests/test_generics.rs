@@ -343,3 +343,14 @@ fn no_opaque_drop() {
             lifetime
         });
 }
+
+#[test]
+fn type_param_with_colon_and_no_bounds() {
+    let tokens = quote!(T:);
+    snapshot!(tokens as GenericParam, @r#"
+    GenericParam::Type(TypeParam {
+        ident: "T",
+        colon_token: Some,
+    })
+    "#);
+}

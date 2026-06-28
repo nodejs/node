@@ -54,6 +54,7 @@ mod parsing {
     use crate::error::Result;
     use crate::parse::{Parse, ParseStream};
     use crate::token::Token;
+    use alloc::string::ToString;
     use proc_macro2::Ident;
 
     fn accept_as_ident(ident: &Ident) -> bool {

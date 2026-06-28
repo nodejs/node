@@ -4,6 +4,8 @@ use crate::item::Item;
 use crate::mac::Macro;
 use crate::pat::Pat;
 use crate::token;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 ast_struct! {
     /// A braced block containing Rust statements.
@@ -93,6 +95,8 @@ pub(crate) mod parsing {
     use crate::stmt::{Block, Local, LocalInit, Stmt, StmtMacro};
     use crate::token;
     use crate::ty::Type;
+    use alloc::boxed::Box;
+    use alloc::vec::Vec;
     use proc_macro2::TokenStream;
 
     struct AllowNoSemi(bool);

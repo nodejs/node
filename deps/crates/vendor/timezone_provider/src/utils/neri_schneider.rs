@@ -41,7 +41,7 @@
 pub const EPOCH_COMPUTATIONAL_RATA_DIE: i32 = 719_468;
 pub const DAYS_IN_A_400Y_CYCLE: u32 = 146_097;
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 const TWO_POWER_THIRTY_NINE: u64 = 549_755_813_888; // 2^39 constant
 const TWO_POWER_THIRTY_TWO: u64 = 4_294_967_296; // 2^32 constant
 const TWO_POWER_SIXTEEN: u32 = 65_536; // 2^16 constant
@@ -79,7 +79,7 @@ const fn rata_die_first_equations(year: i32, month: u8, day: u8) -> (u64, i64, i
 // Computational days to gregorian YMD
 
 // Determine j
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 const fn j(rata_die: u32) -> u32 {
     (computational_day_of_year(rata_die) >= 306) as u32
 }
@@ -88,7 +88,7 @@ const fn n_one(rata_die: u32) -> u32 {
     4 * rata_die + 3
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 const fn n_two(rata_die: u32) -> u32 {
     century_rem(rata_die) | 3
 }
@@ -101,12 +101,12 @@ const fn first_equations(rata_die: u32) -> (u32, u32) {
     (century_num, century_rem)
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 const fn century_rem(rata_die: u32) -> u32 {
     n_one(rata_die).rem_euclid(DAYS_IN_A_400Y_CYCLE)
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub const fn century_number(rata_die: u32) -> u32 {
     n_one(rata_die).div_euclid(DAYS_IN_A_400Y_CYCLE)
 }
@@ -135,24 +135,24 @@ const fn third_equations(rata_die: u32) -> (u32, u32, u32, u32) {
 }
 
 // Z
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub const fn computational_year_of_century(rata_die: u32) -> u64 {
     (376_287_347 * n_two(rata_die) as u64).div_euclid(TWO_POWER_THIRTY_NINE)
 }
 
 // N_y
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub const fn computational_day_of_year(rata_die: u32) -> u32 {
     (n_two(rata_die) - 1461 * computational_year_of_century(rata_die) as u32).div_euclid(4)
 }
 
 // Y
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub const fn computational_year(rata_die: u32) -> u32 {
     100 * century_number(rata_die) + computational_year_of_century(rata_die) as u32
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub const fn year(computational_rata_die: u32, shift_constant: i32) -> i32 {
     (computational_year(computational_rata_die) + j(computational_rata_die)) as i32 - shift_constant
 }
@@ -186,7 +186,7 @@ pub const fn ymd_from_epoch_days(epoch_days: i32) -> (i32, u8, u8) {
 }
 
 #[cfg(test)]
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 mod tests {
     use super::*;
 

@@ -123,7 +123,7 @@
 //! // Invalid entries are fallible
 //! let err_value = zm.get(&30).expect("element is present");
 //! let err_loc = Locale::try_from_utf8(err_value);
-//! assert!(matches!(err_loc, Err(_)));
+//! assert!(err_loc.is_err());
 //! ```
 //!
 //! [`Locale`]: crate::Locale

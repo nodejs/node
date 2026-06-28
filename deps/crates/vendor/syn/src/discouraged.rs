@@ -3,11 +3,11 @@
 use crate::buffer::Cursor;
 use crate::error::Result;
 use crate::parse::{inner_unexpected, ParseBuffer, Unexpected};
+use alloc::rc::Rc;
+use core::cell::Cell;
+use core::mem;
 use proc_macro2::extra::DelimSpan;
 use proc_macro2::Delimiter;
-use std::cell::Cell;
-use std::mem;
-use std::rc::Rc;
 
 /// Extensions to the `ParseStream` API to support speculative parsing.
 pub trait Speculative {

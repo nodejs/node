@@ -1,5 +1,3 @@
-use core::f64;
-
 use super::sqrt;
 
 const SPLIT: f64 = 134217728. + 1.; // 0x1p27 + 1 === (2 ^ 27) + 1
@@ -17,7 +15,7 @@ fn sq(x: f64) -> (f64, f64) {
     (hi, lo)
 }
 
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn hypot(mut x: f64, mut y: f64) -> f64 {
     let x1p700 = f64::from_bits(0x6bb0000000000000); // 0x1p700 === 2 ^ 700
     let x1p_700 = f64::from_bits(0x1430000000000000); // 0x1p-700 === 2 ^ -700

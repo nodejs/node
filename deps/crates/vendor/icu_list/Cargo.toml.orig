@@ -1,0 +1,50 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "icu_list"
+description = "ECMA-402 ListFormatter"
+categories.workspace = true
+keywords = ["unicode", "formatting", "internationalization", "sequence"]
+
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+icu_provider = { workspace = true }
+regex-automata = { workspace = true, features = ["dfa-search"] }
+writeable = { workspace = true }
+zerovec = { workspace = true, features = ["alloc"] }
+
+databake = { workspace = true, features = ["derive"], optional = true}
+serde = { workspace = true, features = ["derive"], optional = true }
+
+icu_list_data = { workspace = true, optional = true }
+icu_locale = { workspace = true, optional = true }
+
+[dev-dependencies]
+icu = { path = "../../components/icu", default-features = false }
+postcard = { workspace = true, features = ["use-std"] }
+rmp-serde = { workspace = true }
+serde_json = { workspace = true }
+
+
+[features]
+default = ["compiled_data"]
+serde = ["dep:serde", "icu_provider/serde", "icu_provider/alloc", "zerovec/serde"]
+serde_human = ["serde", "regex-automata/dfa-build", "regex-automata/syntax", "alloc"]
+datagen = ["serde", "dep:databake", "regex-automata/dfa-build", "regex-automata/syntax", "zerovec/databake", "alloc", "serde_human", "icu_provider/export"]
+compiled_data = ["dep:icu_list_data", "dep:icu_locale", "icu_locale?/compiled_data", "icu_provider/baked"]
+alloc = ["zerovec/alloc", "icu_provider/alloc", "serde?/alloc"]
+
+[lints]
+workspace = true

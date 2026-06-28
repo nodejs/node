@@ -1,0 +1,53 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "fixed_decimal"
+description = "An API for representing numbers in a human-readable form"
+version = "0.7.2"
+categories.workspace = true
+keywords = ["decimals", "numbers"]
+
+authors.workspace = true
+edition.workspace = true
+include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version = "1.82"
+
+[package.metadata.workspaces]
+independent = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+displaydoc = { workspace = true }
+smallvec = { workspace = true, features = ["const_new"] }
+writeable = { workspace = true, features = ["alloc"] }
+
+ryu = { workspace = true, features = ["small"], optional = true }
+
+[dev-dependencies]
+getrandom = { workspace = true, features = ["wasm_js"] }
+icu_benchmark_macros = { path = "../../tools/benchmark/macros" }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+rand_pcg = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[features]
+ryu = ["dep:ryu"]
+
+[lib]
+bench = false  # This option is required for Benchmark CI
+
+[[bench]]
+name = "fixed_decimal"
+harness = false
+
+[lints]
+workspace = true

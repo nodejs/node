@@ -27,18 +27,19 @@ use crate::error::Result;
 use crate::parse::{Parse, ParseStream};
 #[cfg(feature = "parsing")]
 use crate::token::Token;
+use alloc::boxed::Box;
 #[cfg(all(feature = "fold", any(feature = "full", feature = "derive")))]
-use std::collections::VecDeque;
+use alloc::collections::VecDeque;
+use alloc::vec::{self, Vec};
 #[cfg(feature = "extra-traits")]
-use std::fmt::{self, Debug};
+use core::fmt::{self, Debug};
 #[cfg(feature = "extra-traits")]
-use std::hash::{Hash, Hasher};
+use core::hash::{Hash, Hasher};
 #[cfg(any(feature = "full", feature = "derive"))]
-use std::iter;
-use std::ops::{Index, IndexMut};
-use std::option;
-use std::slice;
-use std::vec;
+use core::iter;
+use core::ops::{Index, IndexMut};
+use core::option;
+use core::slice;
 
 /// **A punctuated sequence of syntax tree nodes of type `T` separated by
 /// punctuation of type `P`.**

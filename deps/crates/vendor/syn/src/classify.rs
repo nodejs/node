@@ -8,10 +8,10 @@ use crate::path::{Path, PathArguments};
 use crate::punctuated::Punctuated;
 #[cfg(any(feature = "printing", feature = "full"))]
 use crate::ty::{ReturnType, Type};
+#[cfg(any(feature = "printing", feature = "full"))]
+use core::ops::ControlFlow;
 #[cfg(feature = "full")]
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
-#[cfg(any(feature = "printing", feature = "full"))]
-use std::ops::ControlFlow;
 
 #[cfg(feature = "full")]
 pub(crate) fn requires_semi_to_be_stmt(expr: &Expr) -> bool {

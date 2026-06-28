@@ -35,7 +35,7 @@ use tinystr::TinyAsciiStr;
 /// assert_eq!(locale, "ja-Latn-alalc97-fonipa".parse().unwrap());
 /// ```
 ///
-/// [UTS #35: Annex C, LocaleId Canonicalization]: http://unicode.org/reports/tr35/#LocaleId_Canonicalization
+/// [UTS #35: Annex C, LocaleId Canonicalization]: https://unicode.org/reports/tr35/#LocaleId_Canonicalization
 #[derive(Debug)]
 pub struct LocaleCanonicalizer<Expander = LocaleExpander> {
     /// Data to support canonicalization.
@@ -270,9 +270,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleCanonicalizer<Expander> {
     #[cfg(feature = "compiled_data")]
     pub const fn new_with_expander(expander: Expander) -> Self {
         Self {
-            aliases: DataPayload::from_static_ref(
-                crate::provider::Baked::SINGLETON_LOCALE_ALIASES_V1,
-            ),
+            aliases: DataPayload::from_static_ref(Baked::SINGLETON_LOCALE_ALIASES_V1),
             expander,
         }
     }
@@ -301,7 +299,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleCanonicalizer<Expander> {
 
     /// The canonicalize method potentially updates a passed in locale in place
     /// depending up the results of running the canonicalization algorithm
-    /// from <http://unicode.org/reports/tr35/#LocaleId_Canonicalization>.
+    /// from <https://unicode.org/reports/tr35/#LocaleId_Canonicalization>.
     ///
     /// Some BCP47 canonicalization data is not part of the CLDR json package. Because
     /// of this, some canonicalizations are not performed, e.g. the canonicalization of
@@ -450,7 +448,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleCanonicalizer<Expander> {
                         if modified.is_empty() {
                             modified = locale.id.variants.to_vec();
                         }
-                        #[allow(clippy::indexing_slicing)]
+                        #[expect(clippy::indexing_slicing)]
                         let _ = core::mem::replace(&mut modified[idx], updated);
                     }
                 }
@@ -589,8 +587,7 @@ mod test {
                     rule.variants.iter().map(Variant::as_str),
                 ),
                 result,
-                "{}",
-                source
+                "{source}"
             );
         }
     }

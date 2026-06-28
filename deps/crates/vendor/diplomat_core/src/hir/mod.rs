@@ -4,6 +4,7 @@
 
 mod attrs;
 mod defs;
+mod docs;
 mod elision;
 mod lifetimes;
 mod lowering;
@@ -15,6 +16,7 @@ mod type_context;
 mod types;
 pub use attrs::*;
 pub use defs::*;
+pub use docs::{Docs, DocsUrlGenerator, TypeReferenceSyntax as DocsTypeReferenceSyntax};
 pub(super) use elision::*;
 pub use lifetimes::*;
 pub(super) use lowering::*;
@@ -27,5 +29,4 @@ pub use types::*;
 
 pub use lowering::{ErrorAndContext, ErrorContext, LoweringError};
 
-pub use crate::ast::{Docs, DocsTypeReferenceSyntax, DocsUrlGenerator};
 pub use strck::ident::rust::{Ident, IdentBuf};

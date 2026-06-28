@@ -1,8 +1,6 @@
 //! Utilities for working with hex float formats.
 
-use core::fmt;
-
-use super::{Float, Round, Status, f32_from_bits, f64_from_bits};
+use super::{Round, Status, f32_from_bits, f64_from_bits};
 
 /// Construct a 16-bit float from hex float representation (C-style)
 #[cfg(f16_enabled)]
@@ -352,132 +350,142 @@ const fn u128_ilog2(v: u128) -> u32 {
     u128::BITS - 1 - v.leading_zeros()
 }
 
-/// Format a floating point number as its IEEE hex (`%a`) representation.
-pub struct Hexf<F>(pub F);
+#[cfg(any(test, feature = "unstable-public-internals"))]
+mod hex_fmt {
+    use core::fmt;
 
-// Adapted from https://github.com/ericseppanen/hexfloat2/blob/a5c27932f0ff/src/format.rs
-#[cfg(not(feature = "compiler-builtins"))]
-fn fmt_any_hex<F: Float>(x: &F, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    if x.is_sign_negative() {
-        write!(f, "-")?;
+    use crate::support::Float;
+
+    /// Format a floating point number as its IEEE hex (`%a`) representation.
+    pub struct Hexf<F>(pub F);
+
+    // Adapted from https://github.com/ericseppanen/hexfloat2/blob/a5c27932f0ff/src/format.rs
+    #[cfg(not(feature = "compiler-builtins"))]
+    pub(super) fn fmt_any_hex<F: Float>(x: &F, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if x.is_sign_negative() {
+            write!(f, "-")?;
+        }
+
+        if x.is_nan() {
+            return write!(f, "NaN");
+        } else if x.is_infinite() {
+            return write!(f, "inf");
+        } else if *x == F::ZERO {
+            return write!(f, "0x0p+0");
+        }
+
+        let mut exponent = x.exp_unbiased();
+        let sig = x.to_bits() & F::SIG_MASK;
+
+        let bias = F::EXP_BIAS as i32;
+        // The mantissa MSB needs to be shifted up to the nearest nibble.
+        let mshift = (4 - (F::SIG_BITS % 4)) % 4;
+        let sig = sig << mshift;
+        // The width is rounded up to the nearest char (4 bits)
+        let mwidth = (F::SIG_BITS as usize + 3) / 4;
+        let leading = if exponent == -bias {
+            // subnormal number means we shift our output by 1 bit.
+            exponent += 1;
+            "0."
+        } else {
+            "1."
+        };
+
+        write!(f, "0x{leading}{sig:0mwidth$x}p{exponent:+}")
     }
 
-    if x.is_nan() {
-        return write!(f, "NaN");
-    } else if x.is_infinite() {
-        return write!(f, "inf");
-    } else if *x == F::ZERO {
-        return write!(f, "0x0p+0");
+    #[cfg(feature = "compiler-builtins")]
+    pub(super) fn fmt_any_hex<F: Float>(_x: &F, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        unimplemented!()
     }
 
-    let mut exponent = x.exp_unbiased();
-    let sig = x.to_bits() & F::SIG_MASK;
+    impl<F: Float> fmt::LowerHex for Hexf<F> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    fmt_any_hex(&self.0, f)
+                }
+            }
+        }
+    }
 
-    let bias = F::EXP_BIAS as i32;
-    // The mantissa MSB needs to be shifted up to the nearest nibble.
-    let mshift = (4 - (F::SIG_BITS % 4)) % 4;
-    let sig = sig << mshift;
-    // The width is rounded up to the nearest char (4 bits)
-    let mwidth = (F::SIG_BITS as usize + 3) / 4;
-    let leading = if exponent == -bias {
-        // subnormal number means we shift our output by 1 bit.
-        exponent += 1;
-        "0."
-    } else {
-        "1."
-    };
+    impl<F: Float> fmt::LowerHex for Hexf<(F, F)> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    write!(f, "({:x}, {:x})", Hexf(self.0.0), Hexf(self.0.1))
+                }
+            }
+        }
+    }
 
-    write!(f, "0x{leading}{sig:0mwidth$x}p{exponent:+}")
-}
+    impl<F: Float> fmt::LowerHex for Hexf<(F, i32)> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    write!(f, "({:x}, {:x})", Hexf(self.0.0), Hexf(self.0.1))
+                }
+            }
+        }
+    }
 
-#[cfg(feature = "compiler-builtins")]
-fn fmt_any_hex<F: Float>(_x: &F, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    unimplemented!()
-}
+    impl fmt::LowerHex for Hexf<i32> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    fmt::LowerHex::fmt(&self.0, f)
+                }
+            }
+        }
+    }
 
-impl<F: Float> fmt::LowerHex for Hexf<F> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                fmt_any_hex(&self.0, f)
+    impl<T> fmt::Debug for Hexf<T>
+    where
+        Hexf<T>: fmt::LowerHex,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    fmt::LowerHex::fmt(self, f)
+                }
+            }
+        }
+    }
+
+    impl<T> fmt::Display for Hexf<T>
+    where
+        Hexf<T>: fmt::LowerHex,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            cfg_if! {
+                if #[cfg(feature = "compiler-builtins")] {
+                    let _ = f;
+                    unimplemented!()
+                } else {
+                    fmt::LowerHex::fmt(self, f)
+                }
             }
         }
     }
 }
 
-impl<F: Float> fmt::LowerHex for Hexf<(F, F)> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                write!(f, "({:x}, {:x})", Hexf(self.0.0), Hexf(self.0.1))
-            }
-        }
-    }
-}
-
-impl<F: Float> fmt::LowerHex for Hexf<(F, i32)> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                write!(f, "({:x}, {:x})", Hexf(self.0.0), Hexf(self.0.1))
-            }
-        }
-    }
-}
-
-impl fmt::LowerHex for Hexf<i32> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                fmt::LowerHex::fmt(&self.0, f)
-            }
-        }
-    }
-}
-
-impl<T> fmt::Debug for Hexf<T>
-where
-    Hexf<T>: fmt::LowerHex,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                fmt::LowerHex::fmt(self, f)
-            }
-        }
-    }
-}
-
-impl<T> fmt::Display for Hexf<T>
-where
-    Hexf<T>: fmt::LowerHex,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        cfg_if! {
-            if #[cfg(feature = "compiler-builtins")] {
-                let _ = f;
-                unimplemented!()
-            } else {
-                fmt::LowerHex::fmt(self, f)
-            }
-        }
-    }
-}
+#[cfg(any(test, feature = "unstable-public-internals"))]
+pub use hex_fmt::*;
 
 #[cfg(test)]
 mod parse_tests {
@@ -1064,6 +1072,7 @@ mod print_tests {
     use std::string::ToString;
 
     use super::*;
+    use crate::support::Float;
 
     #[test]
     #[cfg(f16_enabled)]

@@ -1,33 +1,32 @@
 # Temporal in Rust
 
-Temporal is a calendar and timezone aware date/time builtin currently
-proposed for addition to the ECMAScript specification.
+`temporal_rs` is a Rust date/time library that provides support for calendrical
+calculations and time zones that is based on the Temporal specification.
 
-`temporal_rs` is an implementation of Temporal in Rust that aims to be
-100% test compliant. While initially developed for [Boa][boa-repo], the
-crate has been externalized and is being used in other engines such as [V8](https://v8.dev) and [Kiesel](https://codeberg.org/kiesel-js/kiesel).
+This implementation aims to be 100% test compliant. While initially developed
+for [Boa][boa-repo], the crate was split from the engine repository for general
+Rust usage and vendoring to other ECMAScript implementations.
 
-For more information on `temporal_rs`'s general position in the Rust
-date/time library ecoystem, see our [FAQ](./docs/FAQ.md).
+For more information on `temporal_rs`'s general position in the Rust date/time
+library ecoystem or whether we may address your use case, see our
+[FAQ](./docs/FAQ.md).
 
+Currently, `temporal_rs` is used in Boa, [Kiesel](https://codeberg.org/kiesel-js/kiesel),
+and [V8](https://v8.dev) for the core functionality of their Temporal built-ins.
 
-Temporal is an API for working with date and time in a calendar
-and time zone aware manner.
+## Project overview
 
-temporal_rs is designed with ECMAScript implementations and general
-purpose Rust usage in mind, meaning that temporal_rs can be used to implement
-the Temporal built-ins in an ECMAScript implementation or generally
-used as a date and time library in a Rust project.
+This project publishes the following crates:
 
-temporal_rs is the primary library for the Temporal API implementation in Boa, Kiesel,
-and V8. Each of these engines pass the large ECMAScript conformance test suite for
-the specification.
+- [`temporal_rs`](https://docs.rs/temporal_rs/latest/temporal_rs/), the core date/time library
+- [`temporal_capi`](https://docs.rs/temporal_capi/latest/temporal_capi/), a FFI crate for C and C++
+- [`timezone_provider`](https://docs.rs/timezone_provider/latest/timezone_provider/), a time zone data provider crate
+- [`zoneinfo_rs`](https://docs.rs/zoneinfo_rs/latest/zoneinfo_rs/), an experimental zoneinfo compiler crate
 
 ## Why use temporal_rs?
 
-As previously mentioned, Temporal is an API for working with date and time in
-a calendar and time zone aware manner. This means that calendar and time zone support
-are first class in Temporal as well as in temporal_rs.
+Temporal is a date and time library that is both calendar and time zone aware manner. This
+means that calendar and time zone support are first class in Temporal.
 
 For instance, converting between calendars is as simple as providing the calendar as
 shown below.
@@ -82,7 +81,7 @@ assert_eq!(zdt_zurich.second(), 10);
 
 ```
 
-## Overview
+## Library Overview
 
 temporal_rs provides 8 core types for working with date and time. The core types are:
 
@@ -152,7 +151,7 @@ foremost -- designed for use in ECMAScript implementations. This is not to detra
 from temporal_rs's use in a native Rust program, but it is important information to
 understand in order to understand the library's architecture and general API design.
 
-Without default feature flags, temporal_rs does not have with access to the host
+Without default feature flags, temporal_rs is not released with access to the host
 environment and it does not embed any time zone data. This is important from an
 interpreter perspective, because access to the host environment and time zone data
 comes from the interpreter's agent, not from a dependency.
@@ -235,7 +234,7 @@ extensions to the format.
 
 ## More information
 
-[`Temporal`][proposal] is the Stage 3 proposal for ECMAScript that
+[`Temporal`][proposal] is the Stage 4 proposal for ECMAScript that
 provides new JS objects and functions for working with dates and
 times that fully supports time zones and non-gregorian calendars.
 

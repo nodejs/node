@@ -8,7 +8,7 @@ use super::Float;
 use super::support::{FpResult, Round, cold_path};
 
 /// Compute the cube root of the argument.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn cbrt(x: f64) -> f64 {
     cbrt_round(x, Round::Nearest).val
 }

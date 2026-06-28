@@ -211,6 +211,65 @@ pub trait TimeZoneProvider {
     ) -> TimeZoneProviderResult<Option<EpochNanoseconds>>;
 }
 
+macro_rules! provider_deref_impl {
+    ($target:ty) => {
+        impl<P> TimeZoneProvider for $target
+        where
+            P: TimeZoneProvider + ?Sized,
+        {
+            #[inline]
+            fn get(&self, ident: &[u8]) -> TimeZoneProviderResult<TimeZoneId> {
+                (**self).get(ident)
+            }
+
+            #[inline]
+            fn identifier(&self, id: TimeZoneId) -> TimeZoneProviderResult<Cow<'_, str>> {
+                (**self).identifier(id)
+            }
+
+            #[inline]
+            fn canonicalized(&self, id: TimeZoneId) -> TimeZoneProviderResult<TimeZoneId> {
+                (**self).canonicalized(id)
+            }
+
+            #[inline]
+            fn candidate_nanoseconds_for_local_epoch_nanoseconds(
+                &self,
+                id: TimeZoneId,
+                local_datetime: IsoDateTime,
+            ) -> TimeZoneProviderResult<CandidateEpochNanoseconds> {
+                (**self).candidate_nanoseconds_for_local_epoch_nanoseconds(id, local_datetime)
+            }
+
+            #[inline]
+            fn transition_nanoseconds_for_utc_epoch_nanoseconds(
+                &self,
+                id: TimeZoneId,
+                epoch_nanoseconds: i128,
+            ) -> TimeZoneProviderResult<UtcOffsetSeconds> {
+                (**self).transition_nanoseconds_for_utc_epoch_nanoseconds(id, epoch_nanoseconds)
+            }
+
+            #[inline]
+            fn get_time_zone_transition(
+                &self,
+                id: TimeZoneId,
+                epoch_nanoseconds: i128,
+                direction: TransitionDirection,
+            ) -> TimeZoneProviderResult<Option<EpochNanoseconds>> {
+                (**self).get_time_zone_transition(id, epoch_nanoseconds, direction)
+            }
+        }
+    };
+}
+
+provider_deref_impl!(&P);
+provider_deref_impl!(&mut P);
+provider_deref_impl!(alloc::boxed::Box<P>);
+provider_deref_impl!(alloc::rc::Rc<P>);
+#[cfg(target_has_atomic = "ptr")]
+provider_deref_impl!(alloc::sync::Arc<P>);
+
 /// An id for a resolved timezone, for use with a [`TimeZoneNormalizer`]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct NormalizedId(pub usize);
@@ -225,6 +284,37 @@ pub trait TimeZoneNormalizer {
 
     fn identifier(&self, _: NormalizedId) -> TimeZoneProviderResult<&str>;
 }
+
+macro_rules! normalizer_deref_impl {
+    ($target:ty) => {
+        impl<P> TimeZoneNormalizer for $target
+        where
+            P: TimeZoneNormalizer + ?Sized,
+        {
+            #[inline]
+            fn normalized(&self, name: &[u8]) -> TimeZoneProviderResult<NormalizedId> {
+                (**self).normalized(name)
+            }
+
+            #[inline]
+            fn canonicalized(&self, id: NormalizedId) -> TimeZoneProviderResult<NormalizedId> {
+                (**self).canonicalized(id)
+            }
+
+            #[inline]
+            fn identifier(&self, id: NormalizedId) -> TimeZoneProviderResult<&str> {
+                (**self).identifier(id)
+            }
+        }
+    };
+}
+
+normalizer_deref_impl!(&P);
+normalizer_deref_impl!(&mut P);
+normalizer_deref_impl!(alloc::boxed::Box<P>);
+normalizer_deref_impl!(alloc::rc::Rc<P>);
+#[cfg(target_has_atomic = "ptr")]
+normalizer_deref_impl!(alloc::sync::Arc<P>);
 
 /// An id for a resolved timezone, for use with a [`TimeZoneResolver`]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -253,6 +343,53 @@ pub trait TimeZoneResolver {
         direction: TransitionDirection,
     ) -> TimeZoneProviderResult<Option<EpochNanoseconds>>;
 }
+
+macro_rules! resolver_deref_impl {
+    ($target:ty) => {
+        impl<P> TimeZoneResolver for $target
+        where
+            P: TimeZoneResolver + ?Sized,
+        {
+            fn get_id(&self, normalized_identifier: &[u8]) -> TimeZoneProviderResult<ResolvedId> {
+                (**self).get_id(normalized_identifier)
+            }
+
+            fn candidate_nanoseconds_for_local_epoch_nanoseconds(
+                &self,
+                identifier: ResolvedId,
+                local_datetime: IsoDateTime,
+            ) -> TimeZoneProviderResult<CandidateEpochNanoseconds> {
+                (**self)
+                    .candidate_nanoseconds_for_local_epoch_nanoseconds(identifier, local_datetime)
+            }
+
+            fn transition_nanoseconds_for_utc_epoch_nanoseconds(
+                &self,
+                identifier: ResolvedId,
+                epoch_nanoseconds: i128,
+            ) -> TimeZoneProviderResult<UtcOffsetSeconds> {
+                (**self)
+                    .transition_nanoseconds_for_utc_epoch_nanoseconds(identifier, epoch_nanoseconds)
+            }
+
+            fn get_time_zone_transition(
+                &self,
+                identifier: ResolvedId,
+                epoch_nanoseconds: i128,
+                direction: TransitionDirection,
+            ) -> TimeZoneProviderResult<Option<EpochNanoseconds>> {
+                (**self).get_time_zone_transition(identifier, epoch_nanoseconds, direction)
+            }
+        }
+    };
+}
+
+resolver_deref_impl!(&P);
+resolver_deref_impl!(&mut P);
+resolver_deref_impl!(alloc::boxed::Box<P>);
+resolver_deref_impl!(alloc::rc::Rc<P>);
+#[cfg(target_has_atomic = "ptr")]
+resolver_deref_impl!(alloc::sync::Arc<P>);
 
 /// A type that can both normalize and resolve, which implements [`TimeZoneProvider`]
 #[derive(Default, Copy, Clone, Debug)]

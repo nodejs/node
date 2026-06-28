@@ -1,0 +1,81 @@
+// @generated
+/// Implement `DataProvider<PropertyNameParseJoiningGroupV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 901B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+/// * `zerotrie`
+/// * `zerovec`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_property_name_parse_joining_group_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_PROPERTY_NAME_PARSE_JOINING_GROUP_V1: &'static <icu::properties::provider::PropertyNameParseJoiningGroupV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::properties::provider::names::PropertyValueNameToEnumMap { map: zerotrie::ZeroTrieSimpleAscii { store: unsafe { zerovec::ZeroVec::from_bytes_unchecked(b"\xE1tABDEFGHKLMNPQRSTVWYZ\0\0\0\0\0\0\0\0\0\x02\x02\x02\x02\x02\x02\x02\x02\x02\x03*JVWv\x7F\xC7\xF3\xFC&GJTt\xB7\xEC\xFA\xFE$\xC3fil\x19\x1Brican_\xC3FNQ\x04\teh\x90Foon\x90Gaf\x90Hn\x81\xC2ae\x03ph\x82f\x83\xC2eu\x07\xC2ht\x01\x84h\x85rushaski_Yeh_Barree\x90&al\x86ath_Rish\x87\x88\xC3aei\t\rrsi_Yeh\x90'\x90#h\x89nal_Semkath\x8Aa\xC2fm\x01\x8Bal\x8C\xC2ae3\xC3hmn\x01\x10\x8Dza_On_Heh_Goal\x8Eifi_Rohingya_\xC2KP\tinna_Ya\x90Ta\x90U\x8F\xC2ht\t\x90\0_Goal\x90\x01h\x90\x02\xC3ahn\x16\x1B\xC3fps\x02\x05\x90\x03h\x90\x04hmiri_Yeh\x90Xaph\x90$otted_Heh\x90\x05am\x90\x06adh\x90\x07\xE1caei\x01\x01\x1A\x1E\xE1bln\0Fayalam_\xC7BJLNRST\x04\x07\x11&)-ha\x90Ia\x90Jl\xC2al\x02\x90Ka\x90L\xC3gny\x03\x0Ca\x90M\xC2an\x02\x90Na\x90Oa\x90Pa\x90Qsa\x90Rta\x90Sichaean_\xD3ABDFGHKLMNOPQRSTWYZ\r\x12#(.=BIMQUX]bp\x91\x95\x9A\xC2ly\x05eph\x90*in\x90+eth\x90,\xC2ah\x06leth\x90-amedh\x90.ive\x90/imel\x900\xC2eu\x04th\x901ndred\x902aph\x903amedh\x904em\x905un\x906ne\x907e\x908oph\x909esh\x90:a\xC2dm\x04he\x90;ekh\x90<\xC4aehw\x03\x0C\x13w\x90=\xC2nt\x02\x90>h\x90?amedh\x90@enty\x90Aaw\x90Bodh\x90Cayin\x90Dem\x90\x08m\x90\t\xC3ouy\x15\x18\xC2_o\x0EJoining_Group\x80n\x90\nn\x90\x0Ba\x90(e\x90\x0Ca\xC2fp\x02\x90\rh\x90\x0E\xC2eo\x10\xC2hv\x02\x90\x0Fersed_Pe\x90\x10hingya_Yeh\x90)\xC6aehtwy\x07\x14\x18$-d\x90\x11he\x90\x12\xC2em\x03n\x90\x13kath\x90\x14in\x90\x15raight_Waw\x90Eash_Kaf\x90\x16riac_Waw\x90\x17\xC3aeh\x08\x1F\xC2hw\x02\x90\x18\x90\x19\xC2ht\x10_Marbuta\x90\x1A_Goal\x8Eh\x90\x1Bin_\xC2NY\x05oon\x90Yeh\x90Vertical_Tail\x90Waw\x90\x1C\xC2eu\x19h\x90\x1D_\xC2BW\x07arree\x90\x1Eith_Tail\x90\x1Fdh\x90 _He\x90!\xC2ah\x04in\x90\"ain\x90%") } } };
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::properties::provider::PropertyNameParseJoiningGroupV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::properties::provider::PropertyNameParseJoiningGroupV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_PROPERTY_NAME_PARSE_JOINING_GROUP_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameParseJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_property_name_parse_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyNameParseJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_property_name_parse_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyNameParseJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameParseJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_property_name_parse_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyNameParseJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameParseJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyNameParseJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_property_name_parse_joining_group_v1 as impl_property_name_parse_joining_group_v1;

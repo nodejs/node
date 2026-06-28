@@ -1,0 +1,113 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "icu_experimental"
+description = "ICU4X pre-release components under active development; all code in this crate is unstable."
+version = "0.5.0"
+categories.workspace = true
+keywords = ["unicode", "internationalization", "localization", "i18n"]
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[package.metadata.workspaces]
+independent = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.cargo-all-features]
+max_combination_size = 3
+
+[dependencies]
+
+icu_collections = { workspace = true }
+icu_provider = { workspace = true }
+icu_locale_core = { workspace = true }
+
+icu_casemap = { workspace = true }
+icu_decimal = { workspace = true, features = ["unstable"] }
+icu_list = { workspace = true }
+icu_locale = { workspace = true }
+icu_normalizer = { workspace = true }
+icu_plurals = { workspace = true }
+icu_properties = { workspace = true, features = ["alloc"] }
+
+databake = { workspace = true, optional = true, features = ["derive"] }
+either = { workspace = true }
+fixed_decimal = { workspace = true }
+icu_pattern = { workspace = true , features = ["alloc", "yoke", "zerovec"]}
+litemap = { workspace = true }
+tinystr = { workspace = true, features = ["alloc", "zerovec"] }
+potential_utf = { workspace = true, features = ["zerovec"] }
+writeable = { workspace = true }
+zerotrie = { workspace = true, features = ["yoke", "zerofrom"] }
+zerovec = { workspace = true, features = ["alloc", "derive", "yoke"] }
+
+displaydoc = { workspace = true }
+log = { workspace = true, optional = true }
+num-bigint = { workspace = true }
+num-rational = { workspace = true, features = ["num-bigint"]}
+num-traits = { workspace = true }
+serde = { workspace = true, features = ["derive", "alloc"], optional = true }
+smallvec = { workspace = true, features = ["const_generics"] }
+
+icu_experimental_data = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[dev-dependencies]
+icu = { path = "../../components/icu", features = ["unstable"] }
+icu_provider = { path = "../../provider/core", features = ["std"]}
+
+icu_locale_data = { workspace = true }
+icu_properties_data = { workspace = true }
+icu_normalizer_data = { workspace = true }
+
+[features]
+default = ["compiled_data"]
+compiled_data = ["dep:icu_experimental_data", "icu_decimal/compiled_data", "icu_list/compiled_data", "icu_plurals/compiled_data", "icu_properties/compiled_data", "icu_normalizer/compiled_data", "icu_casemap/compiled_data", "icu_provider/baked"]
+datagen = ["serde", "dep:databake", "zerovec/databake", "zerotrie/databake", "tinystr/databake", "icu_collections/databake", "dep:log", "icu_pattern/databake", "icu_plurals/datagen", "icu_pattern/alloc", "icu_provider/export", "icu_decimal/datagen"]
+ryu = ["fixed_decimal/ryu"]
+log = ["dep:log"]
+serde = ["dep:serde", "zerovec/serde", "potential_utf/serde", "tinystr/serde", "icu_collections/serde", "icu_decimal/serde", "icu_list/serde", "icu_pattern/serde", "icu_plurals/serde", "icu_provider/alloc", "icu_provider/serde", "zerotrie/serde", "icu_normalizer/serde", "icu_casemap/serde"]
+
+[[bench]]
+name = "transliterate"
+path = "benches/transliterate/bench.rs"
+harness = false
+
+[[test]]
+name = "displaynames_test"
+path = "tests/displaynames/tests.rs"
+
+[[test]]
+name = "personnames_test"
+path = "tests/personnames/tests.rs"
+
+[[test]]
+name = "relativetime_test"
+path = "tests/relativetime/tests.rs"
+
+[[test]]
+name = "transliterate_test"
+path = "tests/transliterate/cldr.rs"
+
+[[test]]
+name = "transliterate_lower_ascii"
+path = "tests/transliterate/lower_ascii.rs"
+
+[[test]]
+name = "units_test"
+path = "tests/units/units_test.rs"
+
+[lints]
+workspace = true

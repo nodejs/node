@@ -1,0 +1,85 @@
+// @generated
+/// Implement `DataProvider<CaseMapUnfoldV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 968B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+/// * `zerovec`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_case_map_unfold_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_CASE_MAP_UNFOLD_V1: &'static <icu::casemap::provider::CaseMapUnfoldV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::casemap::provider::CaseMapUnfold {
+                map: unsafe {
+                    #[allow(unused_unsafe)]
+                    zerovec::ZeroMap::from_parts_unchecked(unsafe { zerovec::vecs::VarZeroVec16::from_bytes_unchecked(b"I\0\x03\0\x05\0\x08\0\x0B\0\r\0\x0F\0\x12\0\x15\0\x18\0\x1A\0\x1C\0\x1F\0\"\0%\0(\0,\x000\x004\0:\0>\0B\0H\0L\0R\0X\0^\0b\0f\0l\0r\0x\0|\0\x82\0\x88\0\x8E\0\x92\0\x96\0\x9C\0\xA0\0\xA4\0\xA8\0\xAC\0\xB0\0\xB4\0\xB8\0\xBC\0\xC1\0\xC6\0\xCB\0\xD0\0\xD5\0\xDA\0\xDF\0\xE4\0\xE9\0\xEE\0\xF3\0\xF8\0\xFD\0\x02\x01\x07\x01\x0C\x01\x11\x01\x16\x01\x1B\x01 \x01%\x01*\x01/\x014\x019\x01>\x01a\xCA\xBEffffifflfiflh\xCC\xB1i\xCC\x87j\xCC\x8Cssstt\xCC\x88w\xCC\x8Ay\xCC\x8A\xCA\xBCn\xCE\xAC\xCE\xB9\xCE\xAE\xCE\xB9\xCE\xB1\xCD\x82\xCE\xB1\xCD\x82\xCE\xB9\xCE\xB1\xCE\xB9\xCE\xB7\xCD\x82\xCE\xB7\xCD\x82\xCE\xB9\xCE\xB7\xCE\xB9\xCE\xB9\xCC\x88\xCC\x80\xCE\xB9\xCC\x88\xCC\x81\xCE\xB9\xCC\x88\xCD\x82\xCE\xB9\xCD\x82\xCF\x81\xCC\x93\xCF\x85\xCC\x88\xCC\x80\xCF\x85\xCC\x88\xCC\x81\xCF\x85\xCC\x88\xCD\x82\xCF\x85\xCC\x93\xCF\x85\xCC\x93\xCC\x80\xCF\x85\xCC\x93\xCC\x81\xCF\x85\xCC\x93\xCD\x82\xCF\x85\xCD\x82\xCF\x89\xCD\x82\xCF\x89\xCD\x82\xCE\xB9\xCF\x89\xCE\xB9\xCF\x8E\xCE\xB9\xD5\xA5\xD6\x82\xD5\xB4\xD5\xA5\xD5\xB4\xD5\xAB\xD5\xB4\xD5\xAD\xD5\xB4\xD5\xB6\xD5\xBE\xD5\xB6\xE1\xBC\x80\xCE\xB9\xE1\xBC\x81\xCE\xB9\xE1\xBC\x82\xCE\xB9\xE1\xBC\x83\xCE\xB9\xE1\xBC\x84\xCE\xB9\xE1\xBC\x85\xCE\xB9\xE1\xBC\x86\xCE\xB9\xE1\xBC\x87\xCE\xB9\xE1\xBC\xA0\xCE\xB9\xE1\xBC\xA1\xCE\xB9\xE1\xBC\xA2\xCE\xB9\xE1\xBC\xA3\xCE\xB9\xE1\xBC\xA4\xCE\xB9\xE1\xBC\xA5\xCE\xB9\xE1\xBC\xA6\xCE\xB9\xE1\xBC\xA7\xCE\xB9\xE1\xBD\xA0\xCE\xB9\xE1\xBD\xA1\xCE\xB9\xE1\xBD\xA2\xCE\xB9\xE1\xBD\xA3\xCE\xB9\xE1\xBD\xA4\xCE\xB9\xE1\xBD\xA5\xCE\xB9\xE1\xBD\xA6\xCE\xB9\xE1\xBD\xA7\xCE\xB9\xE1\xBD\xB0\xCE\xB9\xE1\xBD\xB4\xCE\xB9\xE1\xBD\xBC\xCE\xB9") }, unsafe { zerovec::vecs::VarZeroVec16::from_bytes_unchecked(b"I\0\x03\0\x06\0\t\0\x0C\0\x0F\0\x12\0\x15\0\x17\0\x19\0\x1E\0$\0'\0*\0-\0/\x002\x005\08\0;\0A\0D\0G\0M\0P\0U\0X\0[\0^\0a\0f\0i\0l\0o\0r\0u\0x\0{\0~\0\x84\0\x87\0\x89\0\x8C\0\x8F\0\x92\0\x95\0\x98\0\x9E\0\xA4\0\xAA\0\xB0\0\xB6\0\xBC\0\xC2\0\xC8\0\xCE\0\xD4\0\xDA\0\xE0\0\xE6\0\xEC\0\xF2\0\xF8\0\xFE\0\x04\x01\n\x01\x10\x01\x16\x01\x1C\x01\"\x01(\x01+\x01.\x01\xE1\xBA\x9A\xEF\xAC\x80\xEF\xAC\x83\xEF\xAC\x84\xEF\xAC\x81\xEF\xAC\x82\xE1\xBA\x96\xC4\xB0\xC7\xB0\xC3\x9F\xE1\xBA\x9E\xEF\xAC\x85\xEF\xAC\x86\xE1\xBA\x97\xE1\xBA\x98\xE1\xBA\x99\xC5\x89\xE1\xBE\xB4\xE1\xBF\x84\xE1\xBE\xB6\xE1\xBE\xB7\xE1\xBE\xB3\xE1\xBE\xBC\xE1\xBF\x86\xE1\xBF\x87\xE1\xBF\x83\xE1\xBF\x8C\xE1\xBF\x92\xCE\x90\xE1\xBF\x93\xE1\xBF\x97\xE1\xBF\x96\xE1\xBF\xA4\xE1\xBF\xA2\xCE\xB0\xE1\xBF\xA3\xE1\xBF\xA7\xE1\xBD\x90\xE1\xBD\x92\xE1\xBD\x94\xE1\xBD\x96\xE1\xBF\xA6\xE1\xBF\xB6\xE1\xBF\xB7\xE1\xBF\xB3\xE1\xBF\xBC\xE1\xBF\xB4\xD6\x87\xEF\xAC\x94\xEF\xAC\x95\xEF\xAC\x97\xEF\xAC\x93\xEF\xAC\x96\xE1\xBE\x80\xE1\xBE\x88\xE1\xBE\x81\xE1\xBE\x89\xE1\xBE\x82\xE1\xBE\x8A\xE1\xBE\x83\xE1\xBE\x8B\xE1\xBE\x84\xE1\xBE\x8C\xE1\xBE\x85\xE1\xBE\x8D\xE1\xBE\x86\xE1\xBE\x8E\xE1\xBE\x87\xE1\xBE\x8F\xE1\xBE\x90\xE1\xBE\x98\xE1\xBE\x91\xE1\xBE\x99\xE1\xBE\x92\xE1\xBE\x9A\xE1\xBE\x93\xE1\xBE\x9B\xE1\xBE\x94\xE1\xBE\x9C\xE1\xBE\x95\xE1\xBE\x9D\xE1\xBE\x96\xE1\xBE\x9E\xE1\xBE\x97\xE1\xBE\x9F\xE1\xBE\xA0\xE1\xBE\xA8\xE1\xBE\xA1\xE1\xBE\xA9\xE1\xBE\xA2\xE1\xBE\xAA\xE1\xBE\xA3\xE1\xBE\xAB\xE1\xBE\xA4\xE1\xBE\xAC\xE1\xBE\xA5\xE1\xBE\xAD\xE1\xBE\xA6\xE1\xBE\xAE\xE1\xBE\xA7\xE1\xBE\xAF\xE1\xBE\xB2\xE1\xBF\x82\xE1\xBF\xB2") })
+                },
+            };
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::casemap::provider::CaseMapUnfoldV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::casemap::provider::CaseMapUnfoldV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_CASE_MAP_UNFOLD_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::casemap::provider::CaseMapUnfoldV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_case_map_unfold_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::casemap::provider::CaseMapUnfoldV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_case_map_unfold_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::casemap::provider::CaseMapUnfoldV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::casemap::provider::CaseMapUnfoldV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_case_map_unfold_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::casemap::provider::CaseMapUnfoldV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::casemap::provider::CaseMapUnfoldV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::casemap::provider::CaseMapUnfoldV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_case_map_unfold_v1 as impl_case_map_unfold_v1;

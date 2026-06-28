@@ -1,0 +1,22 @@
+Johann Friedrich Böttger	Johann Friedrich Boettger
+Erich Mühsam	Erich Muehsam
+prêt à porter	pret a porter
+Ägeri-See	Aegeri-See
+ÄGERI-SEE	AEGERI-SEE
+Österreich	Oesterreich
+ÖSTERREICH	OESTERREICH
+Überlingen	Ueberlingen
+ÜBERLINGEN	UEBERLINGEN
+Süßölgefäß	Suessoelgefaess
+Käsesoßenrührlöffel	Kaesesossenruehrloeffel
+ÄÖÜ	AEOEUE
+Ä Ö Ü	AE OE UE
+Ä.Ö-Ü.	AE.OE-UE.
+HÄ HÖ HÜ	HAE HOE HUE
+ÄH ÖH ÜH	AEH OEH UEH
+Äh Öh Üh	Aeh Oeh Ueh
+MAẞSTAB	MASSSTAB
+#
+# NFD
+#
+Süßölgefäß	Suessoelgefaess

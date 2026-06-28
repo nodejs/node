@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-const O_THRESHOLD: f32 = 8.8721679688e+01; /* 0x42b17180 */
 const LN2_HI: f32 = 6.9313812256e-01; /* 0x3f317180 */
 const LN2_LO: f32 = 9.0580006145e-06; /* 0x3717f7d1 */
 const INV_LN2: f32 = 1.4426950216e+00; /* 0x3fb8aa3b */
@@ -32,7 +31,7 @@ const Q2: f32 = 1.5807170421e-3; /*  0xcf3010.0p-33 */
 /// system of logarithms, approximately 2.71828).
 /// The result is accurate even for small values of `x`,
 /// where using `exp(x)-1` would lose many significant digits.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn expm1f(mut x: f32) -> f32 {
     let x1p127 = f32::from_bits(0x7f000000); // 0x1p127f === 2 ^ 127
 
@@ -50,7 +49,8 @@ pub fn expm1f(mut x: f32) -> f32 {
         if sign {
             return -1.;
         }
-        if x > O_THRESHOLD {
+        if hx > 0x42b17217 {
+            /* x > log(FLT_MAX) */
             x *= x1p127;
             return x;
         }

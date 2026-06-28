@@ -137,7 +137,7 @@ pub enum AsciiByte {
 }
 
 impl AsciiByte {
-    /// Convert [u8; N] to [AsciiByte; N]
+    /// Convert `[u8; N]` to `[AsciiByte; N]`
     ///
     /// # Safety
     ///
@@ -166,5 +166,16 @@ impl AsciiByte {
                 AsciiByte::B32 // Space
             }
         }
+    }
+
+    #[inline]
+    pub(crate) const fn to_ascii_uppercase(self) -> Self {
+        // SAFETY: AsciiByte is repr(u8) and has same size as u8
+        unsafe { core::mem::transmute::<u8, AsciiByte>((self as u8).to_ascii_uppercase()) }
+    }
+
+    pub(crate) const fn to_ascii_lowercase(self) -> Self {
+        // SAFETY: AsciiByte is repr(u8) and has same size as u8
+        unsafe { core::mem::transmute::<u8, AsciiByte>((self as u8).to_ascii_lowercase()) }
     }
 }

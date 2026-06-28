@@ -1,5 +1,6 @@
+use alloc::string::ToString;
+use core::hash::{Hash, Hasher};
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
-use std::hash::{Hash, Hasher};
 
 pub(crate) struct TokenTreeHelper<'a>(pub &'a TokenTree);
 

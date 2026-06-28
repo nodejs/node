@@ -1,0 +1,80 @@
+// @generated
+/// Implement `DataProvider<PropertyEnumJoiningGroupV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 1428B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+/// * `zerovec`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_property_enum_joining_group_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_PROPERTY_ENUM_JOINING_GROUP_V1: &'static <icu::properties::provider::PropertyEnumJoiningGroupV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::properties::provider::PropertyCodePointMap::CodePointTrie(unsafe { icu::collections::codepointtrie::CodePointTrie::from_parts_unstable_unchecked_v1(icu::collections::codepointtrie::CodePointTrieHeader { high_start: 69632u32, shifted12_high_start: 17u16, index3_null_offset: 169u16, data_null_offset: 0u32, null_value: 0u32, trie_type: icu::collections::codepointtrie::TrieType::Small }, unsafe { zerovec::ZeroVec::from_bytes_unchecked(b"\0\0@\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0`\0\xA0\0\xDF\0\x1F\x01_\x01\x92\x01\0\0\0\0\0\0\xD2\x01\x0F\x02N\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\x01\t\x01\t\x01\t\x01$\x01\0\0\x10\0 \x000\0@\0P\0`\0p\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0`\0p\0\x80\0\x90\0\xA0\0\xB0\0\xC0\0\xD0\0\xDF\0\xEF\0\xFF\0\x0F\x01\x1F\x01/\x01?\x01O\x01_\x01o\x01\x7F\x01\x8F\x01\x92\x01\xA2\x01\xB2\x01\xC2\x01\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\xD2\x01\xE2\x01\xF2\x01\x02\x02\x0F\x02\x1F\x02/\x02?\x02N\x02^\x02n\x02~\x02\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\x10\0 \x000\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x8E\x02\x9E\x02\xAD\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\xBD\x02\xC7\x02\xD5\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\xE3\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0E\0M\0M\0m\0\x89\0M\0M\0M\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xA9\0\xBD\0\xCD\0\xE1\0") }, unsafe { zerovec::ZeroVec::from_bytes_unchecked(b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0h\0\x03\x03,\x03-\x03\x04*\x04\x04\r\r\r\x06\x06\x1F\x1F##!!((\x01\x01\x0B\x0B777\0\t\x1D\x13\x16\x18\x1A\x10,--\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x04\x1D\0\x03\x03\x03\0\x03,,-\x04\x04\x04\x04\x04\x04\x04\r\r\r\r\r\r\r\x06\x06\x06\x06\x06\x06\x06\x06\x06\x1F\x1F\x1F\x1F\x1F\x1F\x1F\x1F\x1F###!!(\x01\t\t\t\t\t\t\x1D\x1D\x0B&\x0B\x13\x13\x13\x0B\x0B\x0B\x0B\x0B\x0B\x16\x16\x16\x16\x1A\x1A\x1A\x1A8\x15\r*\x11\x11\x0E,,,,,,,,7/7,--..\0*\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x06\x1F\0\0\0\0\0\0\0\0\0\0#!\x01\0\0\x15\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x02\0\x05\x0C\x0C\x07\x07\x0F'2\x12++01\x14\x17\x19\x1B$\n\x08\x1C \"\x1E\x07%)\x05\x0C\x07\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00543\x04\x04\x04\x04\x04\x04\x04\r\r\x06\x06\x1F#\x01\x01\x01\t\t\x0B\x0B\x0B\x18\x18\x1A\x1A\x1A\x16\x1F\x1F#\r\r#\x1F\r\x03\x0377-,,66\r##\x13\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0]Z`c^_Ya[\\b\0\0\0\0\0\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\0\0\0f\0\0\x1A\r((\x0Bg\x1A\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x04\x04\r(\t\x1D\x16\x18--\x1F,9\0\x06!\x0BU\x1F\x01\x13\x1D\x04\x04\x04\x1F-VXW\x04\x04\r\x0B\x01X\r\r\x16\x0B\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0:<<@@=\0R\0TT\0\0AOSCCCD>PEFL;;HHKIIJ\0\0M\0\0\0\0\0\0G?NQB\0\0e\0\0\0\0\0\0e\0\0\0\0\0\0\0\0\0d\0\0e\0d\0\0d\0\0\0\0\0\0\0\0\0\0\0\0\x06(\x13\0i-\0\0\0\0\0\0\0\0\0") }, icu::properties::props::JoiningGroup::NoJoiningGroup) });
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::properties::provider::PropertyEnumJoiningGroupV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::properties::provider::PropertyEnumJoiningGroupV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_PROPERTY_ENUM_JOINING_GROUP_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyEnumJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_property_enum_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyEnumJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_property_enum_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyEnumJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyEnumJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_property_enum_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyEnumJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyEnumJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyEnumJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_property_enum_joining_group_v1 as impl_property_enum_joining_group_v1;

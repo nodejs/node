@@ -1,6 +1,7 @@
 //! This module implements Temporal Date/Time parsing functionality.
 
 use crate::{
+    error::ErrorMessage,
     iso::{IsoDate, IsoTime},
     options::{DisplayCalendar, DisplayOffset, DisplayTimeZone},
     Sign, TemporalError, TemporalResult,
@@ -8,7 +9,10 @@ use crate::{
 use ixdtf::{
     encoding::Utf8,
     parsers::IxdtfParser,
-    records::{Annotation, DateRecord, IxdtfParseRecord, TimeRecord, UtcOffsetRecordOrZ},
+    records::{
+        Annotation, DateRecord, FullPrecisionOffset, IxdtfParseRecord, TimeRecord, UtcOffsetRecord,
+        UtcOffsetRecordOrZ,
+    },
 };
 use writeable::{impl_display_with_writeable, LengthHint, Writeable};
 
@@ -594,6 +598,7 @@ impl Writeable for FormattableDuration {
                     let unit_below_minute = self.date.is_none() && hours == 0 && minutes == 0;
 
                     let write_second = seconds != 0
+                        || ns != 0
                         || unit_below_minute
                         || matches!(self.precision, Precision::Digit(_));
 
@@ -692,6 +697,21 @@ fn parse_ixdtf(source: &[u8], variant: ParseVariant) -> TemporalResult<IxdtfPars
         ParseVariant::DateTime => parser.parse_with_annotation_handler(handler),
         ParseVariant::Time => parser.parse_time_with_annotation_handler(handler),
     }?;
+
+    // The ixdtf crate allows arbitrary precision for offsets, but Temporal only allows 9
+    if let Some(UtcOffsetRecordOrZ::Offset(UtcOffsetRecord::FullPrecisionOffset(
+        FullPrecisionOffset {
+            fraction: Some(fraction),
+            ..
+        },
+    ))) = record.offset
+    {
+        if fraction.to_nanoseconds().is_none() {
+            return Err(
+                TemporalError::range().with_enum(ErrorMessage::FractionalTimeMoreThanNineDigits)
+            );
+        }
+    }
 
     record.calendar = first_calendar.map(|v| v.value);
 
@@ -805,14 +825,17 @@ pub(crate) fn parse_instant(source: &[u8]) -> TemporalResult<IxdtfParseInstantRe
     Ok(IxdtfParseInstantRecord { date, time, offset })
 }
 
-// Ensure that the record does not have an offset element.
+// Ensure that the record does not have a Z offset element.
 //
 // This handles the [~Zoned] in TemporalFooString productions
-fn check_offset(record: IxdtfParseRecord<'_, Utf8>) -> TemporalResult<IxdtfParseRecord<'_, Utf8>> {
+fn check_offset_no_z(
+    record: IxdtfParseRecord<'_, Utf8>,
+) -> TemporalResult<IxdtfParseRecord<'_, Utf8>> {
     if record.offset == Some(UtcOffsetRecordOrZ::Z) {
         return Err(TemporalError::range()
             .with_message("UTC designator is not valid for plain date/time parsing."));
     }
+
     Ok(record)
 }
 
@@ -822,13 +845,13 @@ pub(crate) fn parse_year_month(source: &[u8]) -> TemporalResult<IxdtfParseRecord
     let ym_record = parse_ixdtf(source, ParseVariant::YearMonth);
 
     let Err(e) = ym_record else {
-        return ym_record.and_then(check_offset);
+        return ym_record.and_then(check_offset_no_z);
     };
 
     let dt_parse = parse_date_time(source);
 
     match dt_parse {
-        Ok(dt) => check_offset(dt),
+        Ok(dt) => check_offset_no_z(dt),
         // Format and return the error from parsing YearMonth.
         _ => Err(e),
     }
@@ -838,13 +861,13 @@ pub(crate) fn parse_year_month(source: &[u8]) -> TemporalResult<IxdtfParseRecord
 pub(crate) fn parse_month_day(source: &[u8]) -> TemporalResult<IxdtfParseRecord<'_, Utf8>> {
     let md_record = parse_ixdtf(source, ParseVariant::MonthDay);
     let Err(e) = md_record else {
-        return md_record.and_then(check_offset);
+        return md_record.and_then(check_offset_no_z);
     };
 
     let dt_parse = parse_date_time(source);
 
     match dt_parse {
-        Ok(dt) => check_offset(dt),
+        Ok(dt) => check_offset_no_z(dt),
         // Format and return the error from parsing MonthDay.
         _ => Err(e),
     }
@@ -853,7 +876,7 @@ pub(crate) fn parse_month_day(source: &[u8]) -> TemporalResult<IxdtfParseRecord<
 // Ensures that an IxdtfParseRecord was parsed with [~Zoned][+TimeRequired]
 fn check_time_record(record: IxdtfParseRecord<Utf8>) -> TemporalResult<TimeRecord> {
     // Handle [~Zoned]
-    let record = check_offset(record)?;
+    let record = check_offset_no_z(record)?;
     // Handle [+TimeRequired]
     let Some(time) = record.time else {
         return Err(TemporalError::range()
@@ -899,10 +922,26 @@ pub fn parse_allowed_calendar_formats(s: &[u8]) -> Option<&[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FormattableDate, FormattableOffset};
-    use crate::parsers::{FormattableTime, Precision};
+    use super::{FormattableDate, FormattableDuration, FormattableOffset};
+    use crate::parsers::{FormattableTime, FormattableTimeDuration, Precision};
     use alloc::format;
     use writeable::assert_writeable_eq;
+
+    #[test]
+    fn duration() {
+        let duration = FormattableDuration {
+            sign: crate::Sign::Positive,
+            date: Some(super::FormattableDateDuration {
+                years: 1,
+                months: 0,
+                weeks: 0,
+                days: 0,
+            }),
+            time: Some(FormattableTimeDuration::Seconds(0, 0, 0, Some(1))),
+            precision: Precision::Auto,
+        };
+        assert_writeable_eq!(duration, "P1YT0.000000001S");
+    }
 
     #[test]
     fn offset_string() {
