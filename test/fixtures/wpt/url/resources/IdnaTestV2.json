@@ -79,7 +79,7 @@
   {
     "comment": "C1",
     "input": "xn--ab-j1t",
-    "output": null
+    "output": "xn--ab-j1t"
   },
   {
     "input": "a\u094d\u200cb",
@@ -131,7 +131,7 @@
   {
     "comment": "C2",
     "input": "xn--ab-m1t",
-    "output": null
+    "output": "xn--ab-m1t"
   },
   {
     "input": "a\u094d\u200db",
@@ -547,7 +547,7 @@
   {
     "comment": "V1",
     "input": "xn--u-ccb",
-    "output": null
+    "output": "xn--u-ccb"
   },
   {
     "comment": "V7",
@@ -571,22 +571,22 @@
   {
     "comment": "V7",
     "input": "xn--acom-0w1b",
-    "output": null
+    "output": "xn--acom-0w1b"
   },
   {
     "comment": "V7",
     "input": "xn--a-ecp.ru",
-    "output": null
+    "output": "xn--a-ecp.ru"
   },
   {
     "comment": "P4",
     "input": "xn--0.pt",
-    "output": null
+    "output": "xn--0.pt"
   },
   {
     "comment": "V7",
     "input": "xn--a.pt",
-    "output": null
+    "output": "xn--a.pt"
   },
   {
     "comment": "P4",
@@ -631,7 +631,7 @@
   {
     "comment": "V4; V2 (ignored)",
     "input": "xn--xn--a--gua.pt",
-    "output": null
+    "output": "xn--xn--a--gua.pt"
   },
   {
     "input": "\u65e5\u672c\u8a9e\u3002\uff2a\uff30",
@@ -754,7 +754,7 @@
   {
     "comment": "C1; C2; A4_2 (ignored)",
     "input": "1.xn--assbcssssssssdssssssssssssssssessssssssssssssssssssxssssssssssssssssssssysssssssssssssssssz-pxq1419aa69989dba9gc",
-    "output": null
+    "output": "1.xn--assbcssssssssdssssssssssssssssessssssssssssssssssssxssssssssssssssssssssysssssssssssssssssz-pxq1419aa69989dba9gc"
   },
   {
     "comment": "C1; C2; A4_2 (ignored)",
@@ -764,7 +764,7 @@
   {
     "comment": "C1; C2; A4_2 (ignored)",
     "input": "1.xn--abcdexyz-qyacaaabaaaaaaabaaaaaaaaabaaaaaaaaabaaaaaaaa010ze2isb1140zba8cc",
-    "output": null
+    "output": "1.xn--abcdexyz-qyacaaabaaaaaaabaaaaaaaaabaaaaaaaaabaaaaaaaa010ze2isb1140zba8cc"
   },
   {
     "comment": "C1; C2",
@@ -797,7 +797,7 @@
   {
     "comment": "C1; C2",
     "input": "xn--xn--bss-7z6ccid",
-    "output": null
+    "output": "xn--xn--bss-7z6ccid"
   },
   {
     "comment": "C1; C2",
@@ -807,7 +807,7 @@
   {
     "comment": "C1; C2",
     "input": "xn--xn--b-pqa5796ccahd",
-    "output": null
+    "output": "xn--xn--b-pqa5796ccahd"
   },
   {
     "input": "\u02e3\u034f\u2115\u200b\ufe63\u00ad\uff0d\u180c\u212c\ufe00\u017f\u2064\ud835\udd30\udb40\uddef\ufb04",
@@ -1111,7 +1111,7 @@
   {
     "comment": "V4; V2 (ignored)",
     "input": "xn--xn---epa",
-    "output": null
+    "output": "xn--xn---epa"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -1276,7 +1276,7 @@
   {
     "comment": "V6",
     "input": "a.b.xn--c-bcb.d",
-    "output": null
+    "output": "a.b.xn--c-bcb.d"
   },
   {
     "input": "A0",
@@ -1366,7 +1366,7 @@
   {
     "comment": "C2",
     "input": "xn--dmc225h",
-    "output": null
+    "output": "xn--dmc225h"
   },
   {
     "comment": "C2",
@@ -1376,7 +1376,7 @@
   {
     "comment": "C2",
     "input": "xn--1ug",
-    "output": null
+    "output": "xn--1ug"
   },
   {
     "input": "\u0bb9\u0bcd\u200c",
@@ -1394,7 +1394,7 @@
   {
     "comment": "C1",
     "input": "xn--dmc025h",
-    "output": null
+    "output": "xn--dmc025h"
   },
   {
     "comment": "C1",
@@ -1404,7 +1404,7 @@
   {
     "comment": "C1",
     "input": "xn--0ug",
-    "output": null
+    "output": "xn--0ug"
   },
   {
     "input": "\u0644\u0670\u200c\u06ed\u06ef",
@@ -1494,7 +1494,7 @@
   {
     "comment": "C1",
     "input": "xn--cmba004q",
-    "output": null
+    "output": "xn--cmba004q"
   },
   {
     "input": "xn--ghb",
@@ -1562,17 +1562,17 @@
   {
     "comment": "P4; A4_1 (ignored); A4_2 (ignored)",
     "input": "xn--",
-    "output": null
+    "output": "xn--"
   },
   {
     "comment": "P4",
     "input": "xn---",
-    "output": null
+    "output": "xn---"
   },
   {
     "comment": "P4",
     "input": "xn--ASCII-",
-    "output": null
+    "output": "xn--ascii-"
   },
   {
     "input": "ascii",
@@ -1581,7 +1581,7 @@
   {
     "comment": "P4",
     "input": "xn--unicode-.org",
-    "output": null
+    "output": "xn--unicode-.org"
   },
   {
     "input": "unicode.org",
@@ -1722,12 +1722,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "14.xn--7hb713l3v90n.-",
-    "output": null
+    "output": "14.xn--7hb713l3v90n.-"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--7hb713lfwbi1311b.-",
-    "output": null
+    "output": "xn--7hb713lfwbi1311b.-"
   },
   {
     "input": "\ua863.\u07cf",
@@ -1780,17 +1780,17 @@
   {
     "comment": "C2",
     "input": "xn--jbf929a90b0b.xn----p9j493ivi4l",
-    "output": null
+    "output": "xn--jbf929a90b0b.xn----p9j493ivi4l"
   },
   {
     "comment": "V7",
     "input": "xn--jbf911clb.xn----6zg521d196p",
-    "output": null
+    "output": "xn--jbf911clb.xn----6zg521d196p"
   },
   {
     "comment": "C2; V7",
     "input": "xn--jbf929a90b0b.xn----6zg521d196p",
-    "output": null
+    "output": "xn--jbf929a90b0b.xn----6zg521d196p"
   },
   {
     "comment": "V7",
@@ -1810,7 +1810,7 @@
   {
     "comment": "V7",
     "input": "xn--gw68a.xn--ifb57ev2psc6027m",
-    "output": null
+    "output": "xn--gw68a.xn--ifb57ev2psc6027m"
   },
   {
     "comment": "V6",
@@ -1820,7 +1820,7 @@
   {
     "comment": "V6",
     "input": "xn--nsa95820a.xn--wz1d",
-    "output": null
+    "output": "xn--nsa95820a.xn--wz1d"
   },
   {
     "comment": "C1; V7",
@@ -1835,22 +1835,22 @@
   {
     "comment": "V7",
     "input": "xn--bn95b.xn--9kj2034e",
-    "output": null
+    "output": "xn--bn95b.xn--9kj2034e"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug15083f.xn--9kj2034e",
-    "output": null
+    "output": "xn--0ug15083f.xn--9kj2034e"
   },
   {
     "comment": "V7",
     "input": "xn--bn95b.xn--qnd6272k",
-    "output": null
+    "output": "xn--bn95b.xn--qnd6272k"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug15083f.xn--qnd6272k",
-    "output": null
+    "output": "xn--0ug15083f.xn--qnd6272k"
   },
   {
     "comment": "V7",
@@ -1890,12 +1890,12 @@
   {
     "comment": "V7",
     "input": "xn--gl0as212a.xn--8-o89h",
-    "output": null
+    "output": "xn--gl0as212a.xn--8-o89h"
   },
   {
     "comment": "V7",
     "input": "xn--1ug6928ac48e.xn--8-o89h",
-    "output": null
+    "output": "xn--1ug6928ac48e.xn--8-o89h"
   },
   {
     "comment": "V6; A4_2 (ignored)",
@@ -1910,7 +1910,7 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": ".xn--ph4h",
-    "output": null
+    "output": ".xn--ph4h"
   },
   {
     "comment": "C2",
@@ -1955,12 +1955,12 @@
   {
     "comment": "C2",
     "input": "xn--ss-59d.xn--1ug",
-    "output": null
+    "output": "xn--ss-59d.xn--1ug"
   },
   {
     "comment": "C2",
     "input": "xn--zca012a.xn--1ug",
-    "output": null
+    "output": "xn--zca012a.xn--1ug"
   },
   {
     "comment": "C1; V7",
@@ -1975,22 +1975,22 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--1-bs31m..xn--tv36e",
-    "output": null
+    "output": "xn--1-bs31m..xn--tv36e"
   },
   {
     "comment": "C1; V7; A4_2 (ignored)",
     "input": "xn--1-rgn37671n..xn--tv36e",
-    "output": null
+    "output": "xn--1-rgn37671n..xn--tv36e"
   },
   {
     "comment": "V7",
     "input": "xn--tshz2001k.xn--tv36e",
-    "output": null
+    "output": "xn--tshz2001k.xn--tv36e"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug88o47900b.xn--tv36e",
-    "output": null
+    "output": "xn--0ug88o47900b.xn--tv36e"
   },
   {
     "comment": "V7",
@@ -2015,12 +2015,12 @@
   {
     "comment": "V7",
     "input": "xn--ss-3xd2839nncy1m.xn--bb79d",
-    "output": null
+    "output": "xn--ss-3xd2839nncy1m.xn--bb79d"
   },
   {
     "comment": "V7",
     "input": "xn--zca92z0t7n5w96j.xn--bb79d",
-    "output": null
+    "output": "xn--zca92z0t7n5w96j.xn--bb79d"
   },
   {
     "comment": "C1; C2; V7",
@@ -2035,12 +2035,12 @@
   {
     "comment": "V7",
     "input": "xn--4pb2977v.xn--z0nt555ukbnv",
-    "output": null
+    "output": "xn--4pb2977v.xn--z0nt555ukbnv"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--4pb607jjt73a.xn--1ug236ke314donv1a",
-    "output": null
+    "output": "xn--4pb607jjt73a.xn--1ug236ke314donv1a"
   },
   {
     "comment": "V6; A4_2 (ignored)",
@@ -2060,7 +2060,7 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--n3b445e53p.",
-    "output": null
+    "output": "xn--n3b445e53p."
   },
   {
     "comment": "V6; A4_2 (ignored)",
@@ -2070,22 +2070,22 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--n3b742bkqf4ty.",
-    "output": null
+    "output": "xn--n3b742bkqf4ty."
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--n3b468aoqa89r.",
-    "output": null
+    "output": "xn--n3b468aoqa89r."
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--n3b445e53po6d.",
-    "output": null
+    "output": "xn--n3b445e53po6d."
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--n3b468azngju2a.",
-    "output": null
+    "output": "xn--n3b468azngju2a."
   },
   {
     "comment": "C2; V6",
@@ -2100,12 +2100,12 @@
   {
     "comment": "V6",
     "input": "xn--pei.xn--0fb32q3w7q2g4d",
-    "output": null
+    "output": "xn--pei.xn--0fb32q3w7q2g4d"
   },
   {
     "comment": "C2; V6",
     "input": "xn--1ugy10a.xn--0fb32q3w7q2g4d",
-    "output": null
+    "output": "xn--1ugy10a.xn--0fb32q3w7q2g4d"
   },
   {
     "comment": "V6",
@@ -2115,7 +2115,7 @@
   {
     "comment": "V6",
     "input": "xn--nua.xn--bc6k",
-    "output": null
+    "output": "xn--nua.xn--bc6k"
   },
   {
     "comment": "V6; A4_2 (ignored)",
@@ -2130,12 +2130,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--ok3d.",
-    "output": null
+    "output": "xn--ok3d."
   },
   {
     "comment": "V6; V7",
     "input": "xn--ok3d.xn--psd",
-    "output": null
+    "output": "xn--ok3d.xn--psd"
   },
   {
     "comment": "V6",
@@ -2150,12 +2150,12 @@
   {
     "comment": "V6",
     "input": "xn--uy1a.xn--jk3d",
-    "output": null
+    "output": "xn--uy1a.xn--jk3d"
   },
   {
     "comment": "V7",
     "input": "xn--8g1d12120a.xn--5l6h",
-    "output": null
+    "output": "xn--8g1d12120a.xn--5l6h"
   },
   {
     "comment": "V6; V7",
@@ -2170,7 +2170,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--2-5z4eu89y.xn--97l02706d",
-    "output": null
+    "output": "xn--2-5z4eu89y.xn--97l02706d"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -2195,12 +2195,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--4xa192qmp03d.",
-    "output": null
+    "output": "xn--4xa192qmp03d."
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--3xa392qmp03d.",
-    "output": null
+    "output": "xn--3xa392qmp03d."
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -2215,22 +2215,22 @@
   {
     "comment": "V7",
     "input": "xn--4xa192qmp03d.xn--psd",
-    "output": null
+    "output": "xn--4xa192qmp03d.xn--psd"
   },
   {
     "comment": "V7",
     "input": "xn--3xa392qmp03d.xn--psd",
-    "output": null
+    "output": "xn--3xa392qmp03d.xn--psd"
   },
   {
     "comment": "V7",
     "input": "xn--4xa192qmp03d.xn--cl7c",
-    "output": null
+    "output": "xn--4xa192qmp03d.xn--cl7c"
   },
   {
     "comment": "V7",
     "input": "xn--3xa392qmp03d.xn--cl7c",
-    "output": null
+    "output": "xn--3xa392qmp03d.xn--cl7c"
   },
   {
     "comment": "C2; V6; V7",
@@ -2245,12 +2245,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--b726ey18m.xn--ldb8734fg0qcyzzg",
-    "output": null
+    "output": "xn--b726ey18m.xn--ldb8734fg0qcyzzg"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--1ug66101lt8me.xn--ldb8734fg0qcyzzg",
-    "output": null
+    "output": "xn--1ug66101lt8me.xn--ldb8734fg0qcyzzg"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -2270,12 +2270,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--4xa68573c7n64d.xn--f29c",
-    "output": null
+    "output": ".xn--4xa68573c7n64d.xn--f29c"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--3xa88573c7n64d.xn--f29c",
-    "output": null
+    "output": ".xn--3xa88573c7n64d.xn--f29c"
   },
   {
     "comment": "V7",
@@ -2310,7 +2310,7 @@
   {
     "comment": "V7",
     "input": "2.xn--1chz4101l.xn--45iz7d6b",
-    "output": null
+    "output": "2.xn--1chz4101l.xn--45iz7d6b"
   },
   {
     "comment": "V7",
@@ -2325,17 +2325,17 @@
   {
     "comment": "V7",
     "input": "xn--1ch07f91401d.xn--45iz7d6b",
-    "output": null
+    "output": "xn--1ch07f91401d.xn--45iz7d6b"
   },
   {
     "comment": "V7",
     "input": "2.xn--1chz4101l.xn--gnd9b297j",
-    "output": null
+    "output": "2.xn--1chz4101l.xn--gnd9b297j"
   },
   {
     "comment": "V7",
     "input": "xn--1ch07f91401d.xn--gnd9b297j",
-    "output": null
+    "output": "xn--1ch07f91401d.xn--gnd9b297j"
   },
   {
     "input": "\ud83a\udd37.\ud802\udf90\ud83a\udc81\ud803\ude60\u0624",
@@ -2370,12 +2370,12 @@
   {
     "comment": "V7; V3 (ignored); U1 (ignored)",
     "input": "xn----hg4ei0361g.xn--8,-k362evu488a",
-    "output": null
+    "output": "xn----hg4ei0361g.xn--8,-k362evu488a"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----hg4ei0361g.xn--207ht163h7m94c",
-    "output": null
+    "output": "xn----hg4ei0361g.xn--207ht163h7m94c"
   },
   {
     "comment": "C1; V6",
@@ -2390,12 +2390,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": ".xn--yua",
-    "output": null
+    "output": ".xn--yua"
   },
   {
     "comment": "C1; V6",
     "input": "xn--0ug.xn--yua",
-    "output": null
+    "output": "xn--0ug.xn--yua"
   },
   {
     "input": "\ud83a\udd25\udb40\udd6e\uff0e\u1844\u10ae",
@@ -2448,7 +2448,7 @@
   {
     "comment": "V7",
     "input": "xn--de6h.xn--mnd799a",
-    "output": null
+    "output": "xn--de6h.xn--mnd799a"
   },
   {
     "input": "\ud83a\udd25.\u1844\u10ae",
@@ -2472,7 +2472,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--0fd40533g.xn--1-tws",
-    "output": null
+    "output": "xn--0fd40533g.xn--1-tws"
   },
   {
     "comment": "V6; V7",
@@ -2482,7 +2482,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--0fd40533g.xn--1-q1g",
-    "output": null
+    "output": "xn--0fd40533g.xn--1-q1g"
   },
   {
     "comment": "V7",
@@ -2507,12 +2507,12 @@
   {
     "comment": "V7",
     "input": "xn--8-zmb14974n.xn--su6h",
-    "output": null
+    "output": "xn--8-zmb14974n.xn--su6h"
   },
   {
     "comment": "V7",
     "input": "xn--8-xmb44974n.xn--su6h",
-    "output": null
+    "output": "xn--8-xmb44974n.xn--su6h"
   },
   {
     "comment": "V7",
@@ -2542,7 +2542,7 @@
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn--0ug3307c.xn----d87b",
-    "output": null
+    "output": "xn--0ug3307c.xn----d87b"
   },
   {
     "comment": "V6",
@@ -2557,12 +2557,12 @@
   {
     "comment": "V6",
     "input": "xn--lwwp69lqs7m.xn--b7b",
-    "output": null
+    "output": "xn--lwwp69lqs7m.xn--b7b"
   },
   {
     "comment": "V6",
     "input": "xn--lwwp69lqs7m.xn--b7b605i",
-    "output": null
+    "output": "xn--lwwp69lqs7m.xn--b7b605i"
   },
   {
     "comment": "V6",
@@ -2587,7 +2587,7 @@
   {
     "comment": "V6",
     "input": "xn--1uf.xn----nmlz65aub",
-    "output": null
+    "output": "xn--1uf.xn----nmlz65aub"
   },
   {
     "comment": "V6",
@@ -2612,7 +2612,7 @@
   {
     "comment": "V6",
     "input": "xn--1zf224e.xn--73g3065g",
-    "output": null
+    "output": "xn--1zf224e.xn--73g3065g"
   },
   {
     "comment": "V6",
@@ -2627,17 +2627,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--pnd26a55x.xn--73g3065g",
-    "output": null
+    "output": "xn--pnd26a55x.xn--73g3065g"
   },
   {
     "comment": "V6; V7",
     "input": "xn--osd925cvyn.xn--73g3065g",
-    "output": null
+    "output": "xn--osd925cvyn.xn--73g3065g"
   },
   {
     "comment": "V6; V7",
     "input": "xn--pnd26a55x.xn--f3g7465g",
-    "output": null
+    "output": "xn--pnd26a55x.xn--f3g7465g"
   },
   {
     "comment": "V7",
@@ -2672,7 +2672,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--gdh892bbz0d5438s..",
-    "output": null
+    "output": "xn--gdh892bbz0d5438s.."
   },
   {
     "comment": "V7",
@@ -2687,17 +2687,17 @@
   {
     "comment": "V7",
     "input": "xn--gdh892bbz0d5438s.xn--y86c",
-    "output": null
+    "output": "xn--gdh892bbz0d5438s.xn--y86c"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--hnd212gz32d54x5r..",
-    "output": null
+    "output": "xn--hnd212gz32d54x5r.."
   },
   {
     "comment": "V7",
     "input": "xn--hnd212gz32d54x5r.xn--y86c",
-    "output": null
+    "output": "xn--hnd212gz32d54x5r.xn--y86c"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -2737,7 +2737,7 @@
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn----1fa1788k.xn--0ug",
-    "output": null
+    "output": "xn----1fa1788k.xn--0ug"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -2772,22 +2772,22 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--ct2b0738h.xn--772h.",
-    "output": null
+    "output": "xn--ct2b0738h.xn--772h."
   },
   {
     "comment": "C1; C2; V6; A4_2 (ignored)",
     "input": "xn--0ugb3358ili2v.xn--772h.",
-    "output": null
+    "output": "xn--0ugb3358ili2v.xn--772h."
   },
   {
     "comment": "V6; V7",
     "input": "xn--ct2b0738h.xn--y86cl899a",
-    "output": null
+    "output": "xn--ct2b0738h.xn--y86cl899a"
   },
   {
     "comment": "C1; C2; V6; V7",
     "input": "xn--0ugb3358ili2v.xn--y86cl899a",
-    "output": null
+    "output": "xn--0ugb3358ili2v.xn--y86cl899a"
   },
   {
     "comment": "V6; V7; U1 (ignored)",
@@ -2817,12 +2817,12 @@
   {
     "comment": "V6; U1 (ignored)",
     "input": "3,.xn--1-43l.ss",
-    "output": null
+    "output": "3,.xn--1-43l.ss"
   },
   {
     "comment": "V6; U1 (ignored)",
     "input": "3,.xn--1-43l.xn--zca",
-    "output": null
+    "output": "3,.xn--1-43l.xn--zca"
   },
   {
     "comment": "V6; V7; U1 (ignored)",
@@ -2842,22 +2842,22 @@
   {
     "comment": "V6; V7; U1 (ignored)",
     "input": "3,.xn--ss-k1r094b",
-    "output": null
+    "output": "3,.xn--ss-k1r094b"
   },
   {
     "comment": "V6; V7; U1 (ignored)",
     "input": "3,.xn--zca344lmif",
-    "output": null
+    "output": "3,.xn--zca344lmif"
   },
   {
     "comment": "V6; V7",
     "input": "xn--x07h.xn--ss-k1r094b",
-    "output": null
+    "output": "xn--x07h.xn--ss-k1r094b"
   },
   {
     "comment": "V6; V7",
     "input": "xn--x07h.xn--zca344lmif",
-    "output": null
+    "output": "xn--x07h.xn--zca344lmif"
   },
   {
     "comment": "C2; V6",
@@ -2887,12 +2887,12 @@
   {
     "comment": "V6",
     "input": "xn--n3b956a9zm.xn--1ch912d",
-    "output": null
+    "output": "xn--n3b956a9zm.xn--1ch912d"
   },
   {
     "comment": "C2; V6",
     "input": "xn--n3b956a9zm.xn--1ug63gz5w",
-    "output": null
+    "output": "xn--n3b956a9zm.xn--1ug63gz5w"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -2902,7 +2902,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--1zf.xn----483d46987byr50b",
-    "output": null
+    "output": "xn--1zf.xn----483d46987byr50b"
   },
   {
     "input": "xn--9ob.xn--4xa",
@@ -2919,32 +2919,32 @@
   {
     "comment": "V7",
     "input": "xn--9ob.xn--4xa380e",
-    "output": null
+    "output": "xn--9ob.xn--4xa380e"
   },
   {
     "comment": "C2; V7",
     "input": "xn--9ob.xn--4xa380ebol",
-    "output": null
+    "output": "xn--9ob.xn--4xa380ebol"
   },
   {
     "comment": "C2; V7",
     "input": "xn--9ob.xn--3xa580ebol",
-    "output": null
+    "output": "xn--9ob.xn--3xa580ebol"
   },
   {
     "comment": "V7",
     "input": "xn--9ob.xn--4xa574u",
-    "output": null
+    "output": "xn--9ob.xn--4xa574u"
   },
   {
     "comment": "C2; V7",
     "input": "xn--9ob.xn--4xa795lq2l",
-    "output": null
+    "output": "xn--9ob.xn--4xa795lq2l"
   },
   {
     "comment": "C2; V7",
     "input": "xn--9ob.xn--3xa995lq2l",
-    "output": null
+    "output": "xn--9ob.xn--3xa995lq2l"
   },
   {
     "comment": "C2; V7",
@@ -2964,12 +2964,12 @@
   {
     "comment": "V7",
     "input": "xn--57e237h.xn--5sa98523p",
-    "output": null
+    "output": "xn--57e237h.xn--5sa98523p"
   },
   {
     "comment": "C2; V7",
     "input": "xn--57e237h.xn--5sa649la993427a",
-    "output": null
+    "output": "xn--57e237h.xn--5sa649la993427a"
   },
   {
     "comment": "C2; V7",
@@ -2979,12 +2979,12 @@
   {
     "comment": "V7",
     "input": "xn--bnd320b.xn--5sa98523p",
-    "output": null
+    "output": "xn--bnd320b.xn--5sa98523p"
   },
   {
     "comment": "C2; V7",
     "input": "xn--bnd320b.xn--5sa649la993427a",
-    "output": null
+    "output": "xn--bnd320b.xn--5sa649la993427a"
   },
   {
     "comment": "V6; V7",
@@ -2999,7 +2999,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--mi4h.xn--1uf6843smg20c",
-    "output": null
+    "output": "xn--mi4h.xn--1uf6843smg20c"
   },
   {
     "comment": "V7",
@@ -3024,12 +3024,12 @@
   {
     "comment": "V7",
     "input": "xn--ss-7dp66033t.xn--p5d",
-    "output": null
+    "output": "xn--ss-7dp66033t.xn--p5d"
   },
   {
     "comment": "V7",
     "input": "xn--zca562jc642x.xn--p5d",
-    "output": null
+    "output": "xn--zca562jc642x.xn--p5d"
   },
   {
     "comment": "C1; V7",
@@ -3039,12 +3039,12 @@
   {
     "comment": "V7",
     "input": "xn--b9i.xn--5p9y",
-    "output": null
+    "output": "xn--b9i.xn--5p9y"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ugx66b.xn--0ugz2871c",
-    "output": null
+    "output": "xn--0ugx66b.xn--0ugz2871c"
   },
   {
     "comment": "V6; V7",
@@ -3059,7 +3059,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--hdhx157g68o0g.xn--c0e65eu616c34o7a",
-    "output": null
+    "output": "xn--hdhx157g68o0g.xn--c0e65eu616c34o7a"
   },
   {
     "input": "\u00df\uff61\ud800\udef3\u10ac\u0fb8",
@@ -3128,12 +3128,12 @@
   {
     "comment": "V7",
     "input": "ss.xn--lgd10cu829c",
-    "output": null
+    "output": "ss.xn--lgd10cu829c"
   },
   {
     "comment": "V7",
     "input": "xn--zca.xn--lgd10cu829c",
-    "output": null
+    "output": "xn--zca.xn--lgd10cu829c"
   },
   {
     "comment": "V6; V7",
@@ -3148,7 +3148,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--lqc703ebm93a.xn--9-000p",
-    "output": null
+    "output": "xn--lqc703ebm93a.xn--9-000p"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -3163,7 +3163,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--m8e.xn----mdb555dkk71m",
-    "output": null
+    "output": "xn--m8e.xn----mdb555dkk71m"
   },
   {
     "comment": "V6; V7",
@@ -3198,7 +3198,7 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--hcb613r.xn--7-pgo.",
-    "output": null
+    "output": "xn--hcb613r.xn--7-pgo."
   },
   {
     "comment": "V6; V7",
@@ -3213,17 +3213,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--hcb613r.xn--7-pgoy530h",
-    "output": null
+    "output": "xn--hcb613r.xn--7-pgoy530h"
   },
   {
     "comment": "V6; V7; A4_2 (ignored)",
     "input": "xn--hcb887c.xn--7-pgo.",
-    "output": null
+    "output": "xn--hcb887c.xn--7-pgo."
   },
   {
     "comment": "V6; V7",
     "input": "xn--hcb887c.xn--7-pgoy530h",
-    "output": null
+    "output": "xn--hcb887c.xn--7-pgoy530h"
   },
   {
     "comment": "V7; U1 (ignored)",
@@ -3238,17 +3238,17 @@
   {
     "comment": "V7; U1 (ignored); A4_2 (ignored)",
     "input": "xn--6,-7i3c..xn--0f9ao925c",
-    "output": null
+    "output": "xn--6,-7i3c..xn--0f9ao925c"
   },
   {
     "comment": "V7; U1 (ignored)",
     "input": "xn--6,-7i3cj157d.xn--0f9ao925c",
-    "output": null
+    "output": "xn--6,-7i3cj157d.xn--0f9ao925c"
   },
   {
     "comment": "V7",
     "input": "xn--woqs083bel0g.xn--0f9ao925c",
-    "output": null
+    "output": "xn--woqs083bel0g.xn--0f9ao925c"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -3263,7 +3263,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--rx21bhv12i",
-    "output": null
+    "output": ".xn--rx21bhv12i"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -3273,7 +3273,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "-.xn----pbkx6497q",
-    "output": null
+    "output": "-.xn----pbkx6497q"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -3298,12 +3298,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--t960e.-5ss",
-    "output": null
+    "output": "xn--t960e.-5ss"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--t960e.xn---5-hia",
-    "output": null
+    "output": "xn--t960e.xn---5-hia"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -3338,22 +3338,22 @@
   {
     "comment": "V6; V7",
     "input": "xn--0s9c.xn--tljz038l0gz4b",
-    "output": null
+    "output": "xn--0s9c.xn--tljz038l0gz4b"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug9533g.xn--tljz038l0gz4b",
-    "output": null
+    "output": "xn--1ug9533g.xn--tljz038l0gz4b"
   },
   {
     "comment": "V6; V7",
     "input": "xn--0s9c.xn--9nd3211w0gz4b",
-    "output": null
+    "output": "xn--0s9c.xn--9nd3211w0gz4b"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug9533g.xn--9nd3211w0gz4b",
-    "output": null
+    "output": "xn--1ug9533g.xn--9nd3211w0gz4b"
   },
   {
     "comment": "C2; V7",
@@ -3378,17 +3378,17 @@
   {
     "comment": "V7",
     "input": "xn--ey1p.xn--ss-eq36b",
-    "output": null
+    "output": "xn--ey1p.xn--ss-eq36b"
   },
   {
     "comment": "C2; V7",
     "input": "xn--ey1p.xn--ss-n1tx0508a",
-    "output": null
+    "output": "xn--ey1p.xn--ss-n1tx0508a"
   },
   {
     "comment": "C2; V7",
     "input": "xn--ey1p.xn--zca870nz438b",
-    "output": null
+    "output": "xn--ey1p.xn--zca870nz438b"
   },
   {
     "comment": "C1; V6; V7",
@@ -3433,17 +3433,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--zb9h5968x.xn--4xa378i1mfjw7y",
-    "output": null
+    "output": "xn--zb9h5968x.xn--4xa378i1mfjw7y"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--0ug3766p5nm1b.xn--4xa378i1mfjw7y",
-    "output": null
+    "output": "xn--0ug3766p5nm1b.xn--4xa378i1mfjw7y"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--0ug3766p5nm1b.xn--3xa578i1mfjw7y",
-    "output": null
+    "output": "xn--0ug3766p5nm1b.xn--3xa578i1mfjw7y"
   },
   {
     "comment": "C1; V6; V7",
@@ -3478,22 +3478,22 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "4..1.xn--sf51d",
-    "output": null
+    "output": "4..1.xn--sf51d"
   },
   {
     "comment": "C2; V7; A4_2 (ignored)",
     "input": "4..1.xn--1ug64613i",
-    "output": null
+    "output": "4..1.xn--1ug64613i"
   },
   {
     "comment": "V7",
     "input": "xn--wsh.xn--tsh07994h",
-    "output": null
+    "output": "xn--wsh.xn--tsh07994h"
   },
   {
     "comment": "C2; V7",
     "input": "xn--wsh.xn--1ug58o74922a",
-    "output": null
+    "output": "xn--wsh.xn--1ug58o74922a"
   },
   {
     "comment": "V7",
@@ -3513,12 +3513,12 @@
   {
     "comment": "V7",
     "input": "xn--blj6306ey091d.xn--9jb4223l",
-    "output": null
+    "output": "xn--blj6306ey091d.xn--9jb4223l"
   },
   {
     "comment": "V7",
     "input": "xn--1ugy52cym7p7xu5e.xn--9jb4223l",
-    "output": null
+    "output": "xn--1ugy52cym7p7xu5e.xn--9jb4223l"
   },
   {
     "comment": "V7",
@@ -3528,12 +3528,12 @@
   {
     "comment": "V7",
     "input": "xn--rnd8945ky009c.xn--9jb4223l",
-    "output": null
+    "output": "xn--rnd8945ky009c.xn--9jb4223l"
   },
   {
     "comment": "V7",
     "input": "xn--rnd479ep20q7x12e.xn--9jb4223l",
-    "output": null
+    "output": "xn--rnd479ep20q7x12e.xn--9jb4223l"
   },
   {
     "comment": "V6; U1 (ignored)",
@@ -3548,12 +3548,12 @@
   {
     "comment": "V6; U1 (ignored)",
     "input": "xn--0s9c.xn--5,-81t",
-    "output": null
+    "output": "xn--0s9c.xn--5,-81t"
   },
   {
     "comment": "V6; V7",
     "input": "xn--0s9c.xn--8ug8324p",
-    "output": null
+    "output": "xn--0s9c.xn--8ug8324p"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -3563,7 +3563,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--lmb18944c0g2z.xn----2k81m",
-    "output": null
+    "output": "xn--lmb18944c0g2z.xn----2k81m"
   },
   {
     "comment": "V7",
@@ -3573,7 +3573,7 @@
   {
     "comment": "V7",
     "input": "xn--ie9hi1349bqdlb.xn--oj69a",
-    "output": null
+    "output": "xn--ie9hi1349bqdlb.xn--oj69a"
   },
   {
     "comment": "C1; V6; V7",
@@ -3588,22 +3588,22 @@
   {
     "comment": "V6; V7",
     "input": "xn----9snu5320fi76w.xn--4-ivs",
-    "output": null
+    "output": "xn----9snu5320fi76w.xn--4-ivs"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn----9snu5320fi76w.xn--4-sgn589c",
-    "output": null
+    "output": "xn----9snu5320fi76w.xn--4-sgn589c"
   },
   {
     "comment": "V6; V7",
     "input": "xn----9snu5320fi76w.xn--4-f0g",
-    "output": null
+    "output": "xn----9snu5320fi76w.xn--4-f0g"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn----9snu5320fi76w.xn--4-f0g649i",
-    "output": null
+    "output": "xn----9snu5320fi76w.xn--4-f0g649i"
   },
   {
     "input": "\u16ad\uff61\ud834\udf20\u00df\ud81a\udef1",
@@ -3684,7 +3684,7 @@
   {
     "comment": "V6",
     "input": "xn--hdh5636g.xn--ci2d",
-    "output": null
+    "output": "xn--hdh5636g.xn--ci2d"
   },
   {
     "comment": "C2",
@@ -3709,22 +3709,22 @@
   {
     "comment": "V6",
     "input": "xn--gdhz03bxt42d.xn--lrb6479j",
-    "output": null
+    "output": "xn--gdhz03bxt42d.xn--lrb6479j"
   },
   {
     "comment": "C2",
     "input": "xn--gdhz03bxt42d.xn--lrb506jqr4n",
-    "output": null
+    "output": "xn--gdhz03bxt42d.xn--lrb506jqr4n"
   },
   {
     "comment": "V6; V7",
     "input": "xn--jnd802gsm17c.xn--lrb6479j",
-    "output": null
+    "output": "xn--jnd802gsm17c.xn--lrb6479j"
   },
   {
     "comment": "C2; V7",
     "input": "xn--jnd802gsm17c.xn--lrb506jqr4n",
-    "output": null
+    "output": "xn--jnd802gsm17c.xn--lrb506jqr4n"
   },
   {
     "comment": "V6; V7",
@@ -3739,7 +3739,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--u4e.xn--hdhx0084f",
-    "output": null
+    "output": "xn--u4e.xn--hdhx0084f"
   },
   {
     "comment": "V6; V7",
@@ -3774,7 +3774,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--c0e34564d.xn--9ca207st53lg3f",
-    "output": null
+    "output": "xn--c0e34564d.xn--9ca207st53lg3f"
   },
   {
     "comment": "V6; V7",
@@ -3809,7 +3809,7 @@
   {
     "comment": "V6",
     "input": "xn--rlj.xn--vhb294g",
-    "output": null
+    "output": "xn--rlj.xn--vhb294g"
   },
   {
     "comment": "V6",
@@ -3819,7 +3819,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--7nd.xn--vhb294g",
-    "output": null
+    "output": "xn--7nd.xn--vhb294g"
   },
   {
     "comment": "V7",
@@ -3854,7 +3854,7 @@
   {
     "comment": "V7",
     "input": "xn--oub.xn--sljz109bpe25dviva",
-    "output": null
+    "output": "xn--oub.xn--sljz109bpe25dviva"
   },
   {
     "comment": "V7",
@@ -3869,7 +3869,7 @@
   {
     "comment": "V7",
     "input": "xn--oub.xn--8nd9522gpe69cviva",
-    "output": null
+    "output": "xn--oub.xn--8nd9522gpe69cviva"
   },
   {
     "comment": "V6",
@@ -3894,7 +3894,7 @@
   {
     "comment": "V6",
     "input": "xn--gdh1854cn19c.xn--kqi",
-    "output": null
+    "output": "xn--gdh1854cn19c.xn--kqi"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -3904,7 +3904,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--210d.-",
-    "output": null
+    "output": "xn--210d.-"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -3924,17 +3924,17 @@
   {
     "comment": "C2; V3 (ignored); A4_2 (ignored)",
     "input": "xn--1-o7j663bdl7m..xn----381i",
-    "output": null
+    "output": "xn--1-o7j663bdl7m..xn----381i"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--h8e863drj7h.xn----381i",
-    "output": null
+    "output": "xn--h8e863drj7h.xn----381i"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn--h8e470bl0d838o.xn----381i",
-    "output": null
+    "output": "xn--h8e470bl0d838o.xn----381i"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -3964,17 +3964,17 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "1.xn----tgnz80r.xn--kp5b",
-    "output": null
+    "output": "1.xn----tgnz80r.xn--kp5b"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----dcp160o.xn--kp5b",
-    "output": null
+    "output": "xn----dcp160o.xn--kp5b"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----tgnx5rjr6c.xn--kp5b",
-    "output": null
+    "output": "xn----tgnx5rjr6c.xn--kp5b"
   },
   {
     "comment": "C1; V7",
@@ -3984,12 +3984,12 @@
   {
     "comment": "V7",
     "input": "xn--m9j.xn--rtb10784p",
-    "output": null
+    "output": "xn--m9j.xn--rtb10784p"
   },
   {
     "comment": "C1; V7",
     "input": "xn--m9j.xn--rtb154j9l73w",
-    "output": null
+    "output": "xn--m9j.xn--rtb154j9l73w"
   },
   {
     "comment": "V6",
@@ -4014,12 +4014,12 @@
   {
     "comment": "V6",
     "input": "xn--4xa.xn--3lb1944f",
-    "output": null
+    "output": "xn--4xa.xn--3lb1944f"
   },
   {
     "comment": "V6",
     "input": "xn--3xa.xn--3lb1944f",
-    "output": null
+    "output": "xn--3xa.xn--3lb1944f"
   },
   {
     "comment": "V6",
@@ -4049,17 +4049,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--xmc83135idcxza.xn--tkjwb",
-    "output": null
+    "output": "xn--xmc83135idcxza.xn--tkjwb"
   },
   {
     "comment": "V6; V7",
     "input": "xn--xmc83135idcxza.xn--9md086l",
-    "output": null
+    "output": "xn--xmc83135idcxza.xn--9md086l"
   },
   {
     "comment": "V6; V7",
     "input": "xn--xmc83135idcxza.xn--9md2b",
-    "output": null
+    "output": "xn--xmc83135idcxza.xn--9md2b"
   },
   {
     "comment": "C2; V6; V7; U1 (ignored)",
@@ -4074,22 +4074,22 @@
   {
     "comment": "V6; V7; U1 (ignored)",
     "input": "xn--7,-bid991urn3k.xn--1tb13454l",
-    "output": null
+    "output": "xn--7,-bid991urn3k.xn--1tb13454l"
   },
   {
     "comment": "C2; V6; V7; U1 (ignored)",
     "input": "xn--7,-bid991urn3k.xn--1tb334j1197q",
-    "output": null
+    "output": "xn--7,-bid991urn3k.xn--1tb334j1197q"
   },
   {
     "comment": "V6; V7",
     "input": "xn--xcb756i493fwi5o.xn--1tb13454l",
-    "output": null
+    "output": "xn--xcb756i493fwi5o.xn--1tb13454l"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--xcb756i493fwi5o.xn--1tb334j1197q",
-    "output": null
+    "output": "xn--xcb756i493fwi5o.xn--1tb334j1197q"
   },
   {
     "comment": "V7",
@@ -4109,7 +4109,7 @@
   {
     "comment": "V7",
     "input": "xn--hbf.xn--s5a83117e",
-    "output": null
+    "output": "xn--hbf.xn--s5a83117e"
   },
   {
     "comment": "V7",
@@ -4119,7 +4119,7 @@
   {
     "comment": "V7",
     "input": "xn--hbf.xn--d5a86117e",
-    "output": null
+    "output": "xn--hbf.xn--d5a86117e"
   },
   {
     "comment": "V3 (ignored); A4_2 (ignored)",
@@ -4149,7 +4149,7 @@
   {
     "comment": "V6",
     "input": "xn--7m3d291b.xn--8-vws",
-    "output": null
+    "output": "xn--7m3d291b.xn--8-vws"
   },
   {
     "comment": "V6",
@@ -4159,7 +4159,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--7m3d291b.xn--8-s1g",
-    "output": null
+    "output": "xn--7m3d291b.xn--8-s1g"
   },
   {
     "comment": "V6; V7",
@@ -4174,7 +4174,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--zxf.xn--fx7ho0250c",
-    "output": null
+    "output": "xn--zxf.xn--fx7ho0250c"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
@@ -4184,12 +4184,12 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": "xn----7i12hu122k9ire.",
-    "output": null
+    "output": "xn----7i12hu122k9ire."
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn----7i12hu122k9ire.xn--0ug",
-    "output": null
+    "output": "xn----7i12hu122k9ire.xn--0ug"
   },
   {
     "comment": "V6; V7",
@@ -4209,12 +4209,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "..xn--s96cu30b",
-    "output": null
+    "output": "..xn--s96cu30b"
   },
   {
     "comment": "V6; V7",
     "input": "xn--y86c.xn--s96cu30b",
-    "output": null
+    "output": "xn--y86c.xn--s96cu30b"
   },
   {
     "comment": "C2; V6",
@@ -4224,12 +4224,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--zi9a.",
-    "output": null
+    "output": "xn--zi9a."
   },
   {
     "comment": "C2; V6",
     "input": "xn--zi9a.xn--1ug",
-    "output": null
+    "output": "xn--zi9a.xn--1ug"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -4239,7 +4239,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--xm38e.-",
-    "output": null
+    "output": "xn--xm38e.-"
   },
   {
     "comment": "V7",
@@ -4294,12 +4294,12 @@
   {
     "comment": "V7",
     "input": "xn--pgh4639f.xn--ss-ifj426nle504a",
-    "output": null
+    "output": "xn--pgh4639f.xn--ss-ifj426nle504a"
   },
   {
     "comment": "V7",
     "input": "xn--pgh4639f.xn--zca593eo6oc013y",
-    "output": null
+    "output": "xn--pgh4639f.xn--zca593eo6oc013y"
   },
   {
     "comment": "V7",
@@ -4344,7 +4344,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--xta.xn--e91aw9417e",
-    "output": null
+    "output": "xn--xta.xn--e91aw9417e"
   },
   {
     "comment": "C2; V6; U1 (ignored)",
@@ -4359,22 +4359,22 @@
   {
     "comment": "V6; U1 (ignored)",
     "input": "xn--7,-gh9hg322i.xn--3ed",
-    "output": null
+    "output": "xn--7,-gh9hg322i.xn--3ed"
   },
   {
     "comment": "C2; V6; U1 (ignored)",
     "input": "xn--7,-n1t0654eqo3o.xn--3ed",
-    "output": null
+    "output": "xn--7,-n1t0654eqo3o.xn--3ed"
   },
   {
     "comment": "V6; V7",
     "input": "xn--nc9aq743ds0e.xn--3ed",
-    "output": null
+    "output": "xn--nc9aq743ds0e.xn--3ed"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--1ug4874cfd0kbmg.xn--3ed",
-    "output": null
+    "output": "xn--1ug4874cfd0kbmg.xn--3ed"
   },
   {
     "comment": "V6",
@@ -4384,7 +4384,7 @@
   {
     "comment": "V6",
     "input": "xn--tc9a.xn--9jd663b",
-    "output": null
+    "output": "xn--tc9a.xn--9jd663b"
   },
   {
     "comment": "V6",
@@ -4399,7 +4399,7 @@
   {
     "comment": "V6",
     "input": "xn--e1g71d.xn--772h",
-    "output": null
+    "output": "xn--e1g71d.xn--772h"
   },
   {
     "comment": "C1",
@@ -4419,7 +4419,7 @@
   {
     "comment": "C1",
     "input": "xn--0ug.xn--hdh",
-    "output": null
+    "output": "xn--0ug.xn--hdh"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -4434,7 +4434,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----7m53aj640l.xn----8f4br83t",
-    "output": null
+    "output": "xn----7m53aj640l.xn----8f4br83t"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -4444,12 +4444,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--87e0ol04cdl39e.xn----qinu247r",
-    "output": null
+    "output": "xn--87e0ol04cdl39e.xn----qinu247r"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn--87e0ol04cdl39e.xn----ugn5e3763s",
-    "output": null
+    "output": "xn--87e0ol04cdl39e.xn----ugn5e3763s"
   },
   {
     "input": "\ud83a\udd53\uff0e\u0718",
@@ -4509,7 +4509,7 @@
   {
     "comment": "V7",
     "input": "xn--ynd2415j.xn--5-dug9054m",
-    "output": null
+    "output": "xn--ynd2415j.xn--5-dug9054m"
   },
   {
     "comment": "C2; V6; U1 (ignored)",
@@ -4534,12 +4534,12 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----c6jx047j.xn--gff52t",
-    "output": null
+    "output": "xn----c6jx047j.xn--gff52t"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn----c6j614b1z4v.xn--gff52t",
-    "output": null
+    "output": "xn----c6j614b1z4v.xn--gff52t"
   },
   {
     "input": "\u2260.\u183f",
@@ -4582,7 +4582,7 @@
   {
     "comment": "V7",
     "input": "xn--td3j.xn--4628b",
-    "output": null
+    "output": "xn--td3j.xn--4628b"
   },
   {
     "input": "xn--skb",
@@ -4605,7 +4605,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--1-rfc312cdp45c.xn----nq0j",
-    "output": null
+    "output": "xn--1-rfc312cdp45c.xn----nq0j"
   },
   {
     "comment": "V7",
@@ -4620,7 +4620,7 @@
   {
     "comment": "V7",
     "input": "xn--ph26c.xn--281b",
-    "output": null
+    "output": "xn--ph26c.xn--281b"
   },
   {
     "comment": "V7",
@@ -4630,7 +4630,7 @@
   {
     "comment": "V7",
     "input": "xn--z7e98100evc01b.xn--czb",
-    "output": null
+    "output": "xn--z7e98100evc01b.xn--czb"
   },
   {
     "comment": "C2; V7",
@@ -4645,12 +4645,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--6x4u",
-    "output": null
+    "output": ".xn--6x4u"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug.xn--6x4u",
-    "output": null
+    "output": "xn--1ug.xn--6x4u"
   },
   {
     "comment": "C1; V7",
@@ -4675,12 +4675,12 @@
   {
     "comment": "V7",
     "input": "xn--vn7c.xn--hdh501y8wvfs5h",
-    "output": null
+    "output": "xn--vn7c.xn--hdh501y8wvfs5h"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug2139f.xn--hdh501y8wvfs5h",
-    "output": null
+    "output": "xn--0ug2139f.xn--hdh501y8wvfs5h"
   },
   {
     "comment": "V7",
@@ -4775,12 +4775,12 @@
   {
     "comment": "V7",
     "input": "xn--hdh84f.ss",
-    "output": null
+    "output": "xn--hdh84f.ss"
   },
   {
     "comment": "V7",
     "input": "xn--hdh84f.xn--zca",
-    "output": null
+    "output": "xn--hdh84f.xn--zca"
   },
   {
     "comment": "C1",
@@ -4810,7 +4810,7 @@
   {
     "comment": "C1",
     "input": "xn--0ug.xn--1ch",
-    "output": null
+    "output": "xn--0ug.xn--1ch"
   },
   {
     "comment": "C1; V6",
@@ -4820,12 +4820,12 @@
   {
     "comment": "V6",
     "input": "xn--461dw464a.xn--v8e29loy65a",
-    "output": null
+    "output": "xn--461dw464a.xn--v8e29loy65a"
   },
   {
     "comment": "C1; V6",
     "input": "xn--461dw464a.xn--v8e29ldzfo952a",
-    "output": null
+    "output": "xn--461dw464a.xn--v8e29ldzfo952a"
   },
   {
     "comment": "C2; V6; V7; V3 (ignored)",
@@ -4850,22 +4850,22 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--6j00chy9a.xn----81n51bt713h",
-    "output": null
+    "output": "xn--6j00chy9a.xn----81n51bt713h"
   },
   {
     "comment": "C2; V6; V7; V3 (ignored)",
     "input": "xn--1ug15151gkb5a.xn----81n51bt713h",
-    "output": null
+    "output": "xn--1ug15151gkb5a.xn----81n51bt713h"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--6j00chy9a.xn----61n81bt713h",
-    "output": null
+    "output": "xn--6j00chy9a.xn----61n81bt713h"
   },
   {
     "comment": "C2; V6; V7; V3 (ignored)",
     "input": "xn--1ug15151gkb5a.xn----61n81bt713h",
-    "output": null
+    "output": "xn--1ug15151gkb5a.xn----61n81bt713h"
   },
   {
     "comment": "C2; V6",
@@ -4880,12 +4880,12 @@
   {
     "comment": "V6",
     "input": "xn--kxh.xn--eoc8m432a",
-    "output": null
+    "output": "xn--kxh.xn--eoc8m432a"
   },
   {
     "comment": "C2; V6",
     "input": "xn--1ug04r.xn--eoc8m432a40i",
-    "output": null
+    "output": "xn--1ug04r.xn--eoc8m432a40i"
   },
   {
     "comment": "V7; U1 (ignored)",
@@ -4900,12 +4900,12 @@
   {
     "comment": "V7; U1 (ignored)",
     "input": "xn--n433d.1,",
-    "output": null
+    "output": "xn--n433d.1,"
   },
   {
     "comment": "V7",
     "input": "xn--n433d.xn--v07h",
-    "output": null
+    "output": "xn--n433d.xn--v07h"
   },
   {
     "comment": "V6",
@@ -4915,7 +4915,7 @@
   {
     "comment": "V6",
     "input": "xn--rbry728b.xn--y88h",
-    "output": null
+    "output": "xn--rbry728b.xn--y88h"
   },
   {
     "comment": "V6; V7",
@@ -4930,7 +4930,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--3-ib31m.xn--4-pql",
-    "output": null
+    "output": "xn--3-ib31m.xn--4-pql"
   },
   {
     "comment": "V7",
@@ -4955,7 +4955,7 @@
   {
     "comment": "V7",
     "input": "xn--hdh8193c.xn--5z40cp629b",
-    "output": null
+    "output": "xn--hdh8193c.xn--5z40cp629b"
   },
   {
     "comment": "C2; V7",
@@ -4990,12 +4990,12 @@
   {
     "comment": "V7",
     "input": "xn--1t56e.xn--1ch153bqvw",
-    "output": null
+    "output": "xn--1t56e.xn--1ch153bqvw"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1t56e.xn--1ug73gzzpwi3a",
-    "output": null
+    "output": "xn--1t56e.xn--1ug73gzzpwi3a"
   },
   {
     "comment": "C2; V7",
@@ -5010,22 +5010,22 @@
   {
     "comment": "V7",
     "input": "xn--1t56e.xn--2nd141ghl2a",
-    "output": null
+    "output": "xn--1t56e.xn--2nd141ghl2a"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1t56e.xn--2nd159e9vb743e",
-    "output": null
+    "output": "xn--1t56e.xn--2nd159e9vb743e"
   },
   {
     "comment": "V6",
     "input": "3.1.xn--110d.j",
-    "output": null
+    "output": "3.1.xn--110d.j"
   },
   {
     "comment": "V7",
     "input": "xn--tshd3512p.j",
-    "output": null
+    "output": "xn--tshd3512p.j"
   },
   {
     "comment": "V6",
@@ -5040,7 +5040,7 @@
   {
     "comment": "V6",
     "input": "xn--oua.xn--mr9c",
-    "output": null
+    "output": "xn--oua.xn--mr9c"
   },
   {
     "comment": "V6",
@@ -5065,7 +5065,7 @@
   {
     "comment": "V6",
     "input": "xn--gdh2512e.xn--i4c",
-    "output": null
+    "output": "xn--gdh2512e.xn--i4c"
   },
   {
     "comment": "V3 (ignored)",
@@ -5095,7 +5095,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--fc9a.xn----qmg787k869k",
-    "output": null
+    "output": "xn--fc9a.xn----qmg787k869k"
   },
   {
     "comment": "V7",
@@ -5120,12 +5120,12 @@
   {
     "comment": "V7",
     "input": "xn--gdh.xn--4tjx101bsg00ds9pyc",
-    "output": null
+    "output": "xn--gdh.xn--4tjx101bsg00ds9pyc"
   },
   {
     "comment": "V7",
     "input": "xn--gdh0880o.xn--4tjx101bsg00ds9pyc",
-    "output": null
+    "output": "xn--gdh0880o.xn--4tjx101bsg00ds9pyc"
   },
   {
     "comment": "C2; V6; V7",
@@ -5140,12 +5140,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--8v1d.xn--ye9h41035a2qqs",
-    "output": null
+    "output": "xn--8v1d.xn--ye9h41035a2qqs"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--8v1d.xn--1ug1386plvx1cd8vya",
-    "output": null
+    "output": "xn--8v1d.xn--1ug1386plvx1cd8vya"
   },
   {
     "input": "\u00df\u09c1\u1ded\u3002\u06208\u2085",
@@ -5228,22 +5228,22 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "-18.xn--rx9c.xn--382h",
-    "output": null
+    "output": "-18.xn--rx9c.xn--382h"
   },
   {
     "comment": "C1; V6; V3 (ignored)",
     "input": "xn---18-9m0a.xn--rx9c.xn--382h",
-    "output": null
+    "output": "xn---18-9m0a.xn--rx9c.xn--382h"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----ddps939g.xn--382h",
-    "output": null
+    "output": "xn----ddps939g.xn--382h"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
     "input": "xn----sgn18r3191a.xn--382h",
-    "output": null
+    "output": "xn----sgn18r3191a.xn--382h"
   },
   {
     "comment": "V7",
@@ -5263,7 +5263,7 @@
   {
     "comment": "V7",
     "input": "xn--y86c.xn--t6f5138v",
-    "output": null
+    "output": "xn--y86c.xn--t6f5138v"
   },
   {
     "input": "xn--t6f5138v",
@@ -5326,17 +5326,17 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--u836e.xn---ss-gl2a",
-    "output": null
+    "output": "xn--u836e.xn---ss-gl2a"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn--u836e.xn---ss-cn0at5l",
-    "output": null
+    "output": "xn--u836e.xn---ss-cn0at5l"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn--u836e.xn----qfa750ve7b",
-    "output": null
+    "output": "xn--u836e.xn----qfa750ve7b"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
@@ -5403,7 +5403,7 @@
   {
     "comment": "C1",
     "input": "xn--p8e650b.xn--1ch3a7084l",
-    "output": null
+    "output": "xn--p8e650b.xn--1ch3a7084l"
   },
   {
     "comment": "V7",
@@ -5418,12 +5418,12 @@
   {
     "comment": "V7",
     "input": "xn--1fb94204l.xn--dlj",
-    "output": null
+    "output": "xn--1fb94204l.xn--dlj"
   },
   {
     "comment": "V7",
     "input": "xn--1fb94204l.xn--tnd",
-    "output": null
+    "output": "xn--1fb94204l.xn--tnd"
   },
   {
     "comment": "C1; V7",
@@ -5438,12 +5438,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--w720c",
-    "output": null
+    "output": ".xn--w720c"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug.xn--w720c",
-    "output": null
+    "output": "xn--0ug.xn--w720c"
   },
   {
     "comment": "C2; V7",
@@ -5458,22 +5458,22 @@
   {
     "comment": "V6; V7",
     "input": "1.xn--t1c6981c.xn--4c9a21133d",
-    "output": null
+    "output": "1.xn--t1c6981c.xn--4c9a21133d"
   },
   {
     "comment": "C2; V6; V7",
     "input": "1.xn--t1c6981c.xn--1ugz184c9lw7i",
-    "output": null
+    "output": "1.xn--t1c6981c.xn--1ugz184c9lw7i"
   },
   {
     "comment": "V7",
     "input": "xn--t1c337io97c.xn--4c9a21133d",
-    "output": null
+    "output": "xn--t1c337io97c.xn--4c9a21133d"
   },
   {
     "comment": "C2; V7",
     "input": "xn--t1c337io97c.xn--1ugz184c9lw7i",
-    "output": null
+    "output": "xn--t1c337io97c.xn--1ugz184c9lw7i"
   },
   {
     "comment": "V6",
@@ -5483,7 +5483,7 @@
   {
     "comment": "V6",
     "input": "xn--9zh3057f.xn--j7e103b",
-    "output": null
+    "output": "xn--9zh3057f.xn--j7e103b"
   },
   {
     "comment": "C2; V3 (ignored)",
@@ -5498,7 +5498,7 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "-3.xn--fbf739aq5o",
-    "output": null
+    "output": "-3.xn--fbf739aq5o"
   },
   {
     "comment": "C1; C2",
@@ -5553,7 +5553,7 @@
   {
     "comment": "C1; C2",
     "input": "xn--u4e823bq1a.xn--0ugb89o",
-    "output": null
+    "output": "xn--u4e823bq1a.xn--0ugb89o"
   },
   {
     "comment": "C1; C2",
@@ -5568,12 +5568,12 @@
   {
     "comment": "V7",
     "input": "xn--u4e319b.xn--1ch",
-    "output": null
+    "output": "xn--u4e319b.xn--1ch"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--u4e823bcza.xn--0ugb89o",
-    "output": null
+    "output": "xn--u4e823bcza.xn--0ugb89o"
   },
   {
     "comment": "V7",
@@ -5598,7 +5598,7 @@
   {
     "comment": "V7",
     "input": "xn--4fd57150h.xn--hdh",
-    "output": null
+    "output": "xn--4fd57150h.xn--hdh"
   },
   {
     "comment": "V6",
@@ -5618,12 +5618,12 @@
   {
     "comment": "V6",
     "input": "xn--l76a726rt2h.xn--4xa",
-    "output": null
+    "output": "xn--l76a726rt2h.xn--4xa"
   },
   {
     "comment": "V6",
     "input": "xn--l76a726rt2h.xn--3xa",
-    "output": null
+    "output": "xn--l76a726rt2h.xn--3xa"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -5653,12 +5653,12 @@
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn----zmb.xn--1--i1t",
-    "output": null
+    "output": "xn----zmb.xn--1--i1t"
   },
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn----xmb.xn--1--i1t",
-    "output": null
+    "output": "xn----xmb.xn--1--i1t"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -5688,7 +5688,7 @@
   {
     "comment": "V6",
     "input": "xn----ggf830f.xn--vkj",
-    "output": null
+    "output": "xn----ggf830f.xn--vkj"
   },
   {
     "comment": "V6",
@@ -5698,7 +5698,7 @@
   {
     "comment": "V6; V7",
     "input": "xn----ggf830f.xn--cnd",
-    "output": null
+    "output": "xn----ggf830f.xn--cnd"
   },
   {
     "comment": "C2; V6; V7",
@@ -5713,22 +5713,22 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": ".xn--1-1p4r.xn--s7uv61m",
-    "output": null
+    "output": ".xn--1-1p4r.xn--s7uv61m"
   },
   {
     "comment": "C2; V6",
     "input": "xn--1ug.xn--1-1p4r.xn--s7uv61m",
-    "output": null
+    "output": "xn--1ug.xn--1-1p4r.xn--s7uv61m"
   },
   {
     "comment": "V6; V7; A4_2 (ignored)",
     "input": ".xn--tsh026uql4bew9p",
-    "output": null
+    "output": ".xn--tsh026uql4bew9p"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--1ug.xn--tsh026uql4bew9p",
-    "output": null
+    "output": "xn--1ug.xn--tsh026uql4bew9p"
   },
   {
     "comment": "V7",
@@ -5748,7 +5748,7 @@
   {
     "comment": "V7",
     "input": "xn--r3i.xn----2wst7439i",
-    "output": null
+    "output": "xn--r3i.xn----2wst7439i"
   },
   {
     "comment": "V7",
@@ -5758,7 +5758,7 @@
   {
     "comment": "V7",
     "input": "xn--r3i.xn----z1g58579u",
-    "output": null
+    "output": "xn--r3i.xn----z1g58579u"
   },
   {
     "comment": "V6",
@@ -5773,7 +5773,7 @@
   {
     "comment": "V6",
     "input": "xn--01h3338f.xn--79g270a",
-    "output": null
+    "output": "xn--01h3338f.xn--79g270a"
   },
   {
     "comment": "V7",
@@ -5798,7 +5798,7 @@
   {
     "comment": "V7",
     "input": "xn--o4c1723h8g85gt4ya.xn--4-dvc",
-    "output": null
+    "output": "xn--o4c1723h8g85gt4ya.xn--4-dvc"
   },
   {
     "comment": "V6; V7",
@@ -5808,7 +5808,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--3j9a.xn--bua0708eqzrd",
-    "output": null
+    "output": "xn--3j9a.xn--bua0708eqzrd"
   },
   {
     "comment": "C2; V7",
@@ -5823,12 +5823,12 @@
   {
     "comment": "V7",
     "input": "xn--g138cxw05a.xn--k0o",
-    "output": null
+    "output": "xn--g138cxw05a.xn--k0o"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug30527h9mxi.xn--k0o",
-    "output": null
+    "output": "xn--1ug30527h9mxi.xn--k0o"
   },
   {
     "comment": "C2; U1 (ignored)",
@@ -5848,17 +5848,17 @@
   {
     "comment": "C2; U1 (ignored)",
     "input": "xn--8,-g9oy26fzu4d.xn--kmb859ja94998b",
-    "output": null
+    "output": "xn--8,-g9oy26fzu4d.xn--kmb859ja94998b"
   },
   {
     "comment": "V7",
     "input": "xn--c9e433epi4b3j20a.xn--kmb6733w",
-    "output": null
+    "output": "xn--c9e433epi4b3j20a.xn--kmb6733w"
   },
   {
     "comment": "C2; V7",
     "input": "xn--c9e433epi4b3j20a.xn--kmb859ja94998b",
-    "output": null
+    "output": "xn--c9e433epi4b3j20a.xn--kmb859ja94998b"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
@@ -5873,22 +5873,22 @@
   {
     "comment": "V6; V3 (ignored); A4_2 (ignored)",
     "input": "xn--b7d82w..xn-----pe4u",
-    "output": null
+    "output": "xn--b7d82w..xn-----pe4u"
   },
   {
     "comment": "C1; V6; V3 (ignored); A4_2 (ignored)",
     "input": "xn--b7d82wo4h..xn-----pe4u",
-    "output": null
+    "output": "xn--b7d82wo4h..xn-----pe4u"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--b7d82w.xn-----c82nz547a",
-    "output": null
+    "output": "xn--b7d82w.xn-----c82nz547a"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
     "input": "xn--b7d82wo4h.xn-----c82nz547a",
-    "output": null
+    "output": "xn--b7d82wo4h.xn-----c82nz547a"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -5903,12 +5903,12 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--792h.xn----bse820x",
-    "output": null
+    "output": "xn--792h.xn----bse820x"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--792h.xn----bse632b",
-    "output": null
+    "output": "xn--792h.xn----bse632b"
   },
   {
     "comment": "C1",
@@ -5933,7 +5933,7 @@
   {
     "comment": "C1",
     "input": "xn--9-mfs8024b.xn--0ug",
-    "output": null
+    "output": "xn--9-mfs8024b.xn--0ug"
   },
   {
     "comment": "C1; V6",
@@ -5943,12 +5943,12 @@
   {
     "comment": "V6",
     "input": "xn--mta176jjjm.c",
-    "output": null
+    "output": "xn--mta176jjjm.c"
   },
   {
     "comment": "C1; V6",
     "input": "xn--mta176j97cl2q.c",
-    "output": null
+    "output": "xn--mta176j97cl2q.c"
   },
   {
     "comment": "C1; V6",
@@ -5958,12 +5958,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--mta930emri.c",
-    "output": null
+    "output": "xn--mta930emri.c"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--mta930emribme.c",
-    "output": null
+    "output": "xn--mta930emribme.c"
   },
   {
     "comment": "V6; V7",
@@ -5988,12 +5988,12 @@
   {
     "comment": "V6",
     "input": "xn--9ua0567e.7.xn--gdh6767c",
-    "output": null
+    "output": "xn--9ua0567e.7.xn--gdh6767c"
   },
   {
     "comment": "V6; V7",
     "input": "xn--9ua0567e.xn--7-ngou006d1ttc",
-    "output": null
+    "output": "xn--9ua0567e.xn--7-ngou006d1ttc"
   },
   {
     "input": "xn--2ib43l.xn--te6h",
@@ -6020,32 +6020,32 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": ".xn--3ed0b",
-    "output": null
+    "output": ".xn--3ed0b"
   },
   {
     "comment": "C1; V6",
     "input": "xn--0ug.xn--3ed0b",
-    "output": null
+    "output": "xn--0ug.xn--3ed0b"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--3ed0b20h",
-    "output": null
+    "output": ".xn--3ed0b20h"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug.xn--3ed0b20h",
-    "output": null
+    "output": "xn--0ug.xn--3ed0b20h"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--3ed0by082k",
-    "output": null
+    "output": ".xn--3ed0by082k"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug.xn--3ed0by082k",
-    "output": null
+    "output": "xn--0ug.xn--3ed0by082k"
   },
   {
     "comment": "C2; V7",
@@ -6070,12 +6070,12 @@
   {
     "comment": "V7",
     "input": "xn--hdh84488f.xn--xy7cw2886b",
-    "output": null
+    "output": "xn--hdh84488f.xn--xy7cw2886b"
   },
   {
     "comment": "C2; V7",
     "input": "xn--hdh84488f.xn--1ug8099fbjp4e",
-    "output": null
+    "output": "xn--hdh84488f.xn--1ug8099fbjp4e"
   },
   {
     "input": "\ua9d0\u04c0\u1baa\u08f6\uff0e\ub235",
@@ -6116,7 +6116,7 @@
   {
     "comment": "V7",
     "input": "xn--d5a07sn4u297k.xn--2e1b",
-    "output": null
+    "output": "xn--d5a07sn4u297k.xn--2e1b"
   },
   {
     "comment": "V6; V7",
@@ -6131,7 +6131,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--3g9a.xn--ud1dz07k",
-    "output": null
+    "output": "xn--3g9a.xn--ud1dz07k"
   },
   {
     "comment": "V7",
@@ -6156,7 +6156,7 @@
   {
     "comment": "V7",
     "input": "xn--3e2d79770c.xn--hdh0088abyy1c",
-    "output": null
+    "output": "xn--3e2d79770c.xn--hdh0088abyy1c"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -6191,12 +6191,12 @@
   {
     "comment": "V7",
     "input": "xn--bbf561cf95e57y3e.xn--hdh0834o7mj6b",
-    "output": null
+    "output": "xn--bbf561cf95e57y3e.xn--hdh0834o7mj6b"
   },
   {
     "comment": "C1; V7",
     "input": "xn--bbf561cf95e57y3e.xn--0ugz6gc910ejro8c",
-    "output": null
+    "output": "xn--bbf561cf95e57y3e.xn--0ugz6gc910ejro8c"
   },
   {
     "comment": "V6",
@@ -6216,7 +6216,7 @@
   {
     "comment": "V6",
     "input": "xn--tlj.xn--43-274o",
-    "output": null
+    "output": "xn--tlj.xn--43-274o"
   },
   {
     "comment": "V6",
@@ -6226,7 +6226,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--9nd.xn--43-274o",
-    "output": null
+    "output": "xn--9nd.xn--43-274o"
   },
   {
     "comment": "V7",
@@ -6241,17 +6241,17 @@
   {
     "comment": "V7",
     "input": "xn--kgd72212e.xn--3j9au7544a",
-    "output": null
+    "output": "xn--kgd72212e.xn--3j9au7544a"
   },
   {
     "comment": "V7",
     "input": "xn--kgd36f9z57y.xn--3j9au7544a",
-    "output": null
+    "output": "xn--kgd36f9z57y.xn--3j9au7544a"
   },
   {
     "comment": "V7",
     "input": "xn--kgd7493jee34a.xn--3j9au7544a",
-    "output": null
+    "output": "xn--kgd7493jee34a.xn--3j9au7544a"
   },
   {
     "comment": "C1; V6",
@@ -6261,12 +6261,12 @@
   {
     "comment": "V6",
     "input": "xn--6fb.xn--gmb0524f",
-    "output": null
+    "output": "xn--6fb.xn--gmb0524f"
   },
   {
     "comment": "C1; V6",
     "input": "xn--6fb.xn--gmb469jjf1h",
-    "output": null
+    "output": "xn--6fb.xn--gmb469jjf1h"
   },
   {
     "comment": "V7",
@@ -6286,7 +6286,7 @@
   {
     "comment": "V7",
     "input": "xn--c8e.xn--bbf9168i",
-    "output": null
+    "output": "xn--c8e.xn--bbf9168i"
   },
   {
     "comment": "V7",
@@ -6296,7 +6296,7 @@
   {
     "comment": "V7",
     "input": "xn--hd7h.xn--46e66060j",
-    "output": null
+    "output": "xn--hd7h.xn--46e66060j"
   },
   {
     "comment": "V7",
@@ -6311,7 +6311,7 @@
   {
     "comment": "V7",
     "input": "xn--4m3dv4354a.xn--gdh",
-    "output": null
+    "output": "xn--4m3dv4354a.xn--gdh"
   },
   {
     "comment": "V6; A4_2 (ignored)",
@@ -6326,7 +6326,7 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": ".xn--m0b461k3g2c",
-    "output": null
+    "output": ".xn--m0b461k3g2c"
   },
   {
     "comment": "C2; V7",
@@ -6341,12 +6341,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--0on3543c5981i.",
-    "output": null
+    "output": "xn--0on3543c5981i."
   },
   {
     "comment": "C2; V7",
     "input": "xn--0on3543c5981i.xn--1ug",
-    "output": null
+    "output": "xn--0on3543c5981i.xn--1ug"
   },
   {
     "comment": "V7",
@@ -6396,17 +6396,17 @@
   {
     "comment": "V7",
     "input": "xn--y86c.xn--hdh782b",
-    "output": null
+    "output": "xn--y86c.xn--hdh782b"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "..xn--bnd622g",
-    "output": null
+    "output": "..xn--bnd622g"
   },
   {
     "comment": "V7",
     "input": "xn--y86c.xn--bnd622g",
-    "output": null
+    "output": "xn--y86c.xn--bnd622g"
   },
   {
     "comment": "V7",
@@ -6441,7 +6441,7 @@
   {
     "comment": "V7",
     "input": "xn----4wsr321ay823p.xn----tfot873s",
-    "output": null
+    "output": "xn----4wsr321ay823p.xn----tfot873s"
   },
   {
     "comment": "V7",
@@ -6456,7 +6456,7 @@
   {
     "comment": "V7",
     "input": "xn----11g3013fy8x5m.xn----tfot873s",
-    "output": null
+    "output": "xn----11g3013fy8x5m.xn----tfot873s"
   },
   {
     "input": "\u07e5.\u06b5",
@@ -6491,12 +6491,12 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--bkd.-",
-    "output": null
+    "output": "xn--bkd.-"
   },
   {
     "comment": "C1; V6; V3 (ignored)",
     "input": "xn--bkd412fca.xn----sgn",
-    "output": null
+    "output": "xn--bkd412fca.xn----sgn"
   },
   {
     "comment": "V6; V7",
@@ -6511,12 +6511,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "..xn--87e93m",
-    "output": null
+    "output": "..xn--87e93m"
   },
   {
     "comment": "V6; V7",
     "input": "xn--y86c.xn--87e93m",
-    "output": null
+    "output": "xn--y86c.xn--87e93m"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -6531,22 +6531,22 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": "xn----qml..xn--x50zy803a",
-    "output": null
+    "output": "xn----qml..xn--x50zy803a"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----qml.xn--1ug.xn--x50zy803a",
-    "output": null
+    "output": "xn----qml.xn--1ug.xn--x50zy803a"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----qml1407i.xn--x50zy803a",
-    "output": null
+    "output": "xn----qml1407i.xn--x50zy803a"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----qmlv7tw180a.xn--x50zy803a",
-    "output": null
+    "output": "xn----qmlv7tw180a.xn--x50zy803a"
   },
   {
     "comment": "V7",
@@ -6561,7 +6561,7 @@
   {
     "comment": "V7",
     "input": "xn--t546e.xn--hdh5166o",
-    "output": null
+    "output": "xn--t546e.xn--hdh5166o"
   },
   {
     "input": "\u06b9\uff0e\u1873\u115f",
@@ -6582,7 +6582,7 @@
   {
     "comment": "V7",
     "input": "xn--skb.xn--osd737a",
-    "output": null
+    "output": "xn--skb.xn--osd737a"
   },
   {
     "comment": "V7",
@@ -6602,7 +6602,7 @@
   {
     "comment": "V7",
     "input": "xn--mbm8237g.xn--7-7hf1526p",
-    "output": null
+    "output": "xn--mbm8237g.xn--7-7hf1526p"
   },
   {
     "comment": "C1",
@@ -6653,12 +6653,12 @@
   {
     "comment": "C1",
     "input": "xn--ss-4ep585bkm5p.xn--ifh802b6a",
-    "output": null
+    "output": "xn--ss-4ep585bkm5p.xn--ifh802b6a"
   },
   {
     "comment": "C1",
     "input": "xn--zca682johfi89m.xn--ifh802b6a",
-    "output": null
+    "output": "xn--zca682johfi89m.xn--ifh802b6a"
   },
   {
     "comment": "C1",
@@ -6683,27 +6683,27 @@
   {
     "comment": "V7",
     "input": "xn--ss-4epx629f.xn--5nd703gyrh",
-    "output": null
+    "output": "xn--ss-4epx629f.xn--5nd703gyrh"
   },
   {
     "comment": "C1; V7",
     "input": "xn--ss-4ep585bkm5p.xn--5nd703gyrh",
-    "output": null
+    "output": "xn--ss-4ep585bkm5p.xn--5nd703gyrh"
   },
   {
     "comment": "V7",
     "input": "xn--ss-4epx629f.xn--undv409k",
-    "output": null
+    "output": "xn--ss-4epx629f.xn--undv409k"
   },
   {
     "comment": "C1; V7",
     "input": "xn--ss-4ep585bkm5p.xn--undv409k",
-    "output": null
+    "output": "xn--ss-4ep585bkm5p.xn--undv409k"
   },
   {
     "comment": "C1; V7",
     "input": "xn--zca682johfi89m.xn--undv409k",
-    "output": null
+    "output": "xn--zca682johfi89m.xn--undv409k"
   },
   {
     "comment": "C2; V7",
@@ -6723,17 +6723,17 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--4xa24344p",
-    "output": null
+    "output": ".xn--4xa24344p"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug.xn--4xa24344p",
-    "output": null
+    "output": "xn--1ug.xn--4xa24344p"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug.xn--3xa44344p",
-    "output": null
+    "output": "xn--1ug.xn--3xa44344p"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -6748,12 +6748,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "11.xn--uz1d59632bxujd.xn----x310m",
-    "output": null
+    "output": "11.xn--uz1d59632bxujd.xn----x310m"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--3shy698frsu9dt1me.xn----x310m",
-    "output": null
+    "output": "xn--3shy698frsu9dt1me.xn----x310m"
   },
   {
     "comment": "C2; V3 (ignored)",
@@ -6773,7 +6773,7 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "-.xn--1ug",
-    "output": null
+    "output": "-.xn--1ug"
   },
   {
     "comment": "V7",
@@ -6788,7 +6788,7 @@
   {
     "comment": "V7",
     "input": "xn--d0d41273c887z.xn--8-ob5i",
-    "output": null
+    "output": "xn--d0d41273c887z.xn--8-ob5i"
   },
   {
     "comment": "C2; V3 (ignored)",
@@ -6818,27 +6818,27 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "xn----zmb048s.xn--rlj2573p",
-    "output": null
+    "output": "xn----zmb048s.xn--rlj2573p"
   },
   {
     "comment": "C2; V3 (ignored)",
     "input": "xn----xmb348s.xn--rlj2573p",
-    "output": null
+    "output": "xn----xmb348s.xn--rlj2573p"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----zmb.xn--7nd64871a",
-    "output": null
+    "output": "xn----zmb.xn--7nd64871a"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----zmb048s.xn--7nd64871a",
-    "output": null
+    "output": "xn----zmb048s.xn--7nd64871a"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----xmb348s.xn--7nd64871a",
-    "output": null
+    "output": "xn----xmb348s.xn--7nd64871a"
   },
   {
     "input": "\u2260\u3002\ud83d\udfb3\ud835\udff2",
@@ -6876,7 +6876,7 @@
   {
     "comment": "V7",
     "input": "xn--g747d.xn--xl2a",
-    "output": null
+    "output": "xn--g747d.xn--xl2a"
   },
   {
     "comment": "C2; V6",
@@ -6901,12 +6901,12 @@
   {
     "comment": "V6",
     "input": "xn--p0b.xn--e43b",
-    "output": null
+    "output": "xn--p0b.xn--e43b"
   },
   {
     "comment": "C2; V6",
     "input": "xn--p0b869i.xn--e43b",
-    "output": null
+    "output": "xn--p0b869i.xn--e43b"
   },
   {
     "comment": "V7",
@@ -6921,7 +6921,7 @@
   {
     "comment": "V7",
     "input": "xn--pr3x.xn--rv7w",
-    "output": null
+    "output": "xn--pr3x.xn--rv7w"
   },
   {
     "comment": "V7",
@@ -6941,7 +6941,7 @@
   {
     "comment": "V7",
     "input": "xn--039c42bq865a.xn--4-wvs27840bnrzm",
-    "output": null
+    "output": "xn--039c42bq865a.xn--4-wvs27840bnrzm"
   },
   {
     "comment": "V7",
@@ -6951,7 +6951,7 @@
   {
     "comment": "V7",
     "input": "xn--039c42bq865a.xn--4-t0g49302fnrzm",
-    "output": null
+    "output": "xn--039c42bq865a.xn--4-t0g49302fnrzm"
   },
   {
     "comment": "V6",
@@ -6966,7 +6966,7 @@
   {
     "comment": "V6",
     "input": "5.xn--nlb",
-    "output": null
+    "output": "5.xn--nlb"
   },
   {
     "comment": "C1; V7",
@@ -6981,12 +6981,12 @@
   {
     "comment": "V7",
     "input": "xn--i183d.xn--6g3a",
-    "output": null
+    "output": "xn--i183d.xn--6g3a"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug26167i.xn--6g3a",
-    "output": null
+    "output": "xn--0ug26167i.xn--6g3a"
   },
   {
     "comment": "C1; C2; V7; V3 (ignored)",
@@ -7001,22 +7001,22 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": ".xn--hh50e.xn----t2c",
-    "output": null
+    "output": ".xn--hh50e.xn----t2c"
   },
   {
     "comment": "C1; C2; V7; V3 (ignored); A4_2 (ignored)",
     "input": ".xn--1ug05310k.xn----t2c071q",
-    "output": null
+    "output": ".xn--1ug05310k.xn----t2c071q"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--y86c71305c.xn----t2c",
-    "output": null
+    "output": "xn--y86c71305c.xn----t2c"
   },
   {
     "comment": "C1; C2; V7; V3 (ignored)",
     "input": "xn--1ug1658ftw26f.xn----t2c071q",
-    "output": null
+    "output": "xn--1ug1658ftw26f.xn----t2c071q"
   },
   {
     "comment": "C2",
@@ -7041,7 +7041,7 @@
   {
     "comment": "C2",
     "input": "xn--1ug.j",
-    "output": null
+    "output": "xn--1ug.j"
   },
   {
     "input": "j",
@@ -7060,22 +7060,22 @@
   {
     "comment": "V7",
     "input": "xn--5cb172r175fug38a.xn--mlj",
-    "output": null
+    "output": "xn--5cb172r175fug38a.xn--mlj"
   },
   {
     "comment": "C1; V7",
     "input": "xn--5cb172r175fug38a.xn--0uga051h",
-    "output": null
+    "output": "xn--5cb172r175fug38a.xn--0uga051h"
   },
   {
     "comment": "V7",
     "input": "xn--5cb347co96jug15a.xn--2nd",
-    "output": null
+    "output": "xn--5cb347co96jug15a.xn--2nd"
   },
   {
     "comment": "C1; V7",
     "input": "xn--5cb347co96jug15a.xn--2nd059ea",
-    "output": null
+    "output": "xn--5cb347co96jug15a.xn--2nd059ea"
   },
   {
     "comment": "V7",
@@ -7085,7 +7085,7 @@
   {
     "comment": "V7",
     "input": "xn--k97c.xn--q031e",
-    "output": null
+    "output": "xn--k97c.xn--q031e"
   },
   {
     "comment": "V6; V7",
@@ -7120,7 +7120,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--i0b436pkl2g2h42a.xn--0-8le8997mulr5f",
-    "output": null
+    "output": "xn--i0b436pkl2g2h42a.xn--0-8le8997mulr5f"
   },
   {
     "comment": "V6; V7",
@@ -7135,7 +7135,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--i0b601b6r7l2hs0a.xn--0-8le8997mulr5f",
-    "output": null
+    "output": "xn--i0b601b6r7l2hs0a.xn--0-8le8997mulr5f"
   },
   {
     "comment": "V7",
@@ -7150,7 +7150,7 @@
   {
     "comment": "V7",
     "input": "xn--lqb.xn--jfb1808v",
-    "output": null
+    "output": "xn--lqb.xn--jfb1808v"
   },
   {
     "comment": "V6",
@@ -7165,12 +7165,12 @@
   {
     "comment": "V6",
     "input": "xn--3-yke.xn--8-sl4et308f",
-    "output": null
+    "output": "xn--3-yke.xn--8-sl4et308f"
   },
   {
     "comment": "V6",
     "input": "xn--3-yke.xn--8-ugnv982dbkwm",
-    "output": null
+    "output": "xn--3-yke.xn--8-ugnv982dbkwm"
   },
   {
     "comment": "V7",
@@ -7195,7 +7195,7 @@
   {
     "comment": "V7",
     "input": "xn--cld333gn31h0158l.xn--3g0d",
-    "output": null
+    "output": "xn--cld333gn31h0158l.xn--3g0d"
   },
   {
     "comment": "C1",
@@ -7215,7 +7215,7 @@
   {
     "comment": "C1",
     "input": "xn--rt6a.xn--0ug",
-    "output": null
+    "output": "xn--rt6a.xn--0ug"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -7260,12 +7260,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--dj8y.",
-    "output": null
+    "output": "xn--dj8y."
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--0ugz7551c.xn--1ug",
-    "output": null
+    "output": "xn--0ugz7551c.xn--1ug"
   },
   {
     "comment": "V6; V7",
@@ -7275,7 +7275,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--wd1d.xn--k946e",
-    "output": null
+    "output": "xn--wd1d.xn--k946e"
   },
   {
     "input": "\u2f86\uff0e\ua848\uff15\u226f\u00df",
@@ -7437,12 +7437,12 @@
   {
     "comment": "C1",
     "input": "xn--0ug262c.xn--4xa",
-    "output": null
+    "output": "xn--0ug262c.xn--4xa"
   },
   {
     "comment": "C1",
     "input": "xn--0ug262c.xn--3xa",
-    "output": null
+    "output": "xn--0ug262c.xn--3xa"
   },
   {
     "comment": "C1",
@@ -7462,22 +7462,22 @@
   {
     "comment": "V7",
     "input": "xn--ynd.xn--4xa",
-    "output": null
+    "output": "xn--ynd.xn--4xa"
   },
   {
     "comment": "V7",
     "input": "xn--ynd.xn--3xa",
-    "output": null
+    "output": "xn--ynd.xn--3xa"
   },
   {
     "comment": "C1; V7",
     "input": "xn--ynd759e.xn--4xa",
-    "output": null
+    "output": "xn--ynd759e.xn--4xa"
   },
   {
     "comment": "C1; V7",
     "input": "xn--ynd759e.xn--3xa",
-    "output": null
+    "output": "xn--ynd759e.xn--3xa"
   },
   {
     "comment": "C1; C2",
@@ -7497,12 +7497,12 @@
   {
     "comment": "V6",
     "input": "xn--6g3a.xn--0sa8175flwa",
-    "output": null
+    "output": "xn--6g3a.xn--0sa8175flwa"
   },
   {
     "comment": "C1; C2",
     "input": "xn--1ug0273b.xn--0sa359l6n7g13a",
-    "output": null
+    "output": "xn--1ug0273b.xn--0sa359l6n7g13a"
   },
   {
     "input": "\u6dfd\u3002\u183e",
@@ -7534,7 +7534,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--8di78qvw32y.xn--k80d",
-    "output": null
+    "output": "xn--8di78qvw32y.xn--k80d"
   },
   {
     "comment": "V6; V7",
@@ -7544,7 +7544,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--rnd896i0j14q.xn--k80d",
-    "output": null
+    "output": "xn--rnd896i0j14q.xn--k80d"
   },
   {
     "comment": "V7",
@@ -7559,7 +7559,7 @@
   {
     "comment": "V7",
     "input": "xn--45e.xn--et6h",
-    "output": null
+    "output": "xn--45e.xn--et6h"
   },
   {
     "comment": "C2; V6",
@@ -7574,12 +7574,12 @@
   {
     "comment": "V6",
     "input": "xn--uhb.xn--8tc4527k",
-    "output": null
+    "output": "xn--uhb.xn--8tc4527k"
   },
   {
     "comment": "C2; V6",
     "input": "xn--uhb882k.xn--8tc4527k",
-    "output": null
+    "output": "xn--uhb882k.xn--8tc4527k"
   },
   {
     "comment": "V6; V7",
@@ -7609,12 +7609,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--ss-jl59biy67d.xn--ss-4d11aw87d",
-    "output": null
+    "output": "xn--ss-jl59biy67d.xn--ss-4d11aw87d"
   },
   {
     "comment": "V6; V7",
     "input": "xn--zca20040bgrkh.xn--zca3653v86qa",
-    "output": null
+    "output": "xn--zca20040bgrkh.xn--zca3653v86qa"
   },
   {
     "comment": "V6; V7",
@@ -7639,7 +7639,7 @@
   {
     "comment": "C1; C2",
     "input": "xn--1ug.xn--0ug",
-    "output": null
+    "output": "xn--1ug.xn--0ug"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -7654,7 +7654,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--s136e.",
-    "output": null
+    "output": "xn--s136e."
   },
   {
     "comment": "V6; V7",
@@ -7679,12 +7679,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--ym9av13acp85w.20.xn--d846e",
-    "output": null
+    "output": "xn--ym9av13acp85w.20.xn--d846e"
   },
   {
     "comment": "V6; V7",
     "input": "xn--ym9av13acp85w.xn--dth22121k",
-    "output": null
+    "output": "xn--ym9av13acp85w.xn--dth22121k"
   },
   {
     "comment": "C1; V7",
@@ -7704,17 +7704,17 @@
   {
     "comment": "C1; A4_2 (ignored)",
     "input": "xn--0ug..",
-    "output": null
+    "output": "xn--0ug.."
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--y86c",
-    "output": null
+    "output": ".xn--y86c"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug.xn--y86c",
-    "output": null
+    "output": "xn--0ug.xn--y86c"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -7749,12 +7749,12 @@
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn---3-p9o.xn--ss---276a",
-    "output": null
+    "output": "xn---3-p9o.xn--ss---276a"
   },
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn---3-p9o.xn-----fia9303a",
-    "output": null
+    "output": "xn---3-p9o.xn-----fia9303a"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -7779,7 +7779,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--ibf35138o.xn--fpfz94g",
-    "output": null
+    "output": "xn--ibf35138o.xn--fpfz94g"
   },
   {
     "comment": "V7",
@@ -7794,12 +7794,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--3-rj42h.1.xn--2-13k96240l",
-    "output": null
+    "output": "xn--3-rj42h.1.xn--2-13k96240l"
   },
   {
     "comment": "V7",
     "input": "xn--3-rj42h.xn--2-13k746cq465x",
-    "output": null
+    "output": "xn--3-rj42h.xn--2-13k746cq465x"
   },
   {
     "comment": "C2; V7",
@@ -7829,17 +7829,17 @@
   {
     "comment": "C2; A4_2 (ignored)",
     "input": "xn--51-l1t..xn--8-ugn00i",
-    "output": null
+    "output": "xn--51-l1t..xn--8-ugn00i"
   },
   {
     "comment": "V7",
     "input": "xn--5-ecp.xn--8-ogo",
-    "output": null
+    "output": "xn--5-ecp.xn--8-ogo"
   },
   {
     "comment": "C2; V7",
     "input": "xn--5-tgnz5r.xn--8-ugn00i",
-    "output": null
+    "output": "xn--5-tgnz5r.xn--8-ugn00i"
   },
   {
     "comment": "V7",
@@ -7864,12 +7864,12 @@
   {
     "comment": "V7",
     "input": "xn--nbc229o4y27dgskb.xn--gdh",
-    "output": null
+    "output": "xn--nbc229o4y27dgskb.xn--gdh"
   },
   {
     "comment": "V7",
     "input": "xn--nbc493aro75ggskb.xn--gdh",
-    "output": null
+    "output": "xn--nbc493aro75ggskb.xn--gdh"
   },
   {
     "input": "\ua860\uff0e\u06f2",
@@ -7901,22 +7901,22 @@
   {
     "comment": "V6; U1 (ignored)",
     "input": "xn--5,-op8g373c.xn--4sf0725i",
-    "output": null
+    "output": "xn--5,-op8g373c.xn--4sf0725i"
   },
   {
     "comment": "C1; V6; U1 (ignored)",
     "input": "xn--5,-i1tz135dnbqa.xn--4sf36u6u4w",
-    "output": null
+    "output": "xn--5,-i1tz135dnbqa.xn--4sf36u6u4w"
   },
   {
     "comment": "V6; V7",
     "input": "xn--2q5a751a653w.xn--4sf0725i",
-    "output": null
+    "output": "xn--2q5a751a653w.xn--4sf0725i"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--0ug4208b2vjuk63a.xn--4sf36u6u4w",
-    "output": null
+    "output": "xn--0ug4208b2vjuk63a.xn--4sf36u6u4w"
   },
   {
     "comment": "V7",
@@ -7931,7 +7931,7 @@
   {
     "comment": "V7",
     "input": "xn--b5q.xn--v7e6041kqqd4m251b",
-    "output": null
+    "output": "xn--b5q.xn--v7e6041kqqd4m251b"
   },
   {
     "comment": "C2",
@@ -7950,7 +7950,7 @@
   {
     "comment": "C2",
     "input": "1.xn--27-l1tb",
-    "output": null
+    "output": "1.xn--27-l1tb"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -7965,7 +7965,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----z8j.xn--1-5671m",
-    "output": null
+    "output": "xn----z8j.xn--1-5671m"
   },
   {
     "comment": "C1; V7",
@@ -7985,12 +7985,12 @@
   {
     "comment": "V7",
     "input": "xn--zed372mdj2do3v4h.xn--e5h11w",
-    "output": null
+    "output": "xn--zed372mdj2do3v4h.xn--e5h11w"
   },
   {
     "comment": "C1; V7",
     "input": "xn--zed372mdj2do3v4h.xn--0uga678bgyh",
-    "output": null
+    "output": "xn--zed372mdj2do3v4h.xn--0uga678bgyh"
   },
   {
     "comment": "C1; V7",
@@ -8000,12 +8000,12 @@
   {
     "comment": "V7",
     "input": "xn--zed54dz10wo343g.xn--nnd651i",
-    "output": null
+    "output": "xn--zed54dz10wo343g.xn--nnd651i"
   },
   {
     "comment": "C1; V7",
     "input": "xn--zed54dz10wo343g.xn--nnd089ea464d",
-    "output": null
+    "output": "xn--zed54dz10wo343g.xn--nnd089ea464d"
   },
   {
     "comment": "C2; V6",
@@ -8020,12 +8020,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--4-xu7i.",
-    "output": null
+    "output": "xn--4-xu7i."
   },
   {
     "comment": "C2; V6",
     "input": "xn--4-xu7i.xn--1ug",
-    "output": null
+    "output": "xn--4-xu7i.xn--1ug"
   },
   {
     "comment": "C1; V6; V7",
@@ -8060,12 +8060,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--mlju35u7qx2f.xn--et3bn23n",
-    "output": null
+    "output": "xn--mlju35u7qx2f.xn--et3bn23n"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--mlju35u7qx2f.xn--0ugb6122js83c",
-    "output": null
+    "output": "xn--mlju35u7qx2f.xn--0ugb6122js83c"
   },
   {
     "comment": "C1; V6; V7",
@@ -8080,12 +8080,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--2nd6803c7q37d.xn--et3bn23n",
-    "output": null
+    "output": "xn--2nd6803c7q37d.xn--et3bn23n"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--2nd6803c7q37d.xn--0ugb6122js83c",
-    "output": null
+    "output": "xn--2nd6803c7q37d.xn--0ugb6122js83c"
   },
   {
     "comment": "V7",
@@ -8110,7 +8110,7 @@
   {
     "comment": "V7",
     "input": "xn--5-24jyf768b.xn--lqw213ime95g",
-    "output": null
+    "output": "xn--5-24jyf768b.xn--lqw213ime95g"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -8125,12 +8125,12 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": "xn---8-bv5o..7.xn--c35nf1622b",
-    "output": null
+    "output": "xn---8-bv5o..7.xn--c35nf1622b"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----scp6252h.xn--zshy411yzpx2d",
-    "output": null
+    "output": "xn----scp6252h.xn--zshy411yzpx2d"
   },
   {
     "comment": "C1; C2",
@@ -8185,7 +8185,7 @@
   {
     "comment": "C1; C2",
     "input": "xn--0ugc160hb36e.xn--gdh",
-    "output": null
+    "output": "xn--0ugc160hb36e.xn--gdh"
   },
   {
     "comment": "C1; C2",
@@ -8200,12 +8200,12 @@
   {
     "comment": "V7",
     "input": "xn--8md0962c.xn--gdh",
-    "output": null
+    "output": "xn--8md0962c.xn--gdh"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--8md700fea3748f.xn--gdh",
-    "output": null
+    "output": "xn--8md700fea3748f.xn--gdh"
   },
   {
     "comment": "C2; V6; V7",
@@ -8220,12 +8220,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--t8c.xn--iz4a43209d",
-    "output": null
+    "output": "xn--t8c.xn--iz4a43209d"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--t8c059f.xn--iz4a43209d",
-    "output": null
+    "output": "xn--t8c059f.xn--iz4a43209d"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -8235,7 +8235,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--ep37b.xn----hec165lho83b",
-    "output": null
+    "output": "xn--ep37b.xn----hec165lho83b"
   },
   {
     "comment": "C2; V6; V7",
@@ -8270,17 +8270,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--nu4s.xn--4xa153j7im",
-    "output": null
+    "output": "xn--nu4s.xn--4xa153j7im"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--nu4s.xn--4xa153jk8cs1q",
-    "output": null
+    "output": "xn--nu4s.xn--4xa153jk8cs1q"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--nu4s.xn--3xa353jk8cs1q",
-    "output": null
+    "output": "xn--nu4s.xn--3xa353jk8cs1q"
   },
   {
     "comment": "C2; V6; V7",
@@ -8305,17 +8305,17 @@
   {
     "comment": "V6; V7",
     "input": "xn--nu4s.xn--4xa217dxri",
-    "output": null
+    "output": "xn--nu4s.xn--4xa217dxri"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--nu4s.xn--4xa217dxriome",
-    "output": null
+    "output": "xn--nu4s.xn--4xa217dxriome"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--nu4s.xn--3xa417dxriome",
-    "output": null
+    "output": "xn--nu4s.xn--3xa417dxriome"
   },
   {
     "comment": "C1; V6; V7",
@@ -8330,22 +8330,22 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "1.xn--sv9a..xn--mfc",
-    "output": null
+    "output": "1.xn--sv9a..xn--mfc"
   },
   {
     "comment": "C1; V6; A4_2 (ignored)",
     "input": "1.xn--0ug7185c..xn--mfc",
-    "output": null
+    "output": "1.xn--0ug7185c..xn--mfc"
   },
   {
     "comment": "V6; V7",
     "input": "xn--tsh0720cse8b.xn--mfc",
-    "output": null
+    "output": "xn--tsh0720cse8b.xn--mfc"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--0ug78o720myr1c.xn--mfc",
-    "output": null
+    "output": "xn--0ug78o720myr1c.xn--mfc"
   },
   {
     "comment": "C2; V6; V7",
@@ -8370,17 +8370,17 @@
   {
     "comment": "V6; V7",
     "input": "ss.xn--0zf22107b",
-    "output": null
+    "output": "ss.xn--0zf22107b"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--ss-n1t.xn--0zf22107b",
-    "output": null
+    "output": "xn--ss-n1t.xn--0zf22107b"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--zca870n.xn--0zf22107b",
-    "output": null
+    "output": "xn--zca870n.xn--0zf22107b"
   },
   {
     "comment": "V6",
@@ -8395,12 +8395,12 @@
   {
     "comment": "V6",
     "input": "xn--gdhz656g.xn--gdh",
-    "output": null
+    "output": "xn--gdhz656g.xn--gdh"
   },
   {
     "comment": "V6",
     "input": "xn--0ugy6glz29a.xn--gdh",
-    "output": null
+    "output": "xn--0ugy6glz29a.xn--gdh"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -8425,12 +8425,12 @@
   {
     "comment": "V7",
     "input": "xn--my8h.xn--psd",
-    "output": null
+    "output": "xn--my8h.xn--psd"
   },
   {
     "comment": "V7",
     "input": "xn--my8h.xn--cl7c",
-    "output": null
+    "output": "xn--my8h.xn--cl7c"
   },
   {
     "comment": "V7",
@@ -8445,7 +8445,7 @@
   {
     "comment": "V7",
     "input": "xn--1zxq3199c.xn--4-678b",
-    "output": null
+    "output": "xn--1zxq3199c.xn--4-678b"
   },
   {
     "comment": "V7; V2 (ignored); V3 (ignored)",
@@ -8455,7 +8455,7 @@
   {
     "comment": "V7; V2 (ignored); V3 (ignored)",
     "input": "xn--2y75e.xn-----1l15eer88n",
-    "output": null
+    "output": "xn--2y75e.xn-----1l15eer88n"
   },
   {
     "comment": "V7",
@@ -8465,7 +8465,7 @@
   {
     "comment": "V7",
     "input": "xn--sz1a.xn----mrd9984r3dl0i",
-    "output": null
+    "output": "xn--sz1a.xn----mrd9984r3dl0i"
   },
   {
     "input": "\u03c2\u10c5\u3002\u075a",
@@ -8514,12 +8514,12 @@
   {
     "comment": "V7",
     "input": "xn--4xa477d.xn--epb",
-    "output": null
+    "output": "xn--4xa477d.xn--epb"
   },
   {
     "comment": "V7",
     "input": "xn--3xa677d.xn--epb",
-    "output": null
+    "output": "xn--3xa677d.xn--epb"
   },
   {
     "input": "xn--vkb.xn--08e172a",
@@ -8560,12 +8560,12 @@
   {
     "comment": "V7",
     "input": "xn--pt9c.xn--hnd666l",
-    "output": null
+    "output": "xn--pt9c.xn--hnd666l"
   },
   {
     "comment": "V7",
     "input": "xn--pt9c.xn--hndy",
-    "output": null
+    "output": "xn--pt9c.xn--hndy"
   },
   {
     "comment": "C1; V6; V7",
@@ -8580,12 +8580,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--1fk.xn--vta284a9o563a",
-    "output": null
+    "output": "xn--1fk.xn--vta284a9o563a"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--0uga242k.xn--vta284a9o563a",
-    "output": null
+    "output": "xn--0uga242k.xn--vta284a9o563a"
   },
   {
     "comment": "V7",
@@ -8605,7 +8605,7 @@
   {
     "comment": "V7",
     "input": "xn--3-ews6985n35s3g.xn--7-cve6271r",
-    "output": null
+    "output": "xn--3-ews6985n35s3g.xn--7-cve6271r"
   },
   {
     "comment": "V7",
@@ -8615,7 +8615,7 @@
   {
     "comment": "V7",
     "input": "xn--3-b1g83426a35t0g.xn--7-cve6271r",
-    "output": null
+    "output": "xn--3-b1g83426a35t0g.xn--7-cve6271r"
   },
   {
     "comment": "C1; V7",
@@ -8630,22 +8630,22 @@
   {
     "comment": "V7",
     "input": "xn--eco.1.xn--ms39a",
-    "output": null
+    "output": "xn--eco.1.xn--ms39a"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug491l.xn--1-rgn.xn--ms39a",
-    "output": null
+    "output": "xn--0ug491l.xn--1-rgn.xn--ms39a"
   },
   {
     "comment": "V7",
     "input": "xn--eco.xn--tsh21126d",
-    "output": null
+    "output": "xn--eco.xn--tsh21126d"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug491l.xn--0ug88oot66q",
-    "output": null
+    "output": "xn--0ug491l.xn--0ug88oot66q"
   },
   {
     "comment": "V6",
@@ -8670,12 +8670,12 @@
   {
     "comment": "V6",
     "input": "xn--1ss-ir6ln166b.xn--weg",
-    "output": null
+    "output": "xn--1ss-ir6ln166b.xn--weg"
   },
   {
     "comment": "V6",
     "input": "xn--1-qfa2471kdb0d.xn--weg",
-    "output": null
+    "output": "xn--1-qfa2471kdb0d.xn--weg"
   },
   {
     "comment": "V6",
@@ -8700,7 +8700,7 @@
   {
     "comment": "V7",
     "input": "xn--3j78f.xn--mkb20b",
-    "output": null
+    "output": "xn--3j78f.xn--mkb20b"
   },
   {
     "comment": "V7",
@@ -8720,7 +8720,7 @@
   {
     "comment": "V7",
     "input": "xn--dth6033bzbvx.xn--tsh9439b",
-    "output": null
+    "output": "xn--dth6033bzbvx.xn--tsh9439b"
   },
   {
     "input": "\u10b5\u3002\u06f0\u226e\u00df\u0745",
@@ -8805,12 +8805,12 @@
   {
     "comment": "V7",
     "input": "xn--tnd.xn--ss-jbe65aw27i",
-    "output": null
+    "output": "xn--tnd.xn--ss-jbe65aw27i"
   },
   {
     "comment": "V7",
     "input": "xn--tnd.xn--zca912alh227g",
-    "output": null
+    "output": "xn--tnd.xn--zca912alh227g"
   },
   {
     "input": "xn--ge6h.xn--oc9a",
@@ -8857,7 +8857,7 @@
   {
     "comment": "V7",
     "input": "xn--73g39298c.xn--hdhz171b",
-    "output": null
+    "output": "xn--73g39298c.xn--hdhz171b"
   },
   {
     "comment": "V7",
@@ -8872,7 +8872,7 @@
   {
     "comment": "V7",
     "input": "xn--f3g73398c.xn--hdhz171b",
-    "output": null
+    "output": "xn--f3g73398c.xn--hdhz171b"
   },
   {
     "comment": "C1; V3 (ignored)",
@@ -8907,27 +8907,27 @@
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn--0ug.xn--ss--bi1b",
-    "output": null
+    "output": "xn--0ug.xn--ss--bi1b"
   },
   {
     "comment": "C1; V3 (ignored)",
     "input": "xn--0ug.xn----pfa2305a",
-    "output": null
+    "output": "xn--0ug.xn----pfa2305a"
   },
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": ".xn--ss--4rn",
-    "output": null
+    "output": ".xn--ss--4rn"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn--0ug.xn--ss--4rn",
-    "output": null
+    "output": "xn--0ug.xn--ss--4rn"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn--0ug.xn----pfa042j",
-    "output": null
+    "output": "xn--0ug.xn----pfa042j"
   },
   {
     "input": "\u9f59--\ud835\udff0.\u00df",
@@ -8982,7 +8982,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----bh61m.xn--gdhz157g0em1d",
-    "output": null
+    "output": "xn----bh61m.xn--gdhz157g0em1d"
   },
   {
     "comment": "C1; C2; V7",
@@ -9007,22 +9007,22 @@
   {
     "comment": "V7",
     "input": "xn--3n36e.xn--gdh992byu01p",
-    "output": null
+    "output": "xn--3n36e.xn--gdh992byu01p"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--0ugc90904y.xn--gdh992byu01p",
-    "output": null
+    "output": "xn--0ugc90904y.xn--gdh992byu01p"
   },
   {
     "comment": "V7",
     "input": "xn--3n36e.xn--hnd112gpz83n",
-    "output": null
+    "output": "xn--3n36e.xn--hnd112gpz83n"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--0ugc90904y.xn--hnd112gpz83n",
-    "output": null
+    "output": "xn--0ugc90904y.xn--hnd112gpz83n"
   },
   {
     "comment": "V6",
@@ -9057,7 +9057,7 @@
   {
     "comment": "V6",
     "input": "xn--7kj1858k.xn--pi6b",
-    "output": null
+    "output": "xn--7kj1858k.xn--pi6b"
   },
   {
     "comment": "V6",
@@ -9072,7 +9072,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--ond3755u.xn--pi6b",
-    "output": null
+    "output": "xn--ond3755u.xn--pi6b"
   },
   {
     "comment": "C1; V7",
@@ -9087,12 +9087,12 @@
   {
     "comment": "V7",
     "input": "xn--0-z6j.xn--8lh28773l",
-    "output": null
+    "output": "xn--0-z6j.xn--8lh28773l"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0-z6jy93b.xn--8lh28773l",
-    "output": null
+    "output": "xn--0-z6jy93b.xn--8lh28773l"
   },
   {
     "comment": "C2",
@@ -9129,12 +9129,12 @@
   {
     "comment": "C2",
     "input": "xn--9-i0j5967eg3qz.xn--ss-l1t",
-    "output": null
+    "output": "xn--9-i0j5967eg3qz.xn--ss-l1t"
   },
   {
     "comment": "C2",
     "input": "xn--9-i0j5967eg3qz.xn--zca770n",
-    "output": null
+    "output": "xn--9-i0j5967eg3qz.xn--zca770n"
   },
   {
     "comment": "C2",
@@ -9187,12 +9187,12 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": "9.xn----ogo..xn----xj54d1s69k",
-    "output": null
+    "output": "9.xn----ogo..xn----xj54d1s69k"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----ogot9g.xn----n89hl0522az9u2a",
-    "output": null
+    "output": "xn----ogot9g.xn----n89hl0522az9u2a"
   },
   {
     "comment": "C2; V3 (ignored)",
@@ -9217,7 +9217,7 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "xn----3vs.xn--1ug532c",
-    "output": null
+    "output": "xn----3vs.xn--1ug532c"
   },
   {
     "comment": "C2; V3 (ignored)",
@@ -9227,12 +9227,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----00g.xn--hnd",
-    "output": null
+    "output": "xn----00g.xn--hnd"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----00g.xn--hnd399e",
-    "output": null
+    "output": "xn----00g.xn--hnd399e"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -9242,7 +9242,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--fze.xn----ly8i",
-    "output": null
+    "output": "xn--fze.xn----ly8i"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -9272,12 +9272,12 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----pw5e.xn--ss-7jd10716y",
-    "output": null
+    "output": "xn----pw5e.xn--ss-7jd10716y"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----pw5e.xn--zca50wfv060a",
-    "output": null
+    "output": "xn----pw5e.xn--zca50wfv060a"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -9307,7 +9307,7 @@
   {
     "comment": "V6",
     "input": "xn--3-ksd277tlo7s.xn--8-f0jx021l",
-    "output": null
+    "output": "xn--3-ksd277tlo7s.xn--8-f0jx021l"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -9322,12 +9322,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "-.xn--nei54421f",
-    "output": null
+    "output": "-.xn--nei54421f"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "-.xn--1ug800aq795s",
-    "output": null
+    "output": "-.xn--1ug800aq795s"
   },
   {
     "comment": "V6; V7",
@@ -9342,7 +9342,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--52-dwx47758j.xn--kd3hk431k",
-    "output": null
+    "output": "xn--52-dwx47758j.xn--kd3hk431k"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -9352,7 +9352,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "-.xn----ukp70432h",
-    "output": null
+    "output": "-.xn----ukp70432h"
   },
   {
     "comment": "V7",
@@ -9397,12 +9397,12 @@
   {
     "comment": "V7",
     "input": "xn--4xa.xn--dhbip2802atb20c",
-    "output": null
+    "output": "xn--4xa.xn--dhbip2802atb20c"
   },
   {
     "comment": "V7",
     "input": "xn--3xa.xn--dhbip2802atb20c",
-    "output": null
+    "output": "xn--3xa.xn--dhbip2802atb20c"
   },
   {
     "comment": "V7",
@@ -9417,7 +9417,7 @@
   {
     "comment": "V7",
     "input": "9.xn--dbf91222q",
-    "output": null
+    "output": "9.xn--dbf91222q"
   },
   {
     "comment": "C1; V7",
@@ -9442,7 +9442,7 @@
   {
     "comment": "C1; A4_2 (ignored)",
     "input": ".xn--hva754s.xn--0ug",
-    "output": null
+    "output": ".xn--hva754s.xn--0ug"
   },
   {
     "comment": "C1; V7",
@@ -9452,32 +9452,32 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--hva754sy94k.",
-    "output": null
+    "output": "xn--hva754sy94k."
   },
   {
     "comment": "C1; V7",
     "input": "xn--hva754sy94k.xn--0ug",
-    "output": null
+    "output": "xn--hva754sy94k.xn--0ug"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--hva929d.",
-    "output": null
+    "output": ".xn--hva929d."
   },
   {
     "comment": "C1; V7; A4_2 (ignored)",
     "input": ".xn--hva929d.xn--0ug",
-    "output": null
+    "output": ".xn--hva929d.xn--0ug"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--hva929dl29p.",
-    "output": null
+    "output": "xn--hva929dl29p."
   },
   {
     "comment": "C1; V7",
     "input": "xn--hva929dl29p.xn--0ug",
-    "output": null
+    "output": "xn--hva929dl29p.xn--0ug"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -9497,7 +9497,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--hva929d.",
-    "output": null
+    "output": "xn--hva929d."
   },
   {
     "input": "xn--hzb.xn--ukj4430l",
@@ -9514,7 +9514,7 @@
   {
     "comment": "V7",
     "input": "xn--hzb.xn--bnd2938u",
-    "output": null
+    "output": "xn--hzb.xn--bnd2938u"
   },
   {
     "comment": "C1; C2; V7",
@@ -9529,12 +9529,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--2-me5ay1273i",
-    "output": null
+    "output": ".xn--2-me5ay1273i"
   },
   {
     "comment": "C1; C2; V7",
     "input": "xn--0ugb.xn--2-me5ay1273i",
-    "output": null
+    "output": "xn--0ugb.xn--2-me5ay1273i"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -9544,7 +9544,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----rq4re4997d.xn--l707b",
-    "output": null
+    "output": "xn----rq4re4997d.xn--l707b"
   },
   {
     "comment": "C1; V7",
@@ -9559,17 +9559,17 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--z272f.xn--etl.xn--1-smc.",
-    "output": null
+    "output": "xn--z272f.xn--etl.xn--1-smc."
   },
   {
     "comment": "V7",
     "input": "xn--etlt457ccrq7h.xn--jgb476m",
-    "output": null
+    "output": "xn--etlt457ccrq7h.xn--jgb476m"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug754gxl4ldlt0k.xn--jgb476m",
-    "output": null
+    "output": "xn--0ug754gxl4ldlt0k.xn--jgb476m"
   },
   {
     "comment": "V7",
@@ -9589,7 +9589,7 @@
   {
     "comment": "V7",
     "input": "xn--0tb8725k.xn--tu8d.xn--7kj73887a",
-    "output": null
+    "output": "xn--0tb8725k.xn--tu8d.xn--7kj73887a"
   },
   {
     "comment": "V7",
@@ -9599,17 +9599,17 @@
   {
     "comment": "V7",
     "input": "xn--0tb8725k.xn--7kj9008dt18a7py9c",
-    "output": null
+    "output": "xn--0tb8725k.xn--7kj9008dt18a7py9c"
   },
   {
     "comment": "V7",
     "input": "xn--0tb8725k.xn--tu8d.xn--ond97931d",
-    "output": null
+    "output": "xn--0tb8725k.xn--tu8d.xn--ond97931d"
   },
   {
     "comment": "V7",
     "input": "xn--0tb8725k.xn--ond3562jt18a7py9c",
-    "output": null
+    "output": "xn--0tb8725k.xn--ond3562jt18a7py9c"
   },
   {
     "comment": "V6; V7",
@@ -9629,7 +9629,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--vfh16m67gx1162b.xn--ro1d",
-    "output": null
+    "output": "xn--vfh16m67gx1162b.xn--ro1d"
   },
   {
     "comment": "V6; V7",
@@ -9639,7 +9639,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--9nd623g4zc5z060c.xn--ro1d",
-    "output": null
+    "output": "xn--9nd623g4zc5z060c.xn--ro1d"
   },
   {
     "comment": "V3 (ignored)",
@@ -9674,7 +9674,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--qutw175s.xn----mimu6tf67j",
-    "output": null
+    "output": "xn--qutw175s.xn----mimu6tf67j"
   },
   {
     "comment": "C2",
@@ -9701,17 +9701,17 @@
   {
     "comment": "C2",
     "input": "xn--1ug592ykp6b.xn----mck373i",
-    "output": null
+    "output": "xn--1ug592ykp6b.xn----mck373i"
   },
   {
     "comment": "V7",
     "input": "xn--p9ut19m.xn----k1g451d",
-    "output": null
+    "output": "xn--p9ut19m.xn----k1g451d"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug592ykp6b.xn----k1g451d",
-    "output": null
+    "output": "xn--1ug592ykp6b.xn----k1g451d"
   },
   {
     "comment": "C1; V7",
@@ -9748,17 +9748,17 @@
   {
     "comment": "C1",
     "input": "xn--0ug2473c.16.xn--3-nyc0117m",
-    "output": null
+    "output": "xn--0ug2473c.16.xn--3-nyc0117m"
   },
   {
     "comment": "V7",
     "input": "xn--9r8a.xn--3-nyc678tu07m",
-    "output": null
+    "output": "xn--9r8a.xn--3-nyc678tu07m"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug2473c.xn--3-nyc678tu07m",
-    "output": null
+    "output": "xn--0ug2473c.xn--3-nyc678tu07m"
   },
   {
     "comment": "C2",
@@ -9783,7 +9783,7 @@
   {
     "comment": "C2",
     "input": "xn--1-5bt6845n.xn--1ug",
-    "output": null
+    "output": "xn--1-5bt6845n.xn--1ug"
   },
   {
     "comment": "V7",
@@ -9803,7 +9803,7 @@
   {
     "comment": "V7",
     "input": "f.xn--45hz6953f",
-    "output": null
+    "output": "f.xn--45hz6953f"
   },
   {
     "comment": "V7",
@@ -9828,7 +9828,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--9ic246gs21p.xn--2-nws2918ndrjr",
-    "output": null
+    "output": "xn--9ic246gs21p.xn--2-nws2918ndrjr"
   },
   {
     "comment": "V6; V7",
@@ -9838,7 +9838,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--9ic246gs21p.xn--2-k1g43076adrwq",
-    "output": null
+    "output": "xn--9ic246gs21p.xn--2-k1g43076adrwq"
   },
   {
     "comment": "C1; V7",
@@ -9853,22 +9853,22 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--1-yi00h..xn--4grs325b",
-    "output": null
+    "output": "xn--1-yi00h..xn--4grs325b"
   },
   {
     "comment": "C1; V7; A4_2 (ignored)",
     "input": "xn--1-rgna61159u..xn--4grs325b",
-    "output": null
+    "output": "xn--1-rgna61159u..xn--4grs325b"
   },
   {
     "comment": "V7",
     "input": "xn--tsh11906f.xn--4grs325b",
-    "output": null
+    "output": "xn--tsh11906f.xn--4grs325b"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0uga855aez302a.xn--4grs325b",
-    "output": null
+    "output": "xn--0uga855aez302a.xn--4grs325b"
   },
   {
     "comment": "V7",
@@ -9878,7 +9878,7 @@
   {
     "comment": "V7",
     "input": "xn--27e.xn--7cy81125a0yq4a",
-    "output": null
+    "output": "xn--27e.xn--7cy81125a0yq4a"
   },
   {
     "comment": "C1; V7",
@@ -9908,17 +9908,17 @@
   {
     "comment": "C1",
     "input": "xn--0uga.1.xn--9-ogo",
-    "output": null
+    "output": "xn--0uga.1.xn--9-ogo"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--9-ogo37g",
-    "output": null
+    "output": ".xn--9-ogo37g"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0uga.xn--9-ogo37g",
-    "output": null
+    "output": "xn--0uga.xn--9-ogo37g"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -9933,7 +9933,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--w0g.xn----bd0j",
-    "output": null
+    "output": "xn--w0g.xn----bd0j"
   },
   {
     "comment": "C2; V6; V7",
@@ -9948,12 +9948,12 @@
   {
     "comment": "V6; V7",
     "input": "xn----gyg3618i.xn--jc9ao4185a",
-    "output": null
+    "output": "xn----gyg3618i.xn--jc9ao4185a"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn----gyg250jio7k.xn--1ug8774cri56d",
-    "output": null
+    "output": "xn----gyg250jio7k.xn--1ug8774cri56d"
   },
   {
     "comment": "V6",
@@ -9963,7 +9963,7 @@
   {
     "comment": "V6",
     "input": "xn--xytw701b.xn--yc9c",
-    "output": null
+    "output": "xn--xytw701b.xn--yc9c"
   },
   {
     "comment": "V7",
@@ -9998,7 +9998,7 @@
   {
     "comment": "V7",
     "input": "xn--mlj0486jgl2j.xn--hbf6853f",
-    "output": null
+    "output": "xn--mlj0486jgl2j.xn--hbf6853f"
   },
   {
     "comment": "V7",
@@ -10013,7 +10013,7 @@
   {
     "comment": "V7",
     "input": "xn--2nd8876sgl2j.xn--hbf6853f",
-    "output": null
+    "output": "xn--2nd8876sgl2j.xn--hbf6853f"
   },
   {
     "comment": "C2; V7",
@@ -10043,12 +10043,12 @@
   {
     "comment": "C2; A4_2 (ignored)",
     "input": "xn--ss-f4j585j.b.",
-    "output": null
+    "output": "xn--ss-f4j585j.b."
   },
   {
     "comment": "C2; A4_2 (ignored)",
     "input": "xn--zca679eh2l.b.",
-    "output": null
+    "output": "xn--zca679eh2l.b."
   },
   {
     "comment": "C2; V7",
@@ -10068,17 +10068,17 @@
   {
     "comment": "V7",
     "input": "xn--ss-f4j.xn--tsh",
-    "output": null
+    "output": "xn--ss-f4j.xn--tsh"
   },
   {
     "comment": "C2; V7",
     "input": "xn--ss-f4j585j.xn--tsh",
-    "output": null
+    "output": "xn--ss-f4j585j.xn--tsh"
   },
   {
     "comment": "C2; V7",
     "input": "xn--zca679eh2l.xn--tsh",
-    "output": null
+    "output": "xn--zca679eh2l.xn--tsh"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -10163,17 +10163,17 @@
   {
     "comment": "C1; A4_2 (ignored)",
     "input": "xn--8-sgn10i.",
-    "output": null
+    "output": "xn--8-sgn10i."
   },
   {
     "comment": "V6; V7",
     "input": "xn--8-ngo.xn--z3e",
-    "output": null
+    "output": "xn--8-ngo.xn--z3e"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--8-sgn10i.xn--z3e",
-    "output": null
+    "output": "xn--8-sgn10i.xn--z3e"
   },
   {
     "comment": "V7",
@@ -10208,7 +10208,7 @@
   {
     "comment": "V7",
     "input": "xn--fbf851c.xn--ko1u.xn--rkj",
-    "output": null
+    "output": "xn--fbf851c.xn--ko1u.xn--rkj"
   },
   {
     "comment": "V7",
@@ -10223,17 +10223,17 @@
   {
     "comment": "V7",
     "input": "xn--fbf851cq98poxw1a.xn--rkj",
-    "output": null
+    "output": "xn--fbf851cq98poxw1a.xn--rkj"
   },
   {
     "comment": "V7",
     "input": "xn--fbf851c.xn--ko1u.xn--7md",
-    "output": null
+    "output": "xn--fbf851c.xn--ko1u.xn--7md"
   },
   {
     "comment": "V7",
     "input": "xn--fbf851cq98poxw1a.xn--7md",
-    "output": null
+    "output": "xn--fbf851cq98poxw1a.xn--7md"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -10248,7 +10248,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--vfd.xn----fhd",
-    "output": null
+    "output": "xn--vfd.xn----fhd"
   },
   {
     "comment": "V7",
@@ -10273,12 +10273,12 @@
   {
     "comment": "V7",
     "input": "xn--tbg.xn--11-5o7k.1.xn--k469f",
-    "output": null
+    "output": "xn--tbg.xn--11-5o7k.1.xn--k469f"
   },
   {
     "comment": "V7",
     "input": "xn--tbg.xn--tsht7586kyts9l",
-    "output": null
+    "output": "xn--tbg.xn--tsht7586kyts9l"
   },
   {
     "comment": "V7",
@@ -10293,12 +10293,12 @@
   {
     "comment": "V7",
     "input": "1.xn--7bi44996f.xn--9-o706d",
-    "output": null
+    "output": "1.xn--7bi44996f.xn--9-o706d"
   },
   {
     "comment": "V7",
     "input": "xn--tsh24g49550b.xn--9-o706d",
-    "output": null
+    "output": "xn--tsh24g49550b.xn--9-o706d"
   },
   {
     "comment": "V6",
@@ -10323,12 +10323,12 @@
   {
     "comment": "V6",
     "input": "xn--4xa.xn--0f9ars",
-    "output": null
+    "output": "xn--4xa.xn--0f9ars"
   },
   {
     "comment": "V6",
     "input": "xn--3xa.xn--0f9ars",
-    "output": null
+    "output": "xn--3xa.xn--0f9ars"
   },
   {
     "comment": "V6",
@@ -10401,7 +10401,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--1-3xm292b6044r..xn--9-6jd87310jtcqs",
-    "output": null
+    "output": "xn--1-3xm292b6044r..xn--9-6jd87310jtcqs"
   },
   {
     "comment": "V7",
@@ -10416,7 +10416,7 @@
   {
     "comment": "V7",
     "input": "xn--6lg26tvvc6v99z.xn--9-6jd87310jtcqs",
-    "output": null
+    "output": "xn--6lg26tvvc6v99z.xn--9-6jd87310jtcqs"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -10458,17 +10458,17 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----s2c.xn--ss-066q",
-    "output": null
+    "output": "xn----s2c.xn--ss-066q"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
     "input": "xn----s2c071q.xn--ss-066q",
-    "output": null
+    "output": "xn----s2c071q.xn--ss-066q"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
     "input": "xn----s2c071q.xn--zca7848m",
-    "output": null
+    "output": "xn----s2c071q.xn--zca7848m"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -10483,12 +10483,12 @@
   {
     "comment": "V6; V7; V3 (ignored); A4_2 (ignored)",
     "input": "xn----b5h1837n2ok9f.xn----mkm.",
-    "output": null
+    "output": "xn----b5h1837n2ok9f.xn----mkm."
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----b5h1837n2ok9f.xn----mkmw278h",
-    "output": null
+    "output": "xn----b5h1837n2ok9f.xn----mkmw278h"
   },
   {
     "comment": "V7",
@@ -10503,12 +10503,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "..xn--cof61594i",
-    "output": null
+    "output": "..xn--cof61594i"
   },
   {
     "comment": "V7",
     "input": "xn--y86c.xn--cof61594i",
-    "output": null
+    "output": "xn--y86c.xn--cof61594i"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -10518,7 +10518,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--jk3d.xn----iz68g",
-    "output": null
+    "output": "xn--jk3d.xn----iz68g"
   },
   {
     "comment": "V7",
@@ -10533,7 +10533,7 @@
   {
     "comment": "V7",
     "input": "xn--2856e.xn--6o3a",
-    "output": null
+    "output": "xn--2856e.xn--6o3a"
   },
   {
     "comment": "C1; V7",
@@ -10553,12 +10553,12 @@
   {
     "comment": "V7",
     "input": "xn--4kj.xn--p01x",
-    "output": null
+    "output": "xn--4kj.xn--p01x"
   },
   {
     "comment": "C1; V7",
     "input": "xn--4kj.xn--0ug56448b",
-    "output": null
+    "output": "xn--4kj.xn--0ug56448b"
   },
   {
     "comment": "C1; V7",
@@ -10568,12 +10568,12 @@
   {
     "comment": "V7",
     "input": "xn--lnd.xn--p01x",
-    "output": null
+    "output": "xn--lnd.xn--p01x"
   },
   {
     "comment": "C1; V7",
     "input": "xn--lnd.xn--0ug56448b",
-    "output": null
+    "output": "xn--lnd.xn--0ug56448b"
   },
   {
     "input": "\ud835\udfdb\uff0e\uf9f8",
@@ -10609,17 +10609,17 @@
   {
     "comment": "C2; V3 (ignored)",
     "input": "xn----ugn.xn--mlj8559d",
-    "output": null
+    "output": "xn----ugn.xn--mlj8559d"
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "-.xn--2nd2315j",
-    "output": null
+    "output": "-.xn--2nd2315j"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn----ugn.xn--2nd2315j",
-    "output": null
+    "output": "xn----ugn.xn--2nd2315j"
   },
   {
     "comment": "C2; V6",
@@ -10649,12 +10649,12 @@
   {
     "comment": "V6",
     "input": "xn--ss-ubc826a.xn--xmc",
-    "output": null
+    "output": "xn--ss-ubc826a.xn--xmc"
   },
   {
     "comment": "C2; V6",
     "input": "xn--ss-ubc826ab34b.xn--xmc",
-    "output": null
+    "output": "xn--ss-ubc826ab34b.xn--xmc"
   },
   {
     "comment": "C2; V6",
@@ -10669,12 +10669,12 @@
   {
     "comment": "C2; V6",
     "input": "xn--zca39lk1di19a.xn--xmc",
-    "output": null
+    "output": "xn--zca39lk1di19a.xn--xmc"
   },
   {
     "comment": "C2; V6",
     "input": "xn--zca19ln1di19a.xn--xmc",
-    "output": null
+    "output": "xn--zca19ln1di19a.xn--xmc"
   },
   {
     "comment": "C2; V6",
@@ -10739,7 +10739,7 @@
   {
     "comment": "C2",
     "input": "xn--1ch.xn--1ug",
-    "output": null
+    "output": "xn--1ch.xn--1ug"
   },
   {
     "comment": "V7",
@@ -10774,7 +10774,7 @@
   {
     "comment": "V7",
     "input": "xn--4xa502av8297a.xn--4xa6055k",
-    "output": null
+    "output": "xn--4xa502av8297a.xn--4xa6055k"
   },
   {
     "comment": "V7",
@@ -10784,12 +10784,12 @@
   {
     "comment": "V7",
     "input": "xn--4xa502av8297a.xn--3xa8055k",
-    "output": null
+    "output": "xn--4xa502av8297a.xn--3xa8055k"
   },
   {
     "comment": "V7",
     "input": "xn--3xa702av8297a.xn--3xa8055k",
-    "output": null
+    "output": "xn--3xa702av8297a.xn--3xa8055k"
   },
   {
     "comment": "V7",
@@ -10839,7 +10839,7 @@
   {
     "comment": "V7",
     "input": "xn--s264a.xn--pw2b",
-    "output": null
+    "output": "xn--s264a.xn--pw2b"
   },
   {
     "comment": "V7",
@@ -10854,7 +10854,7 @@
   {
     "comment": "V7",
     "input": "xn--57e0440k.xn--k86h",
-    "output": null
+    "output": "xn--57e0440k.xn--k86h"
   },
   {
     "comment": "V7",
@@ -10869,7 +10869,7 @@
   {
     "comment": "V7",
     "input": "xn--j890g.xn--w7e",
-    "output": null
+    "output": "xn--j890g.xn--w7e"
   },
   {
     "comment": "C2",
@@ -10884,12 +10884,12 @@
   {
     "comment": "V6",
     "input": "xn--b6s0078f.xn--0ic",
-    "output": null
+    "output": "xn--b6s0078f.xn--0ic"
   },
   {
     "comment": "C2",
     "input": "xn--b6s0078f.xn--0ic557h",
-    "output": null
+    "output": "xn--b6s0078f.xn--0ic557h"
   },
   {
     "comment": "C1; V7",
@@ -10899,12 +10899,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--q823a",
-    "output": null
+    "output": ".xn--q823a"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug.xn--q823a",
-    "output": null
+    "output": "xn--0ug.xn--q823a"
   },
   {
     "comment": "V7",
@@ -10924,7 +10924,7 @@
   {
     "comment": "V7",
     "input": "xn--ukju77frl47r.xn--yl0d",
-    "output": null
+    "output": "xn--ukju77frl47r.xn--yl0d"
   },
   {
     "comment": "V7",
@@ -10934,7 +10934,7 @@
   {
     "comment": "V7",
     "input": "xn--bnd074zr557n.xn--yl0d",
-    "output": null
+    "output": "xn--bnd074zr557n.xn--yl0d"
   },
   {
     "comment": "V7; V3 (ignored)",
@@ -10954,7 +10954,7 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "-.xn--y86c",
-    "output": null
+    "output": "-.xn--y86c"
   },
   {
     "comment": "C2",
@@ -10974,7 +10974,7 @@
   {
     "comment": "C2",
     "input": "xn--1ug.f",
-    "output": null
+    "output": "xn--1ug.f"
   },
   {
     "input": "f",
@@ -11024,12 +11024,12 @@
   {
     "comment": "C2",
     "input": "xn--1ug914h.ss",
-    "output": null
+    "output": "xn--1ug914h.ss"
   },
   {
     "comment": "C2",
     "input": "xn--1ug914h.xn--zca",
-    "output": null
+    "output": "xn--1ug914h.xn--zca"
   },
   {
     "comment": "C2",
@@ -11059,12 +11059,12 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--h327f",
-    "output": null
+    "output": ".xn--h327f"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1ug.xn--h327f",
-    "output": null
+    "output": "xn--1ug.xn--h327f"
   },
   {
     "comment": "V7",
@@ -11089,12 +11089,12 @@
   {
     "comment": "V7",
     "input": "xn--h79w4z99a.xn--6-tfo",
-    "output": null
+    "output": "xn--h79w4z99a.xn--6-tfo"
   },
   {
     "comment": "V7",
     "input": "xn--98e.xn--om9c",
-    "output": null
+    "output": "xn--98e.xn--om9c"
   },
   {
     "comment": "V6; V7",
@@ -11109,12 +11109,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "xn--2-2zf840fk16m.xn--sob093b2m7s.",
-    "output": null
+    "output": "xn--2-2zf840fk16m.xn--sob093b2m7s."
   },
   {
     "comment": "V6; V7",
     "input": "xn--2-2zf840fk16m.xn--sob093bj62sz9d",
-    "output": null
+    "output": "xn--2-2zf840fk16m.xn--sob093bj62sz9d"
   },
   {
     "comment": "V7",
@@ -11139,7 +11139,7 @@
   {
     "comment": "V7",
     "input": "xn--gm57d.xn----tfo4949b3664m",
-    "output": null
+    "output": "xn--gm57d.xn----tfo4949b3664m"
   },
   {
     "input": "\ud835\udfce\u3002\u752f",
@@ -11170,7 +11170,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn----ef8c.xn--2v9a",
-    "output": null
+    "output": "xn----ef8c.xn--2v9a"
   },
   {
     "comment": "V3 (ignored)",
@@ -11210,7 +11210,7 @@
   {
     "comment": "V7",
     "input": "xn--jnd1986v.xn--gdh",
-    "output": null
+    "output": "xn--jnd1986v.xn--gdh"
   },
   {
     "comment": "C1",
@@ -11235,7 +11235,7 @@
   {
     "comment": "C1",
     "input": "xn--gky8837e.xn--0ug",
-    "output": null
+    "output": "xn--gky8837e.xn--0ug"
   },
   {
     "comment": "C1",
@@ -11245,7 +11245,7 @@
   {
     "comment": "C1",
     "input": "xn--0ug.xn--0ug",
-    "output": null
+    "output": "xn--0ug.xn--0ug"
   },
   {
     "input": "xn--157b.xn--gnb",
@@ -11282,7 +11282,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--flj.xn--qdb0605f14ycrms3c",
-    "output": null
+    "output": "xn--flj.xn--qdb0605f14ycrms3c"
   },
   {
     "comment": "V6; V7",
@@ -11297,7 +11297,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--vnd.xn--qdb0605f14ycrms3c",
-    "output": null
+    "output": "xn--vnd.xn--qdb0605f14ycrms3c"
   },
   {
     "comment": "V6; V7",
@@ -11312,12 +11312,12 @@
   {
     "comment": "V6; A4_2 (ignored)",
     "input": "1.xn--8j4a..xn--8zb",
-    "output": null
+    "output": "1.xn--8j4a..xn--8zb"
   },
   {
     "comment": "V6; V7",
     "input": "xn--tsh4490bfe8c.xn--8zb",
-    "output": null
+    "output": "xn--tsh4490bfe8c.xn--8zb"
   },
   {
     "comment": "C1; V6",
@@ -11332,27 +11332,27 @@
   {
     "comment": "V6",
     "input": "xn--uof548an0j.xn--o4c",
-    "output": null
+    "output": "xn--uof548an0j.xn--o4c"
   },
   {
     "comment": "C1; V6",
     "input": "xn--uof63xk4bf3s.xn--o4c732g",
-    "output": null
+    "output": "xn--uof63xk4bf3s.xn--o4c732g"
   },
   {
     "comment": "V7",
     "input": "xn--co6h.xn--1-kwssa",
-    "output": null
+    "output": "xn--co6h.xn--1-kwssa"
   },
   {
     "comment": "V7",
     "input": "xn--co6h.xn--1-h1g429s",
-    "output": null
+    "output": "xn--co6h.xn--1-h1g429s"
   },
   {
     "comment": "V7",
     "input": "xn--co6h.xn--1-h1gs",
-    "output": null
+    "output": "xn--co6h.xn--1-h1gs"
   },
   {
     "comment": "V6; V7",
@@ -11367,12 +11367,12 @@
   {
     "comment": "V6; V7; A4_2 (ignored)",
     "input": "xn--l98a.xn--14-jsj57880f.",
-    "output": null
+    "output": "xn--l98a.xn--14-jsj57880f."
   },
   {
     "comment": "V6; V7",
     "input": "xn--l98a.xn--dgd218hhp28d",
-    "output": null
+    "output": "xn--l98a.xn--dgd218hhp28d"
   },
   {
     "comment": "C2",
@@ -11395,7 +11395,7 @@
   {
     "comment": "C2",
     "input": "xn--84-s850a.xn--1uga573cfq1w",
-    "output": null
+    "output": "xn--84-s850a.xn--1uga573cfq1w"
   },
   {
     "input": "\u226e\ud835\udfd5\uff0e\u8b16\u00df\u226f",
@@ -11482,22 +11482,22 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--1-ex54e..c",
-    "output": null
+    "output": "xn--1-ex54e..c"
   },
   {
     "comment": "C1; V7; A4_2 (ignored)",
     "input": "xn--1-ex54e..xn--2-rgn",
-    "output": null
+    "output": "xn--1-ex54e..xn--2-rgn"
   },
   {
     "comment": "V7",
     "input": "xn--tsh94183d.c",
-    "output": null
+    "output": "xn--tsh94183d.c"
   },
   {
     "comment": "C1; V7",
     "input": "xn--tsh94183d.xn--2-rgn",
-    "output": null
+    "output": "xn--tsh94183d.xn--2-rgn"
   },
   {
     "comment": "C1; C2",
@@ -11532,12 +11532,12 @@
   {
     "comment": "C1; C2",
     "input": "xn--0ugb.xn--ss-bh7o",
-    "output": null
+    "output": "xn--0ugb.xn--ss-bh7o"
   },
   {
     "comment": "C1; C2",
     "input": "xn--0ugb.xn--zca0732l",
-    "output": null
+    "output": "xn--0ugb.xn--zca0732l"
   },
   {
     "comment": "C1; C2",
@@ -11588,17 +11588,17 @@
   {
     "comment": "C1; A4_2 (ignored)",
     "input": ".xn--0ug287dj0o.xn--gd9a",
-    "output": null
+    "output": ".xn--0ug287dj0o.xn--gd9a"
   },
   {
     "comment": "V7",
     "input": "xn--qekw60dns9k.xn--gd9a",
-    "output": null
+    "output": "xn--qekw60dns9k.xn--gd9a"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug287dj0or48o.xn--gd9a",
-    "output": null
+    "output": "xn--0ug287dj0or48o.xn--gd9a"
   },
   {
     "input": "xn--qekw60d.xn--gd9a",
@@ -11621,22 +11621,22 @@
   {
     "comment": "V7",
     "input": "1.xn--4x6j.xn--jof45148n",
-    "output": null
+    "output": "1.xn--4x6j.xn--jof45148n"
   },
   {
     "comment": "C1; V7",
     "input": "xn--1-rgn.xn--4x6j.xn--jof45148n",
-    "output": null
+    "output": "xn--1-rgn.xn--4x6j.xn--jof45148n"
   },
   {
     "comment": "V7",
     "input": "xn--tshw462r.xn--jof45148n",
-    "output": null
+    "output": "xn--tshw462r.xn--jof45148n"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ug88o7471d.xn--jof45148n",
-    "output": null
+    "output": "xn--0ug88o7471d.xn--jof45148n"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -11656,17 +11656,17 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--9-ecp936non25a",
-    "output": null
+    "output": ".xn--9-ecp936non25a"
   },
   {
     "comment": "V7; A4_2 (ignored)",
     "input": "xn--3f1h.xn--91-030c1650n.",
-    "output": null
+    "output": "xn--3f1h.xn--91-030c1650n."
   },
   {
     "comment": "V7",
     "input": "xn--3f1h.xn--9-ecp936non25a",
-    "output": null
+    "output": "xn--3f1h.xn--9-ecp936non25a"
   },
   {
     "input": "xn--8c1a.xn--2ib8jn539l",
@@ -11703,7 +11703,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "-0.xn--r4e872ah77nghm",
-    "output": null
+    "output": "-0.xn--r4e872ah77nghm"
   },
   {
     "comment": "V6",
@@ -11728,7 +11728,7 @@
   {
     "comment": "V6",
     "input": "xn--1od555l3a.xn--9ic",
-    "output": null
+    "output": "xn--1od555l3a.xn--9ic"
   },
   {
     "comment": "V6",
@@ -11743,12 +11743,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--tndt4hvw.xn--9ic",
-    "output": null
+    "output": "xn--tndt4hvw.xn--9ic"
   },
   {
     "comment": "V6; V7",
     "input": "xn--1od7wz74eeb.xn--9ic",
-    "output": null
+    "output": "xn--1od7wz74eeb.xn--9ic"
   },
   {
     "comment": "V6",
@@ -11758,7 +11758,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--3nd0etsm92g.xn--9ic",
-    "output": null
+    "output": "xn--3nd0etsm92g.xn--9ic"
   },
   {
     "comment": "V6",
@@ -11768,12 +11768,12 @@
   {
     "comment": "V7",
     "input": "xn--l96h.xn--o8e4044k",
-    "output": null
+    "output": "xn--l96h.xn--o8e4044k"
   },
   {
     "comment": "V7",
     "input": "xn--l96h.xn--03e93aq365d",
-    "output": null
+    "output": "xn--l96h.xn--03e93aq365d"
   },
   {
     "comment": "V6; V3 (ignored)",
@@ -11793,7 +11793,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn--3-sl4eu679e.xn----xn4e",
-    "output": null
+    "output": "xn--3-sl4eu679e.xn----xn4e"
   },
   {
     "comment": "V6; V7",
@@ -11808,7 +11808,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--lrd.xn--s8c05302k",
-    "output": null
+    "output": "xn--lrd.xn--s8c05302k"
   },
   {
     "comment": "V7",
@@ -11828,7 +11828,7 @@
   {
     "comment": "V7",
     "input": "xn--xkjw3965g.xn--ne6h",
-    "output": null
+    "output": "xn--xkjw3965g.xn--ne6h"
   },
   {
     "comment": "V7",
@@ -11838,7 +11838,7 @@
   {
     "comment": "V7",
     "input": "xn--end82983m.xn--ne6h",
-    "output": null
+    "output": "xn--end82983m.xn--ne6h"
   },
   {
     "comment": "V7",
@@ -11863,7 +11863,7 @@
   {
     "comment": "V7",
     "input": "xn--mi60a.xn--6-sl4es8023c",
-    "output": null
+    "output": "xn--mi60a.xn--6-sl4es8023c"
   },
   {
     "comment": "V7",
@@ -11883,17 +11883,17 @@
   {
     "comment": "V7",
     "input": "xn--qlj1559dr224h.xn--skj",
-    "output": null
+    "output": "xn--qlj1559dr224h.xn--skj"
   },
   {
     "comment": "V7",
     "input": "xn--6nd5215jr2u0h.xn--skj",
-    "output": null
+    "output": "xn--6nd5215jr2u0h.xn--skj"
   },
   {
     "comment": "V7",
     "input": "xn--6nd5215jr2u0h.xn--8md",
-    "output": null
+    "output": "xn--6nd5215jr2u0h.xn--8md"
   },
   {
     "comment": "V7",
@@ -11918,12 +11918,12 @@
   {
     "comment": "V7",
     "input": "xn--4-w93ej7463a9io5a.xn--4xa31142bk3f0d",
-    "output": null
+    "output": "xn--4-w93ej7463a9io5a.xn--4xa31142bk3f0d"
   },
   {
     "comment": "V7",
     "input": "xn--4-w93ej7463a9io5a.xn--3xa51142bk3f0d",
-    "output": null
+    "output": "xn--4-w93ej7463a9io5a.xn--3xa51142bk3f0d"
   },
   {
     "comment": "V7",
@@ -11948,7 +11948,7 @@
   {
     "comment": "V7",
     "input": "xn--t92s.xn--znb.xn--5-y88f",
-    "output": null
+    "output": "xn--t92s.xn--znb.xn--5-y88f"
   },
   {
     "comment": "C2; V6",
@@ -11963,12 +11963,12 @@
   {
     "comment": "V6",
     "input": "xn--m4e.xn--2-ku7i",
-    "output": null
+    "output": "xn--m4e.xn--2-ku7i"
   },
   {
     "comment": "C2; V6",
     "input": "xn--m4e.xn--2-tgnv469h",
-    "output": null
+    "output": "xn--m4e.xn--2-tgnv469h"
   },
   {
     "comment": "V6",
@@ -11993,12 +11993,12 @@
   {
     "comment": "V6",
     "input": "xn--2v9a.xn--ss-q40dp97m",
-    "output": null
+    "output": "xn--2v9a.xn--ss-q40dp97m"
   },
   {
     "comment": "V6",
     "input": "xn--2v9a.xn--zca7637b14za",
-    "output": null
+    "output": "xn--2v9a.xn--zca7637b14za"
   },
   {
     "comment": "C1; V7",
@@ -12023,17 +12023,17 @@
   {
     "comment": "V7",
     "input": "xn--4xa2260lk3b8z15g.xn--tw9ct349a",
-    "output": null
+    "output": "xn--4xa2260lk3b8z15g.xn--tw9ct349a"
   },
   {
     "comment": "C1; V7",
     "input": "xn--4xa2260lk3b8z15g.xn--0ug4653g2xzf",
-    "output": null
+    "output": "xn--4xa2260lk3b8z15g.xn--0ug4653g2xzf"
   },
   {
     "comment": "C1; V7",
     "input": "xn--3xa4260lk3b8z15g.xn--0ug4653g2xzf",
-    "output": null
+    "output": "xn--3xa4260lk3b8z15g.xn--0ug4653g2xzf"
   },
   {
     "comment": "C1; V7",
@@ -12058,12 +12058,12 @@
   {
     "comment": "V7",
     "input": "xn--2-4jtr4282f.xn--m78h",
-    "output": null
+    "output": "xn--2-4jtr4282f.xn--m78h"
   },
   {
     "comment": "C2; V7",
     "input": "xn--2-4jtr4282f.xn--1ugz946p",
-    "output": null
+    "output": "xn--2-4jtr4282f.xn--1ugz946p"
   },
   {
     "comment": "V6",
@@ -12073,7 +12073,7 @@
   {
     "comment": "V6",
     "input": "xn--n82h.xn--63iw010f",
-    "output": null
+    "output": "xn--n82h.xn--63iw010f"
   },
   {
     "comment": "C1; V6; V3 (ignored); U1 (ignored)",
@@ -12088,22 +12088,22 @@
   {
     "comment": "V6; V3 (ignored); U1 (ignored)",
     "input": "xn---3,-3eu.xn--9h2d",
-    "output": null
+    "output": "xn---3,-3eu.xn--9h2d"
   },
   {
     "comment": "C1; V6; V3 (ignored); U1 (ignored)",
     "input": "xn---3,-3eu051c.xn--9h2d",
-    "output": null
+    "output": "xn---3,-3eu051c.xn--9h2d"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----pck1820x.xn--9h2d",
-    "output": null
+    "output": "xn----pck1820x.xn--9h2d"
   },
   {
     "comment": "C1; V6; V7; V3 (ignored)",
     "input": "xn----pck312bx563c.xn--9h2d",
-    "output": null
+    "output": "xn----pck312bx563c.xn--9h2d"
   },
   {
     "comment": "V3 (ignored); A4_2 (ignored)",
@@ -12123,7 +12123,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--z3e.xn----938f",
-    "output": null
+    "output": "xn--z3e.xn----938f"
   },
   {
     "comment": "C1; V7",
@@ -12138,22 +12138,22 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn--wz1d.1.xn----rg03o",
-    "output": null
+    "output": "xn--wz1d.1.xn----rg03o"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn--0ugy057g.1.xn----rg03o",
-    "output": null
+    "output": "xn--0ugy057g.1.xn----rg03o"
   },
   {
     "comment": "V6; V7",
     "input": "xn--wz1d.xn----dcp29674o",
-    "output": null
+    "output": "xn--wz1d.xn----dcp29674o"
   },
   {
     "comment": "C1; V7",
     "input": "xn--0ugy057g.xn----dcp29674o",
-    "output": null
+    "output": "xn--0ugy057g.xn----dcp29674o"
   },
   {
     "comment": "A4_2 (ignored)",
@@ -12181,7 +12181,7 @@
   {
     "comment": "V6; V3 (ignored)",
     "input": "xn----ukg9938i.xn----4u5m",
-    "output": null
+    "output": "xn----ukg9938i.xn----4u5m"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
@@ -12206,12 +12206,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----9mo67451g.xn----qj7b",
-    "output": null
+    "output": "xn----9mo67451g.xn----qj7b"
   },
   {
     "comment": "C1; V7; V3 (ignored)",
     "input": "xn----sgn90kn5663a.xn----qj7b",
-    "output": null
+    "output": "xn----sgn90kn5663a.xn----qj7b"
   },
   {
     "comment": "V6; V7; V3 (ignored)",
@@ -12221,7 +12221,7 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----qi38c.xn----jxc827k",
-    "output": null
+    "output": "xn----qi38c.xn----jxc827k"
   },
   {
     "comment": "V7; A4_2 (ignored)",
@@ -12231,7 +12231,7 @@
   {
     "comment": "V7; A4_2 (ignored)",
     "input": ".xn--mgb1a7bt462h.xn--17e10qe61f9r71s",
-    "output": null
+    "output": ".xn--mgb1a7bt462h.xn--17e10qe61f9r71s"
   },
   {
     "comment": "V3 (ignored)",
@@ -12276,12 +12276,12 @@
   {
     "comment": "V6; V7",
     "input": "xn----9tg11172akr8b.ss",
-    "output": null
+    "output": "xn----9tg11172akr8b.ss"
   },
   {
     "comment": "V6; V7",
     "input": "xn----9tg11172akr8b.xn--zca",
-    "output": null
+    "output": "xn----9tg11172akr8b.xn--zca"
   },
   {
     "comment": "V6; V7",
@@ -12321,12 +12321,12 @@
   {
     "comment": "V6; V7; V3 (ignored)",
     "input": "xn----jmf.xn--5-ufo50192e",
-    "output": null
+    "output": "xn----jmf.xn--5-ufo50192e"
   },
   {
     "comment": "C1; C2; V6; V7",
     "input": "xn----jmf215lda.xn--5-ufo50192e",
-    "output": null
+    "output": "xn----jmf215lda.xn--5-ufo50192e"
   },
   {
     "comment": "V6; V7",
@@ -12336,7 +12336,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--gc5a.xn--ybc83044ppga",
-    "output": null
+    "output": "xn--gc5a.xn--ybc83044ppga"
   },
   {
     "input": "xn--8gb2338k.xn--lhb0154f",
@@ -12393,17 +12393,17 @@
   {
     "comment": "V7",
     "input": "xn--6-8cb306hms1a.xn--ss-2vq",
-    "output": null
+    "output": "xn--6-8cb306hms1a.xn--ss-2vq"
   },
   {
     "comment": "V7",
     "input": "xn--6-8cb555h2b.xn--ss-2vq",
-    "output": null
+    "output": "xn--6-8cb555h2b.xn--ss-2vq"
   },
   {
     "comment": "V7",
     "input": "xn--6-8cb555h2b.xn--zca894k",
-    "output": null
+    "output": "xn--6-8cb555h2b.xn--zca894k"
   },
   {
     "comment": "V7",
@@ -12428,7 +12428,7 @@
   {
     "comment": "V7",
     "input": "xn--eo08b.xn--hdh3385g",
-    "output": null
+    "output": "xn--eo08b.xn--hdh3385g"
   },
   {
     "comment": "V6; V7; A4_2 (ignored)",
@@ -12443,17 +12443,17 @@
   {
     "comment": "V6; V7; A4_2 (ignored)",
     "input": "xn--619ep9154c.",
-    "output": null
+    "output": "xn--619ep9154c."
   },
   {
     "comment": "V6; V7",
     "input": "xn--619ep9154c.xn--psd",
-    "output": null
+    "output": "xn--619ep9154c.xn--psd"
   },
   {
     "comment": "V6; V7",
     "input": "xn--619ep9154c.xn--cl7c",
-    "output": null
+    "output": "xn--619ep9154c.xn--cl7c"
   },
   {
     "comment": "V7",
@@ -12468,7 +12468,7 @@
   {
     "comment": "V7",
     "input": "xn--vi56e.xn--2-w91i",
-    "output": null
+    "output": "xn--vi56e.xn--2-w91i"
   },
   {
     "comment": "C2; V7",
@@ -12493,17 +12493,17 @@
   {
     "comment": "V7",
     "input": "xn--7pj.ss",
-    "output": null
+    "output": "xn--7pj.ss"
   },
   {
     "comment": "C2; V7",
     "input": "xn--7pj.xn--ss-n1t",
-    "output": null
+    "output": "xn--7pj.xn--ss-n1t"
   },
   {
     "comment": "C2; V7",
     "input": "xn--7pj.xn--zca870n",
-    "output": null
+    "output": "xn--7pj.xn--zca870n"
   },
   {
     "comment": "C1",
@@ -12523,7 +12523,7 @@
   {
     "comment": "C1",
     "input": "xn--7zv.xn--0ug",
-    "output": null
+    "output": "xn--7zv.xn--0ug"
   },
   {
     "input": "xn--iwb.ss",
@@ -12550,12 +12550,12 @@
   {
     "comment": "V7; V3 (ignored); A4_2 (ignored)",
     "input": "xn----n50a258u.xn---1-up07j.",
-    "output": null
+    "output": "xn----n50a258u.xn---1-up07j."
   },
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn----n50a258u.xn----ecp33805f",
-    "output": null
+    "output": "xn----n50a258u.xn----ecp33805f"
   },
   {
     "comment": "C2; V7",
@@ -12570,12 +12570,12 @@
   {
     "comment": "V7",
     "input": "xn--ebf031cf7196a.xn--587c",
-    "output": null
+    "output": "xn--ebf031cf7196a.xn--587c"
   },
   {
     "comment": "C2; V7",
     "input": "xn--ebf031cf7196a.xn--1ug9540g",
-    "output": null
+    "output": "xn--ebf031cf7196a.xn--1ug9540g"
   },
   {
     "comment": "V3 (ignored)",
@@ -12605,7 +12605,7 @@
   {
     "comment": "V6; V7",
     "input": "xn--sn3d59267c.xn--4hb",
-    "output": null
+    "output": "xn--sn3d59267c.xn--4hb"
   },
   {
     "comment": "C1; V6; V7",
@@ -12615,12 +12615,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--ie8c.xn--2g51a",
-    "output": null
+    "output": "xn--ie8c.xn--2g51a"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--ie8c.xn--0ug03366c",
-    "output": null
+    "output": "xn--ie8c.xn--0ug03366c"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
@@ -12645,12 +12645,12 @@
   {
     "comment": "V7; V3 (ignored)",
     "input": "xn--gdh.xn----cr99a1w710b",
-    "output": null
+    "output": "xn--gdh.xn----cr99a1w710b"
   },
   {
     "comment": "C2; V7; V3 (ignored)",
     "input": "xn--1ug95g.xn----cr99a1w710b",
-    "output": null
+    "output": "xn--1ug95g.xn----cr99a1w710b"
   },
   {
     "comment": "C2; V7",
@@ -12665,22 +12665,22 @@
   {
     "comment": "V7",
     "input": "xn--2u2a.xn--5-uws5848bpf44e",
-    "output": null
+    "output": "xn--2u2a.xn--5-uws5848bpf44e"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1uga7691f.xn--5-uws5848bpf44e",
-    "output": null
+    "output": "xn--1uga7691f.xn--5-uws5848bpf44e"
   },
   {
     "comment": "V7",
     "input": "xn--2u2a.xn--5-r1g7167ipfw8d",
-    "output": null
+    "output": "xn--2u2a.xn--5-r1g7167ipfw8d"
   },
   {
     "comment": "C2; V7",
     "input": "xn--1uga7691f.xn--5-r1g7167ipfw8d",
-    "output": null
+    "output": "xn--1uga7691f.xn--5-r1g7167ipfw8d"
   },
   {
     "input": "xn--ix9c26l.xn--q0s",
@@ -12703,12 +12703,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--0m9as84e2e21c.c",
-    "output": null
+    "output": "xn--0m9as84e2e21c.c"
   },
   {
     "comment": "C2; V6; V7",
     "input": "xn--1ug1435cfkyaoi04d.c",
-    "output": null
+    "output": "xn--1ug1435cfkyaoi04d.c"
   },
   {
     "input": "\ud802\udec0\uff0e\u0689\ud804\udf00",
@@ -12735,7 +12735,7 @@
   {
     "comment": "V6",
     "input": "xn--1chy468a.xn--2ed",
-    "output": null
+    "output": "xn--1chy468a.xn--2ed"
   },
   {
     "comment": "C2",
@@ -12755,7 +12755,7 @@
   {
     "comment": "C2",
     "input": "xn--r97c.xn--1ug",
-    "output": null
+    "output": "xn--r97c.xn--1ug"
   },
   {
     "comment": "V6",
@@ -12765,7 +12765,7 @@
   {
     "comment": "V6",
     "input": "xn--2g1d14o.xn--jti",
-    "output": null
+    "output": "xn--2g1d14o.xn--jti"
   },
   {
     "comment": "C1; V6; V7",
@@ -12785,12 +12785,12 @@
   {
     "comment": "V6; V7",
     "input": "xn--1mnx647cg3x1b.xn--4-zfb5123a",
-    "output": null
+    "output": "xn--1mnx647cg3x1b.xn--4-zfb5123a"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--1mnx647cg3x1b.xn--4-zfb502tlsl",
-    "output": null
+    "output": "xn--1mnx647cg3x1b.xn--4-zfb502tlsl"
   },
   {
     "comment": "C1; V6; V7",
@@ -12800,11 +12800,11 @@
   {
     "comment": "V6; V7",
     "input": "xn--1mnx647cg3x1b.xn--4-zfb324h",
-    "output": null
+    "output": "xn--1mnx647cg3x1b.xn--4-zfb324h"
   },
   {
     "comment": "C1; V6; V7",
     "input": "xn--1mnx647cg3x1b.xn--4-zfb324h32o",
-    "output": null
+    "output": "xn--1mnx647cg3x1b.xn--4-zfb324h32o"
   }
 ]
