@@ -421,6 +421,24 @@ The following are **not** vulnerabilities in Node.js:
   restrictions of their parent process. Passing an empty or modified `execArgv`
   to a worker does not grant it additional permissions.
 
+#### Virtual File System (`node:vfs`)
+
+The experimental [Virtual File System](https://nodejs.org/api/vfs.html)
+(`node:vfs`) is a virtualized file-system API for tests, fixtures, embedded
+assets, and application-managed storage. It is **not** a sandbox, permission
+system, or security boundary for untrusted code.
+
+Code that can load `node:vfs`, receive a `VirtualFileSystem` instance, install a
+mount, choose a provider, or pass paths to VFS APIs is trusted application code.
+A VFS mount only redirects matching file-system calls; it does not hide or
+restrict access to the host file system. `RealFSProvider` root checks and
+read-only providers are implementation behavior, not security guarantees.
+
+Reports that rely on using VFS to isolate untrusted JavaScript, native code, or
+user-controlled paths are not considered Node.js vulnerabilities. Use OS-level
+isolation, such as separate users, containers, or platform sandboxes, when a
+security boundary is required.
+
 #### V8 Sandbox
 
 The V8 sandbox is an in-process isolation mechanism internal to V8 that is not
