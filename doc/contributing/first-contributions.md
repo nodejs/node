@@ -19,7 +19,12 @@ due to complexity or requiring special domain expertise.
 
 If your first contribution is motivated by an issue you already encounter, but your proposed change
 is complex, introduces a new feature, breaks backward compatibility, or needs a significant refactor,
-it's best to open an issue to discuss the change before you start working on it.
+it can be useful to open an issue to discuss whether the change or its design is acceptable before
+working out the implementation details. The issue can be opened before you send the pull request,
+or along side your pull request (in which case, it's better to keep the pull request in draft mode).
+
+Straightforward or non-controversial changes, such as an obvious bug fix or a small refactor, don't
+usually benefit from discussions in a separate issue, and can be sent directly as a pull request.
 
 ### Communicating in issues
 
@@ -106,15 +111,16 @@ there's a good justification to keep them separate - in that case, coordinate wi
 about this. The commits that need to be kept separate must each pass all tests on their own and
 follow the [commit message guidelines](./pull-requests.md#commit-message-guidelines).
 
-Commit squashing is usually handled by the automation. Commits that are intended to be squashed don't
-have to follow the commit message guidelines, so you don't have to constantly squash them which would
-require new approvals/CI runs.
+Commit squashing is usually handled by the automation. Commits that are intended to be squashed away don't
+have to follow the commit message guidelines - only the ones whose commit message will be kept after
+squashing do. If your stack of commits are already approved and the CI has passed on them, don't worry
+about squashing them yourself - the automation will take care of it during landing.
 
-You can use
-[`git commit --fixup`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordcommit)
-when adding new commits to your pull request to indicate how the squashing should be done
-(the automation uses `git rebase --autosquash` which can pick up hints left by `--fixup` and
-`--squash` flags).
+The automation uses `git rebase --autosquash` which can pick up hints left by
+[`--fixup`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordcommit) and
+[`--squash`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---squashcommit) flags of the
+`git commit` command. You can use these flags when adding new commits to your pull request to indicate how
+the squashing should be done.
 
 ### Q: I've updated my pull request, but there's no response. What should I do?
 
@@ -198,19 +204,26 @@ merged, regardless of what GitHub shows.
 
 ### Q: When will my change be released?
 
-Commits merged into the `main` branch are released according to the release schedule of each release line.
-These are displayed in the [Release Working Group's pinned issues](https://github.com/nodejs/Release/issues).
+If the pull request is not `semver-major`, commits merged into the `main` branch are typically
+first released in next "Current" release. After spending at least two weeks in the "Current" release,
+a change that is not `semver-major` will be eligible to be included in the next "LTS" releases.
+The "Current" and "LTS" releases follow schedules that are tracked in the
+[Release Working Group's pinned issues](https://github.com/nodejs/Release/issues).
 
-If the pull request is not labeled `dont-land-*` or `semver-major`, it will be included in the next
-"current" release. If the change is labeled `dont-land-*`, it will be held back from release until
-the label is removed. If the change is labeled `semver-major`, it will only be included in the next
-major release, which may take months, depending on when the pull request is merged.
+If the change is labeled `dont-land-*`, it will be held back from releases in the specified branch until
+the label is removed.
+
+If the change is labeled `semver-major`, it will only not be included in the next "Current" release.
+Instead, it will need to wait until the next major release cut from the `main` branch to be included in a
+release. This may take up to months, depending on when the pull request is merged.
+
+Commits on `main` are backported to the release staging branches using `git cherry-pick` before they can be released.
+See [the backporting guide](./backporting-to-release-lines.md). This process is typically performed by
+volunteers from the Release Working Group, but other volunteers can also help. If your change isn't making
+progress in the backporting process as expected, you can ask for help in the Slack channel and see if
+volunteering to backport your change yourself would help.
 
 ### Q: Someone commented in my pull request that the change doesn't land cleanly on a release branch, what should I do?
-
-Commits landed into `main` are backported to the release staging branches using `git cherry-pick`
-before they can be released. This process is typically performed by volunteers from the Release
-Working Group, but it can also be performed by other volunteers.
 
 When the volunteers cherry-pick your commits to the release branches, if there's a git conflict, or
 there's a test failure caused by the change, and the volunteer cannot confidently resolve these
