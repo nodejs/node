@@ -1424,6 +1424,29 @@ TEST(ZlibTest, ZipUnicodePathExtra) {
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
 }
 
+TEST(ZlibTest, ZipEncryptionFlagMismatch) {
+  // Test archive created with info-zip:
+  // $ echo -n a > a && zip -P a -k a.zip a
+  // and then hex-edited to drop the encrypted flag from the central directory.
+  base::FilePath zip_file = TestDataDir().AppendASCII("enc_flag_mismatch.zip");
+
+  unzFile uzf = unzOpen(zip_file.AsUTF8Unsafe().c_str());
+  ASSERT_NE(uzf, nullptr);
+
+  char name[100];
+  unz_file_info file_info;
+
+  ASSERT_EQ(unzGoToFirstFile(uzf), UNZ_OK);
+  ASSERT_EQ(unzGetCurrentFileInfo(uzf, &file_info, name, sizeof(name),
+                                  nullptr, 0, nullptr, 0), UNZ_OK);
+  ASSERT_EQ(std::string(name), "A");
+
+  // minizip should reject the member due to lfh/cd encrypted flag mismatch.
+  EXPECT_EQ(unzOpenCurrentFilePassword(uzf, "a"), UNZ_BADZIPFILE);
+
+  EXPECT_EQ(unzClose(uzf), UNZ_OK);
+}
+
 TEST(ZlibTest, Crbug500521311) {
   base::FilePath zip_file = TestDataDir().AppendASCII("bug500521311.zip");
   unzFile uzf = unzOpen(zip_file.AsUTF8Unsafe().c_str());
