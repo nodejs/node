@@ -21,6 +21,13 @@ assert.strictEqual(process.stdin.rawMode, 'raw');
 process.stdin.setRawMode(false);
 console.log(`normal=${process.stdin.isRaw}`);
 assert.strictEqual(process.stdin.rawMode, false);
+assert.throws(
+  () => process.stdin.setRawMode('raw-vt'),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    name: 'TypeError',
+  });
+assert.strictEqual(process.stdin.rawMode, false);
 
 process.stdin.setRawMode('raw');
 console.log(`raw-string=${isOnlcrEnabled()}`);
