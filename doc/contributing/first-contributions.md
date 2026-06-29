@@ -113,7 +113,7 @@ follow the [commit message guidelines](./pull-requests.md#commit-message-guideli
 
 Commit squashing is usually handled by the automation. Commits that are intended to be squashed away don't
 have to follow the commit message guidelines - only the ones whose commit message will be kept after
-squashing do. If your stack of commits are already approved and the CI has passed on them, don't worry
+squashing do. If your commits are already approved and the CI has passed on them, don't worry
 about squashing them yourself - the automation will take care of it during landing.
 
 The automation uses `git rebase --autosquash` which can pick up hints left by
@@ -188,7 +188,7 @@ Pull requests need to be merged by collaborators or triagers (normally by applyi
 label). The [commit queue automation](../../.github/workflows/commit-queue.yml)
 will verify that the pull request meets all the requirements before merging it, but the
 triggering of the commit queue still requires human judgement and depends on volunteers.
-You can ask for help either in the pull request or in the slack channel similar
+You can ask for help either in the pull request or in the Slack channel similar
 to how you ask for help to get reviews and trigger CI runs.
 
 ### Q: There's a comment saying that my pull request is landed, but instead I see my pull request closed, what happened?
@@ -213,7 +213,7 @@ The "Current" and "LTS" releases follow schedules that are tracked in the
 If the change is labeled `dont-land-*`, it will be held back from releases in the specified branch until
 the label is removed.
 
-If the change is labeled `semver-major`, it will only not be included in the next "Current" release.
+If the change is labeled `semver-major`, it will not be included in the next "Current" release.
 Instead, it will need to wait until the next major release cut from the `main` branch to be included in a
 release. This may take up to months, depending on when the pull request is merged.
 
