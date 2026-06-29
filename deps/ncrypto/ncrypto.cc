@@ -4,13 +4,13 @@
 #include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
 #include <openssl/bytestring.h>
 #include <openssl/cipher.h>
-#include <openssl/pem.h>
 #endif
 #include <algorithm>
 #include <array>
@@ -21,6 +21,7 @@
 #include <openssl/params.h>
 #include <openssl/provider.h>
 #include <openssl/store.h>
+#include <openssl/ui.h>
 #if OPENSSL_WITH_ARGON2
 #include <openssl/thread.h>
 #endif
@@ -2897,6 +2898,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 
   if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
     // Encode SPKI as PEM.
+#if OPENSSL_VERSION_MAJOR == 3
     // Build the SubjectPublicKeyInfo wrapper explicitly before PEM encoding.
     // Provider-backed keys can fail the direct PEM_write_bio_PUBKEY() path even
     // when OpenSSL can materialize the public wrapper with X509_PUBKEY_set().
@@ -2911,6 +2913,13 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
       return Result<BIOPointer, bool>(false,
                                       mark_pop_error_on_return.peekError());
     }
+#else
+    // Non-OpenSSL 3 builds do not all declare PEM_write_bio_X509_PUBKEY().
+    if (PEM_write_bio_PUBKEY(bio.get(), get()) != 1) {
+      return Result<BIOPointer, bool>(false,
+                                      mark_pop_error_on_return.peekError());
+    }
+#endif
     return bio;
   }
 
