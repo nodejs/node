@@ -71,7 +71,7 @@ A `boolean` that is always `true` for `tty.ReadStream` instances.
 added: v0.7.7
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64140
     description: The `mode` argument supports `'raw-vt'` and `'io'`.
 -->
 
