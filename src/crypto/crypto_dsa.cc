@@ -1,19 +1,24 @@
 #include "crypto/crypto_dsa.h"
+#include "async_wrap-inl.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
 #include <openssl/bn.h>
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+#include <openssl/core_names.h>
+#endif
 #include <openssl/dsa.h>
+#include <openssl/evp.h>
 
 #include <cstdio>
 
 namespace node {
 
+using ncrypto::BignumPointer;
 using ncrypto::Dsa;
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
@@ -62,7 +67,7 @@ Maybe<void> DsaKeyGenTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     DsaKeyPairGenConfig* params) {
-  CHECK(args[*offset]->IsUint32());  // modulus bits
+  CHECK(args[*offset]->IsUint32());     // modulus bits
   CHECK(args[*offset + 1]->IsInt32());  // divisor bits
 
   params->params.modulus_bits = args[*offset].As<Uint32>()->Value();
@@ -74,16 +79,10 @@ Maybe<void> DsaKeyGenTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool GetDsaKeyDetail(Environment* env,
-                     const KeyObjectData& key,
-                     Local<Object> target) {
-  if (!key) return false;
-  Dsa dsa = key.GetAsymmetricKey();
-  if (!dsa) return false;
-
-  size_t modulus_length = dsa.getModulusLength();
-  size_t divisor_length = dsa.getDivisorLength();
-
+static bool SetDsaKeyDetail(Environment* env,
+                            Local<Object> target,
+                            size_t modulus_length,
+                            size_t divisor_length) {
   return target
              ->Set(env->context(),
                    env->modulus_length_string(),
@@ -96,6 +95,38 @@ bool GetDsaKeyDetail(Environment* env,
                    Number::New(env->isolate(),
                                static_cast<double>(divisor_length)))
              .IsJust();
+}
+
+bool GetDsaKeyDetail(Environment* env,
+                     const KeyObjectData& key,
+                     Local<Object> target) {
+  if (!key) return false;
+  const auto& m_pkey = key.GetAsymmetricKey();
+  Dsa dsa = m_pkey;
+  if (!dsa) {
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+    BIGNUM* p = nullptr;
+    BIGNUM* q = nullptr;
+    BignumPointer p_ptr;
+    BignumPointer q_ptr;
+    if (EVP_PKEY_get_bn_param(m_pkey.get(), OSSL_PKEY_PARAM_FFC_P, &p) == 1) {
+      p_ptr.reset(p);
+    }
+    if (EVP_PKEY_get_bn_param(m_pkey.get(), OSSL_PKEY_PARAM_FFC_Q, &q) == 1) {
+      q_ptr.reset(q);
+    }
+    if (p_ptr && q_ptr) {
+      return SetDsaKeyDetail(env,
+                             target,
+                             BignumPointer::GetBitCount(p_ptr.get()),
+                             BignumPointer::GetBitCount(q_ptr.get()));
+    }
+#endif
+    return false;
+  }
+
+  return SetDsaKeyDetail(
+      env, target, dsa.getModulusLength(), dsa.getDivisorLength());
 }
 
 namespace DSAAlg {

@@ -12,6 +12,7 @@
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
+#include "permission/permission.h"
 #include "string_bytes.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -386,8 +387,9 @@ bool KeyObjectData::ToEncodedPublicKey(
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
       ECKeyPointer ec_key(pkey);
-      if (!ec_key) {
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      if (!ec_key || ec_key.getPublicKey() == nullptr) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC public key");
         return false;
       }
       auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
@@ -436,12 +438,14 @@ bool KeyObjectData::ToEncodedPrivateKey(
     if (pkey.id() == EVP_PKEY_EC) {
       ECKeyPointer ec_key(pkey);
       if (!ec_key) {
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
         return false;
       }
       const BIGNUM* private_key = ec_key.getPrivateKey();
       if (private_key == nullptr) {
-        THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC private key");
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
         return false;
       }
       const auto group = ec_key.getGroup();
@@ -764,7 +768,87 @@ KeyObjectData KeyObjectData::GetPrivateKeyFromJs(
     bool allow_key_object) {
   Environment* env = Environment::GetCurrent(args);
 
-  // JWK format: data is a JS Object (not buffer), format int is JWK.
+  // Store descriptor: data is a { uri, properties } object, format int is
+  // STORE, and the passphrase slot carries an optional passphrase/PIN.
+  if (args[*offset]->IsObject() && !IsAnyBufferSource(args[*offset]) &&
+      args[*offset + 1]->IsInt32() &&
+      static_cast<EVPKeyPointer::PKFormatType>(
+          args[*offset + 1].As<Int32>()->Value()) ==
+          EVPKeyPointer::PKFormatType::STORE) {
+    Local<Object> store = args[*offset].As<Object>();
+    Local<Value> uri_value;
+    if (!store
+             ->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "uri"))
+             .ToLocal(&uri_value)) {
+      return {};
+    }
+    CHECK(uri_value->IsString());
+    Utf8Value uri(env->isolate(), uri_value);
+
+    Local<Value> properties_value;
+    if (!store
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "properties"))
+             .ToLocal(&properties_value)) {
+      return {};
+    }
+    std::string properties_storage;
+    std::optional<std::string_view> properties;
+    if (properties_value->IsString()) {
+      Utf8Value properties_string(env->isolate(), properties_value);
+      std::string_view properties_view = properties_string.ToStringView();
+      properties_storage.assign(properties_view.data(), properties_view.size());
+      properties = std::string_view(properties_storage);
+    } else {
+      CHECK(properties_value->IsNullOrUndefined());
+    }
+
+    // CryptoStore is a global permission. URIs passed to STORE loaders can
+    // contain credentials, so they must not be exposed through permission
+    // errors or diagnostics.
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kCryptoStore, "", KeyObjectData());
+
+    std::optional<ArrayBufferOrViewContents<char>> passphrase_content;
+    std::optional<ncrypto::Buffer<const char>> passphrase;
+    if (IsAnyBufferSource(args[*offset + 3])) {
+      passphrase_content.emplace(args[*offset + 3]);
+      if (!passphrase_content->CheckSizeInt32()) [[unlikely]] {
+        THROW_ERR_OUT_OF_RANGE(env, "passphrase is too big");
+        return {};
+      }
+      passphrase = ncrypto::Buffer<const char>{
+          .data = passphrase_content->data(),
+          .len = passphrase_content->size(),
+      };
+    } else {
+      CHECK(args[*offset + 3]->IsNullOrUndefined());
+    }
+
+    *offset += 5;
+    EVPKeyPointer::StorePrivateKeyConfig config{
+        .uri = uri.ToStringView(),
+        .properties = properties,
+        .passphrase = passphrase,
+    };
+    auto res = EVPKeyPointer::TryLoadPrivateKeyFromStore(config);
+    if (res) {
+      return CreateAsymmetric(KeyType::kKeyTypePrivate, std::move(res.value));
+    }
+    if (res.error.value() == EVPKeyPointer::PKParseError::NEED_PASSPHRASE) {
+      THROW_ERR_MISSING_PASSPHRASE(env,
+                                   "Passphrase required for encrypted key");
+    } else {
+      ThrowCryptoError(
+          env,
+          res.openssl_error.value_or(0),
+          "Failed to load private key through an OpenSSL STORE loader");
+    }
+    return {};
+  }
+
+  // Object formats: data is a JS Object (not buffer), format int determines
+  // whether this is a JWK or an OpenSSL STORE loader descriptor.
   if (args[*offset]->IsObject() && !IsAnyBufferSource(args[*offset]) &&
       args[*offset + 1]->IsInt32()) {
     auto format = static_cast<EVPKeyPointer::PKFormatType>(
@@ -818,7 +902,9 @@ KeyObjectData KeyObjectData::GetPrivateKeyFromJs(
 }
 
 KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
-    const FunctionCallbackInfo<Value>& args, unsigned int* offset) {
+    const FunctionCallbackInfo<Value>& args,
+    unsigned int* offset,
+    bool allow_private_key_store) {
   Environment* env = Environment::GetCurrent(args);
 
   // JWK format: data is a JS Object (not buffer), format int is JWK.
@@ -830,6 +916,15 @@ KeyObjectData KeyObjectData::GetPublicOrPrivateKeyFromJs(
       auto data = ImportJWKFromArgs(env, args[*offset].As<Object>());
       *offset += 5;
       return data;
+    }
+    if (format == EVPKeyPointer::PKFormatType::STORE) {
+      if (allow_private_key_store) {
+        return GetPrivateKeyFromJs(args, offset, false);
+      }
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "URLs for OpenSSL STORE loaders are only accepted for private keys");
+      return {};
     }
   }
 
@@ -1475,8 +1570,9 @@ void KeyObjectHandle::ExportECPublicRaw(
   }
 
   ECKeyPointer ec_key(m_pkey);
-  if (!ec_key) {
-    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!ec_key || ec_key.getPublicKey() == nullptr) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC public key");
   }
 
   CHECK(args[0]->IsInt32());
@@ -1509,13 +1605,14 @@ void KeyObjectHandle::ExportECPrivateRaw(
 
   ECKeyPointer ec_key(m_pkey);
   if (!ec_key) {
-    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
   }
 
   const BIGNUM* private_key = ec_key.getPrivateKey();
   if (private_key == nullptr) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "Failed to get EC private key");
+                                             "Failed to export EC private key");
   }
 
   const auto group = ec_key.getGroup();
@@ -1575,6 +1672,8 @@ void KeyObjectHandle::ExportJWK(
 
   if (ExportJWKInner(env, key->Data(), args[0], args[1]->IsTrue())) {
     args.GetReturnValue().Set(args[0]);
+  } else if (!env->isolate()->HasPendingException()) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to export JWK");
   }
 }
 
@@ -2046,6 +2145,8 @@ void Initialize(Environment* env, Local<Object> target) {
       static_cast<int>(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
   constexpr int kKeyFormatRawSeed =
       static_cast<int>(EVPKeyPointer::PKFormatType::RAW_SEED);
+  constexpr int kKeyFormatStore =
+      static_cast<int>(EVPKeyPointer::PKFormatType::STORE);
 
   constexpr auto kSigEncDER = DSASigEnc::DER;
   constexpr auto kSigEncP1363 = DSASigEnc::P1363;
@@ -2092,6 +2193,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyFormatRawPublic);
   NODE_DEFINE_CONSTANT(target, kKeyFormatRawPrivate);
   NODE_DEFINE_CONSTANT(target, kKeyFormatRawSeed);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatStore);
   NODE_DEFINE_CONSTANT(target, kKeyTypeSecret);
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);

@@ -118,6 +118,16 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-crypto-store
+When using the Permission Model, the process will not be able to load
+private keys through OpenSSL STORE loaders (using a \fB<URL>\fR passed to \fBcrypto.createPrivateKey()\fR) by default. Attempts to do so will throw an
+\fBERR_ACCESS_DENIED\fR unless the user explicitly passes the
+\fB--allow-crypto-store\fR flag. This permission can be dropped at runtime via
+\fBpermission.drop()\fR.
+This flag grants broad authority to configured OpenSSL STORE loaders. A loader
+may access files, devices, tokens, or the network. Access performed by a loader
+is not constrained by the \fBfs.read\fR, \fBfs.write\fR, or \fBnet\fR permission scopes.
+.
 .It Fl -allow-ffi
 When using the Permission Model, the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR
@@ -1185,6 +1195,8 @@ WASI - manageable through \fB--allow-wasi\fR flag
 Addons - manageable through \fB--allow-addons\fR flag
 .It
 FFI - manageable through \fB--allow-ffi\fR flag
+.It
+Crypto Store - manageable through \fB--allow-crypto-store\fR flag
 .El
 .
 .It Fl -permission-audit
@@ -1899,6 +1911,8 @@ one is included in the list below.
 \fB--allow-addons\fR
 .It
 \fB--allow-child-process\fR
+.It
+\fB--allow-crypto-store\fR
 .It
 \fB--allow-ffi\fR
 .It

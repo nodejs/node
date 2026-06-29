@@ -61,6 +61,10 @@
               "type": "boolean",
               "description": "allow use of child process when any permissions are set"
             },
+            "allow-crypto-store": {
+              "type": "boolean",
+              "description": "allow loading private keys through OpenSSL STORE loaders when any permissions are set"
+            },
             "allow-ffi": {
               "type": "boolean",
               "description": "allow use of FFI when any permissions are set"
@@ -825,6 +829,10 @@
             "allow-child-process": {
               "type": "boolean",
               "description": "allow use of child process when any permissions are set"
+            },
+            "allow-crypto-store": {
+              "type": "boolean",
+              "description": "allow loading private keys through OpenSSL STORE loaders when any permissions are set"
             },
             "allow-ffi": {
               "type": "boolean",

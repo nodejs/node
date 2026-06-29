@@ -18,6 +18,7 @@ using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::Digest;
 using ncrypto::ECDSASigPointer;
+using ncrypto::ECKeyPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::EVPMDCtxPointer;
@@ -389,6 +390,94 @@ bool SupportsContextString(const EVPKeyPointer& key) {
   if (id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448) return true;
 #endif
   return false;
+}
+
+bool IsSM2Key(const EVPKeyPointer& key) {
+#ifdef OPENSSL_IS_BORINGSSL
+  return false;
+#else
+  if (key.id() == EVP_PKEY_SM2) return true;
+  if (key.id() != EVP_PKEY_EC) return false;
+
+  ECKeyPointer ec(key);
+  if (!ec) return false;
+
+  const EC_GROUP* group = ec.getGroup();
+  return group != nullptr && EC_GROUP_get_curve_name(group) == NID_sm2;
+#endif
+}
+
+bool CanUsePrehashedFallback(const EVPKeyPointer& key,
+                             const Digest& digest,
+                             bool has_context) {
+  if (!digest || has_context) return false;
+
+  if (key.isRsaVariant()) return true;
+
+  // SM2 digest signing first hashes the algorithm-specific Z value, so the
+  // lower-level prehashed sign/verify operation is not equivalent.
+  return key.isSigVariant() && !IsSM2Key(key);
+}
+
+ByteSource SignPrehashed(Environment* env,
+                         const EVPKeyPointer& key,
+                         const Digest& digest,
+                         const ByteSource& input,
+                         int padding,
+                         std::optional<int> salt_length,
+                         DSASigEnc dsa_encoding) {
+  EVPMDCtxPointer context = EVPMDCtxPointer::New();
+  if (!context || !context.digestInit(digest) || !context.digestUpdate(input))
+      [[unlikely]] {
+    return {};
+  }
+
+  auto data = context.digestFinal(context.getExpectedSize());
+  if (!data) [[unlikely]] {
+    return {};
+  }
+
+  EVPKeyCtxPointer pkctx = key.newCtx();
+  if (!pkctx || pkctx.initForSign() <= 0 ||
+      !ApplyRSAOptions(key, pkctx.get(), padding, salt_length) ||
+      !pkctx.setSignatureMd(context)) [[unlikely]] {
+    return {};
+  }
+
+  auto signature = pkctx.sign(data);
+  if (!signature) [[unlikely]] {
+    return {};
+  }
+
+  DCHECK(!signature.isSecure());
+  auto out = ByteSource::Allocated(signature.release());
+  if (UseP1363Encoding(key, dsa_encoding)) {
+    return ConvertSignatureToP1363(env, key, std::move(out));
+  }
+  return out;
+}
+
+bool VerifyPrehashed(const EVPKeyPointer& key,
+                     const Digest& digest,
+                     const ByteSource& input,
+                     const ByteSource& signature,
+                     int padding,
+                     std::optional<int> salt_length) {
+  EVPMDCtxPointer context = EVPMDCtxPointer::New();
+  if (!context || !context.digestInit(digest) || !context.digestUpdate(input))
+      [[unlikely]] {
+    return false;
+  }
+
+  auto data = context.digestFinal(context.getExpectedSize());
+  if (!data) [[unlikely]] {
+    return false;
+  }
+
+  EVPKeyCtxPointer pkctx = key.newCtx();
+  return pkctx && pkctx.initForVerify() > 0 &&
+         ApplyRSAOptions(key, pkctx.get(), padding, salt_length) &&
+         pkctx.setSignatureMd(context) && pkctx.verify(signature, data);
 }
 }  // namespace
 
@@ -812,9 +901,6 @@ bool SignTraits::DeriveBits(Environment* env,
                             ByteSource* out,
                             CryptoJobMode mode,
                             CryptoErrorStore* errors) {
-  auto context = EVPMDCtxPointer::New();
-  if (!context) [[unlikely]]
-    return false;
   const auto& key = params.key.GetAsymmetricKey();
 
   bool has_context = (params.flags & SignConfiguration::kHasContextString &&
@@ -825,6 +911,21 @@ bool SignTraits::DeriveBits(Environment* env,
     errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
+
+  int padding = params.flags & SignConfiguration::kHasPadding
+                    ? params.padding
+                    : key.getDefaultSignPadding();
+
+  std::optional<int> salt_length =
+      params.flags & SignConfiguration::kHasSaltLength
+          ? std::optional<int>(params.salt_length)
+          : std::nullopt;
+  bool can_fallback_to_prehash =
+      CanUsePrehashedFallback(key, params.digest, has_context);
+
+  auto context = EVPMDCtxPointer::New();
+  if (!context) [[unlikely]]
+    return false;
 
   auto ctx = ([&] {
     if (has_context) {
@@ -854,15 +955,6 @@ bool SignTraits::DeriveBits(Environment* env,
     return false;
   }
 
-  int padding = params.flags & SignConfiguration::kHasPadding
-                    ? params.padding
-                    : key.getDefaultSignPadding();
-
-  std::optional<int> salt_length =
-      params.flags & SignConfiguration::kHasSaltLength
-          ? std::optional<int>(params.salt_length)
-          : std::nullopt;
-
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
     return false;
   }
@@ -878,6 +970,16 @@ bool SignTraits::DeriveBits(Environment* env,
         *out = ByteSource::Allocated(data.release());
       } else {
         auto data = context.sign(params.data);
+        if (!data && can_fallback_to_prehash) {
+          *out = SignPrehashed(env,
+                               key,
+                               params.digest,
+                               params.data,
+                               padding,
+                               salt_length,
+                               params.dsa_encoding);
+          return static_cast<bool>(*out);
+        }
         if (!data) [[unlikely]] {
           return false;
         }
@@ -895,8 +997,17 @@ bool SignTraits::DeriveBits(Environment* env,
     case SignConfiguration::Mode::Verify: {
       auto buf = DataPointer::Alloc(1);
       static_cast<char*>(buf.get())[0] = 0;
-      if (context.verify(params.data, params.signature) &&
+      int verify_result = context.verifyOneShot(params.data, params.signature);
+      if (verify_result == 1 &&
           !HasSmallOrderEdDsaPoint(key, params.signature)) {
+        static_cast<char*>(buf.get())[0] = 1;
+      } else if (verify_result < 0 && can_fallback_to_prehash &&
+                 VerifyPrehashed(key,
+                                 params.digest,
+                                 params.data,
+                                 params.signature,
+                                 padding,
+                                 salt_length)) {
         static_cast<char*>(buf.get())[0] = 1;
       }
       *out = ByteSource::Allocated(buf.release());
