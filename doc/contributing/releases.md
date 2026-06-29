@@ -157,7 +157,7 @@ Notes:
 * Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
 * Examples will use the fictional release version `1.2.3`.
-* _When preparing a security release_, follow the security steps in the details
+* When preparing a _security release_, follow the security steps in the details
   sections.
 
 ### 0. Pre-release steps
