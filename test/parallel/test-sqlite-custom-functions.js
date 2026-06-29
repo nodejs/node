@@ -411,4 +411,349 @@ suite('DatabaseSync.prototype.function()', () => {
       message: /database is not open/,
     });
   });
+
+  suite('reentrant database operations from inside a user function callback', () => {
+    const reentrantCloseError = {
+      code: 'ERR_INVALID_STATE',
+      message: /database cannot be closed inside a user-defined function callback/,
+    };
+    const reentrantStmtError = {
+      code: 'ERR_INVALID_STATE',
+      message: /statement is currently being executed/,
+    };
+
+    function newDbWithRows() {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      db.prepare('INSERT INTO t VALUES (2, 20)').run();
+      return db;
+    }
+
+    test('.all() rejects db.close() and completes without crashing', () => {
+      const db = newDbWithRows();
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }, 2));
+      const rows = db.prepare('SELECT close_db(v) AS v FROM t').all();
+      assert.deepStrictEqual(rows, [
+        { __proto__: null, v: 10 },
+        { __proto__: null, v: 20 },
+      ]);
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('.get() rejects db.close() and completes without crashing', () => {
+      const db = newDbWithRows();
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }));
+      const row = db.prepare('SELECT close_db(v) AS v FROM t').get();
+      assert.deepStrictEqual(row, { __proto__: null, v: 10 });
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('.run() rejects db.close() and completes without crashing', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }, 2));
+      assert.deepStrictEqual(
+        db.prepare('INSERT INTO t SELECT close_db(1), close_db(2)').run(),
+        { changes: 1, lastInsertRowid: 1 },
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('iterator rejects db.close() and completes without crashing', () => {
+      const db = newDbWithRows();
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }, 2));
+      const iter = db.prepare('SELECT close_db(v) AS v FROM t').iterate();
+      assert.deepStrictEqual(iter.next(), {
+        __proto__: null,
+        done: false,
+        value: { __proto__: null, v: 10 },
+      });
+      assert.deepStrictEqual(iter.next(), {
+        __proto__: null,
+        done: false,
+        value: { __proto__: null, v: 20 },
+      });
+      assert.deepStrictEqual(iter.next(), {
+        __proto__: null,
+        done: true,
+        value: null,
+      });
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('SQL tag store .run() rejects db.close() and completes without crashing', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }, 2));
+      const sql = db.createTagStore(4);
+      assert.deepStrictEqual(
+        sql.run`INSERT INTO t SELECT close_db(${1}), close_db(${2})`,
+        { changes: 1, lastInsertRowid: 1 },
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('SQL tag store .all() rejects db.close() and completes without crashing', () => {
+      const db = newDbWithRows();
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }, 2));
+      const sql = db.createTagStore(4);
+      const rows = sql.all`SELECT close_db(v) AS v FROM t`;
+      assert.deepStrictEqual(rows, [
+        { __proto__: null, v: 10 },
+        { __proto__: null, v: 20 },
+      ]);
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('SQL tag store .get() rejects db.close() and completes without crashing', () => {
+      const db = newDbWithRows();
+      db.function('close_db', mustCall((x) => {
+        assert.throws(() => db.close(), reentrantCloseError);
+        return x;
+      }));
+      const sql = db.createTagStore(4);
+      const row = sql.get`SELECT close_db(v) AS v FROM t`;
+      assert.deepStrictEqual(row, { __proto__: null, v: 10 });
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('uncaught db.close() failure is propagated from the callback', () => {
+      const db = new DatabaseSync(':memory:');
+      db.function('close_db', () => db.close());
+      assert.throws(
+        () => db.prepare('SELECT close_db()').get(),
+        reentrantCloseError,
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('resetting a statement from a callback is rejected', () => {
+      const db = new DatabaseSync(':memory:');
+      let stmt;
+      db.function('x', () => stmt.get());
+      stmt = db.prepare('SELECT x()');
+      assert.throws(() => stmt.get(), reentrantStmtError);
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('reentrant iter.next() from a callback is rejected', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      let iter;
+      db.function('reenter', mustCall(() => {
+        assert.throws(() => iter.next(), reentrantStmtError);
+        return 0;
+      }));
+      iter = db.prepare('SELECT reenter() FROM t').iterate();
+      assert.strictEqual(iter.next().done, false);
+      assert.strictEqual(iter.next().done, true);
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('aggregate step rejects db.close() and completes', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      db.prepare('INSERT INTO t VALUES (2, 20)').run();
+      db.aggregate('agg_close', {
+        start: 0,
+        step: mustCall((acc, v) => {
+          assert.throws(() => db.close(), reentrantCloseError);
+          return acc + v;
+        }, 2),
+      });
+      assert.deepStrictEqual(
+        db.prepare('SELECT agg_close(v) AS s FROM t').get(),
+        { __proto__: null, s: 30 },
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('aggregate result rejects db.close() and completes', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      db.aggregate('agg_result', {
+        start: 0,
+        step: (acc, v) => acc + v,
+        result: mustCall((acc) => {
+          assert.throws(() => db.close(), reentrantCloseError);
+          return acc;
+        }),
+      });
+      assert.deepStrictEqual(
+        db.prepare('SELECT agg_result(v) AS s FROM t').get(),
+        { __proto__: null, s: 10 },
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('aggregate start function rejects db.close() and completes', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      db.aggregate('agg_start', {
+        start: mustCall(() => {
+          assert.throws(() => db.close(), reentrantCloseError);
+          return 0;
+        }),
+        step: (acc, v) => acc + v,
+      });
+      assert.deepStrictEqual(
+        db.prepare('SELECT agg_start(v) AS s FROM t').get(),
+        { __proto__: null, s: 10 },
+      );
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('SQL tag store clear from a callback is rejected', () => {
+      const db = new DatabaseSync(':memory:');
+      const sql = db.createTagStore(4);
+      assert.deepStrictEqual(sql.get`SELECT 1 AS one`, { __proto__: null, one: 1 });
+      db.function('x', () => sql.clear());
+      assert.throws(() => db.prepare('SELECT x()').get(), {
+        code: 'ERR_INVALID_STATE',
+        message: /tag store cannot be cleared inside a user-defined function callback/,
+      });
+      assert.strictEqual(sql.size, 1);
+    });
+
+    // Regression: a user function may run other prepared statements on
+    // the same connection (the "lookup" pattern). Only the *currently
+    // running* statement is unsafe to step/reset/finalize.
+    test('callback can run a different prepared statement on the same db', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE lookup (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY)');
+      db.prepare('INSERT INTO lookup VALUES (1, 100), (2, 200)').run();
+      db.prepare('INSERT INTO t VALUES (1), (2)').run();
+      const lookup = db.prepare('SELECT v FROM lookup WHERE id = ?');
+      db.function('lookup_v', mustCall((id) => lookup.get(id).v, 2));
+      assert.deepStrictEqual(
+        db.prepare('SELECT lookup_v(id) AS v FROM t ORDER BY id').all(),
+        [
+          { __proto__: null, v: 100 },
+          { __proto__: null, v: 200 },
+        ],
+      );
+    });
+
+    test('callback can use SQL tag store with different SQL', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10), (2, 20)').run();
+      const sql = db.createTagStore(4);
+      db.function('double_v', mustCall((id) => {
+        return sql.get`SELECT v * 2 AS d FROM t WHERE id = ${id}`.d;
+      }, 2));
+      assert.deepStrictEqual(
+        db.prepare('SELECT double_v(id) AS d FROM t ORDER BY id').all(),
+        [
+          { __proto__: null, d: 20 },
+          { __proto__: null, d: 40 },
+        ],
+      );
+    });
+
+    // Cover IsStepping rejection on every JS-callable statement method.
+    for (const method of ['all', 'run', 'iterate']) {
+      test(`stmt.${method}() same-stmt reentry is rejected`, () => {
+        const db = new DatabaseSync(':memory:');
+        let stmt;
+        db.function('x', mustCall(() => {
+          assert.throws(() => stmt[method](), reentrantStmtError);
+          return 0;
+        }));
+        stmt = db.prepare('SELECT x()');
+        if (method === 'iterate') {
+          stmt.iterate().next();
+        } else {
+          stmt[method]();
+        }
+      });
+    }
+
+    test('iter.return() same-stmt reentry is rejected', () => {
+      const db = new DatabaseSync(':memory:');
+      let iter;
+      db.function('x', mustCall(() => {
+        assert.throws(() => iter.return(), reentrantStmtError);
+        return 0;
+      }));
+      iter = db.prepare('SELECT x()').iterate();
+      iter.next();
+    });
+
+    // Cover IsStepping rejection on every SQLTagStore execution method.
+    for (const method of ['run', 'get', 'all', 'iterate']) {
+      test(`sql.${method}\`...\` same-stmt reentry is rejected`, () => {
+        const db = new DatabaseSync(':memory:');
+        const sql = db.createTagStore(4);
+        db.function('x', mustCall(() => {
+          // Re-running the same tag returns the cached stmt — which is
+          // currently stepping — so the entry check throws.
+          assert.throws(() => sql[method]`SELECT x()`, reentrantStmtError);
+          return 0;
+        }));
+        if (method === 'iterate') {
+          sql.iterate`SELECT x()`.next();
+        } else {
+          assert.ok(sql[method]`SELECT x()`);
+        }
+      });
+    }
+
+    test('db.deserialize() from a callback is rejected', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER)');
+      const snapshot = db.serialize();
+      db.function('x', mustCall(() => {
+        assert.throws(() => db.deserialize(snapshot), {
+          code: 'ERR_INVALID_STATE',
+          message: /database operation is not allowed inside a user-defined function callback/,
+        });
+        return 0;
+      }));
+      db.prepare('SELECT x()').get();
+      assert.strictEqual(db.isOpen, true);
+    });
+
+    test('db[Symbol.dispose]() is a no-op when invoked from a callback', () => {
+      const db = new DatabaseSync(':memory:');
+      db.function('do_dispose', mustCall(() => {
+        db[Symbol.dispose]();
+        return 1;
+      }));
+      // The dispose attempt is silently skipped; the outer query still
+      // completes and the database stays open.
+      assert.deepStrictEqual(
+        db.prepare('SELECT do_dispose() AS x').get(),
+        { __proto__: null, x: 1 },
+      );
+      assert.strictEqual(db.isOpen, true);
+      // Outside of any callback, dispose works normally.
+      db[Symbol.dispose]();
+      assert.strictEqual(db.isOpen, false);
+    });
+  });
 });
