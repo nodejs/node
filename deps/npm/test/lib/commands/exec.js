@@ -220,6 +220,41 @@ t.test('finds workspace dep first', async t => {
   t.ok(exists.isFile(), 'bin ran, creating file')
 })
 
+t.test('finds workspace dep bin under linked install strategy', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      'install-strategy': 'linked',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npmcli/npx-workspace-root-test',
+        workspaces: ['workspace-a', 'tool'],
+      }),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          dependencies: { tool: '*' },
+        }),
+      },
+      tool: {
+        'package.json': JSON.stringify({
+          name: 'tool',
+          version: '1.0.0',
+          bin: { 'npx-test': 'index.js' },
+        }),
+        'index.js': `#!/usr/bin/env node
+  require('fs').writeFileSync('npm-exec-test-success', '')`,
+      },
+    },
+  })
+
+  await npm.exec('install', [])
+  npm.config.set('workspace', ['workspace-a'])
+  await npm.exec('exec', ['npx-test'])
+  const exists = await fs.stat(path.join(npm.prefix, 'workspace-a', 'npm-exec-test-success'))
+  t.ok(exists.isFile(), 'workspace-local bin ran instead of falling back to the registry')
+})
+
 t.test('npx --no-install @npmcli/npx-test', async t => {
   const registry = new MockRegistry({
     tap: t,

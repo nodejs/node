@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-approve-scripts----11170">
+<h1 id="----npm-approve-scripts----11180">
     <span>npm-approve-scripts</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Approve install scripts for specific dependencies</span>
 </header>
@@ -238,6 +238,13 @@ to track the new installed version. Multi-version statements
 the command cannot infer. Existing <code>false</code> entries always win;
 <code>approve-scripts</code> will not silently re-allow a package you previously
 denied.</p>
+<p>If a registry dependency has no <code>resolved</code> URL in your <code>package-lock.json</code>
+(for example, an older lockfile or one written with
+<code>omit-lockfile-registry-resolved</code>), npm cannot verify a trusted version for
+it and cannot pin it: a <code>pkg@1.2.3</code> entry never matches, so the package
+keeps appearing under <code>--allow-scripts-pending</code>. <code>approve-scripts</code> approves
+these by name (<code>pkg: true</code>) and warns when it does. To restore pinning,
+refresh the lockfile with <code>npm install</code>.</p>
 <h3 id="examples">Examples</h3>
 <pre><code class="language-bash"># Approve all currently-installed install scripts after reviewing them
 npm approve-scripts --all

@@ -35,12 +35,32 @@ const calcDepFlags = (tree, resetRoot = true) => {
       if (node.target == null) {
         continue
       }
-      node.target.dev = node.dev
-      node.target.optional = node.optional
-      node.target.devOptional = node.devOptional
-      node.target.peer = node.peer
-      node.target.extraneous = node.extraneous
-      queue.push(node.target)
+      // Only unset flags, matching the edge walk below, so multiple links to one target can't clobber a correct value.
+      let changed = false
+      if (node.target.dev && !node.dev) {
+        node.target.dev = false
+        changed = true
+      }
+      if (node.target.optional && !node.optional) {
+        node.target.optional = false
+        changed = true
+      }
+      if (node.target.devOptional && !node.devOptional) {
+        node.target.devOptional = false
+        changed = true
+      }
+      if (node.target.peer && !node.peer) {
+        node.target.peer = false
+        changed = true
+      }
+      if (node.target.extraneous && !node.extraneous) {
+        node.target.extraneous = false
+        changed = true
+      }
+      // queue target on first visit so its deps are walked
+      if (changed || !seen.has(node.target)) {
+        queue.push(node.target)
+      }
       continue
     }
 

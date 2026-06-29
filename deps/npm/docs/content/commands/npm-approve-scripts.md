@@ -59,6 +59,14 @@ the command cannot infer. Existing `false` entries always win;
 `approve-scripts` will not silently re-allow a package you previously
 denied.
 
+If a registry dependency has no `resolved` URL in your `package-lock.json`
+(for example, an older lockfile or one written with
+`omit-lockfile-registry-resolved`), npm cannot verify a trusted version for
+it and cannot pin it: a `pkg@1.2.3` entry never matches, so the package
+keeps appearing under `--allow-scripts-pending`. `approve-scripts` approves
+these by name (`pkg: true`) and warns when it does. To restore pinning,
+refresh the lockfile with `npm install`.
+
 ### Examples
 
 ```bash

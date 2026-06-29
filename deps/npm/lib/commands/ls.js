@@ -135,7 +135,7 @@ class LS extends ArboristWorkspaceCmd {
               omit,
             }) : () => true)
             .filter(installStrategy === 'linked'
-              ? filterLinkedStrategyEdges({ node, currentDepth })
+              ? filterLinkedStrategyEdges({ currentDepth })
               : () => true)
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
@@ -400,32 +400,16 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-// In linked strategy, two types of edges produce false UNMET DEPENDENCYs:
-// 1. Workspace edges for undeclared workspaces: the lockfile records edges from root to ALL workspaces, but only declared workspaces are hoisted to root/node_modules in linked mode.  Undeclared ones are intentionally absent.
-// 2. Dev edges on non-root packages: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
-const filterLinkedStrategyEdges = ({ node, currentDepth }) => {
-  const declaredDeps = new Set(Object.keys(Object.assign({},
-    node.target.package.dependencies,
-    node.target.package.devDependencies,
-    node.target.package.optionalDependencies,
-    node.target.package.peerDependencies
-  )))
-
-  return (edge) => {
-    // Skip workspace edges for undeclared workspaces at root level
-    if (currentDepth === 0 && edge.type === 'workspace' && edge.missing) {
-      if (!declaredDeps.has(edge.name)) {
-        return false
-      }
-    }
-
-    // Skip dev edges for non-root packages (store packages)
-    if (currentDepth > 0 && edge.dev) {
-      return false
-    }
-
-    return true
+// In linked strategy, dev edges on non-root packages produce false UNMET DEPENDENCYs: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
+// Undeclared workspaces no longer need filtering here: loadActual synthesizes their root links so their edges resolve instead of reporting missing.
+const filterLinkedStrategyEdges = ({ currentDepth }) => (edge) => {
+  // Skip dev edges for non-root packages (store packages)
+  /* istanbul ignore next: store packages no longer carry dev edges, so this guard is not exercised by tests */
+  if (currentDepth > 0 && edge.dev) {
+    return false
   }
+
+  return true
 }
 
 const filterByEdgesTypes = ({ link, omit }) => (edge) => {

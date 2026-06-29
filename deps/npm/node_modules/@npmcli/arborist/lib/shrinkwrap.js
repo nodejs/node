@@ -172,6 +172,35 @@ const assertNoNewer = async (path, data, lockTime, dir, seen) => {
     return
   }
 
+  // The walk above can't reach two linked-strategy layouts: a store package's sibling deps under .store/<key>/node_modules (.store is a skipped dot-dir), and an undeclared workspace not symlinked into root node_modules. Walk those dirs, derived from the lockfile entries.
+  // A dir reachable through a link entry is skipped: it was already reached (or, if the symlink is stale, correctly stays unseen so the lockfile is rejected). This keeps the hoisted strategy's stale-symlink detection intact, since there every workspace is a link target.
+  const linkTargets = new Set()
+  for (const loc in data.packages) {
+    const { link, resolved } = data.packages[loc]
+    if (link && resolved) {
+      linkTargets.add(resolved.replace(/\\/g, '/'))
+    }
+  }
+  const extraDirs = new Set()
+  for (const loc in data.packages) {
+    const store = loc.match(/^(.*\/\.store\/.+?)\/node_modules\//)
+    if (store) {
+      // .store/<key> is never walked but has no entry, so mark it seen.
+      seen.add(store[1])
+      extraDirs.add(`${store[1]}/node_modules`)
+      continue
+    }
+    // A workspace/fsChild dir outside node_modules, e.g. packages/a.
+    const i = loc.indexOf('/node_modules/')
+    const root = i === -1 ? loc : loc.slice(0, i)
+    if (root && !/(^|\/)node_modules(\/|$)/.test(root) && !linkTargets.has(root)) {
+      extraDirs.add(root)
+    }
+  }
+  for (const rel of extraDirs) {
+    await assertNoNewer(path, data, lockTime, resolve(path, rel), seen)
+  }
+
   // assert that all the entries in the lockfile were seen
   for (const loc in data.packages) {
     if (!seen.has(loc)) {

@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----developers----11170">
+<h1 id="----developers----11180">
     <span>Developers</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Developer guide</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#about-these-documents">About These Documents</a></li><li><a href="#what-is-a-package">What is a Package</a></li><li><a href="#the-packagejson-file">The package.json File</a></li><li><a href="#keeping-files-out-of-your-package">Keeping files <em>out</em> of your Package</a></li><ul><li><a href="#testing-whether-your-npmignore-or-files-config-works">Testing whether your <code>.npmignore</code> or <code>files</code> config works</a></li></ul><li><a href="#link-packages">Link Packages</a></li><li><a href="#before-publishing-make-sure-your-package-installs-and-works">Before Publishing: Make Sure Your Package Installs and Works</a></li><li><a href="#create-a-user-account">Create a User Account</a></li><li><a href="#publish-your-package">Publish your Package</a></li><li><a href="#brag-about-it">Brag about it</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#about-these-documents">About These Documents</a></li><li><a href="#what-is-a-package">What is a Package</a></li><li><a href="#the-packagejson-file">The package.json File</a></li><li><a href="#keeping-files-out-of-your-package">Keeping files <em>out</em> of your Package</a></li><ul><li><a href="#testing-whether-your-npmignore-or-files-config-works">Testing whether your <code>.npmignore</code> or <code>files</code> config works</a></li></ul><li><a href="#link-packages">Link Packages</a></li><li><a href="#before-publishing-make-sure-your-package-installs-and-works">Before Publishing: Make Sure Your Package Installs and Works</a></li><ul><li><a href="#catching-undeclared-phantom-dependencies">Catching undeclared ("phantom") dependencies</a></li></ul><li><a href="#create-a-user-account">Create a User Account</a></li><li><a href="#publish-your-package">Publish your Package</a></li><li><a href="#brag-about-it">Brag about it</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -331,6 +331,20 @@ npm install ../my-package
 </code></pre>
 <p>to install it locally into the node_modules folder in that other place.</p>
 <p>Then go into the node-repl, and try using require("my-thing") to bring in your module's main module.</p>
+<h4 id="catching-undeclared-phantom-dependencies">Catching undeclared ("phantom") dependencies</h4>
+<p>Under the default hoisted <code>node_modules</code> layout, your package can <code>import</code> a dependency it never declared and still resolve it.
+A transitive dependency hoisted alongside it, or your workspace root's <code>node_modules</code>, happens to satisfy the <code>import</code>.
+That undeclared ("phantom") dependency passes your own build silently, then fails for anyone who installs your package on its own.</p>
+<p>We recommend developing your package under <a href="../using-npm/config#install-strategy.html"><code>install-strategy=linked</code></a>.
+The isolated layout only exposes a package's <em>declared</em> dependencies, so an <code>import</code> of an undeclared package fails for you during development instead of resolving by accident, shipping broken, and failing for your users:</p>
+<pre><code class="language-bash">npm install --install-strategy=linked
+npm test
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> This doesn't catch every case.
+A dependency that's still satisfied at your build by a <code>devDependency</code> or by your workspace root's <code>node_modules</code> can resolve fine for you and still be missing for whoever installs your package.
+So treat it as one check, not a guarantee, alongside auditing the dependencies your published package actually uses.</p>
+</blockquote>
 <h3 id="create-a-user-account">Create a User Account</h3>
 <p>Create a user with the adduser command.
 It works like this:</p>

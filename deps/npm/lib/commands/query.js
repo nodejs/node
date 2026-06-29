@@ -2,6 +2,15 @@ const { resolve } = require('node:path')
 const BaseCommand = require('../base-cmd.js')
 const { log, output } = require('proc-log')
 
+// Ranks competing representations of the same physical package so the most logical one is reported.
+// A top-level placement (e.g. node_modules/<pkg>) beats the canonical store node, which beats an internal store symlink.
+const locationRank = (node) => {
+  if (!node.location.includes('node_modules/.store/')) {
+    return 2
+  }
+  return node.isLink ? 0 : 1
+}
+
 class QuerySelectorItem {
   constructor (node) {
     // all enumerable properties from the target
@@ -9,8 +18,11 @@ class QuerySelectorItem {
 
     // append extra info
     this.pkgid = node.target.pkgid
-    this.location = node.target.location
-    this.path = node.target.path
+    // For a dep symlinked into the isolated store, report the logical link location (node_modules/<pkg>) rather than the .store backing path.
+    // Workspaces and regular nodes keep the target location (e.g. packages/<ws>).
+    const logical = node.target.isInStore ? node : node.target
+    this.location = logical.location
+    this.path = logical.path
     this.realpath = node.target.realpath
     this.resolved = node.target.resolved
     this.from = []
@@ -33,7 +45,7 @@ class QuerySelectorItem {
 
 class Query extends BaseCommand {
   #response = [] // response is the query response
-  #seen = new Set() // paths we've seen so we can keep response deduped
+  #seen = new Map() // physical location -> index in #response, to keep response deduped
 
   static description = 'Retrieve a filtered list of packages'
   static name = 'query'
@@ -127,12 +139,22 @@ class Query extends BaseCommand {
   async #queryTree (tree, arg) {
     const items = await tree.querySelectorAll(arg, this.npm.flatOptions)
     for (const node of items) {
+      // Dedup by the target's physical location so multiple logical links to the same store node collapse to one result.
       const { location } = node.target
-      if (!location || !this.#seen.has(location)) {
-        const item = new QuerySelectorItem(node)
-        this.#response.push(item)
-        if (location) {
-          this.#seen.add(item.location)
+      if (!location) {
+        this.#response.push(new QuerySelectorItem(node))
+        continue
+      }
+      const seen = this.#seen.get(location)
+      if (seen === undefined) {
+        this.#seen.set(location, { index: this.#response.length, rank: locationRank(node) })
+        this.#response.push(new QuerySelectorItem(node))
+      } else {
+        // Replace the stored representation only with a more logical one for the same physical package.
+        const rank = locationRank(node)
+        if (rank > seen.rank) {
+          this.#response[seen.index] = new QuerySelectorItem(node)
+          seen.rank = rank
         }
       }
     }

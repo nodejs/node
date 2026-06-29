@@ -48,19 +48,19 @@ const strictAllowScriptsPreflight = async ({ arb, npm, idealTreeOpts }) => {
     return `  ${label} (${events})`
   }).join('\n')
 
-  // `npm approve-scripts` / `npm deny-scripts` write to a project
-  // package.json, which doesn't exist for global installs. Point global
-  // users at the `--allow-scripts` flag and `npm config set allow-scripts`,
-  // which both work for global installs. Use the trusted display identity
-  // so the suggested `npm config set` value matches what the policy matches
-  // on, not the tarball's self-reported name.
+  // `npm install-scripts` writes to a project package.json, which doesn't
+  // exist for global installs. Point global users at the `--allow-scripts`
+  // flag and `npm config set allow-scripts`, which both work for global
+  // installs. Use the trusted display identity so the suggested `npm config
+  // set` value matches what the policy matches on, not the tarball's
+  // self-reported name.
   const names = unreviewed.map(({ node }) => trustedDisplay(node).name)
   const remediation = npm.global
     ? 'Allow them with `--allow-scripts`, persist them with ' +
       `\`${configSetAllowScripts(names)}\`, or bypass this ` +
       'check with `--dangerously-allow-all-scripts`.'
-    : 'Approve them with `npm approve-scripts`, deny them with ' +
-      '`npm deny-scripts`, or bypass this check with ' +
+    : 'Approve them with `npm install-scripts approve`, deny them with ' +
+      '`npm install-scripts deny`, or bypass this check with ' +
       '`--dangerously-allow-all-scripts`.'
 
   throw Object.assign(

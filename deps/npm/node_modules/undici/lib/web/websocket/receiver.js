@@ -20,6 +20,11 @@ const { closeWebSocketConnection } = require('./connection')
 const { PerMessageDeflate } = require('./permessage-deflate')
 const { MessageSizeExceededError } = require('../../core/errors')
 
+function failWebsocketConnectionWithCode (ws, code, reason) {
+  closeWebSocketConnection(ws, code, reason, Buffer.byteLength(reason))
+  failWebsocketConnection(ws, reason)
+}
+
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 // Copyright (c) 2013 Arnout Kazemier and contributors
@@ -40,18 +45,22 @@ class ByteParser extends Writable {
   #extensions
 
   /** @type {number} */
+  #maxFragments
+
+  /** @type {number} */
   #maxPayloadSize
 
   /**
    * @param {import('./websocket').WebSocket} ws
    * @param {Map<string, string>|null} extensions
-   * @param {{ maxPayloadSize?: number }} [options]
+   * @param {{ maxFragments?: number, maxPayloadSize?: number }} [options]
    */
   constructor (ws, extensions, options = {}) {
     super()
 
     this.ws = ws
     this.#extensions = extensions == null ? new Map() : extensions
+    this.#maxFragments = options.maxFragments ?? 0
     this.#maxPayloadSize = options.maxPayloadSize ?? 0
 
     if (this.#extensions.has('permessage-deflate')) {
@@ -75,9 +84,9 @@ class ByteParser extends Writable {
     if (
       this.#maxPayloadSize > 0 &&
       !isControlFrame(this.#info.opcode) &&
-      this.#info.payloadLength > this.#maxPayloadSize
+      this.#info.payloadLength + this.#fragmentsBytes > this.#maxPayloadSize
     ) {
-      failWebsocketConnection(this.ws, 'Payload size exceeds maximum allowed size')
+      failWebsocketConnectionWithCode(this.ws, 1009, 'Payload size exceeds maximum allowed size')
       return false
     }
 
@@ -242,10 +251,12 @@ class ByteParser extends Writable {
           this.#state = parserStates.INFO
         } else {
           if (!this.#info.compressed) {
-            this.writeFragments(body)
+            if (!this.writeFragments(body)) {
+              return
+            }
 
             if (this.#maxPayloadSize > 0 && this.#fragmentsBytes > this.#maxPayloadSize) {
-              failWebsocketConnection(this.ws, new MessageSizeExceededError().message)
+              failWebsocketConnectionWithCode(this.ws, 1009, new MessageSizeExceededError().message)
               return
             }
 
@@ -264,14 +275,17 @@ class ByteParser extends Writable {
               this.#info.fin,
               (error, data) => {
                 if (error) {
-                  failWebsocketConnection(this.ws, error.message)
+                  const code = error instanceof MessageSizeExceededError ? 1009 : 1007
+                  failWebsocketConnectionWithCode(this.ws, code, error.message)
                   return
                 }
 
-                this.writeFragments(data)
+                if (!this.writeFragments(data)) {
+                  return
+                }
 
                 if (this.#maxPayloadSize > 0 && this.#fragmentsBytes > this.#maxPayloadSize) {
-                  failWebsocketConnection(this.ws, new MessageSizeExceededError().message)
+                  failWebsocketConnectionWithCode(this.ws, 1009, new MessageSizeExceededError().message)
                   return
                 }
 
@@ -341,8 +355,17 @@ class ByteParser extends Writable {
   }
 
   writeFragments (fragment) {
+    if (
+      this.#maxFragments > 0 &&
+      this.#fragments.length === this.#maxFragments
+    ) {
+      failWebsocketConnectionWithCode(this.ws, 1008, 'Too many message fragments')
+      return false
+    }
+
     this.#fragmentsBytes += fragment.length
     this.#fragments.push(fragment)
+    return true
   }
 
   consumeFragments () {

@@ -299,6 +299,10 @@ const replaceTildes = (comp, options) => {
 
 const replaceTilde = (comp, options) => {
   const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE]
+  // if we're including prereleases in the match, then the lower bound is
+  // -0, the lowest possible prerelease value, just like x-ranges and carets.
+  // this keeps `~1.2` equivalent to the `1.2.x` x-range it's documented as.
+  const z = options.includePrerelease ? '-0' : ''
   return comp.replace(r, (_, M, m, p, pr) => {
     debug('tilde', comp, _, M, m, p, pr)
     let ret
@@ -306,10 +310,10 @@ const replaceTilde = (comp, options) => {
     if (isX(M)) {
       ret = ''
     } else if (isX(m)) {
-      ret = `>=${M}.0.0 <${+M + 1}.0.0-0`
+      ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`
     } else if (isX(p)) {
       // ~1.2 == >=1.2.0 <1.3.0-0
-      ret = `>=${M}.${m}.0 <${M}.${+m + 1}.0-0`
+      ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`
     } else if (pr) {
       debug('replaceTilde pr', pr)
       ret = `>=${M}.${m}.${p}-${pr
