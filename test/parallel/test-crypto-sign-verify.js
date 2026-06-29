@@ -639,16 +639,12 @@ QqHwKUNtIDE/uxxWNLBbYKaiLOWrbYA8skrWQWl3RkbXW4ZI28afRw9g
 MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
 2UKh8ClDbSAxP7scVjSwW2Cmoizlq22APLJK1kFpd0ZG11uGSNvGn0cPYA==
 -----END PUBLIC KEY-----`);
-  const validOneShotSignature = Buffer.from(
-    '3045022100cf800e13a0ead14be0ec9d614257fb6f409187642404dccb3a43' +
-    '74ace9fc162602206bf6820b8902ae9ce4cd10708f188fddd5bc2a41db2c47' +
-    'c003ca8265a00396ae',
-    'hex');
-  const streamingOnlySignature = Buffer.from(
-    '3044022056cc3567aa4842c4b1c5f9de75059dbaf63efab5aa34097e5a85' +
-    '47419aa3175e02206deb865046f12b25f111922da6858c7e97e475b656604' +
-    '679bcd4a0b05d8c76f1',
-    'hex');
+  // Generate the signatures in-test so this checks API behavior rather than
+  // provider-version-specific SM2 signature fixtures.
+  const validOneShotSignature = crypto.sign('sm3', data, privateKey);
+  const streamingSign = crypto.createSign('sm3');
+  streamingSign.update(data);
+  const streamingOnlySignature = streamingSign.sign(privateKey);
 
   assert.strictEqual(
     crypto.verify('sm3', data, publicKey, validOneShotSignature),
@@ -657,9 +653,10 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
     crypto.verify('sm3', data, publicKey, streamingOnlySignature),
     false);
 
-  const generatedSignature = crypto.sign('sm3', data, privateKey);
+  const streamingVerify = crypto.createVerify('sm3');
+  streamingVerify.update(data);
   assert.strictEqual(
-    crypto.verify('sm3', data, publicKey, generatedSignature),
+    streamingVerify.verify(publicKey, streamingOnlySignature),
     true);
 }
 
