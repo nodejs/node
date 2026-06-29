@@ -138,7 +138,7 @@ you can do so with `gpg --keyserver keyserver.ubuntu.com --send-keys
 Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
 
-> All commits to branches in `nodejs/node` other than `main` MUST be signed
+> All commits to branches in `nodejs/node` other than `main` and `actions/*` MUST be signed
 > otherwise pushing to those branches will be rejected by GitHub.
 > Run: `git config commit.gpgsign true` inside the `node` folder or use the
 > `-S` flag on your git operations (The examples in this document will
