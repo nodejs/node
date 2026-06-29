@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
-const { readdirSync } = require('node:fs');
+const { readFileSync, readdirSync } = require('node:fs');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -348,6 +348,36 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
       assert.strictEqual(testLine.count, line.count);
     });
   });
+});
+
+test('lcov reporter excludes ignored branch ranges', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage-ignored-branch.test.js');
+  const destination = tmpdir.resolve('coverage-ignored-branch.lcov');
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const args = [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-include=coverage-ignored-branch.js',
+    '--test-reporter',
+    'lcov',
+    '--test-reporter-destination',
+    destination,
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args, {
+    cwd: fixtures.path('test-runner'),
+    env,
+  });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  const report = readFileSync(destination, 'utf8');
+  assert.match(report, /^BRF:3$/m);
+  assert.match(report, /^BRH:3$/m);
+  assert.doesNotMatch(report, /^BRDA:.*,0$/m);
+  assert.doesNotMatch(report, /^DA:8,/m);
 });
 
 test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
