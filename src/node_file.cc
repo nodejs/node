@@ -88,7 +88,7 @@ using v8::Undefined;
 using v8::Value;
 
 #ifndef S_ISDIR
-#define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
 #ifdef __POSIX__
@@ -3752,6 +3752,30 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
 
       if (dir_entry.is_symlink()) {
         if (verbatim_symlinks) {
+          // Permission check for verbatimSymlinks path (incomplete
+          // CVE-2025-55130 fix)
+          if (env->permission()->enabled()) {
+            auto verb_target = std::filesystem::read_symlink(src, error);
+            if (error) break;
+            auto verb_target_abs = std::filesystem::weakly_canonical(
+                std::filesystem::absolute(src.parent_path() / verb_target));
+            auto verb_str = verb_target_abs.string();
+            auto verb_view = std::string_view(verb_str);
+            if (!env->permission()->is_granted(
+                    env,
+                    permission::PermissionScope::kFileSystemRead,
+                    verb_view) ||
+                !env->permission()->is_granted(
+                    env,
+                    permission::PermissionScope::kFileSystemWrite,
+                    verb_view)) {
+              return THROW_ERR_ACCESS_DENIED(
+                  env,
+                  "Access to symlink target '%s' denied",
+                  verb_str.c_str());
+            }
+          }
+
           std::filesystem::copy_symlink(
               dir_entry.path(), dest_file_path, error);
           if (error) {
@@ -3818,6 +3842,32 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           }
           auto symlink_target_absolute = std::filesystem::weakly_canonical(
               std::filesystem::absolute(src / symlink_target));
+
+          // Permission check for symlink target (incomplete CVE-2025-55130 fix)
+          // Ensure the symlink target is within allowed permission paths
+          if (env->permission()->enabled()) {
+            auto target_str = symlink_target_absolute.string();
+            auto target_view = std::string_view(target_str);
+            if (!env->permission()->is_granted(
+                    env,
+                    permission::PermissionScope::kFileSystemRead,
+                    target_view)) {
+              return THROW_ERR_ACCESS_DENIED(
+                  env,
+                  "Access to symlink target '%s' denied",
+                  target_str.c_str());
+            }
+            if (!env->permission()->is_granted(
+                    env,
+                    permission::PermissionScope::kFileSystemWrite,
+                    target_view)) {
+              return THROW_ERR_ACCESS_DENIED(
+                  env,
+                  "Access to symlink target '%s' denied",
+                  target_str.c_str());
+            }
+          }
+
           if (dir_entry.is_directory()) {
             std::filesystem::create_directory_symlink(
                 symlink_target_absolute, dest_file_path, error);
