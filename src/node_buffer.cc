@@ -1368,8 +1368,8 @@ struct ValidationResult {
 static ValidationResult ValidateUtf8(Local<Value> value) {
   ArrayBufferViewContents<char> abv(value);
   bool was_detached = abv.WasDetached();
-  return { !was_detached && simdutf::validate_utf8(abv.data(), abv.length()),
-           was_detached };
+  return {!was_detached && simdutf::validate_utf8(abv.data(), abv.length()),
+          was_detached};
 }
 
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
@@ -1408,10 +1408,10 @@ static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
 static ValidationResult ValidateAscii(Local<Value> value) {
   ArrayBufferViewContents<char> abv(value);
   bool was_detached = abv.WasDetached();
-  return { !was_detached &&
-               !simdutf::validate_ascii_with_errors(abv.data(), abv.length())
-                    .error,
-           was_detached };
+  return {
+      !was_detached &&
+          !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error,
+      was_detached};
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
