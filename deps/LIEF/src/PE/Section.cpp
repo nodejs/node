@@ -142,10 +142,10 @@ std::ostream& operator<<(std::ostream& os, const Section& section) {
 
   if (const COFF::String* coff_str = section.coff_string()) {
     os << format("{:{}} {} ({}, {})\n", "Name:", WIDTH, section.name(),
-                 join(fullname_hex, " "), coff_str->str());
+                 fmt::to_string(join(fullname_hex, " ")), coff_str->str());
   } else {
     os << format("{:{}} {} ({})\n", "Name:", WIDTH, section.name(),
-                 join(fullname_hex, " "));
+                 fmt::to_string(join(fullname_hex, " ")));
   }
 
   os << format("{:{}} 0x{:x}\n", "Virtual Size", WIDTH, section.virtual_size())
@@ -160,7 +160,7 @@ std::ostream& operator<<(std::ostream& os, const Section& section) {
      << format("{:{}} 0x{:x}\n", "Pointer to line numbers", WIDTH, section.pointerto_line_numbers())
      << format("{:{}} 0x{:x}\n", "Number of relocations", WIDTH, section.numberof_relocations())
      << format("{:{}} 0x{:x}\n", "Number of lines", WIDTH, section.numberof_line_numbers())
-     << format("{:{}} {}", "Characteristics", WIDTH, join(list_str, ", "));
+     << format("{:{}} {}", "Characteristics", WIDTH, fmt::to_string(join(list_str, ", ")));
   return os;
 }
 

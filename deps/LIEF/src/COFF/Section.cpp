@@ -122,7 +122,7 @@ std::string Section::to_string() const {
                  [] (const char c) { return format("{:02x}", c); });
 
   os << format("{:{}} {} ({})\n", "Name:", WIDTH, name(),
-               join(fullname_hex, " "));
+               fmt::to_string(join(fullname_hex, " ")));
 
   os << format("{:{}} 0x{:x}\n", "Virtual Size", WIDTH, virtual_size())
      << format("{:{}} 0x{:x}\n", "Virtual Address", WIDTH, virtual_address())
@@ -134,7 +134,7 @@ std::string Section::to_string() const {
      << format("{:{}} 0x{:x}\n", "Pointer to line numbers", WIDTH, pointerto_line_numbers())
      << format("{:{}} 0x{:x}\n", "Number of relocations", WIDTH, numberof_relocations())
      << format("{:{}} 0x{:x}\n", "Number of lines", WIDTH, numberof_line_numbers())
-     << format("{:{}} {}", "Characteristics", WIDTH, join(list_str, ", "));
+     << format("{:{}} {}", "Characteristics", WIDTH, fmt::to_string(join(list_str, ", ")));
 
   return os.str();
 

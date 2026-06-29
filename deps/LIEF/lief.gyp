@@ -453,14 +453,7 @@
       'cflags': [
         '-fPIC'
       ],
-      # We need c++17 to compile without std::format and avoid conflicts with spdlog.
-      'msvs_settings': {
-        'VCCLCompilerTool': {
-          'LanguageStandard': 'stdcpp17',
-        },
-      },
       'cflags_cc': [
-        '-std=gnu++17',
         '-fPIC',
         '-fvisibility=hidden',
         '-fvisibility-inlines-hidden',
@@ -473,7 +466,6 @@
       ],
       'xcode_settings': {
         'OTHER_CPLUSPLUSFLAGS': [
-          '-std=gnu++17',
           '-fPIC',
           '-fvisibility=hidden',
           '-fvisibility-inlines-hidden',
