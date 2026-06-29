@@ -260,7 +260,7 @@ When you are ready to cherry-pick commits, you can automate with the following
 command.
 
 Since this is slightly different from the previous branch-diff output - it
-contains only the commit shas and in revert order - you may wish to save
+contains only the commit SHAs and in revert order - you may wish to save
 this before piping it directly to `git cherry-pick` in case it does not go
 cleanly.
 
