@@ -203,6 +203,8 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 // TODO(ishell): remove once all the Api changes are done.
 BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
                HasNewCallbacksSignatureBit::kShift)
+BOOL_ACCESSORS(InterceptorInfo, flags, has_dont_delete_property,
+               HasDontDeletePropertyBit::kShift)
 
 void InterceptorInfo::RemoveCallbackRedirectionForSerialization(
     IsolateForSandbox isolate) {

@@ -684,6 +684,13 @@ enum class PropertyHandlerFlags {
   kHasNoSideEffect = 1 << 2,
 
   /**
+   * The interceptor may return non-configurable (PropertyAttribute::DontDelete)
+   * properties. When set on a global object's interceptor, it will be consulted
+   * during HasRestrictedGlobalProperty checks for lexical declarations.
+   */
+  kHasDontDeleteProperty = 1 << 3,
+
+  /**
    * This flag is used to distinguish which callbacks were provided -
    * GenericNamedPropertyXXXCallback (old signature) or
    * NamedPropertyXXXCallback (new signature).

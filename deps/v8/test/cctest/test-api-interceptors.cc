@@ -834,6 +834,49 @@ THREADED_TEST(InterceptorFunctionRedeclareWithQueryCallback) {
   v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).ToLocalChecked();
 }
 
+// A lexical declaration must throw when the interceptor reports the property
+// as non-configurable (DontDelete), per HasRestrictedGlobalProperty checks in
+// https://tc39.es/ecma262/#sec-globaldeclarationinstantiation.
+THREADED_TEST(LexicalDeclThrowsForRestrictedGlobalViaInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, QueryCallbackSetDontDelete, nullptr, nullptr,
+      v8::Local<v8::Value>(),
+      v8::PropertyHandlerFlags::kHasDontDeleteProperty));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  v8::TryCatch try_catch(CcTest::isolate());
+  v8::Local<v8::String> code = v8_str("let x;");
+  CHECK(v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+// Without kHasDontDeleteProperty, the interceptor is not consulted for
+// HasRestrictedGlobalProperty and lexical declarations succeed.
+THREADED_TEST(LexicalDeclSucceedsWithoutRestrictedGlobalFlag) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, QueryCallbackSetDontDelete));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  v8::TryCatch try_catch(CcTest::isolate());
+  v8::Local<v8::String> code = v8_str("let x;");
+  CHECK(!v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
+  CHECK(!try_catch.HasCaught());
+}
+
 // Regression test for chromium bug 656648.
 // Do not crash on non-masking, intercepting setter callbacks.
 THREADED_TEST(NonMaskingInterceptor) {
