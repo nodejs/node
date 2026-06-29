@@ -1531,6 +1531,8 @@ class EVPMDCtxPointer final {
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
   bool verify(const Buffer<const unsigned char>& buf,
               const Buffer<const unsigned char>& sig) const;
+  int verifyOneShot(const Buffer<const unsigned char>& buf,
+                    const Buffer<const unsigned char>& sig) const;
 
   const EVP_MD* getDigest() const;
   size_t getDigestSize() const;

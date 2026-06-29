@@ -4784,9 +4784,14 @@ DataPointer EVPMDCtxPointer::sign(
 
 bool EVPMDCtxPointer::verify(const Buffer<const unsigned char>& buf,
                              const Buffer<const unsigned char>& sig) const {
-  if (!ctx_) return false;
-  int ret = EVP_DigestVerify(ctx_.get(), sig.data, sig.len, buf.data, buf.len);
-  return ret == 1;
+  return verifyOneShot(buf, sig) == 1;
+}
+
+int EVPMDCtxPointer::verifyOneShot(
+    const Buffer<const unsigned char>& buf,
+    const Buffer<const unsigned char>& sig) const {
+  if (!ctx_) return -1;
+  return EVP_DigestVerify(ctx_.get(), sig.data, sig.len, buf.data, buf.len);
 }
 
 EVPMDCtxPointer EVPMDCtxPointer::New() {

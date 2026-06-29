@@ -391,12 +391,12 @@ bool SupportsContextString(const EVPKeyPointer& key) {
   return false;
 }
 
-bool UsePrehashedSignVerify(const EVPKeyPointer& key,
-                            const Digest& digest,
-                            bool has_context) {
-  // Match streaming sign/verify for digest-based keys: hash locally, then ask
-  // the key implementation to sign or verify the digest. Some providers only
-  // expose token-backed keys through that lower-level operation.
+bool CanFallbackToPrehashedSignVerify(const EVPKeyPointer& key,
+                                      const Digest& digest,
+                                      bool has_context) {
+  // The primary path is OpenSSL's digest-sign operation. Fall back to hashing
+  // locally only when that path fails; some providers expose token-backed keys
+  // through the lower-level prehashed sign/verify operation only.
   return digest && !has_context && !key.isOneShotVariant();
 }
 
@@ -901,32 +901,8 @@ bool SignTraits::DeriveBits(Environment* env,
       params.flags & SignConfiguration::kHasSaltLength
           ? std::optional<int>(params.salt_length)
           : std::nullopt;
-
-  if (UsePrehashedSignVerify(key, params.digest, has_context)) {
-    switch (params.mode) {
-      case SignConfiguration::Mode::Sign: {
-        *out = SignPrehashed(env,
-                             key,
-                             params.digest,
-                             params.data,
-                             padding,
-                             salt_length,
-                             params.dsa_encoding);
-        return static_cast<bool>(*out);
-      }
-      case SignConfiguration::Mode::Verify: {
-        auto buf = DataPointer::Alloc(1);
-        static_cast<char*>(buf.get())[0] = VerifyPrehashed(key,
-                                                           params.digest,
-                                                           params.data,
-                                                           params.signature,
-                                                           padding,
-                                                           salt_length);
-        *out = ByteSource::Allocated(buf.release());
-        return true;
-      }
-    }
-  }
+  bool can_fallback_to_prehash =
+      CanFallbackToPrehashedSignVerify(key, params.digest, has_context);
 
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
@@ -975,6 +951,16 @@ bool SignTraits::DeriveBits(Environment* env,
         *out = ByteSource::Allocated(data.release());
       } else {
         auto data = context.sign(params.data);
+        if (!data && can_fallback_to_prehash) {
+          *out = SignPrehashed(env,
+                               key,
+                               params.digest,
+                               params.data,
+                               padding,
+                               salt_length,
+                               params.dsa_encoding);
+          return static_cast<bool>(*out);
+        }
         if (!data) [[unlikely]] {
           return false;
         }
@@ -992,8 +978,17 @@ bool SignTraits::DeriveBits(Environment* env,
     case SignConfiguration::Mode::Verify: {
       auto buf = DataPointer::Alloc(1);
       static_cast<char*>(buf.get())[0] = 0;
-      if (context.verify(params.data, params.signature) &&
+      int verify_result = context.verifyOneShot(params.data, params.signature);
+      if (verify_result == 1 &&
           !HasSmallOrderEdDsaPoint(key, params.signature)) {
+        static_cast<char*>(buf.get())[0] = 1;
+      } else if (verify_result < 0 && can_fallback_to_prehash &&
+                 VerifyPrehashed(key,
+                                 params.digest,
+                                 params.data,
+                                 params.signature,
+                                 padding,
+                                 salt_length)) {
         static_cast<char*>(buf.get())[0] = 1;
       }
       *out = ByteSource::Allocated(buf.release());

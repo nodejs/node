@@ -625,6 +625,44 @@ if (hasOpenSSL(3, 2)) {
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
 
+// Preserve the current behavior from https://github.com/nodejs/node/issues/53761:
+// one-shot verify does not accept SM2 signatures produced by the streaming path.
+if (hasOpenSSL(3) && crypto.getHashes().includes('sm3')) {
+  const data = Buffer.from('AABB');
+  const privateKey = crypto.createPrivateKey(`-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQgbjCNHopgvyGVfLaP
+PamI9E9lf6jXT+xm1Pns1t/xQTihRANCAATV+I7HUGF2gC+miVl3JfjpoZaU2hrZ
+QqHwKUNtIDE/uxxWNLBbYKaiLOWrbYA8skrWQWl3RkbXW4ZI28afRw9g
+-----END PRIVATE KEY-----
+`);
+  const publicKey = crypto.createPublicKey(`-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
+2UKh8ClDbSAxP7scVjSwW2Cmoizlq22APLJK1kFpd0ZG11uGSNvGn0cPYA==
+-----END PUBLIC KEY-----`);
+  const validOneShotSignature = Buffer.from(
+    '3045022100cf800e13a0ead14be0ec9d614257fb6f409187642404dccb3a43' +
+    '74ace9fc162602206bf6820b8902ae9ce4cd10708f188fddd5bc2a41db2c47' +
+    'c003ca8265a00396ae',
+    'hex');
+  const streamingOnlySignature = Buffer.from(
+    '3044022056cc3567aa4842c4b1c5f9de75059dbaf63efab5aa34097e5a85' +
+    '47419aa3175e02206deb865046f12b25f111922da6858c7e97e475b656604' +
+    '679bcd4a0b05d8c76f1',
+    'hex');
+
+  assert.strictEqual(
+    crypto.verify('sm3', data, publicKey, validOneShotSignature),
+    true);
+  assert.strictEqual(
+    crypto.verify('sm3', data, publicKey, streamingOnlySignature),
+    false);
+
+  const generatedSignature = crypto.sign('sm3', data, privateKey);
+  assert.strictEqual(
+    crypto.verify('sm3', data, publicKey, generatedSignature),
+    true);
+}
+
 {
   const data = Buffer.from('Hello world');
   const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
