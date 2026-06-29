@@ -3675,6 +3675,18 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 When set to 1, the [module compile cache][]  can be reused across different directory
 locations as long as the module layout relative to the cache directory remains the same.
 
+### `NODE_MODULE_RESOLVE_CACHE=dir`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the [module resolution cache][] for the Node.js instance, storing it
+under `dir`. See the documentation of
+[`module.enableModuleResolveCache()`][] for details.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML
@@ -4471,6 +4483,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
+[`module.enableModuleResolveCache()`]: module.md#moduleenablemoduleresolvecachedirectory
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
@@ -4499,6 +4512,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
+[module resolution cache]: module.md#moduleenablemoduleresolvecachedirectory
 [preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [randomizing tests execution order]: test.md#randomizing-tests-execution-order
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
