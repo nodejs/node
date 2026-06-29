@@ -411,8 +411,8 @@ class Cipher final {
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
-  Cipher(const Cipher&) = default;
-  Cipher& operator=(const Cipher&) = default;
+  Cipher(const Cipher& other);
+  Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
 #if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
     fetched_cipher_.reset();
@@ -512,8 +512,8 @@ class Cipher final {
  private:
   const EVP_CIPHER* cipher_ = nullptr;
 #if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
-  explicit Cipher(EVP_CIPHER* cipher);
-  std::shared_ptr<EVP_CIPHER> fetched_cipher_;
+  explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif
 };
 

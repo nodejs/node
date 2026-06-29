@@ -3177,19 +3177,51 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 // ============================================================================
 
 #if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
-Cipher::Cipher(EVP_CIPHER* cipher)
-    : cipher_(cipher), fetched_cipher_(cipher, EVP_CIPHER_free) {}
+Cipher::Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher)
+    : cipher_(cipher.get()), fetched_cipher_(std::move(cipher)) {}
 #endif
+
+Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  if (other.fetched_cipher_ != nullptr) {
+    if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
+      fetched_cipher_.reset(other.fetched_cipher_.get());
+    } else {
+      cipher_ = nullptr;
+    }
+  }
+#endif
+}
+
+Cipher& Cipher::operator=(const Cipher& other) {
+  if (this == &other) return *this;
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  if (other.fetched_cipher_ != nullptr) {
+    if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
+      fetched_cipher_.reset(other.fetched_cipher_.get());
+    } else {
+      fetched_cipher_.reset();
+      cipher_ = nullptr;
+      return *this;
+    }
+  } else {
+    fetched_cipher_.reset();
+  }
+#endif
+  cipher_ = other.cipher_;
+  return *this;
+}
 
 const Cipher Cipher::FromName(const char* name) {
   const EVP_CIPHER* cipher = EVP_get_cipherbyname(name);
   if (cipher != nullptr) return Cipher(cipher);
 
 #if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
-  EVP_CIPHER* fetched = EVP_CIPHER_fetch(nullptr, name, nullptr);
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
+      EVP_CIPHER_fetch(nullptr, name, nullptr));
   if (fetched == nullptr) return Cipher();
 
-  const int mode = EVP_CIPHER_mode(fetched);
+  const int mode = EVP_CIPHER_mode(fetched.get());
   const bool is_siv_mode =
 #if OPENSSL_WITH_AES_SIV
       mode == EVP_CIPH_SIV_MODE ||
@@ -3198,9 +3230,8 @@ const Cipher Cipher::FromName(const char* name) {
       mode == EVP_CIPH_GCM_SIV_MODE ||
 #endif
       false;
-  if (is_siv_mode) return Cipher(fetched);
+  if (is_siv_mode) return Cipher(std::move(fetched));
 
-  EVP_CIPHER_free(fetched);
   return Cipher();
 #else
   return Cipher();
