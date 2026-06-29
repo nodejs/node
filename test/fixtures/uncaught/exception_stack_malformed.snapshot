@@ -1,0 +1,11 @@
+
+<project-root>/test/fixtures/uncaught/exception_stack_malformed.js:1
+throw {
+^
+[object Object]
+Thrown at:
+    at <project-root>/test/fixtures/uncaught/exception_stack_malformed.js:1:1
+    at <node-internal-frames>
+
+
+Node.js <node-version>

@@ -1,0 +1,3 @@
+process.nextTick(() => {
+  throw null;
+});

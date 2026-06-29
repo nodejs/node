@@ -130,6 +130,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, Error)                               \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
   V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
+  V(ERR_UNHANDLED_REJECTION, Error)                                            \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
   V(ERR_ZLIB_INITIALIZATION_FAILED, Error)                                     \
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
@@ -244,6 +245,10 @@ ERRORS_WITH_CODE(V)
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, "Failed to set PSK identity hint")   \
+  V(ERR_UNHANDLED_REJECTION,                                                   \
+    "This error originated either by throwing inside of an async function "    \
+    "without a catch block, or by rejecting a promise which was not handled "  \
+    "with .catch().")                                                          \
   V(ERR_WASI_NOT_STARTED, "wasi.start() has not been called")                  \
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \

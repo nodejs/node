@@ -422,7 +422,8 @@ enum class EnhanceFatalException { kEnhance, kDontEnhance };
 static void ReportFatalException(Environment* env,
                                  Local<Value> error,
                                  Local<Message> message,
-                                 EnhanceFatalException enhance_stack) {
+                                 EnhanceFatalException enhance_stack,
+                                 bool from_promise) {
   if (!env->can_call_into_js())
     enhance_stack = EnhanceFatalException::kDontEnhance;
 
@@ -553,7 +554,11 @@ static void ReportFatalException(Environment* env,
   if (env->options()->trace_uncaught) {
     Local<StackTrace> trace = message->GetStackTrace();
     if (!trace.IsEmpty()) {
-      FPrintF(stderr, "Thrown at:\n");
+      if (from_promise) {
+        FPrintF(stderr, "Rejected at:\n");
+      } else {
+        FPrintF(stderr, "Thrown at:\n");
+      }
       PrintStackTrace(env->isolate(), trace);
     }
   }
@@ -715,7 +720,7 @@ TryCatchScope::~TryCatchScope() {
         EnhanceFatalException::kEnhance : EnhanceFatalException::kDontEnhance;
     if (message.IsEmpty())
       message = Exception::CreateMessage(env_->isolate(), exception);
-    ReportFatalException(env_, exception, message, enhance);
+    ReportFatalException(env_, exception, message, enhance, false);
     env_->Exit(ExitCode::kExceptionInFatalExceptionHandler);
   }
 }
@@ -1165,13 +1170,21 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
   Local<Value> exception = args[0];
-  Local<Message> message = Exception::CreateMessage(isolate, exception);
+  bool from_promise = args[1]->IsTrue();
+  Local<Value> throw_site = args[2];
+
+  Local<Message> message;
+  if (!throw_site->IsUndefined()) {
+    message = Exception::CreateMessage(isolate, throw_site);
+  } else {
+    message = Exception::CreateMessage(isolate, exception);
+  }
+
   if (env != nullptr && env->abort_on_uncaught_exception()) {
     ReportFatalException(
-        env, exception, message, EnhanceFatalException::kEnhance);
+        env, exception, message, EnhanceFatalException::kEnhance, from_promise);
     ABORT();
   }
-  bool from_promise = args[1]->IsTrue();
   errors::TriggerUncaughtException(isolate, exception, message, from_promise);
 }
 
@@ -1306,7 +1319,7 @@ void TriggerUncaughtException(Isolate* isolate,
   // the current Node.js instance.
   if (!fatal_exception_function->IsFunction()) {
     ReportFatalException(
-        env, error, message, EnhanceFatalException::kDontEnhance);
+        env, error, message, EnhanceFatalException::kDontEnhance, from_promise);
     env->Exit(ExitCode::kInvalidFatalExceptionMonkeyPatching);
     return;
   }
@@ -1367,7 +1380,8 @@ void TriggerUncaughtException(Isolate* isolate,
   }
 
   // Now we are certain that the exception is fatal.
-  ReportFatalException(env, error, message, EnhanceFatalException::kEnhance);
+  ReportFatalException(
+      env, error, message, EnhanceFatalException::kEnhance, from_promise);
   RunAtExit(env);
 
   // If the global uncaught exception handler sets process.exitCode,

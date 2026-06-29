@@ -1,0 +1,11 @@
+
+<project-root>/test/fixtures/uncaught/exception_async_tick.js:2
+  throw null;
+  ^
+null
+Thrown at:
+    at <project-root>/test/fixtures/uncaught/exception_async_tick.js:2:3
+    at <node-internal-frames>
+
+
+Node.js <node-version>

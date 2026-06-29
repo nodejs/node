@@ -89,7 +89,18 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     value = Undefined(isolate);
   }
 
-  Local<Value> args[] = { type, promise, value };
+  Local<Value> rejection_site;
+  if (event == kPromiseRejectWithNoHandler) {
+    // Native error carries the throw site. Create a dummy error to capture the
+    // stack trace where the rejection actually happened, when no native error
+    // is available.
+    rejection_site =
+        value->IsNativeError() ? value : ERR_UNHANDLED_REJECTION(isolate);
+  } else {
+    rejection_site = Undefined(isolate);
+  }
+
+  Local<Value> args[] = {type, promise, value, rejection_site};
 
   double async_id = AsyncWrap::kInvalidAsyncId;
   double trigger_async_id = AsyncWrap::kInvalidAsyncId;

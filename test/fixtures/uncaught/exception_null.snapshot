@@ -1,0 +1,11 @@
+
+<project-root>/test/fixtures/uncaught/exception_null.js:1
+throw null;
+^
+null
+Thrown at:
+    at <project-root>/test/fixtures/uncaught/exception_null.js:1:1
+    at <node-internal-frames>
+
+
+Node.js <node-version>

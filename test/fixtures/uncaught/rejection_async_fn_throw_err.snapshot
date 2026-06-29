@@ -1,0 +1,12 @@
+<project-root>/test/fixtures/uncaught/rejection_async_fn_throw_err.js:6
+    throw err;
+    ^
+
+Error: err with wrong stack
+    at Object.<anonymous> (<project-root>/test/fixtures/uncaught/rejection_async_fn_throw_err.js:1:13)
+    at <node-internal-frames>
+Rejected at:
+    at <project-root>/test/fixtures/uncaught/rejection_async_fn_throw_err.js:6:5
+
+
+Node.js <node-version>

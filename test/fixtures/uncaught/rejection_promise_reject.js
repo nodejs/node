@@ -1,0 +1,3 @@
+setImmediate(() => {
+  Promise.reject(null);
+});

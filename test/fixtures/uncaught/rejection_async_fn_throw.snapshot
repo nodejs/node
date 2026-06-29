@@ -1,0 +1,14 @@
+<project-root>/test/fixtures/uncaught/rejection_async_fn_throw.js:4
+    throw null;
+    ^
+
+UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason "null".
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  code: 'ERR_UNHANDLED_REJECTION'
+}
+Rejected at:
+    at <project-root>/test/fixtures/uncaught/rejection_async_fn_throw.js:4:5
+
+
+Node.js <node-version>
