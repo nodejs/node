@@ -1,53 +1,65 @@
 #ifndef SRC_TRACING_AGENT_H_
 #define SRC_TRACING_AGENT_H_
 
-#include "libplatform/v8-tracing.h"
-#include "uv.h"
-#include "util.h"
-#include "node_mutex.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <list>
+// This defines a compatible agent interface for both the legacy V8
+// tracing and the Perfetto tracing. The interface is designed to be
+// used by the rest of the Node.js codebase that only generates
+// trace events with the trace macros, or interacts with the tracing
+// system.
+//
+// To generate trace events by API, or consume the tracing data, the
+// caller should directly refer to the derived trace agent interfaces.
+//
+// This file should not include either `libplatform/v8-tracing.h` or
+// `perfetto.h`.
+
+#include "v8-platform.h"
+
+#include <memory>
 #include <set>
 #include <string>
-#include <unordered_map>
-
-namespace v8 {
-class ConvertableToTraceFormat;
-class TracingController;
-}  // namespace v8
 
 namespace node {
 namespace tracing {
 
-using v8::platform::tracing::TraceConfig;
-using v8::platform::tracing::TraceObject;
-
 class Agent;
+class AgentWriterHandle;
 
-class AsyncTraceWriter {
+class Agent {
  public:
-  virtual ~AsyncTraceWriter() = default;
-  virtual void AppendTraceEvent(TraceObject* trace_event) = 0;
-  virtual void Flush(bool blocking) = 0;
-  virtual void InitializeOnThread(uv_loop_t* loop) {}
-};
+  virtual ~Agent() = default;
 
-class TracingController : public v8::platform::tracing::TracingController {
- public:
-  TracingController() : v8::platform::tracing::TracingController() {}
+  virtual v8::TracingController* GetTracingController() = 0;
 
-  int64_t CurrentTimestampMicroseconds() override {
-    return uv_hrtime() / 1000;
-  }
-  void AddMetadataEvent(
-      const unsigned char* category_group_enabled,
-      const char* name,
-      int num_args,
-      const char** arg_names,
-      const unsigned char* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<v8::ConvertableToTraceFormat>* convertable_values,
-      unsigned int flags);
+  // Returns a comma-separated list of enabled categories.
+  virtual std::string GetEnabledCategories() const = 0;
+
+  // Called by V8Platform to start/stop file-based tracing.
+  virtual void StartTracing(const std::string& categories) = 0;
+  virtual void StopTracing() = 0;
+
+  virtual AgentWriterHandle* GetDefaultWriterHandle() = 0;
+
+  virtual void AddTraceStateObserver(
+      v8::TracingController::TraceStateObserver* observer) = 0;
+  virtual void RemoveTraceStateObserver(
+      v8::TracingController::TraceStateObserver* observer) = 0;
+
+  struct Deleter {
+    void operator()(Agent* agent);
+  };
+  static std::unique_ptr<Agent, Deleter> CreateDefault();
+  static Agent* GetInstance();
+
+ private:
+  virtual void Disconnect(int client) = 0;
+
+  virtual void Enable(int id, const std::set<std::string>& categories) = 0;
+  virtual void Disable(int id, const std::set<std::string>& categories) = 0;
+
+  friend class AgentWriterHandle;
 };
 
 class AgentWriterHandle {
@@ -63,11 +75,7 @@ class AgentWriterHandle {
   inline void Enable(const std::set<std::string>& categories);
   inline void Disable(const std::set<std::string>& categories);
 
-  inline bool IsDefaultHandle();
-
   inline Agent* agent() { return agent_; }
-
-  inline v8::TracingController* GetTracingController();
 
   AgentWriterHandle(const AgentWriterHandle& other) = delete;
   AgentWriterHandle& operator=(const AgentWriterHandle& other) = delete;
@@ -79,80 +87,7 @@ class AgentWriterHandle {
   int id_ = 0;
 
   friend class Agent;
-};
-
-class Agent {
- public:
-  Agent();
-  ~Agent();
-
-  TracingController* GetTracingController() {
-    TracingController* controller = tracing_controller_.get();
-    CHECK_NOT_NULL(controller);
-    return controller;
-  }
-
-  enum UseDefaultCategoryMode {
-    kUseDefaultCategories,
-    kIgnoreDefaultCategories
-  };
-
-  // Destroying the handle disconnects the client
-  AgentWriterHandle AddClient(const std::set<std::string>& categories,
-                              std::unique_ptr<AsyncTraceWriter> writer,
-                              enum UseDefaultCategoryMode mode);
-  // A handle that is only used for managing the default categories
-  // (which can then implicitly be used through using `USE_DEFAULT_CATEGORIES`
-  // when adding a client later).
-  AgentWriterHandle DefaultHandle();
-
-  // Returns a comma-separated list of enabled categories.
-  std::string GetEnabledCategories() const;
-
-  // Writes to all writers registered through AddClient().
-  void AppendTraceEvent(TraceObject* trace_event);
-
-  void AddMetadataEvent(std::unique_ptr<TraceObject> event);
-  // Flushes all writers registered through AddClient().
-  void Flush(bool blocking);
-
-  TraceConfig* CreateTraceConfig() const;
-
- private:
-  friend class AgentWriterHandle;
-
-  void InitializeWritersOnThread();
-
-  void Start();
-  void StopTracing();
-  void Disconnect(int client);
-
-  void Enable(int id, const std::set<std::string>& categories);
-  void Disable(int id, const std::set<std::string>& categories);
-
-  uv_thread_t thread_;
-  uv_loop_t tracing_loop_;
-
-  bool started_ = false;
-  class ScopedSuspendTracing;
-
-  // Each individual Writer has one id.
-  int next_writer_id_ = 1;
-  enum { kDefaultHandleId = -1 };
-  // These maps store the original arguments to AddClient(), by id.
-  std::unordered_map<int, std::multiset<std::string>> categories_;
-  std::unordered_map<int, std::unique_ptr<AsyncTraceWriter>> writers_;
-  std::unique_ptr<TracingController> tracing_controller_;
-
-  // Variables related to initializing per-event-loop properties of individual
-  // writers, such as libuv handles.
-  Mutex initialize_writer_mutex_;
-  ConditionVariable initialize_writer_condvar_;
-  uv_async_t initialize_writer_async_;
-  std::set<AsyncTraceWriter*> to_be_initialized_;
-
-  Mutex metadata_events_mutex_;
-  std::list<std::unique_ptr<TraceObject>> metadata_events_;
+  friend class LegacyTracingAgent;
 };
 
 void AgentWriterHandle::reset() {
@@ -181,15 +116,9 @@ void AgentWriterHandle::Disable(const std::set<std::string>& categories) {
   if (agent_ != nullptr) agent_->Disable(id_, categories);
 }
 
-bool AgentWriterHandle::IsDefaultHandle() {
-  return agent_ != nullptr && id_ == Agent::kDefaultHandleId;
-}
-
-inline v8::TracingController* AgentWriterHandle::GetTracingController() {
-  return agent_ != nullptr ? agent_->GetTracingController() : nullptr;
-}
-
 }  // namespace tracing
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TRACING_AGENT_H_

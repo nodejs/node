@@ -75,7 +75,7 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
     if (!*val) return;
     categories.emplace(*val);
   }
-  CHECK_NOT_NULL(GetTracingAgentWriter());
+  CHECK_NOT_NULL(tracing::Agent::GetInstance());
   new NodeCategorySet(env, args.This(), std::move(categories));
 }
 
@@ -93,8 +93,10 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
         filepath);
     // Starts the Tracing Agent if it wasn't started already (e.g. through
     // a command line flag.)
-    StartTracingAgent();
-    GetTracingAgentWriter()->Enable(categories);
+    auto* agent = tracing::Agent::GetInstance();
+    agent->StartTracing(per_process::cli_options->trace_event_categories);
+    tracing::AgentWriterHandle* writer = agent->GetDefaultWriterHandle();
+    writer->Enable(categories);
     category_set->enabled_ = true;
   }
 }
@@ -105,7 +107,9 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (category_set->enabled_ && !categories.empty()) {
-    GetTracingAgentWriter()->Disable(categories);
+    auto* agent = tracing::Agent::GetInstance();
+    tracing::AgentWriterHandle* writer = agent->GetDefaultWriterHandle();
+    writer->Disable(categories);
     category_set->enabled_ = false;
   }
 }
@@ -113,7 +117,7 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
 void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories =
-      GetTracingAgentWriter()->agent()->GetEnabledCategories();
+      tracing::Agent::GetInstance()->GetEnabledCategories();
   Local<Value> ret;
   if (!categories.empty() &&
       ToV8Value(env->context(), categories, env->isolate()).ToLocal(&ret)) {
