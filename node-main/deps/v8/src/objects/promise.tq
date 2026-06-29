@@ -1,0 +1,75 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class PromiseCapability extends Struct {
+  promise: JSReceiver|Undefined;
+  // Ideally, resolve and reject would be typed as Callable|Undefined. However,
+  // the executor that creates the capability can be called in an arbitrary way
+  // by user-provided thenable constructors, and these resolver functions are
+  // not checked to be callable until after the user-provided thenable
+  // constructor returns. IOW, the callable check timing is observable.
+  resolve: JSAny;
+  reject: JSAny;
+}
+
+// PromiseReaction constants
+type PromiseReactionType extends int31 constexpr 'PromiseReaction::Type';
+const kPromiseReactionFulfill: constexpr PromiseReactionType
+    generates 'PromiseReaction::kFulfill';
+const kPromiseReactionReject: constexpr PromiseReactionType
+    generates 'PromiseReaction::kReject';
+const kPromiseReactionSize:
+    constexpr int31 generates 'PromiseReaction::kSize';
+const kPromiseReactionFulfillHandlerOffset: constexpr int31
+    generates 'PromiseReaction::kFulfillHandlerOffset';
+const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReaction::kPromiseOrCapabilityOffset';
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionContinuationPreservedEmbedderDataOffset: constexpr int31
+    generates 'PromiseReaction::kContinuationPreservedEmbedderDataOffset';
+
+extern class PromiseReaction extends Struct {
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  continuation_preserved_embedder_data: Object|Undefined;
+  next: PromiseReaction|Zero;
+  reject_handler: Callable|Undefined;
+  fulfill_handler: Callable|Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
+  promise_or_capability: JSPromise|PromiseCapability|Undefined;
+}
+
+// PromiseReactionJobTask constants
+const kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks: constexpr int31
+    generates 'PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks';
+const kPromiseReactionJobTaskHandlerOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kHandlerOffset';
+const kPromiseReactionJobTaskPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kPromiseOrCapabilityOffset';
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionJobTaskContinuationPreservedEmbedderDataOffset:
+    constexpr int31
+    generates 'PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset'
+    ;
+
+@abstract
+extern class PromiseReactionJobTask extends Microtask {
+  argument: Object;
+  context: Context;
+  handler: Callable|Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
+  promise_or_capability: JSPromise|PromiseCapability|Undefined;
+}
+
+extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}
+
+extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {}
+
+extern class PromiseResolveThenableJobTask extends Microtask {
+  context: Context;
+  promise_to_resolve: JSPromise;
+  thenable: JSReceiver;
+  then: JSReceiver;
+}

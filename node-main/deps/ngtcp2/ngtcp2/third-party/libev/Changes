@@ -1,0 +1,617 @@
+Revision history for libev, a high-performance and full-featured event loop.
+
+TODO: for next ABI/API change, consider moving EV__IOFDSSET into io->fd instead and provide a getter.
+TODO: document EV_TSTAMP_T
+
+4.33 Wed Mar 18 13:22:29 CET 2020
+	- no changes w.r.t. 4.32.
+
+4.32 (EV only)
+	- the 4.31 timerfd code wrongly changed the priority of the signal
+          fd watcher, which is usually harmless unless signal fds are
+          also used (found via cpan tester service).
+        - the documentation wrongly claimed that user may modify fd and events
+          members in io watchers when the watcher was stopped
+          (found by b_jonas).
+        - new ev_io_modify mutator which changes only the events member,
+          which can be faster. also added ev::io::set (int events) method
+          to ev++.h.
+        - officially allow a zero events mask for io watchers. this should
+          work with older libev versions as well but was not officially
+          allowed before.
+        - do not wake up every minute when timerfd is used to detect timejumps.
+        - do not wake up every minute when periodics are disabled and we have
+          a monotonic clock.
+        - support a lot more "uncommon" compile time configurations,
+          such as ev_embed enabled but ev_timer disabled.
+        - use a start/stop wrapper class to reduce code duplication in
+          ev++.h and make it needlessly more c++-y.
+        - the linux aio backend is no longer compiled in by default.
+        - update to libecb version 0x00010008.
+
+4.31 Fri Dec 20 21:58:29 CET 2019
+	- handle backends with minimum wait time a bit better by not
+          waiting in the presence of already-expired timers
+          (behaviour reported by Felipe Gasper).
+        - new feature: use timerfd to detect timejumps quickly,
+          can be disabled with the new EVFLAG_NOTIMERFD loop flag.
+        - document EV_USE_SIGNALFD feature macro.
+
+4.30 (EV only)
+	- change non-autoconf test for __kernel_rwf_t by testing
+          LINUX_VERSION_CODE, the most direct test I could find.
+        - fix a bug in the io_uring backend that polled the wrong
+          backend fd, causing it to not work in many cases.
+
+4.29 (EV only)
+	- add io uring autoconf and non-autoconf detection.
+        - disable io_uring when some header files are too old.
+
+4.28 (EV only)
+	- linuxaio backend resulted in random memory corruption
+          when loop is forked.
+        - linuxaio backend might have tried to cancel an iocb
+          multiple times (was unable to trigger this).
+        - linuxaio backend now employs a generation counter to
+          avoid handling spurious events from cancelled requests.
+	- io_cancel can return EINTR, deal with it. also, assume
+          io_submit also returns EINTR.
+        - fix some other minor bugs in linuxaio backend.
+        - ev_tstamp type can now be overriden by defining EV_TSTAMP_T.
+        - cleanup: replace expect_true/false and noinline by their
+          libecb counterparts.
+        - move syscall infrastructure from ev_linuxaio.c to ev.c.
+        - prepare io_uring integration.
+        - tweak ev_floor.
+        - epoll, poll, win32 Sleep and other places that use millisecond
+          reslution now all try to round up times.
+        - solaris port backend didn't compile.
+        - abstract time constants into their macros, for more flexibility.
+
+4.27 Thu Jun 27 22:43:44 CEST 2019
+	- linux aio backend almost completely rewritten to work around its
+          limitations.
+        - linux aio backend now requires linux 4.19+.
+        - epoll backend now mandatory for linux aio backend.
+        - fail assertions more aggressively on invalid fd's detected
+          in the event loop, do not just silently fd_kill in case of
+          user error.
+        - ev_io_start/ev_io_stop now verify the watcher fd using
+          a syscall when EV_VERIFY is 2 or higher.
+
+4.26 (EV only)
+	- update to libecb 0x00010006.
+	- new experimental linux aio backend (linux 4.18+).
+	- removed redundant 0-ptr check in ev_once.
+        - updated/extended ev_set_allocator documentation.
+        - replaced EMPTY2 macro by array_needsize_noinit.
+        - minor code cleanups.
+        - epoll backend now uses epoll_create1 also after fork.
+
+4.25 Fri Dec 21 07:49:20 CET 2018
+        - INCOMPATIBLE CHANGE: EV_THROW was renamed to EV_NOEXCEPT
+          (EV_THROW still provided) and now uses noexcept on C++11 or newer.
+	- move the darwin select workaround higher in ev.c, as newer versions of
+          darwin managed to break their broken select even more.
+	- ANDROID => __ANDROID__ (reported by enh@google.com).
+        - disable epoll_create1 on android because it has broken header files
+          and google is unwilling to fix them (reported by enh@google.com).
+        - avoid a minor compilation warning on win32.
+        - c++: remove deprecated dynamic throw() specifications.
+        - c++: improve the (unsupported) bad_loop exception class.
+        - backport perl ev_periodic example to C, untested.
+        - update libecb, biggets change is to include a memory fence
+          in ECB_MEMORY_FENCE_RELEASE on x86/amd64.
+        - minor autoconf/automake modernisation.
+
+4.24 Wed Dec 28 05:19:55 CET 2016
+	- bump version to 4.24, as the release tarball inexplicably
+          didn't have the right version in ev.h, even though the cvs-tagged
+          version did have the right one (reported by Ales Teska).
+
+4.23 Wed Nov 16 18:23:41 CET 2016
+	- move some declarations at the beginning to help certain retarded
+          microsoft compilers, even though their documentation claims
+          otherwise (reported by Ruslan Osmanov).
+
+4.22 Sun Dec 20 22:11:50 CET 2015
+	- when epoll detects unremovable fds in the fd set, rebuild
+          only the epoll descriptor, not the signal pipe, to avoid
+          SIGPIPE in ev_async_send. This doesn't solve it on fork,
+          so document what needs to be done in ev_loop_fork
+          (analyzed by Benjamin Mahler).
+	- remove superfluous sys/timeb.h include on win32
+          (analyzed by Jason Madden).
+        - updated libecb.
+
+4.20 Sat Jun 20 13:01:43 CEST 2015
+	- prefer noexcept over throw () with C++ 11.
+        - update ecb.h due to incompatibilities with c11.
+        - fix a potential aliasing issue when reading and writing
+          watcher callbacks.
+
+4.19 Thu Sep 25 08:18:25 CEST 2014
+	- ev.h wasn't valid C++ anymore, which tripped compilers other than
+          clang, msvc or gcc (analyzed by Raphael 'kena' Poss). Unfortunately,
+          C++ doesn't support typedefs for function pointers fully, so the affected
+          declarations have to spell out the types each time.
+	- when not using autoconf, tighten the check for clock_gettime and related
+          functionality.
+
+4.18 Fri Sep  5 17:55:26 CEST 2014
+	- events on files were not always generated properly with the
+          epoll backend (testcase by Assaf Inbal).
+	- mark event pipe fd as cloexec after a fork (analyzed by Sami Farin).
+        - (ecb) support m68k, m88k and sh (patch by Miod Vallat).
+        - use a reasonable fallback for EV_NSIG instead of erroring out
+          when we can't detect the signal set size.
+        - in the absence of autoconf, do not use the clock syscall
+          on glibc >= 2.17 (avoids the syscall AND -lrt on systems
+          doing clock_gettime in userspace).
+        - ensure extern "C" function pointers are used for externally-visible
+          loop callbacks (not watcher callbacks yet).
+        - (ecb) work around memory barriers and volatile apparently both being
+          broken in visual studio 2008 and later (analysed and patch by Nicolas Noble).
+
+4.15 Fri Mar  1 12:04:50 CET 2013
+        - destroying a non-default loop would stop the global waitpid
+          watcher (Denis Bilenko).
+	- queueing pending watchers of higher priority from a watcher now invokes
+          them in a timely fashion (reported by Denis Bilenko).
+	- add throw() to all libev functions that cannot throw exceptions, for
+          further code size decrease when compiling for C++.
+        - add throw () to callbacks that must not throw exceptions (allocator,
+          syserr, loop acquire/release, periodic reschedule cbs).
+	- fix event_base_loop return code, add event_get_callback, event_base_new,
+          event_base_get_method calls to improve libevent 1.x emulation and add
+          some libevent 2.x functionality (based on a patch by Jeff Davey).
+        - add more memory fences to fix a bug reported by Jeff Davey. Better
+          be overfenced than underprotected.
+	- ev_run now returns a boolean status (true meaning watchers are
+          still active).
+	- ev_once: undef EV_ERROR in ev_kqueue.c, to avoid clashing with
+          libev's EV_ERROR (reported by 191919).
+	- (ecb) add memory fence support for xlC (Darin McBride).
+	- (ecb) add memory fence support for gcc-mips (Anton Kirilov).
+	- (ecb) add memory fence support for gcc-alpha (Christian Weisgerber).
+        - work around some kernels losing file descriptors by leaking
+          the kqueue descriptor in the child.
+        - work around linux inotify not reporting IN_ATTRIB changes for directories
+          in many cases.
+        - include sys/syscall.h instead of plain syscall.h.
+        - check for io watcher loops in ev_verify, check for the most
+          common reported usage bug in ev_io_start.
+        - choose socket vs. WSASocket at compiletime using EV_USE_WSASOCKET.
+        - always use WSASend/WSARecv directly on windows, hoping that this
+          works in all cases (unlike read/write/send/recv...).
+        - try to detect signals around a fork faster (test program by
+          Denis Bilenko).
+        - work around recent glibc versions that leak memory in realloc.
+        - rename ev::embed::set to ev::embed::set_embed to avoid clashing
+          the watcher base set (loop) method.
+        - rewrite the async/signal pipe logic to always keep a valid fd, which
+          simplifies (and hopefully correctifies :) the race checking
+          on fork, at the cost of one extra fd.
+        - add fat, msdos, jffs2, ramfs, ntfs and btrfs to the list of
+          inotify-supporting filesystems.
+        - move orig_CFLAGS assignment to after AC_INIT, as newer autoconf
+          versions ignore it before
+          (https://bugzilla.redhat.com/show_bug.cgi?id=908096).
+        - add some untested android support.
+        - enum expressions must be of type int (reported by Juan Pablo L).
+
+4.11 Sat Feb  4 19:52:39 CET 2012
+	- INCOMPATIBLE CHANGE: ev_timer_again now clears the pending status, as
+          was documented already, but not implemented in the repeating case.
+        - new compiletime symbols: EV_NO_SMP and EV_NO_THREADS.
+	- fix a race where the workaround against the epoll fork bugs
+          caused signals to not be handled anymore.
+	- correct backend_fudge for most backends, and implement a windows
+          specific workaround to avoid looping because we call both
+          select and Sleep, both with different time resolutions.
+        - document range and guarantees of ev_sleep.
+        - document reasonable ranges for periodics interval and offset.
+        - rename backend_fudge to backend_mintime to avoid future confusion :)
+	- change the default periodic reschedule function to hopefully be more
+          exact and correct even in corner cases or in the far future.
+        - do not rely on -lm anymore: use it when available but use our
+          own floor () if it is missing. This should make it easier to embed,
+          as no external libraries are required.
+        - strategically import macros from libecb and mark rarely-used functions
+          as cache-cold (saving almost 2k code size on typical amd64 setups).
+        - add Symbols.ev and Symbols.event files, that were missing.
+        - fix backend_mintime value for epoll (was 1/1024, is 1/1000 now).
+        - fix #3 "be smart about timeouts" to not "deadlock" when
+          timeout == now, also improve the section overall.
+        - avoid "AVOIDING FINISHING BEFORE RETURNING" idiom.
+        - support new EV_API_STATIC mode to make all libev symbols
+          static.
+        - supply default CFLAGS of -g -O3 with gcc when original CFLAGS
+          were empty.
+
+4.04 Wed Feb 16 09:01:51 CET 2011
+	- fix two problems in the native win32 backend, where reuse of fd's
+          with different underlying handles caused handles not to be removed
+          or added to the select set (analyzed and tested by Bert Belder).
+	- do no rely on ceil() in ev_e?poll.c.
+        - backport libev to HP-UX versions before 11 v3.
+        - configure did not detect nanosleep and clock_gettime properly when
+          they are available in the libc (as opposed to -lrt).
+
+4.03 Tue Jan 11 14:37:25 CET 2011
+	- officially support polling files with all backends.
+	- support files, /dev/zero etc. the same way as select in the epoll
+          backend, by generating events on our own.
+        - ports backend: work around solaris bug 6874410 and many related ones
+          (EINTR, maybe more), with no performance loss (note that the solaris
+          bug report is actually wrong, reality is far more bizarre and broken
+          than that).
+	- define EV_READ/EV_WRITE as macros in event.h, as some programs use
+          #ifdef to test for them.
+        - new (experimental) function: ev_feed_signal.
+        - new (to become default) EVFLAG_NOSIGMASK flag.
+        - new EVBACKEND_MASK symbol.
+        - updated COMMON IDIOMS SECTION.
+
+4.01 Fri Nov  5 21:51:29 CET 2010
+        - automake fucked it up, apparently, --add-missing -f is not quite enough
+          to make it update its files, so 4.00 didn't install ev++.h and
+          event.h on make install. grrr.
+        - ev_loop(count|depth) didn't return anything (Robin Haberkorn).
+        - change EV_UNDEF to 0xffffffff to silence some overzealous compilers.
+        - use "(libev) " prefix for all libev error messages now.
+
+4.00 Mon Oct 25 12:32:12 CEST 2010
+	- "PORTING FROM LIBEV 3.X TO 4.X" (in ev.pod) is recommended reading.
+	- ev_embed_stop did not correctly stop the watcher (very good
+          testcase by Vladimir Timofeev).
+        - ev_run will now always update the current loop time - it erroneously
+          didn't when idle watchers were active, causing timers not to fire.
+        - fix a bug where a timeout of zero caused the timer not to fire
+          in the libevent emulation (testcase by Péter Szabó).
+	- applied win32 fixes by Michael Lenaghan (also James Mansion).
+	- replace EV_MINIMAL by EV_FEATURES.
+        - prefer EPOLL_CTL_ADD over EPOLL_CTL_MOD in some more cases, as it
+          seems the former is *much* faster than the latter.
+        - linux kernel version detection (for inotify bug workarounds)
+          did not work properly.
+        - reduce the number of spurious wake-ups with the ports backend.
+        - remove dependency on sys/queue.h on freebsd (patch by Vanilla Hsu).
+        - do async init within ev_async_start, not ev_async_set, which avoids
+          an API quirk where the set function must be called in the C++ API
+          even when there is nothing to set.
+        - add (undocumented) EV_ENABLE when adding events with kqueue,
+          this might help with OS X, which seems to need it despite documenting
+          not to need it (helpfully pointed out by Tilghman Lesher).
+        - do not use poll by default on freebsd, it's broken (what isn't
+          on freebsd...).
+        - allow to embed epoll on kernels >= 2.6.32.
+        - configure now prepends -O3, not appends it, so one can still
+          override it.
+        - ev.pod: greatly expanded the portability section, added a porting
+          section, a description of watcher states and made lots of minor fixes.
+        - disable poll backend on AIX, the poll header spams the namespace
+          and it's not worth working around dead platforms (reported
+          and analyzed by Aivars Kalvans).
+        - improve header file compatibility of the standalone eventfd code
+          in an obscure case.
+        - implement EV_AVOID_STDIO option.
+        - do not use sscanf to parse linux version number (smaller, faster,
+          no sscanf dependency).
+        - new EV_CHILD_ENABLE and EV_SIGNAL_ENABLE configurable settings.
+        - update libev.m4 HAVE_CLOCK_SYSCALL test for newer glibcs.
+        - add section on accept() problems to the manpage.
+        - rename EV_TIMEOUT to EV_TIMER.
+        - rename ev_loop_count/depth/verify/loop/unloop.
+        - remove ev_default_destroy and ev_default_fork.
+        - switch to two-digit minor version.
+        - work around an apparent gentoo compiler bug.
+        - define _DARWIN_UNLIMITED_SELECT. just so.
+        - use enum instead of #define for most constants.
+        - improve compatibility to older C++ compilers.
+        - (experimental) ev_run/ev_default_loop/ev_break/ev_loop_new have now
+          default arguments when compiled as C++.
+        - enable automake dependency tracking.
+        - ev_loop_new no longer leaks memory when loop creation failed.
+        - new ev_cleanup watcher type.
+
+3.9  Thu Dec 31 07:59:59 CET 2009
+	- signalfd is no longer used by default and has to be requested
+          explicitly - this means that easy to catch bugs become hard to
+          catch race conditions, but the users have spoken.
+        - point out the unspecified signal mask in the documentation, and
+          that this is a race condition regardless of EV_SIGNALFD.
+	- backport inotify code to C89.
+        - inotify file descriptors could leak into child processes.
+        - ev_stat watchers could keep an erroneous extra ref on the loop,
+          preventing exit when unregistering all watchers (testcases
+          provided by ry@tinyclouds.org).
+        - implement EV_WIN32_HANDLE_TO_FD and EV_WIN32_CLOSE_FD configuration
+          symbols to make it easier for apps to do their own fd management.
+        - support EV_IDLE_ENABLE being disabled in ev++.h
+          (patch by Didier Spezia).
+        - take advantage of inotify_init1, if available, to set cloexec/nonblock
+          on fd creation, to avoid races.
+        - the signal handling pipe wasn't always initialised under windows
+          (analysed by lekma).
+        - changed minimum glibc requirement from glibc 2.9 to 2.7, for
+          signalfd.
+        - add missing string.h include (Denis F. Latypoff).
+        - only replace ev_stat.prev when we detect an actual difference,
+          so prev is (almost) always different to attr. this might
+          have caused the problems with 04_stat.t.
+        - add ev::timer->remaining () method to C++ API.
+
+3.8  Sun Aug  9 14:30:45 CEST 2009
+	- incompatible change: do not necessarily reset signal handler
+          to SIG_DFL when a sighandler is stopped.
+        - ev_default_destroy did not properly free or zero some members,
+          potentially causing crashes and memory corruption on repeated
+          ev_default_destroy/ev_default_loop calls.
+	- take advantage of signalfd on GNU/Linux systems.
+	- document that the signal mask might be in an unspecified
+          state when using libev's signal handling.
+        - take advantage of some GNU/Linux calls to set cloexec/nonblock
+          on fd creation, to avoid race conditions.
+
+3.7  Fri Jul 17 16:36:32 CEST 2009
+	- ev_unloop and ev_loop wrongly used a global variable to exit loops,
+          instead of using a per-loop variable (bug caught by accident...).
+	- the ev_set_io_collect_interval interpretation has changed.
+        - add new functionality: ev_set_userdata, ev_userdata,
+          ev_set_invoke_pending_cb, ev_set_loop_release_cb,
+          ev_invoke_pending, ev_pending_count, together with a long example
+          about thread locking.
+        - add ev_timer_remaining (as requested by Denis F. Latypoff).
+        - add ev_loop_depth.
+        - calling ev_unloop in fork/prepare watchers will no longer poll
+          for new events.
+	- Denis F. Latypoff corrected many typos in example code snippets.
+        - honor autoconf detection of EV_USE_CLOCK_SYSCALL, also double-
+          check that the syscall number is available before trying to
+          use it (reported by ry@tinyclouds).
+        - use GetSystemTimeAsFileTime instead of _timeb on windows, for
+          slightly higher accuracy.
+        - properly declare ev_loop_verify and ev_now_update even when
+          !EV_MULTIPLICITY.
+        - do not compile in any priority code when EV_MAXPRI == EV_MINPRI.
+        - support EV_MINIMAL==2 for a reduced API.
+        - actually 0-initialise struct sigaction when installing signals.
+        - add section on hibernate and stopped processes to ev_timer docs.
+
+3.6  Tue Apr 28 02:49:30 CEST 2009
+	- multiple timers becoming ready within an event loop iteration
+          will be invoked in the "correct" order now.
+	- do not leave the event loop early just because we have no active
+          watchers, fixing a problem when embedding a kqueue loop
+          that has active kernel events but no registered watchers
+          (reported by blacksand blacksand).
+	- correctly zero the idx values for arrays, so destroying and
+          reinitialising the default loop actually works (patch by
+          Malek Hadj-Ali).
+        - implement ev_suspend and ev_resume.
+        - new EV_CUSTOM revents flag for use by applications.
+        - add documentation section about priorities.
+        - add a glossary to the documentation.
+        - extend the ev_fork description slightly.
+        - optimize a jump out of call_pending.
+
+3.53 Sun Feb 15 02:38:20 CET 2009
+	- fix a bug in event pipe creation on win32 that would cause a
+          failed assertion on event loop creation (patch by Malek Hadj-Ali).
+	- probe for CLOCK_REALTIME support at runtime as well and fall
+          back to gettimeofday if there is an error, to support older
+          operating systems with newer header files/libraries.
+        - prefer gettimeofday over clock_gettime with USE_CLOCK_SYSCALL
+          (default most everywhere), otherwise not.
+
+3.52 Wed Jan  7 21:43:02 CET 2009
+	- fix compilation of select backend in fd_set mode when NFDBITS is
+          missing (to get it to compile on QNX, reported by Rodrigo Campos).
+        - better select-nfds handling when select backend is in fd_set mode.
+        - diagnose fd_set overruns when select backend is in fd_set mode.
+        - due to a thinko, instead of disabling everything but
+          select on the borked OS X platform, everything but select was
+          allowed (reported by Emanuele Giaquinta).
+        - actually verify that local and remote port are matching in
+          libev's socketpair emulation, which makes denial-of-service
+          attacks harder (but not impossible - it's windows). Make sure
+          it even works under vista, which thinks that getpeer/sockname
+          should return fantasy port numbers.
+        - include "libev" in all assertion messages for potentially
+          clearer diagnostics.
+        - event_get_version (libevent compatibility) returned
+          a useless string instead of the expected version string
+          (patch by W.C.A. Wijngaards).
+
+3.51 Wed Dec 24 23:00:11 CET 2008
+        - fix a bug where an inotify watcher was added twice, causing
+          freezes on hash collisions (reported and analysed by Graham Leggett).
+	- new config symbol, EV_USE_CLOCK_SYSCALL, to make libev use
+          a direct syscall - slower, but no dependency on librt et al.
+        - assume negative return values != -1 signals success of port_getn
+          (http://cvs.epicsol.org/cgi/viewcvs.cgi/epic5/source/newio.c?rev=1.52)
+          (no known failure reports, but it doesn't hurt).
+        - fork detection in ev_embed now stops and restarts the watcher
+          automatically.
+        - EXPERIMENTAL: default the method to operator () in ev++.h,
+          to make it nicer to use functors (requested by Benedek László).
+        - fixed const object callbacks in ev++.h.
+        - replaced loop_ref argument of watcher.set (loop) by a direct
+          ev_loop * in ev++.h, to avoid clashes with functor patch.
+        - do not try to watch the empty string via inotify.
+        - inotify watchers could be leaked under certain circumstances.
+        - OS X 10.5 is actually even more broken than earlier versions,
+          so fall back to select on that piece of garbage.
+        - fixed some weirdness in the ev_embed documentation.
+
+3.49 Wed Nov 19 11:26:53 CET 2008
+	- ev_stat watchers will now use inotify as a mere hint on
+          kernels <2.6.25, or if the filesystem is not in the
+          "known to be good" list.
+        - better mingw32 compatibility (it's not as borked as native win32)
+          (analysed by Roger Pack).
+        - include stdio.h in the example program, as too many people are
+          confused by the weird C language otherwise. I guess the next thing
+          I get told is that the "..." ellipses in the examples don't compile
+          with their C compiler.
+
+3.48 Thu Oct 30 09:02:37 CET 2008
+	- further optimise away the EPOLL_CTL_ADD/MOD combo in the epoll
+          backend by assuming the kernel event mask hasn't changed if
+          ADD fails with EEXIST.
+        - work around spurious event notification bugs in epoll by using
+          a 32-bit generation counter. recreate kernel state if we receive
+          spurious notifications or unwanted events. this is very costly,
+          but I didn't come up with this horrible design.
+        - use memset to initialise most arrays now and do away with the
+          init functions.
+        - expand time-out strategies into a "Be smart about timeouts" section.
+        - drop the "struct" from all ev_watcher declarations in the
+          documentation and did other clarifications (yeah, it was a mistake
+          to have a struct AND a function called ev_loop).
+	- fix a bug where ev_default would not initialise the default
+          loop again after it was destroyed with ev_default_destroy.
+        - rename syserr to ev_syserr to avoid name clashes when embedding,
+          do similar changes for event.c.
+
+3.45 Tue Oct 21 21:59:26 CEST 2008
+	- disable inotify usage on linux <2.6.25, as it is broken
+          (reported by Yoann Vandoorselaere).
+        - ev_stat erroneously would try to add inotify watchers
+          even when inotify wasn't available (this should only
+          have a performance impact).
+	- ev_once now passes both timeout and io to the callback if both
+          occur concurrently, instead of giving timeouts precedence.
+	- disable EV_USE_INOTIFY when sys/inotify.h is too old.
+
+3.44 Mon Sep 29 05:18:39 CEST 2008
+	- embed watchers now automatically invoke ev_loop_fork on the
+          embedded loop when the parent loop forks.
+	- new function: ev_now_update (loop).
+	- verify_watcher was not marked static.
+        - improve the "associating..." manpage section.
+        - documentation tweaks here and there.
+
+3.43 Sun Jul  6 05:34:41 CEST 2008
+	- include more include files on windows to get struct _stati64
+          (reported by Chris Hulbert, but doesn't quite fix his issue).
+	- add missing #include <io.h> in ev.c on windows (reported by
+          Matt Tolton).
+
+3.42 Tue Jun 17 12:12:07 CEST 2008
+	- work around yet another windows bug: FD_SET actually adds fd's
+          multiple times to the fd_*SET*, despite official MSN docs claiming
+          otherwise. Reported and well-analysed by Matt Tolton.
+	- define NFDBITS to 0 when EV_SELECT_IS_WINSOCKET to make it compile
+          (reported any analysed by Chris Hulbert).
+        - fix a bug in ev_ebadf (this function is only used to catch
+          programming errors in the libev user). reported by Matt Tolton.
+        - fix a bug in fd_intern on win32 (could lead to compile errors
+          under some circumstances, but would work correctly if it compiles).
+          reported by Matt Tolton.
+        - (try to) work around missing lstat on windows.
+	- pass in the write fd set as except fd set under windows. windows
+          is so uncontrollably lame that it requires this. this means that
+          switching off oobinline is not supported (but tcp/ip doesn't
+          have oob, so that would be stupid anyways.
+        - use posix module symbol to auto-detect monotonic clock presence
+          and some other default values.
+
+3.41 Fri May 23 18:42:54 CEST 2008
+	- work around an obscure bug in winsocket select: if you
+          provide only empty fd sets then select returns WSAEINVAL. how sucky.
+        - improve timer scheduling stability and reduce use of time_epsilon.
+        - use 1-based 2-heap for EV_MINIMAL, simplifies code, reduces
+          codesize and makes for better cache-efficiency.
+        - use 3-based 4-heap for !EV_MINIMAL. this makes better use
+          of cpu cache lines and gives better growth behaviour than
+          2-based heaps.
+        - cache timestamp within heap for !EV_MINIMAL, to avoid random
+          memory accesses.
+        - document/add EV_USE_4HEAP and EV_HEAP_CACHE_AT.
+        - fix a potential aliasing issue in ev_timer_again.
+        - add/document ev_periodic_at, retract direct access to ->at.
+        - improve ev_stat docs.
+        - add portability requirements section.
+	- fix manpage headers etc.
+        - normalise WSA error codes to lower range on windows.
+        - add consistency check code that can be called automatically
+          or on demand to check for internal structures (ev_loop_verify).
+
+3.31 Wed Apr 16 20:45:04 CEST 2008
+	- added last minute fix for ev_poll.c by Brandon Black.
+
+3.3  Wed Apr 16 19:04:10 CEST 2008
+        - event_base_loopexit should return 0 on success
+          (W.C.A. Wijngaards).
+	- added linux eventfd support.
+        - try to autodetect epoll and inotify support
+          by libc header version if not using autoconf.
+        - new symbols: EV_DEFAULT_UC and EV_DEFAULT_UC_.
+        - declare functions defined in ev.h as inline if
+          C99 or gcc are available.
+        - enable inlining with gcc versions 2 and 3.
+        - work around broken poll implementations potentially
+          not clearing revents field in ev_poll (Brandon Black)
+          (no such systems are known at this time).
+        - work around a bug in realloc on openbsd and darwin,
+          also makes the erroneous valgrind complaints
+          go away (noted by various people).
+        - fix ev_async_pending, add c++ wrapper for ev_async
+          (based on patch sent by Johannes Deisenhofer).
+        - add sensible set method to ev::embed.
+        - made integer constants type int in ev.h.
+
+3.2  Wed Apr  2 17:11:19 CEST 2008
+	- fix a 64 bit overflow issue in the select backend,
+          by using fd_mask instead of int for the mask.
+        - rename internal sighandler to avoid clash with very old perls.
+        - entering ev_loop will not clear the ONESHOT or NONBLOCKING
+          flags of any outer loops anymore.
+        - add ev_async_pending.
+
+3.1  Thu Mar 13 13:45:22 CET 2008
+	- implement ev_async watchers.
+        - only initialise signal pipe on demand.
+	- make use of sig_atomic_t configurable.
+        - improved documentation.
+
+3.0  Mon Jan 28 13:14:47 CET 2008
+	- API/ABI bump to version 3.0.
+	- ev++.h includes "ev.h" by default now, not <ev.h>.
+	- slightly improved documentation.
+	- speed up signal detection after a fork.
+        - only optionally return trace status changed in ev_child
+          watchers.
+        - experimental (and undocumented) loop wrappers for ev++.h.
+
+2.01 Tue Dec 25 08:04:41 CET 2007
+	- separate Changes file.
+	- fix ev_path_set => ev_stat_set typo.
+        - remove event_compat.h from the libev tarball.
+        - change how include files are found.
+        - doc updates.
+        - update licenses, explicitly allow for GPL relicensing.
+
+2.0  Sat Dec 22 17:47:03 CET 2007
+        - new ev_sleep, ev_set_(io|timeout)_collect_interval.
+        - removed epoll from embeddable fd set.
+        - fix embed watchers.
+	- renamed ev_embed.loop to other.
+	- added exported Symbol tables.
+        - undefine member wrapper macros at the end of ev.c.
+        - respect EV_H in ev++.h.
+
+1.86 Tue Dec 18 02:36:57 CET 2007
+	- fix memleak on loop destroy (not relevant for perl).
+
+1.85 Fri Dec 14 20:32:40 CET 2007
+        - fix some aliasing issues w.r.t. timers and periodics
+          (not relevant for perl).
+
+(for historic versions refer to EV/Changes, found in the Perl interface)
+
+0.1  Wed Oct 31 21:31:48 CET 2007
+	- original version; hacked together in <24h.
+

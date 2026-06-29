@@ -1,0 +1,189 @@
+Don't crash when pausing in for-of loop header
+
+Running test: testSubjectPause
+  (function f() {
+    for (const x of [2, #pause()]) {
+      function capture() { return x; }
+
+[
+    [0] : {
+        endLocation : {
+            columnNumber : 3
+            lineNumber : 5
+            scriptId : <scriptId>
+        }
+        name : f
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 13
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        type : local
+    }
+    [1] : {
+        object : {
+            className : global
+            description : global
+            objectId : <objectId>
+            type : object
+        }
+        type : global
+    }
+]
+
+Running test: testEachPause
+  (function g() {
+    for (const [x, p = #pause()] of [[2]]) {
+      function capture() { return x; }
+
+[
+    [0] : {
+        endLocation : {
+            columnNumber : 5
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        name : g
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 9
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [1] : {
+        endLocation : {
+            columnNumber : 3
+            lineNumber : 5
+            scriptId : <scriptId>
+        }
+        name : g
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 13
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        type : local
+    }
+    [2] : {
+        object : {
+            className : global
+            description : global
+            objectId : <objectId>
+            type : object
+        }
+        type : global
+    }
+]
+
+Running test: testAsyncSubjectPause
+  (async function h() {
+    for await (const x of [Promise.resolve(2), Promise.resolve(#pause())]) {
+      function capture() { return x; }
+
+[
+    [0] : {
+        endLocation : {
+            columnNumber : 3
+            lineNumber : 5
+            scriptId : <scriptId>
+        }
+        name : h
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 19
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        type : local
+    }
+    [1] : {
+        object : {
+            className : global
+            description : global
+            objectId : <objectId>
+            type : object
+        }
+        type : global
+    }
+]
+
+Running test: testAsyncEachPause
+  (async function i() {
+    for await (const [x, p = #pause()] of [Promise.resolve([2])]) {
+      function capture() { return x; }
+
+[
+    [0] : {
+        endLocation : {
+            columnNumber : 5
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        name : i
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 15
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [1] : {
+        endLocation : {
+            columnNumber : 3
+            lineNumber : 5
+            scriptId : <scriptId>
+        }
+        name : i
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 19
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        type : local
+    }
+    [2] : {
+        object : {
+            className : global
+            description : global
+            objectId : <objectId>
+            type : object
+        }
+        type : global
+    }
+]

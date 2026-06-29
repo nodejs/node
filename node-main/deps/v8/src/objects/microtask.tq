@@ -1,0 +1,19 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class Microtask extends Struct {
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  continuation_preserved_embedder_data: Object|Undefined;
+}
+
+extern class CallbackTask extends Microtask {
+  callback: Foreign;
+  data: Foreign;
+}
+
+extern class CallableTask extends Microtask {
+  callable: JSReceiver;
+  context: Context;
+}

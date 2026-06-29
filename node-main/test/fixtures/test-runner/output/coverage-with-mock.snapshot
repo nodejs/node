@@ -1,0 +1,38 @@
+TAP version 13
+# Subtest: module test with mock
+    # Subtest: tests correct thing
+    ok 1 - tests correct thing
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    1..1
+ok 1 - module test with mock
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..1
+# tests 1
+# suites 1
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *
+# start of coverage report
+# ---------------------------------------------------------------------------
+# file                       | line % | branch % | funcs % | uncovered lines
+# ---------------------------------------------------------------------------
+# test                       |        |          |         | 
+#  fixtures                  |        |          |         | 
+#   test-runner              |        |          |         | 
+#    coverage-with-mock      |        |          |         | 
+#     module.js              | 100.00 |   100.00 |  100.00 | 
+#    output                  |        |          |         | 
+#     coverage-with-mock.mjs | 100.00 |   100.00 |  100.00 | 
+# ---------------------------------------------------------------------------
+# all files                  | 100.00 |   100.00 |  100.00 | 
+# ---------------------------------------------------------------------------
+# end of coverage report

@@ -1,0 +1,166 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/property-descriptor-object.h'
+
+bitfield struct PropertyDescriptorObjectFlags extends uint31 {
+  is_enumerable: bool: 1 bit;
+  has_enumerable: bool: 1 bit;
+  is_configurable: bool: 1 bit;
+  has_configurable: bool: 1 bit;
+  is_writable: bool: 1 bit;
+  has_writable: bool: 1 bit;
+  has_value: bool: 1 bit;
+  has_get: bool: 1 bit;
+  has_set: bool: 1 bit;
+}
+
+extern class PropertyDescriptorObject extends Struct {
+  macro IsDataDescriptor(): bool {
+    return this.flags.has_value || this.flags.has_writable;
+  }
+
+  macro IsAccessorDescriptor(): bool {
+    return this.flags.has_get || this.flags.has_set;
+  }
+
+  macro IsGenericDescriptor(): bool {
+    if (this.IsDataDescriptor() || this.IsAccessorDescriptor()) {
+      return false;
+    }
+    return true;
+  }
+
+  macro IsEmptyOrEquivalentTo(current: PropertyDescriptorObject): bool {
+    return (!this.flags.has_enumerable ||
+            this.flags.is_enumerable == current.flags.is_enumerable) &&
+        (!this.flags.has_configurable ||
+         this.flags.is_configurable == current.flags.is_configurable) &&
+        (!this.flags.has_value || SameValue(this.value, current.value)) &&
+        (!this.flags.has_writable ||
+         this.flags.is_writable == current.flags.is_writable) &&
+        (!this.flags.has_get || SameValue(this.get, current.get)) &&
+        (!this.flags.has_set || SameValue(this.get, current.set));
+  }
+
+  flags: SmiTagged<PropertyDescriptorObjectFlags>;
+  value: JSAny|TheHole;
+  get: JSAny|FunctionTemplateInfo|TheHole;
+  set: JSAny|FunctionTemplateInfo|TheHole;
+}
+
+macro IsCompatiblePropertyDescriptor(
+    _extensible: bool, newDesc: PropertyDescriptorObject,
+    current: PropertyDescriptorObject): bool {
+  if (newDesc.IsEmptyOrEquivalentTo(current)) return true;
+
+  // 5. If current.[[Configurable]] is false, then
+  //   5a. If Desc has a [[Configurable]] field and Desc.[[Configurable]] is
+  //   true, return false. 5b. If Desc has an [[Enumerable]] field and
+  //   SameValue(Desc.[[Enumerable]], current.[[Enumerable]]) is false, return
+  //   false. 5c. If IsGenericDescriptor(Desc) is false and
+  //   SameValue(IsAccessorDescriptor(Desc), IsAccessorDescriptor(current)) is
+  //   false, return false. 5d. If IsAccessorDescriptor(Desc) is true, then
+  //      i. If Desc has a [[Get]] field and SameValue(Desc.[[Get]],
+  //      current.[[Get]]) is false, return false.
+  //     ii. If Desc has a [[Set]] field and SameValue(Desc.[[Set]],
+  //     current.[[Set]]) is false, return false.
+  //   5e. Else if current.[[Writable]] is false, then
+  //      i. If Desc has a [[Writable]] field and Desc.[[Writable]] is true,
+  //      return false.
+  //     ii. ii. If Desc has a [[Value]] field and SameValue(Desc.[[Value]],
+  //     current.[[Value]]) is false, return false.
+  if (!current.flags.is_configurable) {
+    if (newDesc.flags.has_configurable && newDesc.flags.is_configurable)
+      return false;
+    if (!current.flags.has_enumerable &&
+        (newDesc.flags.is_enumerable != current.flags.is_enumerable))
+      return false;
+    const isAccessor = newDesc.IsAccessorDescriptor();
+    if (!newDesc.IsGenericDescriptor() &&
+        isAccessor != current.IsAccessorDescriptor())
+      return false;
+    if (isAccessor) {
+      if (newDesc.flags.has_get && !SameValue(newDesc.get, current.get))
+        return false;
+      if (newDesc.flags.has_set && !SameValue(newDesc.set, current.set))
+        return false;
+    } else if (!current.flags.is_writable) {
+      if (newDesc.flags.is_writable) return false;
+      if (newDesc.flags.has_value && !SameValue(newDesc.value, current.value))
+        return false;
+    }
+  }
+
+  return true;
+}
+
+macro IsCompatiblePropertyDescriptor(
+    extensible: bool, newDesc: (PropertyDescriptorObject|Undefined),
+    current: PropertyDescriptorObject): bool {
+  // 3. If every field in Desc is absent, return true. (This also has a shortcut
+  // not in the spec: if every field value matches the current value, return.)
+  typeswitch (newDesc) {
+    case (Undefined): {
+      return true;
+    }
+    case (newDesc: PropertyDescriptorObject): {
+      return IsCompatiblePropertyDescriptor(extensible, newDesc, current);
+    }
+  }
+}
+
+@export
+macro IsCompatiblePropertyDescriptor(
+    extensible: bool, newDesc: (PropertyDescriptorObject|Undefined),
+    current: (PropertyDescriptorObject|Undefined)): bool {
+  // 2. If current is undefined, then
+  // 2a. If extensible is false, return false.
+  // 2b. If O is undefined, return true.
+  typeswitch (current) {
+    case (Undefined): {
+      return extensible;
+    }
+    case (current: PropertyDescriptorObject): {
+      return IsCompatiblePropertyDescriptor(extensible, newDesc, current);
+    }
+  }
+}
+
+@export
+macro CompletePropertyDescriptor(desc: PropertyDescriptorObject): void {
+  // 1. Let like be the Record { [[Value]]: undefined, [[Writable]]: false,
+  // [[Get]]: undefined,
+  //    [[Set]]: undefined, [[Enumerable]]: false, [[Configurable]]: false }.
+  if (!desc.IsAccessorDescriptor()) {
+    if (!desc.flags.has_value) {
+      desc.flags.has_value = true;
+      desc.value = Undefined;
+    }
+    if (!desc.flags.has_writable) {
+      desc.flags.has_writable = true;
+      desc.flags.is_writable = false;
+    }
+  } else {
+    if (!desc.flags.has_get) {
+      desc.flags.has_get = true;
+      desc.get = Undefined;
+    }
+    if (!desc.flags.has_set) {
+      desc.flags.has_set = true;
+      desc.set = Undefined;
+    }
+  }
+  if (!desc.flags.has_enumerable) {
+    desc.flags.has_enumerable = true;
+    desc.flags.is_enumerable = false;
+  }
+  if (!desc.flags.has_configurable) {
+    desc.flags.has_configurable = true;
+    desc.flags.is_configurable = false;
+  }
+}
+
+extern macro AllocatePropertyDescriptorObject(implicit context: Context)():
+    PropertyDescriptorObject;

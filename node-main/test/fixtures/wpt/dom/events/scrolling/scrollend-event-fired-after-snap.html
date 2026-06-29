@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+div {
+  position: absolute;
+}
+#scroller {
+  width: 500px;
+  height: 500px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+  border: solid black 5px;
+}
+#space {
+  width: 2000px;
+  height: 2000px;
+}
+.target {
+  width: 200px;
+  height: 200px;
+  scroll-snap-align: start;
+  background-color: blue;
+}
+</style>
+
+<body style="margin:0" onload=runTests()>
+  <div id="scroller">
+    <div id="space"></div>
+    <div class="target" style="left: 0px; top: 0px;"></div>
+    <div class="target" style="left: 80px; top: 80px;"></div>
+    <div class="target" style="left: 200px; top: 200px;"></div>
+  </div>
+</body>
+
+<script>
+var scroller = document.getElementById("scroller");
+var space = document.getElementById("space");
+const MAX_FRAME_COUNT = 700;
+const MAX_UNCHANGED_FRAME = 20;
+
+function scrollTop() {
+  return scroller.scrollTop;
+}
+
+var scroll_arrived_after_scroll_end = false;
+var scroll_end_arrived = false;
+scroller.addEventListener("scroll", () => {
+  if (scroll_end_arrived)
+    scroll_arrived_after_scroll_end = true;
+});
+scroller.addEventListener("scrollend", () => {
+  scroll_end_arrived = true;
+});
+
+function runTests() {
+  promise_test (async () => {
+    await waitForCompositorCommit();
+    await touchScrollInTarget(100, scroller, 'down');
+    // Wait for the scroll snap animation to finish.
+    await waitForAnimationEnd(scrollTop);
+    await waitFor(() => { return scroll_end_arrived; });
+    // Verify that scroll snap animation has finished before firing scrollend event.
+    assert_false(scroll_arrived_after_scroll_end);
+  }, "Tests that scrollend is fired after scroll snap animation completion.");
+
+  promise_test (async () => {
+    // Reset scroll state.
+    scroller.scrollTo(0, 0);
+    await waitForCompositorCommit();
+    scroll_end_arrived = false;
+    scroll_arrived_after_scroll_end = false;
+
+    await touchFlingInTarget(50, scroller, 'down');
+    // Wait for the scroll snap animation to finish.
+    await waitForAnimationEnd(scrollTop);
+    await waitFor(() => { return scroll_end_arrived; });
+    // Verify that scroll snap animation has finished before firing scrollend event.
+    assert_false(scroll_arrived_after_scroll_end);
+  }, "Tests that scrollend is fired after fling snap animation completion.");
+}
+</script>

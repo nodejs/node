@@ -1,0 +1,10 @@
+Test chained Promise resolutions.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS result is "hello"
+PASS result is "bye"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

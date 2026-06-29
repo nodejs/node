@@ -1,0 +1,641 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test verifies that the bit twiddling done in JavaScriptCore's integer machinery works correctly on the current platform.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS (-1).toString() is "-1"
+PASS (0).toString() is "0"
+PASS (-0).toString() is "0"
+
+bits used to store value: 8
+PASS min.toString() is "-128"
+PASS (min - 1).toString() is "-129"
+PASS max.toString() is "127"
+PASS (max + 1).toString() is "128"
+bits used to store value: 9
+PASS min.toString() is "-256"
+PASS (min - 1).toString() is "-257"
+PASS max.toString() is "255"
+PASS (max + 1).toString() is "256"
+bits used to store value: 10
+PASS min.toString() is "-512"
+PASS (min - 1).toString() is "-513"
+PASS max.toString() is "511"
+PASS (max + 1).toString() is "512"
+bits used to store value: 11
+PASS min.toString() is "-1024"
+PASS (min - 1).toString() is "-1025"
+PASS max.toString() is "1023"
+PASS (max + 1).toString() is "1024"
+bits used to store value: 12
+PASS min.toString() is "-2048"
+PASS (min - 1).toString() is "-2049"
+PASS max.toString() is "2047"
+PASS (max + 1).toString() is "2048"
+bits used to store value: 13
+PASS min.toString() is "-4096"
+PASS (min - 1).toString() is "-4097"
+PASS max.toString() is "4095"
+PASS (max + 1).toString() is "4096"
+bits used to store value: 14
+PASS min.toString() is "-8192"
+PASS (min - 1).toString() is "-8193"
+PASS max.toString() is "8191"
+PASS (max + 1).toString() is "8192"
+bits used to store value: 15
+PASS min.toString() is "-16384"
+PASS (min - 1).toString() is "-16385"
+PASS max.toString() is "16383"
+PASS (max + 1).toString() is "16384"
+bits used to store value: 16
+PASS min.toString() is "-32768"
+PASS (min - 1).toString() is "-32769"
+PASS max.toString() is "32767"
+PASS (max + 1).toString() is "32768"
+bits used to store value: 17
+PASS min.toString() is "-65536"
+PASS (min - 1).toString() is "-65537"
+PASS max.toString() is "65535"
+PASS (max + 1).toString() is "65536"
+bits used to store value: 18
+PASS min.toString() is "-131072"
+PASS (min - 1).toString() is "-131073"
+PASS max.toString() is "131071"
+PASS (max + 1).toString() is "131072"
+bits used to store value: 19
+PASS min.toString() is "-262144"
+PASS (min - 1).toString() is "-262145"
+PASS max.toString() is "262143"
+PASS (max + 1).toString() is "262144"
+bits used to store value: 20
+PASS min.toString() is "-524288"
+PASS (min - 1).toString() is "-524289"
+PASS max.toString() is "524287"
+PASS (max + 1).toString() is "524288"
+bits used to store value: 21
+PASS min.toString() is "-1048576"
+PASS (min - 1).toString() is "-1048577"
+PASS max.toString() is "1048575"
+PASS (max + 1).toString() is "1048576"
+bits used to store value: 22
+PASS min.toString() is "-2097152"
+PASS (min - 1).toString() is "-2097153"
+PASS max.toString() is "2097151"
+PASS (max + 1).toString() is "2097152"
+bits used to store value: 23
+PASS min.toString() is "-4194304"
+PASS (min - 1).toString() is "-4194305"
+PASS max.toString() is "4194303"
+PASS (max + 1).toString() is "4194304"
+bits used to store value: 24
+PASS min.toString() is "-8388608"
+PASS (min - 1).toString() is "-8388609"
+PASS max.toString() is "8388607"
+PASS (max + 1).toString() is "8388608"
+bits used to store value: 25
+PASS min.toString() is "-16777216"
+PASS (min - 1).toString() is "-16777217"
+PASS max.toString() is "16777215"
+PASS (max + 1).toString() is "16777216"
+bits used to store value: 26
+PASS min.toString() is "-33554432"
+PASS (min - 1).toString() is "-33554433"
+PASS max.toString() is "33554431"
+PASS (max + 1).toString() is "33554432"
+bits used to store value: 27
+PASS min.toString() is "-67108864"
+PASS (min - 1).toString() is "-67108865"
+PASS max.toString() is "67108863"
+PASS (max + 1).toString() is "67108864"
+bits used to store value: 28
+PASS min.toString() is "-134217728"
+PASS (min - 1).toString() is "-134217729"
+PASS max.toString() is "134217727"
+PASS (max + 1).toString() is "134217728"
+bits used to store value: 29
+PASS min.toString() is "-268435456"
+PASS (min - 1).toString() is "-268435457"
+PASS max.toString() is "268435455"
+PASS (max + 1).toString() is "268435456"
+bits used to store value: 30
+PASS min.toString() is "-536870912"
+PASS (min - 1).toString() is "-536870913"
+PASS max.toString() is "536870911"
+PASS (max + 1).toString() is "536870912"
+bits used to store value: 31
+PASS min.toString() is "-1073741824"
+PASS (min - 1).toString() is "-1073741825"
+PASS max.toString() is "1073741823"
+PASS (max + 1).toString() is "1073741824"
+bits used to store value: 32
+PASS min.toString() is "-2147483648"
+PASS (min - 1).toString() is "-2147483649"
+PASS max.toString() is "2147483647"
+PASS (max + 1).toString() is "2147483648"
+bits used to store value: 33
+PASS min.toString() is "-4294967296"
+PASS (min - 1).toString() is "-4294967297"
+PASS max.toString() is "4294967295"
+PASS (max + 1).toString() is "4294967296"
+bits used to store value: 34
+PASS min.toString() is "-8589934592"
+PASS (min - 1).toString() is "-8589934593"
+PASS max.toString() is "8589934591"
+PASS (max + 1).toString() is "8589934592"
+bits used to store value: 35
+PASS min.toString() is "-17179869184"
+PASS (min - 1).toString() is "-17179869185"
+PASS max.toString() is "17179869183"
+PASS (max + 1).toString() is "17179869184"
+bits used to store value: 36
+PASS min.toString() is "-34359738368"
+PASS (min - 1).toString() is "-34359738369"
+PASS max.toString() is "34359738367"
+PASS (max + 1).toString() is "34359738368"
+bits used to store value: 37
+PASS min.toString() is "-68719476736"
+PASS (min - 1).toString() is "-68719476737"
+PASS max.toString() is "68719476735"
+PASS (max + 1).toString() is "68719476736"
+bits used to store value: 38
+PASS min.toString() is "-137438953472"
+PASS (min - 1).toString() is "-137438953473"
+PASS max.toString() is "137438953471"
+PASS (max + 1).toString() is "137438953472"
+bits used to store value: 39
+PASS min.toString() is "-274877906944"
+PASS (min - 1).toString() is "-274877906945"
+PASS max.toString() is "274877906943"
+PASS (max + 1).toString() is "274877906944"
+bits used to store value: 40
+PASS min.toString() is "-549755813888"
+PASS (min - 1).toString() is "-549755813889"
+PASS max.toString() is "549755813887"
+PASS (max + 1).toString() is "549755813888"
+bits used to store value: 41
+PASS min.toString() is "-1099511627776"
+PASS (min - 1).toString() is "-1099511627777"
+PASS max.toString() is "1099511627775"
+PASS (max + 1).toString() is "1099511627776"
+bits used to store value: 42
+PASS min.toString() is "-2199023255552"
+PASS (min - 1).toString() is "-2199023255553"
+PASS max.toString() is "2199023255551"
+PASS (max + 1).toString() is "2199023255552"
+bits used to store value: 43
+PASS min.toString() is "-4398046511104"
+PASS (min - 1).toString() is "-4398046511105"
+PASS max.toString() is "4398046511103"
+PASS (max + 1).toString() is "4398046511104"
+bits used to store value: 44
+PASS min.toString() is "-8796093022208"
+PASS (min - 1).toString() is "-8796093022209"
+PASS max.toString() is "8796093022207"
+PASS (max + 1).toString() is "8796093022208"
+bits used to store value: 45
+PASS min.toString() is "-17592186044416"
+PASS (min - 1).toString() is "-17592186044417"
+PASS max.toString() is "17592186044415"
+PASS (max + 1).toString() is "17592186044416"
+bits used to store value: 46
+PASS min.toString() is "-35184372088832"
+PASS (min - 1).toString() is "-35184372088833"
+PASS max.toString() is "35184372088831"
+PASS (max + 1).toString() is "35184372088832"
+bits used to store value: 47
+PASS min.toString() is "-70368744177664"
+PASS (min - 1).toString() is "-70368744177665"
+PASS max.toString() is "70368744177663"
+PASS (max + 1).toString() is "70368744177664"
+bits used to store value: 48
+PASS min.toString() is "-140737488355328"
+PASS (min - 1).toString() is "-140737488355329"
+PASS max.toString() is "140737488355327"
+PASS (max + 1).toString() is "140737488355328"
+bits used to store value: 49
+PASS min.toString() is "-281474976710656"
+PASS (min - 1).toString() is "-281474976710657"
+PASS max.toString() is "281474976710655"
+PASS (max + 1).toString() is "281474976710656"
+bits used to store value: 50
+PASS min.toString() is "-562949953421312"
+PASS (min - 1).toString() is "-562949953421313"
+PASS max.toString() is "562949953421311"
+PASS (max + 1).toString() is "562949953421312"
+bits used to store value: 51
+PASS min.toString() is "-1125899906842624"
+PASS (min - 1).toString() is "-1125899906842625"
+PASS max.toString() is "1125899906842623"
+PASS (max + 1).toString() is "1125899906842624"
+bits used to store value: 52
+PASS min.toString() is "-2251799813685248"
+PASS (min - 1).toString() is "-2251799813685249"
+PASS max.toString() is "2251799813685247"
+PASS (max + 1).toString() is "2251799813685248"
+bits used to store value: 53
+PASS min.toString() is "-4503599627370496"
+PASS (min - 1).toString() is "-4503599627370497"
+PASS max.toString() is "4503599627370495"
+PASS (max + 1).toString() is "4503599627370496"
+bits used to store value: 54
+PASS min.toString() is "-9007199254740992"
+PASS (min - 1).toString() is "-9007199254740992"
+PASS max.toString() is "9007199254740991"
+PASS (max + 1).toString() is "9007199254740992"
+bits used to store value: 55
+PASS min.toString() is "-18014398509481984"
+PASS (min - 1).toString() is "-18014398509481984"
+PASS max.toString() is "18014398509481984"
+PASS (max + 1).toString() is "18014398509481984"
+bits used to store value: 56
+PASS min.toString() is "-36028797018963970"
+PASS (min - 1).toString() is "-36028797018963970"
+PASS max.toString() is "36028797018963970"
+PASS (max + 1).toString() is "36028797018963970"
+bits used to store value: 57
+PASS min.toString() is "-72057594037927940"
+PASS (min - 1).toString() is "-72057594037927940"
+PASS max.toString() is "72057594037927940"
+PASS (max + 1).toString() is "72057594037927940"
+bits used to store value: 58
+PASS min.toString() is "-144115188075855870"
+PASS (min - 1).toString() is "-144115188075855870"
+PASS max.toString() is "144115188075855870"
+PASS (max + 1).toString() is "144115188075855870"
+bits used to store value: 59
+PASS min.toString() is "-288230376151711740"
+PASS (min - 1).toString() is "-288230376151711740"
+PASS max.toString() is "288230376151711740"
+PASS (max + 1).toString() is "288230376151711740"
+bits used to store value: 60
+PASS min.toString() is "-576460752303423500"
+PASS (min - 1).toString() is "-576460752303423500"
+PASS max.toString() is "576460752303423500"
+PASS (max + 1).toString() is "576460752303423500"
+bits used to store value: 61
+PASS min.toString() is "-1152921504606847000"
+PASS (min - 1).toString() is "-1152921504606847000"
+PASS max.toString() is "1152921504606847000"
+PASS (max + 1).toString() is "1152921504606847000"
+bits used to store value: 62
+PASS min.toString() is "-2305843009213694000"
+PASS (min - 1).toString() is "-2305843009213694000"
+PASS max.toString() is "2305843009213694000"
+PASS (max + 1).toString() is "2305843009213694000"
+bits used to store value: 63
+PASS min.toString() is "-4611686018427388000"
+PASS (min - 1).toString() is "-4611686018427388000"
+PASS max.toString() is "4611686018427388000"
+PASS (max + 1).toString() is "4611686018427388000"
+bits used to store value: 64
+PASS min.toString() is "-9223372036854776000"
+PASS (min - 1).toString() is "-9223372036854776000"
+PASS max.toString() is "9223372036854776000"
+PASS (max + 1).toString() is "9223372036854776000"
+bits used to store value: 65
+PASS min.toString() is "-18446744073709552000"
+PASS (min - 1).toString() is "-18446744073709552000"
+PASS max.toString() is "18446744073709552000"
+PASS (max + 1).toString() is "18446744073709552000"
+bits used to store value: 66
+PASS min.toString() is "-36893488147419103000"
+PASS (min - 1).toString() is "-36893488147419103000"
+PASS max.toString() is "36893488147419103000"
+PASS (max + 1).toString() is "36893488147419103000"
+bits used to store value: 67
+PASS min.toString() is "-73786976294838210000"
+PASS (min - 1).toString() is "-73786976294838210000"
+PASS max.toString() is "73786976294838210000"
+PASS (max + 1).toString() is "73786976294838210000"
+bits used to store value: 68
+PASS min.toString() is "-147573952589676410000"
+PASS (min - 1).toString() is "-147573952589676410000"
+PASS max.toString() is "147573952589676410000"
+PASS (max + 1).toString() is "147573952589676410000"
+bits used to store value: 69
+PASS min.toString() is "-295147905179352830000"
+PASS (min - 1).toString() is "-295147905179352830000"
+PASS max.toString() is "295147905179352830000"
+PASS (max + 1).toString() is "295147905179352830000"
+bits used to store value: 70
+PASS min.toString() is "-590295810358705700000"
+PASS (min - 1).toString() is "-590295810358705700000"
+PASS max.toString() is "590295810358705700000"
+PASS (max + 1).toString() is "590295810358705700000"
+bits used to store value: 71
+PASS min.toString() is "-1.1805916207174113e+21"
+PASS (min - 1).toString() is "-1.1805916207174113e+21"
+PASS max.toString() is "1.1805916207174113e+21"
+PASS (max + 1).toString() is "1.1805916207174113e+21"
+bits used to store value: 72
+PASS min.toString() is "-2.3611832414348226e+21"
+PASS (min - 1).toString() is "-2.3611832414348226e+21"
+PASS max.toString() is "2.3611832414348226e+21"
+PASS (max + 1).toString() is "2.3611832414348226e+21"
+bits used to store value: 73
+PASS min.toString() is "-4.722366482869645e+21"
+PASS (min - 1).toString() is "-4.722366482869645e+21"
+PASS max.toString() is "4.722366482869645e+21"
+PASS (max + 1).toString() is "4.722366482869645e+21"
+bits used to store value: 74
+PASS min.toString() is "-9.44473296573929e+21"
+PASS (min - 1).toString() is "-9.44473296573929e+21"
+PASS max.toString() is "9.44473296573929e+21"
+PASS (max + 1).toString() is "9.44473296573929e+21"
+bits used to store value: 75
+PASS min.toString() is "-1.888946593147858e+22"
+PASS (min - 1).toString() is "-1.888946593147858e+22"
+PASS max.toString() is "1.888946593147858e+22"
+PASS (max + 1).toString() is "1.888946593147858e+22"
+bits used to store value: 76
+PASS min.toString() is "-3.777893186295716e+22"
+PASS (min - 1).toString() is "-3.777893186295716e+22"
+PASS max.toString() is "3.777893186295716e+22"
+PASS (max + 1).toString() is "3.777893186295716e+22"
+bits used to store value: 77
+PASS min.toString() is "-7.555786372591432e+22"
+PASS (min - 1).toString() is "-7.555786372591432e+22"
+PASS max.toString() is "7.555786372591432e+22"
+PASS (max + 1).toString() is "7.555786372591432e+22"
+bits used to store value: 78
+PASS min.toString() is "-1.5111572745182865e+23"
+PASS (min - 1).toString() is "-1.5111572745182865e+23"
+PASS max.toString() is "1.5111572745182865e+23"
+PASS (max + 1).toString() is "1.5111572745182865e+23"
+bits used to store value: 79
+PASS min.toString() is "-3.022314549036573e+23"
+PASS (min - 1).toString() is "-3.022314549036573e+23"
+PASS max.toString() is "3.022314549036573e+23"
+PASS (max + 1).toString() is "3.022314549036573e+23"
+bits used to store value: 80
+PASS min.toString() is "-6.044629098073146e+23"
+PASS (min - 1).toString() is "-6.044629098073146e+23"
+PASS max.toString() is "6.044629098073146e+23"
+PASS (max + 1).toString() is "6.044629098073146e+23"
+bits used to store value: 81
+PASS min.toString() is "-1.2089258196146292e+24"
+PASS (min - 1).toString() is "-1.2089258196146292e+24"
+PASS max.toString() is "1.2089258196146292e+24"
+PASS (max + 1).toString() is "1.2089258196146292e+24"
+bits used to store value: 82
+PASS min.toString() is "-2.4178516392292583e+24"
+PASS (min - 1).toString() is "-2.4178516392292583e+24"
+PASS max.toString() is "2.4178516392292583e+24"
+PASS (max + 1).toString() is "2.4178516392292583e+24"
+bits used to store value: 83
+PASS min.toString() is "-4.835703278458517e+24"
+PASS (min - 1).toString() is "-4.835703278458517e+24"
+PASS max.toString() is "4.835703278458517e+24"
+PASS (max + 1).toString() is "4.835703278458517e+24"
+bits used to store value: 84
+PASS min.toString() is "-9.671406556917033e+24"
+PASS (min - 1).toString() is "-9.671406556917033e+24"
+PASS max.toString() is "9.671406556917033e+24"
+PASS (max + 1).toString() is "9.671406556917033e+24"
+bits used to store value: 85
+PASS min.toString() is "-1.9342813113834067e+25"
+PASS (min - 1).toString() is "-1.9342813113834067e+25"
+PASS max.toString() is "1.9342813113834067e+25"
+PASS (max + 1).toString() is "1.9342813113834067e+25"
+bits used to store value: 86
+PASS min.toString() is "-3.8685626227668134e+25"
+PASS (min - 1).toString() is "-3.8685626227668134e+25"
+PASS max.toString() is "3.8685626227668134e+25"
+PASS (max + 1).toString() is "3.8685626227668134e+25"
+bits used to store value: 87
+PASS min.toString() is "-7.737125245533627e+25"
+PASS (min - 1).toString() is "-7.737125245533627e+25"
+PASS max.toString() is "7.737125245533627e+25"
+PASS (max + 1).toString() is "7.737125245533627e+25"
+bits used to store value: 88
+PASS min.toString() is "-1.5474250491067253e+26"
+PASS (min - 1).toString() is "-1.5474250491067253e+26"
+PASS max.toString() is "1.5474250491067253e+26"
+PASS (max + 1).toString() is "1.5474250491067253e+26"
+bits used to store value: 89
+PASS min.toString() is "-3.094850098213451e+26"
+PASS (min - 1).toString() is "-3.094850098213451e+26"
+PASS max.toString() is "3.094850098213451e+26"
+PASS (max + 1).toString() is "3.094850098213451e+26"
+bits used to store value: 90
+PASS min.toString() is "-6.189700196426902e+26"
+PASS (min - 1).toString() is "-6.189700196426902e+26"
+PASS max.toString() is "6.189700196426902e+26"
+PASS (max + 1).toString() is "6.189700196426902e+26"
+bits used to store value: 91
+PASS min.toString() is "-1.2379400392853803e+27"
+PASS (min - 1).toString() is "-1.2379400392853803e+27"
+PASS max.toString() is "1.2379400392853803e+27"
+PASS (max + 1).toString() is "1.2379400392853803e+27"
+bits used to store value: 92
+PASS min.toString() is "-2.4758800785707605e+27"
+PASS (min - 1).toString() is "-2.4758800785707605e+27"
+PASS max.toString() is "2.4758800785707605e+27"
+PASS (max + 1).toString() is "2.4758800785707605e+27"
+bits used to store value: 93
+PASS min.toString() is "-4.951760157141521e+27"
+PASS (min - 1).toString() is "-4.951760157141521e+27"
+PASS max.toString() is "4.951760157141521e+27"
+PASS (max + 1).toString() is "4.951760157141521e+27"
+bits used to store value: 94
+PASS min.toString() is "-9.903520314283042e+27"
+PASS (min - 1).toString() is "-9.903520314283042e+27"
+PASS max.toString() is "9.903520314283042e+27"
+PASS (max + 1).toString() is "9.903520314283042e+27"
+bits used to store value: 95
+PASS min.toString() is "-1.9807040628566084e+28"
+PASS (min - 1).toString() is "-1.9807040628566084e+28"
+PASS max.toString() is "1.9807040628566084e+28"
+PASS (max + 1).toString() is "1.9807040628566084e+28"
+bits used to store value: 96
+PASS min.toString() is "-3.961408125713217e+28"
+PASS (min - 1).toString() is "-3.961408125713217e+28"
+PASS max.toString() is "3.961408125713217e+28"
+PASS (max + 1).toString() is "3.961408125713217e+28"
+bits used to store value: 97
+PASS min.toString() is "-7.922816251426434e+28"
+PASS (min - 1).toString() is "-7.922816251426434e+28"
+PASS max.toString() is "7.922816251426434e+28"
+PASS (max + 1).toString() is "7.922816251426434e+28"
+bits used to store value: 98
+PASS min.toString() is "-1.5845632502852868e+29"
+PASS (min - 1).toString() is "-1.5845632502852868e+29"
+PASS max.toString() is "1.5845632502852868e+29"
+PASS (max + 1).toString() is "1.5845632502852868e+29"
+bits used to store value: 99
+PASS min.toString() is "-3.1691265005705735e+29"
+PASS (min - 1).toString() is "-3.1691265005705735e+29"
+PASS max.toString() is "3.1691265005705735e+29"
+PASS (max + 1).toString() is "3.1691265005705735e+29"
+bits used to store value: 100
+PASS min.toString() is "-6.338253001141147e+29"
+PASS (min - 1).toString() is "-6.338253001141147e+29"
+PASS max.toString() is "6.338253001141147e+29"
+PASS (max + 1).toString() is "6.338253001141147e+29"
+bits used to store value: 101
+PASS min.toString() is "-1.2676506002282294e+30"
+PASS (min - 1).toString() is "-1.2676506002282294e+30"
+PASS max.toString() is "1.2676506002282294e+30"
+PASS (max + 1).toString() is "1.2676506002282294e+30"
+bits used to store value: 102
+PASS min.toString() is "-2.535301200456459e+30"
+PASS (min - 1).toString() is "-2.535301200456459e+30"
+PASS max.toString() is "2.535301200456459e+30"
+PASS (max + 1).toString() is "2.535301200456459e+30"
+bits used to store value: 103
+PASS min.toString() is "-5.070602400912918e+30"
+PASS (min - 1).toString() is "-5.070602400912918e+30"
+PASS max.toString() is "5.070602400912918e+30"
+PASS (max + 1).toString() is "5.070602400912918e+30"
+bits used to store value: 104
+PASS min.toString() is "-1.0141204801825835e+31"
+PASS (min - 1).toString() is "-1.0141204801825835e+31"
+PASS max.toString() is "1.0141204801825835e+31"
+PASS (max + 1).toString() is "1.0141204801825835e+31"
+bits used to store value: 105
+PASS min.toString() is "-2.028240960365167e+31"
+PASS (min - 1).toString() is "-2.028240960365167e+31"
+PASS max.toString() is "2.028240960365167e+31"
+PASS (max + 1).toString() is "2.028240960365167e+31"
+bits used to store value: 106
+PASS min.toString() is "-4.056481920730334e+31"
+PASS (min - 1).toString() is "-4.056481920730334e+31"
+PASS max.toString() is "4.056481920730334e+31"
+PASS (max + 1).toString() is "4.056481920730334e+31"
+bits used to store value: 107
+PASS min.toString() is "-8.112963841460668e+31"
+PASS (min - 1).toString() is "-8.112963841460668e+31"
+PASS max.toString() is "8.112963841460668e+31"
+PASS (max + 1).toString() is "8.112963841460668e+31"
+bits used to store value: 108
+PASS min.toString() is "-1.6225927682921336e+32"
+PASS (min - 1).toString() is "-1.6225927682921336e+32"
+PASS max.toString() is "1.6225927682921336e+32"
+PASS (max + 1).toString() is "1.6225927682921336e+32"
+bits used to store value: 109
+PASS min.toString() is "-3.2451855365842673e+32"
+PASS (min - 1).toString() is "-3.2451855365842673e+32"
+PASS max.toString() is "3.2451855365842673e+32"
+PASS (max + 1).toString() is "3.2451855365842673e+32"
+bits used to store value: 110
+PASS min.toString() is "-6.490371073168535e+32"
+PASS (min - 1).toString() is "-6.490371073168535e+32"
+PASS max.toString() is "6.490371073168535e+32"
+PASS (max + 1).toString() is "6.490371073168535e+32"
+bits used to store value: 111
+PASS min.toString() is "-1.298074214633707e+33"
+PASS (min - 1).toString() is "-1.298074214633707e+33"
+PASS max.toString() is "1.298074214633707e+33"
+PASS (max + 1).toString() is "1.298074214633707e+33"
+bits used to store value: 112
+PASS min.toString() is "-2.596148429267414e+33"
+PASS (min - 1).toString() is "-2.596148429267414e+33"
+PASS max.toString() is "2.596148429267414e+33"
+PASS (max + 1).toString() is "2.596148429267414e+33"
+bits used to store value: 113
+PASS min.toString() is "-5.192296858534828e+33"
+PASS (min - 1).toString() is "-5.192296858534828e+33"
+PASS max.toString() is "5.192296858534828e+33"
+PASS (max + 1).toString() is "5.192296858534828e+33"
+bits used to store value: 114
+PASS min.toString() is "-1.0384593717069655e+34"
+PASS (min - 1).toString() is "-1.0384593717069655e+34"
+PASS max.toString() is "1.0384593717069655e+34"
+PASS (max + 1).toString() is "1.0384593717069655e+34"
+bits used to store value: 115
+PASS min.toString() is "-2.076918743413931e+34"
+PASS (min - 1).toString() is "-2.076918743413931e+34"
+PASS max.toString() is "2.076918743413931e+34"
+PASS (max + 1).toString() is "2.076918743413931e+34"
+bits used to store value: 116
+PASS min.toString() is "-4.153837486827862e+34"
+PASS (min - 1).toString() is "-4.153837486827862e+34"
+PASS max.toString() is "4.153837486827862e+34"
+PASS (max + 1).toString() is "4.153837486827862e+34"
+bits used to store value: 117
+PASS min.toString() is "-8.307674973655724e+34"
+PASS (min - 1).toString() is "-8.307674973655724e+34"
+PASS max.toString() is "8.307674973655724e+34"
+PASS (max + 1).toString() is "8.307674973655724e+34"
+bits used to store value: 118
+PASS min.toString() is "-1.661534994731145e+35"
+PASS (min - 1).toString() is "-1.661534994731145e+35"
+PASS max.toString() is "1.661534994731145e+35"
+PASS (max + 1).toString() is "1.661534994731145e+35"
+bits used to store value: 119
+PASS min.toString() is "-3.32306998946229e+35"
+PASS (min - 1).toString() is "-3.32306998946229e+35"
+PASS max.toString() is "3.32306998946229e+35"
+PASS (max + 1).toString() is "3.32306998946229e+35"
+bits used to store value: 120
+PASS min.toString() is "-6.64613997892458e+35"
+PASS (min - 1).toString() is "-6.64613997892458e+35"
+PASS max.toString() is "6.64613997892458e+35"
+PASS (max + 1).toString() is "6.64613997892458e+35"
+bits used to store value: 121
+PASS min.toString() is "-1.329227995784916e+36"
+PASS (min - 1).toString() is "-1.329227995784916e+36"
+PASS max.toString() is "1.329227995784916e+36"
+PASS (max + 1).toString() is "1.329227995784916e+36"
+bits used to store value: 122
+PASS min.toString() is "-2.658455991569832e+36"
+PASS (min - 1).toString() is "-2.658455991569832e+36"
+PASS max.toString() is "2.658455991569832e+36"
+PASS (max + 1).toString() is "2.658455991569832e+36"
+bits used to store value: 123
+PASS min.toString() is "-5.316911983139664e+36"
+PASS (min - 1).toString() is "-5.316911983139664e+36"
+PASS max.toString() is "5.316911983139664e+36"
+PASS (max + 1).toString() is "5.316911983139664e+36"
+bits used to store value: 124
+PASS min.toString() is "-1.0633823966279327e+37"
+PASS (min - 1).toString() is "-1.0633823966279327e+37"
+PASS max.toString() is "1.0633823966279327e+37"
+PASS (max + 1).toString() is "1.0633823966279327e+37"
+bits used to store value: 125
+PASS min.toString() is "-2.1267647932558654e+37"
+PASS (min - 1).toString() is "-2.1267647932558654e+37"
+PASS max.toString() is "2.1267647932558654e+37"
+PASS (max + 1).toString() is "2.1267647932558654e+37"
+bits used to store value: 126
+PASS min.toString() is "-4.253529586511731e+37"
+PASS (min - 1).toString() is "-4.253529586511731e+37"
+PASS max.toString() is "4.253529586511731e+37"
+PASS (max + 1).toString() is "4.253529586511731e+37"
+bits used to store value: 127
+PASS min.toString() is "-8.507059173023462e+37"
+PASS (min - 1).toString() is "-8.507059173023462e+37"
+PASS max.toString() is "8.507059173023462e+37"
+PASS (max + 1).toString() is "8.507059173023462e+37"
+bits used to store value: 128
+PASS min.toString() is "-1.7014118346046923e+38"
+PASS (min - 1).toString() is "-1.7014118346046923e+38"
+PASS max.toString() is "1.7014118346046923e+38"
+PASS (max + 1).toString() is "1.7014118346046923e+38"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

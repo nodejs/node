@@ -1,0 +1,213 @@
+.TH "NPM-VIEW" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-view\fR - View registry info
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm view \[lB]<package-spec>\[rB] \[lB]<field>\[lB].subfield\[rB]...\[rB]
+
+aliases: info, show, v
+.fi
+.RE
+.SS "Description"
+.P
+This command shows data about a package and prints it to stdout.
+.P
+As an example, to view information about the \fBconnect\fR package from the registry, you would run:
+.P
+.RS 2
+.nf
+npm view connect
+.fi
+.RE
+.P
+The default version is \fB"latest"\fR if unspecified.
+.P
+Field names can be specified after the package descriptor. For example, to show the dependencies of the \fBronn\fR package at version \fB0.3.5\fR, you could do the following:
+.P
+.RS 2
+.nf
+npm view ronn@0.3.5 dependencies
+.fi
+.RE
+.P
+By default, \fBnpm view\fR shows data about the current project context (by looking for a \fBpackage.json\fR). To show field data for the current project use a file path (i.e. \fB.\fR):
+.P
+.RS 2
+.nf
+npm view . dependencies
+.fi
+.RE
+.P
+You can view child fields by separating them with a period. To view the git repository URL for the latest version of \fBnpm\fR, you would run the following command:
+.P
+.RS 2
+.nf
+npm view npm repository.url
+.fi
+.RE
+.P
+This makes it easy to view information about a dependency with a bit of shell scripting. For example, to view all the data about the version of \fBopts\fR that \fBronn\fR depends on, you could write the following:
+.P
+.RS 2
+.nf
+npm view opts@$(npm view ronn dependencies.opts)
+.fi
+.RE
+.P
+For fields that are arrays, requesting a non-numeric field will return all of the values from the objects in the list. For example, to get all the contributor email addresses for the \fBexpress\fR package, you would run:
+.P
+.RS 2
+.nf
+npm view express contributors.email
+.fi
+.RE
+.P
+You may also use numeric indices in square braces to specifically select an item in an array field. To just get the email address of the first contributor in the list, you can run:
+.P
+.RS 2
+.nf
+npm view express contributors\[lB]0\[rB].email
+.fi
+.RE
+.P
+If the field value you are querying for is a property of an object, you should run:
+.P
+.RS 2
+.nf
+npm view express time'\[lB]4.8.0\[rB]'
+.fi
+.RE
+.P
+Multiple fields may be specified, and will be printed one after another. For example, to get all the contributor names and email addresses, you can do this:
+.P
+.RS 2
+.nf
+npm view express contributors.name contributors.email
+.fi
+.RE
+.P
+"Person" fields are shown as a string if they would be shown as an object. So, for example, this will show the list of \fBnpm\fR contributors in the shortened string format. (See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more on this.)
+.P
+.RS 2
+.nf
+npm view npm contributors
+.fi
+.RE
+.P
+If a version range is provided, then data will be printed for every matching version of the package. This will show which version of \fBjsdom\fR was required by each matching version of \fByui3\fR:
+.P
+.RS 2
+.nf
+npm view yui3@'>0.5.4' dependencies.jsdom
+.fi
+.RE
+.P
+To show the \fBconnect\fR package version history, you can do this:
+.P
+.RS 2
+.nf
+npm view connect versions
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "Output"
+.P
+If only a single string field for a single version is output, then it will not be colorized or quoted, to enable piping the output to another command. If the field is an object, it will be output as a JavaScript object literal.
+.P
+If the \fB--json\fR flag is given, the outputted fields will be JSON.
+.P
+If the version range matches multiple versions then each printed value will be prefixed with the version it applies to.
+.P
+If multiple fields are requested, then each of them is prefixed with the field name.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help search
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help docs
+.RE 0

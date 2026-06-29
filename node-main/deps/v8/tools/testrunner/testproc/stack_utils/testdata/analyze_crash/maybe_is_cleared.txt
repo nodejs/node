@@ -1,0 +1,21 @@
+
+
+#
+# Fatal error in ../../src/objects/code-inl.h, line 1210
+# Check failed: !maybe.IsCleared().
+#
+#
+#
+#FailureMessage Object: 0x7ffc7bce3850
+==== C stack trace ===============================
+
+    /b/s/w/ir/out/build/libv8_libbase.so(v8::base::debug::StackTrace::StackTrace()+0x13) [0x7f943d292143]
+    /b/s/w/ir/out/build/libv8_libplatform.so(+0x1c1bd) [0x7f943d2421bd]
+    /b/s/w/ir/out/build/libv8_libbase.so(V8_Fatal(char const*, int, char const*, ...)+0x153) [0x7f943d2758b3]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::DeoptimizationLiteralArray::get(int) const+0xcd) [0x7f943bbea88d]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::TranslatedState::CreateNextTranslatedValue(int, v8::internal::TranslationArrayIterator*, v8::internal::DeoptimizationLiteralArray, unsigned long, v8::internal::RegisterValues*, _IO_FILE*)+0x7b7) [0x7f943bbee387]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::TranslatedState::Init(v8::internal::Isolate*, unsigned long, unsigned long, v8::internal::TranslationArrayIterator*, v8::internal::DeoptimizationLiteralArray, v8::internal::RegisterValues*, _IO_FILE*, int, int)+0x41f) [0x7f943bbefe5f]
+    /b/s/w/ir/out/build/libv8.so(v8::internal::Deoptimizer::DoComputeOutputFrames()+0x8ab) [0x7f943bbde04b]
+    [0xd3007600544]
+Received signal 6
+Aborted (core dumped)

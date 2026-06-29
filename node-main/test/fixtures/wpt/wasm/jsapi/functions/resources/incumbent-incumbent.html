@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Incumbent page used as a test helper</title>
+
+<script src="/wasm/jsapi/wasm-module-builder.js"></script>
+<script src="/wasm/jsapi/functions/helper.js"></script>
+
+<iframe src="relevant/relevant.html" id="r"></iframe>
+<iframe src="current/current.html" id="c"></iframe>
+
+<script>
+const relevant = document.querySelector("#r");
+const current = document.querySelector("#c");
+
+window.runWindowPostMessageVeryIndirectly = (...args) => {
+  return current.contentWindow.postMessage.call(relevant.contentWindow, ...args);
+};
+
+// This tests the backup incumbent settings object stack scenario, by avoiding putting user code on the stack.
+window.runWindowPostMessageVeryIndirectlyWithNoUserCode = (...args) => {
+  const runWindowPostMessage = current.contentWindow.postMessage.bind(relevant.contentWindow, ...args);
+  call_later(runWindowPostMessage);
+};
+</script>

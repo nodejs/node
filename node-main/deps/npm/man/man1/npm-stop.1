@@ -1,0 +1,75 @@
+.TH "NPM-STOP" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-stop\fR - Stop a package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stop \[lB]-- <args>\[rB]
+.fi
+.RE
+.SS "Description"
+.P
+This runs a predefined command specified in the "stop" property of a package's "scripts" object.
+.P
+Unlike with npm help start, there is no default script that will run if the \fB"stop"\fR property is not defined.
+.SS "Example"
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "stop": "node bar.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm stop
+
+> npm@x.x.x stop
+> node bar.js
+
+(bar.js output would be here)
+
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBignore-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not run scripts specified in package.json files.
+.P
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm
+run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBscript-shell\fR"
+.RS 0
+.IP \(bu 4
+Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+The shell to use for scripts run with the \fBnpm exec\fR, \fBnpm run\fR and \fBnpm init <package-spec>\fR commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help run
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+npm help test
+.IP \(bu 4
+npm help start
+.IP \(bu 4
+npm help restart
+.RE 0

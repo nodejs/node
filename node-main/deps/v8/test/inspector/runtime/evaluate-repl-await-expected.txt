@@ -1,0 +1,81 @@
+Tests that top-level await in Runtime.evaluate REPL mode includes stack trace.
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                type : undefined
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 0
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 6
+            exception : {
+                className : Error
+                description : Error: ba dum tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 2
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 12
+                        functionName : bar
+                        lineNumber : 2
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 6
+                        functionName : foo
+                        lineNumber : 6
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [2] : {
+                        columnNumber : 4
+                        functionName : 
+                        lineNumber : 9
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            className : Error
+            description : Error: ba dum tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

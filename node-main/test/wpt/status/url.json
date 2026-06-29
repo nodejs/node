@@ -1,0 +1,19 @@
+{
+  "percent-encoding.window.js": {
+    "skip": "TODO: port from .window.js"
+  },
+  "historical.any.js": {
+    "fail": {
+      "note": "We are faking location with a URL object for the sake of the testharness and it has searchParams.",
+      "expected": [
+        "searchParams on location object"
+      ]
+    }
+  },
+  "url-setters-a-area.window.js": {
+    "skip": "already tested in url-setters.any.js"
+  },
+  "javascript-urls.window.js": {
+    "skip": "requires document.body reference"
+  }
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>This tests transfer size of resource timing when loaded from memory cache.</title>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="resources/entry-invariants.js"></script>
+</head>
+
+<body>
+  <script>
+    function getScript(url) {
+      const script = document.createElement("script");
+      const loaded = new Promise(resolve => {
+        script.onload = script.onerror = resolve;
+      });
+      script.src = url;
+      document.body.appendChild(script);
+      return loaded;
+    }
+    function add_iframe(url) {
+      return new Promise(function (resolve) {
+        var frame = document.createElement('iframe');
+        frame.src = url;
+        frame.onload = function () { resolve(frame); };
+        document.body.appendChild(frame);
+      });
+    }
+    promise_test(async t => {
+      // Add unique token to url so that each run the url is different to avoid
+      // flakiness.
+      let url = 'resources/resource_timing_test0.js?unique=' +
+        Math.random().toString().substr(2);
+      let frame;
+      return add_iframe('resources/iframe-load-from-mem-cache-transfer-size.html')
+        .then((f) => {
+          frame = f;
+          // Load script onto iframe in order to get it into the memory cache.
+          return frame.contentWindow.getScript(url.split('/')[1])
+        })
+        .then(() => {
+          // Verify that the transferSize in case of normal load is greater than
+          // 0.
+          assert_positive_(
+            frame.contentWindow.performance.getEntriesByType('resource')
+              .filter(e => e.name.includes(url))[0], ['transferSize']);
+
+          // Load the same script onto the parent document. This time the script
+          // is coming from memory cache.
+          return getScript(url);
+        })
+        .then(() => {
+          // Verify that the transferSize in case of memory cache load is 0.
+          assert_zeroed_(
+            window.performance.getEntriesByType('resource')
+              .filter(e => e.name.includes(url))[0], ['transferSize']);
+        });
+    }, "The transferSize of resource timing entries should be 0 when resource \
+    is loaded from memory cache.");
+  </script>
+</body>
+
+</html>

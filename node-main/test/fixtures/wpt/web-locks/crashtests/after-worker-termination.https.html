@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<meta charset="utf-8">
+<script>
+  const script = `
+    postMessage("hi");
+    // This line runs until worker.terminate() happens, which terminates this function too.
+    self.reportError(new Int16Array(2147483648))
+    // And thus this line runs after the termination.
+    navigator.locks.request("weblock_0", () => {});
+  `;
+  const worker = new Worker(URL.createObjectURL(new Blob([script])));
+  worker.onmessage = () => {
+    worker.terminate();
+
+    // We want to wait for the full termination but there is no API for that
+    // So, just wait for a random time
+    setTimeout(() => document.documentElement.classList.remove("test-wait"), 100);
+  }
+</script>

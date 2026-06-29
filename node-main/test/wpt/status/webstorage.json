@@ -1,0 +1,51 @@
+{
+  "event_constructor.window.js": {
+    "skip": "StorageEvent is currently unimplemented."
+  },
+  "event_initstorageevent.window.js": {
+    "skip": "StorageEvent is currently unimplemented."
+  },
+  "localstorage-cross-origin-iframe.tentative.https.window.js": {
+    "skip": "iframes are not supported in Node.js."
+  },
+  "localstorage-cross-origin-iframe.https.window.js": {
+    "skip": "iframes are not supported in Node.js."
+  },
+  "storage_local_window_open.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_noopener.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_open.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_window_reopen.window.js": {
+    "skip": "window.open() is not supported in Node.js."
+  },
+  "storage_session_setitem_quotaexceedederr.window.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/issues/58987",
+      "expected": [
+        "Throws QuotaExceededError when the quota has been exceeded"
+      ]
+    }
+  },
+  "storage_local_setitem_quotaexceedederr.window.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/issues/58987",
+      "expected": [
+        "Throws QuotaExceededError when the quota has been exceeded"
+      ]
+    }
+  },
+  "symbol-props.window.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/issues/59310",
+      "expected": [
+        "localStorage: defineProperty not configurable",
+        "sessionStorage: defineProperty not configurable"
+      ]
+    }
+  }
+}

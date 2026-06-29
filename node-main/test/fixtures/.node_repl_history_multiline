@@ -1,0 +1,4 @@
+]  }    ]      }        b: 4,        a: 3,      {    c: [{ a: 1, b: 2 },    b: 4,    a: 3,  {  },    b: 2,    a: 1,  {var d = [
+]  }    b: 2,    a: 1,  {const c = [
+]`  4,  3,  2,  1,`const b = [
+I can be as long as I want`I am a multiline stringa = `

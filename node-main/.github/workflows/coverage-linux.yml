@@ -1,0 +1,90 @@
+name: Coverage Linux
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
+      - codecov.yml
+      - .nycrc
+  push:
+    branches:
+      - main
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
+      - codecov.yml
+      - .nycrc
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  CLANG_VERSION: '19'
+  CC: sccache clang-19
+  CXX: sccache clang++-19
+  SCCACHE_GHA_ENABLED: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-linux:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Set up sccache
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.10.0
+      - name: Environment Information
+        run: npx envinfo
+      - name: Install gcovr
+        run: pip install gcovr==7.2
+      - name: Build
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
+      # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
+      # The cause is most likely coverage's use of the inspector.
+      - name: Test
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots  --measure-flakiness 9" || exit 0
+      - name: Report JS
+        run: npx c8 report --check-coverage
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+      - name: Report C++
+        run: gcovr --object-directory=out -v --filter src --xml -o ./coverage/coverage-cxx.xml --root=./ --gcov-executable="llvm-cov-18 gcov"
+      # Clean temporary output from gcov and c8, so that it's not uploaded:
+      - name: Clean tmp
+        run: rm -rf coverage/tmp && rm -rf out
+      - name: Upload
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7  # v5.5.1
+        with:
+          directory: ./coverage

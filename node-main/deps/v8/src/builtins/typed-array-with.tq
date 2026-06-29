@@ -1,0 +1,97 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array {
+const kBuiltinNameWith: constexpr string = '%TypedArray%.prototype.with';
+
+// ES#sec-%typedarray%.prototype.with
+transitioning javascript builtin TypedArrayPrototypeWith(
+    js-implicit context: NativeContext, receiver: JSAny)(index: JSAny,
+    valueArg: JSAny): JSAny {
+  try {
+    // 1. Let O be the this value.
+    // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
+    // 3. Let len be TypedArrayLength(taRecord).
+    const array: JSTypedArray =
+        Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
+    let attachedArrayAndLength = EnsureAttachedAndReadLength(array)
+        otherwise IsDetachedOrOutOfBounds;
+    const originalLength = attachedArrayAndLength.length;
+
+    // 4. Let relativeIndex be ? ToIntegerOrInfinity(index).
+    const relativeIndex = ToInteger_Inline(index);
+
+    let value: JSAny;
+    if (IsBigInt64ElementsKind(array.elements_kind)) {
+      // 7. If O.[[ContentType]] is BigInt, set value to ? ToBigInt(value).
+      value = ToBigInt(context, valueArg);
+    } else {
+      // 8. Else, set value to ? ToNumber(value).
+      value = ToNumber_Inline(valueArg);
+    }
+
+    // 5. If relativeIndex ≥ 0, let actualIndex be relativeIndex.
+    // 6. Else, let actualIndex be len + relativeIndex.
+    // (Reordered from above to be done after argument coercion, which might
+    // have resized the buffer.)
+    //
+    // 9. If IsValidIntegerIndex(O, 𝔽(actualIndex)) is false, throw a
+    // RangeError exception.
+    attachedArrayAndLength = EnsureAttachedAndReadLength(array)
+        otherwise IndexOutOfBounds;
+    const actualIndex: uintptr =
+        ConvertRelativeIndex(relativeIndex, attachedArrayAndLength.length)
+        otherwise IndexOutOfBounds, IndexOutOfBounds;
+
+    // 10. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
+    const copy = TypedArrayCreateSameType(array, originalLength);
+    const fastCopyableLength =
+        UintPtrMin(originalLength, attachedArrayAndLength.length);
+
+    // Steps 11-12's copy loop implemented by memmove.
+    const info = GetTypedArrayElementsInfo(copy);
+    // Since the receiver was not too big, the new typed array cannot be too
+    // big, so the error case is unreachable.
+    const countBytes: uintptr =
+        info.CalculateByteLength(fastCopyableLength) otherwise unreachable;
+    // TypedArrayCreateSameType always use built-in constructors, and so cannot
+    // cause the source TypedArray to become detached or OOB.
+    const srcPtr: RawPtr = array.data_ptr;
+
+    if (IsSharedArrayBuffer(array.buffer)) {
+      CallCRelaxedMemmove(copy.data_ptr, srcPtr, countBytes);
+    } else {
+      CallCMemmove(copy.data_ptr, srcPtr, countBytes);
+    }
+
+    // b. If k is actualIndex, then
+    //   i. Perform ? Set(A, Pk, value, true).
+    const accessor: TypedArrayAccessor =
+        GetTypedArrayAccessor(copy.elements_kind);
+    if (actualIndex < originalLength) {
+      accessor.StoreJSAnyInBounds(context, copy, actualIndex, value);
+    }
+
+    // Fill the remainder with undefined, in case of resize during parameter
+    // conversion. This is not the same as doing nothing because:
+    // - Undefined convert to NaN, which is observable when stored into
+    //   Float32 and Float64Arrays
+    // - Undefined cannot convert to BigInt and throws
+    let k: uintptr = fastCopyableLength;
+    while (k < copy.length) {
+      accessor.StoreJSAnyInBounds(context, copy, k, Undefined);
+      ++k;
+    }
+
+    // 11. Return A.
+    return copy;
+  } label IndexOutOfBounds deferred {
+    ThrowRangeError(MessageTemplate::kInvalidTypedArrayIndex);
+  } label NotTypedArray deferred {
+    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameWith);
+  } label IsDetachedOrOutOfBounds deferred {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameWith);
+  }
+}
+}

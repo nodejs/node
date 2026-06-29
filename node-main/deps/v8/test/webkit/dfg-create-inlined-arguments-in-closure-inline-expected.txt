@@ -1,0 +1,232 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests that if the DFG tries to create inlined arguments from within an inlined call frame corresponding to a closure call, then we don't crash.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS value is 5
+PASS value is 6
+PASS value is 7
+PASS value is 8
+PASS value is 9
+PASS value is 10
+PASS value is 11
+PASS value is 12
+PASS value is 13
+PASS value is 14
+PASS value is 15
+PASS value is 16
+PASS value is 17
+PASS value is 18
+PASS value is 19
+PASS value is 20
+PASS value is 21
+PASS value is 22
+PASS value is 23
+PASS value is 24
+PASS value is 25
+PASS value is 26
+PASS value is 27
+PASS value is 28
+PASS value is 29
+PASS value is 30
+PASS value is 31
+PASS value is 32
+PASS value is 33
+PASS value is 34
+PASS value is 35
+PASS value is 36
+PASS value is 37
+PASS value is 38
+PASS value is 39
+PASS value is 40
+PASS value is 41
+PASS value is 42
+PASS value is 43
+PASS value is 44
+PASS value is 45
+PASS value is 46
+PASS value is 47
+PASS value is 48
+PASS value is 49
+PASS value is 50
+PASS value is 51
+PASS value is 52
+PASS value is 53
+PASS value is 54
+PASS value is 55
+PASS value is 56
+PASS value is 57
+PASS value is 58
+PASS value is 59
+PASS value is 60
+PASS value is 61
+PASS value is 62
+PASS value is 63
+PASS value is 64
+PASS value is 65
+PASS value is 66
+PASS value is 67
+PASS value is 68
+PASS value is 69
+PASS value is 70
+PASS value is 71
+PASS value is 72
+PASS value is 73
+PASS value is 74
+PASS value is 75
+PASS value is 76
+PASS value is 77
+PASS value is 78
+PASS value is 79
+PASS value is 80
+PASS value is 81
+PASS value is 82
+PASS value is 83
+PASS value is 84
+PASS value is 85
+PASS value is 86
+PASS value is 87
+PASS value is 88
+PASS value is 89
+PASS value is 90
+PASS value is 91
+PASS value is 92
+PASS value is 93
+PASS value is 94
+PASS value is 95
+PASS value is 96
+PASS value is 97
+PASS value is 98
+PASS value is 99
+PASS value is 100
+PASS value is 101
+PASS value is 102
+PASS value is 103
+PASS value is 104
+PASS value is 105
+PASS value is 106
+PASS value is 107
+PASS value is 108
+PASS value is 109
+PASS value is 110
+PASS value is 111
+PASS value is 112
+PASS value is 113
+PASS value is 114
+PASS value is 115
+PASS value is 116
+PASS value is 117
+PASS value is 118
+PASS value is 119
+PASS value is 120
+PASS value is 121
+PASS value is 122
+PASS value is 123
+PASS value is 124
+PASS value is 125
+PASS value is 126
+PASS value is 127
+PASS value is 128
+PASS value is 129
+PASS value is 130
+PASS value is 131
+PASS value is 132
+PASS value is 133
+PASS value is 134
+PASS value is 135
+PASS value is 136
+PASS value is 137
+PASS value is 138
+PASS value is 139
+PASS value is 140
+PASS value is 141
+PASS value is 142
+PASS value is 143
+PASS value is 144
+PASS value is 145
+PASS value is 146
+PASS value is 147
+PASS value is 148
+PASS value is 149
+PASS value is 150
+PASS value is 151
+PASS value is 152
+PASS value is 153
+PASS value is 154
+PASS value is 155
+PASS value is 156
+PASS value is 157
+PASS value is 158
+PASS value is 159
+PASS value is 160
+PASS value is 161
+PASS value is 162
+PASS value is 163
+PASS value is 164
+PASS value is 165
+PASS value is 166
+PASS value is 167
+PASS value is 168
+PASS value is 169
+PASS value is 170
+PASS value is 171
+PASS value is 172
+PASS value is 173
+PASS value is 174
+PASS value is 175
+PASS value is 176
+PASS value is 177
+PASS value is 178
+PASS value is 179
+PASS value is 180
+PASS value is 181
+PASS value is 182
+PASS value is 183
+PASS value is 184
+PASS value is 185
+PASS value is 186
+PASS value is 187
+PASS value is 188
+PASS value is 189
+PASS value is 190
+PASS value is 191
+PASS value is 192
+PASS value is 193
+PASS value is 194
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS value is 5.5
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

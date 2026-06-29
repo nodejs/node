@@ -1,0 +1,250 @@
+Test for Runtime.addBinding.
+
+Running test: testBasic
+
+Add binding inside session1..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Add binding inside session2..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Disable agent inside session1..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Disable agent inside session2..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Enable agent inside session1..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Running test: testReconnect
+
+Add binding inside session..
+Reconnect..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Running test: testBindingOverrides
+
+Add send function on global object..
+Add binding inside session..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Running test: testRemoveBinding
+
+Add binding inside session..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+Remove binding inside session..
+Call binding..
+
+Running test: testAddBindingToContextById
+Call binding in default context (binding should NOT be exposed)
+Call binding in target context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in newly created context (binding should NOT be exposed)
+
+Running test: testAddBindingToMultipleContextsById
+Call binding in default context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in target context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+
+Running test: testAddBindingToMultipleContextsInDifferentContextGroups
+Call binding in default context (binding should be exposed)
+binding called in group1/session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in target context (binding should be exposed)
+binding called in group2/session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+
+Running test: testAddBindingToContextByName
+Call binding in default context (binding should NOT be exposed)
+Call binding in Foo (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in Bar (binding should NOT be exposed)
+Call binding in newly-created Foo (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in newly-created Bazz (binding should NOT be exposed)
+
+Running test: testErrors
+{
+    error : {
+        code : -32602
+        message : Invalid executionContextName
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32602
+        message : executionContextName is mutually exclusive with executionContextId
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32602
+        message : Cannot find execution context with given executionContextId
+    }
+    id : <messageId>
+}
