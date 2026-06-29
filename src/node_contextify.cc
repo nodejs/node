@@ -89,6 +89,36 @@ using v8::Symbol;
 using v8::UnboundScript;
 using v8::Value;
 
+// This is a helper function mediates deleted v8::PropertyDescriptor copy/move.
+// The `Fn` receives a mutable reference of a stack allocated
+// PropertyDescriptor, copied from the passed in const reference of
+// PropertyDescriptor.
+template <typename Fn>
+auto WithPropertyDescriptorCopied(Isolate* isolate,
+                                  const PropertyDescriptor& desc,
+                                  Fn&& callback) {
+  auto apply_attrs = [&](PropertyDescriptor& d) {
+    if (desc.has_enumerable()) d.set_enumerable(desc.enumerable());
+    if (desc.has_configurable()) d.set_configurable(desc.configurable());
+    return callback(d);
+  };
+  if (desc.has_get() || desc.has_set()) {
+    PropertyDescriptor d(
+        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
+        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
+    return apply_attrs(d);
+  } else if (desc.has_value()) {
+    if (desc.has_writable()) {
+      PropertyDescriptor d(desc.value(), desc.writable());
+      return apply_attrs(d);
+    }
+    PropertyDescriptor d(desc.value());
+    return apply_attrs(d);
+  }
+  PropertyDescriptor d;
+  return apply_attrs(d);
+}
+
 // The vm module executes code in a sandboxed environment with a different
 // global object than the rest of the code. This is achieved by applying
 // every call that changes or queries a property on the global `this` in the
@@ -692,41 +722,13 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
-  auto define_prop_on_sandbox =
-      [&] (PropertyDescriptor* desc_for_sandbox) {
-        if (desc.has_enumerable()) {
-          desc_for_sandbox->set_enumerable(desc.enumerable());
-        }
-        if (desc.has_configurable()) {
-          desc_for_sandbox->set_configurable(desc.configurable());
-        }
-        return sandbox->DefineProperty(context, property, *desc_for_sandbox);
-      };
+  auto result =
+      WithPropertyDescriptorCopied(isolate, desc, [&](PropertyDescriptor& d) {
+        return sandbox->DefineProperty(context, property, d);
+      });
 
-  if (desc.has_get() || desc.has_set()) {
-    PropertyDescriptor desc_for_sandbox(
-        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
-        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
-
-    if (define_prop_on_sandbox(&desc_for_sandbox).FromMaybe(false))
-      return Intercepted::kYes;
-    return Intercepted::kNo;
-  } else {
-    Local<Value> value =
-        desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
-
-    Maybe<bool> result;
-    if (desc.has_writable()) {
-      PropertyDescriptor desc_for_sandbox(value, desc.writable());
-      result = define_prop_on_sandbox(&desc_for_sandbox);
-    } else {
-      PropertyDescriptor desc_for_sandbox(value);
-      result = define_prop_on_sandbox(&desc_for_sandbox);
-    }
-
-    if (result.FromMaybe(false)) return Intercepted::kYes;
-    return Intercepted::kNo;
-  }
+  if (result.FromMaybe(false)) return Intercepted::kYes;
+  return Intercepted::kNo;
 }
 
 // static
