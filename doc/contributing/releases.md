@@ -537,8 +537,8 @@ are formatted correctly.
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
 `REPLACEME` tags (see [Writing Documentation](./api-documentation.md#writing-documentation)).
-Check for these tags with either `sed` or `perl` as follows, ensuring the
-`$VERSION` is prefixed with a `v`.
+Check for the presence of these tags and then update them either `sed` or
+`perl`. Ensure that `$VERSION` is prefixed with a `v`:
 
 ```bash
 grep REPLACEME doc/api/*.md
