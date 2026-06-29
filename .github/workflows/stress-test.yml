@@ -1,4 +1,4 @@
-name: Stress Test
+name: Stress Test (rebase tested branch on main for cache reuse)
 
 on:
   workflow_dispatch:
@@ -48,7 +48,10 @@ jobs:
       # Linux builds with clang (matching test-linux.yml), macOS with gcc/g++.
       CC: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang-19' || 'sccache gcc' }}
       CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang++-19' || 'sccache g++' }}
-      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      # Enable sccache - this is okay for a manually-dispatched workflow that is typically used to
+      # test lib-only or test-only deflaking changes. This should be able to pick up cache from
+      # test-linux.yml and test-macos.yml running on the main branch.
+      SCCACHE_GHA_ENABLED: 'true'
       SCCACHE_IDLE_TIMEOUT: '0'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
