@@ -15,6 +15,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 }, 2));
 
 server.keepAliveTimeout = common.platformTimeout(200);
+server.keepAliveTimeoutBuffer = common.platformTimeout(1000);
 
 const agent = new http.Agent({
   keepAlive: true,
