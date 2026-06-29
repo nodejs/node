@@ -625,6 +625,41 @@ if (hasOpenSSL(3, 2)) {
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
 
+// Preserve the current behavior from https://github.com/nodejs/node/issues/53761:
+// one-shot verify does not accept SM2 signatures produced by the streaming path.
+if (hasOpenSSL(3) && crypto.getHashes().includes('sm3')) {
+  const data = Buffer.from('AABB');
+  const privateKey = crypto.createPrivateKey(`-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQgbjCNHopgvyGVfLaP
+PamI9E9lf6jXT+xm1Pns1t/xQTihRANCAATV+I7HUGF2gC+miVl3JfjpoZaU2hrZ
+QqHwKUNtIDE/uxxWNLBbYKaiLOWrbYA8skrWQWl3RkbXW4ZI28afRw9g
+-----END PRIVATE KEY-----
+`);
+  const publicKey = crypto.createPublicKey(`-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
+2UKh8ClDbSAxP7scVjSwW2Cmoizlq22APLJK1kFpd0ZG11uGSNvGn0cPYA==
+-----END PUBLIC KEY-----`);
+  // Generate the signatures in-test so this checks API behavior rather than
+  // provider-version-specific SM2 signature fixtures.
+  const validOneShotSignature = crypto.sign('sm3', data, privateKey);
+  const streamingSign = crypto.createSign('sm3');
+  streamingSign.update(data);
+  const streamingOnlySignature = streamingSign.sign(privateKey);
+
+  assert.strictEqual(
+    crypto.verify('sm3', data, publicKey, validOneShotSignature),
+    true);
+  assert.strictEqual(
+    crypto.verify('sm3', data, publicKey, streamingOnlySignature),
+    false);
+
+  const streamingVerify = crypto.createVerify('sm3');
+  streamingVerify.update(data);
+  assert.strictEqual(
+    streamingVerify.verify(publicKey, streamingOnlySignature),
+    true);
+}
+
 {
   const data = Buffer.from('Hello world');
   const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
@@ -734,13 +769,9 @@ if (hasOpenSSL(3, 2)) {
 
 
 // RSA-PSS Sign test by verifying with 'openssl dgst -verify'
-// Note: this particular test *must* be the last in this file as it will exit
-// early if no openssl binary is found
-{
-  if (!opensslCli) {
-    common.skip('node compiled without OpenSSL CLI.');
-  }
-
+if (!opensslCli) {
+  common.printSkipMessage('node compiled without OpenSSL CLI.');
+} else {
   const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
   const privkey = fixtures.readKey('rsa_private_2048.pem');
 

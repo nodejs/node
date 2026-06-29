@@ -10,6 +10,7 @@ const warnFlags = [
   '--allow-inspector',
   '--allow-wasi',
   '--allow-worker',
+  '--allow-openssl-store',
 ];
 
 if (process.config.variables.node_use_ffi) {
