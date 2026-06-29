@@ -253,6 +253,7 @@ V8_OBJECT class InterceptorInfo : public HeapObjectLayout {
   // TODO(ishell): remove support for old signatures once they go through
   // Api deprecation process.
   DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
+  DECL_BOOLEAN_ACCESSORS(has_dont_delete_property)
 
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 

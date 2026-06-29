@@ -1289,6 +1289,11 @@ V8_OBJECT class JSGlobalObject : public JSSpecialObject {
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
 
+  // https://tc39.es/ecma262/#sec-hasrestrictedglobalproperty
+  static Maybe<bool> HasRestrictedGlobalProperty(
+      Isolate* isolate, DirectHandle<JSGlobalObject> global,
+      DirectHandle<Name> name);
+
   inline bool IsDetached();
   inline Tagged<NativeContext> native_context();
 
