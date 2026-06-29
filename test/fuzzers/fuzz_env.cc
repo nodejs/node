@@ -35,9 +35,8 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
 
   node::InitializeNodeWithArgs(&node_argv, &exec_argv, &errors);
 
-  tracing_agent = std::make_unique<node::tracing::Agent>();
-  node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
-  node::tracing::TracingController* tracing_controller =
+  tracing_agent = node::tracing::Agent::CreateDefault();
+  v8::TracingController* tracing_controller =
     tracing_agent->GetTracingController();  
   CHECK_EQ(0, uv_loop_init(&current_loop));
   static constexpr int kV8ThreadPoolSize = 4;
