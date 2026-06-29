@@ -2431,10 +2431,7 @@ added: v8.4.0
 
 * `callback` {Function}
 
-Stops the server from establishing new sessions. This does not prevent new
-request streams from being created due to the persistent nature of HTTP/2
-sessions. To gracefully shut down the server, call [`http2session.close()`][] on
-all active sessions.
+Stops the server from establishing new sessions and streams.
 
 If `callback` is provided, it is not invoked until all active sessions have been
 closed, although the server has already stopped allowing new sessions. See
@@ -2715,10 +2712,7 @@ added: v8.4.0
 
 * `callback` {Function}
 
-Stops the server from establishing new sessions. This does not prevent new
-request streams from being created due to the persistent nature of HTTP/2
-sessions. To gracefully shut down the server, call [`http2session.close()`][] on
-all active sessions.
+Stops the server from establishing new sessions and streams.
 
 If `callback` is provided, it is not invoked until all active sessions have been
 closed, although the server has already stopped allowing new sessions. See
@@ -5043,7 +5037,6 @@ you need to implement any fall-back behavior yourself.
 [`http2.Server`]: #class-http2server
 [`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler
 [`http2.createServer()`]: #http2createserveroptions-onrequesthandler
-[`http2session.close()`]: #http2sessionclosecallback
 [`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`net.Server.close()`]: net.md#serverclosecallback
