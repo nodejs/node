@@ -16,16 +16,16 @@ function isOnlcrEnabled() {
 process.stdin.setRawMode(true);
 console.log(`raw=${isOnlcrEnabled()}`);
 assert.strictEqual(process.stdin.isRaw, true);
-assert.strictEqual(process.stdin.rawMode, 'raw-vt');
+assert.strictEqual(process.stdin.rawMode, 'raw');
 
 process.stdin.setRawMode(false);
 console.log(`normal=${process.stdin.isRaw}`);
 assert.strictEqual(process.stdin.rawMode, false);
 
-process.stdin.setRawMode('raw-vt');
-console.log(`raw-vt=${isOnlcrEnabled()}`);
+process.stdin.setRawMode('raw');
+console.log(`raw-string=${isOnlcrEnabled()}`);
 assert.strictEqual(process.stdin.isRaw, true);
-assert.strictEqual(process.stdin.rawMode, 'raw-vt');
+assert.strictEqual(process.stdin.rawMode, 'raw');
 
 process.stdin.setRawMode(false);
 process.stdin.setRawMode('io');
