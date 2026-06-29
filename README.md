@@ -785,6 +785,8 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Ruy Adorno** <<ruyadorno@hotmail.com>>
   `108F52B48DB57BB0CC439B2997B01419BD92F80A`
+* **Stewart X Addison** <<sxa@ibm.com>>
+  `655F3B5C1FB3FA8D1A0CA6BDE4A7D232B936D2FD`
 * **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>>
   `A363A499291CBBC940DD62E41F10027AF002F8B0`
 
