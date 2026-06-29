@@ -72,10 +72,10 @@ added: v0.7.7
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/64140
-    description: The `mode` argument supports `'raw-vt'` and `'io'`.
+    description: The `mode` argument supports `'raw'` and `'io'`.
 -->
 
-* `mode` {boolean|string} If `true` or `'raw-vt'`, configures the
+* `mode` {boolean|string} If `true` or `'raw'`, configures the
   `tty.ReadStream` to operate as a raw device. If `'io'`, configures the
   `tty.ReadStream` to operate in binary-safe I/O mode. If `false`, configures
   the `tty.ReadStream` to operate in its default mode. The `readStream.isRaw`
@@ -105,8 +105,8 @@ added: REPLACEME
 * {boolean|string}
 
 The current raw mode for the `tty.ReadStream`. This is `false` when the stream
-is in its default mode, `'raw-vt'` when raw input mode is enabled, and `'io'`
-when binary-safe I/O mode is enabled.
+is in its default mode, `'raw'` when raw input mode is enabled, and `'io'` when
+binary-safe I/O mode is enabled.
 
 ## Class: `tty.WriteStream`
 
