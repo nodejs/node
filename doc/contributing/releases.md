@@ -237,10 +237,8 @@ N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,
 ```
 
 If the target branch is an LTS line, you should also exclude the
-`baking-for-lts` and use a version other than `main` (usually a tag of the
-next actively supported version which has been available for at least two
-weeks).  In this example we use v26.5.0 as the version to compare with if
-we are preparing a release for v24:
+`baking-for-lts` and use a Current version released at least two weeks before the expected release date.
+In this example we use 25.5.0 as the base version to prepare a release for Node.js 24:
 
 ```bash
 N=24 sh -c 'branch-diff v$N.x-staging v26.5.0 --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x,baking-for-lts --filter-release --format=simple'
