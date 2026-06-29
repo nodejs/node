@@ -390,6 +390,76 @@ bool SupportsContextString(const EVPKeyPointer& key) {
 #endif
   return false;
 }
+
+bool UsePrehashedSignVerify(const EVPKeyPointer& key,
+                            const Digest& digest,
+                            bool has_context) {
+  // Match streaming sign/verify for digest-based keys: hash locally, then ask
+  // the key implementation to sign or verify the digest. Some providers only
+  // expose token-backed keys through that lower-level operation.
+  return digest && !has_context && !key.isOneShotVariant();
+}
+
+ByteSource SignPrehashed(Environment* env,
+                         const EVPKeyPointer& key,
+                         const Digest& digest,
+                         const ByteSource& input,
+                         int padding,
+                         std::optional<int> salt_length,
+                         DSASigEnc dsa_encoding) {
+  EVPMDCtxPointer context = EVPMDCtxPointer::New();
+  if (!context || !context.digestInit(digest) || !context.digestUpdate(input))
+      [[unlikely]] {
+    return {};
+  }
+
+  auto data = context.digestFinal(context.getExpectedSize());
+  if (!data) [[unlikely]] {
+    return {};
+  }
+
+  EVPKeyCtxPointer pkctx = key.newCtx();
+  if (!pkctx || pkctx.initForSign() <= 0 ||
+      !ApplyRSAOptions(key, pkctx.get(), padding, salt_length) ||
+      !pkctx.setSignatureMd(context)) [[unlikely]] {
+    return {};
+  }
+
+  auto signature = pkctx.sign(data);
+  if (!signature) [[unlikely]] {
+    return {};
+  }
+
+  DCHECK(!signature.isSecure());
+  auto out = ByteSource::Allocated(signature.release());
+  if (UseP1363Encoding(key, dsa_encoding)) {
+    return ConvertSignatureToP1363(env, key, std::move(out));
+  }
+  return out;
+}
+
+bool VerifyPrehashed(const EVPKeyPointer& key,
+                     const Digest& digest,
+                     const ByteSource& input,
+                     const ByteSource& signature,
+                     int padding,
+                     std::optional<int> salt_length) {
+  EVPMDCtxPointer context = EVPMDCtxPointer::New();
+  if (!context || !context.digestInit(digest) || !context.digestUpdate(input))
+      [[unlikely]] {
+    return false;
+  }
+
+  auto data = context.digestFinal(context.getExpectedSize());
+  if (!data) [[unlikely]] {
+    return false;
+  }
+
+  EVPKeyCtxPointer pkctx = key.newCtx();
+  return pkctx && pkctx.initForVerify() > 0 &&
+         ApplyRSAOptions(key, pkctx.get(), padding, salt_length) &&
+         pkctx.setSignatureMd(context) && pkctx.verify(signature, data);
+}
 }  // namespace
 
 SignBase::Error SignBase::Init(const char* digest) {
@@ -812,9 +882,6 @@ bool SignTraits::DeriveBits(Environment* env,
                             ByteSource* out,
                             CryptoJobMode mode,
                             CryptoErrorStore* errors) {
-  auto context = EVPMDCtxPointer::New();
-  if (!context) [[unlikely]]
-    return false;
   const auto& key = params.key.GetAsymmetricKey();
 
   bool has_context = (params.flags & SignConfiguration::kHasContextString &&
@@ -825,6 +892,45 @@ bool SignTraits::DeriveBits(Environment* env,
     errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
+
+  int padding = params.flags & SignConfiguration::kHasPadding
+                    ? params.padding
+                    : key.getDefaultSignPadding();
+
+  std::optional<int> salt_length =
+      params.flags & SignConfiguration::kHasSaltLength
+          ? std::optional<int>(params.salt_length)
+          : std::nullopt;
+
+  if (UsePrehashedSignVerify(key, params.digest, has_context)) {
+    switch (params.mode) {
+      case SignConfiguration::Mode::Sign: {
+        *out = SignPrehashed(env,
+                             key,
+                             params.digest,
+                             params.data,
+                             padding,
+                             salt_length,
+                             params.dsa_encoding);
+        return static_cast<bool>(*out);
+      }
+      case SignConfiguration::Mode::Verify: {
+        auto buf = DataPointer::Alloc(1);
+        static_cast<char*>(buf.get())[0] = VerifyPrehashed(key,
+                                                           params.digest,
+                                                           params.data,
+                                                           params.signature,
+                                                           padding,
+                                                           salt_length);
+        *out = ByteSource::Allocated(buf.release());
+        return true;
+      }
+    }
+  }
+
+  auto context = EVPMDCtxPointer::New();
+  if (!context) [[unlikely]]
+    return false;
 
   auto ctx = ([&] {
     if (has_context) {
@@ -853,15 +959,6 @@ bool SignTraits::DeriveBits(Environment* env,
   if (!ctx.has_value()) [[unlikely]] {
     return false;
   }
-
-  int padding = params.flags & SignConfiguration::kHasPadding
-                    ? params.padding
-                    : key.getDefaultSignPadding();
-
-  std::optional<int> salt_length =
-      params.flags & SignConfiguration::kHasSaltLength
-          ? std::optional<int>(params.salt_length)
-          : std::nullopt;
 
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
     return false;

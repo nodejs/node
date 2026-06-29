@@ -245,6 +245,7 @@ jobs:
     with:
       runner: ubuntu-24.04-arm
       v8-nar: ${{ needs.build-aarch64-linux-v8.outputs.local-cache && 'libv8-aarch64-linux.nar' }}
+      pkcs11-store-test: ${{ matrix.openssl.attr == 'openssl_3_5' }}
       # Override just the `openssl` attr of the default shared-lib set with
       # the matrix-selected nixpkgs attribute (e.g. `openssl_3_6`). All
       # other shared libs (brotli, cares, libuv, …) keep their defaults.
