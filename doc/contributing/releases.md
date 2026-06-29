@@ -45,10 +45,10 @@ land things on the staging branches and prepare releases. This is a
 prerequisite to being able to prepare releases which is the first step
 to becoming a releaser.
 
-Release authorization is given by the Node.js TSC.  This is required to
-publish a release after it has been prepared.  If you are working on
+Release authorization is given by the Node.js TSC. This is required to
+promote a release after it has been prepared. If you are working on
 preparing a release for the first time you can do that and have someone else
-who is already onboarded publish the release on your behalf.  Once
+who is already onboarded promote the release on your behalf. Once
 authorized by the TSC, an individual will be require the following:
 
 ### 1. Jenkins release access
