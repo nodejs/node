@@ -200,16 +200,18 @@ void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
   Local<ObjectTemplate> global_object_template =
       global_func_template->InstanceTemplate();
 
-  NamedPropertyHandlerConfiguration config(
-      PropertyGetterCallback,
-      PropertySetterCallback,
-      PropertyQueryCallback,
-      PropertyDeleterCallback,
-      PropertyEnumeratorCallback,
-      PropertyDefinerCallback,
-      PropertyDescriptorCallback,
-      {},
-      PropertyHandlerFlags::kHasNoSideEffect);
+  PropertyHandlerFlags flags = static_cast<PropertyHandlerFlags>(
+      static_cast<int>(PropertyHandlerFlags::kHasNoSideEffect) |
+      static_cast<int>(PropertyHandlerFlags::kHasDontDeleteProperty));
+  NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
+                                           PropertySetterCallback,
+                                           PropertyQueryCallback,
+                                           PropertyDeleterCallback,
+                                           PropertyEnumeratorCallback,
+                                           PropertyDefinerCallback,
+                                           PropertyDescriptorCallback,
+                                           {},
+                                           flags);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
@@ -220,7 +222,7 @@ void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
       IndexedPropertyDefinerCallback,
       IndexedPropertyDescriptorCallback,
       {},
-      PropertyHandlerFlags::kHasNoSideEffect);
+      flags);
 
   global_object_template->SetHandler(config);
   global_object_template->SetHandler(indexed_config);
