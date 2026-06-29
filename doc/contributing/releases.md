@@ -59,11 +59,11 @@ There are four relevant Jenkins jobs that should be used for a release flow:
 **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)**
 is used for a final full-test run to ensure that the current _HEAD_ is stable.
 
-**b.** **CITGM:**
+**b.** **CitGM:**
 **[citgm-smoker](https://ci.nodejs.org/job/citgm-smoker/)** is used to run
-the citgm tool which tests a build of node.js against a defined set of
+the CitGM tool which tests a build of Node.js against a defined set of
 community modules.  This is used during a release process to ensure that
-none of the commonly used modules which are tested by CITGM show functional
+none of the commonly used modules which are tested by CitGM show functional
 regressions with the new Node.js version which could impact users.
 
 **c.** **Nightly builds:** (optional)
@@ -131,8 +131,7 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys <FINGERPRINT>
 The key you use may be a child/subkey of an existing key.
 
 If you wish to also upload your key to the commonly used Ubuntu keyservers
-you can do so with `gpg --keyserver keyserver.ubuntu.com --send-keys
-<FINGERPRINT>` and check it by switching the server name in the
+you can do so with `gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>` and check it by switching the server name in the
 `--recv-keys` operation list above to the Ubuntu keyserver.
 
 Additionally, full GPG key fingerprints for individuals authorized to release
@@ -144,7 +143,7 @@ should be listed in the Node.js GitHub README.md file.
 > `-S` flag on your git operations (The examples in this document will
 > include `-S` expliticlty)
 
-Note that while GitHub allows signing individual commits using an ssh key,
+While GitHub allows signing individual commits using an ssh key,
 that is not covered here as this will not allow you to sign releases, so you
 will need to set up a GPG signing key in GitHub.
 
@@ -157,7 +156,7 @@ Notes:
 * Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
 * Examples will use the fictional release version `1.2.3`.
-* *When preparing a security release*, follow the security steps in the details
+* _When preparing a security release_, follow the security steps in the details
   sections.
 
 ### 0. Pre-release steps
@@ -216,7 +215,7 @@ metadata, as well as the GitHub labels such as `semver-minor` and
 omitted from a commit, the commit will show up because it's unsure if it's a
 duplicate or not.
 
-Note that a branch-diff run can use a lot of credits and users are
+A `branch-diff` run can use a lot of credits and users are
 [limited by default to 5000 per hour](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2026-03-10).
 It is not unusual for a run of branch-diff to
 use around 1000 of these. For this reason it is recommended that when you
@@ -226,7 +225,7 @@ installed and configured, or using the curl command from
 [this link](https://docs.github.com/en/rest/rate-limit/rate-limit?apiVersion=2026-03-10)
 with authentication e.g.
 
-```
+```bash
 curl -H "Authorization: token $YOURGITHUBTOKEN" -X GET https://api.github.com/rate_limit
 ```
 
@@ -677,7 +676,7 @@ npm i -g @node-core/utils
 ncu-ci citgm 10 11
 ```
 
-Note that a number of the modules tested by CITGM are not completely
+A number of the modules tested by CitGM are not completely
 reliable so differences shown by the comparison are not immediately cause
 for concern.
 
