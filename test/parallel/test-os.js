@@ -57,6 +57,15 @@ if (common.isWindows) {
   assert.strictEqual(os.tmpdir(), '\\');
   process.env.TEMP = 'C:\\';
   assert.strictEqual(os.tmpdir(), 'C:\\');
+  
+  // Test case for issue #60582: tmpdir() should not return 'undefined\temp'
+  // when all environment variables are cleared
+  const originalEnv = { ...process.env };
+  process.env = {};
+  const result = os.tmpdir();
+  assert.ok(!result.includes('undefined'), 
+    `tmpdir() should not contain 'undefined', got: ${result}`);
+  process.env = originalEnv;
 } else {
   assert.strictEqual(os.tmpdir(), '/tmpdir');
   process.env.TMPDIR = '';
