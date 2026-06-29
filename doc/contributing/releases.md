@@ -205,7 +205,7 @@ You can add the `Backport-PR-URL` metadata automatically when landing by
 using `--backport` with `git node land`:
 
 ```bash
-git node land --backport $PR-NUMBER -S
+git node land -S --backport $PR-NUMBER
 ```
 
 To determine the relevant commits, use
@@ -806,7 +806,7 @@ Once you have produced builds that you're happy with you can either run
 `git node release --promote`:
 
 ```bash
-git node release --promote https://github.com/nodejs/node/pull/XXXX -S
+git node release -S --promote https://github.com/nodejs/node/pull/XXXX
 ```
 
 to automate the remaining steps until step 16 or you can perform it manually
@@ -822,11 +822,10 @@ fetch the proposal from using the `--fetch-from` flag.
 When promoting several releases, you can pass multiple URLs:
 
 ```bash
-git node release --promote \
+git node release -S --promote \
   --fetch-from git@github.com:nodejs-private/node-private.git \
   https://github.com/nodejs-private/node-private/pull/XXXX \
-  https://github.com/nodejs-private/node-private/pull/XXXX \
-  -S
+  https://github.com/nodejs-private/node-private/pull/XXXX
 ```
 
 </details>
