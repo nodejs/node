@@ -70,6 +70,15 @@ size_t nghttp3_get_uvarintlen(const uint8_t *p) {
   return (size_t)(1U << (*p >> 6));
 }
 
+const uint8_t *nghttp3_get_varint(int64_t *dest, const uint8_t *p) {
+  uint64_t n;
+
+  p = nghttp3_get_uvarint(&n, p);
+  *dest = (int64_t)n;
+
+  return p;
+}
+
 uint8_t *nghttp3_put_uint64be(uint8_t *p, uint64_t n) {
   n = nghttp3_htonl64(n);
   return nghttp3_cpymem(p, (const uint8_t *)&n, sizeof(n));
