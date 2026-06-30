@@ -385,11 +385,11 @@ bool KeyObjectData::ToEncodedPublicKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
+      ECKeyPointer ec_key(pkey);
+      CHECK(ec_key);
       auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
-      const auto point = ECKeyPointer::GetPublicKey(ec_key);
+      const auto group = ec_key.getGroup();
+      const auto point = ec_key.getPublicKey();
       return ECPointToBuffer(env, group, point, form).ToLocal(out);
     }
     const int id = pkey.id();
@@ -431,11 +431,11 @@ bool KeyObjectData::ToEncodedPrivateKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
-      const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
+      ECKeyPointer ec_key(pkey);
+      CHECK(ec_key);
+      const BIGNUM* private_key = ec_key.getPrivateKey();
       CHECK_NOT_NULL(private_key);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
+      const auto group = ec_key.getGroup();
       auto order = BignumPointer::New();
       CHECK(order);
       CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
@@ -629,7 +629,9 @@ static KeyObjectData ImportRawKey(Environment* env,
       throw_invalid();
       return {};
     }
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
     eckey.release();
+#endif
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
 
@@ -1460,15 +1462,15 @@ void KeyObjectHandle::ExportECPublicRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  CHECK(ec_key);
 
   CHECK(args[0]->IsInt32());
   auto form =
       static_cast<point_conversion_form_t>(args[0].As<Int32>()->Value());
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
-  const auto point = ECKeyPointer::GetPublicKey(ec_key);
+  const auto group = ec_key.getGroup();
+  const auto point = ec_key.getPublicKey();
 
   Local<Object> buf;
   if (!ECPointToBuffer(env, group, point, form).ToLocal(&buf)) return;
@@ -1491,13 +1493,13 @@ void KeyObjectHandle::ExportECPrivateRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  CHECK(ec_key);
 
-  const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
+  const BIGNUM* private_key = ec_key.getPrivateKey();
   CHECK_NOT_NULL(private_key);
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
+  const auto group = ec_key.getGroup();
   auto order = BignumPointer::New();
   CHECK(order);
   CHECK(EC_GROUP_get_order(group, order.get(), nullptr));

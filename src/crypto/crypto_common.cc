@@ -231,7 +231,8 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
       case EVP_PKEY_X448: {
         const char* curve_name;
         if (kid == EVP_PKEY_EC) {
-          int nid = ECKeyPointer::GetGroupName(key);
+          ECKeyPointer ec(key);
+          int nid = EC_GROUP_get_curve_name(ec.getGroup());
           curve_name = OBJ_nid2sn(nid);
         } else {
           curve_name = OBJ_nid2sn(kid);
@@ -291,7 +292,7 @@ MaybeLocal<Value> GetPeerCert(
 
   // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
   // contains the `peer_certificate`, but on server it doesn't.
-  X509Pointer cert(is_server ? SSL_get_peer_certificate(ssl.get()) : nullptr);
+  X509Pointer cert(is_server ? X509Pointer::PeerFrom(ssl) : X509Pointer());
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(ssl.get());
   if (!cert && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
     return Undefined(env->isolate());
