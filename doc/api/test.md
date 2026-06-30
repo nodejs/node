@@ -3460,6 +3460,82 @@ object, streaming a series of events representing the execution of the tests.
 Some of the events are guaranteed to be emitted in the same order as the tests
 are defined, while others are emitted in the order that the tests execute.
 
+### Event lifecycle
+
+Most events are emitted in **declaration order** — the order in which the tests
+appear in the source. `'test:dequeue'` and `'test:complete'` are instead
+emitted in **execution order**, which can differ when tests run concurrently.
+Each is the twin of a declaration-order event marking the same moment:
+`'test:dequeue'` (about to run) pairs with `'test:start'`, and
+`'test:complete'` (finished running) pairs with `'test:pass'` / `'test:fail'`.
+In particular, `'test:start'` marks when a test begins _reporting_ its own and
+its subtests' status — not when its body begins executing; that moment is
+`'test:dequeue'`.
+
+```text
+                     node:test reporter event lifecycle
+   main spine = DECLARATION order (reporting; matches source order)
+   right side = EXECUTION order (when work happens); ◄ marks each twin
+
+  LEAF TEST
+  ─────────
+   ┌──────────────┐
+   │ test:enqueue │   queued for execution; type: 'suite' | 'test'
+   └──────────────┘
+        │
+        ▼
+   ┌──────────────┐
+   │ test:start   │ ◄──── twin ────  test:dequeue
+   └──────────────┘   begins         (about to run; emitted right
+        │             REPORTING       before the test body runs)
+        │             (not exec start)
+        │
+        │     [ between the twins, on the execution timeline, the test
+        │       body runs: context.diagnostic() is called here, and
+        │       test:stdout / test:stderr stream live with --test ]
+        │
+        ▼
+   ┌───────────────────────┐
+   │ test:pass │ test:fail │ ◄──── twin ────  test:complete
+   └───────────────────────┘   result         (finished running the body)
+        │
+        ▼
+   test:diagnostic    the test's own context.diagnostic() messages,
+                      flushed after its result
+
+
+  SUITE / PARENT TEST   (each subtest is the whole LEAF flow above)
+  ───────────────────
+   test:enqueue ─► test:start ─► [ full flow of each subtest ... ] ─►
+        test:plan (count = subtests) ─► test:pass │ test:fail ─►
+        test:diagnostic
+
+
+  RUN-LEVEL FINALE   (root, after all top-level tests; declaration order)
+  ────────────────
+   test:plan         top-level count
+        │
+        ▼
+   test:diagnostic   x N   tests, suites, pass, fail, cancelled,
+        │                  skipped, todo, duration_ms (+ coverage errors)
+        ▼
+   test:coverage     only if coverage is enabled
+        │
+        ▼
+   test:summary  ─►  stream ends
+```
+
+A few events are kept off the main path above:
+
+* `'test:stdout'` and `'test:stderr'` are emitted only when the [`--test`][]
+  flag is used, and are not guaranteed to follow declaration order.
+* `'test:interrupted'` is emitted if the run is interrupted by a `SIGINT`
+  signal (for example, <kbd>Ctrl</kbd>+<kbd>C</kbd>).
+* In watch mode, `'test:watch:drained'` is emitted when no more tests are queued
+  for execution, and `'test:watch:restarted'` when a file change restarts tests.
+* With process-level test isolation, a `'test:summary'` event is emitted for
+  each test file in addition to the final cumulative summary.
+
 ### Event: `'test:coverage'`
 
 * `data` {Object}
