@@ -53,6 +53,29 @@ suite('StatementSync.prototype.get()', () => {
     const stmt = db.prepare('SELECT 1 as __proto__, 2 as constructor, 3 as toString');
     t.assert.deepStrictEqual(stmt.get(), { __proto__: null, ['__proto__']: 1, constructor: 2, toString: 3 });
   });
+
+  test('reflects an added column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)').run('key1', 'val1');
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec("ALTER TABLE storage ADD COLUMN extra TEXT DEFAULT 'def'");
+    t.assert.deepStrictEqual(stmt.get(), {
+      __proto__: null, key: 'key1', val: 'val1', extra: 'def',
+    });
+  });
+
+  test('reflects a dropped column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT, extra TEXT)');
+    db.prepare('INSERT INTO storage (key, val, extra) VALUES (?, ?, ?)')
+      .run('key1', 'val1', 'x');
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec('ALTER TABLE storage DROP COLUMN extra');
+    t.assert.deepStrictEqual(stmt.get(), {
+      __proto__: null, key: 'key1', val: 'val1',
+    });
+  });
 });
 
 suite('StatementSync.prototype.all()', () => {
@@ -84,12 +107,10 @@ suite('StatementSync.prototype.all()', () => {
     ]);
   });
 
-  test('reflects an added column on first use after the schema changes', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+  test('reflects an added column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
     db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)').run('key1', 'val1');
-
     const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
     db.exec("ALTER TABLE storage ADD COLUMN extra TEXT DEFAULT 'def'");
     t.assert.deepStrictEqual(stmt.all(), [
@@ -97,13 +118,11 @@ suite('StatementSync.prototype.all()', () => {
     ]);
   });
 
-  test('reflects a dropped column on first use after the schema changes', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+  test('reflects a dropped column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE storage(key TEXT, val TEXT, extra TEXT)');
     db.prepare('INSERT INTO storage (key, val, extra) VALUES (?, ?, ?)')
       .run('key1', 'val1', 'x');
-
     const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
     db.exec('ALTER TABLE storage DROP COLUMN extra');
     t.assert.deepStrictEqual(stmt.all(), [
@@ -150,6 +169,29 @@ suite('StatementSync.prototype.iterate()', () => {
     for (const item of stmt.iterate()) {
       t.assert.deepStrictEqual(item, itemsLoop.shift());
     }
+  });
+
+  test('reflects an added column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)').run('key1', 'val1');
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec("ALTER TABLE storage ADD COLUMN extra TEXT DEFAULT 'def'");
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, key: 'key1', val: 'val1', extra: 'def' },
+    ]);
+  });
+
+  test('reflects a dropped column after the schema changes', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT, extra TEXT)');
+    db.prepare('INSERT INTO storage (key, val, extra) VALUES (?, ?, ?)')
+      .run('key1', 'val1', 'x');
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec('ALTER TABLE storage DROP COLUMN extra');
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, key: 'key1', val: 'val1' },
+    ]);
   });
 
   test('iterator keeps the prepared statement from being collected', (t) => {
