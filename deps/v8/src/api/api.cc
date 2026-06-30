@@ -11518,6 +11518,42 @@ EmbedderStateTag CpuProfile::GetSampleEmbedderState(int index) const {
   return profile->sample(index).embedder_state_tag;
 }
 
+void* CpuProfile::GetSampleContext(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).sample_context;
+}
+
+void* LookupCpedMapAlignedPointer(Isolate* isolate, uintptr_t key_addr) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  i::Tagged<i::Object> cped_obj =
+      i_isolate->isolate_data()->continuation_preserved_embedder_data();
+  if (!IsJSMap(cped_obj)) return nullptr;
+  i::Tagged<i::JSMap> map = i::Cast<i::JSMap>(cped_obj);
+
+  i::Tagged<i::Object> table_obj = map->table();
+  if (!IsOrderedHashMap(table_obj)) return nullptr;
+  i::Tagged<i::OrderedHashMap> table =
+      i::Cast<i::OrderedHashMap>(table_obj);
+
+  i::Tagged<i::Object> key(static_cast<i::Address>(key_addr));
+
+  i::InternalIndex entry = table->FindEntry(i_isolate, key);
+  if (!entry.is_found()) return nullptr;
+
+  i::Tagged<i::Object> value_obj = table->ValueAt(entry);
+  if (!IsJSObject(value_obj)) return nullptr;
+  i::Tagged<i::JSObject> holder = i::Cast<i::JSObject>(value_obj);
+
+  void* aligned_ptr = nullptr;
+  if (!i::EmbedderDataSlot(holder, 0).ToAlignedPointer(
+          i_isolate, &aligned_ptr,
+          {i::kFirstEmbedderDataTag, i::kLastEmbedderDataTag})) {
+    return nullptr;
+  }
+  return aligned_ptr;
+}
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->start_time().since_origin().InMicroseconds();
@@ -11554,15 +11590,15 @@ CpuProfiler* CpuProfiler::New(Isolate* v8_isolate,
       reinterpret_cast<i::Isolate*>(v8_isolate), naming_mode, logging_mode));
 }
 
-CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
-                                         unsigned max_samples,
-                                         int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context,
-                                         CpuProfileSource profile_source)
+CpuProfilingOptions::CpuProfilingOptions(
+    CpuProfilingMode mode, unsigned max_samples, int sampling_interval_us,
+    MaybeLocal<Context> filter_context, CpuProfileSource profile_source,
+    SampleContextExtractor sample_context_extractor)
     : mode_(mode),
       max_samples_(max_samples),
       sampling_interval_us_(sampling_interval_us),
-      profile_source_(profile_source) {
+      profile_source_(profile_source),
+      sample_context_extractor_(sample_context_extractor) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);

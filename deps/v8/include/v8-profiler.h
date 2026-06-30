@@ -31,6 +31,68 @@ using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
 using ProfilerId = uint32_t;
 
+/**
+ * Embedder-supplied callback invoked in signal-handler context as each
+ * CPU profile sample is captured. The returned pointer is stored on the
+ * sample and retrievable via CpuProfile::GetSampleContext.
+ *
+ * Signal-safety contract: this function is invoked from a POSIX signal
+ * handler (or thread-suspension context on Windows). It MUST NOT allocate
+ * memory, acquire locks, call any V8 API, or perform any other operation that
+ * is not async-signal-safe. It SHOULD limit itself to reading from memory the
+ * embedder keeps stable for the duration of profiling, and returning a `void*`
+ * whose meaning is defined by the embedder.
+ *
+ * The returned pointer is treated as opaque by V8 and is not dereferenced.
+ *
+ * The helper LookupCpedMapAlignedPointer below is provided for the common
+ * case in which an embedder uses a JS Map stored in
+ * ContinuationPreservedEmbedderData as a registry through which several
+ * independent libraries can attach their own continuation-bound data.
+ */
+using SampleContextExtractor = void* (*)(Isolate*);
+
+/**
+ * Helper for SampleContextExtractor implementations that follow a common
+ * pattern: the embedder uses a JS Map placed in
+ * ContinuationPreservedEmbedderData as a shared registry, allowing multiple
+ * independent libraries to each store their own continuation-bound data
+ * under their own key in that Map without interfering with one another.
+ *
+ * This helper performs that lookup. It treats the current CPED as a JS Map,
+ * looks up the entry whose key has the tagged address `key_addr`, and if
+ * the value is a JS object with at least one internal field, returns the
+ * aligned pointer stored at internal field 0 (which the embedder is
+ * expected to have set via SetAlignedPointerInInternalField). Returns
+ * nullptr if CPED is not a JS Map, the key is not present, the value is
+ * not a JS object with an internal field, or the embedder has not stored
+ * an aligned pointer there.
+ *
+ * `key_addr` is the tagged address of the lookup key. The caller must
+ * obtain it freshly at each invocation by reading through a stable slot
+ * that V8 keeps GC-coherently updated — typically the persistent-handle
+ * slot of a v8::Global<> the embedder owns. Caching the address across
+ * calls would be unsafe because V8 updates the slot's contents during
+ * compaction. Since embedders can't necessarily reference i::Address type,
+ * we use uintptr_t that it typedefs. The addressed key object must have its
+ * hash already precomputed in order to not trigger hash computation in the
+ * helper. This is trivially satisfied if it was ever set as a key in a map, but
+ * can also be guaranteed by invoking GetIdentityHash() early on it once outside
+ * of signal handling.
+ *
+ * Signal-safety: performs only signal-safe operations (no allocation, no
+ * locks, no V8 API calls beyond raw memory reads of fixed-layout objects).
+ * MUST NOT be called while a V8 GC is in progress, because the helper
+ * walks V8 heap state (CPED, JSMap, OrderedHashMap, JSObject internal
+ * fields) which may be mid-compaction. Embedders should install
+ * Isolate::AddGCPrologueCallback / AddGCEpilogueCallback to observe GC and
+ * refrain from invoking this helper while in GC. It is safe though to capture
+ * this helper's return value once at the prologue (a safe point on the JS
+ * thread) and serve it from a cache while GC is in progress.
+ */
+V8_EXPORT void* LookupCpedMapAlignedPointer(Isolate* isolate,
+                                            uintptr_t key_addr);
+
 struct CpuProfileDeoptFrame {
   int script_id;
   size_t position;
@@ -273,6 +335,15 @@ class V8_EXPORT CpuProfile {
   EmbedderStateTag GetSampleEmbedderState(int index) const;
 
   /**
+   * Returns the embedder-supplied sample context for the sample at the given
+   * index. The pointer was produced by the SampleContextExtractor installed on
+   * the CpuProfilingOptions used to start this profile. If no extractor was
+   * installed, or the extractor returned nullptr for this sample, returns
+   * nullptr.
+   */
+  void* GetSampleContext(int index) const;
+
+  /**
    * Returns time when the profile recording was stopped (in microseconds)
    * since some unspecified starting point.
    * The point is equal to the starting point used by GetStartTime.
@@ -394,12 +465,20 @@ class V8_EXPORT CpuProfilingOptions {
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
    * \param profile_source Identifies the source of this CPU profile.
+   * \param sample_context_extractor Optional embedder callback invoked in
+   *                                 signal-handler context as each sample is
+   *                                 captured. The returned pointer is stored
+   *                                 on the sample and retrievable via
+   *                                 CpuProfile::GetSampleContext. See
+   *                                 SampleContextExtractor for the
+   *                                 signal-safety contract.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
       MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
-      CpuProfileSource profile_source = CpuProfileSource::kUnspecified);
+      CpuProfileSource profile_source = CpuProfileSource::kUnspecified,
+      SampleContextExtractor sample_context_extractor = nullptr);
 
   CpuProfilingOptions(CpuProfilingOptions&&) = default;
   CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
@@ -408,6 +487,9 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
   CpuProfileSource profile_source() const { return profile_source_; }
+  SampleContextExtractor sample_context_extractor() const {
+    return sample_context_extractor_;
+  }
 
  private:
   friend class internal::CpuProfile;
@@ -420,6 +502,7 @@ class V8_EXPORT CpuProfilingOptions {
   int sampling_interval_us_;
   Global<Context> filter_context_;
   CpuProfileSource profile_source_;
+  SampleContextExtractor sample_context_extractor_ = nullptr;
 };
 
 /**
