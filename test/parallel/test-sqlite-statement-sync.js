@@ -83,6 +83,33 @@ suite('StatementSync.prototype.all()', () => {
       { __proto__: null, key: 'key2', val: 'val2' },
     ]);
   });
+
+  test('reflects an added column on first use after the schema changes', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)').run('key1', 'val1');
+
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec("ALTER TABLE storage ADD COLUMN extra TEXT DEFAULT 'def'");
+    t.assert.deepStrictEqual(stmt.all(), [
+      { __proto__: null, key: 'key1', val: 'val1', extra: 'def' },
+    ]);
+  });
+
+  test('reflects a dropped column on first use after the schema changes', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT, extra TEXT)');
+    db.prepare('INSERT INTO storage (key, val, extra) VALUES (?, ?, ?)')
+      .run('key1', 'val1', 'x');
+
+    const stmt = db.prepare('SELECT * FROM storage ORDER BY key');
+    db.exec('ALTER TABLE storage DROP COLUMN extra');
+    t.assert.deepStrictEqual(stmt.all(), [
+      { __proto__: null, key: 'key1', val: 'val1' },
+    ]);
+  });
 });
 
 suite('StatementSync.prototype.iterate()', () => {
