@@ -161,8 +161,7 @@ class GTEST_API_ [[nodiscard]] AssertionResult {
   template <typename T>
   explicit AssertionResult(
       const T& success,
-      typename std::enable_if<
-          !std::is_convertible<T, AssertionResult>::value>::type*
+      std::enable_if_t<!std::is_convertible_v<T, AssertionResult>>*
       /*enabler*/
       = nullptr)
       : success_(success) {}
