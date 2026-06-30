@@ -3,17 +3,17 @@
 // The client creates a uni stream with no onstream.
 // Verify that this causes no crash.
 
-import {hasQuic, skip, mustCall} from '../common/index.mjs';
-import {createPrivateKey} from 'node:crypto';
+import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { createPrivateKey } from 'node:crypto';
 import * as fixtures from '../common/fixtures.mjs';
 
-const {readKey} = fixtures;
+const { readKey } = fixtures;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const {listen, connect} = await import('../common/quic.mjs');
+const { listen, connect } = await import('../common/quic.mjs');
 
 const serverKey = createPrivateKey(readKey('agent1-key.pem'));
 const serverCert = readKey('agent1-cert.pem');

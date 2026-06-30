@@ -761,7 +761,8 @@ class DefaultApplication final : public Session::Application {
         return false;
       }
 
-      // The stream was created, but was immediately destroyed because there's no onstream handler.
+      // The stream was created, but was immediately destroyed because there's
+      // no onstream handler.
       if (stream->is_destroyed()) [[unlikely]] {
         return true;
       }
