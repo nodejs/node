@@ -157,9 +157,8 @@ assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG
   writer.endSync();
 }
 
-// Broadcast.from rejects non-iterable input
+// Broadcast.from rejects non-streamable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => Broadcast.from('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
 
 // =============================================================================
 // share() / shareSync() validation
