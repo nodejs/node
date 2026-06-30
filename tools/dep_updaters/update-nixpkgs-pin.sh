@@ -1,10 +1,11 @@
 #!/bin/sh
 set -ex
 # Shell script to update Nixpkgs pin in the source tree to the most recent
-# version on the unstable channel.
+# version on the unstable channel, and the 26.05 one for Intel Mac support.
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
+NIXPKGS_COMPAT_PIN_FILE="$BASE_DIR/tools/nix/pkgs-26.05.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.nix"
 
 NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
@@ -19,12 +20,27 @@ NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 35)
 
 compare_dependency_version "nixpkgs-unstable" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1"
 
-CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
-NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$NEW_UPSTREAM_SHA1.tar.gz")
+update_pkgs_file() {
+  PIN_FILE=$1
+  PREVIOUS_SHA1=$2
+  UPSTREAM_SHA1=$3
 
-TMP_FILE=$(mktemp)
-sed "s/$CURRENT_VERSION_SHA1/$NEW_UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$NIXPKGS_PIN_FILE" > "$TMP_FILE"
-mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
+  CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$PIN_FILE" | awk -F'"' '{ print $2 }')
+  NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$UPSTREAM_SHA1.tar.gz")
+
+  TMP_FILE=$(mktemp)
+  sed "s/$PREVIOUS_SHA1/$UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$PIN_FILE" > "$TMP_FILE"
+  mv "$TMP_FILE" "$PIN_FILE"
+}
+
+update_pkgs_file "$NIXPKGS_PIN_FILE" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1"
+
+# Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
+# to keep testing on that platform for a little longer.
+# TODO: remove this when 26.05 is EOL (end of 2026)
+COMPAT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_COMPAT_PIN_FILE" | awk -F'"' '{ print $2 }')
+COMPAT_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-26.05-darwin | awk '{print $1}')
+update_pkgs_file "$NIXPKGS_COMPAT_PIN_FILE" "$COMPAT_VERSION_SHA1" "$COMPAT_UPSTREAM_SHA1"
 
 nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   let
