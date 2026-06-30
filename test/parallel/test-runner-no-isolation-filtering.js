@@ -7,6 +7,8 @@ const { test } = require('node:test');
 
 const fixture1 = fixtures.path('test-runner', 'no-isolation', 'one.test.js');
 const fixture2 = fixtures.path('test-runner', 'no-isolation', 'two.test.js');
+const awaitedFilteredSuite =
+  fixtures.path('test-runner', 'awaited-filtered-suite.mjs');
 
 test('works with --test-only', () => {
   const args = [
@@ -69,6 +71,26 @@ test('works with --test-name-pattern', () => {
   assert.strictEqual(child.signal, null);
   assert.match(stdout, /# tests 0/);
   assert.match(stdout, /# suites 0/);
+});
+
+test('awaited filtered suites do not leave cancelled tests', () => {
+  const args = [
+    '--test',
+    '--test-reporter=tap',
+    '--test-isolation=none',
+    '--test-name-pattern=C',
+    awaitedFilteredSuite,
+  ];
+  const child = spawnSync(process.execPath, args);
+  const stdout = child.stdout.toString();
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.match(stdout, /# tests 2/);
+  assert.match(stdout, /# suites 1/);
+  assert.match(stdout, /# pass 1/);
+  assert.match(stdout, /# fail 0/);
+  assert.match(stdout, /# cancelled 0/);
 });
 
 test('works with --test-skip-pattern', () => {
