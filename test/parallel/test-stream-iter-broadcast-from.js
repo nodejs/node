@@ -43,6 +43,28 @@ async function testBroadcastFromStringChunks() {
   assert.strictEqual(data, 'foobar');
 }
 
+async function testBroadcastFromStringInput() {
+  const { broadcast: bc } = Broadcast.from('abc');
+  const consumer = bc.push();
+  const data = await text(consumer);
+  assert.strictEqual(data, 'abc');
+}
+
+async function testBroadcastFromUint8ArrayInput() {
+  const { broadcast: bc } = Broadcast.from(new Uint8Array([97]));
+  const consumer = bc.push();
+  const data = await text(consumer);
+  assert.strictEqual(data, 'a');
+}
+
+async function testBroadcastFromDataViewInput() {
+  const view = new DataView(new Uint8Array([104, 105]).buffer);
+  const { broadcast: bc } = Broadcast.from(view);
+  const consumer = bc.push();
+  const data = await text(consumer);
+  assert.strictEqual(data, 'hi');
+}
+
 async function testBroadcastFromMultipleConsumers() {
   const source = from('shared-data');
   const { broadcast: bc } = Broadcast.from(source);
@@ -183,6 +205,9 @@ Promise.all([
   testBroadcastFromAsyncIterable(),
   testBroadcastFromNonArrayChunks(),
   testBroadcastFromStringChunks(),
+  testBroadcastFromStringInput(),
+  testBroadcastFromUint8ArrayInput(),
+  testBroadcastFromDataViewInput(),
   testBroadcastFromMultipleConsumers(),
   testAbortSignal(),
   testAlreadyAbortedSignal(),
