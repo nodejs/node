@@ -542,14 +542,15 @@ are formatted correctly.
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
 `REPLACEME` tags (see [Writing Documentation](./api-documentation.md#writing-documentation)).
-Check for the presence of these tags and then update them either `sed` or
-`perl`. Ensure that `$VERSION` is prefixed with a `v`:
 
 ```bash
 grep REPLACEME doc/api/*.md
 ```
 
-and substitute this node version with
+The above command will check for the presence of the tags and show you which
+files need to be updated.  You can then perform the replacements with one of
+the following commands using either `sed` or `perl`.  In these examples
+`$VERSION` must be prefixed with a `v`:
 
 ```bash
 sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md
