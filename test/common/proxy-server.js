@@ -151,17 +151,22 @@ function spawnPromisified(...args) {
   });
 }
 
+function spawnOptions(envExtension) {
+  const env = { ...process.env };
+  // Cleanup the environment to avoid interference with client proxy tests.
+  for (const key of ['http_proxy', 'https_proxy', 'no_proxy']) {
+    delete env[key];
+    delete env[key.toUpperCase()];
+  }
+  return { env: { ...env, ...envExtension } };
+}
+
 async function checkProxied(type, envExtension, expectation, cliArgsExtension = []) {
   const script = type === 'fetch' ? fixtures.path('fetch-and-log.mjs') : fixtures.path('request-and-log.js');
   const { code, signal, stdout, stderr } = await spawnPromisified(
     process.execPath,
-    [...cliArgsExtension, script], {
-      env: {
-        NO_LOG_REQUEST: '1',
-        ...process.env,
-        ...envExtension,
-      },
-    });
+    [...cliArgsExtension, script],
+    spawnOptions({ ...envExtension, NO_LOG_REQUEST: '1' }));
 
   assert.deepStrictEqual({
     stderr: stderr.trim(),
@@ -188,24 +193,16 @@ exports.runProxiedRequest = async function(envExtension, cliArgsExtension = []) 
   const fixtures = require('./fixtures');
   return spawnPromisified(
     process.execPath,
-    [...cliArgsExtension, fixtures.path('request-and-log.js')], {
-      env: {
-        ...process.env,
-        ...envExtension,
-      },
-    });
+    [...cliArgsExtension, fixtures.path('request-and-log.js')],
+    spawnOptions(envExtension));
 };
 
 exports.runProxiedPOST = async function(envExtension) {
   const fixtures = require('./fixtures');
   return spawnPromisified(
     process.execPath,
-    [fixtures.path('post-resource-and-log.js')], {
-      env: {
-        ...process.env,
-        ...envExtension,
-      },
-    });
+    [fixtures.path('post-resource-and-log.js')],
+    spawnOptions(envExtension));
 };
 
 exports.startTestServers = async function(options = {}) {
