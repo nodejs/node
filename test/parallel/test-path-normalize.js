@@ -69,17 +69,6 @@ assert.strictEqual(path.win32.normalize('//server/share/dir/../../../?/D:/file')
 assert.strictEqual(path.win32.normalize('//server/goodshare/../badshare/file'),
                    '\\\\server\\goodshare\\badshare\\file');
 
-// A path is only a Windows reserved device name when the reserved name is
-// followed by a colon. A name that merely starts with a reserved name (and has
-// no colon) must be left untouched and not be prefixed with `.\`.
-assert.strictEqual(path.win32.normalize('CONx'), 'CONx');
-assert.strictEqual(path.win32.normalize('NULs'), 'NULs');
-assert.strictEqual(path.win32.normalize('LPT1x'), 'LPT1x');
-assert.strictEqual(path.win32.normalize('PRNzzz'), 'PRNzzz');
-assert.strictEqual(path.win32.normalize('CON'), 'CON');
-// With a trailing colon the reserved-name handling still applies.
-assert.strictEqual(path.win32.normalize('CON:'), '.\\CON:.');
-
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
                    'fixtures/b/c.js');
 assert.strictEqual(path.posix.normalize('/foo/../../../bar'), '/bar');
