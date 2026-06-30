@@ -31,7 +31,8 @@ KEMConfiguration::KEMConfiguration(KEMConfiguration&& other) noexcept
     : job_mode(other.job_mode),
       mode(other.mode),
       key(std::move(other.key)),
-      ciphertext(std::move(other.ciphertext)) {}
+      ciphertext(std::move(other.ciphertext)),
+      entropy(std::move(other.entropy)) {}
 
 KEMConfiguration& KEMConfiguration::operator=(
     KEMConfiguration&& other) noexcept {
@@ -44,6 +45,7 @@ void KEMConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
   if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("ciphertext", ciphertext.size());
+    tracker->TrackFieldWithSize("entropy", entropy.size());
   }
 }
 
@@ -51,10 +53,13 @@ namespace {
 
 bool DoKEMEncapsulate(Environment* env,
                       const EVPKeyPointer& public_key,
+                      const ByteSource& entropy,
                       ByteSource* out,
                       CryptoJobMode mode,
                       CryptoErrorStore* errors) {
-  auto result = ncrypto::KEM::Encapsulate(public_key);
+  ncrypto::Buffer<const unsigned char> entropy_buf{
+      entropy.data<unsigned char>(), entropy.size()};
+  auto result = ncrypto::KEM::Encapsulate(public_key, entropy_buf);
   if (!result) {
     errors->Insert(NodeCryptoError::ENCAPSULATION_FAILED);
     errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
@@ -119,6 +124,8 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     KEMConfiguration* params) {
+  Environment* env = Environment::GetCurrent(args);
+
   params->job_mode = mode;
   params->mode = KEMMode::Encapsulate;
 
@@ -129,6 +136,29 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
     return Nothing<void>();
   }
   params->key = std::move(public_key_data);
+
+  // Optional `entropy` (ML-KEM derandomized encapsulation). It is only read
+  // when a buffer is actually supplied: the randomized regular path passes
+  // `undefined` for the 7th argument and the WebCrypto path omits it
+  // entirely, so guard with IsUndefined() before constructing the contents
+  // (ArrayBufferOrViewContents CHECK()s IsAnyBufferSource, which aborts on a
+  // non-buffer value such as undefined). When supplied, the byte length is
+  // bounded both ways: CheckSizeInt32() rejects anything above INT_MAX before
+  // the FIPS 203 (6.2) exact 32-byte `m` length is enforced, so OpenSSL never
+  // reads past, or short of, the caller's buffer.
+  if (!args[key_offset]->IsUndefined()) {
+    ArrayBufferOrViewContents<unsigned char> entropy(args[key_offset]);
+    if (!entropy.CheckSizeInt32()) {
+      THROW_ERR_OUT_OF_RANGE(env, "entropy is too big");
+      return Nothing<void>();
+    }
+    if (entropy.size() != 32) {
+      THROW_ERR_OUT_OF_RANGE(env, "entropy must be 32 bytes");
+      return Nothing<void>();
+    }
+    params->entropy =
+        IsCryptoJobAsync(mode) ? entropy.ToCopy() : entropy.ToByteSource();
+  }
 
   return v8::JustVoid();
 }
@@ -141,7 +171,7 @@ bool KEMEncapsulateTraits::DeriveBits(Environment* env,
   Mutex::ScopedLock lock(params.key.mutex());
   const auto& public_key = params.key.GetAsymmetricKey();
 
-  return DoKEMEncapsulate(env, public_key, out, mode, errors);
+  return DoKEMEncapsulate(env, public_key, params.entropy, out, mode, errors);
 }
 
 MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(

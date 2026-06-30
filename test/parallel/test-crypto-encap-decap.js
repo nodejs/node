@@ -123,6 +123,53 @@ for (const [name, {
                   });
   }
 
+  // Derandomized (FIPS 203, 6.2) encapsulation: same `entropy` => same output,
+  // and the result round-trips back to the same shared secret.
+  if (name.startsWith('ml-')) {
+    const entropy = Buffer.alloc(32, 0x42);
+    const r1 = crypto.encapsulate(publicKey, { entropy });
+    const r2 = crypto.encapsulate(publicKey, { entropy });
+    assert(r1.ciphertext.equals(r2.ciphertext));
+    assert(r1.sharedKey.equals(r2.sharedKey));
+    assert.strictEqual(r1.ciphertext.byteLength, ciphertextLength);
+    assert.strictEqual(r1.sharedKey.byteLength, sharedSecretLength);
+    const sk = crypto.decapsulate(privateKey, r1.ciphertext);
+    assert(sk.equals(r1.sharedKey));
+
+    // A different `entropy` yields a different ciphertext.
+    const r3 = crypto.encapsulate(publicKey, { entropy: Buffer.alloc(32, 0x24) });
+    assert(!r3.ciphertext.equals(r1.ciphertext));
+
+    // entropy must be exactly 32 bytes (FIPS 203, 6.2 message length) — both
+    // bounds, and an explicit empty buffer is an invalid length, not the
+    // randomized path.
+    assert.throws(() => crypto.encapsulate(publicKey, { entropy: Buffer.alloc(31) }),
+                  { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => crypto.encapsulate(publicKey, { entropy: Buffer.alloc(33) }),
+                  { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => crypto.encapsulate(publicKey, { entropy: Buffer.alloc(0) }),
+                  { code: 'ERR_OUT_OF_RANGE' });
+
+    // An absent or undefined entropy selects the randomized path and must not
+    // throw or abort (the 7th binding argument is undefined here).
+    assert.strictEqual(
+      crypto.encapsulate(publicKey, { entropy: undefined }).ciphertext.byteLength,
+      ciphertextLength);
+    assert.strictEqual(
+      crypto.encapsulate(publicKey).ciphertext.byteLength, ciphertextLength);
+
+    // Non-byte-source entropy is rejected by getArrayBufferOrView.
+    assert.throws(() => crypto.encapsulate(publicKey, { entropy: null }),
+                  {
+                    code: 'ERR_INVALID_ARG_TYPE',
+                    message: /instance of ArrayBuffer, Buffer, TypedArray, or DataView\. Received null/
+                  });
+
+    // options must be an object.
+    assert.throws(() => crypto.encapsulate(publicKey, 'nope'),
+                  { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+
   function formatKeyAs(key, params) {
     return { ...params, key: key.export(params) };
   }

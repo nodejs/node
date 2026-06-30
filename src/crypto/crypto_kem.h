@@ -22,6 +22,7 @@ struct KEMConfiguration final : public MemoryRetainer {
   KEMMode mode;
   KeyObjectData key;
   ByteSource ciphertext;
+  ByteSource entropy;
 
   KEMConfiguration() = default;
   explicit KEMConfiguration(KEMConfiguration&& other) noexcept;

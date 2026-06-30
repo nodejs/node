@@ -321,11 +321,17 @@ declare namespace InternalCryptoBinding {
   interface KEMEncapsulateJobConstructor {
     new<M extends CryptoJobRegularMode>(
       mode: M,
-      ...key: PreparedAsymmetricKeyArgs
+      ...args: [
+        ...key: PreparedAsymmetricKeyArgs,
+        entropy: OptionalByteSource,
+      ]
     ): CryptoJobForMode<M, KemEncapsulateTuple>;
     new(
       mode: CryptoJobWebCryptoMode,
-      ...key: PreparedAsymmetricKeyArgs
+      ...args: [
+        ...key: PreparedAsymmetricKeyArgs,
+        entropy: OptionalByteSource,
+      ]
     ): CryptoJobWebCrypto<EncapsulateResult>;
   }
 

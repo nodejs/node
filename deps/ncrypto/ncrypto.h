@@ -89,6 +89,13 @@
 #define OPENSSL_WITH_KEM_OPERATION_PARAM 0
 #endif
 
+#if OPENSSL_WITH_KEM && !defined(OPENSSL_IS_BORINGSSL) &&                      \
+    OPENSSL_VERSION_PREREQ(3, 5)
+#define OPENSSL_WITH_KEM_IKME 1
+#else
+#define OPENSSL_WITH_KEM_IKME 0
+#endif
+
 // Post-quantum cryptography support. Keep these explicit so code can
 // distinguish provider API shape from the available algorithm set.
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 5)
@@ -1779,8 +1786,12 @@ class KEM final {
 
   // Encapsulate a shared secret using KEM with a public key.
   // Returns both the ciphertext and shared secret.
+  // When `entropy` is non-empty it is injected as OSSL_KEM_PARAM_IKME for
+  // derandomized (FIPS 203, 6.2 Encaps_internal) encapsulation. Requires
+  // OpenSSL >= 3.5; ignored on builds without OPENSSL_WITH_KEM_IKME.
   static std::optional<EncapsulateResult> Encapsulate(
-      const EVPKeyPointer& public_key);
+      const EVPKeyPointer& public_key,
+      const Buffer<const unsigned char>& entropy = {});
 
   // Decapsulate a shared secret using KEM with a private key and ciphertext.
   // Returns the shared secret.

@@ -5058,7 +5058,7 @@ bool KEM::SetOperationParameter(EVP_PKEY_CTX* ctx, const EVPKeyPointer& key) {
 #endif
 
 std::optional<KEM::EncapsulateResult> KEM::Encapsulate(
-    const EVPKeyPointer& public_key) {
+    const EVPKeyPointer& public_key, const Buffer<const unsigned char>& entropy) {
   ClearErrorOnReturn clear_error_on_return;
 
   auto ctx = public_key.newCtx();
@@ -5071,6 +5071,24 @@ std::optional<KEM::EncapsulateResult> KEM::Encapsulate(
 #if OPENSSL_WITH_KEM_OPERATION_PARAM
   if (!SetOperationParameter(ctx.get(), public_key)) {
     return std::nullopt;
+  }
+#endif
+
+#if OPENSSL_WITH_KEM_IKME
+  // Derandomized (deterministic) encapsulation: inject the message m as
+  // OSSL_KEM_PARAM_IKME (FIPS 203, 6.2 Encaps_internal). An empty buffer
+  // leaves OpenSSL's internal CSPRNG in charge (randomized encapsulation).
+  if (entropy.data != nullptr && entropy.len != 0) {
+    OSSL_PARAM params[] = {
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KEM_PARAM_IKME,
+            const_cast<unsigned char*>(entropy.data),
+            entropy.len),
+        OSSL_PARAM_END};
+
+    if (EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0) {
+      return std::nullopt;
+    }
   }
 #endif
 

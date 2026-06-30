@@ -4214,13 +4214,22 @@ If `options.publicKey` is not a [`KeyObject`][], this function behaves as if
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
-### `crypto.encapsulate(key[, callback])`
+### `crypto.encapsulate(key[, options][, callback])`
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64207
+    description: Added the `options.entropy` argument for derandomized
+                 ML-KEM encapsulation.
 -->
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Public Key
+* `options` {Object}
+  * `entropy` {ArrayBuffer|Buffer|TypedArray|DataView} For ML-KEM keys only, a
+    32-byte value used to derandomize encapsulation (FIPS 203, section 6.2).
+    When omitted, a random value is generated internally.
 * `callback` {Function}
   * `err` {Error}
   * `result` {Object}
@@ -4246,6 +4255,14 @@ Supported key types and their KEM algorithms are:
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][].
+
+When `options.entropy` is provided for an ML-KEM key, encapsulation is
+deterministic: the same `entropy`, public key, and algorithm always produce the
+same `ciphertext` and `sharedKey`. The `entropy` must be a cryptographically
+secure 32-byte value; reusing it across encapsulations forfeits the secrecy of
+the shared key. It is intended for known-answer testing and protocols such as
+X-Wing that require derandomized encapsulation. `entropy` is not supported for
+RSA, EC, X25519, or X448 keys.
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
