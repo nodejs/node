@@ -2044,13 +2044,17 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   }
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh.release())) {
+  EVPKeyPointer dh_pkey(dh.release());
+  if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
 #else
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
 #endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  dh_pkey.release();
+#endif
 }
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {

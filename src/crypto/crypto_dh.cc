@@ -99,15 +99,15 @@ void PutDhError(int reason) {
 #endif
 }
 
+#if defined(OPENSSL_IS_BORINGSSL) || !NCRYPTO_USE_OPENSSL3_PROVIDER
 void PutBnError(int reason) {
 #ifdef OPENSSL_IS_BORINGSSL
   OPENSSL_PUT_ERROR(BN, reason);
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
-  ERR_raise(ERR_LIB_BN, reason);
 #else
   ERR_put_error(ERR_LIB_BN, 0, reason, __FILE__, __LINE__);
 #endif
 }
+#endif
 
 void DiffieHellmanGroup(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
