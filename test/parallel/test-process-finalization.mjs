@@ -9,6 +9,7 @@ import assert from 'assert';
 const files = [
   'close.mjs',
   'before-exit.mjs',
+  'finalization-cleanup.mjs',
   'gc-not-close.mjs',
   'unregister.mjs',
   'different-registry-per-thread.mjs',
