@@ -905,3 +905,127 @@ additions comply with the project’s license guidelines.
 [Strategic initiatives]: doc/contributing/strategic-initiatives.md
 [Technical values and prioritization]: doc/contributing/technical-values.md
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
+const fs = require('fs');
+const path = require('path');
+
+// ============================================================
+// 1. GOOGLE_BENEFITS.md
+// ============================================================
+const benefitsMD = `# Google Cloud Startup Benefits – EHEPSO
+
+**Received:** June 26, 2026  
+**From:** Google Cloud Startup Support  
+**Status:** Scale Tier Member (Google for Startups Cloud Program)
+
+---
+
+## 🚀 Exclusive Benefits
+
+| Benefit | Details |
+|---------|---------|
+| **Google Cloud Credits** | $200,000 for 2 years |
+| **AI-First Bonus Credits** | $150,000 additional (if AI-qualified) |
+| **Enhanced Support** | $12,000 in credits for 1 year |
+| **Google Workspace** | 12 months of Business Plus (free) |
+| **Google Maps** | $600 monthly credit for 1 year |
+| **Training** | $500 in Google Skills credits |
+| **Web3 Program** | Exclusive access (if qualified) |
+| **Dedicated Support** | Business support & success manager |
+| **Partner Offers** | Databricks, MongoDB, Temporal, W&B, etc. |
+
+---
+
+## 🌐 Domains
+
+- \`eheps.org\`
+- \`eheps.com\`
+
+---
+
+## 📧 Contact Emails
+
+| Role | Email |
+|------|-------|
+| Founder / Primary | \`ewaz.2010@gmail.com\` |
+| Executive Director | \`executivedirector@eheps.org\` |
+| Executive (Alt) | \`Executive@eheps.com\` |
+| Admin | \`admin@eheps.com\` |
+
+---
+
+## 🏷️ Tags
+
+\`#GoogleCloud\` \`#GoogleForStartups\` \`#ScaleTier\` \`#EHEPSO\` \`#Nonprofit\` \`#AI\` \`#Education\` \`#ClimateAction\`
+
+---
+
+> *"Code it for GitHub and tag Google"* – This repo proudly uses Google Cloud infrastructure to scale humanitarian impact.
+`;
+
+// ============================================================
+// 2. scripts/setup_creds.sh
+// ============================================================
+const setupCredsSH = `#!/bin/bash
+
+# Google Cloud Startup - EHEPSO Credentials & Metadata
+# Source this file: source scripts/setup_creds.sh
+
+export DOMAINS="eheps.org eheps.com"
+
+export PRIMARY_EMAIL="ewaz.2010@gmail.com"
+export EXECUTIVE_DIRECTOR_EMAIL="executivedirector@eheps.org"
+export EXECUTIVE_ALT_EMAIL="Executive@eheps.com"
+export ADMIN_EMAIL="admin@eheps.com"
+
+export CONTACT_EMAILS="$PRIMARY_EMAIL $EXECUTIVE_DIRECTOR_EMAIL $EXECUTIVE_ALT_EMAIL $ADMIN_EMAIL"
+
+echo "✅ EHEPSO Google Cloud environment variables loaded."
+echo "🌐 Domains: $DOMAINS"
+echo "📧 Emails: $CONTACT_EMAILS"
+`;
+
+// ============================================================
+// 3. .github/workflows/tag-google.yml
+// ============================================================
+const tagGoogleYML = `name: Tag Google
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display Google Startup Info
+        run: |
+          echo "::notice:: Google Cloud Startup Partner - EHEPSO"
+          echo "::notice:: Domains: eheps.org, eheps.com"
+          echo "::notice:: Contact: executivedirector@eheps.org"
+          echo "::notice:: #GoogleCloud #GoogleForStartups #ScaleTier"
+`;
+
+// ============================================================
+// Write files to disk
+// ============================================================
+const files = [
+  { path: 'GOOGLE_BENEFITS.md', content: benefitsMD },
+  { path: 'scripts/setup_creds.sh', content: setupCredsSH },
+  { path: '.github/workflows/tag-google.yml', content: tagGoogleYML },
+];
+
+files.forEach((file) => {
+  const dir = path.dirname(file.path);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created directory: ${dir}`);
+  }
+  fs.writeFileSync(file.path, file.content, 'utf8');
+  console.log(`✅ Created: ${file.path}`);
+});
+
+console.log('\n🎉 All files generated successfully!');
+console.log('➜ Commit and push to GitHub:');
+console.log('  git add .');
+console.log('  git commit -m "Add Google Cloud Startup benefits, domains & emails"');
+console.log('  git push origin main');
