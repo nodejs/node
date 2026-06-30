@@ -24,25 +24,6 @@
   },
   'targets': [
     {
-      'target_name': 'ncrypto_engine',
-      'type': 'static_library',
-      'include_dirs': ['.'],
-      'defines': [
-        'NCRYPTO_BSSL_LIBDECREPIT_MISSING=<(ncrypto_bssl_libdecrepit_missing)',
-      ],
-      'sources': [ '<@(ncrypto_engine_sources)' ],
-      'conditions': [
-        ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
-          'defines': [ '<@(ncrypto_engine_defines)' ],
-        }],
-        ['node_shared_openssl=="false"', {
-          'dependencies': [
-            '../openssl/openssl.gyp:openssl'
-          ]
-        }],
-      ]
-    },
-    {
       'target_name': 'ncrypto',
       'type': 'static_library',
       'include_dirs': ['.'],
@@ -80,5 +61,28 @@
         }],
       ]
     },
-  ]
+  ],
+  'conditions': [
+    ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
+      'targets': [
+        {
+          'target_name': 'ncrypto_engine',
+          'type': 'static_library',
+          'include_dirs': ['.'],
+          'defines': [
+            'NCRYPTO_BSSL_LIBDECREPIT_MISSING=<(ncrypto_bssl_libdecrepit_missing)',
+            '<@(ncrypto_engine_defines)',
+          ],
+          'sources': [ '<@(ncrypto_engine_sources)' ],
+          'conditions': [
+            ['node_shared_openssl=="false"', {
+              'dependencies': [
+                '../openssl/openssl.gyp:openssl'
+              ]
+            }],
+          ]
+        },
+      ],
+    }],
+  ],
 }

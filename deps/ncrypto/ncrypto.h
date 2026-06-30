@@ -1215,6 +1215,8 @@ class DHPointer final {
     // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = 0x20,
     INVALID_J = 0x40,
+    MODULUS_TOO_SMALL = 0x80,
+    MODULUS_TOO_LARGE = 0x100,
 #endif
     CHECK_FAILED = 512,
   };

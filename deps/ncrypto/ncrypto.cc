@@ -260,9 +260,15 @@ EVPKeyPointer NewDhPKey(const char* group_name,
 
 bool GetDhParams(const EVP_PKEY* pkey,
                  DeleteFnPtr<BIGNUM, BN_free>* p,
-                 DeleteFnPtr<BIGNUM, BN_free>* g) {
+                 DeleteFnPtr<BIGNUM, BN_free>* g,
+                 DeleteFnPtr<BIGNUM, BN_free>* q = nullptr,
+                 DeleteFnPtr<BIGNUM, BN_free>* j = nullptr) {
   return GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_FFC_P, p) &&
-         GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_FFC_G, g);
+         GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_FFC_G, g) &&
+         (q == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_FFC_Q, q)) &&
+         (j == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_FFC_COFACTOR, j));
 }
 
 bool GetDhKeys(const EVP_PKEY* pkey,
@@ -1849,6 +1855,94 @@ bool GenerateDhPublicKey(BignumPointer* out,
   *out = std::move(pub);
   return true;
 }
+
+std::optional<int> CheckDhParams(const BIGNUM* p,
+                                 const BIGNUM* g,
+                                 const BIGNUM* q,
+                                 const BIGNUM* j) {
+  if (p == nullptr || g == nullptr) return std::nullopt;
+
+  const int p_bits = BN_num_bits(p);
+  if (p_bits > OPENSSL_DH_CHECK_MAX_MODULUS_BITS) return std::nullopt;
+
+  int codes = 0;
+  if (!BN_is_odd(p)) {
+    codes |= static_cast<int>(DHPointer::CheckResult::P_NOT_PRIME);
+  }
+  if (BN_is_negative(g) || BN_is_zero(g) || BN_is_one(g)) {
+    codes |= static_cast<int>(DHPointer::CheckResult::NOT_SUITABLE_GENERATOR);
+  }
+  if (p_bits < 512) {
+    codes |= static_cast<int>(DHPointer::CheckResult::MODULUS_TOO_SMALL);
+  }
+  if (p_bits > OPENSSL_DH_MAX_MODULUS_BITS) {
+    codes |= static_cast<int>(DHPointer::CheckResult::MODULUS_TOO_LARGE);
+  }
+
+  BignumCtxPointer ctx(BN_CTX_new());
+  if (!ctx) return std::nullopt;
+
+  auto tmp1 = BignumPointer::New();
+  auto tmp2 = BignumPointer::New();
+  if (!tmp1 || !tmp2) return std::nullopt;
+
+  if (BN_copy(tmp1.get(), p) == nullptr || BN_sub_word(tmp1.get(), 1) != 1) {
+    return std::nullopt;
+  }
+  if (BN_cmp(g, tmp1.get()) >= 0) {
+    codes |= static_cast<int>(DHPointer::CheckResult::NOT_SUITABLE_GENERATOR);
+  }
+
+  bool q_good = false;
+  if (q != nullptr) {
+    if (BN_ucmp(p, q) > 0) {
+      q_good = true;
+    } else {
+      codes |= static_cast<int>(DHPointer::CheckResult::INVALID_Q);
+    }
+  }
+
+  if (q_good) {
+    if (BN_cmp(g, BN_value_one()) <= 0 || BN_cmp(g, p) >= 0) {
+      codes |= static_cast<int>(DHPointer::CheckResult::NOT_SUITABLE_GENERATOR);
+    } else if (BN_mod_exp(tmp1.get(), g, q, p, ctx.get()) != 1) {
+      return std::nullopt;
+    } else if (!BN_is_one(tmp1.get())) {
+      codes |= static_cast<int>(DHPointer::CheckResult::NOT_SUITABLE_GENERATOR);
+    }
+
+    const int q_is_prime = BN_check_prime(q, ctx.get(), nullptr);
+    if (q_is_prime < 0) return std::nullopt;
+    if (q_is_prime == 0) {
+      codes |= static_cast<int>(DHPointer::CheckResult::Q_NOT_PRIME);
+    }
+
+    if (BN_div(tmp1.get(), tmp2.get(), p, q, ctx.get()) != 1) {
+      return std::nullopt;
+    }
+    if (!BN_is_one(tmp2.get())) {
+      codes |= static_cast<int>(DHPointer::CheckResult::INVALID_Q);
+    }
+    if (j != nullptr && BN_cmp(j, tmp1.get()) != 0) {
+      codes |= static_cast<int>(DHPointer::CheckResult::INVALID_J);
+    }
+  }
+
+  const int p_is_prime = BN_check_prime(p, ctx.get(), nullptr);
+  if (p_is_prime < 0) return std::nullopt;
+  if (p_is_prime == 0) {
+    codes |= static_cast<int>(DHPointer::CheckResult::P_NOT_PRIME);
+  } else if (q == nullptr) {
+    if (BN_rshift1(tmp1.get(), p) != 1) return std::nullopt;
+    const int q_is_prime = BN_check_prime(tmp1.get(), ctx.get(), nullptr);
+    if (q_is_prime < 0) return std::nullopt;
+    if (q_is_prime == 0) {
+      codes |= static_cast<int>(DHPointer::CheckResult::P_NOT_SAFE_PRIME);
+    }
+  }
+
+  return codes;
+}
 #endif
 }  // namespace
 
@@ -1908,6 +2002,14 @@ void DHPointer::reset(
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 EVP_PKEY* DHPointer::release() {
+  if (!dh_ && p_ && g_) {
+    auto pkey =
+        group_name_ != nullptr
+            ? NewDhPKey(group_name_, pub_key_.get(), pvt_key_.get())
+            : NewDhPKey(p_.get(), g_.get(), pub_key_.get(), pvt_key_.get());
+    if (!pkey) return nullptr;
+    dh_.reset(pkey.release());
+  }
   p_.reset();
   g_.reset();
   pub_key_.reset();
@@ -2021,41 +2123,27 @@ DHPointer::CheckResult DHPointer::check() {
 
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
+  DeleteFnPtr<BIGNUM, BN_free> q;
+  DeleteFnPtr<BIGNUM, BN_free> j;
   const BIGNUM* p_bn = p_.get();
   const BIGNUM* g_bn = g_.get();
-  if ((p_bn == nullptr || g_bn == nullptr) && !GetDhParams(dh_.get(), &p, &g)) {
+  const BIGNUM* q_bn = nullptr;
+  const BIGNUM* j_bn = nullptr;
+  if ((p_bn == nullptr || g_bn == nullptr) &&
+      !GetDhParams(dh_.get(), &p, &g, &q, &j)) {
     return DHPointer::CheckResult::CHECK_FAILED;
   }
   if (p_bn == nullptr) p_bn = p.get();
   if (g_bn == nullptr) g_bn = g.get();
+  q_bn = q.get();
+  j_bn = j.get();
   if (p_bn == nullptr || g_bn == nullptr) {
     return DHPointer::CheckResult::CHECK_FAILED;
   }
 
-  int codes = 0;
-  BignumCtxPointer ctx(BN_CTX_new());
-  if (!ctx) return DHPointer::CheckResult::CHECK_FAILED;
-
-  const int p_is_prime = BN_check_prime(p_bn, ctx.get(), nullptr);
-  if (p_is_prime < 0) return DHPointer::CheckResult::CHECK_FAILED;
-  if (p_is_prime == 0) codes |= static_cast<int>(CheckResult::P_NOT_PRIME);
-
-  auto q = BignumPointer::New();
-  if (!q || BN_copy(q.get(), p_bn) == nullptr || BN_sub_word(q.get(), 1) != 1 ||
-      BN_rshift1(q.get(), q.get()) != 1) {
-    return DHPointer::CheckResult::CHECK_FAILED;
-  }
-  const int q_is_prime = BN_check_prime(q.get(), ctx.get(), nullptr);
-  if (q_is_prime < 0) return DHPointer::CheckResult::CHECK_FAILED;
-  if (q_is_prime == 0) {
-    codes |= static_cast<int>(CheckResult::P_NOT_SAFE_PRIME);
-  }
-
-  if (BN_cmp(g_bn, BN_value_one()) <= 0 || BN_cmp(g_bn, p_bn) >= 0) {
-    codes |= static_cast<int>(CheckResult::NOT_SUITABLE_GENERATOR);
-  }
-
-  return static_cast<CheckResult>(codes);
+  auto codes = CheckDhParams(p_bn, g_bn, q_bn, j_bn);
+  if (!codes) return DHPointer::CheckResult::CHECK_FAILED;
+  return static_cast<CheckResult>(*codes);
 #else
   int codes = 0;
   if (DH_check(dh_.get(), &codes) != 1)
@@ -2097,7 +2185,18 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
     return DHPointer::CheckPublicKeyResult::TOO_LARGE;
   }
 
-  if (p_) return CheckPublicKeyResult::NONE;
+  if (p_) {
+    if (group_name_ == nullptr) return CheckPublicKeyResult::NONE;
+
+    auto peer = NewDhPKey(group_name_, pub_key.get());
+    if (!peer) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(peer.get(), nullptr));
+    if (!ctx) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
+    if (EVP_PKEY_public_check(ctx.get()) != 1) {
+      return DHPointer::CheckPublicKeyResult::INVALID;
+    }
+    return CheckPublicKeyResult::NONE;
+  }
 
   auto peer = NewDhPKey(p_bn, g_bn, pub_key.get());
   if (!peer) return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
@@ -2260,14 +2359,9 @@ DataPointer DHPointer::generateKeys() {
   }
 
   if (pvt_key != nullptr) {
-    auto generated_pub_key = BignumPointer::New();
-    BignumCtxPointer ctx(BN_CTX_new());
-    if (!generated_pub_key || !ctx ||
-        BN_mod_exp(generated_pub_key.get(),
-                   g.get(),
-                   pvt_key.get(),
-                   p.get(),
-                   ctx.get()) != 1) {
+    BignumPointer generated_pub_key;
+    if (!GenerateDhPublicKey(
+            &generated_pub_key, p.get(), g.get(), pvt_key.get())) {
       return {};
     }
 
