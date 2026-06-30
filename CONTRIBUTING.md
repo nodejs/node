@@ -1,5 +1,10 @@
 # Contributing to Node.js
 
+> \[!TIP]
+> Contributing for the first time? Please read our
+> [Guide for First-Time Contributors](./doc/contributing/first-contributions.md) for tips
+> and answers to FAQs.
+
 Contributions to Node.js include code, documentation, answering user questions,
 running the project's infrastructure, and advocating for all types of Node.js
 users.
