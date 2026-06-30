@@ -13,6 +13,9 @@
       'OPENSSL_API_COMPAT=30000',
       'OPENSSL_NO_DEPRECATED',
     ],
+    'ncrypto_legacy_openssl_defines': [
+      'OPENSSL_API_COMPAT=0x10100000L',
+    ],
     'ncrypto_engine_defines': [
       'OPENSSL_API_COMPAT=30000',
       'OPENSSL_SUPPRESS_DEPRECATED',
@@ -53,6 +56,7 @@
         ],
         'conditions': [
           ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
+            'defines!': [ '<@(ncrypto_legacy_openssl_defines)' ],
             'defines': [ '<@(ncrypto_strict_defines)' ],
           }],
         ],
@@ -60,6 +64,7 @@
       'sources': [ '<@(ncrypto_sources)' ],
       'conditions': [
         ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
+          'defines!': [ '<@(ncrypto_legacy_openssl_defines)' ],
           'defines': [ '<@(ncrypto_strict_defines)' ],
           'dependencies': [
             'ncrypto_engine',

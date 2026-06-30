@@ -146,7 +146,6 @@
 #define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
 #define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
-#include <openssl/core_names.h>
 #elif OPENSSL_WITH_BORINGSSL_PQC
 #define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
@@ -546,7 +545,9 @@ class Dsa final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  inline operator bool() const { return dsa_; }
+  inline operator bool() const {
+    return dsa_;
+  }
 #else
   inline operator bool() const { return dsa_ != nullptr; }
 #endif
@@ -583,7 +584,9 @@ class Rsa final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  inline operator bool() const { return rsa_; }
+  inline operator bool() const {
+    return rsa_;
+  }
 #else
   inline operator bool() const { return rsa_ != nullptr; }
 #endif
@@ -1179,8 +1182,12 @@ class DHPointer final {
   ~DHPointer();
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  inline bool operator==(std::nullptr_t) noexcept { return !operator bool(); }
-  inline operator bool() const { return dh_ != nullptr || (p_ && g_); }
+  inline bool operator==(std::nullptr_t) noexcept {
+    return !operator bool();
+  }
+  inline operator bool() const {
+    return dh_ != nullptr || (p_ && g_);
+  }
 #else
   inline bool operator==(std::nullptr_t) noexcept { return dh_ == nullptr; }
   inline operator bool() const { return dh_ != nullptr; }
@@ -1190,7 +1197,9 @@ class DHPointer final {
   void reset(DH* dh = nullptr);
   DH* release();
 #else
-  inline EVP_PKEY* get() const { return dh_.get(); }
+  inline EVP_PKEY* get() const {
+    return dh_.get();
+  }
   void reset(EVP_PKEY* dh = nullptr);
   EVP_PKEY* release();
 #endif
@@ -1576,8 +1585,12 @@ class ECKeyPointer final {
   ~ECKeyPointer();
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  inline bool operator==(std::nullptr_t) noexcept { return group_ == nullptr; }
-  inline operator bool() const { return group_ != nullptr; }
+  inline bool operator==(std::nullptr_t) noexcept {
+    return group_ == nullptr;
+  }
+  inline operator bool() const {
+    return group_ != nullptr;
+  }
 #else
   inline bool operator==(std::nullptr_t) noexcept { return key_ == nullptr; }
   inline operator bool() const { return key_ != nullptr; }

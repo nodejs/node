@@ -31,7 +31,6 @@
 
 namespace node {
 
-using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;

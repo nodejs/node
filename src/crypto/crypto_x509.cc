@@ -20,7 +20,6 @@ using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::Digest;
-using ncrypto::ECKeyPointer;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
 using ncrypto::X509Pointer;
