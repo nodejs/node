@@ -131,9 +131,14 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys <FINGERPRINT>
 The key you use may be a child/subkey of an existing key.
 
 If you wish to also upload your key to the commonly used Ubuntu keyservers
-you can do so with `gpg --keyserver keyserver.ubuntu.com --send-keys
-<FINGERPRINT>` and check it by switching the server name in the
-`--recv-keys` operation list above to the Ubuntu keyserver.
+you can do so with
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
+```
+
+and check it by switching the server name in the `--recv-keys` operation
+list above to the Ubuntu keyserver.
 
 Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
