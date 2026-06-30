@@ -223,7 +223,9 @@ async function tests(options) {
     input: '{[Symbol.for("{")]: 0 }',
     noPreview: '{ \x1B[32mSymbol({)\x1B[39m: \x1B[33m0\x1B[39m }',
     preview: [
-      '{[Symbol.for("{")]: 0 }\r',
+      '{[Sym\x1B[90mbol\x1B[39m\x1B[13G\x1B[0Kb\x1B[90mol\x1B[39m\x1B[14G\x1B[0Ko' +
+        '\x1B[90ml\x1B[39m\x1B[15G\x1B[0Kl.f\x1B[90mor\x1B[39m\x1B[18G\x1B[0Ko' +
+        '\x1B[90mr\x1B[39m\x1B[19G\x1B[0Kr("{")]: 0 }\r',
       '{ \x1B[32mSymbol({)\x1B[39m: \x1B[33m0\x1B[39m }',
     ],
   }, {
@@ -248,7 +250,8 @@ async function tests(options) {
     input: '{throw 0}',
     noPreview: 'Uncaught SyntaxError: Unexpected number',
     preview: [
-      '{throw 0}',
+      // Typing `{thr` offers the `throw` keyword as an inline completion preview.
+      '{thr\x1B[90mow\x1B[39m\x1B[12G\x1B[0Ko\x1B[90mw\x1B[39m\x1B[13G\x1B[0Kw 0}',
       '\x1B[90m0\x1B[39m\x1B[17G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
       'Uncaught SyntaxError: Unexpected number',
     ],

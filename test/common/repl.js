@@ -82,4 +82,17 @@ function startNewREPLServer(replOpts = {}) {
   return { replServer, input, output, waitForIdle, run };
 }
 
-module.exports = { startNewREPLServer };
+
+function complete(replServer, line) {
+  return new Promise((resolve, reject) => {
+    replServer.complete(line, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+module.exports = { startNewREPLServer, complete };

@@ -85,7 +85,7 @@ describe('REPL completion in relation of getters', () => {
         ]);
     });
 
-    test('no completions are generated for properties that trigger getters', async () => {
+    test('side-effect-free getters are evaluated during completion', async () => {
       await runCompletionTests(
         `
         function getGFooKey() {
@@ -104,19 +104,19 @@ describe('REPL completion in relation of getters', () => {
         };
         `,
         [
-          ['objWithGetters.gFoo.', []],
-          ['objWithGetters.gFoo.b', []],
-          ['objWithGetters["gFoo"].b', []],
-          ['objWithGetters.gFoo.bar.b', []],
+          ['objWithGetters.gFoo.', ['objWithGetters.gFoo.bar']],
+          ['objWithGetters.gFoo.b', ['objWithGetters.gFoo.bar']],
+          ['objWithGetters["gFoo"].b', ['objWithGetters["gFoo"].bar']],
+          ['objWithGetters.gFoo.bar.b', ['objWithGetters.gFoo.bar.baz']],
           ['objWithGetters.foo.gBar.', []],
           ['objWithGetters.foo.gBar.b', []],
           ["objWithGetters.foo['gBar'].b", []],
           ["objWithGetters['foo']['gBar'].b", []],
           ["objWithGetters['foo']['gBar']['gBuz'].", []],
-          ["objWithGetters[keys['g-foo key']].b", []],
-          ['objWithGetters[gFooKey].b', []],
-          ["objWithGetters['g' + 'Foo'].b", []],
-          ['objWithGetters[getGFooKey()].b', []],
+          ["objWithGetters[keys['g-foo key']].b", ["objWithGetters[keys['g-foo key']].bar"]],
+          ['objWithGetters[gFooKey].b', ['objWithGetters[gFooKey].bar']],
+          ["objWithGetters['g' + 'Foo'].b", ["objWithGetters['g' + 'Foo'].bar"]],
+          ['objWithGetters[getGFooKey()].b', ['objWithGetters[getGFooKey()].bar']],
         ]);
     });
 
@@ -152,7 +152,7 @@ describe('REPL completion in relation of getters', () => {
   });
 
   describe('completions on proxies', () => {
-    test('no completions are generated for a proxy object', async () => {
+    test('completions stop at a proxy but resume past it', async () => {
       await runCompletionTests(
         `
         function getFooKey() {
@@ -170,13 +170,13 @@ describe('REPL completion in relation of getters', () => {
           ['proxyObj.', []],
           ['proxyObj.f', []],
           ['proxyObj.foo', []],
-          ['proxyObj.foo.', []],
+          ['proxyObj.foo.', ['proxyObj.foo.bar']],
           ['proxyObj.["foo"].', []],
           ['proxyObj.["f" + "oo"].', []],
           ['proxyObj.[fooKey].', []],
           ['proxyObj.[getFooKey()].', []],
           ['proxyObj.[keys["foo key"]].', []],
-          ['proxyObj.foo.bar.b', []],
+          ['proxyObj.foo.bar.b', ['proxyObj.foo.bar.baz']],
         ]);
     });
 
