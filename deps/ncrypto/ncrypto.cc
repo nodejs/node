@@ -3406,9 +3406,8 @@ struct DERView {
   size_t len = 0;
 };
 
-int WriteDERView(const void* x, unsigned char** out, void* vctx) {
-  (void)x;
-  const auto* der = static_cast<const DERView*>(vctx);
+int WriteDERView(const void* x, unsigned char** out) {
+  const auto* der = static_cast<const DERView*>(x);
   if (der == nullptr || der->data == nullptr ||
       der->len > static_cast<size_t>(INT_MAX)) {
     return -1;
@@ -3436,12 +3435,11 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
 
   OpenSSLBufferPointer der_storage(der);
   DERView der_view{der_storage.get(), der_len};
-  return PEM_ASN1_write_bio_ctx(
+  return PEM_ASN1_write_bio(
              WriteDERView,
-             &der_view,
              PEM_STRING_RSA,
              bio,
-             nullptr,
+             &der_view,
              cipher,
              reinterpret_cast<const unsigned char*>(passphrase.data),
              static_cast<int>(passphrase.len),
