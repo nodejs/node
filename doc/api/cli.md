@@ -1041,7 +1041,7 @@ added:
   - v22.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxx
+    pr-url: https://github.com/nodejs/node/pull/64221
     description: This is enabled by default.
 -->
 
