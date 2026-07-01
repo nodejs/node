@@ -17,10 +17,11 @@ const fixtures = require('../common/fixtures');
     signal: null,
     status: 1,
     stderr(output) {
+      output = output.replace(/\r/g, '');
       common.expectRequiredTLAError(output);
       // The top-level await lives in a transitive dependency (a.mjs).
-      assert.match(output, /tla\/a\.mjs:3/);
-      assert.ok(output.includes('await new Promise((resolve) => {\n^'), output);
+      assert(output.includes(`${fixtures.path('es-modules/tla/a.mjs')}:3`), output);
+      assert(output.includes('await new Promise((resolve) => {\n^'), output);
       assert.match(output, /Require stack:/);
       assert.match(output, /require-nested\.js/);
       return true;

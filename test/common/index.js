@@ -957,7 +957,7 @@ function expectRequiredTLAError(err) {
 // Extract the entries of the rendered "Require stack:" list (each shown as
 // "- <path>") from an error message or a process output string.
 function parseRequireStack(output) {
-  const lines = output.split('\n');
+  const lines = output.replace(/\r/g, '').split('\n');
   const start = lines.indexOf('Require stack:');
   if (start === -1) {
     return [];

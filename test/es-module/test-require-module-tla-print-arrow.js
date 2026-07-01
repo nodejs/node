@@ -16,11 +16,12 @@ const fixtures = require('../common/fixtures');
     signal: null,
     status: 1,
     stderr(output) {
+      output = output.replace(/\r/g, '');
       common.expectRequiredTLAError(output);
       // Indented await: the caret is aligned under the await.
-      assert.ok(output.includes('  await Promise.resolve(ready);\n  ^'), output);
+      assert(output.includes('  await Promise.resolve(ready);\n  ^'), output);
       // for-await-of: the caret points at the for keyword.
-      assert.ok(output.includes('for await (const x of [Promise.resolve(1)]) {\n^'), output);
+      assert(output.includes('for await (const x of [Promise.resolve(1)]) {\n^'), output);
       return true;
     },
     stdout: '',

@@ -17,11 +17,12 @@ const fixtures = require('../common/fixtures');
     signal: null,
     status: 1,
     stderr(output) {
+      output = output.replace(/\r/g, '');
       assert.doesNotMatch(output, /I am executed/);
       common.expectRequiredTLAError(output);
       // The location of the top-level await is shown with a caret.
-      assert.match(output, /tla\/execution\.mjs:3/);
-      assert.ok(output.includes("await Promise.resolve('hi');\n^"), output);
+      assert(output.includes(`${fixtures.path('es-modules/tla/execution.mjs')}:3`), output);
+      assert(output.includes("await Promise.resolve('hi');\n^"), output);
       // The require() chain is shown as a require stack.
       assert.match(output, /Require stack:/);
       assert.match(output, /require-execution\.js/);
