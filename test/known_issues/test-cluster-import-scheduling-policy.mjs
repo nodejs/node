@@ -9,8 +9,8 @@ import * as cluster from 'cluster';
 
 assert.strictEqual(cluster.schedulingPolicy, cluster.SCHED_RR);
 cluster.setupPrimary({ schedulingPolicy: cluster.SCHED_NONE });
+// configured primary scheduling policy is now cluster.SCHED_NONE.
 const settings = cluster.getSettings();
-// configured scheduling policy is now cluster.SCHED_NONE.
 assert.strictEqual(settings.schedulingPolicy, cluster.SCHED_NONE);
-// current scheduling policy is still cluster.SCHED_RR.
+// current cluster scheduling policy is still cluster.SCHED_RR.
 assert.strictEqual(cluster.schedulingPolicy, cluster.SCHED_RR);
