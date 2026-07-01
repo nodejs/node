@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -35,28 +35,38 @@ for (let i = 0; i < N; ++i) {
   headers[`key${i}`] = i;
 }
 
-const maxAndExpected = [ // for server
-  [50, 50],
-  [1500, 102],
-  [0, N + 2], // Host and Connection
-];
-let max = maxAndExpected[requests][0];
-let expected = maxAndExpected[requests][1];
+function createRequestHeaders(count) {
+  const requestHeaders = {
+    host: 'example.com',
+  };
+  for (let i = 0; i < count; ++i) {
+    requestHeaders[`key${i}`] = i;
+  }
+  return requestHeaders;
+}
 
-const server = http.createServer(function(req, res) {
+const serverMaxAndExpected = [ // for server
+  [50, 50, 48],
+  [1500, 102, N],
+  [0, N + 2, N], // Host and Connection
+];
+let max = serverMaxAndExpected[requests][0];
+let expected = serverMaxAndExpected[requests][1];
+
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   assert.strictEqual(Object.keys(req.headers).length, expected);
-  if (++requests < maxAndExpected.length) {
-    max = maxAndExpected[requests][0];
-    expected = maxAndExpected[requests][1];
+  if (++requests < serverMaxAndExpected.length) {
+    max = serverMaxAndExpected[requests][0];
+    expected = serverMaxAndExpected[requests][1];
     server.maxHeadersCount = max;
   }
   res.writeHead(200, { ...headers, 'Connection': 'close' });
   res.end();
-});
+}));
 server.maxHeadersCount = max;
 
-server.listen(0, function() {
-  const maxAndExpected = [ // for client
+server.listen(0, common.mustCall(() => {
+  const clientMaxAndExpected = [ // for client
     [20, 20],
     [1200, 104],
     [0, N + 4], // Host and Connection
@@ -64,28 +74,30 @@ server.listen(0, function() {
   doRequest();
 
   function doRequest() {
-    const max = maxAndExpected[responses][0];
-    const expected = maxAndExpected[responses][1];
+    const max = clientMaxAndExpected[responses][0];
+    const expected = clientMaxAndExpected[responses][1];
+    const requestHeaders =
+      createRequestHeaders(serverMaxAndExpected[requests][2]);
     const req = http.request({
       port: server.address().port,
-      headers: headers
-    }, function(res) {
+      headers: requestHeaders
+    }, common.mustCall((res) => {
       assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', function() {
-        if (++responses < maxAndExpected.length) {
+        if (++responses < clientMaxAndExpected.length) {
           doRequest();
         } else {
           server.close();
         }
       });
       res.resume();
-    });
+    }));
     req.maxHeadersCount = max;
     req.end();
   }
-});
+}));
 
 process.on('exit', function() {
-  assert.strictEqual(requests, maxAndExpected.length);
-  assert.strictEqual(responses, maxAndExpected.length);
+  assert.strictEqual(requests, serverMaxAndExpected.length);
+  assert.strictEqual(responses, serverMaxAndExpected.length);
 });
