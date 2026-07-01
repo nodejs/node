@@ -978,3 +978,46 @@ suite('options.allowBareNamedParameters', () => {
     );
   });
 });
+
+
+suite('StatementSync.prototype[Symbol.dispose]()', () => {
+  test('finalizes an open statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    const stmt = db.prepare('SELECT * FROM storage');
+    stmt[Symbol.dispose]();
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('does not throw on an already-finalized statement', () => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt[Symbol.dispose]();
+    stmt[Symbol.dispose]();
+  });
+
+  test('works with a using declaration', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    let captured;
+    {
+      using stmt = db.prepare('SELECT * FROM storage');
+      captured = stmt;
+      t.assert.deepStrictEqual(stmt.all(), []);
+    }
+    t.assert.throws(() => captured.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('closing the database after dispose does not double-finalize', () => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt[Symbol.dispose]();
+    db.close();
+  });
+});
