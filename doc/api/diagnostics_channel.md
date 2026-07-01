@@ -293,6 +293,32 @@ function exportTraces(data) {
 }
 ```
 
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+const { request } = require('node:http');
+
+const { channel, bypass } = diagnostics_channel;
+
+// A unique token identifying this APM tool
+const kMyTracer = Symbol('my-tracer');
+
+// Subscribe to HTTP requests, but opt into bypass
+channel('http.client.request').subscribe((message) => {
+  console.log('HTTP request:', message.url);
+}, { bypassId: kMyTracer });
+
+// When exporting traces internally, use bypass() so the
+// above subscriber is NOT triggered for this internal request
+function exportTraces(data) {
+  bypass(kMyTracer, () => {
+    // This HTTP request will NOT trigger the subscriber above
+    request('https://my-apm-backend.example.com/traces', {
+      method: 'POST',
+    });
+  });
+}
+```
+
 Without `bypass()`, the internal `exportTraces()` HTTP request
 would trigger the subscriber, which would try to export a trace
 of the export, causing infinite recursion.
@@ -300,6 +326,22 @@ of the export, causing infinite recursion.
 The bypass context propagates across async boundaries:
 
 ```mjs
+// bypass() works across Promise boundaries
+await bypass(kMyTracer, async () => {
+  await someAsyncOperation(); // still bypassed
+  channel('http.client.request').publish(data); // subscriber skipped
+});
+
+// And across timers
+bypass(kMyTracer, () => {
+  setImmediate(() => {
+    // Still bypassed here
+    channel('http.client.request').publish(data);
+  });
+});
+```
+
+```cjs
 // bypass() works across Promise boundaries
 await bypass(kMyTracer, async () => {
   await someAsyncOperation(); // still bypassed
@@ -580,6 +622,19 @@ ch.subscribe((message) => {
 }, { bypassId: kMyTool });
 ```
 
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const { channel, bypass } = diagnostics_channel;
+const kMyTool = Symbol('my-tool');
+const ch = channel('http.client.request');
+
+// This handler will be skipped when bypass(kMyTool, fn) is active
+ch.subscribe((message) => {
+  // handle message
+}, { bypassId: kMyTool });
+```
+
 #### `channel.unsubscribe(onMessage)`
 
 <!-- YAML
@@ -693,6 +748,21 @@ To opt this bound store into bypass behavior:
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
+
+const { channel, bypass } = diagnostics_channel;
+const kMyTool = Symbol('my-tool');
+const ch = channel('http.client.request');
+const store = new AsyncLocalStorage();
+
+// This store will NOT be entered when bypass(kMyTool, fn) is active
+ch.bindStore(store, (data) => ({ requestId: data.id }), {
+  bypassId: kMyTool,
+});
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const { channel, bypass } = diagnostics_channel;
 const kMyTool = Symbol('my-tool');
@@ -972,6 +1042,28 @@ To opt all TracingChannel handlers into bypass behavior:
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
+
+const { tracingChannel, bypass } = diagnostics_channel;
+const kMyTool = Symbol('my-tool');
+const tc = tracingChannel('my-operation');
+
+// All TracingChannel events skipped when bypass(kMyTool) is active
+tc.subscribe({
+  start(message) { /* ... */ },
+  end(message) { /* ... */ },
+  asyncStart(message) { /* ... */ },
+  asyncEnd(message) { /* ... */ },
+}, { bypassId: kMyTool });
+
+bypass(kMyTool, () => {
+  tc.traceSync(() => {
+    // start and end handlers are NOT called
+  });
+});
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const { tracingChannel, bypass } = diagnostics_channel;
 const kMyTool = Symbol('my-tool');
