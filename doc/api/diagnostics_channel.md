@@ -1085,7 +1085,7 @@ tc.subscribe({
 
 bypass(kMyTool, () => {
   tc.traceSync(() => {
-    // start and end handlers are NOT called
+    // Start and end handlers are NOT called
   });
 });
 ```
@@ -1107,7 +1107,7 @@ tc.subscribe({
 
 bypass(kMyTool, () => {
   tc.traceSync(() => {
-    // start and end handlers are NOT called
+    // Start and end handlers are NOT called
   });
 });
 ```
