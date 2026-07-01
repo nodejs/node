@@ -405,20 +405,17 @@ std::unique_ptr<worker::TransferData> TCPWrap::TransferForMessaging() {
   CHECK_NE(GetTransferMode(), TransferMode::kDisallowCloneAndTransfer);
 
   uv_os_fd_t fd;
-  if (uv_fileno(reinterpret_cast<uv_handle_t*>(&handle_), &fd) != 0)
-    return {};
+  if (uv_fileno(reinterpret_cast<uv_handle_t*>(&handle_), &fd) != 0) return {};
 
   // dup() the descriptor so the receiving event loop owns an independent
   // reference to the same socket. We then close the source handle, which
   // renders it unusable on this side (true transfer semantics) while the dup
   // keeps the underlying socket alive for the destination thread.
   int dup_fd = dup(fd);
-  if (dup_fd < 0)
-    return {};
+  if (dup_fd < 0) return {};
 
-  SocketType type = provider_type() == ProviderType::PROVIDER_TCPSERVERWRAP
-                        ? SERVER
-                        : SOCKET;
+  SocketType type =
+      provider_type() == ProviderType::PROVIDER_TCPSERVERWRAP ? SERVER : SOCKET;
 
   // Stop watching the fd and tear down the source handle.
   Close();
@@ -444,25 +441,20 @@ BaseObjectPtr<BaseObject> TCPWrap::TransferData::Deserialize(
   // Construct a fresh TCPWrap in the receiving Environment. We cannot use
   // TCPWrap::Instantiate() here because it requires a parent AsyncWrap to
   // establish the async_hooks trigger id, and a deserialized handle has none.
-  if (env->tcp_constructor_template().IsEmpty())
-    return {};
+  if (env->tcp_constructor_template().IsEmpty()) return {};
   Local<Function> constructor;
-  if (!env->tcp_constructor_template()
-           ->GetFunction(context)
-           .ToLocal(&constructor)) {
+  if (!env->tcp_constructor_template()->GetFunction(context).ToLocal(
+          &constructor)) {
     return {};
   }
   Local<Value> type_arg = Int32::New(env->isolate(), type_);
   Local<Object> obj;
-  if (!constructor->NewInstance(context, 1, &type_arg).ToLocal(&obj))
-    return {};
+  if (!constructor->NewInstance(context, 1, &type_arg).ToLocal(&obj)) return {};
 
   TCPWrap* wrap = BaseObject::Unwrap<TCPWrap>(obj);
-  if (wrap == nullptr)
-    return {};
+  if (wrap == nullptr) return {};
 
-  if (uv_tcp_open(&wrap->handle_, fd_) != 0)
-    return {};
+  if (uv_tcp_open(&wrap->handle_, fd_) != 0) return {};
 
   wrap->set_fd(fd_);
   fd_ = -1;  // Ownership has been handed to the new handle.
