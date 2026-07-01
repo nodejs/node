@@ -405,12 +405,9 @@ added: v17.0.0
 
 * Extends: {errors.Error}
 
-Indicates an error according to the
-[Web IDL DOMException interface][Web IDL DOMException]. These errors are thrown
-by web-platform APIs in Node.js such as
-[`fetch()`][], {AbortController}, {AbortSignal}, and Web Streams.
-
-For details on the `DOMException` class, see [`Class: DOMException`][].
+The Web IDL {DOMException} class. These errors are thrown by web-platform APIs
+in Node.js such as [`fetch()`][], {AbortController}, {AbortSignal}, and Web
+Streams.
 
 The [`domException.name`][] property identifies the type of the exception (for
 example, `'AbortError'`). Unlike most errors in Node.js, the
@@ -4604,7 +4601,6 @@ An error occurred trying to allocate memory. This should never happen.
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
-[Web IDL DOMException]: https://webidl.spec.whatwg.org/#idl-DOMException
 [Web IDL error names]: https://webidl.spec.whatwg.org/#dfn-error-names-table
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
@@ -4615,7 +4611,6 @@ An error occurred trying to allocate memory. This should never happen.
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`ABORT_ERR`]: #abort_err
 [`BoundSocket`]: net.md#class-netboundsocket
-[`Class: DOMException`]: globals.md#class-domexception
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
