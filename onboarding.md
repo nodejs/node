@@ -287,8 +287,11 @@ needs to be pointed out separately during the onboarding.
   access to the projects coverity project as outlined in [static-analysis][].
 * If you are interested in helping out with CI reliability, check out the
   [reliability repository][] and [guide on how to deal with CI flakes][]. When
-  fixing a flaky test, it is recommended to run [`node-stress-single-test`][]
-  on both the main branch and the test branch to verify the fix makes the test more stable under repeated runs.
+  fixing a flaky test in `test/sequentual`, it is recommended to run
+  [`node-stress-single-test`][] on both the main branch and the test branch
+  to verify the fix makes the test more stable under repeated runs. It is also
+  good for tests in `test/parallel`, but not very reliable because the job runs
+  the test sequentially.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
