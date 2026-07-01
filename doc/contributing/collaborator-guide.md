@@ -296,8 +296,7 @@ label to the pull request.
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
   can run a group of tests over and over on a specific platform. Use it to check
-  that the tests are reliable. When fixing a flaky test, it is recommended to
-  run this job to verify the test remains stable under repeated runs.
+  that the tests are reliable (i.e. not flaky).
 
 * [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
   runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
