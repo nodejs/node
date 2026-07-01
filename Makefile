@@ -1493,10 +1493,10 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@$(call available-node,$(run-lint-md))
 	@touch $@
 
-tools/.manpagelintstamp: doc/api/cli.md tools/doc/node_modules doc/node.1
-	$(info Verifying that doc/node.1 is up to date...)
+tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
+	$(info Verifying that $< is up to date...)
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping doc/node.1 verification (no crypto and/or no ICU)"; \
+		echo "Skipping $< verification (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r out/doc/.manpagecheck && \
 		$(call available-node, \
@@ -1504,8 +1504,8 @@ tools/.manpagelintstamp: doc/api/cli.md tools/doc/node_modules doc/node.1
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \
-		if ! diff -u doc/node.1 out/doc/.manpagecheck/node.1; then \
-			echo 'doc/node.1 is out of date; run `make node.1` to regenerate it.'; \
+		if ! diff -u $< out/doc/.manpagecheck/node.1; then \
+			echo '$< is out of date; run `make node.1` to regenerate it.' >&2; \
 			exit 1; \
 		fi; \
 	fi
