@@ -932,6 +932,9 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 		) \
 	fi
 
+doc/node.1:
+	$(error Please use 'make node.1' instead of 'make $@'.)
+
 .PHONY: node.1
 node.1: doc/api/cli.md tools/doc/node_modules
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
