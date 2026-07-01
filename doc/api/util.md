@@ -2870,6 +2870,48 @@ Returns the `string` after replacing any surrogate code points
 (or equivalently, any unpaired surrogate code units) with the
 Unicode "replacement character" U+FFFD.
 
+## `util.table(tabularData[, properties][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `tabularData` {any} The data to render. Arrays, objects, `Map`s and `Set`s
+  are rendered as tables; any other value is returned as inspected text.
+* `properties` {string\[]} An alternate list of properties to use as the table's
+  columns. By default every own enumerable property of the rows is used.
+* `options` {Object} Options forwarded to [`util.inspect()`][] when formatting
+  each cell.
+* Returns: {string}
+
+Returns tabular data formatted with the same layout as [`console.table()`][],
+but as a string instead of writing it to a stream. This is useful for logging,
+writing to a file, or building output without a console.
+
+```mjs
+import { table } from 'node:util';
+
+console.log(table([
+  { name: 'alice', age: 30 },
+  { name: 'bob', age: 25 },
+]));
+// ┌─────────┬─────────┬─────┐
+// │ (index) │ name    │ age │
+// ├─────────┼─────────┼─────┤
+// │ 0       │ 'alice' │ 30  │
+// │ 1       │ 'bob'   │ 25  │
+// └─────────┴─────────┴─────┘
+```
+
+```cjs
+const { table } = require('node:util');
+
+console.log(table([
+  { name: 'alice', age: 30 },
+  { name: 'bob', age: 25 },
+]));
+```
+
 ## `util.transferableAbortController()`
 
 <!-- YAML
@@ -3914,6 +3956,7 @@ npx codemod@latest @nodejs/util-is
 [`Runtime.ScriptId`]: https://chromedevtools.github.io/devtools-protocol/1-3/Runtime/#type-ScriptId
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
+[`console.table()`]: console.md#consoletabletabulardata-properties
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
