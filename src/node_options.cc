@@ -610,6 +610,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
             kAllowedInEnvvar);
+  AddOption("--experimental-logger",
+            "experimental node:logger module",
+            &EnvironmentOptions::experimental_logger,
+            kAllowedInEnvvar);
   AddOption("--experimental-dtls",
 #if HAVE_DTLS
             "experimental DTLS support",
