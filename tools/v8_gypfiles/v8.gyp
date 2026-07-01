@@ -1347,9 +1347,15 @@
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access.
         # Clang needs it for some atomic operations (https://clang.llvm.org/docs/Toolchain.html#atomics-library).
-        ['(OS=="linux" and clang==1) or (v8_current_cpu in ["mips64", "mips64el", "arm", "riscv64", "loong64"])', {
+        ['(OS!="linux" or clang!=1) and (v8_current_cpu in ["mips64", "mips64el", "arm", "riscv64", "loong64"])', {
           'link_settings': {
             'libraries': ['-latomic', ],
+          },
+        }],
+        # Statically link libatomic for Linux Clang builds
+        ['OS=="linux" and clang==1', {
+          'link_settings': {
+            'libraries': ['<!@(clang++ -print-file-name=libatomic.a)', ],
           },
         }],
       ],
