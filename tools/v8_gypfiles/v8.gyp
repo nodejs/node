@@ -385,6 +385,7 @@
       'toolsets': ['target'],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-deserialize.cc',
+        '<(V8_ROOT)/src/snapshot/builtins-effects-dummy.cc',
       ],
       'xcode_settings': {
         # V8 7.4 over macOS10.11 compatibility
