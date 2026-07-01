@@ -26,6 +26,7 @@ const server = http.createServer((req, res) => {
     [
       '--permission',
       '--allow-fs-read=*',
+      '--allow-env=*',
       file,
     ],
     {

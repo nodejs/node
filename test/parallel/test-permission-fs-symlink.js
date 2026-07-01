@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-env=*
 'use strict';
 
 const common = require('../common');
@@ -57,6 +57,7 @@ const traversalSymlink = path.join(allowedFolder, 'deep1', 'deep2', 'deep3', 'go
       `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${symlinkFromBlockedFile}`,
       `--allow-fs-read=${allowedFolder}`,
       `--allow-fs-write=${symlinkFromBlockedFile}`,
+      '--allow-env=*',
       file,
     ],
     {
