@@ -404,6 +404,27 @@ const tests = [
     error: 'Host: xn--bcher-kva.example.com. is not cert\'s CN: ' +
             'xn--*.example.com',
   },
+  // IPv6 addresses
+  {
+    host: '::1', cert: {
+      subjectaltname: 'IP Address:0:0:0:0:0:0:0:1',
+      subject: {}
+    }
+  },
+  {
+    host: '::1', cert: {
+      subjectaltname: 'IP Address:127.0.0.1',
+      subject: {}
+    },
+    error: 'IP: ::1 is not in the cert\'s list: ' +
+           '127.0.0.1'
+  },
+  {
+    host: '2001:db8::1', cert: {
+      subjectaltname: 'IP Address:2001:0DB8:0000:0000:0000:0000:0000:0001',
+      subject: {}
+    }
+  },
 ];
 
 tests.forEach(function(test, i) {
