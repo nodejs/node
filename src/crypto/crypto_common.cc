@@ -215,13 +215,15 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
       Undefined(env->isolate()),  // name
       Undefined(env->isolate()),  // size
   };
-  EVPKeyPointer key = ssl.getPeerTempKey();
+
+  bool found = false;
   if (EVPKeyPointer key = ssl.getPeerTempKey()) {
     int kid = key.id();
     switch (kid) {
       case EVP_PKEY_DH: {
         values[0] = env->dh_string();
         values[2] = Integer::New(env->isolate(), key.bits());
+        found = true;
         break;
       }
       case EVP_PKEY_EC:
@@ -237,8 +239,15 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
         values[0] = env->ecdh_string();
         values[1] = OneByteString(env->isolate(), curve_name);
         values[2] = Integer::New(env->isolate(), key.bits());
+        found = true;
         break;
       }
+    }
+  }
+  if (!found) {
+    if (auto name = ssl.getNegotiatedGroup()) {
+      values[0] = env->tls_group_string();
+      values[1] = OneByteString(env->isolate(), name.value());
     }
   }
 
