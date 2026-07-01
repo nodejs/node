@@ -5,6 +5,7 @@ import { BufferBinding } from './internalBinding/buffer';
 import { CJSLexerBinding } from './internalBinding/cjs_lexer';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
+import { CryptoBinding } from './internalBinding/crypto';
 import { DebugBinding } from './internalBinding/debug';
 import { EncodingBinding } from './internalBinding/encoding_binding';
 import { HttpParserBinding } from './internalBinding/http_parser';
@@ -42,6 +43,7 @@ interface InternalBindingMap {
   cjs_lexer: CJSLexerBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
+  crypto: CryptoBinding;
   debug: DebugBinding;
   encoding_binding: EncodingBinding;
   fs: FsBinding;

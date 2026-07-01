@@ -3034,8 +3034,6 @@ changes:
     description: Added support for webstreams.
 -->
 
-> Stability: 2 - Stable
-
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
   ReadableStream\[]|WritableStream\[]|TransformStream\[]|Duplex\[]|Function}
 * Returns: {stream.Duplex}
