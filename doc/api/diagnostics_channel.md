@@ -373,6 +373,23 @@ bypass(kToolA, () => {
 });
 ```
 
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const { channel, bypass } = diagnostics_channel;
+
+const kToolA = Symbol('tool-a');
+const kToolB = Symbol('tool-b');
+
+channel('http.client.request').subscribe(handlerA, { bypassId: kToolA });
+channel('http.client.request').subscribe(handlerB, { bypassId: kToolB });
+
+// Only handlerA is skipped, handlerB still fires
+bypass(kToolA, () => {
+  channel('http.client.request').publish(data);
+});
+```
+
 #### `diagnostics_channel.tracingChannel(nameOrChannels)`
 
 <!-- YAML
@@ -563,6 +580,9 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
   - version:
     - v24.8.0
     - v22.20.0
@@ -700,6 +720,10 @@ channel.unsubscribe(onMessage);
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
 -->
 
 > Stability: 1 - Experimental
@@ -972,6 +996,10 @@ dynamically.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
 -->
 
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
