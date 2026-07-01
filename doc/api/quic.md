@@ -358,6 +358,29 @@ delivered out of order. The [`session.ondatagramstatus`][] callback reports
 whether each sent datagram was `'acknowledged'`, `'lost'`, or `'abandoned'`
 (never sent on the wire).
 
+#### HTTP/3 datagrams
+
+On HTTP/3 sessions, datagrams are associated with an individual request stream
+rather than with the session as a whole. Send and receive them per-stream with
+[`stream.sendDatagram()`][] and [`stream.ondatagram`][], passing and receiving
+your application payload directly; the protocol framing that binds a datagram to
+its stream is handled internally and never visible to your code. Both peers must
+set [`application.enableDatagrams`][] to `true`.
+
+The session-level datagram API does not apply to HTTP/3 sessions:
+[`session.sendDatagram()`][] throws `ERR_INVALID_STATE` and
+[`session.ondatagram`][] never fires. (Only non-HTTP/3 ALPNs use the raw,
+session-level datagrams described above.)
+
+Because datagrams are unordered with respect to stream data, a datagram is only
+delivered while its associated stream still exists on the receiver; one that
+arrives for an unknown or already-closed stream is dropped.
+
+Under the hood, each HTTP/3 datagram ([RFC 9297][]) is carried in a QUIC
+`DATAGRAM` frame prefixed with a _Quarter Stream ID_ (the request stream's id
+divided by four) that binds it to the stream. This prefix is added and stripped
+automatically; most applications never need to think about it.
+
 ### 0-RTT early data and session resumption
 
 QUIC supports 0-RTT early data, allowing a client that has previously connected
@@ -1114,7 +1137,12 @@ added: v23.8.0
 
 * Type: {quic.OnDatagramCallback}
 
-The callback to invoke when a new datagram is received from a remote peer. Read/write.
+The callback to invoke when a new raw datagram is received from a remote peer.
+Read/write.
+
+This is only used for non-HTTP/3 sessions. On HTTP/3 sessions datagrams are
+bound to a request stream and delivered via [`stream.ondatagram`][] instead;
+this callback never fires. See [Datagrams][].
 
 ### `session.ondatagramstatus`
 
@@ -1384,8 +1412,12 @@ added: v23.8.0
   **Default:** `'utf8'`.
 * Returns: {Promise} for a {bigint} datagram ID.
 
-Sends an unreliable datagram to the remote peer, returning a promise for
+Sends an unreliable raw datagram to the remote peer, returning a promise for
 the datagram ID.
+
+This method is for non-HTTP/3 sessions only. On HTTP/3 sessions datagrams are
+per-stream, so this method throws `ERR_INVALID_STATE`; use
+[`stream.sendDatagram()`][] instead. See [Datagrams][].
 
 If `datagram` is a string, it will be encoded using the specified `encoding`.
 
@@ -1402,12 +1434,6 @@ inherently unreliable).
 
 If the datagram payload is zero-length (empty string after encoding, detached
 buffer, or zero-length view), `0n` is returned and no datagram is sent.
-
-For HTTP/3 sessions, the peer must advertise `SETTINGS_H3_DATAGRAM=1`
-(via `application: { enableDatagrams: true }`) for datagrams to be sent.
-If the peer's setting is `0`, `sendDatagram()` returns `0n` (per RFC 9297
-§3, an endpoint MUST NOT send HTTP Datagrams unless the peer indicated
-support).
 
 Datagrams cannot be fragmented — each must fit within a single QUIC packet.
 The maximum datagram size is determined by the peer's
@@ -2012,6 +2038,20 @@ continue using the still-active direction on a bidirectional stream),
 abort the other direction with [`writer.fail()`][], or tear down the
 whole stream with [`stream.destroy()`][]. Read/write.
 
+### `stream.ondatagram`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnStreamDatagramCallback}
+
+The callback invoked when a datagram associated with this stream is received.
+It receives the datagram payload as a `Uint8Array` and a `boolean` indicating
+whether it arrived as 0-RTT early data. Read/write.
+
+Only applies to HTTP/3 sessions. See [Datagrams][].
+
 ### `stream.headers`
 
 <!-- YAML
@@ -2145,6 +2185,29 @@ Sends trailing headers on the stream. Must be called synchronously during
 the [`stream.onwanttrailers`][] callback, or set ahead of time via
 [`stream.pendingTrailers`][]. Throws `ERR_INVALID_STATE` if the session
 does not support headers.
+
+### `stream.sendDatagram(datagram[, encoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `datagram` {string|ArrayBufferView}
+* `encoding` {string} The encoding to use if `datagram` is a string.
+  **Default:** `'utf8'`.
+* Returns: {bigint} The datagram id, or `0n` if the datagram was not sent.
+
+Sends an unreliable datagram associated with this stream to the peer, where it
+is delivered to the corresponding stream's [`stream.ondatagram`][] callback. The
+payload is sent as-is; the framing that binds it to the stream is handled
+internally.
+
+Delivery is best-effort: datagrams may be lost, reordered, or dropped. `0n` is
+returned (and the payload silently discarded) if the datagram cannot be sent.
+The delivery status of a sent datagram is reported via the session's
+[`session.ondatagramstatus`][] callback.
+
+Only applies to HTTP/3 sessions. See [Datagrams][].
 
 ### `stream.priority`
 
@@ -3745,6 +3808,16 @@ added: v23.8.0
 * `this` {quic.QuicStream}
 * `error` {any}
 
+### Callback: `OnStreamDatagramCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `this` {quic.QuicStream}
+* `datagram` {Uint8Array} The datagram payload.
+* `early` {boolean} `true` if the datagram arrived as 0-RTT early data.
+
 ### Callback: `OnHeadersCallback`
 
 <!-- YAML
@@ -4424,6 +4497,7 @@ throughput issues caused by flow control.
 
 [Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
+[Datagrams]: #datagrams
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
@@ -4504,10 +4578,12 @@ throughput issues caused by flow control.
 [`sessionOptions.token`]: #sessionoptionstoken-client-only
 [`stream.destroy()`]: #streamdestroyerror-options
 [`stream.headers`]: #streamheaders
+[`stream.ondatagram`]: #streamondatagram
 [`stream.onerror`]: #streamonerror
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
 [`stream.priority`]: #streampriority
+[`stream.sendDatagram()`]: #streamsenddatagramdatagram-encoding
 [`stream.sendHeaders()`]: #streamsendheadersheaders-options
 [`stream.sendInformationalHeaders()`]: #streamsendinformationalheadersheaders
 [`stream.sendTrailers()`]: #streamsendtrailersheaders

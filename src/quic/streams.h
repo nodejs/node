@@ -412,6 +412,8 @@ class Stream final : public AsyncWrap,
   // blocked because of flow control restriction.
   void EmitBlocked();
 
+  void EmitDatagram(Store&& payload, bool early);
+
   // Notifies the JavaScript side that the outbound buffer has capacity
   // for more data. Fires when write_desired_size transitions from 0 to > 0.
   void EmitDrain();

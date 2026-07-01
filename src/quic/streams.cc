@@ -25,6 +25,7 @@ using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BigInt;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Global;
 using v8::HandleScope;
@@ -63,6 +64,8 @@ namespace quic {
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
   V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
+  /* Set when the stream has a datagram event handler (RFC 9297) */            \
+  V(WANTS_DATAGRAM, wants_datagram, uint8_t)                                   \
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
@@ -104,7 +107,8 @@ namespace quic {
   V(GetReader, getReader, false)                                               \
   V(InitStreamingSource, initStreamingSource, false)                           \
   V(Write, write, false)                                                       \
-  V(EndWrite, endWrite, false)
+  V(EndWrite, endWrite, false)                                                 \
+  V(SendDatagram, sendDatagram, false)
 
 // ============================================================================
 // RecvAccumulator implementation
@@ -603,6 +607,31 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     stream->EndWriting();
+  }
+
+  // Sends an HTTP/3 datagram (RFC 9297) associated with this stream. Returns
+  // the underlying QUIC datagram id, or 0n if the datagram was not queued.
+  JS_METHOD(SendDatagram) {
+    auto env = Environment::GetCurrent(args);
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    DCHECK(args[0]->IsArrayBufferView());
+
+    // A datagram can only be associated with a stream that has a real id.
+    // A pending stream has no id yet, so there is nothing to bind to.
+    if (stream->is_pending()) {
+      return args.GetReturnValue().Set(BigInt::New(env->isolate(), 0));
+    }
+
+    Store store;
+    if (!Store::From(args[0].As<ArrayBufferView>()).To(&store)) {
+      return;
+    }
+
+    Session::SendPendingDataScope send_scope(&stream->session());
+    datagram_id id =
+        stream->session().application().SendDatagram(stream, std::move(store));
+    args.GetReturnValue().Set(BigInt::New(env->isolate(), id));
   }
 };
 
@@ -1834,6 +1863,21 @@ void Stream::EmitBlocked() {
   }
   CallbackScope<Stream> cb_scope(this);
   MakeCallback(BindingData::Get(env()).stream_blocked_callback(), 0, nullptr);
+}
+
+void Stream::EmitDatagram(Store&& payload, bool early) {
+  // state()->wants_datagram is set from the JavaScript side when an ondatagram
+  // handler is attached to the stream. Drop datagrams without a handler.
+  if (!env()->can_call_into_js() || !state()->wants_datagram) {
+    return;
+  }
+  Debug(this, "Emitting %zu-byte datagram", payload.length());
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> argv[] = {payload.ToUint8Array(env()),
+                         Boolean::New(env()->isolate(), early)};
+  MakeCallback(BindingData::Get(env()).stream_datagram_callback(),
+               arraysize(argv),
+               argv);
 }
 
 void Stream::EmitDrain() {
