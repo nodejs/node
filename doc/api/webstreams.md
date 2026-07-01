@@ -112,6 +112,8 @@ For more details refer to the relevant documentation:
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `stream` {ReadableStream}
 * `cloneForBranch2` {boolean} When `true`, chunks enqueued into the second
   branch are cloned from chunks enqueued into the first branch. **Default:**
