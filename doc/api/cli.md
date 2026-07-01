@@ -1374,6 +1374,16 @@ added:
 
 Enable experimental support for the QUIC protocol.
 
+### `--experimental-repl-typescript`
+
+<!--
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+Enable experimental support for TypeScript stripping in the REPL.
+
 ### `--experimental-sea-config`
 
 <!-- YAML
