@@ -1,12 +1,11 @@
 // @node-core/doc-kit configuration for generating and linting the Node.js
 // man-page (doc/node.1).
 
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
 
-const fromRoot = path => fileURLToPath(new URL(path, root));
+const fromRoot = (path) => fileURLToPath(new URL(path, root));
 
 export default {
   target: ['man-page'],
