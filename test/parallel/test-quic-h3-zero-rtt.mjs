@@ -86,7 +86,7 @@ const s1 = await cs1.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
   }),
 });
 const body1 = await bytes(s1);
@@ -114,7 +114,7 @@ const s2 = await cs2.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
   }),
 });
 

@@ -80,7 +80,7 @@ const decoder = new TextDecoder();
       ':authority': 'example.com',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 
@@ -176,7 +176,7 @@ const decoder = new TextDecoder();
       ':authority': 'custom-port.example.com',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 

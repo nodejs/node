@@ -37,7 +37,7 @@ dc.subscribe('quic.stream.info', mustCall((msg) => {
   ok(msg.stream, 'stream.info should include stream');
   ok(msg.session, 'stream.info should include session');
   ok(msg.headers, 'stream.info should include headers');
-  strictEqual(msg.headers[':status'], '103');
+  strictEqual(msg.headers[':status'], 103);
 }));
 
 // quic.stream.headers also fires for the final response headers.
@@ -92,12 +92,12 @@ const stream = await clientSession.createBidirectionalStream({
     ':authority': 'localhost',
   },
   oninfo: mustCall(function(headers) {
-    strictEqual(headers[':status'], '103');
+    strictEqual(headers[':status'], 103);
     strictEqual(headers.link, '</style.css>; rel=preload; as=style');
     clientInfoReceived.resolve();
   }),
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
     strictEqual(headers['content-type'], 'text/plain');
     clientHeadersReceived.resolve();
   }),
@@ -110,7 +110,7 @@ const body = await bytes(stream);
 strictEqual(decoder.decode(body), responseBody);
 
 // stream.headers should return the final (initial) headers, not 1xx.
-strictEqual(stream.headers[':status'], '200');
+strictEqual(stream.headers[':status'], 200);
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
