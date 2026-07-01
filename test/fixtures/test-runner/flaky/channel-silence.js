@@ -1,0 +1,10 @@
+'use strict';
+const { test } = require('node:test');
+const dc = require('node:diagnostics_channel');
+const fs = require('node:fs');
+const stateFile = process.env.FLAKY_STATE;
+let errors = 0;
+dc.subscribe('tracing:node.test:error', () => { errors++; });
+let n = 0;
+test('eventually passes', { flaky: 5 }, () => { n++; if (n < 3) throw new Error('flaky'); });
+process.on('exit', () => { fs.writeFileSync(stateFile, String(errors)); });
