@@ -286,9 +286,10 @@ channel('http.client.request').subscribe((message) => {
 function exportTraces(data) {
   bypass(kMyTracer, () => {
     // This HTTP request will NOT trigger the subscriber above
-    request('https://my-apm-backend.example.com/traces', {
+    const req = request('https://my-apm-backend.example.com/traces', {
       method: 'POST',
     });
+    req.end();
   });
 }
 ```
