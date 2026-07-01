@@ -25,6 +25,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "stream_wrap.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 
@@ -1064,12 +1065,26 @@ Maybe<int> SyncProcessRunner::ParseStdioOption(int child_fd,
       return Nothing<int>();
     }
     return Just(AddStdioInheritFD(child_fd, inherit_fd));
+  } else if (js_type->StrictEquals(env()->wrap_string())) {
+    Local<Value> val;
+    if (!js_stdio_option->Get(context, env()->handle_string()).ToLocal(&val)) {
+      return Nothing<int>();
+    }
+    if (!val->IsObject()) {
+      return Just<int>(UV_EINVAL);
+    }
+
+    Local<Object> handle = val.As<Object>();
+    Local<v8::FunctionTemplate> sw = env()->libuv_stream_wrap_ctor_template();
+    if (sw.IsEmpty() || !sw->HasInstance(handle)) {
+      return Just<int>(UV_EINVAL);
+    }
+
+    uv_stream_t* stream = LibuvStreamWrap::From(env(), handle)->stream();
+    return Just(AddStdioInheritStream(child_fd, stream));
   }
 
-  Utf8Value stdio_type(env()->isolate(), js_type);
-  fprintf(stderr, "invalid child stdio type: %s\n", stdio_type.out());
-
-  UNREACHABLE();
+  return Just<int>(UV_EINVAL);
 }
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
@@ -1113,6 +1128,17 @@ int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
 
   uv_stdio_containers_[child_fd].flags = UV_INHERIT_FD;
   uv_stdio_containers_[child_fd].data.fd = inherit_fd;
+
+  return 0;
+}
+
+int SyncProcessRunner::AddStdioInheritStream(uint32_t child_fd,
+                                             uv_stream_t* stream) {
+  CHECK_LT(child_fd, stdio_count_);
+  CHECK(!stdio_pipes_[child_fd]);
+
+  uv_stdio_containers_[child_fd].flags = UV_INHERIT_STREAM;
+  uv_stdio_containers_[child_fd].data.stream = stream;
 
   return 0;
 }
