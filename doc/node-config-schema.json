@@ -816,7 +816,7 @@
         }
       }
     },
-    "testRunner": {
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "required": [],
@@ -832,6 +832,9 @@
         "test": {
           "type": "boolean",
           "description": "launch test runner on startup"
+        },
+        "test": {
+          "type": "boolean"
         },
         "test-concurrency": {
           "type": "number",
