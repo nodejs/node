@@ -359,3 +359,40 @@ const util = require('util');
     assert.strictEqual(test5.check(i[0], i[1]), i[2]);
   });
 }
+
+{
+  // IPv4-mapped / mixed-notation IPv6 rules must survive a toJSON/fromJSON
+  // round-trip. toJSON() emits these addresses in mixed dotted-quad form
+  // (e.g. "::ffff:192.0.2.128"), so the rule parser must accept the "." used
+  // in that notation.
+  const bl = new BlockList();
+  bl.addAddress('::ffff:192.0.2.128', 'ipv6');
+  bl.addSubnet('::ffff:10.0.0.0', 120, 'ipv6');
+  bl.addRange('::ffff:172.16.0.1', '::ffff:172.16.0.10', 'ipv6');
+
+  const expected = [
+    'Address: IPv6 ::ffff:192.0.2.128',
+    'Range: IPv6 ::ffff:172.16.0.1-::ffff:172.16.0.10',
+    'Subnet: IPv6 ::ffff:10.0.0.0/120',
+  ];
+  assert.deepStrictEqual(bl.toJSON().sort(), expected);
+
+  const restored = new BlockList();
+  restored.fromJSON(bl.toJSON());
+
+  // The restored rules must be identical (lossless round-trip).
+  assert.deepStrictEqual(restored.toJSON().sort(), expected);
+
+  // And it must still match the same addresses as the original.
+  [
+    ['::ffff:192.0.2.128', true],  // the single address
+    ['::ffff:192.0.2.129', false],
+    ['::ffff:10.0.0.50', true],    // inside the subnet
+    ['::ffff:10.0.1.0', false],
+    ['::ffff:172.16.0.5', true],   // inside the range
+    ['::ffff:172.16.0.20', false],
+  ].forEach(([address, result]) => {
+    assert.strictEqual(bl.check(address, 'ipv6'), result);
+    assert.strictEqual(restored.check(address, 'ipv6'), result);
+  });
+}
