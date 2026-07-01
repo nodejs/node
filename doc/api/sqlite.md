@@ -1202,6 +1202,15 @@ added: v22.5.0
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
 
+### `statement[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. If the prepared statement is already
+finalized, then this is a no-op.
+
 ## Class: `SQLTagStore`
 
 <!-- YAML

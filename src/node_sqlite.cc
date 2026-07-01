@@ -1058,10 +1058,7 @@ void DatabaseSync::FinalizeStatements() {
 }
 
 void DatabaseSync::UntrackStatement(StatementSync* statement) {
-  auto it = statements_.find(statement);
-  if (it != statements_.end()) {
-    statements_.erase(it);
-  }
+  statements_.erase(statement);
 }
 
 inline bool DatabaseSync::IsOpen() {
@@ -2634,6 +2631,10 @@ StatementSync::StatementSync(Environment* env,
 }
 
 StatementSync::~StatementSync() {
+  Close();
+}
+
+void StatementSync::Close() {
   if (!IsFinalized()) {
     db_->UntrackStatement(this);
     Finalize();
@@ -2652,6 +2653,12 @@ void StatementSync::InvalidateColumnNameCache() {
 
 inline bool StatementSync::IsFinalized() {
   return statement_ == nullptr;
+}
+
+void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  stmt->Close();
 }
 
 inline int StatementSync::ResetStatement() {
@@ -3687,6 +3694,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
         isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
+    SetProtoDispose(isolate, tmpl, StatementSync::Close);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
