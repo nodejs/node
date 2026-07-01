@@ -410,8 +410,7 @@ Indicates an error according to the
 by web-platform APIs in Node.js such as
 [`fetch()`][], {AbortController}, {AbortSignal}, and Web Streams.
 
-For details on the `DOMException` class, see [`Class: DOMException`][]. The
-class is also documented on [MDN][].
+For details on the `DOMException` class, see [`Class: DOMException`][].
 
 The [`domException.name`][] property identifies the type of the exception (for
 example, `'AbortError'`). Unlike most errors in Node.js, the
@@ -4596,7 +4595,6 @@ An error occurred trying to allocate memory. This should never happen.
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
 [JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
-[MDN]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [Native TypeScript support]: typescript.md#type-stripping
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
