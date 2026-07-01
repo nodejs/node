@@ -760,10 +760,12 @@ it to interact with the client.
 
 A connected TCP `net.Socket` can be moved to another thread by listing it in the
 `transferList` of a [`worker_threads`][] `postMessage()` call. After the
-transfer, the socket is no longer usable on the sending thread and continues to
-work on the receiving thread. This makes it possible to accept connections on
-one thread and distribute them across a pool of worker threads, for example to
-build a `node:cluster`-like model on top of worker threads.
+transfer, the source socket is destroyed on the sending thread (further use
+fails with `ERR_STREAM_DESTROYED` rather than silently dropping data), and the
+socket continues to work on the receiving thread. This makes it possible to
+accept connections on one thread and distribute them across a pool of worker
+threads, for example to build a `node:cluster`-like model on top of worker
+threads.
 
 The socket must be a freshly accepted or created TCP connection: it must still
 be attached to a live handle, must not be connecting or destroyed, and must not

@@ -39,8 +39,14 @@ const server = net.createServer(common.mustCall((socket) => {
   // read from in this thread before transferring.
   worker.postMessage({ socket }, [socket]);
 
-  // The source socket is now defunct on this side.
+  // The source socket is now owned by the worker: it is detached and destroyed
+  // on this side, so further use fails cleanly instead of dropping data.
   assert.strictEqual(socket._handle, null);
+  assert.strictEqual(socket.destroyed, true);
+  assert.strictEqual(socket.writable, false);
+  socket.write('lost', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
 
   server.close();
 }));
