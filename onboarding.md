@@ -288,7 +288,7 @@ needs to be pointed out separately during the onboarding.
 * If you are interested in helping out with CI reliability, check out the
   [reliability repository][] and [guide on how to deal with CI flakes][]. When
   fixing a flaky test, it is recommended to run [`node-stress-single-test`][]
-  to verify the test remains stable under repeated runs.
+  on both the main branch and the test branch to verify the fix makes the test more stable under repeated runs.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
