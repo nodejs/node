@@ -2628,6 +2628,25 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
 /**
  * @function
  *
+ * `nghttp3_conn_is_stream_flushed` returns nonzero if all stream data
+ * for a stream identified by |stream_id| so far have been accepted by
+ * QUIC stack.  This means that the cumulative number of bytes that
+ * `nghttp3_conn_add_write_offset` notified covers all stream data
+ * currently held.  This does not mean more stream data cannot be
+ * submitted to this stream via :type:`nghttp3_read_data_callback` and
+ * all stream data have been acknowledged.
+ *
+ * If there is no stream identified by |stream_id|, this function
+ * returns nonzero.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN int nghttp3_conn_is_stream_flushed(const nghttp3_conn *conn,
+                                                  int64_t stream_id);
+
+/**
+ * @function
+ *
  * `nghttp3_conn_add_ack_offset` tells |conn| the number of bytes |n|
  * for stream denoted by |stream_id| QUIC stack has acknowledged.
  *
@@ -3417,6 +3436,75 @@ NGHTTP3_EXTERN const nghttp3_info *nghttp3_version(int least_version);
  * :macro:`NGHTTP3_ERR_NOMEM`).
  */
 NGHTTP3_EXTERN int nghttp3_err_is_fatal(int liberr);
+
+/**
+ * @function
+ *
+ * `nghttp3_get_uvarint` reads variable-length unsigned integer from
+ * the buffer pointed by |p|, and stores it in the object pointed by
+ * |dest| in host byte order.  It returns |p| plus the number of bytes
+ * read from |p|.  This function assumes that |p| points to the buffer
+ * that contains a valid variable-length unsigned integer.  Use
+ * `nghttp3_get_uvarintlen` to get the number of bytes to successfully
+ * decode an integer.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN const uint8_t *nghttp3_get_uvarint(uint64_t *dest,
+                                                  const uint8_t *p);
+
+/**
+ * @function
+ *
+ * `nghttp3_get_uvarintlen` returns the required number of bytes to
+ * read variable-length unsigned integer starting at |p|.  |p| must
+ * not be NULL.  This function only reads the single byte from the
+ * buffer pointed by |p|, and determines the number of bytes to read.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN size_t nghttp3_get_uvarintlen(const uint8_t *p);
+
+/**
+ * @function
+ *
+ * `nghttp3_get_varint` reads variable-length unsigned integer from
+ * the buffer pointed by |p|, and stores it in the object pointed by
+ * |dest| in host byte order.  It returns |p| plus the number of bytes
+ * read from |p|.  This function assumes that |p| points to the buffer
+ * that contains a valid variable-length unsigned integer.  Use
+ * `nghttp3_get_uvarintlen` to get the number of bytes to successfully
+ * decode an integer.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN const uint8_t *nghttp3_get_varint(int64_t *dest,
+                                                 const uint8_t *p);
+
+/**
+ * @function
+ *
+ * `nghttp3_put_uvarint` writes |n| to the buffer pointed by |p| using
+ * variable-length unsigned integer encoding.  It returns the one
+ * beyond of the last written position.  This function assumes that
+ * the buffer pointed by |p| has sufficient capacity to encode |n|.
+ * To know the required capacity, use `nghttp3_put_uvarintlen`.  |n|
+ * must be less than or equal to (1 << 62) - 1.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN uint8_t *nghttp3_put_uvarint(uint8_t *p, uint64_t n);
+
+/**
+ * @function
+ *
+ * `nghttp3_put_uvarintlen` returns the required number of bytes to
+ * encode |n| in variable-length unsigned integer encoding.  |n| must
+ * be less than or equal to (1 << 62) - 1.
+ *
+ * .. version-added:: 1.17.0
+ */
+NGHTTP3_EXTERN size_t nghttp3_put_uvarintlen(uint64_t n);
 
 /*
  * Versioned function wrappers

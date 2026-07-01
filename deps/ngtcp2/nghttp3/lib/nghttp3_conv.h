@@ -93,34 +93,6 @@
 #endif /* defined(WIN32) */
 
 /*
- * nghttp3_get_uvarint reads variable-length unsigned integer from
- * |p|, and stores it in the buffer pointed by |dest| in host byte
- * order.  It returns |p| plus the number of bytes read from |p|.
- */
-const uint8_t *nghttp3_get_uvarint(uint64_t *dest, const uint8_t *p);
-
-/*
- * nghttp3_get_uvarintlen returns the required number of bytes to read
- * variable-length integer starting at |p|.
- */
-size_t nghttp3_get_uvarintlen(const uint8_t *p);
-
-/*
- * nghttp3_get_varint reads variable-length unsigned integer from |p|,
- * and stores it in the buffer pointed by |dest| in host byte order.
- * It returns |p| plus the number of bytes read from |p|.
- */
-static inline const uint8_t *nghttp3_get_varint(int64_t *dest,
-                                                const uint8_t *p) {
-  uint64_t n;
-
-  p = nghttp3_get_uvarint(&n, p);
-  *dest = (int64_t)n;
-
-  return p;
-}
-
-/*
  * nghttp3_put_uint64be writes |n| in host byte order in |p| in
  * network byte order.  It returns the one beyond of the last written
  * position.
@@ -140,18 +112,6 @@ uint8_t *nghttp3_put_uint32be(uint8_t *p, uint32_t n);
  * position.
  */
 uint8_t *nghttp3_put_uint16be(uint8_t *p, uint16_t n);
-
-/*
- * nghttp3_put_uvarint writes |n| in |p| using variable-length integer
- * encoding.  It returns the one beyond of the last written position.
- */
-uint8_t *nghttp3_put_uvarint(uint8_t *p, uint64_t n);
-
-/*
- * nghttp3_put_uvarintlen returns the required number of bytes to
- * encode |n|.
- */
-size_t nghttp3_put_uvarintlen(uint64_t n);
 
 /*
  * nghttp3_ord_stream_id returns the ordinal number of |stream_id|.

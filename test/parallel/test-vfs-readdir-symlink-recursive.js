@@ -3,7 +3,7 @@
 
 // Recursive readdir must follow symlinks to directories.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -20,6 +20,59 @@ assert.ok(
   entries.includes('symdir/nested.txt'),
   `Expected 'symdir/nested.txt' in entries: ${entries}`,
 );
+
+// Recursive readdir avoids following symlink cycles indefinitely.
+{
+  const v = vfs.create();
+  v.mkdirSync('/dir');
+  v.writeFileSync('/dir/nested.txt', 'nested');
+  v.symlinkSync('/dir', '/dir/loop');
+
+  assert.deepStrictEqual(v.readdirSync('/', { recursive: true }).sort(), [
+    'dir',
+    'dir/loop',
+    'dir/nested.txt',
+  ]);
+
+  const dirents = v.readdirSync('/', { recursive: true, withFileTypes: true });
+  assert.strictEqual(dirents.length, 3);
+  assert.ok(dirents.some((dirent) =>
+    dirent.name === 'loop' &&
+    dirent.parentPath === '/dir' &&
+    dirent.isSymbolicLink()));
+}
+
+// Recursive readdir avoids cycles through multiple symlinks.
+{
+  const v = vfs.create();
+  v.mkdirSync('/a');
+  v.mkdirSync('/b');
+  v.symlinkSync('/b', '/a/link_to_b');
+  v.symlinkSync('/a', '/b/link_to_a');
+
+  assert.deepStrictEqual(v.readdirSync('/', { recursive: true }).sort(), [
+    'a',
+    'a/link_to_b',
+    'a/link_to_b/link_to_a',
+    'b',
+    'b/link_to_a',
+    'b/link_to_a/link_to_b',
+  ]);
+}
+
+(async () => {
+  const v = vfs.create();
+  v.mkdirSync('/dir');
+  v.writeFileSync('/dir/nested.txt', 'nested');
+  v.symlinkSync('/dir', '/dir/loop');
+
+  const entries = await v.promises.readdir('/', { recursive: true });
+  assert.deepStrictEqual(entries.sort(), [
+    'dir',
+    'dir/loop',
+    'dir/nested.txt',
+  ]);
+})().then(common.mustCall());
 
 // Recursive readdir with withFileTypes:true returns Dirent objects whose
 // parentPath reflects the actual location of the entry (not the entry's

@@ -4096,6 +4096,18 @@ changes:
     E.G. `'/index.html?page=12'`. An exception is thrown when the request path
     contains illegal characters. Currently, only spaces are rejected but that
     may change in the future. **Default:** `'/'`.
+    The content in `path` is sent as the [request target][] in the HTTP 1.1 message.
+    When `path` is an absolute URL, this means the request target in the message in [absolute form][].
+    If the receiving server is a proxy, the server typically forwards the request to the
+    destination specified in the request target, and ignores the `Host` header.
+    The user needs to make sure that `path`, `host` and the Host headers conform to the
+    requirement of the [request target][] in the HTTP specification.
+    When the receiving server is known to be a proxy because the request is routed through
+    [Built-in Proxy Support][], `http.request` will additionally perform a best-effort
+    check to see that the `host` option or `Host` in `headers` agrees with the authority
+    in `path` during the initial construction of the request. It gives up rewriting the
+    request target for proxying and throws an error if they don't match at request
+    construction time, though there won't be checks for later header mutations done by the user.
   * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
     else `80`.
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
@@ -4792,5 +4804,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
+[absolute form]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2.2
 [information event]: #event-information
 [initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count
+[request target]: https://datatracker.ietf.org/doc/html/rfc9112#section-3.2

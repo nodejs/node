@@ -204,6 +204,13 @@
         },
       ],
       'conditions': [
+        ['OS == "win" and clang == 1', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-Wno-incompatible-pointer-types'],
+            },
+          },
+        }],
         ['OS == "win" and (target_arch == "x64" or target_arch == "x86_64")', {
           'actions': [
             {
