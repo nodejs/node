@@ -1208,6 +1208,8 @@ In particular, the significant differences to `JSON` are:
   * {KeyObject}s,
   * {MessagePort}s,
   * {net.BlockList}s,
+  * {net.Server}s (TCP only, when listed in `transferList`),
+  * {net.Socket}s (TCP only, when listed in `transferList`),
   * {net.SocketAddress}es,
   * {X509Certificate}s.
 
@@ -1235,12 +1237,20 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][], and
-[`FileHandle`][] objects.
+`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][],
+[`FileHandle`][], {net.Server}, and {net.Socket} objects.
 After transferring, they are not usable on the sending side of the channel
-anymore (even if they are not contained in `value`). Unlike with
-[child processes][], transferring handles such as network sockets is currently
-not supported.
+anymore (even if they are not contained in `value`).
+
+Transferring a {net.Server} moves its listening socket — together with any
+pending connections in the accept queue — to the receiving thread's event loop.
+Transferring a {net.Socket} moves a single connection; the socket must be a
+freshly accepted or created TCP connection that has not yet started reading and
+has no buffered data, otherwise `postMessage()` throws
+`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
+connections on one thread and distribute them across a pool of worker threads.
+Only TCP handles are supported, and only on Unix-like platforms; on Windows
+`postMessage()` throws `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
@@ -2276,7 +2286,6 @@ thread spawned will spawn another until the application crashes.
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
-[child processes]: child_process.md
 [contextified]: vm.md#what-does-it-mean-to-contextify-an-object
 [locks.request()]: #locksrequestname-options-callback
 [v8.serdes]: v8.md#serialization-api

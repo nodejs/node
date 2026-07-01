@@ -43,6 +43,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <sys/socket.h>
+#include <unistd.h>  // dup(), close()
 #endif
 
 namespace node {
@@ -377,6 +378,95 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) wrap->set_fd(fd);
 
   args.GetReturnValue().Set(err);
+}
+
+BaseObject::TransferMode TCPWrap::GetTransferMode() const {
+#ifdef _WIN32
+  // Re-adopting a socket into another thread's event loop requires
+  // re-associating it with that loop's IOCP, which needs same-process
+  // WSADuplicateSocket support that is not wired up yet. The JS net layer
+  // throws a clearer error before reaching here; this is the backstop for the
+  // low-level `socket._handle` transfer path.
+  return TransferMode::kDisallowCloneAndTransfer;
+#else
+  // Only a live handle that is not already being torn down can be transferred.
+  // Higher-level guards (no buffered reads, no pending writes) are enforced by
+  // the JS net.Socket/net.Server layer before a handle reaches here.
+  if (!HandleWrap::IsAlive(this) || IsHandleClosing())
+    return TransferMode::kDisallowCloneAndTransfer;
+  return TransferMode::kTransferable;
+#endif
+}
+
+std::unique_ptr<worker::TransferData> TCPWrap::TransferForMessaging() {
+#ifdef _WIN32
+  return {};
+#else
+  CHECK_NE(GetTransferMode(), TransferMode::kDisallowCloneAndTransfer);
+
+  uv_os_fd_t fd;
+  if (uv_fileno(reinterpret_cast<uv_handle_t*>(&handle_), &fd) != 0)
+    return {};
+
+  // dup() the descriptor so the receiving event loop owns an independent
+  // reference to the same socket. We then close the source handle, which
+  // renders it unusable on this side (true transfer semantics) while the dup
+  // keeps the underlying socket alive for the destination thread.
+  int dup_fd = dup(fd);
+  if (dup_fd < 0)
+    return {};
+
+  SocketType type = provider_type() == ProviderType::PROVIDER_TCPSERVERWRAP
+                        ? SERVER
+                        : SOCKET;
+
+  // Stop watching the fd and tear down the source handle.
+  Close();
+
+  return std::make_unique<TransferData>(dup_fd, type);
+#endif
+}
+
+TCPWrap::TransferData::~TransferData() {
+  // Only reached if the message was never delivered (e.g. the destination port
+  // closed in flight); close the dup'd fd so it is not leaked.
+  if (fd_ >= 0) {
+    uv_fs_t req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &req, fd_, nullptr));
+    uv_fs_req_cleanup(&req);
+  }
+}
+
+BaseObjectPtr<BaseObject> TCPWrap::TransferData::Deserialize(
+    Environment* env,
+    Local<Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  // Construct a fresh TCPWrap in the receiving Environment. We cannot use
+  // TCPWrap::Instantiate() here because it requires a parent AsyncWrap to
+  // establish the async_hooks trigger id, and a deserialized handle has none.
+  if (env->tcp_constructor_template().IsEmpty())
+    return {};
+  Local<Function> constructor;
+  if (!env->tcp_constructor_template()
+           ->GetFunction(context)
+           .ToLocal(&constructor)) {
+    return {};
+  }
+  Local<Value> type_arg = Int32::New(env->isolate(), type_);
+  Local<Object> obj;
+  if (!constructor->NewInstance(context, 1, &type_arg).ToLocal(&obj))
+    return {};
+
+  TCPWrap* wrap = BaseObject::Unwrap<TCPWrap>(obj);
+  if (wrap == nullptr)
+    return {};
+
+  if (uv_tcp_open(&wrap->handle_, fd_) != 0)
+    return {};
+
+  wrap->set_fd(fd_);
+  fd_ = -1;  // Ownership has been handed to the new handle.
+  return BaseObjectPtr<BaseObject>(wrap);
 }
 
 template <typename T>
