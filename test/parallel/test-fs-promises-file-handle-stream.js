@@ -42,7 +42,27 @@ async function validateRead() {
   );
 }
 
+async function validateReusedCreateReadStream() {
+  const filePath = path.resolve(tmpDir, 'tmp-reused-stream.txt');
+  fs.writeFileSync(filePath, Buffer.alloc(11, 0));
+
+  const fileHandle = await open(filePath, 'r');
+  try {
+    for (let i = 0; i < 11; i++) {
+      await buffer(fileHandle.createReadStream({
+        start: i,
+        end: i,
+        autoClose: false,
+      }));
+      assert.strictEqual(fileHandle.listenerCount('close'), 0);
+    }
+  } finally {
+    await fileHandle.close();
+  }
+}
+
 Promise.all([
   validateWrite(),
   validateRead(),
+  validateReusedCreateReadStream(),
 ]).then(common.mustCall());
