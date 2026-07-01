@@ -1,0 +1,12 @@
+# see https://util.unicode.org/UnicodeJsps/transform.jsp?a=a+%7B+x%3F+%3E+match%3B%0D%0A%0D%0Ab+%7B+%3E+match%3B%0D%0A&b=a1
+
+a { x? > match;
+
+b { > match;
+
+# ax => amatch
+# a => a            # empty end-match does not match
+# a1 => amatch1     # empty match can happen in the middle
+
+# b => b            # empty end-match does not match
+# b1 => bmatch1     # empty match can happen in the middle

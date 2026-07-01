@@ -1,0 +1,14 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+# Source - unicode-org/test-corpora
+# Files -  gutenberg/Carroll-11/out/google/txt/tr/8860606395858576540_11-h-1.htm.txt (Continued into h-2, h-3)
+# Language - Turkish
+
+Bunda çok dikkat çekici bir şey yoktu; Alice, Tavşan'ın kendi kendine "Aman Tanrım! Aman Tanrım! Geç kalacağım!" demesini duymanın çok da garip olduğunu düşünmedi (sonradan bunu düşündüğünde, buna şaşırması gerektiği aklına geldi, ama o anda her şey çok doğal görünüyordu); ama Tavşan yelek cebinden bir saat çıkarıp baktığında ve sonra aceleyle ilerlediğinde, Alice ayağa fırladı, çünkü daha önce yelek cebinde veya içinden saat çıkarılabilecek bir tavşan görmediği aklına dank etti ve merakla onun peşinden tarlanın karşısına koştu ve neyse ki çitin altındaki büyük bir tavşan deliğinden aşağı düştüğünü görmek için tam zamanında yetişti.
+Bir an sonra Alice de peşinden gitti, bir daha nasıl çıkacağını hiç düşünmedi.
+Tavşan deliği bir süre tünel gibi dümdüz devam etti ve sonra aniden aşağı doğru indi, o kadar aniden ki Alice kendini çok derin bir kuyuya düşerken bulmadan önce durmayı düşünmeye fırsat bulamadı.
+Ya kuyu çok derindi ya da çok yavaş düşüyordu, çünkü aşağı inerken etrafına bakmak ve bundan sonra ne olacağını merak etmek için bolca vakti vardı. Önce aşağıya bakıp neye geldiğini anlamaya çalıştı ama hiçbir şey göremeyecek kadar karanlıktı; sonra kuyunun kenarlarına baktı ve dolaplar ve kitap raflarıyla dolu olduklarını fark etti; yer yer askılara asılmış haritalar ve resimler gördü. Geçerken raflardan birinden bir kavanoz aldı; üzerinde "PORTAKAL MARMELAT" yazıyordu ama büyük bir hayal kırıklığına uğrayarak boştu: Altında birini öldürme korkusuyla kavanozu düşürmek istemedi, bu yüzden düşerken onu dolaplardan birine koymayı başardı.
+"Eh!" diye düşündü Alice kendi kendine, "böyle bir düşüşten sonra merdivenlerden yuvarlanmayı hiç umursamam! Evdekiler beni ne kadar cesur sanacaklar! Evin tepesinden düşsem bile, bu konuda hiçbir şey söylemem!" (Bu büyük olasılıkla doğruydu.)
+Aşağı, aşağı, aşağı. Düşüş hiç bitmeyecek miydi? "Acaba şu ana kadar kaç mil düştüm?" diye yüksek sesle söyledi. "Dünyanın merkezine yakın bir yere yaklaşıyor olmalıyım. Bir bakayım: bu dört bin mil aşağı olmalı, sanırım-" (çünkü, görüyorsunuz, Alice okuldaki derslerinde bu türden birkaç şey öğrenmişti ve bu, onu dinleyecek kimse olmadığı için bilgisini sergilemek için çok iyi bir fırsat olmasa da, yine de tekrarlamak iyi bir alıştırmaydı) "—evet, doğru mesafe bu—ama sonra hangi Enlem veya Boylam'a ulaştığımı merak ediyorum?" (Alice'in Enlem'in veya Boylam'ın ne olduğunu da bilmiyordu, ama bunları söylemesi güzel ve görkemli sözler olduğunu düşünüyordu.)

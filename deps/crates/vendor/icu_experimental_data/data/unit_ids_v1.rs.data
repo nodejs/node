@@ -1,0 +1,209 @@
+// @generated
+/// Implement `DataProvider<UnitIdsV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 1377B for the lookup data structure (157 data identifiers)
+/// * 314B[^1] for the actual data (157 unique structs)
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+/// * `icu_provider/baked`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_unit_ids_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl $provider {
+            pub const UNIT_IDS_V1_UND_ACRE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &1u16;
+            pub const UNIT_IDS_V1_UND_AMPERE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &2u16;
+            pub const UNIT_IDS_V1_UND_ARC_MINUTE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &3u16;
+            pub const UNIT_IDS_V1_UND_ARC_SECOND: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &4u16;
+            pub const UNIT_IDS_V1_UND_ASTRONOMICAL_UNIT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &5u16;
+            pub const UNIT_IDS_V1_UND_ATMOSPHERE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &6u16;
+            pub const UNIT_IDS_V1_UND_BAR: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &7u16;
+            pub const UNIT_IDS_V1_UND_BARREL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &8u16;
+            pub const UNIT_IDS_V1_UND_BEAUFORT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &9u16;
+            pub const UNIT_IDS_V1_UND_BECQUEREL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &10u16;
+            pub const UNIT_IDS_V1_UND_BIT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &11u16;
+            pub const UNIT_IDS_V1_UND_BRITISH_THERMAL_UNIT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &12u16;
+            pub const UNIT_IDS_V1_UND_BRITISH_THERMAL_UNIT_IT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &13u16;
+            pub const UNIT_IDS_V1_UND_BU_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &14u16;
+            pub const UNIT_IDS_V1_UND_BUSHEL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &15u16;
+            pub const UNIT_IDS_V1_UND_BYTE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &16u16;
+            pub const UNIT_IDS_V1_UND_CALORIE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &17u16;
+            pub const UNIT_IDS_V1_UND_CALORIE_IT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &18u16;
+            pub const UNIT_IDS_V1_UND_CANDELA: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &19u16;
+            pub const UNIT_IDS_V1_UND_CARAT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &20u16;
+            pub const UNIT_IDS_V1_UND_CELSIUS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &21u16;
+            pub const UNIT_IDS_V1_UND_CENTURY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &22u16;
+            pub const UNIT_IDS_V1_UND_CHAIN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &23u16;
+            pub const UNIT_IDS_V1_UND_CHO: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &24u16;
+            pub const UNIT_IDS_V1_UND_COULOMB: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &25u16;
+            pub const UNIT_IDS_V1_UND_CUP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &26u16;
+            pub const UNIT_IDS_V1_UND_CUP_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &0u16;
+            pub const UNIT_IDS_V1_UND_CUP_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &27u16;
+            pub const UNIT_IDS_V1_UND_CUP_METRIC: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &28u16;
+            pub const UNIT_IDS_V1_UND_DALTON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &29u16;
+            pub const UNIT_IDS_V1_UND_DAY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &30u16;
+            pub const UNIT_IDS_V1_UND_DAY_PERSON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &31u16;
+            pub const UNIT_IDS_V1_UND_DECADE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &32u16;
+            pub const UNIT_IDS_V1_UND_DEGREE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &33u16;
+            pub const UNIT_IDS_V1_UND_DESSERT_SPOON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &34u16;
+            pub const UNIT_IDS_V1_UND_DESSERT_SPOON_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &35u16;
+            pub const UNIT_IDS_V1_UND_DOT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &36u16;
+            pub const UNIT_IDS_V1_UND_DRAM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &37u16;
+            pub const UNIT_IDS_V1_UND_DROP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &38u16;
+            pub const UNIT_IDS_V1_UND_DUNAM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &39u16;
+            pub const UNIT_IDS_V1_UND_EARTH_MASS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &40u16;
+            pub const UNIT_IDS_V1_UND_EARTH_RADIUS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &41u16;
+            pub const UNIT_IDS_V1_UND_ELECTRONVOLT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &42u16;
+            pub const UNIT_IDS_V1_UND_EM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &43u16;
+            pub const UNIT_IDS_V1_UND_FAHRENHEIT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &44u16;
+            pub const UNIT_IDS_V1_UND_FARAD: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &45u16;
+            pub const UNIT_IDS_V1_UND_FATHOM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &46u16;
+            pub const UNIT_IDS_V1_UND_FLUID_OUNCE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &47u16;
+            pub const UNIT_IDS_V1_UND_FLUID_OUNCE_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &48u16;
+            pub const UNIT_IDS_V1_UND_FLUID_OUNCE_METRIC: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &156u16;
+            pub const UNIT_IDS_V1_UND_FOODCALORIE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &49u16;
+            pub const UNIT_IDS_V1_UND_FOOT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &50u16;
+            pub const UNIT_IDS_V1_UND_FORTNIGHT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &51u16;
+            pub const UNIT_IDS_V1_UND_FUN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &52u16;
+            pub const UNIT_IDS_V1_UND_FURLONG: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &53u16;
+            pub const UNIT_IDS_V1_UND_G_FORCE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &54u16;
+            pub const UNIT_IDS_V1_UND_GALLON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &55u16;
+            pub const UNIT_IDS_V1_UND_GALLON_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &56u16;
+            pub const UNIT_IDS_V1_UND_GASOLINE_ENERGY_DENSITY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &57u16;
+            pub const UNIT_IDS_V1_UND_GRAIN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &58u16;
+            pub const UNIT_IDS_V1_UND_GRAM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &59u16;
+            pub const UNIT_IDS_V1_UND_GRAY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &60u16;
+            pub const UNIT_IDS_V1_UND_HECTARE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &61u16;
+            pub const UNIT_IDS_V1_UND_HENRY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &62u16;
+            pub const UNIT_IDS_V1_UND_HERTZ: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &63u16;
+            pub const UNIT_IDS_V1_UND_HORSEPOWER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &64u16;
+            pub const UNIT_IDS_V1_UND_HOUR: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &65u16;
+            pub const UNIT_IDS_V1_UND_INCH: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &66u16;
+            pub const UNIT_IDS_V1_UND_ITEM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &67u16;
+            pub const UNIT_IDS_V1_UND_JIGGER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &68u16;
+            pub const UNIT_IDS_V1_UND_JO_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &69u16;
+            pub const UNIT_IDS_V1_UND_JOULE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &70u16;
+            pub const UNIT_IDS_V1_UND_KARAT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &71u16;
+            pub const UNIT_IDS_V1_UND_KATAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &72u16;
+            pub const UNIT_IDS_V1_UND_KELVIN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &73u16;
+            pub const UNIT_IDS_V1_UND_KEN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &74u16;
+            pub const UNIT_IDS_V1_UND_KILOGRAM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &75u16;
+            pub const UNIT_IDS_V1_UND_KILOGRAM_FORCE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &76u16;
+            pub const UNIT_IDS_V1_UND_KNOT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &77u16;
+            pub const UNIT_IDS_V1_UND_KOKU: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &78u16;
+            pub const UNIT_IDS_V1_UND_KOSAJI: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &79u16;
+            pub const UNIT_IDS_V1_UND_LIGHT_SPEED: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &80u16;
+            pub const UNIT_IDS_V1_UND_LIGHT_YEAR: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &81u16;
+            pub const UNIT_IDS_V1_UND_LITER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &82u16;
+            pub const UNIT_IDS_V1_UND_LUMEN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &83u16;
+            pub const UNIT_IDS_V1_UND_LUX: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &84u16;
+            pub const UNIT_IDS_V1_UND_METER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &85u16;
+            pub const UNIT_IDS_V1_UND_MILE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &86u16;
+            pub const UNIT_IDS_V1_UND_MILE_SCANDINAVIAN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &87u16;
+            pub const UNIT_IDS_V1_UND_MINUTE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &88u16;
+            pub const UNIT_IDS_V1_UND_MOLE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &89u16;
+            pub const UNIT_IDS_V1_UND_MONTH: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &90u16;
+            pub const UNIT_IDS_V1_UND_MONTH_PERSON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &91u16;
+            pub const UNIT_IDS_V1_UND_NAUTICAL_MILE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &92u16;
+            pub const UNIT_IDS_V1_UND_NEWTON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &93u16;
+            pub const UNIT_IDS_V1_UND_NIGHT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &94u16;
+            pub const UNIT_IDS_V1_UND_OFGLUCOSE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &95u16;
+            pub const UNIT_IDS_V1_UND_OFHG: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &96u16;
+            pub const UNIT_IDS_V1_UND_OHM: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &97u16;
+            pub const UNIT_IDS_V1_UND_OSAJI: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &98u16;
+            pub const UNIT_IDS_V1_UND_OUNCE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &99u16;
+            pub const UNIT_IDS_V1_UND_OUNCE_TROY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &100u16;
+            pub const UNIT_IDS_V1_UND_PARSEC: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &101u16;
+            pub const UNIT_IDS_V1_UND_PART: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &155u16;
+            pub const UNIT_IDS_V1_UND_PASCAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &102u16;
+            pub const UNIT_IDS_V1_UND_PERCENT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &103u16;
+            pub const UNIT_IDS_V1_UND_PERMILLE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &104u16;
+            pub const UNIT_IDS_V1_UND_PERMILLION: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &105u16;
+            pub const UNIT_IDS_V1_UND_PERMYRIAD: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &106u16;
+            pub const UNIT_IDS_V1_UND_PINCH: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &107u16;
+            pub const UNIT_IDS_V1_UND_PINT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &108u16;
+            pub const UNIT_IDS_V1_UND_PINT_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &109u16;
+            pub const UNIT_IDS_V1_UND_PINT_METRIC: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &110u16;
+            pub const UNIT_IDS_V1_UND_PIXEL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &111u16;
+            pub const UNIT_IDS_V1_UND_POINT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &112u16;
+            pub const UNIT_IDS_V1_UND_PORTION: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &113u16;
+            pub const UNIT_IDS_V1_UND_POUND: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &114u16;
+            pub const UNIT_IDS_V1_UND_POUND_FORCE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &115u16;
+            pub const UNIT_IDS_V1_UND_QUART: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &116u16;
+            pub const UNIT_IDS_V1_UND_QUART_IMPERIAL: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &117u16;
+            pub const UNIT_IDS_V1_UND_QUARTER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &118u16;
+            pub const UNIT_IDS_V1_UND_RADIAN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &119u16;
+            pub const UNIT_IDS_V1_UND_RANKINE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &120u16;
+            pub const UNIT_IDS_V1_UND_REVOLUTION: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &121u16;
+            pub const UNIT_IDS_V1_UND_RI_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &122u16;
+            pub const UNIT_IDS_V1_UND_RIN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &123u16;
+            pub const UNIT_IDS_V1_UND_ROD: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &124u16;
+            pub const UNIT_IDS_V1_UND_SAI: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &125u16;
+            pub const UNIT_IDS_V1_UND_SE_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &126u16;
+            pub const UNIT_IDS_V1_UND_SECOND: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &127u16;
+            pub const UNIT_IDS_V1_UND_SHAKU: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &128u16;
+            pub const UNIT_IDS_V1_UND_SHAKU_CLOTH: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &129u16;
+            pub const UNIT_IDS_V1_UND_SHAKU_LENGTH: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &130u16;
+            pub const UNIT_IDS_V1_UND_SIEMENS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &131u16;
+            pub const UNIT_IDS_V1_UND_SIEVERT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &132u16;
+            pub const UNIT_IDS_V1_UND_SLUG: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &133u16;
+            pub const UNIT_IDS_V1_UND_SOLAR_LUMINOSITY: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &134u16;
+            pub const UNIT_IDS_V1_UND_SOLAR_MASS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &135u16;
+            pub const UNIT_IDS_V1_UND_SOLAR_RADIUS: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &136u16;
+            pub const UNIT_IDS_V1_UND_STERADIAN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &137u16;
+            pub const UNIT_IDS_V1_UND_STONE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &138u16;
+            pub const UNIT_IDS_V1_UND_SUN: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &139u16;
+            pub const UNIT_IDS_V1_UND_TABLESPOON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &140u16;
+            pub const UNIT_IDS_V1_UND_TEASPOON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &141u16;
+            pub const UNIT_IDS_V1_UND_TESLA: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &142u16;
+            pub const UNIT_IDS_V1_UND_THERM_US: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &143u16;
+            pub const UNIT_IDS_V1_UND_TO_JP: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &144u16;
+            pub const UNIT_IDS_V1_UND_TON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &145u16;
+            pub const UNIT_IDS_V1_UND_TONNE: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &146u16;
+            pub const UNIT_IDS_V1_UND_VOLT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &147u16;
+            pub const UNIT_IDS_V1_UND_WATT: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &148u16;
+            pub const UNIT_IDS_V1_UND_WEBER: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &149u16;
+            pub const UNIT_IDS_V1_UND_WEEK: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &150u16;
+            pub const UNIT_IDS_V1_UND_WEEK_PERSON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &151u16;
+            pub const UNIT_IDS_V1_UND_YARD: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &152u16;
+            pub const UNIT_IDS_V1_UND_YEAR: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &153u16;
+            pub const UNIT_IDS_V1_UND_YEAR_PERSON: &<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::baked::zerotrie::DynamicDataMarker>::DataStruct = &154u16;
+            const DATA_UNIT_IDS_V1: icu_provider::baked::zerotrie::DataRef<icu::experimental::measure::provider::UnitIdsV1> = unsafe { icu_provider::baked::zerotrie::DataRef::from_trie_and_refs_unchecked(icu_provider::baked::zerotrie::ZeroTrieSimpleAscii { store: b"und\x1E\xE1wabcdefghijklmnopqrstvwy\0\0\0\x01\x01\x01\x02\x02\x02\x02\x02\x02\x03\x03\x03\x03\x03\x04\x04\x04\x04\x04=\x87\xEAAi\xD0\x15=I_\xA0\xC8\x02 K\xC8\xDF\r\x8B\xC2\xC7\xE3\xC5cmrst\x03\x08\x1A*re\x80pere\x81c-\xC2ms\x06inute\x82econd\x83tronomical-unit\x84mosphere\x85\xC6aeiruy\x06\x17\x190;r\x86rel\x87\xC2ac\x06ufort\x88querel\x89t\x8Aitish-thermal-unit\x8B-it\x8C\xC2-s\x03jp\x8Dhel\x8Ete\x8F\xC5aehou\x1B+5<\xC3lnr\x0B\x11orie\x90\0-it\x90\x01dela\x90\x02at\x90\x03\xC2ln\x06sius\x90\x04tury\x90\x05\xC2ao\x04in\x90\x06\x90\x07ulomb\x90\x08p\x90\t-\xC3ijm\t\x0Cmperial\x90\np\x90\x0Betric\x90\x0C\xC5aeoru\x14;>H\xC2ly\x05ton\x90\r\x90\x0E-person\x90\x0F\xC3cgs\x05\nade\x90\x10ree\x90\x11sert-spoon\x90\x12-imperial\x90\x13t\x90\x14\xC2ao\x03m\x90\x15p\x90\x16nam\x90\x17\xC3alm\x14 rth-\xC2mr\x05ass\x90\x18adius\x90\x19ectronvolt\x90\x1A\x90\x1B\xC4alou\x188S\xC3hrt\t\rrenheit\x90\x1Cad\x90\x1Dhom\x90\x1Euid-ounce\x90\x1F-\xC2im\tmperial\x90 etric\x90!\xC2or\x0F\xC2dt\tcalorie\x90\"\x90#tnight\x90$\xC2nr\x02\x90%long\x90&\xC3-ar\x071force\x90'\xC2ls\x10lon\x90(-imperial\x90)oline-energy-density\x90*a\xC3imy\x03\x05n\x90+\x90,\x90-\xC2eo\x14\xC3cnr\x06\ntare\x90.ry\x90/tz\x900\xC2ru\tsepower\x901r\x902\xC2nt\x04ch\x903em\x904\xC2io\x06gger\x905\xC2-u\x04jp\x906le\x907\xC5aeino\x0C\x17'+\xC2rt\x04at\x908al\x909\xC2ln\x05vin\x90:\x90;logram\x90<-force\x90=ot\x90>\xC2ks\x03u\x90?aji\x90@\xC2iu\x1A\xC2gt\x12ht-\xC2sy\x06peed\x90Aear\x90Ber\x90C\xC2mx\x04en\x90D\x90E\xC3eio\x05 ter\x90F\xC2ln\x12e\x90G-scandinavian\x90Hute\x90I\xC2ln\x03e\x90Jth\x90K-person\x90L\xC3aei\r\x13utical-mile\x90Mwton\x90Nght\x90O\xC4fhsu\x0F\x12\x17\xC2gh\x08lucose\x90Pg\x90Qm\x90Raji\x90Snce\x90T-troy\x90U\xC4aeio\x133Y\xC2rs\n\xC2st\x04ec\x90V\x90Wcal\x90Xr\xC2cm\x05ent\x90Y\xC2iy\x0Cll\xC2ei\x02\x90Zon\x90[riad\x90\\\xC2nx\x1E\xC2ct\x03h\x90]\x90^-\xC2im\tmperial\x90_etric\x90`el\x90a\xC3iru\x04\nnt\x90btion\x90cnd\x90d-force\x90euart\x90f\xC2-e\nimperial\x90gr\x90h\xC4aeio\x0F\x19#\xC2dn\x05ian\x90ikine\x90jvolution\x90k\xC2-n\x04jp\x90l\x90md\x90n\xC8aehilotu\x03\x10'6:[ki\x90o\xC2-c\x04jp\x90pond\x90qaku\x90r-\xC2cl\x06loth\x90sength\x90te\xC2mv\x05ens\x90uert\x90vug\x90wlar-\xC3lmr\x0B\x10uminosity\x90xass\x90yadius\x90z\xC2eo\x08radian\x90{ne\x90|n\x90}\xC4aeho\n\x19!blespoon\x90~\xC2as\x07spoon\x90\x7Fla\x91\0erm-us\x91\x01\xC2-n\x04jp\x91\x02\x91\x03ne\x91\x04olt\x91\x05\xC2ae\x04tt\x91\x06\xC2be\x04er\x91\x07k\x91\x08-person\x91\t\xC2ae\x04rd\x91\nar\x91\x0B-person\x91\x0C" }, &[Self::UNIT_IDS_V1_UND_ACRE, Self::UNIT_IDS_V1_UND_AMPERE, Self::UNIT_IDS_V1_UND_ARC_MINUTE, Self::UNIT_IDS_V1_UND_ARC_SECOND, Self::UNIT_IDS_V1_UND_ASTRONOMICAL_UNIT, Self::UNIT_IDS_V1_UND_ATMOSPHERE, Self::UNIT_IDS_V1_UND_BAR, Self::UNIT_IDS_V1_UND_BARREL, Self::UNIT_IDS_V1_UND_BEAUFORT, Self::UNIT_IDS_V1_UND_BECQUEREL, Self::UNIT_IDS_V1_UND_BIT, Self::UNIT_IDS_V1_UND_BRITISH_THERMAL_UNIT, Self::UNIT_IDS_V1_UND_BRITISH_THERMAL_UNIT_IT, Self::UNIT_IDS_V1_UND_BU_JP, Self::UNIT_IDS_V1_UND_BUSHEL, Self::UNIT_IDS_V1_UND_BYTE, Self::UNIT_IDS_V1_UND_CALORIE, Self::UNIT_IDS_V1_UND_CALORIE_IT, Self::UNIT_IDS_V1_UND_CANDELA, Self::UNIT_IDS_V1_UND_CARAT, Self::UNIT_IDS_V1_UND_CELSIUS, Self::UNIT_IDS_V1_UND_CENTURY, Self::UNIT_IDS_V1_UND_CHAIN, Self::UNIT_IDS_V1_UND_CHO, Self::UNIT_IDS_V1_UND_COULOMB, Self::UNIT_IDS_V1_UND_CUP, Self::UNIT_IDS_V1_UND_CUP_IMPERIAL, Self::UNIT_IDS_V1_UND_CUP_JP, Self::UNIT_IDS_V1_UND_CUP_METRIC, Self::UNIT_IDS_V1_UND_DALTON, Self::UNIT_IDS_V1_UND_DAY, Self::UNIT_IDS_V1_UND_DAY_PERSON, Self::UNIT_IDS_V1_UND_DECADE, Self::UNIT_IDS_V1_UND_DEGREE, Self::UNIT_IDS_V1_UND_DESSERT_SPOON, Self::UNIT_IDS_V1_UND_DESSERT_SPOON_IMPERIAL, Self::UNIT_IDS_V1_UND_DOT, Self::UNIT_IDS_V1_UND_DRAM, Self::UNIT_IDS_V1_UND_DROP, Self::UNIT_IDS_V1_UND_DUNAM, Self::UNIT_IDS_V1_UND_EARTH_MASS, Self::UNIT_IDS_V1_UND_EARTH_RADIUS, Self::UNIT_IDS_V1_UND_ELECTRONVOLT, Self::UNIT_IDS_V1_UND_EM, Self::UNIT_IDS_V1_UND_FAHRENHEIT, Self::UNIT_IDS_V1_UND_FARAD, Self::UNIT_IDS_V1_UND_FATHOM, Self::UNIT_IDS_V1_UND_FLUID_OUNCE, Self::UNIT_IDS_V1_UND_FLUID_OUNCE_IMPERIAL, Self::UNIT_IDS_V1_UND_FLUID_OUNCE_METRIC, Self::UNIT_IDS_V1_UND_FOODCALORIE, Self::UNIT_IDS_V1_UND_FOOT, Self::UNIT_IDS_V1_UND_FORTNIGHT, Self::UNIT_IDS_V1_UND_FUN, Self::UNIT_IDS_V1_UND_FURLONG, Self::UNIT_IDS_V1_UND_G_FORCE, Self::UNIT_IDS_V1_UND_GALLON, Self::UNIT_IDS_V1_UND_GALLON_IMPERIAL, Self::UNIT_IDS_V1_UND_GASOLINE_ENERGY_DENSITY, Self::UNIT_IDS_V1_UND_GRAIN, Self::UNIT_IDS_V1_UND_GRAM, Self::UNIT_IDS_V1_UND_GRAY, Self::UNIT_IDS_V1_UND_HECTARE, Self::UNIT_IDS_V1_UND_HENRY, Self::UNIT_IDS_V1_UND_HERTZ, Self::UNIT_IDS_V1_UND_HORSEPOWER, Self::UNIT_IDS_V1_UND_HOUR, Self::UNIT_IDS_V1_UND_INCH, Self::UNIT_IDS_V1_UND_ITEM, Self::UNIT_IDS_V1_UND_JIGGER, Self::UNIT_IDS_V1_UND_JO_JP, Self::UNIT_IDS_V1_UND_JOULE, Self::UNIT_IDS_V1_UND_KARAT, Self::UNIT_IDS_V1_UND_KATAL, Self::UNIT_IDS_V1_UND_KELVIN, Self::UNIT_IDS_V1_UND_KEN, Self::UNIT_IDS_V1_UND_KILOGRAM, Self::UNIT_IDS_V1_UND_KILOGRAM_FORCE, Self::UNIT_IDS_V1_UND_KNOT, Self::UNIT_IDS_V1_UND_KOKU, Self::UNIT_IDS_V1_UND_KOSAJI, Self::UNIT_IDS_V1_UND_LIGHT_SPEED, Self::UNIT_IDS_V1_UND_LIGHT_YEAR, Self::UNIT_IDS_V1_UND_LITER, Self::UNIT_IDS_V1_UND_LUMEN, Self::UNIT_IDS_V1_UND_LUX, Self::UNIT_IDS_V1_UND_METER, Self::UNIT_IDS_V1_UND_MILE, Self::UNIT_IDS_V1_UND_MILE_SCANDINAVIAN, Self::UNIT_IDS_V1_UND_MINUTE, Self::UNIT_IDS_V1_UND_MOLE, Self::UNIT_IDS_V1_UND_MONTH, Self::UNIT_IDS_V1_UND_MONTH_PERSON, Self::UNIT_IDS_V1_UND_NAUTICAL_MILE, Self::UNIT_IDS_V1_UND_NEWTON, Self::UNIT_IDS_V1_UND_NIGHT, Self::UNIT_IDS_V1_UND_OFGLUCOSE, Self::UNIT_IDS_V1_UND_OFHG, Self::UNIT_IDS_V1_UND_OHM, Self::UNIT_IDS_V1_UND_OSAJI, Self::UNIT_IDS_V1_UND_OUNCE, Self::UNIT_IDS_V1_UND_OUNCE_TROY, Self::UNIT_IDS_V1_UND_PARSEC, Self::UNIT_IDS_V1_UND_PART, Self::UNIT_IDS_V1_UND_PASCAL, Self::UNIT_IDS_V1_UND_PERCENT, Self::UNIT_IDS_V1_UND_PERMILLE, Self::UNIT_IDS_V1_UND_PERMILLION, Self::UNIT_IDS_V1_UND_PERMYRIAD, Self::UNIT_IDS_V1_UND_PINCH, Self::UNIT_IDS_V1_UND_PINT, Self::UNIT_IDS_V1_UND_PINT_IMPERIAL, Self::UNIT_IDS_V1_UND_PINT_METRIC, Self::UNIT_IDS_V1_UND_PIXEL, Self::UNIT_IDS_V1_UND_POINT, Self::UNIT_IDS_V1_UND_PORTION, Self::UNIT_IDS_V1_UND_POUND, Self::UNIT_IDS_V1_UND_POUND_FORCE, Self::UNIT_IDS_V1_UND_QUART, Self::UNIT_IDS_V1_UND_QUART_IMPERIAL, Self::UNIT_IDS_V1_UND_QUARTER, Self::UNIT_IDS_V1_UND_RADIAN, Self::UNIT_IDS_V1_UND_RANKINE, Self::UNIT_IDS_V1_UND_REVOLUTION, Self::UNIT_IDS_V1_UND_RI_JP, Self::UNIT_IDS_V1_UND_RIN, Self::UNIT_IDS_V1_UND_ROD, Self::UNIT_IDS_V1_UND_SAI, Self::UNIT_IDS_V1_UND_SE_JP, Self::UNIT_IDS_V1_UND_SECOND, Self::UNIT_IDS_V1_UND_SHAKU, Self::UNIT_IDS_V1_UND_SHAKU_CLOTH, Self::UNIT_IDS_V1_UND_SHAKU_LENGTH, Self::UNIT_IDS_V1_UND_SIEMENS, Self::UNIT_IDS_V1_UND_SIEVERT, Self::UNIT_IDS_V1_UND_SLUG, Self::UNIT_IDS_V1_UND_SOLAR_LUMINOSITY, Self::UNIT_IDS_V1_UND_SOLAR_MASS, Self::UNIT_IDS_V1_UND_SOLAR_RADIUS, Self::UNIT_IDS_V1_UND_STERADIAN, Self::UNIT_IDS_V1_UND_STONE, Self::UNIT_IDS_V1_UND_SUN, Self::UNIT_IDS_V1_UND_TABLESPOON, Self::UNIT_IDS_V1_UND_TEASPOON, Self::UNIT_IDS_V1_UND_TESLA, Self::UNIT_IDS_V1_UND_THERM_US, Self::UNIT_IDS_V1_UND_TO_JP, Self::UNIT_IDS_V1_UND_TON, Self::UNIT_IDS_V1_UND_TONNE, Self::UNIT_IDS_V1_UND_VOLT, Self::UNIT_IDS_V1_UND_WATT, Self::UNIT_IDS_V1_UND_WEBER, Self::UNIT_IDS_V1_UND_WEEK, Self::UNIT_IDS_V1_UND_WEEK_PERSON, Self::UNIT_IDS_V1_UND_YARD, Self::UNIT_IDS_V1_UND_YEAR, Self::UNIT_IDS_V1_UND_YEAR_PERSON]) };
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::experimental::measure::provider::UnitIdsV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::experimental::measure::provider::UnitIdsV1>, icu_provider::DataError> {
+                let mut req = req;
+                req.id.locale = Default::default();
+                let metadata = icu_provider::DataResponseMetadata::default();
+                let Some(payload) = icu_provider::baked::DataStore::get(&Self::DATA_UNIT_IDS_V1, req.id, req.metadata.attributes_prefix_match) else { return Err(icu_provider::DataErrorKind::IdentifierNotFound.with_req(<icu::experimental::measure::provider::UnitIdsV1 as icu_provider::DataMarker>::INFO, req)) };
+                Ok(icu_provider::DataResponse { payload, metadata })
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_unit_ids_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::experimental::measure::provider::UnitIdsV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BTreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok(icu_provider::baked::DataStore::iter(&Self::DATA_UNIT_IDS_V1).collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {};
+    ($ provider : ty , DRY , ITER) => {
+        __impl_unit_ids_v1!($provider, ITER);
+    };
+}
+#[doc(inline)]
+pub use __impl_unit_ids_v1 as impl_unit_ids_v1;

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write as _;
 
 use quote::ToTokens;
@@ -113,10 +113,18 @@ pub struct Module {
 struct ModuleBuilder {
     custom_types_by_name: BTreeMap<Ident, CustomType>,
     custom_traits_by_name: BTreeMap<Ident, Trait>,
+    /// Types that are private (so if we encounter their impl blocks, they can be safely ignored)
+    private_types_by_name: BTreeSet<Ident>,
     functions_by_name: BTreeMap<Ident, Function>,
     sub_modules: Vec<Module>,
     imports: Vec<(Path, Ident)>,
+    /// As we traverse through the module, are we inside of #[diplomat::bridge]?
+    /// If so, then `analyze_types` is set to true, and types, functions, and traits are all updated according to information parsed.
+    ///
+    /// Otherwise, we traverse through modules until we find a module marked by #[diplomat::bridge]
     analyze_types: bool,
+    /// Are we to only analyze public structs or enums?
+    skip_private_items: bool,
     type_parent_attrs: Attrs,
     impl_parent_attrs: Attrs,
     mod_macros: Macros,
@@ -132,6 +140,11 @@ impl ModuleBuilder {
             }
             Item::Struct(strct) => {
                 if self.analyze_types {
+                    if self.skip_private_items && !matches!(strct.vis, syn::Visibility::Public(..))
+                    {
+                        self.private_types_by_name.insert((&strct.ident).into());
+                        return;
+                    }
                     let custom_type = match DiplomatStructAttribute::parse(&strct.attrs[..]) {
                         Ok(None) => {
                             CustomType::Struct(Struct::new(strct, false, &self.type_parent_attrs))
@@ -166,6 +179,12 @@ impl ModuleBuilder {
             Item::Enum(enm) => {
                 if self.analyze_types {
                     let ident = (&enm.ident).into();
+
+                    if self.skip_private_items && !matches!(enm.vis, syn::Visibility::Public(..)) {
+                        self.private_types_by_name.insert(ident);
+                        return;
+                    }
+
                     let custom_enum = match DiplomatTypeAttribute::parse(&enm.attrs[..]) {
                         Ok(None) => CustomType::Enum(Enum::new(enm, &self.type_parent_attrs)),
                         Ok(Some(DiplomatTypeAttribute::Opaque)) => {
@@ -242,8 +261,12 @@ impl ModuleBuilder {
                         })
                         .collect();
 
+                    if self.skip_private_items && self.private_types_by_name.contains(self_ident) {
+                        return;
+                    }
+
                     match self.custom_types_by_name.get_mut(self_ident)
-                                                .expect("Diplomat currently requires impls to be in the same module as their self type") {
+                                                .unwrap_or_else(|| panic!("Diplomat currently requires impls to be in the same module as their self type ({self_ident})")) {
                         CustomType::Struct(strct) => {
                             strct.methods.append(&mut new_methods);
                         }
@@ -267,22 +290,25 @@ impl ModuleBuilder {
                 }
             }
             Item::Macro(mac) => {
-                if let Some(i) = &mac.ident {
-                    let macro_rules_attr = mac.attrs.iter().find(|a| {
-                        a.path() == &syn::parse_str::<syn::Path>("diplomat::macro_rules").unwrap()
-                    });
+                if self.analyze_types {
+                    if let Some(i) = &mac.ident {
+                        let macro_rules_attr = mac.attrs.iter().find(|a| {
+                            a.path()
+                                == &syn::parse_str::<syn::Path>("diplomat::macro_rules").unwrap()
+                        });
 
-                    if macro_rules_attr.is_some() {
-                        self.mod_macros.add_item_macro(mac);
+                        if macro_rules_attr.is_some() {
+                            self.mod_macros.add_item_macro(mac);
+                        } else {
+                            println!(
+                                r#"WARNING: Found macro_rules definition "macro_rules! {i}" with no #[diplomat::macro_rules] attribute. This will not be evaluated in Diplomat bindings."#
+                            );
+                        }
                     } else {
-                        println!(
-                            r#"WARNING: Found macro_rules definition "macro_rules! {i}" with no #[diplomat::macro_rules] attribute. This will not be evaluated in Diplomat bindings."#
-                        );
-                    }
-                } else {
-                    let items = self.mod_macros.evaluate_item_macro(mac);
-                    for i in items {
-                        self.add(&i);
+                        let items = self.mod_macros.evaluate_item_macro(mac);
+                        for i in items {
+                            self.add(&i);
+                        }
                     }
                 }
             }
@@ -366,12 +392,17 @@ impl Module {
         out.insert(path_to_self, mod_symbols);
     }
 
+    /// Convert an [`ItemMod`] to a [`Module`].
+    ///
+    /// `force_analyze` is for forcibly parsing the module in the case where we know the `#[diplomat::bridge]` attribute should be present,
+    /// but proc_macro (or some other analyzer) has removed the attribute in advance.
     pub fn from_syn(input: &ItemMod, force_analyze: bool) -> Module {
         let mod_attrs: Attrs = (&*input.attrs).into();
 
         let mut mst = ModuleBuilder {
             custom_types_by_name: BTreeMap::new(),
             custom_traits_by_name: BTreeMap::new(),
+            private_types_by_name: BTreeSet::new(),
             functions_by_name: BTreeMap::new(),
             sub_modules: Vec::new(),
             imports: Vec::new(),
@@ -380,6 +411,9 @@ impl Module {
                     .attrs
                     .iter()
                     .any(|a| a.path().to_token_stream().to_string() == "diplomat :: bridge"),
+            skip_private_items: input.attrs.iter().any(|a| {
+                a.path().to_token_stream().to_string() == "diplomat :: skip_private_items"
+            }),
             impl_parent_attrs: mod_attrs
                 .attrs_for_inheritance(AttrInheritContext::MethodOrImplFromModule),
             type_parent_attrs: mod_attrs.attrs_for_inheritance(AttrInheritContext::Type),
@@ -583,6 +617,27 @@ mod tests {
 
                 mod other {
                     use something::*;
+                }
+            }));
+        });
+    }
+
+    #[test]
+    fn struct_visibility() {
+        let mut settings = Settings::new();
+        settings.set_sort_maps(true);
+
+        settings.bind(|| {
+            insta::assert_yaml_snapshot!(File::from(&syn::parse_quote! {
+                #[diplomat::bridge]
+                #[diplomat::skip_private_items]
+                mod ffi {
+                    struct Foo {}
+
+                    #[diplomat::opaque]
+                    pub struct Opaque{
+                        foo: Foo,
+                    }
                 }
             }));
         });

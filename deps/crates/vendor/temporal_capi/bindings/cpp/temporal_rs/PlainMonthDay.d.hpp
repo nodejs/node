@@ -59,11 +59,17 @@ public:
 
   inline const temporal_rs::Calendar& calendar() const;
 
+  inline uint8_t month() const;
+
   inline std::string month_code() const;
   template<typename W>
   inline void month_code_write(W& writeable_output) const;
 
+  inline int32_t reference_year() const;
+
   inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError> to_plain_date(std::optional<temporal_rs::PartialDate> year) const;
+
+  inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> epoch_ms_for_utc() const;
 
   inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> epoch_ms_for(temporal_rs::TimeZone time_zone) const;
 

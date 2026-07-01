@@ -1,0 +1,67 @@
+# Test transliterator that uses every feature available and also tests some edge cases
+
+# input: abädefghijkl!
+
+:: [äa-z] ;
+abä { def } ghi > | @ DEF ;
+ä } D [EF] [EF] > C ;
+[D] [E] [F] > xyz ;
+[xyz] { ghi > XYZ ;
+ghi > 'bad' ;
+l > |@@@@@@@@@@@@@@@@@@@@@@@@@L;
+kL > 'bad' ;
+
+:: Null ;
+# output so far: abCxyzXYZjkL!
+
+^ . $ > 'bad' ;
+^ . > 'first' ;
+L } $ > las|t ;
+
+L } \! [$] > T ;
+
+:: Null ;
+
+# output so far: firstbCxyzXYZjkT!
+
+$b = b ;
+$t = t ;
+$a = $t$b ;
+
+([^$]) irs { ($a C (xyz)) > $3 $2 $1 $2 $3 ; # xyz tb C xyz f tb C xyz xyz
+
+:: Null ;
+
+# output so far: firsxyztbCxyzftbCxyzxyzXYZjkT!
+
+# 1 2   3     4 5   6
+^ ( (f) (i) ) ( (r) (s) ) { xyz > $1 $2 $3 $4 $5 $6 ; # fi f i rs r s
+
+:: Null ;
+
+# output so far: firsfifirsrstbCxyzftbCxyzxyzXYZjkT!
+
+'firsfifirsrstbCxyzftbCxyzxyzXYZjkT' > | 'firsfififirsrstbCxyzftbCxyzxyzXYZjkT' ;
+
+# output so far: firsfififirsrstbCxyzftbCxyzxyzXYZjkT!
+
+$fi = fi ;
+$fi+ > FI ;
+(r?s?C?)+ (.) > $1 $2 ; # note: the (.) is necessary to make the rule advance, otherwise we end up in an infinite loop. ICU has the same issue.
+
+# output so far: FIfiFItbxyzftbxyzxyzXYZjkT!
+
+:: Null ;
+
+$fifi = fiFI;
+
+($fifi) > &[IF!] Remove($1 'unremoved') ;
+
+# output so far: FIfiunremovedtbxyzftbxyzxyzXYZjkT!
+
+:: Null ;
+
+# this should have no effect:
+(FI) ('this does not match' ('this segment is never tried to match'))? > $1 $2 $3 ;
+
+

@@ -1,0 +1,13 @@
+# Check that recursive calls only "see" what they're supposed to
+
+# input: XXXabcXXXdXXe
+
+:: [a-z] ;
+
+# 1. run: receives "abc". Should not see surrounding part
+# 2. run: receives "d". Should not see surrounding part
+# 3. run: receives "e". Should not see surrounding part
+(.+) > XXX &[b] Test-Test/RecursiveSuiteA($1) ;
+# (.+) > XXX &[b] Null($1) ;
+
+# output: XXXXXXaWORKEDcXXXXXXdXXXXXe

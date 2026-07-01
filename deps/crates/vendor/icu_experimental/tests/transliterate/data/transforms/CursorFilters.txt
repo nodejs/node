@@ -1,0 +1,5 @@
+# https://unicode-org.atlassian.net/jira/software/c/projects/ICU/issues/ICU-22469
+
+:: [a] ;
+x { a > | @ b;
+x > 'bad' ;

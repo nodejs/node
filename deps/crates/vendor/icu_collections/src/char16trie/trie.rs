@@ -79,6 +79,7 @@ fn skip_node_value(pos: usize, lead: u16) -> usize {
 #[cfg_attr(feature = "databake", derive(databake::Bake))]
 #[cfg_attr(feature = "databake", databake(path = icu_collections::char16trie))]
 #[derive(Clone, Debug, PartialEq, Eq, ZeroFrom)]
+#[allow(clippy::exhaustive_structs)] // effectively exhaustive, struct-constructible for baking
 pub struct Char16Trie<'data> {
     /// An array of u16 containing the trie data.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -88,20 +89,22 @@ pub struct Char16Trie<'data> {
 
 impl<'data> Char16Trie<'data> {
     /// Returns a new [`Char16Trie`] with ownership of the provided data.
+    #[inline]
     pub fn new(data: ZeroVec<'data, u16>) -> Self {
         Self { data }
     }
 
     /// Returns a new [`Char16TrieIterator`] backed by borrowed data from the `trie` data
-    pub fn iter(&self) -> Char16TrieIterator {
+    #[inline]
+    pub fn iter(&self) -> Char16TrieIterator<'_> {
         Char16TrieIterator::new(&self.data)
     }
 }
 
 /// This struct represents an iterator over a [`Char16Trie`].
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Char16TrieIterator<'a> {
-    /// A reference to the Char16Trie data to iterate over.
+    /// A reference to the [`Char16Trie`] data to iterate over.
     trie: &'a ZeroSlice<u16>,
     /// Index of next trie unit to read, or `None` if there are no more matches.
     pos: Option<usize>,
@@ -112,6 +115,7 @@ pub struct Char16TrieIterator<'a> {
 
 /// An enum representing the return value from a lookup in [`Char16Trie`].
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[allow(clippy::exhaustive_enums)]
 pub enum TrieResult {
     /// The input unit(s) did not continue a matching string.
     /// Once `next()` returns `TrieResult::NoMatch`, all further calls to `next()`
@@ -164,6 +168,7 @@ macro_rules! trie_unwrap {
 
 impl<'a> Char16TrieIterator<'a> {
     /// Returns a new [`Char16TrieIterator`] backed by borrowed data for the `trie` array
+    #[inline]
     pub fn new(trie: &'a ZeroSlice<u16>) -> Self {
         Self {
             trie,

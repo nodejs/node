@@ -1,0 +1,80 @@
+// @generated
+/// Implement `DataProvider<PropertyNameLongJoiningGroupV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 1265B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+///
+/// This macro requires the following crates:
+/// * `icu`
+/// * `icu_provider`
+/// * `zerovec`
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_property_name_long_joining_group_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.86"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.86"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_PROPERTY_NAME_LONG_JOINING_GROUP_V1: &'static <icu::properties::provider::PropertyNameLongJoiningGroupV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::properties::provider::names::PropertyEnumToValueNameLinearMap { map: unsafe { zerovec::vecs::VarZeroVec16::from_bytes_unchecked(b"j\0\x10\0\x13\0\x18\0\x1C\0\x1F\0#\0&\x001\x002\x005\0B\0E\0J\0M\0]\0_\0b\0j\0n\0q\0u\0\x80\0\x83\0\x89\0\x8D\0\x90\0\x94\0\x97\0\x99\0\x9C\0\xA0\0\xA3\0\xAE\0\xB1\0\xB6\0\xBA\0\xC1\0\xC5\0\xCE\0\xD8\0\xDB\0\xDE\0\xE9\0\xED\0\xF0\0\xF3\0\xFD\0\n\x01\x0E\x01\x15\x01\x19\x01\x1B\x01 \x01%\x01:\x01C\x01F\x01R\x01b\x01q\x01\x80\x01\x91\x01\xA3\x01\xB2\x01\xC2\x01\xD1\x01\xE3\x01\xF2\x01\x03\x02\x11\x02\x1F\x02-\x02:\x02I\x02X\x02h\x02y\x02\x87\x02\x95\x02\xA4\x02\xB6\x02\xC7\x02\xD5\x02\xE4\x02\xF4\x02\0\x03\x0B\x03\x17\x03\"\x03/\x03;\x03H\x03V\x03c\x03p\x03~\x03\x8B\x03\x97\x03\xA4\x03\xB1\x03\xC9\x03\xDB\x03\xE3\x03\xF0\x03\xFC\x03No_Joining_GroupAinAlaphAlefBehBethDalDalath_RishEFehFinal_SemkathGafGamalHahTeh_Marbuta_GoalHeHehHeh_GoalHethKafKaphKnotted_HehLamLamadhMeemMimNoonNunPeQafQaphRehReversed_PeSadSadheSeenSemkathShinSwash_KafSyriac_WawTahTawTeh_MarbutaTethWawYehYeh_BarreeYeh_With_TailYudhYudh_HeZainFeKhaphZhainBurushaski_Yeh_BarreeFarsi_YehNyaRohingya_YehManichaean_AlephManichaean_AyinManichaean_BethManichaean_DalethManichaean_DhamedhManichaean_FiveManichaean_GimelManichaean_HethManichaean_HundredManichaean_KaphManichaean_LamedhManichaean_MemManichaean_NunManichaean_OneManichaean_PeManichaean_QophManichaean_ReshManichaean_SadheManichaean_SamekhManichaean_TawManichaean_TenManichaean_TethManichaean_ThamedhManichaean_TwentyManichaean_WawManichaean_YodhManichaean_ZayinStraight_WawAfrican_FehAfrican_NoonAfrican_QafMalayalam_BhaMalayalam_JaMalayalam_LlaMalayalam_LllaMalayalam_NgaMalayalam_NnaMalayalam_NnnaMalayalam_NyaMalayalam_RaMalayalam_SsaMalayalam_TtaHanifi_Rohingya_Kinna_YaHanifi_Rohingya_PaThin_YehVertical_TailKashmiri_YehThin_Noon") } };
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DataProvider<icu::properties::provider::PropertyNameLongJoiningGroupV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::properties::provider::PropertyNameLongJoiningGroupV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_PROPERTY_NAME_LONG_JOINING_GROUP_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameLongJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_property_name_long_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyNameLongJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_property_name_long_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyNameLongJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameLongJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_property_name_long_joining_group_v1!($provider);
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::DryDataProvider<icu::properties::provider::PropertyNameLongJoiningGroupV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::properties::provider::PropertyNameLongJoiningGroupV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.86"]
+        impl icu_provider::IterableDataProvider<icu::properties::provider::PropertyNameLongJoiningGroupV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_property_name_long_joining_group_v1 as impl_property_name_long_joining_group_v1;

@@ -40,7 +40,7 @@ use crate::{
     unix_time::EpochNanoseconds,
     utils, TemporalResult, TemporalUnwrap, NS_PER_DAY,
 };
-use icu_calendar::{Date as IcuDate, Iso};
+use icu_calendar::{Calendar as IcuCalendar, Date as IcuDate, Iso};
 use num_traits::{cast::FromPrimitive, Euclid};
 
 /// `IsoDateTime` is the record of the `IsoDate` and `IsoTime` internal slots.
@@ -264,6 +264,8 @@ pub struct IsoDate {
 }
 
 impl IsoDate {
+    pub(crate) const UNIX_EPOCH: Self = Self::new_unchecked(1970, 1, 1);
+
     /// Creates a new `IsoDate` without determining the validity.
     pub(crate) const fn new_unchecked(year: i32, month: u8, day: u8) -> Self {
         Self { year, month, day }
@@ -295,7 +297,7 @@ impl IsoDate {
     /// <https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits>
     pub fn check_within_limits(self) -> TemporalResult<()> {
         if !iso_dt_within_valid_limits(self, &IsoTime::noon()) {
-            return Err(TemporalError::range().with_message("IsoDate not within a valid range."));
+            return Err(TemporalError::range().with_enum(ErrorMessage::DateOutOfRange));
         }
         Ok(())
     }
@@ -504,10 +506,20 @@ impl IsoDate {
 
 impl IsoDate {
     /// Creates `[[ISOYear]]`, `[[isoMonth]]`, `[[isoDay]]` fields from `ICU4X`'s `Date<Iso>` struct.
-    pub(crate) fn to_icu4x(self) -> IcuDate<Iso> {
-        let d = IcuDate::try_new_iso(self.year, self.month, self.day);
-        debug_assert!(d.is_ok(), "ICU4X ISODate conversion must not fail");
-        d.unwrap_or_else(|_| IcuDate::from_rata_die(icu_calendar::types::RataDie::new(0), Iso))
+    pub(crate) fn to_icu4x_iso(self) -> IcuDate<Iso> {
+        IcuDate::from_rata_die(self.to_rd(), Iso)
+    }
+
+    pub(crate) fn to_rd(self) -> icu_calendar::types::RataDie {
+        calendrical_calculations::gregorian::fixed_from_gregorian(self.year, self.month, self.day)
+    }
+
+    pub(crate) fn from_icu4x(date: <Iso as IcuCalendar>::DateInner) -> Self {
+        Self::new_unchecked(
+            Iso.extended_year(&date),
+            Iso.month(&date).ordinal,
+            Iso.day_of_month(&date).0,
+        )
     }
 }
 
@@ -1056,9 +1068,9 @@ mod tests {
     #[test]
     fn icu4x_max_conversion_test() {
         // Test that the max ISO date does not panic on conversion
-        let _ = IsoDate::new_unchecked(275_760, 9, 13).to_icu4x();
+        let _ = IsoDate::new_unchecked(275_760, 9, 13).to_icu4x_iso();
         // Test that the min ISO date does not panic on conversion
-        let _ = IsoDate::new_unchecked(-271_821, 4, 20).to_icu4x();
+        let _ = IsoDate::new_unchecked(-271_821, 4, 20).to_icu4x_iso();
     }
 
     #[test]

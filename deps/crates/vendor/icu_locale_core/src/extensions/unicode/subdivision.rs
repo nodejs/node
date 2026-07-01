@@ -46,6 +46,14 @@ impl_tinystr_subtag!(
     ["toolooong"],
 );
 
+impl SubdivisionSuffix {
+    pub(crate) const UNKNOWN: Self = subdivision_suffix!("zzzz");
+
+    pub(crate) fn is_unknown(self) -> bool {
+        self == Self::UNKNOWN
+    }
+}
+
 /// A Subivision Id as defined in [`Unicode Locale Identifier`].
 ///
 /// Subdivision Id is used in [`Unicode`] extensions:
@@ -66,6 +74,7 @@ impl_tinystr_subtag!(
 ///     subtags::region,
 /// };
 ///
+/// // "zzzz" means "unknown subdivision"
 /// let ss = subdivision_suffix!("zzzz");
 /// let region = region!("gb");
 ///
@@ -106,6 +115,48 @@ impl SubdivisionId {
 
     /// A constructor which takes a str slice, parses it and
     /// produces a well-formed [`SubdivisionId`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use icu::locale::extensions::unicode::SubdivisionId;
+    /// use writeable::assert_writeable_eq;
+    ///
+    /// let subdivision = SubdivisionId::try_from_str("gbeng").unwrap();
+    ///
+    /// assert_writeable_eq!(subdivision, "gbeng");
+    /// assert_writeable_eq!(subdivision.region, "GB");
+    /// assert_writeable_eq!(subdivision.suffix, "eng");
+    /// ```
+    ///
+    /// When the value can't be parsed:
+    ///
+    /// ```
+    /// use icu::locale::extensions::unicode::SubdivisionId;
+    /// use icu::locale::ParseError;
+    ///
+    /// // Value is too short
+    /// assert!(matches!(
+    ///     SubdivisionId::try_from_str("zz"),
+    ///     Err(ParseError::InvalidExtension),
+    /// ));
+    ///
+    /// // Value is too long
+    /// assert!(matches!(
+    ///     SubdivisionId::try_from_str("abcdefg"),
+    ///     Err(ParseError::InvalidExtension),
+    /// ));
+    ///
+    /// // Value does not start with a valid region code
+    /// assert!(matches!(
+    ///     SubdivisionId::try_from_str("a0zzzz"),
+    ///     Err(ParseError::InvalidExtension),
+    /// ));
+    /// assert!(matches!(
+    ///     SubdivisionId::try_from_str("0azzzz"),
+    ///     Err(ParseError::InvalidExtension),
+    /// ));
+    /// ```
     #[inline]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
@@ -132,8 +183,12 @@ impl SubdivisionId {
     }
 
     /// Convert to [`Subtag`]
-    pub fn into_subtag(self) -> Subtag {
-        let result = self.region.to_tinystr().concat(self.suffix.to_tinystr());
+    pub const fn into_subtag(self) -> Subtag {
+        let result = self
+            .region
+            .to_tinystr()
+            .to_ascii_lowercase()
+            .concat(self.suffix.to_tinystr());
         Subtag::from_tinystr_unvalidated(result)
     }
 }
@@ -151,7 +206,7 @@ impl writeable::Writeable for SubdivisionId {
     }
 }
 
-writeable::impl_display_with_writeable!(SubdivisionId);
+writeable::impl_display_with_writeable!(SubdivisionId, #[cfg(feature = "alloc")]);
 
 impl FromStr for SubdivisionId {
     type Err = ParseError;
@@ -175,7 +230,7 @@ mod tests {
 
         for sample in ["", "gb", "o"] {
             let oe: Result<SubdivisionId, _> = sample.parse();
-            assert!(oe.is_err(), "Should fail: {}", sample);
+            assert!(oe.is_err(), "Should fail: {sample}");
         }
     }
 }

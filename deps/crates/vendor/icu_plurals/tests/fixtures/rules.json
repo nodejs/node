@@ -1,0 +1,139 @@
+[
+  {
+    "rule": "n = 1",
+    "input": {
+      "i": 1
+    },
+    "output": true
+  },
+  {
+    "rule": "i = 2..4, 15 and v = 0",
+    "input": "3.5",
+    "output": false
+  },
+  {
+    "rule": "n % 10 = 0 or n % 10 = 5..9 or n % 100 = 11..14",
+    "input": {
+      "i": 5
+    },
+    "output": true
+  },
+  {
+    "rule": "i ! 10",
+    "input": {},
+    "output": "ExpectedOperator"
+  },
+  {
+    "rule": "i #",
+    "input": {},
+    "output": "ExpectedOperator"
+  },
+  {
+    "rule": "n != 10 and f = 0 and t = 0 and v = 0 and w = 0",
+    "input": {
+      "i": 10
+    },
+    "output": false
+  },
+  {
+    "rule": " @integer 1, 2, … @decimal 1.3~1.5",
+    "input": {
+      "i": 1
+    },
+    "output": true
+  },
+  {
+    "rule": "w = 1",
+    "input": {
+      "w": 1
+    },
+    "output": true
+  },
+  {
+    "rule": "t = 1",
+    "input": {
+      "t": 2
+    },
+    "output": false
+  },
+  {
+    "rule": "f = 1",
+    "input": {
+      "f": 1
+    },
+    "output": true
+  },
+  {
+    "rule": "f = 2 or",
+    "input": {
+      "f": 2
+    },
+    "output": "ExpectedAndCondition"
+  },
+  {
+    "rule": "f = 2 and",
+    "input": {
+      "f": 2
+    },
+    "output": "ExpectedRelation"
+  },
+  {
+    "rule": "2 = 2",
+    "input": {
+      "f": 2
+    },
+    "output": "ExpectedOperand"
+  },
+  {
+    "rule": "n = f",
+    "input": {
+      "f": 2
+    },
+    "output": "ExpectedValue"
+  },
+  {
+    "rule": "n = 1",
+    "input": "1.2",
+    "output": false
+  },
+  {
+    "rule": "n = 1..3",
+    "input": "1.2",
+    "output": false
+  },
+  {
+    "rule": "n = 1, 2, 3",
+    "input": "1.2",
+    "output": false
+  },
+  {
+    "rule": "n % 10 = 1 and n % 100 != 11",
+    "input": 21,
+    "output": true
+  },
+  {
+    "rule": "n % 10 = 1 and n % 100 != 11, 71, 91",
+    "input": 11,
+    "output": false
+  },
+  {
+    "rule": "n % 10 = 1 and n % 100 != 11, 71, 91",
+    "input": 91,
+    "output": false
+  },
+  {
+    "rule": "n % 0 = 1",
+    "input": 1,
+    "output": false
+  },
+  {
+    "rule": "c = 0 and i != 0 and i % 1000000 = 0 and v = 0 or c != 0..5 @integer 1000000, 1e6, 2e6, 3e6, 4e6, 5e6, 6e6, … @decimal 1.0000001e6, 1.1e6, 2.0000001e6, 2.1e6, 3.0000001e6, 3.1e6, …",
+    "input": 1,
+    "output": false
+  },
+  {
+    "rule": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5 @integer 1000000, 1e6, 2e6, 3e6, 4e6, 5e6, 6e6, … @decimal 1.0000001e6, 1.1e6, 2.0000001e6, 2.1e6, 3.0000001e6, 3.1e6, …",
+    "input": 1,
+    "output": false
+  }
+]

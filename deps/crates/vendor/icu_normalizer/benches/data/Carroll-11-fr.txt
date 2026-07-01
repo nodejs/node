@@ -1,0 +1,13 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+# Source - unicode-org/test-corpora
+# Files -  gutenberg/Carroll-11/out/google/txt/fr/8860606395858576540_11-h-1.htm.txt (Continued into h-2, h-3)
+# Language - French
+
+Il n'y avait rien de si remarquable à cela ; et Alice ne trouvait pas non plus si étrange d'entendre le Lapin se dire : « Oh là là ! Oh là là ! Je vais être en retard ! » (En y repensant plus tard, il lui vint à l'esprit qu'elle aurait dû s'en étonner, mais sur le moment tout semblait tout naturel) ; mais lorsque le Lapin sortit effectivement une montre de la poche de son gilet , la regarda et se hâta de partir, Alice se leva d'un bond, car il lui traversa l'esprit qu'elle n'avait jamais vu auparavant un lapin avec une poche de gilet ou une montre à y prendre, et, brûlante de curiosité, elle traversa le champ à sa poursuite, et heureusement, elle arriva juste à temps pour le voir sauter dans un grand terrier sous la haie.
+Un instant plus tard, Alice se lança à sa poursuite, sans jamais se demander comment elle allait pouvoir s'en sortir à nouveau.
+Le terrier du lapin continuait tout droit comme un tunnel sur une certaine distance, puis plongeait soudainement, si soudainement qu'Alice n'eut pas un instant pour penser à s'arrêter avant de se retrouver en train de tomber dans un puits très profond.
+Soit le puits était très profond, soit elle tombait très lentement, car elle avait tout le temps, en descendant, de regarder autour d'elle et de se demander ce qui allait se passer ensuite. Elle essaya d'abord de regarder en bas pour distinguer où elle allait arriver, mais il faisait trop sombre pour voir quoi que ce soit ; puis elle regarda les côtés du puits et remarqua qu'ils étaient remplis d'armoires et d'étagères ; çà et là, elle aperçut des cartes et des tableaux accrochés à des patères. Elle prit un pot d'une des étagères en passant ; il était étiqueté « MARMELADE D'ORANGE », mais à sa grande déception, il était vide : elle ne voulait pas le laisser tomber de peur de tuer quelqu'un en dessous, alors elle réussit à le mettre dans un des placards en tombant.
+« Eh bien ! » pensa Alice, « après une chute pareille, je n'hésiterai pas à dégringoler ! Comme on me trouvera courageuse à la maison ! Je n'en parlerais même pas, même si je tombais du toit ! » (Ce qui était très probablement vrai.)

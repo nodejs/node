@@ -64,9 +64,9 @@ assert_eq!(locale, locale!("zh"));
 ```
 
 [`ICU4X`]: ../icu/index.html
-[`CLDR`]: http://cldr.unicode.org/
+[`CLDR`]: https://cldr.unicode.org/
 [`UTS #35: Unicode LDML 3. Likely Subtags`]: https://www.unicode.org/reports/tr35/#Likely_Subtags.
-[`UTS #35: Unicode LDML 3. LocaleId Canonicalization`]: http://unicode.org/reports/tr35/#LocaleId_Canonicalization,
+[`UTS #35: Unicode LDML 3. LocaleId Canonicalization`]: https://unicode.org/reports/tr35/#LocaleId_Canonicalization,
 
 <!-- cargo-rdme end -->
 

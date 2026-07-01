@@ -353,15 +353,15 @@ fn large_zerohashmap_postcard_bytes() -> Vec<u8> {
 criterion_group!(benches, overview_bench);
 criterion_main!(benches);
 
-/// This type lets us use a u32-index-format VarZeroVec with the ZeroMap.
+/// This type lets us use a u32-index-format `VarZeroVec` with the `ZeroMap`.
 ///
-/// Eventually we will have a FormatSelector type that lets us do `ZeroMap<FormatSelector<K, Index32>, V>`
-/// (https://github.com/unicode-org/icu4x/issues/2312)
+/// Eventually we will have a `FormatSelector` type that lets us do `ZeroMap<FormatSelector<K, Index32>, V>`
+/// (<https://github.com/unicode-org/icu4x/issues/2312>)
 ///
-/// ,  isn't actually important; it's just more convenient to use make_varule to get the
+/// ,  isn't actually important; it's just more convenient to use `make_varule` to get the
 /// full suite of traits instead of `#[derive(VarULE)]`. (With `#[derive(VarULE)]` we would have to manually
 /// define a Serialize implementation, and that would be gnarly)
-/// https://github.com/unicode-org/icu4x/issues/2310 tracks being able to do this with derive(ULE)
+/// <https://github.com/unicode-org/icu4x/issues/2310> tracks being able to do this with derive(ULE)
 #[zerovec::make_varule(Index32Str)]
 #[zerovec::skip_derive(ZeroMapKV)]
 #[derive(Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]

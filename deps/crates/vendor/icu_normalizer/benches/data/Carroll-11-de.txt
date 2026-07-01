@@ -1,0 +1,13 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+# Source - unicode-org/test-corpora
+# Files -  gutenberg/Carroll-11/out/google/txt/de/8860606395858576540_11-h-1.htm.txt (Continued into h-2, h-3)
+# Language - German
+
+Daran war nichts besonders Bemerkenswertes; und Alice fand es auch nicht besonders ungewöhnlich, das Kaninchen zu sich selbst sagen zu hören: „Oh je! Oh je! Ich werde zu spät kommen!" (als sie später darüber nachdachte, kam ihr der Gedanke, dass sie sich darüber hätte wundern sollen, aber in dem Moment schien ihr alles ganz natürlich); aber als das Kaninchen tatsächlich eine Uhr aus seiner Westentasche nahm , sie ansah und dann weitereilte, sprang Alice auf, denn ihr schoss durch den Kopf, dass sie noch nie zuvor ein Kaninchen mit einer Westentasche oder einer Uhr gesehen hatte, die es herausnehmen konnte, und brennend vor Neugier rannte sie hinter ihm über das Feld her und kam glücklicherweise gerade noch rechtzeitig, um zu sehen, wie es in ein großes Kaninchenloch unter der Hecke verschwand.
+Im nächsten Moment stürzte Alice hinterher, ohne auch nur einmal darüber nachzudenken, wie sie um alles in der Welt wieder herauskommen sollte.
+Das Kaninchenloch verlief eine Weile geradeaus wie ein Tunnel und ging dann plötzlich so plötzlich bergab, dass Alice keine Zeit hatte, darüber nachzudenken, sich zu stoppen, bevor sie feststellte, dass sie in einen sehr tiefen Brunnen fiel.
+Entweder war der Brunnen sehr tief, oder sie fiel sehr langsam, denn sie hatte beim Hinuntergehen viel Zeit, sich umzusehen und sich zu fragen, was als Nächstes passieren würde. Zuerst versuchte sie nach unten zu schauen und zu erkennen, wohin sie kam, aber es war zu dunkel, um etwas zu erkennen; dann blickte sie an die Seiten des Brunnens und bemerkte, dass diese mit Schränken und Bücherregalen gefüllt waren; hier und da sah sie Karten und Bilder an Haken hängen. Im Vorbeigehen nahm sie ein Glas von einem der Regale; es trug die Aufschrift „ORANGENMARMELADE", aber zu ihrer großen Enttäuschung war es leer: Sie wollte das Glas nicht fallen lassen, aus Angst, jemanden darunter zu töten, und schaffte es daher, es in einen der Schränke zu stellen, als sie daran vorbeifiel.
+„Na ja!", dachte Alice bei sich, „nach so einem Sturz werde ich mir nichts dabei denken, wenn ich die Treppe runterfalle! Wie tapfer werden mich alle zu Hause finden! Ich würde ja nichts davon sagen, selbst wenn ich vom Dach fallen würde!" (Was sehr wahrscheinlich stimmte.)

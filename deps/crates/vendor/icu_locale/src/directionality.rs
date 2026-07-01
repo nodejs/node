@@ -130,7 +130,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleDirectionality<Expander> {
     pub const fn new_with_expander(expander: Expander) -> Self {
         LocaleDirectionality {
             script_direction: DataPayload::from_static_ref(
-                crate::provider::Baked::SINGLETON_LOCALE_SCRIPT_DIRECTION_V1,
+                Baked::SINGLETON_LOCALE_SCRIPT_DIRECTION_V1,
             ),
             expander,
         }

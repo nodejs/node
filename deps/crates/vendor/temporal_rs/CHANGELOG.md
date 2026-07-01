@@ -1,3 +1,103 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## What's Changed in v0.2.3
+* Update zoneinfo64 and Diplomat by @Manishearth in [#713](https://github.com/boa-dev/temporal/pull/713)
+* Update icu_calendar to fix `with()` regression by @Manishearth in [#716](https://github.com/boa-dev/temporal/pull/716)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.2.2...v0.2.3
+
+## What's Changed in v0.2.2
+* Update ICU4X to 2.2 by @Manishearth in [#705](https://github.com/boa-dev/temporal/pull/705)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.2.1...v0.2.2
+
+## What's Changed in v0.2.1
+* Pin icu_calendar to v2.1 by @jedel1043 in [#704](https://github.com/boa-dev/temporal/pull/704)
+* Remove unwrap in PYM::epoch_ns_for_utc by @Manishearth in [#701](https://github.com/boa-dev/temporal/pull/701)
+* Fix bug with rounding with zoned RelativeTo and increment by @Manishearth in [#696](https://github.com/boa-dev/temporal/pull/696)
+* Add epoch_ns_for_utc to all Plain APIs by @Manishearth in [#700](https://github.com/boa-dev/temporal/pull/700)
+* Ensure offsets do not have more than 9 digits while parsing by @Manishearth in [#698](https://github.com/boa-dev/temporal/pull/698)
+* Do not overly range check when constructing Temporal PlainMonthDay by @Manishearth in [#695](https://github.com/boa-dev/temporal/pull/695)
+* Replace icu_locale with icu_locale_core by @Manishearth in [#694](https://github.com/boa-dev/temporal/pull/694)
+* docs: temporal is stage four by @ghostdevv in [#692](https://github.com/boa-dev/temporal/pull/692)
+* Expose fields needed for structured clone by @lucacasonato in [#686](https://github.com/boa-dev/temporal/pull/686)
+
+## New Contributors
+* @ghostdevv made their first contribution in [#692](https://github.com/boa-dev/temporal/pull/692)
+* @lucacasonato made their first contribution in [#686](https://github.com/boa-dev/temporal/pull/686)
+
+## What's Changed in v0.2.0
+* Fix incorrect decimal digits bug by @nekevss in [#679](https://github.com/boa-dev/temporal/pull/679)
+* Update the documentation by @nekevss in [#680](https://github.com/boa-dev/temporal/pull/680)
+* chore: cleanup zoneinfo_rs crate by @nekevss in [#674](https://github.com/boa-dev/temporal/pull/674)
+* Test time zone canonicalization against ICU4X by @robertbastian in [#676](https://github.com/boa-dev/temporal/pull/676)
+* Fix Sao Paulo bug in zoneinfo_rs by @nekevss in [#663](https://github.com/boa-dev/temporal/pull/663)
+* Implement a zero copy tzdb provider by @nekevss in [#662](https://github.com/boa-dev/temporal/pull/662)
+* Restrict the units that can be added to PlainYearMonth by @Manishearth in [#671](https://github.com/boa-dev/temporal/pull/671)
+* Fix Duration out of bounds crash by @Manishearth in [#667](https://github.com/boa-dev/temporal/pull/667)
+* Implement std::error::Error for TemporalError by @LeandroVandari in [#664](https://github.com/boa-dev/temporal/pull/664)
+* Rebuild time zone data with 2025c by @nekevss in [#660](https://github.com/boa-dev/temporal/pull/660)
+* Add support for time zone designations by @nekevss in [#659](https://github.com/boa-dev/temporal/pull/659)
+* Fix bug in POSIX time zone calculations by @nekevss in [#658](https://github.com/boa-dev/temporal/pull/658)
+* Add two different HostHook impls by @nekevss in [#591](https://github.com/boa-dev/temporal/pull/591)
+* Add NonZeroSign type to ensure proper sign handling by @nekevss in [#652](https://github.com/boa-dev/temporal/pull/652)
+* Update to new ComputeNudgeWindow spec text by @Manishearth in [#636](https://github.com/boa-dev/temporal/pull/636)
+* Fix ZonedDateTime::with bug when empty fields is provided by @nekevss in [#650](https://github.com/boa-dev/temporal/pull/650)
+* Add manual PartialOrd impl for FiniteF64 by @nekevss in [#649](https://github.com/boa-dev/temporal/pull/649)
+* Correct sign in nudge_to_zoned_time by @catamorphism in [#647](https://github.com/boa-dev/temporal/pull/647)
+* YearMonth addition: Use ISO parameters, not calendared parameters, when subtracting by @Manishearth in [#645](https://github.com/boa-dev/temporal/pull/645)
+* Fix typo in doc string by @catamorphism in [#639](https://github.com/boa-dev/temporal/pull/639)
+* Set YearMonth's day to 1 in calendar space when diffing by @Manishearth in [#640](https://github.com/boa-dev/temporal/pull/640)
+* unify iso naming in `Now` by @Sharktheone in [#631](https://github.com/boa-dev/temporal/pull/631)
+* Style updates by @Sharktheone in [#632](https://github.com/boa-dev/temporal/pull/632)
+* Use all-features for timezone_provider on docs.rs by @Manishearth in [#630](https://github.com/boa-dev/temporal/pull/630)
+* remove unneeded clone in TzdbResolver::get by @Sharktheone in [#628](https://github.com/boa-dev/temporal/pull/628)
+* Attempt to handle the "completely contained within" timezone rule by @Manishearth in [#629](https://github.com/boa-dev/temporal/pull/629)
+* Reject on empty fields object in PlainYearMonth::with by @nekevss in [#626](https://github.com/boa-dev/temporal/pull/626)
+
+## New Contributors
+* @robertbastian made their first contribution in [#676](https://github.com/boa-dev/temporal/pull/676)
+* @LeandroVandari made their first contribution in [#664](https://github.com/boa-dev/temporal/pull/664)
+* @catamorphism made their first contribution in [#647](https://github.com/boa-dev/temporal/pull/647)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.1.2...v0.2.0
+
+## What's Changed in v0.1.2
+* Publish 0.1.2 by @Manishearth in [#625](https://github.com/boa-dev/temporal/pull/625)
+* Ignore timezones mentioned in zone.tab when constructing the canonicalization table by @Manishearth in [#624](https://github.com/boa-dev/temporal/pull/624)
+* Add logic to Duration::total to handle loss of precision by @nekevss in [#622](https://github.com/boa-dev/temporal/pull/622)
+* Add feature to force float64-representable durations by @Manishearth in [#621](https://github.com/boa-dev/temporal/pull/621)
+* Updates for ZonedDateTime since / until issue by @Manishearth in [#619](https://github.com/boa-dev/temporal/pull/619)
+* Fix returned duration sign for non-ISO date arithmetic by @Manishearth in [#618](https://github.com/boa-dev/temporal/pull/618)
+* Constrain durations into a range that will produce valid Temporal dates before passing to ICU4X by @Manishearth in [#615](https://github.com/boa-dev/temporal/pull/615)
+* Add smart pointer implementations for TimeZone traits by @jedel1043 in [#614](https://github.com/boa-dev/temporal/pull/614)
+* Fix serialization of durations with zero seconds and nonzero subseconds by @ptomato in [#610](https://github.com/boa-dev/temporal/pull/610)
+* Remove support for unqualified `islamic` calendar by @Manishearth in [#609](https://github.com/boa-dev/temporal/pull/609)
+* Make ISO the default AnyCalendarKind over FFI by @Manishearth in [#608](https://github.com/boa-dev/temporal/pull/608)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.1.1...v0.1.2
+
+## What's Changed in v0.1.1
+* Publish 0.1.1 by @Manishearth in [#605](https://github.com/boa-dev/temporal/pull/605)
+* fix: allow passing `&dyn TimeZoneProvider` in arguments by @jedel1043 in [#599](https://github.com/boa-dev/temporal/pull/599)
+* Update ICU4X to 2.1 by @Manishearth in [#604](https://github.com/boa-dev/temporal/pull/604)
+* Update Diplomat to 0.14.0 by @Manishearth in [#603](https://github.com/boa-dev/temporal/pull/603)
+* Update ICU4X by @Manishearth in [#601](https://github.com/boa-dev/temporal/pull/601)
+* Move to new ICU4X arithmetic code by @Manishearth in [#595](https://github.com/boa-dev/temporal/pull/595)
+* Update to ICU4X main by @Manishearth in [#596](https://github.com/boa-dev/temporal/pull/596)
+* Remove HijriSimulatedMecca / islamic-rgsa by @Manishearth in [#597](https://github.com/boa-dev/temporal/pull/597)
+* Fix a small typo in errors by @reillysiemens in [#594](https://github.com/boa-dev/temporal/pull/594)
+* Update to ICU4X's new Calendar::from_fields by @Manishearth in [#582](https://github.com/boa-dev/temporal/pull/582)
+* re-export DefaultHostSystem by @Sharktheone in [#590](https://github.com/boa-dev/temporal/pull/590)
+
+## New Contributors
+* @reillysiemens made their first contribution in [#594](https://github.com/boa-dev/temporal/pull/594)
+* @Sharktheone made their first contribution in [#590](https://github.com/boa-dev/temporal/pull/590)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.1.0...v0.1.1
+
 ## What's Changed in v0.1.0
 * Update Diplomat to 0.13.0 by @Manishearth in [#588](https://github.com/boa-dev/temporal/pull/588)
 * Add TryFrom for PartialDuration to Duration by @nekevss in [#585](https://github.com/boa-dev/temporal/pull/585)
@@ -28,10 +128,6 @@
 * @ptomato made their first contribution in [#580](https://github.com/boa-dev/temporal/pull/580)
 
 **Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.0.16...v0.1.0
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
 
 ## What's Changed in v0.0.16
 * Bump versions to 0.0.16
