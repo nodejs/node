@@ -312,9 +312,10 @@ channel('http.client.request').subscribe((message) => {
 function exportTraces(data) {
   bypass(kMyTracer, () => {
     // This HTTP request will NOT trigger the subscriber above
-    request('https://my-apm-backend.example.com/traces', {
+    const req = request('https://my-apm-backend.example.com/traces', {
       method: 'POST',
     });
+    req.end();
   });
 }
 ```
@@ -329,32 +330,30 @@ The bypass context propagates across async boundaries:
 // bypass() works across Promise boundaries
 await bypass(kMyTracer, async () => {
   await someAsyncOperation(); // still bypassed
-  channel('http.client.request').publish(data); // subscriber skipped
+  channel('http.client.request').publish({}); // subscriber skipped
 });
 
 // And across timers
 bypass(kMyTracer, () => {
   setImmediate(() => {
     // Still bypassed here
-    channel('http.client.request').publish(data);
+    channel('http.client.request').publish({});
   });
 });
 ```
 
 ```cjs
-// bypass() works across Promise boundaries
-await bypass(kMyTracer, async () => {
-  await someAsyncOperation(); // still bypassed
-  channel('http.client.request').publish(data); // subscriber skipped
-});
-
-// And across timers
-bypass(kMyTracer, () => {
-  setImmediate(() => {
-    // Still bypassed here
-    channel('http.client.request').publish(data);
+(async () => {
+  await bypass(kMyTracer, async () => {
+    await someAsyncOperation();
+    channel('http.client.request').publish({});
   });
-});
+  bypass(kMyTracer, () => {
+    setImmediate(() => {
+      channel('http.client.request').publish({});
+    });
+  });
+})();
 ```
 
 Multiple tools can each use their own `bypassId` without
@@ -369,7 +368,7 @@ channel('http.client.request').subscribe(handlerB, { bypassId: kToolB });
 
 // Only handlerA is skipped, handlerB still fires
 bypass(kToolA, () => {
-  channel('http.client.request').publish(data);
+  channel('http.client.request').publish({});
 });
 ```
 
@@ -386,7 +385,7 @@ channel('http.client.request').subscribe(handlerB, { bypassId: kToolB });
 
 // Only handlerA is skipped, handlerB still fires
 bypass(kToolA, () => {
-  channel('http.client.request').publish(data);
+  channel('http.client.request').publish({});
 });
 ```
 
