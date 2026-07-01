@@ -932,16 +932,16 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 		) \
 	fi
 
+.PHONY: doc/node.1
 doc/node.1: doc/api/cli.md tools/doc/node_modules
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t man-page \
-			-i $< \
-			-o $(@D) \
 			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+			-o $(@D) \
 		) \
 	fi
 
@@ -1499,13 +1499,10 @@ tools/.manpagelintstamp: doc/api/cli.md tools/doc/node_modules
 		echo "Skipping doc/node.1 verification (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r out/doc/.manpagecheck && \
-		mkdir -p out/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t man-page \
-			-i doc/api/cli.md \
-			-o out/doc/.manpagecheck \
 			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \
 		if ! diff -u doc/node.1 out/doc/.manpagecheck/node.1; then \
 			echo 'doc/node.1 is out of date; run `make doc/node.1` to regenerate it.'; \
