@@ -3079,6 +3079,17 @@ EVPKeyPointer SSLPointer::getPeerTempKey() const {
   return EVPKeyPointer(raw_key);
 }
 
+std::optional<std::string_view> SSLPointer::getNegotiatedGroup() const {
+#if OPENSSL_VERSION_PREREQ(3, 5)
+  if (!ssl_) return std::nullopt;
+  const char* group = SSL_get0_group_name(get());
+  if (group == nullptr) return std::nullopt;
+  return group;
+#else
+  return std::nullopt;
+#endif
+}
+
 std::optional<std::string_view> SSLPointer::getCipherName() const {
   auto cipher = getCipher();
   if (cipher == nullptr) return std::nullopt;

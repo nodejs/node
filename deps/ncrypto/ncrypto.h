@@ -1197,6 +1197,7 @@ class SSLPointer final {
   std::optional<const std::string_view> getServerName() const;
   X509View getCertificate() const;
   EVPKeyPointer getPeerTempKey() const;
+  std::optional<std::string_view> getNegotiatedGroup() const;
   const SSL_CIPHER* getCipher() const;
   bool isServer() const;
 
