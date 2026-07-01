@@ -131,7 +131,8 @@ the character "E" appended to the traditional abbreviations):
 
 Perfect forward secrecy using ECDHE is enabled by default. The `ecdhCurve`
 option can be used when creating a TLS server to customize the list of supported
-ECDH curves to use. See [`tls.createServer()`][] for more info.
+ECDH curves for TLSv1.2 and below, and the list of supported TLS groups for
+TLSv1.3. See [`tls.createServer()`][] for more info.
 
 DHE is disabled by default but can be enabled alongside ECDHE by setting the
 `dhparam` option to `'auto'`. Custom DHE parameters are also supported but
@@ -1196,12 +1197,19 @@ added: v5.0.0
 
 * Returns: {Object}
 
-Returns an object representing the type, name, and size of parameter of
-an ephemeral key exchange in [perfect forward secrecy][] on a client
-connection. It returns an empty object when the key exchange is not
-ephemeral. As this is only supported on a client socket; `null` is returned
-if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
-`name` property is available only when type is `'ECDH'`.
+Returns an object describing ephemeral key agreement in [perfect forward
+secrecy][] on a client connection. It returns an empty object when the key
+agreement is not ephemeral. As this is only supported on a client socket;
+`null` is returned if called on a server socket. The supported types are `'DH'`,
+`'ECDH'`, and `'TLSGroup'`. For `'DH'` and `'ECDH'`, the object describes peer
+temporary key parameters. For `'TLSGroup'`, the object identifies the negotiated
+TLS Supported Group used for key agreement when a peer temporary key object is
+not available.
+
+The `name` property is available only when type is `'ECDH'` or `'TLSGroup'`. The
+`size` property is not available when type is `'TLSGroup'`. For `'TLSGroup'`,
+`name` is the negotiated TLS Supported Group name. Standardized TLS group names
+and code points are listed in the [IANA TLS Supported Groups registry][].
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
@@ -2015,12 +2023,16 @@ changes:
     required for non-ECDHE [perfect forward secrecy][]. If omitted or invalid,
     the parameters are silently discarded and DHE ciphers will not be available.
     [ECDHE][]-based [perfect forward secrecy][] will still be available.
-  * `ecdhCurve` {string} A string describing a named curve or a colon separated
-    list of curve NIDs or names, for example `P-521:P-384:P-256`, to use for
-    ECDH key agreement. Set to `auto` to select the
-    curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
-    available curve names. On recent releases, `openssl ecparam -list_curves`
-    will also display the name and description of each available elliptic curve.
+  * `ecdhCurve` {string} A string describing a named curve, TLS group, or
+    colon-separated list of named curves or TLS groups to use for key agreement,
+    for example `P-521:P-384:P-256`, `X25519`, or `X25519MLKEM768`. The
+    historical name of this option refers to ECDH key agreement in TLSv1.2 and
+    below. In TLSv1.3, this option configures the TLS Supported Groups and
+    key share groups offered or accepted by the TLS stack. Set to `auto` to
+    select the group automatically. Use [`crypto.getCurves()`][] to obtain a
+    list of available elliptic curve names. For TLS group names, use
+    `openssl list -tls-groups` or consult the [IANA TLS Supported Groups
+    registry][].
     **Default:** [`tls.DEFAULT_ECDH_CURVE`][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
     preferences instead of the client's. When `true`, causes
@@ -2433,9 +2445,9 @@ changes:
     description: Default value changed to `'auto'`.
 -->
 
-The default curve name to use for ECDH key agreement in a tls server. The
-default value is `'auto'`. See [`tls.createSecureContext()`][] for further
-information.
+The default named curve or TLS group list to use for key agreement in a TLS
+server. The default value is `'auto'`. See [`tls.createSecureContext()`][] for
+further information.
 
 ## `tls.DEFAULT_MAX_VERSION`
 
@@ -2483,6 +2495,7 @@ added: v0.11.3
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
+[IANA TLS Supported Groups registry]: https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
 [Modifying the default TLS cipher suite]: #modifying-the-default-tls-cipher-suite
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
