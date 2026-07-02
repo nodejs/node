@@ -2,6 +2,7 @@
 
 <!-- TOC -->
 
+* [Companions](#companions)
 * [Triagers](#triagers)
 * [Collaborators](#collaborators)
   * [Collaborator activities](#collaborator-activities)
@@ -15,6 +16,17 @@
 * [Consensus seeking process](#consensus-seeking-process)
 
 <!-- /TOC -->
+
+## Companions
+
+Companions are people recognized for their significant contributions to Node.js.
+Contributions can take many forms and is not limited to code committed to the
+[nodejs/node][] repository. Typically, a contributor becomes a Companion before
+becoming a Triager or Collaborator.
+
+See:
+
+* [List of companions](./README.md#companions)
 
 ## Triagers
 
