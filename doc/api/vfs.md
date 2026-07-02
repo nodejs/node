@@ -61,6 +61,11 @@ callback-based, and promise-based file system methods that mirror the
 shape of the [`node:fs`][] API. All paths are POSIX-style and absolute
 (starting with `/`).
 
+By default, the file tree is private to the VFS instance. To expose
+it through the global `node:fs` module, `require()`, and `import`,
+call [`vfs.mount(prefix)`][]; call [`vfs.unmount()`][] (or rely on a
+`using` declaration) to detach again.
+
 ## `vfs.create([provider][, options])`
 
 <!-- YAML
@@ -106,6 +111,126 @@ added: v26.4.0
 * `options` {Object}
   * `emitExperimentalWarning` {boolean} Whether to emit the experimental
     warning. **Default:** `true`.
+
+### `vfs.mount(prefix)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `prefix` {string} The path prefix where the VFS will be mounted.
+* Returns: {VirtualFileSystem} The VFS instance, for chaining or `using`.
+
+Mounts the virtual file system at the specified path prefix. After
+mounting, files in the VFS can be accessed through the `node:fs`
+module — and resolved through `require()` and `import` — using paths
+that start with the prefix.
+
+If a real file-system path already exists at the mount prefix, the
+VFS **shadows** that path: every operation against a path under the
+mount point is directed to the VFS until the VFS is unmounted.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/data.txt', 'Hello');
+myVfs.mount('/virtual');
+
+fs.readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
+```
+
+Each `VirtualFileSystem` instance may be mounted at most once at a
+time. Attempting to mount an already-mounted instance throws
+`ERR_INVALID_STATE`. Mounting two instances at overlapping prefixes
+(e.g., `/virtual` and `/virtual/sub`) also throws `ERR_INVALID_STATE`.
+
+The VFS supports the [Explicit Resource Management][] proposal. Use
+a `using` declaration to unmount automatically when leaving scope:
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+{
+  using myVfs = vfs.create();
+  myVfs.writeFileSync('/data.txt', 'Hello');
+  myVfs.mount('/virtual');
+
+  fs.readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
+} // VFS is automatically unmounted here
+
+fs.existsSync('/virtual/data.txt'); // false
+```
+
+### `vfs.unmount()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Unmounts the virtual file system. After unmounting, virtual files
+are no longer reachable through `node:fs`, `require()`, or `import`.
+The same instance may be mounted again, at the same or a different
+prefix, by calling `mount()`.
+
+This method is idempotent: calling `unmount()` on a VFS that is not
+currently mounted has no effect.
+
+### `vfs.mounted`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+`true` while the VFS is mounted; `false` otherwise.
+
+### `vfs.mountPoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string | null}
+
+The current mount-point path as an absolute string, or `null` when
+the VFS is not mounted.
+
+### `vfs.layerId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+A per-process monotonically increasing identifier assigned at
+construction. The id is stable across `mount()` / `unmount()` cycles
+for the lifetime of the instance, and is independent of the order in
+which VFS layers are mounted.
+
+The layer id is the building block for cache scoping (see
+[Module loader integration][]):
+
+* it surfaces in `import.meta.url` for ES modules loaded from this
+  VFS, as a `?vfs-layer=<id>` search parameter, so that the cascaded
+  loader's caches can be scoped per VFS;
+* it appears in the `NODE_DEBUG=vfs` output for `register` and
+  `deregister` events;
+* it appears in the `ERR_INVALID_STATE` error message thrown when two
+  VFS instances try to mount at overlapping prefixes.
+
+```cjs
+const vfs = require('node:vfs');
+
+const a = vfs.create();
+const b = vfs.create();
+console.log(a.layerId); // e.g. 0
+console.log(b.layerId); // a.layerId + 1
+```
 
 ### `vfs.provider`
 
@@ -194,6 +319,69 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 `unlink`, `rename`, `copyFile`, `realpath`, `readlink`, `symlink`,
 `access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
 `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
+
+## Module loader integration
+
+Once a `VirtualFileSystem` is mounted, paths under the mount prefix
+participate in module resolution and loading. Both
+`require()` / `require.resolve()` (CommonJS) and `import` /
+`import.meta.resolve()` (ECMAScript modules) consult the VFS through
+the same toggleable hooks that `node:fs` uses, so files served from
+the VFS are first-class modules: `package.json` is honoured,
+extensionless files are sniffed for Wasm vs. JavaScript, conditional
+`exports` / `imports` work, and so on.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+myVfs.mkdirSync('/lib');
+myVfs.writeFileSync('/lib/greet.js', 'module.exports = () => "hi";');
+myVfs.writeFileSync(
+  '/lib/package.json', '{"main": "./greet.js"}');
+myVfs.mount('/virtual');
+
+const greet = require('/virtual/lib');
+console.log(greet()); // 'hi'
+
+myVfs.unmount();
+```
+
+### Cache scoping and `import.meta.url`
+
+Module loaders maintain caches that survive the lifetime of any
+single VFS. To keep entries from leaking once a VFS is unmounted
+without invalidating unrelated real-fs imports, two mechanisms are
+combined:
+
+* **CommonJS caches** (`require.cache`, the internal stat and
+  realpath caches, and the `package.json` caches) are filtered on
+  `unmount()`: entries whose absolute filename would be claimed by
+  the VFS going away are deleted. `__filename` and `module.filename`
+  are unchanged - they remain plain absolute paths.
+
+* **ECMAScript module URLs** are tagged at resolve time. When the
+  resolver determines that a path belongs to a mounted VFS, it
+  appends `?vfs-layer=<id>` (where `<id>` is the owning instance's
+  [`vfs.layerId`][]) to the resolved URL. The tag therefore appears
+  in `import.meta.url` and in cache keys, and on `unmount()` the
+  cascaded loader's caches drop just the entries that carry the tag
+  for the unmounting layer.
+
+```mjs
+// inside /virtual/lib/greet.mjs after the VFS above is mounted
+console.log(import.meta.url);
+// e.g. 'file:///virtual/lib/greet.mjs?vfs-layer=0'
+```
+
+User code that compares `import.meta.url` literally should account
+for the search parameter; use `new URL(import.meta.url).pathname` or
+`fileURLToPath()` to obtain the underlying path.
+
+Mounting and unmounting do not invalidate ESM modules that are
+already executing. As with any other module-system teardown,
+unmounting a VFS while the import graph below it is still loading is
+the caller's responsibility to avoid.
 
 ## Class: `VirtualProvider`
 
@@ -318,6 +506,8 @@ fields use synthetic but stable values:
 * `blocks` is `Math.ceil(size / 512)`.
 * Times default to the moment the entry was created/last modified.
 
+[Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
+[Module loader integration]: #module-loader-integration
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
@@ -325,3 +515,6 @@ fields use synthetic but stable values:
 [`fs.BigIntStats`]: fs.md#class-fsbigintstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md
+[`vfs.layerId`]: #vfslayerid
+[`vfs.mount(prefix)`]: #vfsmountprefix
+[`vfs.unmount()`]: #vfsunmount
