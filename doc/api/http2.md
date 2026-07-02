@@ -4414,6 +4414,9 @@ added: v8.4.0
 This method adds HTTP trailing headers (a header but at the end of the
 message) to the response.
 
+Trailers must be added before calling [`response.end()`][]; trailers added
+afterwards are silently dropped.
+
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
