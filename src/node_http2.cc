@@ -958,11 +958,13 @@ void Http2Session::ConsumeHTTP2Data() {
         nghttp2_session_want_read(session_.get()));
   set_receive_paused(false);
   custom_recv_error_code_ = nullptr;
+  set_receiving();
   ssize_t ret =
     nghttp2_session_mem_recv(session_.get(),
                              reinterpret_cast<uint8_t*>(stream_buf_.base) +
                                  stream_buf_offset_,
                              read_len);
+  set_receiving(false);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   CHECK_IMPLIES(custom_recv_error_code_ != nullptr, ret < 0);
 
@@ -2533,6 +2535,18 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
   auto is_stream_cancel = [](const uint32_t code) {
     return code == NGHTTP2_CANCEL;
   };
+
+  // Do not call `nghttp2_session_mem_send()` while nghttp2 is processing
+  // incoming data. Sending may close the stream and free nghttp2 state
+  // that is still in use by `nghttp2_session_mem_recv()`.
+  if (session_->is_receiving() && available_outbound_length_ == 0) {
+    if (is_stream_cancel(code)) {
+      session_->AddPendingRstStream(id_);
+      return;
+    }
+    FlushRstStream();
+    return;
+  }
 
   // If RST_STREAM frame is received with error code NGHTTP2_CANCEL,
   // add it to the pending list and don't force purge the data. It is
