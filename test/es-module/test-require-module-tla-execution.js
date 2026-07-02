@@ -17,8 +17,10 @@ const fixtures = require('../common/fixtures');
     stderr(output) {
       assert.doesNotMatch(output, /I am executed/);
       common.expectRequiredTLAError(output);
-      assert.match(output, /From .*require-execution\.js/);
-      assert.match(output, /Requiring .*execution\.mjs/);
+      assert.deepStrictEqual(
+        common.parseRequireStack(output),
+        [fixtures.path('es-modules/tla/require-execution.js')],
+      );
       return true;
     },
     stdout: '',
