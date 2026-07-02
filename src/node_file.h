@@ -266,8 +266,11 @@ class FSReqPromise final : public FSReqBase {
                       bool use_bigint);
 
   bool finished_ = false;
-  AliasedBufferT stats_field_array_;
-  AliasedBufferT statfs_field_array_;
+  // Constructed lazily in ResolveStat()/ResolveStatFs(): most operations
+  // never resolve with stats, and eagerly allocating the backing stores
+  // for every request is a significant per-request cost.
+  std::optional<AliasedBufferT> stats_field_array_;
+  std::optional<AliasedBufferT> statfs_field_array_;
 };
 
 class FSReqAfterScope final {
