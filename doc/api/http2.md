@@ -3966,9 +3966,10 @@ API:
 ```mjs
 import { createServer } from 'node:http2';
 const server = createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
-  res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'X-Foo': 'bar',
+  });
   res.end('ok');
 });
 ```
@@ -3976,12 +3977,17 @@ const server = createServer((req, res) => {
 ```cjs
 const http2 = require('node:http2');
 const server = http2.createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
-  res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'X-Foo': 'bar',
+  });
   res.end('ok');
 });
 ```
+
+When both [`response.setHeader()`][] and [`response.writeHead()`][] are used,
+headers are merged, with headers passed to [`response.writeHead()`][] taking
+precedence over headers set earlier with [`response.setHeader()`][].
 
 In order to create a mixed [HTTPS][] and HTTP/2 server, refer to the
 [ALPN negotiation][] section.
