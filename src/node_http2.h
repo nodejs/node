@@ -57,6 +57,10 @@ constexpr int STREAM_OPTION_EMPTY_PAYLOAD = 0x1;
 // Stream might have trailing headers
 constexpr int STREAM_OPTION_GET_TRAILERS = 0x2;
 
+// Stream may finish with an empty DATA frame carrying END_STREAM without
+// calling back into JS, unless trailers are registered before then
+constexpr int STREAM_OPTION_AUTO_EMPTY_TRAILERS = 0x4;
+
 // Http2Stream internal states
 constexpr int kStreamStateNone = 0x0;
 constexpr int kStreamStateShut = 0x1;
@@ -66,6 +70,7 @@ constexpr int kStreamStateClosed = 0x8;
 constexpr int kStreamStateDestroyed = 0x10;
 constexpr int kStreamStateTrailers = 0x20;
 constexpr int kStreamStatePeerReset = 0x40;
+constexpr int kStreamStateAutoEmptyTrailers = 0x80;
 
 // Http2Session internal states
 constexpr int kSessionStateNone = 0x0;
@@ -310,7 +315,9 @@ class Http2Stream : public AsyncWrap,
 
   // Submit trailing headers for this stream
   int SubmitTrailers(const Http2Headers& headers);
+  int SubmitEmptyTrailers();
   void OnTrailers();
+  void EmitWantTrailers();
 
   // Submit a PRIORITY frame for this stream
   int SubmitPriority(const Http2Priority& priority, bool silent = false);
@@ -366,6 +373,17 @@ class Http2Stream : public AsyncWrap,
       flags_ |= kStreamStateTrailers;
     else
       flags_ &= ~kStreamStateTrailers;
+  }
+
+  bool auto_empty_trailers() const {
+    return flags_ & kStreamStateAutoEmptyTrailers;
+  }
+
+  void set_auto_empty_trailers(bool on = true) {
+    if (on)
+      flags_ |= kStreamStateAutoEmptyTrailers;
+    else
+      flags_ &= ~kStreamStateAutoEmptyTrailers;
   }
 
   void set_closed() {
@@ -463,6 +481,8 @@ class Http2Stream : public AsyncWrap,
   static void RefreshState(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Info(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Trailers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DisableAutoTrailers(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RstStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -1119,7 +1139,8 @@ class Origins {
   V(NGHTTP2_ERR_STREAM_CLOSED)                                                 \
   V(NGHTTP2_ERR_NOMEM)                                                         \
   V(STREAM_OPTION_EMPTY_PAYLOAD)                                               \
-  V(STREAM_OPTION_GET_TRAILERS)
+  V(STREAM_OPTION_GET_TRAILERS)                                                \
+  V(STREAM_OPTION_AUTO_EMPTY_TRAILERS)
 
 #define HTTP2_ERROR_CODES(V)                                                   \
   V(NGHTTP2_NO_ERROR)                                                          \
