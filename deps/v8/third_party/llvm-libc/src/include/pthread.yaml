@@ -1,0 +1,463 @@
+header: pthread.h
+standards:
+  - posix
+macros:
+  - macro_name: "PTHREAD_NULL"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_CREATE_JOINABLE"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_CREATE_DETACHED"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_NORMAL"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_ERRORCHECK"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_RECURSIVE"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_DEFAULT"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_STALLED"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_ROBUST"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_BARRIER_SERIAL_THREAD"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_ONCE_INIT"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_PROCESS_PRIVATE"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_PROCESS_SHARED"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_MUTEX_INITIALIZER"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_COND_INITIALIZER"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_RWLOCK_INITIALIZER"
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_STACK_MIN"
+    standards:
+      - gnu
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_RWLOCK_PREFER_READER_NP"
+    standards:
+      - gnu
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_RWLOCK_PREFER_WRITER_NP"
+    standards:
+      - gnu
+    macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP"
+    standards:
+      - gnu
+    macro_header: pthread-macros.h
+types:
+  - type_name: pthread_t
+  - type_name: pthread_once_t
+  - type_name: pthread_mutex_t
+  - type_name: pthread_mutexattr_t
+  - type_name: pthread_barrier_t
+  - type_name: pthread_barrierattr_t
+  - type_name: pthread_key_t
+  - type_name: pthread_cond_t
+  - type_name: pthread_condattr_t
+  - type_name: pthread_rwlock_t
+  - type_name: pthread_rwlockattr_t
+  - type_name: pthread_attr_t
+  - type_name: pthread_spinlock_t
+  - type_name: pthread_id_np_t
+    standards:
+      - llvm_libc_ext
+functions:
+  - name: pthread_atfork
+    return_type: int
+    arguments:
+      - type: __atfork_callback_t
+      - type: __atfork_callback_t
+      - type: __atfork_callback_t
+  - name: pthread_attr_destroy
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+  - name: pthread_attr_getdetachstate
+    return_type: int
+    arguments:
+      - type: const pthread_attr_t *
+      - type: int *
+  - name: pthread_attr_getguardsize
+    return_type: int
+    arguments:
+      - type: const pthread_attr_t *__restrict
+      - type: size_t *__restrict
+  - name: pthread_attr_getschedparam
+    return_type: int
+    arguments:
+      - type: const pthread_attr_t *__restrict
+      - type: struct sched_param *__restrict
+  - name: pthread_attr_getstack
+    return_type: int
+    arguments:
+      - type: const pthread_attr_t *__restrict
+      - type: void **__restrict
+      - type: size_t *__restrict
+  - name: pthread_attr_getstacksize
+    return_type: int
+    arguments:
+      - type: const pthread_attr_t *__restrict
+      - type: size_t *__restrict
+  - name: pthread_attr_init
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+  - name: pthread_attr_setdetachstate
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+      - type: int
+  - name: pthread_attr_setguardsize
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+      - type: size_t
+  - name: pthread_attr_setschedparam
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *__restrict
+      - type: const struct sched_param *__restrict
+  - name: pthread_attr_setstack
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+      - type: void *
+      - type: size_t
+  - name: pthread_attr_setstacksize
+    return_type: int
+    arguments:
+      - type: pthread_attr_t *
+      - type: size_t
+  - name: pthread_condattr_destroy
+    return_type: int
+    arguments:
+      - type: pthread_condattr_t *
+  - name: pthread_condattr_getclock
+    return_type: int
+    arguments:
+      - type: const pthread_condattr_t *__restrict
+      - type: clockid_t *__restrict
+  - name: pthread_condattr_getpshared
+    return_type: int
+    arguments:
+      - type: const pthread_condattr_t *__restrict
+      - type: int *__restrict
+  - name: pthread_condattr_init
+    return_type: int
+    arguments:
+      - type: pthread_condattr_t *
+  - name: pthread_condattr_setclock
+    return_type: int
+    arguments:
+      - type: pthread_condattr_t *
+      - type: clockid_t
+  - name: pthread_condattr_setpshared
+    return_type: int
+    arguments:
+      - type: pthread_condattr_t *
+      - type: int
+  - name: pthread_cond_broadcast
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *
+  - name: pthread_cond_clockwait
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *__restrict
+      - type: pthread_mutex_t *__restrict
+      - type: clockid_t
+      - type: const struct timespec *__restrict
+  - name: pthread_cond_destroy
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *
+  - name: pthread_cond_init
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *__restrict
+      - type: const pthread_condattr_t *__restrict
+  - name: pthread_cond_signal
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *
+  - name: pthread_cond_timedwait
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *__restrict
+      - type: pthread_mutex_t *__restrict
+      - type: const struct timespec *__restrict
+  - name: pthread_cond_wait
+    return_type: int
+    arguments:
+      - type: pthread_cond_t *__restrict
+      - type: pthread_mutex_t *__restrict
+  - name: pthread_create
+    return_type: int
+    arguments:
+      - type: pthread_t *__restrict
+      - type: const pthread_attr_t *__restrict
+      - type: __pthread_start_t
+      - type: void *
+  - name: pthread_detach
+    return_type: int
+    arguments:
+      - type: pthread_t
+  - name: pthread_equal
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: pthread_t
+  - name: pthread_exit
+    return_type: _Noreturn void
+    arguments:
+      - type: void *
+  - name: pthread_getattr_np
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: pthread_attr_t *
+  - name: pthread_getname_np
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: char *
+      - type: size_t
+  - name: pthread_getspecific
+    return_type: void *
+    arguments:
+      - type: pthread_key_t
+  - name: pthread_join
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: void **
+  - name: pthread_key_create
+    return_type: int
+    arguments:
+      - type: pthread_key_t *
+      - type: __pthread_tss_dtor_t
+  - name: pthread_key_delete
+    return_type: int
+    arguments:
+      - type: pthread_key_t
+  - name: pthread_mutex_destroy
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *
+  - name: pthread_mutex_init
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *__restrict
+      - type: const pthread_mutexattr_t *__restrict
+  - name: pthread_mutex_lock
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *
+  - name: pthread_mutex_trylock
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *
+  - name: pthread_mutex_unlock
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *
+  - name: pthread_mutexattr_destroy
+    return_type: int
+    arguments:
+      - type: pthread_mutexattr_t *
+  - name: pthread_mutexattr_getpshared
+    return_type: int
+    arguments:
+      - type: const pthread_mutexattr_t *__restrict
+      - type: int *__restrict
+  - name: pthread_mutexattr_getrobust
+    return_type: int
+    arguments:
+      - type: const pthread_mutexattr_t *__restrict
+      - type: int *__restrict
+  - name: pthread_mutexattr_gettype
+    return_type: int
+    arguments:
+      - type: const pthread_mutexattr_t *__restrict
+      - type: int *__restrict
+  - name: pthread_mutexattr_init
+    return_type: int
+    arguments:
+      - type: pthread_mutexattr_t *
+  - name: pthread_mutexattr_setpshared
+    return_type: int
+    arguments:
+      - type: pthread_mutexattr_t *__restrict
+      - type: int
+  - name: pthread_mutexattr_setrobust
+    return_type: int
+    arguments:
+      - type: pthread_mutexattr_t *__restrict
+      - type: int
+  - name: pthread_mutexattr_settype
+    return_type: int
+    arguments:
+      - type: pthread_mutexattr_t *__restrict
+      - type: int
+  - name: pthread_barrier_init
+    return_type: int
+    arguments:
+      - type: pthread_barrier_t *__restrict
+      - type: const pthread_barrierattr_t *__restrict
+      - type: int
+  - name: pthread_barrier_wait
+    return_type: int
+    arguments:
+      - type: pthread_barrier_t *
+  - name: pthread_barrier_destroy
+    return_type: int
+    arguments:
+      - type: pthread_barrier_t *
+  - name: pthread_once
+    return_type: int
+    arguments:
+      - type: pthread_once_t *
+      - type: __pthread_once_func_t
+  - name: pthread_rwlock_clockrdlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *__restrict
+      - type: clockid_t
+      - type: const struct timespec *__restrict
+  - name: pthread_rwlock_clockwrlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *__restrict
+      - type: clockid_t
+      - type: const struct timespec *__restrict
+  - name: pthread_rwlock_destroy
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlock_init
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+      - type: const pthread_rwlockattr_t *__restrict
+  - name: pthread_rwlock_rdlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlock_timedrdlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *__restrict
+      - type: const struct timespec *__restrict
+  - name: pthread_rwlock_timedwrlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *__restrict
+      - type: const struct timespec *__restrict
+  - name: pthread_rwlock_tryrdlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlock_trywrlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlock_unlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlock_wrlock
+    return_type: int
+    arguments:
+      - type: pthread_rwlock_t *
+  - name: pthread_rwlockattr_destroy
+    return_type: int
+    arguments:
+      - type: pthread_rwlockattr_t *
+  - name: pthread_rwlockattr_getkind_np
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pthread_rwlockattr_t *
+      - type: int *
+  - name: pthread_rwlockattr_getpshared
+    return_type: int
+    arguments:
+      - type: const pthread_rwlockattr_t *
+      - type: int *
+  - name: pthread_rwlockattr_init
+    return_type: int
+    arguments:
+      - type: pthread_rwlockattr_t *
+  - name: pthread_rwlockattr_setkind_np
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pthread_rwlockattr_t *
+      - type: int
+  - name: pthread_rwlockattr_setpshared
+    return_type: int
+    arguments:
+      - type: pthread_rwlockattr_t *
+      - type: int
+  - name: pthread_self
+    return_type: pthread_t
+    arguments:
+      - type: void
+  - name: pthread_setname_np
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: const char *
+  - name: pthread_setspecific
+    return_type: int
+    arguments:
+      - type: pthread_key_t
+      - type: const void *
+  - name: pthread_spin_destroy
+    return_type: int
+    arguments:
+      - type: pthread_spinlock_t *
+  - name: pthread_spin_init
+    return_type: int
+    arguments:
+      - type: pthread_spinlock_t *
+      - type: int
+  - name: pthread_spin_lock
+    return_type: int
+    arguments:
+      - type: pthread_spinlock_t *
+  - name: pthread_spin_trylock
+    return_type: int
+    arguments:
+      - type: pthread_spinlock_t *
+  - name: pthread_spin_unlock
+    return_type: int
+    arguments:
+      - type: pthread_spinlock_t *
+  - name: pthread_getthreadid_np
+    standards:
+      - llvm_libc_ext
+    return_type: pthread_id_np_t
+    arguments:
+      - type: void
+  - name: pthread_getunique_np
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: const pthread_t *__restrict
+      - type: pthread_id_np_t *__restrict

@@ -11,7 +11,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let sharedStruct = builder.addStruct(
     {fields: [makeField(kWasmI32, false)], shared: true})
   let sharedArray = builder.addArray(
-    wasmRefNullType(sharedStruct), true, kNoSuperType, false, true);
+    wasmRefNullType(sharedStruct), {shared: true});
   let segment = builder.addPassiveElementSegment(
     [[kGCPrefix, kExprStructNewDefault, sharedStruct]],
     wasmRefNullType(sharedStruct));

@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/utils/bit-vector.h"
 
 #define TRACE_RANGE(...)                                      \
@@ -56,6 +57,7 @@ class NodeRanges {
             graph->max_block_id())) {}
 
   Range Get(BasicBlock* block, ValueNode* node) {
+    if (!IsBlockTracked(block)) return node->GetStaticRange();
     DCHECK(ranges_initialized_.Contains(block->id()));
     RangeMap& map = ranges_[block->id()];
     const Range* range = map.find(node);
@@ -166,6 +168,7 @@ class NodeRanges {
 
   bool IsLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
                              ValueNode* rhs) {
+    if (!IsBlockTracked(block)) return false;
     for (LessEqualConstraint* constraint : less_equals_[block->id()]) {
       if (constraint->is(lhs, rhs)) return true;
     }
@@ -173,6 +176,17 @@ class NodeRanges {
   }
 
  private:
+  // The graph optimizer that consumes these ranges can splice in new basic
+  // blocks (e.g. when expanding a node into a subgraph). Since range analysis
+  // does not run again over those blocks, they fall outside the analyzed id
+  // range and have no recorded ranges. Such untracked blocks are handled
+  // conservatively by returning the widest possible (static) range for their
+  // nodes.
+  bool IsBlockTracked(BasicBlock* block) const {
+    return block->id() <
+           static_cast<BasicBlock::Id>(ranges_initialized_.length());
+  }
+
   Graph* graph_;
   // A bitmask indicating whether a RangeMap has already been initialized
   // for a given block ID.
@@ -281,6 +295,26 @@ class RangeProcessor {
         node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Float64Add* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64SpeculateSafeAdd* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Subtract* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Multiply* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(Int32Multiply* node, const ProcessingState&) {
     UnionUpdateTruncatingInt32(
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
@@ -323,6 +357,12 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+    if (node->type() == NodeType::kSmi) {
+      UnionUpdate(node, Range::Smi());
+    }
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(LoadFixedArrayElement* node, const ProcessingState&) {
     if (node->load_type() == LoadType::kSmi) {
       UnionUpdate(node, Range::Smi());
     }
@@ -448,13 +488,7 @@ class RangeProcessor {
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
-    int predecessor_id = -1;
-    for (int i = 0; i < block->predecessor_count(); ++i) {
-      if (block->predecessor_at(i) == pred) {
-        predecessor_id = i;
-        break;
-      }
-    }
+    int predecessor_id = block->get_predecessor_index(pred);
     DCHECK_NE(predecessor_id, -1);
     for (Phi* phi : *block->phis()) {
       Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));

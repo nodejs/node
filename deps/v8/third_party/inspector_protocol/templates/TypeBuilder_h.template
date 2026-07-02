@@ -256,8 +256,12 @@ public:
         {{protocol.resolve_type(parameter).pass_type}} in_{{parameter.name}}
       {%- endif -%}
     {%- endfor -%}
-    {%- if protocol.is_async_command(domain.domain, command.name) -%}
+    {%- if protocol.should_pass_associated_data(domain.domain, command.name) -%}
       {%- if command.parameters -%}, {% endif -%}
+      {{protocol.type_definition(domain.domain + ".string").pass_type}} associated_data
+    {%- endif -%}
+    {%- if protocol.is_async_command(domain.domain, command.name) -%}
+      {%- if command.parameters or protocol.should_pass_associated_data(domain.domain, command.name) -%}, {% endif -%}
         std::unique_ptr<{{command.name | to_title_case}}Callback> callback
     {%- else -%}
       {%- for parameter in command.returns -%}

@@ -367,7 +367,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             DisallowGarbageCollection no_gc;
             WasmValue global_value =
                 instance->trusted_data(i_isolate)->GetGlobalValue(
-                    i_isolate, instance->module()->globals[i]);
+                    i_isolate,
+                    instance->trusted_data(i_isolate)->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
             CheckEquivalent(global_value, func_value,
                             *module_object->native_module()->module());

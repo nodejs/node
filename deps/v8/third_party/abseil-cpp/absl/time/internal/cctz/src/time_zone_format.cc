@@ -41,7 +41,6 @@
 #include <ctime>
 #include <limits>
 #include <string>
-#include <vector>
 #if !HAS_STRPTIME
 #include <iomanip>
 #include <sstream>
@@ -215,19 +214,15 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
 
 // Formats a std::tm using strftime(3).
 void FormatTM(std::string* out, const std::string& fmt, const std::tm& tm) {
-  // strftime(3) returns the number of characters placed in the output
-  // array (which may be 0 characters).  It also returns 0 to indicate
-  // an error, like the array wasn't large enough.  To accommodate this,
-  // the following code grows the buffer size from 2x the format string
-  // length up to 32x.
-  for (std::size_t i = 2; i != 32; i *= 2) {
-    std::size_t buf_size = fmt.size() * i;
-    std::vector<char> buf(buf_size);
-    if (std::size_t len = strftime(&buf[0], buf_size, fmt.c_str(), &tm)) {
-      out->append(&buf[0], len);
-      return;
-    }
-  }
+  // We assume that 16 times the length of the format string will
+  // be sufficient to store the result.  The extreme case appears
+  // to be "%c" (2 chars), which, in the POSIX locale, produces
+  // "Thu Jan 1 00:00:00 1970" (24 chars).
+  auto out_size = out->size();
+  auto buf_size = (16 * fmt.size()) + 1;
+  out->resize(out_size + buf_size);
+  auto len = strftime(&(*out)[out_size], buf_size, fmt.c_str(), &tm);
+  out->resize(out_size + len);
 }
 
 // Used for %E#S/%E#f specifiers and for data values in parse().
@@ -335,12 +330,12 @@ const std::int_fast64_t kExp10[kDigits10_64 + 1] = {
 std::string format(const std::string& format, const time_point<seconds>& tp,
                    const detail::femtoseconds& fs, const time_zone& tz) {
   std::string result;
-  result.reserve(format.size());  // A reasonable guess for the result size.
+  result.reserve(2 * format.size());  // A guess for the result size.
   const time_zone::absolute_lookup al = tz.lookup(tp);
   const std::tm tm = ToTM(al);
 
   // Scratch buffer for internal conversions.
-  char buf[6 + (kDigits10_64 + 2)];  // enough for longest conversion %F
+  char buf[6 + (kDigits10_64 + 2)];  // enough for longest conversion (%F)
   char* const ep = buf + sizeof(buf);
   char* bp;  // works back from ep
 
@@ -349,23 +344,29 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
   //   [pending ... cur) : formatting pending, but no special cases
   //   [cur ... format.end()) : unexamined
   // Initially, everything is in the unexamined part.
-  const char* pending = format.c_str();  // NUL terminated
+  const char* pending = format.data();
   const char* cur = pending;
-  const char* end = pending + format.length();
+  const char* const end = pending + format.size();
 
   while (cur != end) {  // while something is unexamined
     // Moves cur to the next percent sign.
     const char* start = cur;
-    while (cur != end && *cur != '%') ++cur;
+    while (cur != end && *cur != '%') {
+      if (*cur == '\0' && pending != start) {
+        FormatTM(&result, std::string(pending, cur), tm);
+        pending = start = cur;
+      }
+      ++cur;
+    }
 
     // If the new pending text is all ordinary, copy it out.
     if (cur != start && pending == start) {
-      result.append(pending, static_cast<std::size_t>(cur - pending));
+      result.append(pending, cur);
       pending = start = cur;
     }
 
     // Span the sequential percent signs.
-    const char* percent = cur;
+    const char* const percent = cur;
     while (cur != end && *cur == '%') ++cur;
 
     // If the new pending text is all percents, copy out one
@@ -384,26 +385,32 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
     if (cur == end || (cur - percent) % 2 == 0) continue;
 
     // Simple specifiers that we handle ourselves.
-    if (strchr("YmdeFUuWwHMSTzZs%", *cur)) {
-      if (cur - 1 != pending) {
-        FormatTM(&result, std::string(pending, cur - 1), tm);
-      }
+    if (*cur == '\0' || strchr("YmdeFUuWwHMSTzZs%", *cur)) {
+      FormatTM(&result, std::string(pending, cur - 1), tm);
       switch (*cur) {
+        case '\0':
+          // Because we allow NULs in the format string, we must give
+          // some meaning to the "%\0" specifier.  We choose the common
+          // (but undefined) strftime() behavior of echoing unknown
+          // specifiers.
+          result.push_back('%');
+          result.push_back('\0');
+          break;
         case 'Y':
           // This avoids the tm.tm_year overflow problem for %Y, however
           // tm.tm_year will still be used by other specifiers like %D.
           bp = Format64(ep, 0, al.cs.year());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'm':
           bp = Format02d(ep, al.cs.month());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'd':
         case 'e':
           bp = Format02d(ep, al.cs.day());
           if (*cur == 'e' && *bp == '0') *bp = ' ';  // for Windows
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'F':
           bp = Format02d(ep, al.cs.day());
@@ -411,35 +418,35 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
           bp = Format02d(bp, al.cs.month());
           *--bp = '-';
           bp = Format64(bp, 0, al.cs.year());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'U':
           bp = Format02d(ep, ToWeek(civil_day(al.cs), weekday::sunday));
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'u':
           bp = Format64(ep, 0, tm.tm_wday ? tm.tm_wday : 7);
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'W':
           bp = Format02d(ep, ToWeek(civil_day(al.cs), weekday::monday));
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'w':
           bp = Format64(ep, 0, tm.tm_wday);
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'H':
           bp = Format02d(ep, al.cs.hour());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'M':
           bp = Format02d(ep, al.cs.minute());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'S':
           bp = Format02d(ep, al.cs.second());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'T':
           bp = Format02d(ep, al.cs.second());
@@ -447,18 +454,18 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
           bp = Format02d(bp, al.cs.minute());
           *--bp = ':';
           bp = Format02d(bp, al.cs.hour());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'z':
           bp = FormatOffset(ep, al.offset, "");
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case 'Z':
           result.append(al.abbr);
           break;
         case 's':
           bp = Format64(ep, 0, ToUnixSeconds(tp));
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           break;
         case '%':
           result.push_back('%');
@@ -472,33 +479,27 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
     if (*cur == ':' && cur + 1 != end) {
       if (*(cur + 1) == 'z') {
         // Formats %:z.
-        if (cur - 1 != pending) {
-          FormatTM(&result, std::string(pending, cur - 1), tm);
-        }
+        FormatTM(&result, std::string(pending, cur - 1), tm);
         bp = FormatOffset(ep, al.offset, ":");
-        result.append(bp, static_cast<std::size_t>(ep - bp));
+        result.append(bp, ep);
         pending = cur += 2;
         continue;
       }
       if (*(cur + 1) == ':' && cur + 2 != end) {
         if (*(cur + 2) == 'z') {
           // Formats %::z.
-          if (cur - 1 != pending) {
-            FormatTM(&result, std::string(pending, cur - 1), tm);
-          }
+          FormatTM(&result, std::string(pending, cur - 1), tm);
           bp = FormatOffset(ep, al.offset, ":*");
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           pending = cur += 3;
           continue;
         }
         if (*(cur + 2) == ':' && cur + 3 != end) {
           if (*(cur + 3) == 'z') {
             // Formats %:::z.
-            if (cur - 1 != pending) {
-              FormatTM(&result, std::string(pending, cur - 1), tm);
-            }
+            FormatTM(&result, std::string(pending, cur - 1), tm);
             bp = FormatOffset(ep, al.offset, ":*:");
-            result.append(bp, static_cast<std::size_t>(ep - bp));
+            result.append(bp, ep);
             pending = cur += 4;
             continue;
           }
@@ -512,33 +513,25 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
     // Format our extensions.
     if (*cur == 'T') {
       // Formats %ET.
-      if (cur - 2 != pending) {
-        FormatTM(&result, std::string(pending, cur - 2), tm);
-      }
+      FormatTM(&result, std::string(pending, cur - 2), tm);
       result.append("T");
       pending = ++cur;
     } else if (*cur == 'z') {
       // Formats %Ez.
-      if (cur - 2 != pending) {
-        FormatTM(&result, std::string(pending, cur - 2), tm);
-      }
+      FormatTM(&result, std::string(pending, cur - 2), tm);
       bp = FormatOffset(ep, al.offset, ":");
-      result.append(bp, static_cast<std::size_t>(ep - bp));
+      result.append(bp, ep);
       pending = ++cur;
     } else if (*cur == '*' && cur + 1 != end && *(cur + 1) == 'z') {
       // Formats %E*z.
-      if (cur - 2 != pending) {
-        FormatTM(&result, std::string(pending, cur - 2), tm);
-      }
+      FormatTM(&result, std::string(pending, cur - 2), tm);
       bp = FormatOffset(ep, al.offset, ":*");
-      result.append(bp, static_cast<std::size_t>(ep - bp));
+      result.append(bp, ep);
       pending = cur += 2;
     } else if (*cur == '*' && cur + 1 != end &&
                (*(cur + 1) == 'S' || *(cur + 1) == 'f')) {
       // Formats %E*S or %E*F.
-      if (cur - 2 != pending) {
-        FormatTM(&result, std::string(pending, cur - 2), tm);
-      }
+      FormatTM(&result, std::string(pending, cur - 2), tm);
       char* cp = ep;
       bp = Format64(cp, 15, fs.count());
       while (cp != bp && cp[-1] == '0') --cp;
@@ -551,15 +544,13 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
           if (cp == bp) *--bp = '0';
           break;
       }
-      result.append(bp, static_cast<std::size_t>(cp - bp));
+      result.append(bp, cp);
       pending = cur += 2;
     } else if (*cur == '4' && cur + 1 != end && *(cur + 1) == 'Y') {
       // Formats %E4Y.
-      if (cur - 2 != pending) {
-        FormatTM(&result, std::string(pending, cur - 2), tm);
-      }
+      FormatTM(&result, std::string(pending, cur - 2), tm);
       bp = Format64(ep, 4, al.cs.year());
-      result.append(bp, static_cast<std::size_t>(ep - bp));
+      result.append(bp, ep);
       pending = cur += 2;
     } else if (std::isdigit(*cur)) {
       // Possibly found %E#S or %E#f.
@@ -567,9 +558,7 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
       if (const char* np = ParseInt(cur, 0, 0, 1024, &n)) {
         if (*np == 'S' || *np == 'f') {
           // Formats %E#S or %E#f.
-          if (cur - 2 != pending) {
-            FormatTM(&result, std::string(pending, cur - 2), tm);
-          }
+          FormatTM(&result, std::string(pending, cur - 2), tm);
           bp = ep;
           if (n > 0) {
             if (n > kDigits10_64) n = kDigits10_64;
@@ -579,7 +568,7 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
             if (*np == 'S') *--bp = '.';
           }
           if (*np == 'S') bp = Format02d(bp, al.cs.second());
-          result.append(bp, static_cast<std::size_t>(ep - bp));
+          result.append(bp, ep);
           pending = cur = ++np;
         }
       }
@@ -587,9 +576,7 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
   }
 
   // Formats any remaining data.
-  if (end != pending) {
-    FormatTM(&result, std::string(pending, end), tm);
-  }
+  FormatTM(&result, std::string(pending, end), tm);
 
   return result;
 }
@@ -710,8 +697,12 @@ bool FromWeek(int week_num, weekday week_start, year_t* year, std::tm* tm) {
 bool parse(const std::string& format, const std::string& input,
            const time_zone& tz, time_point<seconds>* sec,
            detail::femtoseconds* fs, std::string* err) {
-  // The unparsed input.
+  // The unparsed input.  Even though we allow NULs in input, and
+  // match them against corresponding NULs in format, we depend on
+  // *edata being a NUL so that we can call strptime().  This also
+  // makes our handling of input easier.
   const char* data = input.c_str();  // NUL terminated
+  const char* const edata = data + input.size();
 
   // Skips leading whitespace.
   while (std::isspace(*data)) ++data;
@@ -737,7 +728,11 @@ bool parse(const std::string& format, const std::string& input,
   int offset = 0;  // No offset from passed tz.
   std::string zone = "UTC";
 
+  // Even though we allow NULs in format, and match them against
+  // corresponding NULs in input, we simplify its handling by also
+  // ensuring that *efmt is a NUL.
   const char* fmt = format.c_str();  // NUL terminated
+  const char* const efmt = fmt + format.size();
   bool twelve_hour = false;
   bool afternoon = false;
   int week_num = -1;
@@ -747,7 +742,7 @@ bool parse(const std::string& format, const std::string& input,
   std::int_fast64_t percent_s = 0;
 
   // Steps through format, one specifier at a time.
-  while (data != nullptr && *fmt != '\0') {
+  while (data != nullptr && fmt != efmt) {
     if (std::isspace(*fmt)) {
       while (std::isspace(*data)) ++data;
       while (std::isspace(*++fmt)) continue;
@@ -755,7 +750,7 @@ bool parse(const std::string& format, const std::string& input,
     }
 
     if (*fmt != '%') {
-      if (*data == *fmt) {
+      if (data != edata && *data == *fmt) {
         ++data;
         ++fmt;
       } else {
@@ -764,14 +759,21 @@ bool parse(const std::string& format, const std::string& input,
       continue;
     }
 
-    const char* percent = fmt;
-    if (*++fmt == '\0') {
+    const char* const percent = fmt;
+    if (++fmt == efmt) {
       data = nullptr;
       continue;
     }
     switch (*fmt++) {
+      case '\0':
+        // Because we allow NULs in the format string, we must give
+        // some meaning to the "%\0" specifier.  We choose the common
+        // (but undefined) strptime() behavior of failing on unknown
+        // specifiers.
+        data = nullptr;
+        continue;
       case 'Y':
-        // Symmetrically with FormatTime(), directly handing %Y avoids the
+        // Symmetrically with format(), directly handing %Y avoids the
         // tm.tm_year overflow problem.  However, tm.tm_year will still be
         // used by other specifiers like %D.
         data = ParseInt(data, 0, kyearmin, kyearmax, &year);
@@ -946,8 +948,8 @@ bool parse(const std::string& format, const std::string& input,
     }
 
     // Parses the current specifier.
-    const char* orig_data = data;
-    std::string spec(percent, static_cast<std::size_t>(fmt - percent));
+    const char* const orig_data = data;
+    std::string spec(percent, fmt);
     data = ParseTM(data, spec.c_str(), &tm);
 
     // If we successfully parsed %p we need to remember whether the result
@@ -956,10 +958,9 @@ bool parse(const std::string& format, const std::string& input,
     // to a PM hour.
     if (spec == "%p" && data != nullptr) {
       std::string test_input = "1";
-      test_input.append(orig_data, static_cast<std::size_t>(data - orig_data));
-      const char* test_data = test_input.c_str();
+      test_input.append(orig_data, data);
       std::tm tmp{};
-      ParseTM(test_data, "%I%p", &tmp);
+      ParseTM(test_input.c_str(), "%I%p", &tmp);
       afternoon = (tmp.tm_hour == 13);
     }
   }
@@ -978,7 +979,7 @@ bool parse(const std::string& format, const std::string& input,
   while (std::isspace(*data)) ++data;
 
   // parse() must consume the entire input string.
-  if (*data != '\0') {
+  if (data != edata) {
     if (err != nullptr) *err = "Illegal trailing data in input string";
     return false;
   }

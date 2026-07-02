@@ -114,7 +114,7 @@ bool ExpectFused(TestExecutionTier tier) {
 WASM_EXEC_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
@@ -128,9 +128,10 @@ WASM_EXEC_TEST(F32x4Qfma) {
     r.Call(x.a, x.b, x.c);
     float expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 4; i++) {
-      float actual = LANE(g, i);
-      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
+      float actual_lane = LANE(actual.to_f32x4(), i);
+      CheckFloatResult(x.a, x.b, expected, actual_lane, true /* exact */);
     }
   }
 }
@@ -138,7 +139,7 @@ WASM_EXEC_TEST(F32x4Qfma) {
 WASM_EXEC_TEST(F32x4Qfms) {
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
@@ -152,9 +153,10 @@ WASM_EXEC_TEST(F32x4Qfms) {
     r.Call(x.a, x.b, x.c);
     float expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 4; i++) {
-      float actual = LANE(g, i);
-      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
+      float actual_lane = LANE(actual.to_f32x4(), i);
+      CheckFloatResult(x.a, x.b, expected, actual_lane, true /* exact */);
     }
   }
 }
@@ -162,7 +164,7 @@ WASM_EXEC_TEST(F32x4Qfms) {
 WASM_EXEC_TEST(F64x2Qfma) {
   WasmRunner<int32_t, double, double, double> r(execution_tier);
   // Set up global to hold mask output.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
@@ -176,9 +178,10 @@ WASM_EXEC_TEST(F64x2Qfma) {
     r.Call(x.a, x.b, x.c);
     double expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 2; i++) {
-      double actual = LANE(g, i);
-      CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
+      double actual_lane = LANE(actual.to_f64x2(), i);
+      CheckDoubleResult(x.a, x.b, expected, actual_lane, true /* exact */);
     }
   }
 }
@@ -186,7 +189,7 @@ WASM_EXEC_TEST(F64x2Qfma) {
 WASM_EXEC_TEST(F64x2Qfms) {
   WasmRunner<int32_t, double, double, double> r(execution_tier);
   // Set up global to hold mask output.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
@@ -200,9 +203,10 @@ WASM_EXEC_TEST(F64x2Qfms) {
     r.Call(x.a, x.b, x.c);
     double expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 2; i++) {
-      double actual = LANE(g, i);
-      CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
+      double actual_lane = LANE(actual.to_f64x2(), i);
+      CheckDoubleResult(x.a, x.b, expected, actual_lane, true /* exact */);
     }
   }
 }
@@ -212,7 +216,7 @@ TEST(RunWasm_RegressFmaReg_liftoff) {
   TestExecutionTier execution_tier = TestExecutionTier::kLiftoff;
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   uint8_t local = r.AllocateLocal(kWasmS128);
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
       {// Get the first arg from a local so that the register is blocked even
@@ -229,9 +233,10 @@ TEST(RunWasm_RegressFmaReg_liftoff) {
     r.Call(x.a, x.b, x.c);
     float expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 4; i++) {
-      float actual = LANE(g, i);
-      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
+      float actual_lane = LANE(actual.to_f32x4(), i);
+      CheckFloatResult(x.a, x.b, expected, actual_lane, true /* exact */);
     }
   }
 }
@@ -256,15 +261,18 @@ void RelaxedLaneSelectTest(TestExecutionTier execution_tier, const T v1[kElems],
   auto rhs = as_uint8<T>(v2);
   auto mask = as_uint8<T>(s);
   WasmRunner<int32_t> r(execution_tier);
-  T* dst = r.builder().AddGlobal<T>(kWasmS128);
+  const WasmGlobal* dst = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_OPN(laneselect, WASM_SIMD_CONSTANT(lhs),
                                             WASM_SIMD_CONSTANT(rhs),
                                             WASM_SIMD_CONSTANT(mask))),
            WASM_ONE});
 
   CHECK_EQ(1, r.Call());
+  Simd128 actual = r.builder().ReadGlobal(*dst).to_s128();
   for (int i = 0; i < kElems; i++) {
-    CHECK_EQ(expected[i], LANE(dst, i));
+    T actual_lane;
+    actual_lane = LANE(reinterpret_cast<const T*>(actual.bytes()), i);
+    CHECK_EQ(expected[i], actual_lane);
   }
 }
 
@@ -345,7 +353,7 @@ template <typename IntType, typename FloatType>
 void IntRelaxedTruncFloatTest(TestExecutionTier execution_tier,
                               WasmOpcode trunc_op, WasmOpcode splat_op) {
   WasmRunner<int, FloatType> r(execution_tier);
-  IntType* g0 = r.builder().template AddGlobal<IntType>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
   constexpr int lanes = kSimd128Size / sizeof(FloatType);
 
   // global[0] = trunc(splat(local[0])).
@@ -358,8 +366,11 @@ void IntRelaxedTruncFloatTest(TestExecutionTier execution_tier,
     if (ShouldSkipTestingConstant<IntType>(x)) continue;
     CHECK_EQ(1, r.Call(x));
     IntType expected = base::checked_cast<IntType>(x);
+    Simd128 actual = r.builder().ReadGlobal(*g0).to_s128();
     for (int i = 0; i < lanes; i++) {
-      CHECK_EQ(expected, LANE(g0, i));
+      IntType actual_lane =
+          LANE(reinterpret_cast<const IntType*>(actual.bytes()), i);
+      CHECK_EQ(expected, actual_lane);
     }
   }
 }
@@ -389,27 +400,32 @@ WASM_EXEC_TEST(I8x16RelaxedSwizzle) {
   // Output is only defined for indices in the range [0,15].
   WasmRunner<int32_t> r(execution_tier);
   static const int kElems = kSimd128Size / sizeof(uint8_t);
-  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  const WasmGlobal* dst = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* src = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* indices = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
                                   WASM_GLOBAL_GET(2))),
            WASM_ONE});
+  std::array<int8_t, 16> src_val, indices_val;
   for (int i = 0; i < kElems; i++) {
-    LANE(src, i) = kElems - i - 1;
-    LANE(indices, i) = kElems - i - 1;
+    LANE(src_val, i) = kElems - i - 1;
+    LANE(indices_val, i) = kElems - i - 1;
   }
+  r.builder().WriteGlobal(*src, WasmValue(Simd128(src_val)));
+  r.builder().WriteGlobal(*indices, WasmValue(Simd128(indices_val)));
+
   CHECK_EQ(1, r.Call());
+  Simd128 actual = r.builder().ReadGlobal(*dst).to_s128();
   for (int i = 0; i < kElems; i++) {
-    CHECK_EQ(LANE(dst, i), i);
+    CHECK_EQ(LANE(actual.to_i8x16(), i), i);
   }
 }
 
 WASM_EXEC_TEST(I16x8RelaxedQ15MulRS) {
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier);
   // Global to hold output.
-  int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
   uint8_t value1 = 0, value2 = 1;
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
@@ -432,8 +448,9 @@ WASM_EXEC_TEST(I16x8RelaxedQ15MulRS) {
       if (x == INT16_MIN && y == INT16_MIN) break;
       r.Call(x, y);
       int16_t expected = SaturateRoundingQMul(x, y);
+      Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, LANE(g, i));
+        CHECK_EQ(expected, LANE(actual.to_i16x8(), i));
       }
     }
   }
@@ -441,7 +458,7 @@ WASM_EXEC_TEST(I16x8RelaxedQ15MulRS) {
 
 WASM_EXEC_TEST(I16x8DotI8x16I7x16S) {
   WasmRunner<int32_t, int8_t, int8_t> r(execution_tier);
-  int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t value1 = 0, value2 = 1;
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
   uint8_t temp2 = r.AllocateLocal(kWasmS128);
@@ -457,8 +474,9 @@ WASM_EXEC_TEST(I16x8DotI8x16I7x16S) {
       r.Call(x, y & 0x7F);
       // * 2 because we of (x*y) + (x*y) = 2*x*y
       int16_t expected = base::MulWithWraparound(x * (y & 0x7F), 2);
+      Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, LANE(g, i));
+        CHECK_EQ(expected, LANE(actual.to_i16x8(), i));
       }
     }
   }
@@ -466,7 +484,7 @@ WASM_EXEC_TEST(I16x8DotI8x16I7x16S) {
 
 WASM_EXEC_TEST(I32x4DotI8x16I7x16AddS) {
   WasmRunner<int32_t, int8_t, int8_t, int32_t> r(execution_tier);
-  int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
   uint8_t temp2 = r.AllocateLocal(kWasmS128);
@@ -486,8 +504,9 @@ WASM_EXEC_TEST(I32x4DotI8x16I7x16AddS) {
         int32_t expected = base::AddWithWraparound(
             base::MulWithWraparound(x * (y & 0x7F), 4), z);
         r.Call(x, y & 0x7F, z);
+        Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
         for (int i = 0; i < 4; i++) {
-          CHECK_EQ(expected, LANE(g, i));
+          CHECK_EQ(expected, LANE(actual.to_i32x4(), i));
         }
       }
     }

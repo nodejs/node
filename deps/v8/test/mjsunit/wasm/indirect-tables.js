@@ -138,7 +138,7 @@ function js_div(a, b) { return (a / b) | 0; }
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, () => main(0, j));
+      assertTraps(kTrapNullFunc, () => main(0, j));
       assertSame(null, table.get(j));
     }
 
@@ -203,7 +203,7 @@ function js_div(a, b) { return (a / b) | 0; }
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, () => main(0, j));
+      assertTraps(kTrapNullFunc, () => main(0, j));
       assertSame(null, table.get(j));
     }
 
@@ -268,7 +268,7 @@ function js_div(a, b) { return (a / b) | 0; }
       let func = table.get(j);
       if (j > i) {
         assertSame(null, func);
-        assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(j));
+        assertTraps(kTrapNullFunc, () => instance.exports.main(j));
       } else {
         assertEquals("function", typeof func);
         assertEquals(j, func());
@@ -331,15 +331,14 @@ function js_div(a, b) { return (a / b) | 0; }
   assertEquals(22, i1.exports.main(1));
   assertEquals(22, i2.exports.main(1));
 
-  assertTraps(kTrapFuncSigMismatch, () => i1.exports.main(2));
-  assertTraps(kTrapFuncSigMismatch, () => i2.exports.main(2));
+  assertTraps(kTrapNullFunc, () => i1.exports.main(2));
+  assertTraps(kTrapNullFunc, () => i2.exports.main(2));
   assertTraps(kTrapTableOutOfBounds, () => i1.exports.main(3));
   assertTraps(kTrapTableOutOfBounds, () => i2.exports.main(3));
 })();
 
 (function MismatchedTableSize() {
   print(arguments.callee.name);
-  let kTableSize = 5;
 
   for (var expsize = 1; expsize < 4; expsize++) {
     for (var impsize = 1; impsize < 4; impsize++) {

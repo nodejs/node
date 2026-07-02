@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // this chunk are being relocated.
     EVACUATION_CANDIDATE = 1u << 8,
 
-    // The chunk is in the the new space of the young generation and already
+    // The chunk is in the new space of the young generation and already
     // survived at least one garbage collection cycle.
     NEW_SPACE_BELOW_AGE_MARK = 1u << 9,
 

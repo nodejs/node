@@ -117,14 +117,15 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
             script = Cast<Script>(javascript.script());
           } else if (summary.IsWasm()) {
             FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
-            offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),
-                                           wasm.function_index()) +
+            offset = GetWasmFunctionOffset(
+                         wasm.wasm_trusted_instance_data()->module(),
+                         wasm.function_index()) +
                      wasm.code_offset();
             script = wasm.script();
             bool zeroth_frame = call_stack.empty();
             if (!zeroth_frame) {
-              const NativeModule* native_module =
-                  wasm.wasm_instance()->module_object()->native_module();
+              NativeModule* native_module =
+                  wasm.wasm_trusted_instance_data()->native_module();
               offset = ReturnPc(native_module, offset);
             }
           }
@@ -248,7 +249,7 @@ bool WasmModuleDebug::GetWasmLocal(Isolate* isolate, uint32_t frame_index,
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),
                                              isolate);
-      wasm::NativeModule* native_module = module_object->native_module();
+      Managed<NativeModule>::Ptr native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
       if (static_cast<uint32_t>(debug_info->GetNumLocals(frame_it.frame()->pc(),
                                                          isolate)) > index) {
@@ -282,7 +283,7 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),
                                              isolate);
-      wasm::NativeModule* native_module = module_object->native_module();
+      Managed<NativeModule>::Ptr native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
       if (static_cast<uint32_t>(debug_info->GetStackDepth(
               frame_it.frame()->pc(), isolate)) > index) {
@@ -363,7 +364,7 @@ uint32_t WasmModuleDebug::GetWasmModuleBytes(wasm_addr_t wasm_addr,
   if (!instance.is_null()) {
     Handle<WasmModuleObject> module_object(instance->module_object(),
                                            GetIsolate());
-    wasm::NativeModule* native_module = module_object->native_module();
+    Managed<NativeModule>::Ptr native_module = module_object->native_module();
     const wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
     uint32_t offset = wasm_addr.Offset();
     if (offset < wire_bytes.length()) {

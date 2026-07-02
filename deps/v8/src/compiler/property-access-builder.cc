@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/codegen/callable.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -387,6 +388,23 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   return BuildLoadDataField(name, storage, std::move(field_access),
                             access_info.field_index().is_inobject(), effect,
                             control);
+}
+
+Node* PropertyAccessBuilder::BuildLoadDictionaryField(
+    NameRef name, PropertyAccessInfo const& access_info,
+    Node* lookup_start_object, Node** effect, Node** control,
+    FeedbackSource const& source, Node* context, Node* frame_state) {
+  DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
+  DCHECK(access_info.IsDictionaryDataField());
+  DCHECK(source.IsValid());
+
+  Node* value = graph()->NewNode(
+      simplified()->LoadDictionaryField(access_info.dictionary_index(), name,
+                                        source),
+      lookup_start_object, context, frame_state, *effect, *control);
+  *effect = value;
+  *control = value;
+  return value;
 }
 
 }  // namespace compiler

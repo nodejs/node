@@ -58,10 +58,15 @@ let $get_add = builder.addFunction("get_add",
       kExprI32Add,
     ]);
 
+let $get_recv = builder.addFunction("get_recv", kSig_r_r)
+    .exportFunc()
+    .addBody([kExprLocalGet, 0]);
+
 proto_config.addConfig($proto0)
     .addConstructor("Obj", $make)
     .addMethod("get", kWasmMethod, $get)
-    .addMethod("get_add", kWasmMethod, $get_add);
+    .addMethod("get_add", kWasmMethod, $get_add)
+    .addMethod("get_recv", kWasmMethod, $get_recv);
 
 proto_config.build();
 
@@ -95,3 +100,11 @@ assertEquals(0, InlineFunction(obj));
 console.log("Now optimizing 'InlineWrapper'");
 %OptimizeFunctionOnNextCall(InlineWrapper);
 assertEquals(1, InlineWrapper(obj));
+
+// Calling a method as a constructor may trap on cast but does not DCHECK-fail.
+let Method = imports.p.p0.get;
+assertTraps(kTrapIllegalCast, () => new Method());
+
+Method = imports.p.p0.get_recv;
+let o = new Method();
+assertEquals("[object Object]", o.toString());

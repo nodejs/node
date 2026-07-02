@@ -120,7 +120,9 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   DirectHandle<WasmModuleObject> module_object =
       compiled_module.ToHandleChecked();
-  const WasmModule* module = module_object->native_module()->module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
+  const WasmModule* module = native_module->module();
   DirectHandle<WasmInstanceObject> instance =
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
@@ -214,9 +216,10 @@ void FuzzIt(base::Vector<const uint8_t> data) {
           } else {
             // On arrays and structs, perform a deep comparison.
             DisallowGarbageCollection no_gc;
-            WasmValue global_value =
-                instance->trusted_data(i_isolate)->GetGlobalValue(
-                    i_isolate, instance->module()->globals[i]);
+            Tagged<WasmTrustedInstanceData> trusted_instance_data =
+                instance->trusted_data(i_isolate);
+            WasmValue global_value = trusted_instance_data->GetGlobalValue(
+                i_isolate, trusted_instance_data->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
             if (!ValuesEquivalent(global_value, func_value, i_isolate)) {
               std::stringstream str;

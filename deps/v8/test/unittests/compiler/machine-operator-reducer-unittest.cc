@@ -13,6 +13,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/numbers/conversions-inl.h"
@@ -103,7 +104,7 @@ class MachineOperatorReducerTest : public GraphTest {
     Data(Isolate* isolate, Zone* zone, TFGraph* graph,
          TickCounter* tick_counter, JSHeapBroker* broker)
         : machine_(zone, MachineType::PointerRepresentation(),
-                   MachineOperatorBuilder::kAllOptionalOps),
+                   InstructionSelector::SupportedMachineOperatorFlags()),
           common_(zone),
           javascript_(zone),
           jsgraph_(isolate, graph, &common_, &javascript_, nullptr, &machine_),
@@ -2803,6 +2804,7 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
     base::Double divisor =
         base::Double(exponent << base::Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
+    if (!std::isnormal(1.0 / divisor.value())) continue;  // Skip denormals.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
                                           Float64Constant(divisor.value())));
     ASSERT_TRUE(r.Changed());
@@ -3374,9 +3376,15 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32SarAndWord32Shl) {
 }
 
 TEST_F(MachineOperatorReducerTest, Select) {
-  static const std::vector<const Operator*> ops = {
-      machine()->Float32Select().op(), machine()->Float64Select().op(),
-      machine()->Word32Select().op(), machine()->Word64Select().op()};
+  std::vector<const Operator*> ops;
+  if (machine()->Float32Select().IsSupported())
+    ops.push_back(machine()->Float32Select().op());
+  if (machine()->Float64Select().IsSupported())
+    ops.push_back(machine()->Float64Select().op());
+  if (machine()->Word32Select().IsSupported())
+    ops.push_back(machine()->Word32Select().op());
+  if (machine()->Word64Select().IsSupported())
+    ops.push_back(machine()->Word64Select().op());
 
   TRACED_FOREACH(const Operator*, op, ops) {
     Node* arg0 = Parameter(0);

@@ -133,6 +133,24 @@ class ReadOnlyArtifacts final {
     return external_pointer_registry_;
   }
 
+  struct TrustedPointerRegistryEntry {
+    TrustedPointerRegistryEntry(TrustedPointerHandle handle, Address value,
+                                IndirectPointerTag tag)
+        : handle(handle), value(value), tag(tag) {}
+    TrustedPointerHandle handle;
+    Address value;
+    IndirectPointerTag tag;
+  };
+  void set_trusted_pointer_registry(
+      std::vector<TrustedPointerRegistryEntry>&& registry) {
+    DCHECK(trusted_pointer_registry_.empty());
+    trusted_pointer_registry_ = std::move(registry);
+  }
+  const std::vector<TrustedPointerRegistryEntry>& trusted_pointer_registry()
+      const {
+    return trusted_pointer_registry_;
+  }
+
   void InitializeChecksum(SnapshotData* read_only_snapshot_data);
   void VerifyChecksum(SnapshotData* read_only_snapshot_data,
                       bool read_only_heap_created);
@@ -146,6 +164,7 @@ class ReadOnlyArtifacts final {
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
   uint32_t initial_next_unique_sfi_id_ = 0;
   std::vector<ExternalPointerRegistryEntry> external_pointer_registry_;
+  std::vector<TrustedPointerRegistryEntry> trusted_pointer_registry_;
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if
   // any.
@@ -207,7 +226,7 @@ class ReadOnlySpace : public BaseSpace {
   // Returns the index within pages_. The chunk must be part of this space.
   size_t IndexOf(const BasePage* chunk) const;
 
-  bool ContainsSlow(Address addr) const;
+  V8_EXPORT_PRIVATE bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 
 #ifdef VERIFY_HEAP

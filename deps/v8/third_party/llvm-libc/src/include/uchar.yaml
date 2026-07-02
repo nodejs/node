@@ -1,0 +1,9 @@
+header: uchar.h
+standards:
+  - stdc
+types:
+  - type_name: char32_t
+  - type_name: char16_t
+  - type_name: char8_t
+  - type_name: mbstate_t
+  - type_name: size_t

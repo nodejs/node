@@ -50,7 +50,10 @@ struct JSOperatorGlobalCache;
   JS_BITWISE_BINOP_LIST(V)        \
   V(JSInstanceOf, InstanceOf)
 
-#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) JS_COMPARE_BINOP_COMMON_LIST(V)
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_COMPARE_BINOP_COMMON_LIST(V)          \
+  JS_ARITH_BINOP_LIST(V)                   \
+  JS_BITWISE_BINOP_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -354,15 +357,19 @@ class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
 
-  size_t depth() const { return depth_; }
+  size_t depth() const { return DepthField::decode(immutable_and_depth_); }
   size_t index() const { return index_; }
-  bool immutable() const { return immutable_; }
+  bool immutable() const {
+    return ImmutableField::decode(immutable_and_depth_);
+  }
 
  private:
+  using ImmutableField = base::BitField<bool, 0, 1>;
+  using DepthField = ImmutableField::Next<uint32_t, 31>;
+
   // For space reasons, we keep this tightly packed, otherwise we could just use
   // a simple int/int/bool POD.
-  const bool immutable_;
-  const uint16_t depth_;
+  uint32_t immutable_and_depth_;
   const uint32_t index_;
 };
 
@@ -905,7 +912,7 @@ const GetIteratorParameters& GetIteratorParametersOf(const Operator* op);
 
 class ForOfNextParameters final {
  public:
-  ForOfNextParameters(const FeedbackSource& call_feedback)
+  explicit ForOfNextParameters(const FeedbackSource& call_feedback)
       : call_feedback_(call_feedback) {}
 
   FeedbackSource const& callFeedback() const { return call_feedback_; }
@@ -922,6 +929,31 @@ size_t hash_value(ForOfNextParameters const&);
 std::ostream& operator<<(std::ostream&, ForOfNextParameters const&);
 
 const ForOfNextParameters& ForOfNextParametersOf(const Operator* op);
+
+class ArrayDestructureParameters final {
+ public:
+  ArrayDestructureParameters(int count, int first_reg)
+      : count_(count), first_reg_(first_reg) {}
+
+  int count() const { return count_; }
+  int first_reg() const { return first_reg_; }
+
+ private:
+  int const count_;
+  int const first_reg_;
+};
+
+bool operator==(ArrayDestructureParameters const&,
+                ArrayDestructureParameters const&);
+bool operator!=(ArrayDestructureParameters const&,
+                ArrayDestructureParameters const&);
+
+size_t hash_value(ArrayDestructureParameters const&);
+
+std::ostream& operator<<(std::ostream&, ArrayDestructureParameters const&);
+
+const ArrayDestructureParameters& ArrayDestructureParametersOf(
+    const Operator* op);
 
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
@@ -956,8 +988,7 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback,
-                                bool receiver_is_first_param = false);
+                                FeedbackSource const& feedback);
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
@@ -965,14 +996,12 @@ class JSWasmCallParameters {
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
   int arity_without_implicit_args() const;
-  bool receiver_is_first_param() const { return receiver_is_first_param_; }
 
  private:
   wasm::NativeModule* native_module_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
-  bool receiver_is_first_param_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -1026,6 +1055,19 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Divide(FeedbackSource const& feedback);
   const Operator* Modulus(FeedbackSource const& feedback);
   const Operator* Exponentiate(FeedbackSource const& feedback);
+
+  const Operator* Add(BinaryOperationHint hint);
+  const Operator* Subtract(BinaryOperationHint hint);
+  const Operator* Multiply(BinaryOperationHint hint);
+  const Operator* Divide(BinaryOperationHint hint);
+  const Operator* Modulus(BinaryOperationHint hint);
+  const Operator* Exponentiate(BinaryOperationHint hint);
+  const Operator* BitwiseOr(BinaryOperationHint hint);
+  const Operator* BitwiseXor(BinaryOperationHint hint);
+  const Operator* BitwiseAnd(BinaryOperationHint hint);
+  const Operator* ShiftLeft(BinaryOperationHint hint);
+  const Operator* ShiftRight(BinaryOperationHint hint);
+  const Operator* ShiftRightLogical(BinaryOperationHint hint);
 
   const Operator* BitwiseNot(FeedbackSource const& feedback);
   const Operator* Decrement(FeedbackSource const& feedback);
@@ -1177,6 +1219,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();
 
+  const Operator* AsyncFunctionAwait();
   const Operator* AsyncFunctionEnter();
   const Operator* AsyncFunctionReject();
   const Operator* AsyncFunctionResolve();
@@ -1221,6 +1264,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ObjectIsArray();
   const Operator* ParseInt();
   const Operator* RegExpTest();
+  const Operator* ArrayDestructure(int count, int first_reg);
 
   const Operator* GetIterator(FeedbackSource const& load_feedback,
                               FeedbackSource const& call_feedback);
@@ -1328,7 +1372,7 @@ JS_BINOP_WITH_FEEDBACK(V)
 #undef V
 
 #define V(JSName, ...) using JSName##Node = JSBinaryOpWithEmbeddedFeedbackNode;
-JS_BINOP_WITH_EMBEDDED_FEEDBACK(V)
+JS_COMPARE_BINOP_COMMON_LIST(V)
 #undef V
 
 class JSGetIteratorNode final : public JSNodeWrapperBase {
@@ -1344,6 +1388,22 @@ class JSGetIteratorNode final : public JSNodeWrapperBase {
 #define INPUTS(V)                  \
   V(Receiver, receiver, 0, Object) \
   V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSArrayDestructureNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSArrayDestructureNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSArrayDestructure, node->opcode());
+  }
+
+  const ArrayDestructureParameters& Parameters() const {
+    return ArrayDestructureParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(Receiver, receiver, 0, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

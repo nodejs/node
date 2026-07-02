@@ -6,8 +6,13 @@
 #include "src/builtins/builtins.h"
 #include "src/logging/counters.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/contexts-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -25,15 +30,23 @@ namespace internal {
   }                                                                           \
   auto frame = Cast<CallSiteInfo>(it.GetDataValue())
 
+#define CHECK_SHADOW_REALM_BOUNDARY_OR_RETURN_FAILURE(isolate, context1, \
+                                                      context2, method)  \
+  if (context1 != context2 &&                                            \
+      (context1->scope_info()->scope_type() == SHADOW_REALM_SCOPE ||     \
+       context2->scope_info()->scope_type() == SHADOW_REALM_SCOPE)) {    \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                      \
+        isolate,                                                         \
+        NewTypeError(                                                    \
+            MessageTemplate::kCallSiteMethodCrossedShadowRealmBoundary,  \
+            isolate->factory()->NewStringFromAsciiChecked(method)));     \
+  }
+
 namespace {
 
 Tagged<Object> PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value > 0) return *isolate->factory()->NewNumberFromInt(value);
   return ReadOnlyRoots(isolate).null_value();
-}
-
-bool NativeContextIsForShadowRealm(Tagged<NativeContext> native_context) {
-  return native_context->scope_info()->scope_type() == SHADOW_REALM_SCOPE;
 }
 
 }  // namespace
@@ -74,24 +87,33 @@ BUILTIN(CallSitePrototypeGetFunction) {
   static const char method_name[] = "getFunction";
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, method_name);
-  // ShadowRealms have a boundary: references to outside objects must not exist
-  // in the ShadowRealm, and references to ShadowRealm objects must not exist
-  // outside the ShadowRealm.
-  if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
-      (IsJSFunction(frame->function()) &&
-       NativeContextIsForShadowRealm(
-           Cast<JSFunction>(frame->function())->native_context()))) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(
-            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
-  }
+
+  Tagged<Object> func_obj = frame->function();
   if (frame->IsStrict() ||
-      (IsJSFunction(frame->function()) &&
-       Cast<JSFunction>(frame->function())->shared()->is_toplevel())) {
+      (IsJSFunction(func_obj) &&
+       Cast<JSFunction>(func_obj)->shared()->is_toplevel())) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
+
+  if (IsJSReceiver(func_obj)) {
+    // Get function's creation context. Return undefined if not available.
+    Tagged<JSReceiver> function_obj = Cast<JSReceiver>(func_obj);
+    std::optional<Tagged<NativeContext>> maybe_creation_context =
+        function_obj->GetCreationContext();
+    if (!maybe_creation_context.has_value()) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    Tagged<NativeContext> creation_context = maybe_creation_context.value();
+    Tagged<NativeContext> current_native_context =
+        isolate->raw_native_context();
+
+    // ShadowRealms have a boundary: references to outside objects must not
+    // exist in the ShadowRealm, and references to ShadowRealm objects must
+    // not exist outside the ShadowRealm.
+    CHECK_SHADOW_REALM_BOUNDARY_OR_RETURN_FAILURE(
+        isolate, current_native_context, creation_context, method_name);
+  }
+
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
   return frame->function();
 }
@@ -146,30 +168,42 @@ BUILTIN(CallSitePrototypeGetThis) {
   static const char method_name[] = "getThis";
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, method_name);
-  // ShadowRealms have a boundary: references to outside objects must not exist
-  // in the ShadowRealm, and references to ShadowRealm objects must not exist
-  // outside the ShadowRealm.
-  if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
-      (IsJSFunction(frame->function()) &&
-       NativeContextIsForShadowRealm(
-           Cast<JSFunction>(frame->function())->native_context()))) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(
-            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
-  }
+
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
+
+  Tagged<Object> this_obj = frame->receiver_or_instance();
+  if (IsJSReceiver(this_obj)) {
+    // Get receiver's creation context. Return undefined if not available.
+    Tagged<JSReceiver> receiver_obj = Cast<JSReceiver>(this_obj);
+    std::optional<Tagged<NativeContext>> maybe_creation_context =
+        receiver_obj->GetCreationContext();
+    if (!maybe_creation_context.has_value()) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    Tagged<NativeContext> creation_context = maybe_creation_context.value();
+    Tagged<NativeContext> current_native_context =
+        isolate->raw_native_context();
+
+    // ShadowRealms have a boundary: references to outside objects must not
+    // exist in the ShadowRealm, and references to ShadowRealm objects must
+    // not exist outside the ShadowRealm.
+    CHECK_SHADOW_REALM_BOUNDARY_OR_RETURN_FAILURE(
+        isolate, current_native_context, creation_context, method_name);
+
 #if V8_ENABLE_WEBASSEMBLY
-  if (frame->IsAsmJsWasm()) {
-    return frame->GetWasmInstance()
-        ->trusted_data(isolate)
-        ->native_context()
-        ->global_proxy();
-  }
+    if (frame->IsAsmJsWasm()) {
+      // For asm.js frames we are supposed to return global proxy as a receiver
+      // instead of the Wasm instance.
+      DCHECK_EQ(frame->GetWasmInstance(), this_obj);
+      DCHECK_EQ(
+          frame->GetWasmInstance()->trusted_data(isolate)->native_context(),
+          creation_context);
+      return creation_context->global_proxy();
+    }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return frame->receiver_or_instance();
+  }
+  return this_obj;
 }
 
 BUILTIN(CallSitePrototypeGetTypeName) {
@@ -221,6 +255,7 @@ BUILTIN(CallSitePrototypeToString) {
 }
 
 #undef CHECK_CALLSITE
+#undef CHECK_SHADOW_REALM_OR_RETURN_FAILURE
 
 }  // namespace internal
 }  // namespace v8

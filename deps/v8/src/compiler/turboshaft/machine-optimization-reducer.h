@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_MACHINE_OPTIMIZATION_REDUCER_H_
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -41,7 +42,7 @@
 #include "src/numbers/ieee754.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/simd-shuffle.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #endif
 
 namespace v8::internal::compiler::turboshaft {
@@ -665,7 +666,10 @@ class MachineOptimizationReducer : public Next {
               matcher_.MatchFloat32Constant(rhs, &k) && std::isnormal(k) &&
               k != 0 && std::isfinite(k) &&
               base::bits::IsPowerOfTwo(base::Double(k).Significand())) {
-            return __ FloatMul(lhs, __ FloatConstant(1.0 / k, rep), rep);
+            const float recip = 1.0f / k;
+            if (std::isnormal(recip)) {
+              return __ FloatMul(lhs, __ FloatConstant(recip, rep), rep);
+            }
           }
         } else {
           DCHECK_EQ(rep, FloatRepresentation::Float64());
@@ -673,7 +677,10 @@ class MachineOptimizationReducer : public Next {
               matcher_.MatchFloat64Constant(rhs, &k) && std::isnormal(k) &&
               k != 0 && std::isfinite(k) &&
               base::bits::IsPowerOfTwo(base::Double(k).Significand())) {
-            return __ FloatMul(lhs, __ FloatConstant(1.0 / k, rep), rep);
+            const double recip = 1.0 / k;
+            if (std::isnormal(recip)) {
+              return __ FloatMul(lhs, __ FloatConstant(recip, rep), rep);
+            }
           }
         }
       }
@@ -861,7 +868,7 @@ class MachineOptimizationReducer : public Next {
         // increase register pressure because it extends the lifetime of `a`.
         // Therefore we do the optimization only when `left = (a <op k1)` has no
         // other uses.
-        if (matcher_.Get(left).saturated_use_count.IsZero()) {
+        if (matcher_.Get(left).saturated_use_count.Is(0)) {
           return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
                                  rep);
         }
@@ -891,7 +898,7 @@ class MachineOptimizationReducer : public Next {
             V<Word> x, y;
             int64_t k;
             if (right_value_signed == -1 &&
-                matcher_.MatchBitwiseAnd(left, &x, &y, rep) &&
+                matcher_.MatchBitwiseXor(left, &x, &y, rep) &&
                 matcher_.MatchIntegralWordConstant(y, rep, &k) && k == -1) {
               return x;
             }
@@ -1119,6 +1126,20 @@ class MachineOptimizationReducer : public Next {
         x = left;
         return __ WordSub(x, y, rep);
       }
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+      if (rep == RegisterRepresentation::Word32() && __ data()->is_wasm()) {
+        const std::optional<OpIndex> reduce_input =
+            TryMatchAddReduce(left, right);
+        if (reduce_input.has_value()) {
+          V<Simd128> reduce_op = __ Simd128Reduce(
+              reduce_input.value(), Simd128ReduceOp::Kind::kI32x4AddReduce);
+          return V<Word>::Cast(__ Simd128ExtractLane(
+              reduce_op, Simd128ExtractLaneOp::Kind::kI32x4, 0));
+        }
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
     }
 
     // 0 / right  =>  0
@@ -1186,6 +1207,195 @@ class MachineOptimizationReducer : public Next {
     return false;
   }
 
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+  std::optional<OpIndex> TryMatchAddReduce(OpIndex left, OpIndex right) {
+    // AddReduce I32x4:
+    // Iteratively check children, to make sure it's a valid tree that we
+    // can use for this optimisation. Save results as we go, so we can
+    // construct the return value right away.
+    OpIndex reduce_input = OpIndex::Invalid();
+    bool summed_lanes[4] = {false, false, false, false};
+    int num_lanes_filled = 0;
+    bool multiple_input_registers = false;
+    bool unknown_op_in_tree = false;
+    base::SmallVector<OpIndex, 4> children;
+    children.push_back(left);
+    children.push_back(right);
+    while (!children.empty()) {
+      const OpIndex child = children.back();
+      children.pop_back();
+      if (const WordBinopOp* child_binop =
+              matcher_.Get(child).template TryCast<WordBinopOp>();
+          child_binop && child_binop->kind == WordBinopOp::Kind::kAdd) {
+        // explore add's children too
+        children.push_back(child_binop->left());
+        children.push_back(child_binop->right());
+        continue;
+      } else if (const Simd128ExtractLaneOp* child_extract =
+                     matcher_.Get(child)
+                         .template TryCast<Simd128ExtractLaneOp>();
+                 child_extract &&
+                 child_extract->kind == Simd128ExtractLaneOp::Kind::kI32x4) {
+        // check extract, and record to check future ones against
+        uint8_t lane = static_cast<int>(child_extract->lane);
+        if (!reduce_input.valid()) {
+          // no input register found yet: remember it and the lane
+          reduce_input = child_extract->input();
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input() &&
+                   !summed_lanes[lane]) {
+          // input is from the same register as others, and lane not already
+          // in the sum
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input()) {
+          // Same input, but a duplicate lane.
+          // Naive solution: Cancel the optimisation by incrementing
+          // num_lanes_filled.
+          num_lanes_filled += 1;
+          // Better solution: Add this with the result of addv if it meets
+          // conditions.
+        } else {
+          // An add from a different input.
+          // Naive solution: Cancel the optimisation
+          multiple_input_registers = true;
+        }
+      } else {
+        // Unknown op: Cancel the optimisation
+        unknown_op_in_tree = true;
+      }
+      break;
+    }
+    bool all_lanes_filled = summed_lanes[0] && summed_lanes[1] &&
+                            summed_lanes[2] && summed_lanes[3];
+    if (reduce_input.valid() && num_lanes_filled == 4 && all_lanes_filled &&
+        !multiple_input_registers && !unknown_op_in_tree) {
+      return reduce_input;
+    } else {
+      return std::nullopt;
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
+
+  std::optional<V<Word>> TryReduceRorInTree(V<Word> left, V<Word> right,
+                                            WordBinopOp::Kind kind,
+                                            WordRepresentation rep) {
+    // Traces tree of XOR or OR operations to find pairs of shifts that form
+    // a rotation, and reduces them.
+    //
+    // Examples for 32-bit with another operand 'z':
+    //   ((x << y) ^ z) ^ (x >>> (32 - y))  =>  (x ror (32 - y)) ^ z
+    //   ((x << y) | z) | (x >>> (32 - y))  =>  (x ror (32 - y)) | z
+
+    DCHECK(kind == WordBinopOp::Kind::kBitwiseXor ||
+           kind == WordBinopOp::Kind::kBitwiseOr);
+
+    constexpr size_t kMaxOperands = 8;
+    base::SmallVector<OpIndex, kMaxOperands> operands;
+    base::SmallVector<OpIndex, kMaxOperands> worklist;
+
+    worklist.push_back(left);
+    worklist.push_back(right);
+
+    bool has_shl = false;
+    bool has_shr = false;
+
+    // Searching for a tree of XORs (or ORs).
+    while (!worklist.empty() && operands.size() < kMaxOperands) {
+      OpIndex current_op = worklist.back();
+      worklist.pop_back();
+
+      const auto* binop = matcher_.TryCast<WordBinopOp>(current_op);
+      if (binop != nullptr && binop->kind == kind) {
+        worklist.push_back(binop->right());
+        worklist.push_back(binop->left());
+      } else {
+        operands.push_back(current_op);
+
+        if (const auto* shift = matcher_.TryCast<ShiftOp>(current_op)) {
+          if (shift->kind == ShiftOp::Kind::kShiftLeft) has_shl = true;
+          if (shift->kind == ShiftOp::Kind::kShiftRightLogical) has_shr = true;
+        }
+      }
+    }
+
+    if (!has_shl || !has_shr) {
+      return {};
+    }
+
+    if (operands.size() <= 2) {
+      return {};
+    }
+
+    // Find a rotation pair and combine it with the remaining operands. We
+    // reduce at most one pair at a time, as the rest will be caught when
+    // reducing the combined result.
+    for (size_t i = 0; i < operands.size(); ++i) {
+      OpIndex op1 = operands[i];
+      const auto* s1 = matcher_.TryCast<ShiftOp>(op1);
+      if (s1 == nullptr) {
+        continue;
+      }
+
+      for (size_t j = i + 1; j < operands.size(); ++j) {
+        OpIndex op2 = operands[j];
+        const auto* s2 = matcher_.TryCast<ShiftOp>(op2);
+        if (s2 == nullptr) {
+          continue;
+        }
+
+        const ShiftOp* shl_node = nullptr;
+        const ShiftOp* shr_node = nullptr;
+        if (s1->kind == ShiftOp::Kind::kShiftLeft &&
+            s2->kind == ShiftOp::Kind::kShiftRightLogical) {
+          shl_node = s1;
+          shr_node = s2;
+        } else if (s1->kind == ShiftOp::Kind::kShiftRightLogical &&
+                   s2->kind == ShiftOp::Kind::kShiftLeft) {
+          shl_node = s2;
+          shr_node = s1;
+        } else {
+          continue;
+        }
+
+        if (shl_node->left() != shr_node->left()) {
+          continue;
+        }
+
+        uint32_t l, r;
+        if (matcher_.MatchIntegralWord32Constant(shl_node->right(), &l) &&
+            matcher_.MatchIntegralWord32Constant(shr_node->right(), &r)) {
+          // Rotation requires that the effective shift amounts (masked by
+          // bit_width - 1) sum to the bit_width. This ensures that they are
+          // complementary and non-zero.
+          uint32_t mask = rep.bit_width() - 1;
+          if ((l & mask) + (r & mask) == rep.bit_width()) {
+            V<Word> ror =
+                __ RotateRight(shl_node->left(), shr_node->right(), rep);
+            V<Word> result = ror;
+            for (size_t k = 0; k < operands.size(); ++k) {
+              if (k == i || k == j) continue;
+              result = __ WordBinop(result, operands[k], kind, rep);
+            }
+
+            // Combine remaining worklist items to preserve expression.
+            while (!worklist.empty()) {
+              result = __ WordBinop(result, worklist.back(), kind, rep);
+              worklist.pop_back();
+            }
+            return result;
+          }
+        }
+      }
+    }
+    return {};
+  }
+
   std::optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
                                         WordBinopOp::Kind kind,
                                         WordRepresentation rep) {
@@ -1199,11 +1409,16 @@ class MachineOptimizationReducer : public Next {
     // Note the side condition for XOR: the optimization doesn't hold for
     // an effective rotation amount of 0.
 
-    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseOr,
-                         WordBinopOp::Kind::kBitwiseXor))) {
+    if (kind !=
+        any_of(WordBinopOp::Kind::kBitwiseOr, WordBinopOp::Kind::kBitwiseXor)) {
       return {};
     }
+    // Try chain optimization if we detect a potential chain.
+    if (auto ror = TryReduceRorInTree(left, right, kind, rep)) {
+      return ror;
+    }
 
+    // Direct pair reduction otherwise.
     const ShiftOp* high = matcher_.TryCast<ShiftOp>(left);
     if (!high) return {};
     const ShiftOp* low = matcher_.TryCast<ShiftOp>(right);
@@ -1559,7 +1774,7 @@ class MachineOptimizationReducer : public Next {
                 left, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(left).saturated_use_count.IsZero()) {
+          if (matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Comparison(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
                 rep_w);
@@ -1586,7 +1801,7 @@ class MachineOptimizationReducer : public Next {
                 right, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(left, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(right).saturated_use_count.IsZero()) {
+          if (matcher_.Get(right).saturated_use_count.Is(0)) {
             return __ Comparison(
                 __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
                 rep_w);
@@ -1629,6 +1844,7 @@ class MachineOptimizationReducer : public Next {
                 case Kind::kEqual:
                   UNREACHABLE();
               }
+              UNREACHABLE();
             };
             return __ Comparison(
                 UndoWord32ToWord64Conversion(V<Word64>::Cast(left)),
@@ -1769,6 +1985,49 @@ class MachineOptimizationReducer : public Next {
           }
         }
       }
+      // Fold consecutive right shifts of the same kind:
+      //   (x >> a) >> b  =>  x >> (a + b)  if a + b < rep.bit_width()
+      // For arithmetic shifts we also handle the
+      // `kShiftRightArithmeticShiftOutZeros` variant: this kind requires that
+      // the shifted-out bits are zero, which we cannot in general prove for a
+      // composed shift. So if either input is plain `kShiftRightArithmetic`
+      // we demote the result to plain `kShiftRightArithmetic`; only when both
+      // inputs are `kShiftRightArithmeticShiftOutZeros` do we keep that kind.
+      // Mixing logical and arithmetic shifts is unsafe (different sign
+      // behaviour for the bits between `a` and `a+b`), so we only fold
+      // logical+logical and arithmetic+arithmetic.
+      if (kind == any_of(Kind::kShiftRightArithmetic,
+                         Kind::kShiftRightArithmeticShiftOutZeros,
+                         Kind::kShiftRightLogical)) {
+        V<Word> x;
+        ShiftOp::Kind inner_kind;
+        WordRepresentation inner_rep;
+        int inner_amount;
+        if (matcher_.MatchConstantShift(left, &x, &inner_kind, &inner_rep,
+                                        &inner_amount) &&
+            inner_rep == rep && inner_amount + amount < rep.bit_width()) {
+          bool inner_is_arith =
+              inner_kind == Kind::kShiftRightArithmetic ||
+              inner_kind == Kind::kShiftRightArithmeticShiftOutZeros;
+          bool outer_is_arith =
+              kind == Kind::kShiftRightArithmetic ||
+              kind == Kind::kShiftRightArithmeticShiftOutZeros;
+          if (inner_is_arith && outer_is_arith) {
+            Kind combined_kind =
+                (inner_kind == Kind::kShiftRightArithmeticShiftOutZeros &&
+                 kind == Kind::kShiftRightArithmeticShiftOutZeros)
+                    ? Kind::kShiftRightArithmeticShiftOutZeros
+                    : Kind::kShiftRightArithmetic;
+            return __ Shift(x, inner_amount + amount, combined_kind, rep);
+          }
+          if (inner_kind == Kind::kShiftRightLogical &&
+              kind == Kind::kShiftRightLogical) {
+            return __ Shift(x, inner_amount + amount, Kind::kShiftRightLogical,
+                            rep);
+          }
+          // Mixed logical/arithmetic: skip for safety.
+        }
+      }
       if (rep == WordRepresentation::Word32() &&
           SupportedOperations::word32_shift_is_safe()) {
         // Remove the explicit 'and' with 0x1F if the shift provided by the
@@ -1818,8 +2077,8 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
-                               bool negated,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition,
+                               V<EagerFrameState> frame_state, bool negated,
                                const DeoptimizeParameters* parameters) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
@@ -1843,16 +2102,16 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
-                         bool negated, TrapId trap_id) {
+  V<None> REDUCE(TrapIf)(V<Word32> condition,
+                         OptionalV<EagerFrameState> frame_state, bool negated,
+                         TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
-        Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
-        __ Unreachable();
+        __ WasmTrap(frame_state, trap_id);
       }
       // `TrapIf` doesn't produce a value.
       return V<None>::Invalid();
@@ -1920,15 +2179,16 @@ class MachineOptimizationReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base_idx, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_scale,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_scale,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
-                               write_barrier, offset, element_scale,
-                               maybe_initializing_or_transitioning,
-                               maybe_indirect_pointer_tag);
+      return Next::ReduceStore(
+          base_idx, index, value, kind, stored_rep, write_barrier, memory_order,
+          offset, element_scale, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
@@ -1975,14 +2235,15 @@ class MachineOptimizationReducer : public Next {
       index = base.right();
       // We go through the Store stack again, which might merge {index} into
       // {offset}, or just do other optimizations on this Store.
-      __ Store(base_idx, index, value, kind, stored_rep, write_barrier, offset,
-               element_scale, maybe_initializing_or_transitioning,
-               maybe_indirect_pointer_tag);
+      __ Store(base_idx, index, value, kind, stored_rep, write_barrier,
+               memory_order, offset, element_scale,
+               maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+
       return V<None>::Invalid();
     }
 
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale,
+                             write_barrier, memory_order, offset, element_scale,
                              maybe_initializing_or_transitioning,
                              maybe_indirect_pointer_tag);
   }
@@ -2025,7 +2286,7 @@ class MachineOptimizationReducer : public Next {
       const ConstantOp& base = matcher_.Cast<ConstantOp>(base_idx);
       if (base.kind == any_of(ConstantOp::Kind::kHeapObject,
                               ConstantOp::Kind::kCompressedHeapObject)) {
-        if (offset == HeapObject::kMapOffset) {
+        if (offset == offsetof(HeapObject, map_)) {
           // Only few loads should be loading the map from a ConstantOp
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
@@ -2079,6 +2340,78 @@ class MachineOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
+#ifdef V8_TARGET_ARCH_ARM64
+    if (CpuFeatures::IsSupported(DOTPROD) &&
+        kind == Simd128BinopOp::Kind::kI32x4Add) {
+      // The following almost looks like a pairwise dot-product, except for the
+      // root addition:
+      // I32x4Add(I32xExtAddPairwise(I16x8ExtMulLowI8x16S(x, y)),
+      //          I32x4ExtAddPairwise(I16x8ExtMulHighI8x16S(x, y)))
+      // To use the dot-product instruction, the root needs to be converted to
+      // I32x4AddPairwise.
+      //
+      // So, for input A and B:
+      // A = A0, A1, A2, A3, ...
+      // B = B0, B1, B2, B3, ...
+      //
+      // Two ExtMuls create two vector products:
+      // ExtMulLow(A, B)  = AB0, AB1, AB2, AB3, ...
+      // ExtMulHigh(A, B) = AB8, AB9, AB10, AB11, ...
+      //
+      // Which are then partially reduced:
+      // ExtAddPairwise(ExtMulLow)  = AB0 + AB1, AB2 + AB3, AB4 + AB5
+      // ExtAddPairwise(ExtMulHigh) = AB8 + AB9, AB10 + AB11, AB12 + AB13
+      //
+      // And then those two partial sums are combined:
+      // I32x4Add = AB0 + AB1 + AB8 + AB9, AB2 + AB3 + AB10 + AB11
+      //
+      // But to use a pairwise add we need to ensure the correct elements are
+      // adjacent to each other:
+      // I32x4Add = AB0 + AB1 + AB8 + AB9, AB2 + AB3 + AB10 + AB11
+      //                ^           ^
+      //            keep 0 and 1 adjacent, but 8 and 9 need to be moved.
+      // We can shuffle the inputs to give the correct order using this pattern:
+      // 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
+      // Which, with 16-bit lanes, is equivalent to: 0, 4, 1, 5, 2, 6, 3, 7
+
+      auto TryCastExtMul = [this](V<Simd128> node) -> const Simd128BinopOp* {
+        if (auto* unop = matcher_.Get(node).TryCast<Simd128UnaryOp>()) {
+          if (unop->kind == Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S) {
+            if (auto* binop =
+                    matcher_.Get(unop->input()).TryCast<Simd128BinopOp>()) {
+              if (binop->kind == Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S ||
+                  binop->kind == Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S) {
+                return binop;
+              }
+            }
+          }
+        }
+        return nullptr;
+      };
+
+      const Simd128BinopOp* mul_left = TryCastExtMul(left);
+      const Simd128BinopOp* mul_right = TryCastExtMul(right);
+      if (mul_left && mul_right && mul_left->kind != mul_right->kind &&
+          mul_left->left() == mul_right->left() &&
+          mul_left->right() == mul_right->right()) {
+        // Using 16-bit elements, the top half is interleaved into the odd
+        // lanes and the bottom half is placed into the even lanes. So, when
+        // we perform the second pairwise addition it is equivalent to the
+        // original lane-wise addition.
+        uint8_t shuffle[16] = {
+            0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
+        };
+        auto shuffle_kind = Simd128ShuffleOp::Kind::kI8x16;
+        V<Simd128> shuffle_left = __ Simd128Shuffle(
+            mul_left->left(), mul_left->left(), shuffle_kind, shuffle);
+        V<Simd128> shuffle_right = __ Simd128Shuffle(
+            mul_right->right(), mul_right->right(), shuffle_kind, shuffle);
+        return __ Simd128Binop(shuffle_left, shuffle_right,
+                               Simd128BinopOp::Kind::kI32x4DotI8x16S);
+      }
+    }
+#endif  // V8_TARGET_ARCH_ARM64
+
     if (kind != Simd128BinopOp::Kind::kI32x4DotI16x8S) goto no_change;
 
     // Check to see whether we're really performing the operation on
@@ -2087,7 +2420,7 @@ class MachineOptimizationReducer : public Next {
         [this](OpIndex input) -> std::optional<Simd128BinopOp::Kind> {
       using unop_extmul_pair =
           std::pair<Simd128UnaryOp::Kind, Simd128BinopOp::Kind>;
-      std::array extend_muls = to_array<unop_extmul_pair>({
+      std::array extend_muls = std::to_array<unop_extmul_pair>({
           {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
            Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S},
           {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
@@ -2145,14 +2478,21 @@ class MachineOptimizationReducer : public Next {
   V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
                                         Simd128ReplaceLaneOp::Kind kind,
                                         uint8_t lane) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    }
     if (kind == Simd128ReplaceLaneOp::Kind::kF16x8) {
       // Not supported yet.
-      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+      goto no_change;
     }
 
     if (const Simd128ExtractLaneOp* extract =
             matcher_.TryCast<Simd128ExtractLaneOp>(new_lane)) {
       Simd128ExtractLaneOp::Kind extract_kind = extract->kind;
+      if (extract_kind == Simd128ExtractLaneOp::Kind::kF16x8) {
+        // Not supported yet.
+        goto no_change;
+      }
       int extract_bytes =
           ElementSizeInBytes(Simd128ExtractLaneOp::element_rep(extract_kind));
       int replace_bytes =
@@ -2188,7 +2528,7 @@ class MachineOptimizationReducer : public Next {
                                   from_lane);
       }
     }
-    return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    goto no_change;
   }
 
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
@@ -2304,8 +2644,8 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           const uint8_t* shuffle3 = shuffles[2]->shuffle;
           const uint8_t* shuffle4 = shuffles[3]->shuffle;
-          if (wasm::SimdShuffle::TryMatch8x16UpperToLowerReduce(
-                  shuffle1, shuffle2, shuffle3, shuffle4)) {
+          if (SimdShuffle::TryMatch8x16UpperToLowerReduce(shuffle1, shuffle2,
+                                                          shuffle3, shuffle4)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI8x16AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2318,8 +2658,8 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           const uint8_t* shuffle3 = shuffles[2]->shuffle;
-          if (wasm::SimdShuffle::TryMatch16x8UpperToLowerReduce(
-                  shuffle1, shuffle2, shuffle3)) {
+          if (SimdShuffle::TryMatch16x8UpperToLowerReduce(shuffle1, shuffle2,
+                                                          shuffle3)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI16x8AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2331,8 +2671,7 @@ class MachineOptimizationReducer : public Next {
         if (shuffles.size() == 2) {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          if (wasm::SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1,
-                                                                shuffle2)) {
+          if (SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2344,8 +2683,7 @@ class MachineOptimizationReducer : public Next {
         if (shuffles.size() == 2) {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          if (wasm::SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1,
-                                                            shuffle2)) {
+          if (SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kF32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2357,9 +2695,9 @@ class MachineOptimizationReducer : public Next {
       case MachineRepresentation::kFloat64: {
         if (shuffles.size() == 1) {
           uint8_t shuffle64x2[2];
-          if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
-                                                     shuffle64x2) &&
-              wasm::SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
+          if (SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
+                                               shuffle64x2) &&
+              SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
             V<Simd128> reduce =
                 rep == MachineRepresentation::kWord64
                     ? __ Simd128Reduce(reduce_input,
@@ -2520,7 +2858,7 @@ class MachineOptimizationReducer : public Next {
                   left, &x, rep_w, &k1) &&
               matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
               CountLeadingSignBits(k2, rep_w) > k1 &&
-              matcher_.Get(left).saturated_use_count.IsZero()) {
+              matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Equal(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);

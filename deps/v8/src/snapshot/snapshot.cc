@@ -76,14 +76,14 @@ class SnapshotImpl : public AllStatic {
   // [2] checksum
   // [3] read-only snapshot checksum
   // [4] (64 bytes) version string
-  // [5] offset to readonly
+  // [5] offset to startup
   // [6] offset to shared heap
   // [7] offset to context 0
   // [8] offset to context 1
   // ...
   // ... offset to context N - 1
+  // ... read-only snapshot data (first, for alignment)
   // ... startup snapshot data
-  // ... read-only snapshot data
   // ... shared heap snapshot data
   // ... context 0 snapshot data
   // ... context 1 snapshot data
@@ -98,10 +98,10 @@ class SnapshotImpl : public AllStatic {
   static const uint32_t kVersionStringOffset =
       kReadOnlySnapshotChecksumOffset + kUInt32Size;
   static const uint32_t kVersionStringLength = 64;
-  static const uint32_t kReadOnlyOffsetOffset =
+  static const uint32_t kStartupOffsetOffset =
       kVersionStringOffset + kVersionStringLength;
   static const uint32_t kSharedHeapOffsetOffset =
-      kReadOnlyOffsetOffset + kUInt32Size;
+      kStartupOffsetOffset + kUInt32Size;
   static const uint32_t kFirstContextOffsetOffset =
       kSharedHeapOffsetOffset + kUInt32Size;
 
@@ -120,7 +120,8 @@ class SnapshotImpl : public AllStatic {
         data->raw_size - kChecksumStart);
   }
 
-  static uint32_t StartupSnapshotOffset(int num_contexts) {
+  // The read-only snapshot is placed first, right after the header.
+  static uint32_t ReadOnlySnapshotOffset(int num_contexts) {
     return POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
                               num_contexts * kInt32Size);
   }
@@ -221,7 +222,6 @@ MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
 void Snapshot::ClearReconstructableDataForSerialization(
     Isolate* isolate, bool clear_recompilable_data) {
   // Clear SFIs and JSRegExps.
-  PtrComprCageBase cage_base(isolate);
 
   {
     HandleScope scope(isolate);
@@ -230,18 +230,18 @@ void Snapshot::ClearReconstructableDataForSerialization(
       i::HeapObjectIterator it(isolate->heap());
       for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null();
            o = it.Next()) {
-        if (clear_recompilable_data && IsSharedFunctionInfo(o, cage_base)) {
+        if (clear_recompilable_data && IsSharedFunctionInfo(o)) {
           i::Tagged<i::SharedFunctionInfo> shared =
               i::Cast<i::SharedFunctionInfo>(o);
-          if (IsScript(shared->script(cage_base), cage_base) &&
-              Cast<Script>(shared->script(cage_base))->type() ==
+          if (IsScript(shared->script()) &&
+              Cast<Script>(shared->script())->type() ==
                   Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
           if (shared->CanDiscardCompiled()) {
             sfis_to_clear.emplace_back(shared, isolate);
           }
-        } else if (IsJSRegExp(o, cage_base)) {
+        } else if (IsJSRegExp(o)) {
           i::Tagged<i::JSRegExp> regexp = i::Cast<i::JSRegExp>(o);
           if (regexp->has_data()) {
             i::Tagged<i::RegExpData> data = regexp->data(isolate);
@@ -272,15 +272,14 @@ void Snapshot::ClearReconstructableDataForSerialization(
   {
     i::HeapObjectIterator it(isolate->heap());
     for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-      if (!IsJSFunction(o, cage_base)) continue;
+      if (!IsJSFunction(o)) continue;
 
       i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(o);
       fun->CompleteInobjectSlackTrackingIfActive(isolate);
 
       i::Tagged<i::SharedFunctionInfo> shared = fun->shared();
-      if (IsScript(shared->script(cage_base), cage_base) &&
-          Cast<Script>(shared->script(cage_base))->type() ==
-              Script::Type::kExtension) {
+      if (IsScript(shared->script()) &&
+          Cast<Script>(shared->script())->type() == Script::Type::kExtension) {
         continue;  // Don't clear extensions, they cannot be recompiled.
       }
 
@@ -288,8 +287,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
       if (fun->CanDiscardCompiled(isolate)) {
         fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
       }
-      if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
-        fun->raw_feedback_cell(cage_base)->set_value(
+      if (!IsUndefined(fun->raw_feedback_cell()->value())) {
+        fun->raw_feedback_cell()->set_value(
             i::ReadOnlyRoots(isolate).undefined_value());
       }
 #ifdef DEBUG
@@ -390,8 +389,9 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
           CHECK(IsNativeContext(*new_native_context));
 
 #ifdef VERIFY_HEAP
-          if (v8_flags.verify_heap)
+          if (v8_flags.verify_heap) {
             HeapVerifier::VerifyHeap(new_isolate->heap());
+          }
 #endif  // VERIFY_HEAP
         }
         new_isolate->Exit();
@@ -525,11 +525,11 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
 #endif
 
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots->size());
-  uint32_t startup_snapshot_offset =
-      SnapshotImpl::StartupSnapshotOffset(num_contexts);
-  uint32_t total_length = startup_snapshot_offset;
-  total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
+  uint32_t read_only_offset =
+      SnapshotImpl::ReadOnlySnapshotOffset(num_contexts);
+  uint32_t total_length = read_only_offset;
   total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
+  total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
   total_length +=
       static_cast<uint32_t>(shared_heap_snapshot->RawData().length());
   for (const auto context_snapshot : *context_snapshots) {
@@ -538,7 +538,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
 
   char* data = new char[total_length];
   // Zero out pre-payload data. Part of that is only used for padding.
-  memset(data, 0, SnapshotImpl::StartupSnapshotOffset(num_contexts));
+  memset(data, 0, read_only_offset);
 
   SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kNumberOfContextsOffset,
                                num_contexts);
@@ -552,24 +552,13 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       base::Vector<char>(data + SnapshotImpl::kVersionStringOffset,
                          SnapshotImpl::kVersionStringLength));
 
-  // Startup snapshot (isolate-specific data).
-  uint32_t payload_offset = startup_snapshot_offset;
-  uint32_t payload_length =
-      static_cast<uint32_t>(startup_snapshot->RawData().length());
-  CopyBytes(data + payload_offset,
-            reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
-            payload_length);
-  if (v8_flags.serialization_statistics) {
-    // These prints must match the regexp in test/memory/Memory.json
-    PrintF("Snapshot blob consists of:\n");
-    PrintF("%10d bytes for startup\n", payload_length);
-  }
-  payload_offset += payload_length;
+  uint32_t payload_offset = read_only_offset;
 
-  // Read-only.
-  SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kReadOnlyOffsetOffset,
-                               payload_offset);
-  payload_length = read_only_snapshot->RawData().length();
+  // Read-only snapshot first, so it's close to the start of the blob.
+  // When the blob is page-aligned in the executable, this allows the
+  // RO space image within it to also be page-aligned.
+  DCHECK_EQ(payload_offset, read_only_offset);
+  uint32_t payload_length = read_only_snapshot->RawData().length();
   CopyBytes(
       data + payload_offset,
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
@@ -581,7 +570,20 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
           payload_length)));
   if (v8_flags.serialization_statistics) {
     // These prints must match the regexp in test/memory/Memory.json
+    PrintF("Snapshot blob consists of:\n");
     PrintF("%10d bytes for read-only\n", payload_length);
+  }
+  payload_offset += payload_length;
+
+  // Startup snapshot (isolate-specific data).
+  SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kStartupOffsetOffset,
+                               payload_offset);
+  payload_length = static_cast<uint32_t>(startup_snapshot->RawData().length());
+  CopyBytes(data + payload_offset,
+            reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
+            payload_length);
+  if (v8_flags.serialization_statistics) {
+    PrintF("%10d bytes for startup\n", payload_length);
   }
   payload_offset += payload_length;
 
@@ -691,17 +693,17 @@ base::Vector<const uint8_t> SnapshotImpl::ExtractStartupData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
-  uint32_t num_contexts = ExtractNumContexts(data);
-  return ExtractData(data, StartupSnapshotOffset(num_contexts),
-                     GetHeaderValue(data, kReadOnlyOffsetOffset));
+  return ExtractData(data, GetHeaderValue(data, kStartupOffsetOffset),
+                     GetHeaderValue(data, kSharedHeapOffsetOffset));
 }
 
 base::Vector<const uint8_t> SnapshotImpl::ExtractReadOnlyData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
-  return ExtractData(data, GetHeaderValue(data, kReadOnlyOffsetOffset),
-                     GetHeaderValue(data, kSharedHeapOffsetOffset));
+  uint32_t num_contexts = ExtractNumContexts(data);
+  return ExtractData(data, ReadOnlySnapshotOffset(num_contexts),
+                     GetHeaderValue(data, kStartupOffsetOffset));
 }
 
 base::Vector<const uint8_t> SnapshotImpl::ExtractSharedHeapData(
@@ -888,26 +890,16 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
 
 SnapshotCreatorImpl::SnapshotCreatorImpl(
     const v8::Isolate::CreateParams& params)
-    : owns_isolate_(true), isolate_(Isolate::New()) {
-  if (auto allocator = params.array_buffer_allocator_shared) {
-    CHECK(params.array_buffer_allocator == nullptr ||
-          params.array_buffer_allocator == allocator.get());
-    isolate_->set_array_buffer_allocator(allocator.get());
-    isolate_->set_array_buffer_allocator_shared(std::move(allocator));
-  } else {
-    CHECK_NOT_NULL(params.array_buffer_allocator);
-    isolate_->set_array_buffer_allocator(params.array_buffer_allocator);
-  }
-  isolate_->set_api_external_references(params.external_references);
-  isolate_->heap()->ConfigureHeap(params.constraints, params.cpp_heap);
-
-  InitInternal(params.snapshot_blob ? params.snapshot_blob
-                                    : Snapshot::DefaultSnapshotBlob());
-}
+    : SnapshotCreatorImpl(Isolate::New(), true, params) {}
 
 SnapshotCreatorImpl::SnapshotCreatorImpl(
     Isolate* isolate, const v8::Isolate::CreateParams& params)
-    : owns_isolate_(false), isolate_(isolate) {
+    : SnapshotCreatorImpl(isolate, false, params) {}
+
+SnapshotCreatorImpl::SnapshotCreatorImpl(
+    Isolate* isolate, bool owns_isolate,
+    const v8::Isolate::CreateParams& params)
+    : owns_isolate_(owns_isolate), isolate_(isolate) {
   if (auto allocator = params.array_buffer_allocator_shared) {
     CHECK(params.array_buffer_allocator == nullptr ||
           params.array_buffer_allocator == allocator.get());
@@ -918,7 +910,13 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
     isolate_->set_array_buffer_allocator(params.array_buffer_allocator);
   }
   isolate_->set_api_external_references(params.external_references);
-  isolate_->heap()->ConfigureHeap(params.constraints, params.cpp_heap);
+  v8::CppHeap* cpp_heap = params.cpp_heap;
+  if (!cpp_heap) {
+    cpp_heap = v8::CppHeap::Create(i::V8::GetCurrentPlatform(),
+                                   CppHeapCreateParams{{}})
+                   .release();
+  }
+  isolate_->heap()->ConfigureHeap(params.constraints, *cpp_heap);
 
   InitInternal(params.snapshot_blob ? params.snapshot_blob
                                     : Snapshot::DefaultSnapshotBlob());
@@ -977,7 +975,7 @@ size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
     list =
         direct_handle(Cast<ArrayList>(context->serialized_objects()), isolate_);
   }
-  size_t index = static_cast<size_t>(list->length());
+  size_t index = list->ulength().value();
   list = ArrayList::Add(isolate_, list, obj);
   context->set_serialized_objects(*list);
   return index;
@@ -995,7 +993,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
     list = direct_handle(
         Cast<ArrayList>(isolate_->heap()->serialized_objects()), isolate_);
   }
-  size_t index = static_cast<size_t>(list->length());
+  size_t index = list->ulength().value();
   list = ArrayList::Add(isolate_, list, obj);
   isolate_->heap()->SetSerializedObjects(*list);
   return index;

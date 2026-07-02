@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <forward_list>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -25,6 +26,7 @@
 #include <ostream>
 #include <random>
 #include <set>
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <valarray>
@@ -34,10 +36,16 @@
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
+#include "absl/meta/type_traits.h"
 #include "absl/random/random.h"
 #include "absl/types/span.h"
+
+#ifdef __cpp_lib_span
+#include <span>  // NOLINT(build/c++20)
+#endif
 
 namespace {
 
@@ -72,6 +80,31 @@ bool Predicate(int value) { return value < 3; }
 bool BinPredicate(int v1, int v2) { return v1 < v2; }
 bool Equals(int v1, int v2) { return v1 == v2; }
 bool IsOdd(int x) { return x % 2 != 0; }
+
+TEST(Span, IsSpan) {
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<absl::Span<int>>::value);
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<const absl::Span<int>>::value);
+  static_assert(absl::container_algorithm_internal::IsSpan<
+                volatile absl::Span<int>>::value);
+  static_assert(absl::container_algorithm_internal::IsSpan<
+                const volatile absl::Span<int>>::value);
+
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<absl::Span<int>&>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<absl::Span<int>&&>::value);
+
+#ifdef __cpp_lib_span
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<std::span<int>>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<std::span<int>&>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<std::span<int>&&>::value);
+#endif
+}
 
 TEST_F(NonMutatingTest, Distance) {
   EXPECT_EQ(container_.size(),
@@ -712,6 +745,231 @@ TEST(MutatingTest, CopyN) {
   EXPECT_EQ(expected, actual);
 }
 
+TEST(MutatingTest, CopyNWithNegativeN) {
+#ifdef _LIBCPP_VERSION
+  GTEST_SKIP() << "libc++ does not handle negative counts correctly";
+#else
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0};
+  absl::c_copy_n(input, -1, actual.begin());
+  EXPECT_THAT(actual, ElementsAre(0, 0, 0));
+#endif
+}
+
+TEST(MutatingTest, CopyToContainer) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0, 4, 5};
+  absl::c_copy(input, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyToSpanRvalue) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0, 4, 5};
+  absl::c_copy(input, absl::MakeSpan(actual));
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyNToContainer) {
+  const std::vector<int> input = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyNToSpanRvalue) {
+  const std::vector<int> input = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, absl::MakeSpan(actual));
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyNToContainerWithZeroN) {
+  const std::vector<int> input = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 0, actual);
+  EXPECT_THAT(actual, ElementsAre(0, 0, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyNToContainerWithNegativeN) {
+#ifdef _LIBCPP_VERSION
+  GTEST_SKIP() << "libc++ does not handle negative counts correctly";
+#else
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0};
+  absl::c_copy_n(input, -1, actual);
+  EXPECT_THAT(actual, ElementsAre(0, 0, 0));
+#endif
+}
+
+TEST(MutatingTest, CopyToDifferentContainerType) {
+  const std::list<int> input = {1, 2, 3};
+  std::array<int, 5> actual = {0, 0, 0, 4, 5};
+  absl::c_copy(input, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyNToDifferentContainerType) {
+  const std::list<int> input = {1, 2, 3, 4, 5};
+  std::array<int, 5> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyToCArray) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[5] = {0, 0, 0, 4, 5};
+  absl::c_copy(input, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyNToCArray) {
+  const std::vector<int> input = {1, 2, 3, 4, 5};
+  int actual[5] = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyFromCArray) {
+  const int input[5] = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy(input, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyNFromCArray) {
+  const int input[5] = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyContainerWithNoSizeMethod) {
+  const std::forward_list<int> input = {1, 2, 3};
+  std::forward_list<int> actual = {0, 0, 0, 4, 5};
+  absl::c_copy(input, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(MutatingTest, CopyNContainerWithNoSizeMethod) {
+  const std::forward_list<int> input = {1, 2, 3, 4, 5};
+  std::forward_list<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
+
+TEST(MutatingTest, CopyToCArrayInvalidSize) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[2] = {0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy(input, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToCArrayInvalidSize) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[2] = {0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 3, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToCArrayNGreaterThanInput) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[4] = {0, 0, 0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 4, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyToContainerInvalidSize) {
+  const std::list<int> input = {1, 2, 3, 4, 5};
+  std::list<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy(input, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToContainerNGreaterThanInput) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 4, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToContainerNGreaterThanOutput) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 3, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyToForwardListInvalidSize) {
+  const std::forward_list<int> input = {1, 2, 3, 4, 5};
+  std::forward_list<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy(input, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToForwardListNGreaterThanInput) {
+  const std::forward_list<int> input = {1, 2, 3};
+  std::forward_list<int> actual = {0, 0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 4, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, CopyNToForwardListNGreaterThanOutput) {
+  const std::forward_list<int> input = {1, 2, 3};
+  std::forward_list<int> actual = {0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_copy_n(input, 3, actual), "");
+  }
+#endif
+}
+
 TEST(MutatingTest, CopyIf) {
   const std::list<int> input = {1, 2, 3};
   std::vector<int> output;
@@ -729,11 +987,11 @@ TEST(MutatingTest, CopyBackward) {
 
 TEST(MutatingTest, Move) {
   std::vector<std::unique_ptr<int>> src;
-  src.emplace_back(absl::make_unique<int>(1));
-  src.emplace_back(absl::make_unique<int>(2));
-  src.emplace_back(absl::make_unique<int>(3));
-  src.emplace_back(absl::make_unique<int>(4));
-  src.emplace_back(absl::make_unique<int>(5));
+  src.emplace_back(std::make_unique<int>(1));
+  src.emplace_back(std::make_unique<int>(2));
+  src.emplace_back(std::make_unique<int>(3));
+  src.emplace_back(std::make_unique<int>(4));
+  src.emplace_back(std::make_unique<int>(5));
 
   std::vector<std::unique_ptr<int>> dest = {};
   absl::c_move(src, std::back_inserter(dest));
@@ -744,11 +1002,11 @@ TEST(MutatingTest, Move) {
 
 TEST(MutatingTest, MoveBackward) {
   std::vector<std::unique_ptr<int>> actual;
-  actual.emplace_back(absl::make_unique<int>(1));
-  actual.emplace_back(absl::make_unique<int>(2));
-  actual.emplace_back(absl::make_unique<int>(3));
-  actual.emplace_back(absl::make_unique<int>(4));
-  actual.emplace_back(absl::make_unique<int>(5));
+  actual.emplace_back(std::make_unique<int>(1));
+  actual.emplace_back(std::make_unique<int>(2));
+  actual.emplace_back(std::make_unique<int>(3));
+  actual.emplace_back(std::make_unique<int>(4));
+  actual.emplace_back(std::make_unique<int>(5));
   auto subrange = absl::MakeSpan(actual.data(), 3);
   absl::c_move_backward(subrange, actual.end());
   EXPECT_THAT(actual, ElementsAre(IsNull(), IsNull(), Pointee(1), Pointee(2),
@@ -758,9 +1016,9 @@ TEST(MutatingTest, MoveBackward) {
 TEST(MutatingTest, MoveWithRvalue) {
   auto MakeRValueSrc = [] {
     std::vector<std::unique_ptr<int>> src;
-    src.emplace_back(absl::make_unique<int>(1));
-    src.emplace_back(absl::make_unique<int>(2));
-    src.emplace_back(absl::make_unique<int>(3));
+    src.emplace_back(std::make_unique<int>(1));
+    src.emplace_back(std::make_unique<int>(2));
+    src.emplace_back(std::make_unique<int>(3));
     return src;
   };
 
@@ -768,6 +1026,124 @@ TEST(MutatingTest, MoveWithRvalue) {
   absl::c_move(MakeRValueSrc(), std::back_inserter(dest));
   EXPECT_THAT(dest, ElementsAre(Pointee(1), Pointee(2), Pointee(3), Pointee(1),
                                 Pointee(2), Pointee(3)));
+}
+
+TEST(MutatingTest, MoveToContainer) {
+  std::vector<std::unique_ptr<int>> input;
+  input.push_back(std::make_unique<int>(1));
+  input.push_back(std::make_unique<int>(2));
+  input.push_back(std::make_unique<int>(3));
+
+  std::vector<std::unique_ptr<int>> actual(5);
+  absl::c_move(input, actual);
+
+  EXPECT_EQ(input[0], nullptr);
+  EXPECT_EQ(input[1], nullptr);
+  EXPECT_EQ(input[2], nullptr);
+
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+  ASSERT_NE(actual[1], nullptr);
+  EXPECT_EQ(*actual[1], 2);
+  ASSERT_NE(actual[2], nullptr);
+  EXPECT_EQ(*actual[2], 3);
+  EXPECT_EQ(actual[3], nullptr);
+}
+
+TEST(MutatingTest, MoveToSpanRvalue) {
+  std::vector<std::unique_ptr<int>> input;
+  input.push_back(std::make_unique<int>(1));
+  input.push_back(std::make_unique<int>(2));
+  input.push_back(std::make_unique<int>(3));
+
+  std::vector<std::unique_ptr<int>> actual(5);
+  absl::c_move(input, absl::MakeSpan(actual));
+
+  EXPECT_EQ(input[0], nullptr);
+  EXPECT_EQ(input[1], nullptr);
+  EXPECT_EQ(input[2], nullptr);
+
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+  ASSERT_NE(actual[1], nullptr);
+  EXPECT_EQ(*actual[1], 2);
+  ASSERT_NE(actual[2], nullptr);
+  EXPECT_EQ(*actual[2], 3);
+  EXPECT_EQ(actual[3], nullptr);
+}
+
+TEST(MutatingTest, MoveToDifferentContainerType) {
+  std::list<std::unique_ptr<int>> input;
+  input.push_back(std::make_unique<int>(1));
+  input.push_back(std::make_unique<int>(2));
+
+  std::array<std::unique_ptr<int>, 3> actual;
+  absl::c_move(input, actual);
+
+  EXPECT_EQ(input.front(), nullptr);
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+}
+
+TEST(MutatingTest, MoveToCArray) {
+  std::vector<std::unique_ptr<int>> input;
+  input.push_back(std::make_unique<int>(1));
+  input.push_back(std::make_unique<int>(2));
+
+  std::unique_ptr<int> actual[3];
+  absl::c_move(input, actual);
+
+  EXPECT_EQ(input.front(), nullptr);
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+}
+
+TEST(MutatingTest, MoveFromCArray) {
+  std::unique_ptr<int> input[2];
+  input[0] = std::make_unique<int>(1);
+  input[1] = std::make_unique<int>(2);
+
+  std::vector<std::unique_ptr<int>> actual(3);
+  absl::c_move(input, actual);
+
+  EXPECT_EQ(input[0], nullptr);
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+}
+
+
+TEST(MutatingTest, MoveToCArrayInvalidSize) {
+  std::vector<int> input = {1, 2, 3};
+  int actual[2] = {0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_move(input, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, MoveToContainerInvalidSize) {
+  std::list<int> input = {1, 2, 3, 4, 5};
+  std::list<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_move(input, actual), "");
+  }
+#endif
+}
+
+TEST(MutatingTest, MoveToForwardListInvalidSize) {
+  std::forward_list<int> input = {1, 2, 3, 4, 5};
+  std::forward_list<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_move(input, actual), "");
+  }
+#endif
 }
 
 TEST(MutatingTest, SwapRanges) {
@@ -800,19 +1176,144 @@ TEST_F(NonMutatingTest, Transform) {
   *end = 7;
   EXPECT_EQ(std::vector<int>({1, 5, 4, 7}), z);
 
-  z.clear();
-  y.pop_back();
-  end = absl::c_transform(x, y, std::back_inserter(z), std::plus<int>());
-  EXPECT_EQ(std::vector<int>({1, 5}), z);
-  *end = 7;
-  EXPECT_EQ(std::vector<int>({1, 5, 7}), z);
+  std::vector<int> x2{1, 2, 3};
+  std::vector<int> y2{10, 20, 30};
+  std::vector<int> z2(3);
+  auto out_it = z2.begin();
+  absl::c_transform(x2, y2, out_it, std::plus<int>());
+  // The caller's iterator should not be modified.
+  EXPECT_EQ(out_it, z2.begin());
+  EXPECT_EQ(z2, std::vector<int>({11, 22, 33}));
+}
 
-  z.clear();
-  std::swap(x, y);
-  end = absl::c_transform(x, y, std::back_inserter(z), std::plus<int>());
-  EXPECT_EQ(std::vector<int>({1, 5}), z);
-  *end = 7;
-  EXPECT_EQ(std::vector<int>({1, 5, 7}), z);
+TEST(MutatingTest, TransformToContainer) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0, 4, 5};
+  absl::c_transform(input, actual, [](int x) { return x * 2; });
+  EXPECT_THAT(actual, ElementsAre(2, 4, 6, 4, 5));
+}
+
+TEST(MutatingTest, BinaryTransformToContainer) {
+  {
+    const std::vector<int> input1 = {1, 2, 3};
+    const std::vector<int> input2 = {10, 20, 30};
+    std::vector<int> actual = {0, 0, 0, 4, 5};
+    absl::c_transform(input1, input2, actual, std::plus<int>());
+    EXPECT_THAT(actual, ElementsAre(11, 22, 33, 4, 5));
+  }
+  {
+    const std::vector<int> input1 = {1, 2, 3, 4};
+    const std::vector<int> input2 = {10, 20};
+    std::vector<int> actual = {0, 0, 0, 4, 5};
+    absl::c_transform(input1, input2, actual, std::plus<int>());
+    EXPECT_THAT(actual, ElementsAre(11, 22, 0, 4, 5));
+  }
+  {
+    const std::vector<int> input1 = {1, 2};
+    const std::vector<int> input2 = {10, 20, 30, 40};
+    std::vector<int> actual = {0, 0, 0, 4, 5};
+    absl::c_transform(input1, input2, actual, std::plus<int>());
+    EXPECT_THAT(actual, ElementsAre(11, 22, 0, 4, 5));
+  }
+}
+
+TEST(MutatingTest, TransformToDifferentContainerType) {
+  const std::list<int> input = {1, 2, 3};
+  std::array<int, 5> actual = {0, 0, 0, 4, 5};
+  absl::c_transform(input, actual, [](int x) { return x * 2; });
+  EXPECT_THAT(actual, ElementsAre(2, 4, 6, 4, 5));
+}
+
+TEST(MutatingTest, TransformToCArray) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[5] = {0, 0, 0, 4, 5};
+  absl::c_transform(input, actual, [](int x) { return x * 2; });
+  EXPECT_THAT(actual, ElementsAre(2, 4, 6, 4, 5));
+}
+
+TEST(MutatingTest, TransformFromCArray) {
+  const int input[5] = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_transform(input, actual, [](int x) { return x * 2; });
+  EXPECT_THAT(actual, ElementsAre(2, 4, 6, 8, 10));
+}
+
+TEST(MutatingTest, TransformToCArrayInvalidSize) {
+  const std::vector<int> input = {1, 2, 3};
+  int actual[2] = {0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input, actual, [](int x) { return x * 2; }),
+                 "");
+  }
+#endif
+}
+
+TEST(MutatingTest, BinaryTransformToCArrayInvalidSize) {
+  const std::vector<int> input1 = {1, 2, 3};
+  const std::vector<int> input2 = {10, 20, 30};
+  int actual[2] = {0, 0};
+  (void)actual;
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input1, input2, actual, std::plus<int>()),
+                 "");
+  }
+#endif
+}
+
+TEST(MutatingTest, TransformToContainerInvalidSize) {
+  const std::list<int> input = {1, 2, 3, 4, 5};
+  std::list<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input, actual, [](int x) { return x * 2; }),
+                 "");
+  }
+#endif
+}
+
+TEST(MutatingTest, BinaryTransformToContainerInvalidSize) {
+  const std::vector<int> input1 = {1, 2, 3, 4, 5};
+  const std::vector<int> input2 = {10, 20, 30, 40, 50};
+  std::vector<int> actual = {0, 0, 0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input1, input2, actual, std::plus<int>()),
+                 "");
+  }
+#endif
+}
+
+TEST(MutatingTest, BinaryTransformInput2InvalidSize) {
+  const std::vector<int> input1 = {1, 2, 3};
+  const std::vector<int> input2 = {10, 20};
+  std::vector<int> actual = {0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input1, input2, actual, std::plus<int>()),
+                 "");
+  }
+#endif
+}
+
+TEST(MutatingTest, BinaryTransformInput1InvalidSize) {
+  const std::vector<int> input1 = {1, 2};
+  const std::vector<int> input2 = {10, 20, 30};
+  std::vector<int> actual = {0};
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
+    EXPECT_DEATH(absl::c_transform(input1, input2, actual, std::plus<int>()),
+                 "");
+  }
+#endif
 }
 
 TEST(MutatingTest, Replace) {
@@ -908,9 +1409,21 @@ TEST(MutatingTest, Fill) {
   EXPECT_THAT(actual, ElementsAre(1, 1, 1, 1, 1));
 }
 
+TEST(MutatingTest, FillWithRvalue) {
+  std::vector<int> actual(5);
+  absl::c_fill(absl::MakeSpan(actual), 1);
+  EXPECT_THAT(actual, ElementsAre(1, 1, 1, 1, 1));
+}
+
 TEST(MutatingTest, FillN) {
   std::vector<int> actual(5, 0);
   absl::c_fill_n(actual, 2, 1);
+  EXPECT_THAT(actual, ElementsAre(1, 1, 0, 0, 0));
+}
+
+TEST(MutatingTest, FillNWithRvalue) {
+  std::vector<int> actual(5, 0);
+  absl::c_fill_n(absl::MakeSpan(actual), 2, 1);
   EXPECT_THAT(actual, ElementsAre(1, 1, 0, 0, 0));
 }
 
@@ -2229,4 +2742,214 @@ TEST(ConstexprTest, PartialSumWithPredicate) {
 #endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
         //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 
+// A type that acts as both a container and an iterator.
+struct AmbiguousType {
+  // Container requirements
+  int* begin() { return nullptr; }
+  int* end() { return nullptr; }
+
+  // Iterator requirements
+  using iterator_category = std::input_iterator_tag;
+  using value_type = int;
+  using difference_type = std::ptrdiff_t;
+  using pointer = int*;
+  using reference = int&;
+
+  int& operator*() {
+    static int x;
+    return x;
+  }
+  AmbiguousType& operator++() { return *this; }
+  AmbiguousType operator++(int) { return *this; }
+  friend bool operator==(const AmbiguousType&, const AmbiguousType&) {
+    return true;
+  }
+  friend bool operator!=(const AmbiguousType&, const AmbiguousType&) {
+    return false;
+  }
+};
+
+template <typename Container, typename Output, typename = void>
+struct CanCopy : std::false_type {};
+template <typename Container, typename Output>
+struct CanCopy<Container, Output,
+               std::void_t<decltype(absl::c_copy(std::declval<Container>(),
+                                                 std::declval<Output>()))>>
+    : std::true_type {};
+
+template <typename Container, typename Output, typename = void>
+struct CanCopyN : std::false_type {};
+template <typename Container, typename Output>
+struct CanCopyN<Container, Output,
+                std::void_t<decltype(absl::c_copy_n(
+                    std::declval<Container>(), std::declval<ptrdiff_t>(),
+                    std::declval<Output>()))>> : std::true_type {};
+
+template <typename Container, typename Output, typename = void>
+struct CanMove : std::false_type {};
+template <typename Container, typename Output>
+struct CanMove<Container, Output,
+               std::void_t<decltype(absl::c_move(std::declval<Container>(),
+                                                 std::declval<Output>()))>>
+    : std::true_type {};
+
+template <typename Container, typename Output, typename UnaryOp,
+          typename = void>
+struct CanTransformUnary : std::false_type {};
+template <typename Container, typename Output, typename UnaryOp>
+struct CanTransformUnary<Container, Output, UnaryOp,
+                         absl::void_t<decltype(absl::c_transform(
+                             std::declval<Container>(), std::declval<Output>(),
+                             std::declval<UnaryOp>()))>> : std::true_type {};
+
+template <typename Container1, typename Container2, typename Output,
+          typename BinaryOp, typename = void>
+struct CanTransformBinary : std::false_type {};
+template <typename Container1, typename Container2, typename Output,
+          typename BinaryOp>
+struct CanTransformBinary<
+    Container1, Container2, Output, BinaryOp,
+    absl::void_t<decltype(absl::c_transform(
+        std::declval<Container1>(), std::declval<Container2>(),
+        std::declval<Output>(), std::declval<BinaryOp>()))>> : std::true_type {
+};
+
+TEST(CanCopyTest, CopyToMultiDimArray) {
+  static_assert(CanCopy<std::vector<int>, int (&)[10]>::value);
+  static_assert(!CanCopy<std::vector<int>, int (&)[2][2]>::value);
+  static_assert(CanCopyN<std::vector<int>, int (&)[10]>::value);
+  static_assert(!CanCopyN<std::vector<int>, int (&)[2][2]>::value);
+
+  static_assert(CanCopy<int[10], int (&)[10]>::value);
+  static_assert(!CanCopy<int[10], int (&)[2][2]>::value);
+  static_assert(CanCopyN<int[10], int (&)[10]>::value);
+  static_assert(!CanCopyN<int[10], int (&)[2][2]>::value);
+  static_assert(!CanCopy<int[2][2], int (&)[4]>::value);
+  static_assert(!CanCopy<int[2][2], int (&)[2][2]>::value);
+  static_assert(!CanCopyN<int[2][2], int (&)[4]>::value);
+  static_assert(!CanCopyN<int[2][2], int (&)[2][2]>::value);
+}
+
+TEST(CanCopyTest, BlockNonWritableIterators) {
+  using Vec = std::vector<int>;
+
+  static_assert(CanCopy<Vec, Vec::iterator>::value);
+  static_assert(CanCopy<Vec, std::back_insert_iterator<Vec>>::value);
+}
+
+TEST(CanCopyTest, AmbiguousTypeFailsToCompile) {
+  using Vec = std::vector<int>;
+  // Because AmbiguousType is both an iterator and a container,
+  // the compiler should fail to resolve the c_copy overload.
+  static_assert(!CanCopy<Vec, AmbiguousType&>::value,
+                "Ambiguous types should not compile!");
+  static_assert(!CanCopyN<Vec, AmbiguousType&>::value,
+                "Ambiguous types should not compile!");
+}
+
+TEST(CanCopyTest, CopyToRValue) {
+  using Vec = std::vector<int>;
+  using Span = absl::Span<int>;
+  static_assert(CanCopy<Vec, Span>::value,
+                "Should be able to copy to rvalue Span");
+  static_assert(!CanCopy<Vec, Vec>::value,
+                "Should not be able to copy to rvalue vector");
+  static_assert(CanCopyN<Vec, Span>::value,
+                "Should be able to copy_n to rvalue Span");
+  static_assert(!CanCopyN<Vec, Vec>::value,
+                "Should not be able to copy_n to rvalue vector");
+}
+
+TEST(CanMoveTest, MoveToMultiDimArray) {
+  static_assert(CanMove<std::vector<int>, int (&)[10]>::value);
+  static_assert(!CanMove<std::vector<int>, int (&)[2][2]>::value);
+
+  static_assert(CanMove<int[10], int (&)[10]>::value);
+  static_assert(!CanMove<int[10], int (&)[2][2]>::value);
+  static_assert(!CanMove<int[2][2], int (&)[4]>::value);
+  static_assert(!CanMove<int[2][2], int (&)[2][2]>::value);
+}
+
+TEST(CanMoveTest, AmbiguousTypeFailsToCompile) {
+  using Vec = std::vector<int>;
+  // Because AmbiguousType is both an iterator and a container,
+  // the compiler should fail to resolve the c_move overload.
+  static_assert(!CanMove<Vec, AmbiguousType&>::value,
+                "Ambiguous types should not compile!");
+}
+
+TEST(CanMoveTest, MoveToRValue) {
+  using Vec = std::vector<std::unique_ptr<int>>;
+  using Span = absl::Span<std::unique_ptr<int>>;
+  static_assert(CanMove<Vec, Span>::value,
+                "Should be able to move to rvalue Span");
+  static_assert(!CanMove<Vec, Vec>::value,
+                "Should not be able to move to rvalue vector");
+}
+
+TEST(CanTransformTest, TransformToMultiDimArray) {
+  using Negate = std::negate<int>;
+  using Plus = std::plus<int>;
+
+  static_assert(
+      CanTransformUnary<std::vector<int>, int (&)[10], Negate>::value);
+  static_assert(
+      !CanTransformUnary<std::vector<int>, int (&)[2][2], Negate>::value);
+
+  static_assert(CanTransformUnary<int[10], int (&)[10], Negate>::value);
+  static_assert(!CanTransformUnary<int[10], int (&)[2][2], Negate>::value);
+  static_assert(!CanTransformUnary<int[2][2], int (&)[4], Negate>::value);
+  static_assert(!CanTransformUnary<int[2][2], int (&)[2][2], Negate>::value);
+
+  static_assert(CanTransformBinary<std::vector<int>, std::vector<int>,
+                                   int (&)[10], Plus>::value);
+  static_assert(!CanTransformBinary<std::vector<int>, std::vector<int>,
+                                    int (&)[2][2], Plus>::value);
+
+  static_assert(CanTransformBinary<int[10], int[10], int (&)[10], Plus>::value);
+  static_assert(
+      !CanTransformBinary<int[10], int[10], int (&)[2][2], Plus>::value);
+  static_assert(
+      !CanTransformBinary<int[2][2], int[4], int (&)[4], Plus>::value);
+  static_assert(
+      !CanTransformBinary<int[2][2], int[2][2], int (&)[2][2], Plus>::value);
+}
+
+TEST(CanTransformTest, AmbiguousTypeFailsToCompile) {
+  using Vec = std::vector<int>;
+  using Negate = std::negate<int>;
+  using Plus = std::plus<int>;
+
+  // Because AmbiguousType is both an iterator and a container,
+  // the compiler should fail to resolve the c_transform overload.
+  static_assert(!CanTransformUnary<Vec, AmbiguousType&, Negate>::value,
+                "Ambiguous types should not compile!");
+  static_assert(!CanTransformBinary<Vec, Vec, AmbiguousType&, Plus>::value,
+                "Ambiguous types should not compile!");
+}
+
+template <typename C, typename T, typename = void>
+struct CanFill : std::false_type {};
+
+template <typename C, typename T>
+struct CanFill<C, T,
+               std::void_t<decltype(absl::c_fill(std::declval<C (*)()>()(),
+                                                 std::declval<T (*)()>()()))>>
+    : std::true_type {};
+
+TEST(CanFillTest, NonSpans) {
+  using T = int;
+
+  struct AbslSpanSubclass : absl::Span<T> {};
+  static_assert(!CanFill<std::vector<T>, T>::value,
+                "non-spans must not be allowed");
+  static_assert(!CanFill<AbslSpanSubclass, T>::value,
+                "subclasses must not be allowed");
+
+#ifdef __cpp_lib_span
+  struct StdSpanSubclass : std::span<T> {};
+  static_assert(!CanFill<StdSpanSubclass, T>::value,
+                "std::span must not be allowed");
+#endif
+}
 }  // namespace

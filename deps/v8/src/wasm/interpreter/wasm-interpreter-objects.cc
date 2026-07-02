@@ -8,6 +8,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+#include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -43,12 +44,18 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
-  return handle->Execute(thread, frame_pointer,
-                         static_cast<uint32_t>(func_index), argument_values,
-                         return_values);
+  // Publish the currently-executing instance to the runtime so that
+  // wasm_trusted_instance_data() (and any cross-instance identity checks)
+  // always see the correct, GC-rooted instance.
+  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
+      handle->ptr()->interpreter()->GetWasmRuntime(), instance);
+
+  return handle->ptr()->Execute(thread, frame_pointer,
+                                static_cast<uint32_t>(func_index),
+                                argument_values, return_values);
 }
 
 // static
@@ -65,11 +72,15 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetInterpreterHandle(isolate, interpreter_object);
 
-  return handle->Execute(thread, frame_pointer,
-                         static_cast<uint32_t>(func_index), interpreter_sp);
+  // See comment in the other RunInterpreter overload above.
+  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
+      handle->ptr()->interpreter()->GetWasmRuntime(), instance);
+
+  return handle->ptr()->Execute(
+      thread, frame_pointer, static_cast<uint32_t>(func_index), interpreter_sp);
 }
 
 // static
@@ -79,7 +90,7 @@ WasmInterpreterObject::GetInterpretedStack(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetInterpretedStack(frame_pointer);
 }
 
@@ -89,7 +100,7 @@ int WasmInterpreterObject::GetFunctionIndex(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetFunctionIndex(frame_pointer, index);
 }
 

@@ -16,15 +16,21 @@
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8::internal::wasm {
 
 class NativeModule;
+class CompilationResultResolver;
 
 // This class is an interface for the StreamingDecoder to start the processing
-// of the incoming module bytes.
+// of the incoming module bytes. The StreamingDecoder will call the methods
+// of the StreamingProcessor as the corresponding parts of the module are
+// decoded.
+//
+// In the case of asynchronous streaming compilation, the
+// {AsyncStreamingProcessor} (in module-compiler.cc) is used to connect the
+// decoder to an {AsyncCompileJob}.
 class V8_EXPORT_PRIVATE StreamingProcessor {
  public:
   virtual ~StreamingProcessor() = default;
@@ -76,6 +82,9 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call
 // of {OnBytesReceived}, and extracts the bytes which belong to section payloads
 // and function bodies.
+//
+// The only implementation is {AsyncStreamingDecoder} (in streaming-decoder.cc).
+// It uses an {AsyncStreamingProcessor} to drive an {AsyncCompileJob}.
 class V8_EXPORT_PRIVATE StreamingDecoder {
  public:
   virtual ~StreamingDecoder() = default;
@@ -87,15 +96,13 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   virtual void OnBytesReceived(base::Vector<const uint8_t> bytes) = 0;
 
-  // The argument matches WasmStreaming::GetCachedModuleFn, but we avoid the
-  // include and just repeat the full type instead.
   virtual void Finish(const WasmStreaming::ModuleCachingCallback&) = 0;
 
   virtual void Abort() = 0;
 
-  // Notify the StreamingDecoder that the job was discarded and the
+  // Notify the StreamingDecoder that the job is finished and the
   // StreamingProcessor should not be called anymore.
-  virtual void NotifyCompilationDiscarded() = 0;
+  virtual void NotifyCompilationStopped() = 0;
 
   // Caching support.
   // Sets the callback that is called after a new chunk of the module is tiered
@@ -122,11 +129,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   static std::unique_ptr<StreamingDecoder> CreateAsyncStreamingDecoder(
       std::unique_ptr<StreamingProcessor> processor);
-
-  static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
-      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-      const char* api_method_name_for_errors,
-      std::shared_ptr<CompilationResultResolver> resolver);
 
  protected:
   const std::shared_ptr<std::string> url_ = std::make_shared<std::string>();

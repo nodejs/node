@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 (function TestMathCeilReturningFloatish() {
   function Module(stdlib) {
     "use asm";
@@ -17,7 +15,6 @@
   }
   var f = Module(this);
   assertEquals(3, f(2.2));
-  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathFloorReturningFloatish() {
@@ -33,7 +30,6 @@
   }
   var f = Module(this);
   assertEquals(2, f(2.2));
-  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathSqrtReturningFloatish() {
@@ -49,7 +45,6 @@
   }
   var f = Module(this);
   assertEquals(Math.sqrt(Math.fround(2.2)), f(2.2));
-  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathAbsReturningFloatish() {
@@ -65,7 +60,6 @@
   }
   var f = Module(this);
   assertEquals(Math.fround(2.2), f(-2.2));
-  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathMinReturningFloat() {
@@ -81,7 +75,6 @@
   }
   var f = Module(this);
   assertEquals(Math.fround(2.2), f(2.2));
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathMaxReturningFloat() {
@@ -97,5 +90,4 @@
   }
   var f = Module(this);
   assertEquals(Math.fround(2.2), f(2.2));
-  assertTrue(%IsAsmWasmCode(Module));
 })();

@@ -1,0 +1,129 @@
+header: netinet/in.h
+standards:
+  - posix
+merge_yaml_files:
+  - ../htons-family.yaml
+public_includes:
+  # This is permitted (but not required) by POSIX and many applications depend
+  # on it. If we have a "pedantic" mode in the future, we might want to exclude
+  # it there.
+  - sys/socket.h
+macros:
+  - macro_name: IPPROTO_IP
+    macro_header: netinet-in-macros.h
+  - macro_name: IPPROTO_ICMP
+    macro_header: netinet-in-macros.h
+  - macro_name: IPPROTO_TCP
+    macro_header: netinet-in-macros.h
+  - macro_name: IPPROTO_UDP
+    macro_header: netinet-in-macros.h
+  - macro_name: IPPROTO_IPV6
+    macro_header: netinet-in-macros.h
+  - macro_name: IPPROTO_RAW
+    macro_header: netinet-in-macros.h
+  - macro_name: IN6ADDR_ANY_INIT
+    macro_header: netinet-in-macros.h
+  - macro_name: IN6ADDR_LOOPBACK_INIT
+    macro_header: netinet-in-macros.h
+  - macro_name: INET_ADDRSTRLEN
+    macro_header: inet-address-macros.h
+  - macro_name: INET6_ADDRSTRLEN
+    macro_header: inet-address-macros.h
+
+  - macro_name: SOL_IP
+    macro_value: 0
+
+  # IP level socket options
+  - macro_name: IP_TOS
+    macro_value: 1 # int
+  - macro_name: IP_TTL
+    macro_value: 2 # int
+  - macro_name: IP_HDRINCL
+    macro_value: 3 # int
+  - macro_name: IP_OPTIONS
+    macro_value: 4 # struct ip_opts
+  - macro_name: IP_ROUTER_ALERT
+    macro_value: 5 # int
+  - macro_name: IP_RECVOPTS
+    macro_value: 6 # int
+  - macro_name: IP_RETOPTS
+    macro_value: 7 # int
+  - macro_name: IP_PKTINFO
+    macro_value: 8 # int
+  - macro_name: IP_MTU_DISCOVER
+    macro_value: 10 # int
+  - macro_name: IP_PMTUDISC_DONT
+    macro_value: 0
+  - macro_name: IP_PMTUDISC_WANT
+    macro_value: 1
+  - macro_name: IP_PMTUDISC_DO
+    macro_value: 2
+  - macro_name: IP_PMTUDISC_PROBE
+    macro_value: 3
+  - macro_name: IP_RECVERR
+    macro_value: 11 # int
+  - macro_name: IP_RECVTTL
+    macro_value: 12 # int
+  - macro_name: IP_RECVTOS
+    macro_value: 13 # int
+  - macro_name: IP_MTU
+    macro_value: 14 # int
+  - macro_name: IP_FREEBIND
+    macro_value: 15 # int
+  - macro_name: IP_PASSSEC
+    macro_value: 18 # int
+  - macro_name: IP_TRANSPARENT
+    macro_value: 19 # int
+  - macro_name: IP_RECVORIGDSTADDR
+    macro_value: 20 # int
+  - macro_name: IP_NODEFRAG
+    macro_value: 22 # int
+  - macro_name: IP_BIND_ADDRESS_NO_PORT
+    macro_value: 24 # int
+  - macro_name: IP_MULTICAST_IF
+    macro_value: 32 # struct in_addr or ip_mreq or ip_mreqn
+  - macro_name: IP_MULTICAST_TTL
+    macro_value: 33 # int
+  - macro_name: IP_MULTICAST_LOOP
+    macro_value: 34 # int
+  - macro_name: IP_ADD_MEMBERSHIP
+    macro_value: 35 # struct ip_mreq or ip_mreqn
+  - macro_name: IP_DROP_MEMBERSHIP
+    macro_value: 36 # struct ip_mreq or ip_mreqn
+  - macro_name: IP_UNBLOCK_SOURCE
+    macro_value: 37 # struct ip_mreq_source
+  - macro_name: IP_BLOCK_SOURCE
+    macro_value: 38 # struct ip_mreq_source
+  - macro_name: IP_ADD_SOURCE_MEMBERSHIP
+    macro_value: 39 # struct ip_mreq_source
+  - macro_name: IP_DROP_SOURCE_MEMBERSHIP
+    macro_value: 40 # struct ip_mreq_source
+  - macro_name: IP_MSFILTER
+    macro_value: 41 # struct ip_msfilter
+  - macro_name: IP_MULTICAST_ALL
+    macro_value: 49 # int
+  - macro_name: IP_LOCAL_PORT_RANGE
+    macro_value: 51 # uint32_t
+
+types:
+  - type_name: in_port_t
+  - type_name: in_addr_t
+  - type_name: struct_sockaddr_in
+  - type_name: struct_sockaddr_in6
+  - type_name: struct_in_addr
+  - type_name: struct_in6_addr
+  - type_name: struct_ip_mreq
+  - type_name: struct_ip_mreq_source
+  - type_name: struct_ip_mreqn
+  - type_name: struct_ip_msfilter
+  - type_name: struct_ip_opts
+  # Type also defined by sys/socket.h, but listing it explicitly as it is
+  # required by POSIX.
+  - type_name: sa_family_t
+enums: []
+objects:
+  - object_name: in6addr_any
+    object_type: const struct in6_addr
+  - object_name: in6addr_loopback
+    object_type: const struct in6_addr
+functions: []

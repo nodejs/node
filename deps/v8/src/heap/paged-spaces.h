@@ -65,7 +65,7 @@ class HeapObjectRange final {
 
     PtrComprCageBase cage_base_;
     Address cur_addr_ = kNullAddress;  // Current iteration point.
-    int cur_size_ = 0;
+    uint32_t cur_size_ = 0;
     Address cur_end_ = kNullAddress;  // End iteration point.
   };
 

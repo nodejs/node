@@ -16,9 +16,10 @@
 #define ABSL_STRINGS_INTERNAL_APPEND_AND_OVERWRITE_H_
 
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/strings/resize_and_overwrite.h"
 
 namespace absl {
@@ -46,8 +47,7 @@ template <typename T, typename Op>
 void StringAppendAndOverwrite(T& str, typename T::size_type append_n,
                               Op append_op) {
   if (ABSL_PREDICT_FALSE(append_n > str.max_size() - str.size())) {
-    absl::base_internal::ThrowStdLengthError(
-        "absl::strings_internal::StringAppendAndOverwrite");
+    ThrowStdLengthError("absl::strings_internal::StringAppendAndOverwrite");
   }
 
   auto old_size = str.size();
@@ -57,12 +57,10 @@ void StringAppendAndOverwrite(T& str, typename T::size_type append_n,
     // Make sure to always grow by at least a factor of 2x.
     const auto min_growth = str.capacity();
     if (ABSL_PREDICT_FALSE(str.capacity() > str.max_size() - min_growth)) {
-      resize = str.max_size();
+      str.reserve(str.max_size());
     } else if (resize < str.capacity() + min_growth) {
-      resize = str.capacity() + min_growth;
+      str.reserve(str.capacity() + min_growth);
     }
-  } else {
-    resize = str.capacity();
   }
 
   // Avoid calling StringResizeAndOverwrite() here since it does an MSAN
@@ -72,9 +70,11 @@ void StringAppendAndOverwrite(T& str, typename T::size_type append_n,
       str, resize,
       [old_size, append_n, do_append = std::move(append_op)](
           typename T::value_type* data_ptr, typename T::size_type) mutable {
-        auto num_appended =
-            std::move(do_append)(data_ptr + old_size, append_n);
-        ABSL_HARDENING_ASSERT(num_appended >= 0 && num_appended <= append_n);
+        typename T::size_type num_appended = static_cast<typename T::size_type>(
+            std::move(do_append)(data_ptr + old_size, append_n));
+        absl::base_internal::HardeningAssertGE(num_appended,
+                                               typename T::size_type{0});
+        absl::base_internal::HardeningAssertLE(num_appended, append_n);
         return old_size + num_appended;
       });
 

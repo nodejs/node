@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stress-compaction --experimental-wasm-rab-integration
+// Flags: --stress-compaction
 
 // This test is a copy of grow-memory-in-call, except the memory is exposed as a
 // resizable buffer.

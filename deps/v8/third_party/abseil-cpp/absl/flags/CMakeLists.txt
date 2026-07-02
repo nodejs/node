@@ -128,6 +128,7 @@ absl_cc_library(
     absl::config
     absl::fast_type_id
     absl::flags_commandlineflag_internal
+    absl::nullability
     absl::optional
     absl::strings
 )
@@ -351,7 +352,6 @@ absl_cc_test(
     absl::flags_parse
     absl::flags_reflection
     absl::int128
-    absl::optional
     absl::raw_logging_internal
     absl::strings
     absl::time

@@ -4,7 +4,6 @@
 
 #include <optional>
 
-#include "src/flags/flags.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/type-oracle.h"
 

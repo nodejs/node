@@ -12,8 +12,12 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-function.h"
+#include "src/objects/property-details.h"
+#include "src/objects/swiss-name-dictionary.h"
 
 namespace v8 {
 namespace internal {
@@ -190,12 +194,12 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
-      __ li(scratch, char_code);
+      __ li(scratch, static_cast<int32_t>(char_code));
       __ St_h(scratch, FieldMemOperand(result_string,
                                        OFFSET_OF_DATA_START(SeqTwoByteString)));
     }
@@ -282,7 +286,7 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   } else if (value().get_scalar() == 0) {  // If value is +0.0 or -0.0.
     Register scratch = temps.AcquireScratch();
     __ Move(double_scratch, value().get_scalar());
-    __ CompareF64(target, double_scratch, CUN);
+    __ CompareF64(target, double_scratch, CUNE);
     __ BranchTrueF(fail);
     __ movfr2gr_d(scratch, target);
     if (value().get_bits() == 0) {
@@ -616,15 +620,14 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Using same algorithm as in EffectControlLinearizer:
+  // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     let lhs_abs = -lhs in
-  //     let res = lhs_abs % rhs in
-  //     deopt if res == 0
-  //     -res
+  //     // Different from MachineLoweringReducer, using mod.w directly.
+  //     let out = lhs_abs % rhs in
+  //     deopt if out == 0
   //   else
   //     let msk = rhs - 1 in
   //     if rhs & msk == 0 then
@@ -671,13 +674,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   Label* deferred_lhs_check = __ MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
          Register out, Int32ModulusWithOverflow* node) {
-        MaglevAssembler::TemporaryRegisterScope temps(masm);
-        Register lhs_abs = temps.AcquireScratch();
-        __ sub_w(lhs_abs, zero_reg, lhs);
-        Register res = lhs_abs;
-        __ mod_w(res, lhs_abs, rhs);
-        __ sub_w(out, zero_reg, res);
-        __ MacroAssembler::Branch(*done, ne, res, Operand(zero_reg));
+        __ mod_w(out, lhs, rhs);
+        __ MacroAssembler::Branch(*done, ne, out, Operand(zero_reg));
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
         // only allows one deopt reason per IR.
         __ EmitEagerDeopt(node, deopt_reason);
@@ -838,8 +836,7 @@ void Float64Modulus::SetValueLocationConstraints() {
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ PrepareCallCFunction(0, 2);
-  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  __ Float64Mod(f0, f0, f1);
 }
 
 void Float64Negate::SetValueLocationConstraints() {
@@ -860,6 +857,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs_d(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ fcvt_s_d(result, input);
+  __ fcvt_d_s(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -871,15 +876,25 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     MaglevAssembler::TemporaryRegisterScope temps(masm);
     DoubleRegister temp = temps.AcquireScratchDouble();
     DoubleRegister half_one = temps.AcquireScratchDouble();
+    Label done;
+    __ fmov_d(temp, in);
+    __ Round_d(out, in);
+    __ fsub_d(temp, temp, out);
     __ Move(half_one, 0.5);
-    __ fadd_d(temp, in, half_one);
-    __ Floor_d(temp, temp);
-    // Reserve the sign bit when it is between -0.5 and -0.0.
-    __ fcopysign_d(out, temp, in);
+    __ CompareF64(temp, half_one, CUNE);
+    __ BranchTrueF(&done);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ fadd_d(out, out, half_one);
+    __ fadd_d(out, out, half_one);
+    __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ Ceil_d(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ Floor_d(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Trunc_d(out, in);
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -899,11 +914,20 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -919,11 +943,20 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -985,12 +1018,12 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
                         AbortReason::kUnexpectedValue);
   }
   __ LoadBoundedSizeFromObject(result_register, object,
-                               JSTypedArray::kRawByteLengthOffset);
+                               offsetof(JSArrayBufferView, raw_byte_length_));
   int shift_size = ElementsKindToShiftSize(elements_kind_);
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
-    __ srli_w(result_register, result_register, shift_size);
+    __ srli_d(result_register, result_register, shift_size);
   }
 }
 
@@ -1157,11 +1190,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register budget = temps.Acquire();
-  __ Ld_w(budget,
-          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Ld_w(budget, FieldMemOperand(feedback_cell,
+                                  offsetof(FeedbackCell, interrupt_budget_)));
   __ Sub_w(budget, budget, Operand(amount));
-  __ St_w(budget,
-          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ St_w(budget, FieldMemOperand(feedback_cell,
+                                  offsetof(FeedbackCell, interrupt_budget_)));
 
   ZoneLabelRef done(masm);
   // Scratch register 'budget' is released before going into deferred_code.
@@ -1246,6 +1279,83 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size);
   __ Ret();
+}
+
+void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(ObjectInput());
+  Register result_reg = ToRegister(result());
+
+  ZoneLabelRef done(masm);
+
+  Label* deferred_fallback = __ MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, LoadDictionaryField* node,
+         Register object, Register result_reg) {
+        {
+          // Save live registers so the fast path remains register-allocation
+          // friendly.
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          snapshot.live_tagged_registers.clear(result_reg);
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+
+          __ CallBuiltin<Builtin::kLoadIC>(
+              node->ContextInput(), object, node->name().object(),
+              TaggedIndex::FromIntptr(node->feedback().index()),
+              node->feedback().vector);
+          masm->DefineExceptionHandlerPoint(node);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+
+          __ Move(result_reg, kReturnRegister0);
+        }
+        __ Jump(*done);
+      },
+      done, this, object, result_reg);
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register properties = temps.Acquire();
+
+  __ LoadTaggedField(properties, object,
+                     offsetof(JSReceiver, properties_or_hash_));
+
+  if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    int entry_index = NameDictionary::kElementsStartIndex +
+                      dictionary_index() * NameDictionary::kEntrySize;
+    int max_index = entry_index + NameDictionary::kEntrySize - 1;
+
+    Register length = temps.Acquire();
+    __ Ld_w(length, FieldMemOperand(properties, FixedArrayBase::kLengthOffset));
+    // Length is sign-extended and max_index is an immediate; so we can directly
+    // use 64-bit comparison.
+    __ CompareIntPtrAndJumpIf(length, max_index, ls, deferred_fallback);
+
+    Register scratch = length;
+    int key_offset = NameDictionary::OffsetOfElementAt(
+        entry_index + NameDictionary::kEntryKeyIndex);
+    __ LoadTaggedField(scratch, properties, key_offset);
+    __ CompareTaggedAndBranch(deferred_fallback, kNotEqual, scratch,
+                              Operand(name().object()));
+
+    __ LoadTaggedField(scratch, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryDetailsIndex));
+    __ SmiToInt32(scratch);
+    __ And(scratch, scratch, Operand(PropertyDetails::KindField::kMask));
+    // Both scratch and PropertyDetails::KindField::encode are zero-extended;
+    // direct 64-bit comparison is safe.
+    __ MacroAssembler::Branch(
+        deferred_fallback, kNotEqual, scratch,
+        Operand(PropertyDetails::KindField::encode(PropertyKind::kData)));
+
+    __ LoadTaggedField(result_reg, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryValueIndex));
+  } else {
+    UNREACHABLE();
+  }
+
+  __ bind(*done);
 }
 
 }  // namespace maglev

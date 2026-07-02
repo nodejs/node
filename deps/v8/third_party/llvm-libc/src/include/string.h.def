@@ -1,0 +1,21 @@
+//===-- C standard library header header string.h -------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIBC_STRING_H
+#define LLVM_LIBC_STRING_H
+
+#include "__llvm-libc-common.h"
+
+// TODO: Needed for compatibility with glibc which provides these symbols by
+// default. Would be better in the yaml file but there's no way to represent
+// including another header in yaml right now.
+#include <strings.h>
+
+%%public_api()
+
+#endif // LLVM_LIBC_STRING_H

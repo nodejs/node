@@ -57,6 +57,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSStoreMessage:
     case IrOpcode::kJSGetIterator:
+    case IrOpcode::kJSArrayDestructure:
       return false;
 
     case IrOpcode::kJSCallRuntime:
@@ -99,6 +100,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSSetPrototypeProperties:
       return true;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
@@ -133,7 +135,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
       CONTROL_OP_LIST(CASE)
       MACHINE_OP_LIST(CASE)
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_WASM(MACHINE_SIMD256_OP_LIST, CASE)
+      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       SIMPLIFIED_OP_LIST(CASE)
       break;
 #undef CASE
@@ -244,6 +246,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Misc operations
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
@@ -269,6 +272,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Iterator protocol operations
     case IrOpcode::kJSGetIterator:
+    case IrOpcode::kJSArrayDestructure:
     case IrOpcode::kJSForOfNext:
       return true;
 

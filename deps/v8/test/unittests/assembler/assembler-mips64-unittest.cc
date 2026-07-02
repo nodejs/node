@@ -221,7 +221,7 @@ TEST_F(AssemblerMips64Test, MIPS0) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Addition.
   __ addu(v0, a0, a1);
@@ -241,7 +241,7 @@ TEST_F(AssemblerMips64Test, MIPS1) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label L, C;
 
   __ mov(a1, a0);
@@ -274,7 +274,7 @@ TEST_F(AssemblerMips64Test, MIPS2) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
 
@@ -441,7 +441,7 @@ TEST_F(AssemblerMips64Test, MIPS3) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Double precision floating point instructions.
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
@@ -561,7 +561,7 @@ TEST_F(AssemblerMips64Test, MIPS4) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
   __ Ldc1(f5, MemOperand(a0, offsetof(T, b)));
@@ -624,7 +624,7 @@ TEST_F(AssemblerMips64Test, MIPS5) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Load all structure elements to registers.
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
@@ -689,7 +689,7 @@ TEST_F(AssemblerMips64Test, MIPS6) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Basic word load/store.
   __ Lw(a4, MemOperand(a0, offsetof(T, ui)));
@@ -764,7 +764,7 @@ TEST_F(AssemblerMips64Test, MIPS7) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label neither_is_nan, less_than, outa_here;
 
   __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
@@ -848,7 +848,7 @@ TEST_F(AssemblerMips64Test, MIPS8) {
     };
     T t;
 
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     // Basic word load.
     __ Lw(a4, MemOperand(a0, offsetof(T, input)));
@@ -929,7 +929,7 @@ TEST_F(AssemblerMips64Test, MIPS9) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(zero_reg));
@@ -970,7 +970,7 @@ TEST_F(AssemblerMips64Test, MIPS10) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   if (kArchVariant == kMips64r2) {
     // Rewritten for FR=1 FPU mode:
@@ -1067,7 +1067,7 @@ TEST_F(AssemblerMips64Test, MIPS11) {
     };
     T t;
 
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     // Test all combinations of LWL and vAddr.
     __ Lw(a4, MemOperand(a0, offsetof(T, reg_init)));
@@ -1216,7 +1216,7 @@ TEST_F(AssemblerMips64Test, MIPS12) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ mov(t2, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
@@ -1302,7 +1302,7 @@ TEST_F(AssemblerMips64Test, MIPS13) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Sw(a4, MemOperand(a0, offsetof(T, cvt_small_in)));
   __ Cvt_d_uw(f10, a4);
@@ -1377,7 +1377,7 @@ TEST_F(AssemblerMips64Test, MIPS14) {
 
 #undef ROUND_STRUCT_ELEMENT
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Save FCSR.
   __ cfc1(a1, FCSR);
@@ -1516,7 +1516,7 @@ TEST_F(AssemblerMips64Test, MIPS16) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Basic 32-bit word load/store, with un-signed data.
   __ Lw(a4, MemOperand(a0, offsetof(T, ui)));
@@ -1646,7 +1646,7 @@ TEST_F(AssemblerMips64Test, seleqz_selnez) {
   if (kArchVariant == kMips64r6) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct Test {
       int a;
@@ -1745,7 +1745,7 @@ TEST_F(AssemblerMips64Test, min_max) {
   if (kArchVariant == kMips64r6) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       double a;
@@ -1827,7 +1827,7 @@ TEST_F(AssemblerMips64Test, rint_d) {
     const int kTableLength = 30;
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       double a;
@@ -2018,7 +2018,7 @@ TEST_F(AssemblerMips64Test, sel) {
   if (kArchVariant == kMips64r6) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct Test {
       double dd;
@@ -2090,7 +2090,7 @@ TEST_F(AssemblerMips64Test, rint_s) {
     const int kTableLength = 30;
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       float a;
@@ -2284,7 +2284,7 @@ TEST_F(AssemblerMips64Test, mina_maxa) {
     const int kTableLength = 23;
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
     const double dnan = std::numeric_limits<double>::quiet_NaN();
     const double dinf = std::numeric_limits<double>::infinity();
     const double dminf = -std::numeric_limits<double>::infinity();
@@ -2377,7 +2377,7 @@ TEST_F(AssemblerMips64Test, trunc_l) {
   if (kArchVariant == kMips64r2) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
     struct Test {
       uint32_t isNaN2008;
@@ -2484,7 +2484,7 @@ TEST_F(AssemblerMips64Test, movz_movn) {
     const int kTableLength = 4;
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       int64_t rt;
@@ -2594,7 +2594,7 @@ TEST_F(AssemblerMips64Test, movt_movd) {
           test.fcsr = 1 << (24 + condition_flags[j]);
         }
         HandleScope scope(isolate);
-        MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+        MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
         __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)));
         __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, srcf)));
         __ Lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)));
@@ -2645,7 +2645,7 @@ TEST_F(AssemblerMips64Test, movt_movd) {
 TEST_F(AssemblerMips64Test, cvt_w_d) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -2718,7 +2718,7 @@ TEST_F(AssemblerMips64Test, cvt_w_d) {
 TEST_F(AssemblerMips64Test, trunc_w) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     uint32_t isNaN2008;
@@ -2821,7 +2821,7 @@ TEST_F(AssemblerMips64Test, trunc_w) {
 TEST_F(AssemblerMips64Test, round_w) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     uint32_t isNaN2008;
@@ -2924,7 +2924,7 @@ TEST_F(AssemblerMips64Test, round_w) {
 TEST_F(AssemblerMips64Test, round_l) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
   struct Test {
     uint32_t isNaN2008;
@@ -3017,7 +3017,7 @@ TEST_F(AssemblerMips64Test, sub) {
   const int kTableLength = 12;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -3076,7 +3076,7 @@ TEST_F(AssemblerMips64Test, sqrt_rsqrt_recip) {
   const double sqrt2_d = sqrt(2);
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -3157,7 +3157,7 @@ TEST_F(AssemblerMips64Test, neg) {
   const int kTableLength = 2;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -3200,7 +3200,7 @@ TEST_F(AssemblerMips64Test, mul) {
   const int kTableLength = 4;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -3249,7 +3249,7 @@ TEST_F(AssemblerMips64Test, mov) {
   const int kTableLength = 4;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -3292,7 +3292,7 @@ TEST_F(AssemblerMips64Test, mov) {
 TEST_F(AssemblerMips64Test, floor_w) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     uint32_t isNaN2008;
@@ -3395,7 +3395,7 @@ TEST_F(AssemblerMips64Test, floor_w) {
 TEST_F(AssemblerMips64Test, floor_l) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
   struct Test {
     uint32_t isNaN2008;
@@ -3487,7 +3487,7 @@ TEST_F(AssemblerMips64Test, floor_l) {
 TEST_F(AssemblerMips64Test, ceil_w) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     uint32_t isNaN2008;
@@ -3590,7 +3590,7 @@ TEST_F(AssemblerMips64Test, ceil_w) {
 TEST_F(AssemblerMips64Test, ceil_l) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
   struct Test {
     uint32_t isNaN2008;
@@ -3683,7 +3683,7 @@ TEST_F(AssemblerMips64Test, jump_tables1) {
   // Test jump tables with forward jumps.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3744,7 +3744,7 @@ TEST_F(AssemblerMips64Test, jump_tables2) {
   // Test jump tables with backward jumps.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3807,7 +3807,7 @@ TEST_F(AssemblerMips64Test, jump_tables3) {
   // Test jump tables with backward jumps and embedded heap objects.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   Handle<Object> values[kNumCases];
@@ -3897,7 +3897,7 @@ TEST_F(AssemblerMips64Test, BITSWAP) {
     };
     T t;
 
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     __ Ld(a4, MemOperand(a0, offsetof(T, r1)));
     __ nop();
@@ -3986,7 +3986,7 @@ TEST_F(AssemblerMips64Test, class_fmt) {
 
     // Create a function that accepts &t, and loads, manipulates, and stores
     // the doubles t.a ... t.f.
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     __ Ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
     __ class_d(f6, f4);
@@ -4132,7 +4132,7 @@ TEST_F(AssemblerMips64Test, class_fmt) {
 TEST_F(AssemblerMips64Test, ABS) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     int64_t fir;
@@ -4228,7 +4228,7 @@ TEST_F(AssemblerMips64Test, ABS) {
 TEST_F(AssemblerMips64Test, ADD_FMT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -4296,7 +4296,7 @@ TEST_F(AssemblerMips64Test, C_COND_FMT) {
   if (kArchVariant == kMips64r2) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       double dOp1;
@@ -4505,7 +4505,7 @@ TEST_F(AssemblerMips64Test, CMP_COND_FMT) {
   if (kArchVariant == kMips64r6) {
     Isolate* isolate = i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
     struct TestFloat {
       double dOp1;
@@ -4719,7 +4719,7 @@ TEST_F(AssemblerMips64Test, CMP_COND_FMT) {
 TEST_F(AssemblerMips64Test, CVT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float cvt_d_s_in;
@@ -4912,7 +4912,7 @@ TEST_F(AssemblerMips64Test, CVT) {
 TEST_F(AssemblerMips64Test, DIV_FMT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double dOp1;
@@ -5032,7 +5032,7 @@ uint64_t AssemblerMips64Test::run_align(uint64_t rs_value, uint64_t rt_value,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ align(v0, a0, a1, bp);
   __ jr(ra);
@@ -5083,7 +5083,7 @@ uint64_t AssemblerMips64Test::run_dalign(uint64_t rs_value, uint64_t rt_value,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ dalign(v0, a0, a1, bp);
   __ jr(ra);
@@ -5138,7 +5138,7 @@ uint64_t AssemblerMips64Test::run_aluipc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ aluipc(v0, offset);
   __ jr(ra);
@@ -5185,7 +5185,7 @@ uint64_t AssemblerMips64Test::run_auipc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ auipc(v0, offset);
   __ jr(ra);
@@ -5232,7 +5232,7 @@ uint64_t AssemblerMips64Test::run_aui(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(t0, rs);
   __ aui(v0, t0, offset);
@@ -5255,7 +5255,7 @@ uint64_t AssemblerMips64Test::run_daui(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(t0, rs);
   __ daui(v0, t0, offset);
@@ -5278,7 +5278,7 @@ uint64_t AssemblerMips64Test::run_dahi(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(v0, rs);
   __ dahi(v0, offset);
@@ -5301,7 +5301,7 @@ uint64_t AssemblerMips64Test::run_dati(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(v0, rs);
   __ dati(v0, offset);
@@ -5398,7 +5398,7 @@ uint64_t AssemblerMips64Test::run_li_macro(uint64_t imm, LiFlags mode,
                                            int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label code_start;
   __ bind(&code_start);
@@ -5589,7 +5589,7 @@ uint64_t AssemblerMips64Test::run_lwpc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // 256k instructions; 2^8k
   // addiu t3, a4, 0xFFFF;  (0x250FFFFF)
@@ -5662,7 +5662,7 @@ uint64_t AssemblerMips64Test::run_lwupc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // 256k instructions; 2^8k
   // addiu t3, a4, 0xFFFF;  (0x250FFFFF)
@@ -5735,7 +5735,7 @@ uint64_t AssemblerMips64Test::run_jic(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label stop_execution;
   __ push(ra);
@@ -5806,7 +5806,7 @@ uint64_t AssemblerMips64Test::run_beqzc(int32_t value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label stop_execution;
   __ li(v0, 0l);
@@ -5898,7 +5898,7 @@ void AssemblerMips64Test::run_bz_bnz(TestCaseMsaBranch* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
   struct T {
@@ -6054,7 +6054,7 @@ uint64_t AssemblerMips64Test::run_jialc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block;
   __ push(ra);
@@ -6135,7 +6135,7 @@ uint64_t AssemblerMips64Test::run_addiupc(int32_t imm19) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ addiupc(v0, imm19);
   __ jr(ra);
@@ -6184,7 +6184,7 @@ uint64_t AssemblerMips64Test::run_ldpc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // 256k instructions; 2 * 2^7k = 2^8k
   // addiu t3, a4, 0xFFFF;  (0x250FFFFF)
@@ -6261,7 +6261,7 @@ int64_t AssemblerMips64Test::run_bc(int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label continue_1, stop_execution;
   __ push(ra);
@@ -6334,7 +6334,7 @@ int64_t AssemblerMips64Test::run_balc(int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label continue_1;
   __ push(ra);
@@ -6410,7 +6410,7 @@ uint64_t AssemblerMips64Test::run_dsll(uint64_t rt_value, uint16_t sa_value) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ dsll(v0, a0, sa_value);
   __ jr(ra);
@@ -6454,7 +6454,7 @@ uint64_t AssemblerMips64Test::run_bal(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ mov(t0, ra);
   __ bal(offset);  // Equivalent for "BGEZAL zero_reg, offset".
@@ -6506,7 +6506,7 @@ TEST_F(AssemblerMips64Test, Trampoline) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label done;
   size_t nr_calls = kMaxBranchOffset / (2 * kInstrSize) + 2;
 
@@ -6530,7 +6530,7 @@ TEST_F(AssemblerMips64Test, Trampoline) {
 TEST_F(AssemblerMips64Test, Trampoline_with_massive_unbound_labels) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumSlots =
       MacroAssembler::kMaxBranchOffset / MacroAssembler::kTrampolineSlotsSize;
@@ -6551,7 +6551,7 @@ static void DummyFunction(Object result) {}
 TEST_F(AssemblerMips64Test, Call_with_trampoline) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   int next_buffer_check_ = v8_flags.force_long_branches
                                ? kMaxInt
@@ -6595,7 +6595,7 @@ template <typename T, typename F>
 void AssemblerMips64Test::helper_madd_msub_maddf_msubf(F func) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   T x = std::sqrt(static_cast<T>(2.0));
   T y = std::sqrt(static_cast<T>(3.0));
@@ -6715,7 +6715,7 @@ uint64_t AssemblerMips64Test::run_Subu(uint64_t imm, int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label code_start;
   __ bind(&code_start);
@@ -6796,7 +6796,7 @@ uint64_t AssemblerMips64Test::run_Dsubu(uint64_t imm, int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label code_start;
   __ bind(&code_start);
@@ -6892,7 +6892,7 @@ uint64_t AssemblerMips64Test::run_Dins(uint64_t imm, uint64_t source,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(v0, imm);
   __ li(t0, source);
@@ -6951,7 +6951,7 @@ uint64_t AssemblerMips64Test::run_Ins(uint64_t imm, uint64_t source,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(v0, imm);
   __ li(t0, source);
@@ -7018,7 +7018,7 @@ uint64_t AssemblerMips64Test::run_Ext(uint64_t source, uint16_t pos,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ li(v0, 0xFFFFFFFFFFFFFFFF);
   __ li(t0, source);
@@ -7073,7 +7073,7 @@ TEST_F(AssemblerMips64Test, MSA_fill_copy) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
     return;
 
@@ -7138,7 +7138,7 @@ TEST_F(AssemblerMips64Test, MSA_fill_copy_2) {
   };
   T t[2];
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
     return;
 
@@ -7197,7 +7197,7 @@ TEST_F(AssemblerMips64Test, MSA_fill_copy_3) {
   };
   T t[2];
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
     return;
 
@@ -7241,7 +7241,7 @@ void AssemblerMips64Test::run_msa_insert(int64_t rs_value, int n,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
   __ li(t0, -1);
@@ -7363,7 +7363,7 @@ void AssemblerMips64Test::run_msa_ctc_cfc(uint64_t value) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
   MSAControlRegister msareg = {kMSACSRRegister};
@@ -7415,7 +7415,7 @@ TEST_F(AssemblerMips64Test, MSA_move_v) {
             0xA9913868FB819C59}};
 
   for (unsigned i = 0; i < arraysize(t); ++i) {
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
     load_elements_of_vector(&assm, &t[i].ws_lo, w0, t0, t1);
@@ -7461,7 +7461,7 @@ void AssemblerMips64Test::run_msa_sldi(OperFunc GenerateOperation,
   uint64_t res[2];
 
   for (unsigned i = 0; i < arraysize(t); ++i) {
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
     load_elements_of_vector(&assm, &t[i].ws_lo, w0, t0, t1);
     load_elements_of_vector(&assm, &t[i].wd_lo, w2, t0, t1);
@@ -7569,7 +7569,7 @@ void AssemblerMips64Test::run_msa_i8(SecondaryField opcode, uint64_t ws_lo,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
   uint64_t wd_lo = 0xF35862E13E38F8B0;
@@ -7812,7 +7812,7 @@ void AssemblerMips64Test::run_msa_i5(struct TestCaseMsaI5* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
   int32_t i5 =
@@ -8232,7 +8232,7 @@ void AssemblerMips64Test::run_msa_2r(const struct TestCaseMsa2R* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
@@ -9193,7 +9193,7 @@ void AssemblerMips64Test::run_msa_vector(struct TestCaseMsaVector* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
@@ -9284,7 +9284,7 @@ void AssemblerMips64Test::run_msa_bit(struct TestCaseMsaBit* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
@@ -9749,7 +9749,7 @@ void AssemblerMips64Test::run_msa_i10(int32_t input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
@@ -9817,7 +9817,7 @@ void AssemblerMips64Test::run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   T in_test_vector[1024];
   T out_test_vector[1024];
@@ -9899,7 +9899,7 @@ void AssemblerMips64Test::run_msa_3r(struct TestCaseMsa3R* input,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
@@ -10906,7 +10906,7 @@ void AssemblerMips64Test::run_msa_3rf(
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 

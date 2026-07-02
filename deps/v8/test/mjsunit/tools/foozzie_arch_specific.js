@@ -12,3 +12,6 @@
 assertEquals(61180.206355, Math.pow(35, 3.1));
 assertEquals(1.2717347483e+29, Math.pow(3, 61));
 assertEquals(8.3535164127e-237, Math.pow(Math.E, -543.5899844621109));
+
+// Test suppressions for Math.tanh precision differences.
+assertEquals(0.8040623914, Math.tanh(1.11));

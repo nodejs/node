@@ -106,10 +106,10 @@ class CompilationCacheRegExp {
  public:
   explicit CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
-  MaybeDirectHandle<RegExpData> Lookup(DirectHandle<String> source,
+  MaybeDirectHandle<RegExpData> Lookup(DirectHandle<String> original_source,
                                        JSRegExp::Flags flags);
 
-  void Put(DirectHandle<String> source, JSRegExp::Flags flags,
+  void Put(DirectHandle<String> original_source, JSRegExp::Flags flags,
            DirectHandle<RegExpData> data);
 
   // The number of generations for the RegExp sub cache.
@@ -169,8 +169,8 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
-  MaybeDirectHandle<RegExpData> LookupRegExp(DirectHandle<String> source,
-                                             JSRegExp::Flags flags);
+  MaybeDirectHandle<RegExpData> LookupRegExp(
+      DirectHandle<String> original_source, JSRegExp::Flags flags);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
@@ -185,7 +185,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
-  void PutRegExp(DirectHandle<String> source, JSRegExp::Flags flags,
+  void PutRegExp(DirectHandle<String> original_source, JSRegExp::Flags flags,
                  DirectHandle<RegExpData> data);
 
   // Clear the cache - also used to initialize the cache at startup.

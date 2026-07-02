@@ -706,20 +706,23 @@ void MacroAssembler::SarPair_cl(Register high, Register low) {
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  mov(destination, FieldOperand(object, HeapObject::kMapOffset));
+  mov(destination, FieldOperand(object, offsetof(HeapObject, map_)));
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef,
-                                        Label::Distance distance) {
-  Label done;
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
+  mov(dst, FieldOperand(closure, offsetof(JSFunction, feedback_cell_)));
+}
 
-  // Load the feedback vector from the closure.
-  mov(dst, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  mov(dst, FieldOperand(dst, FeedbackCell::kValueOffset));
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef,
+                                                Label::Distance distance) {
+  Label done;
+  mov(dst, FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  mov(scratch, FieldOperand(dst, HeapObject::kMapOffset));
+  mov(scratch, FieldOperand(dst, offsetof(HeapObject, map_)));
   CmpInstanceType(scratch, FEEDBACK_VECTOR_TYPE);
   j(equal, &done, Label::kNear);
 
@@ -728,6 +731,13 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   jmp(fbv_undef, distance);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef,
+                                        Label::Distance distance) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef, distance);
 }
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(
@@ -751,7 +761,7 @@ void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
 }
 
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
-  cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
+  cmpw(FieldOperand(map, offsetof(Map, instance_type_)), Immediate(type));
 }
 
 void MacroAssembler::CmpInstanceTypeRange(Register map,
@@ -761,7 +771,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
                                           InstanceType higher_limit) {
   ASM_CODE_COMMENT(this);
   DCHECK_LT(lower_limit, higher_limit);
-  movzx_w(instance_type_out, FieldOperand(map, Map::kInstanceTypeOffset));
+  movzx_w(instance_type_out, FieldOperand(map, offsetof(Map, instance_type_)));
   CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
 }
 
@@ -843,6 +853,19 @@ void MacroAssembler::AssertSmi(Operand object) {
   Check(equal, AbortReason::kOperandIsNotASmi);
 }
 
+void MacroAssembler::AssertMap(Register object, Register scratch) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  test(object, Immediate(kSmiTagMask));
+  Check(not_equal, AbortReason::kOperandIsNotAMap);
+  Push(object);
+  LoadMap(object, object);
+  CmpObjectType(object, MAP_TYPE, scratch);
+  Pop(object);
+  Check(equal, AbortReason::kOperandIsNotAMap);
+}
+
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
@@ -850,7 +873,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
     Push(object);
     LoadMap(object, object);
-    test_b(FieldOperand(object, Map::kBitFieldOffset),
+    test_b(FieldOperand(object, offsetof(Map, bit_field_)),
            Immediate(Map::Bits1::IsConstructorBit::kMask));
     Pop(object);
     Check(not_zero, AbortReason::kOperandIsNotAConstructor);
@@ -953,7 +976,7 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
 
   JumpIfSmi(object, &ok, Label::kNear);
 
-  mov(map_tmp, FieldOperand(object, HeapObject::kMapOffset));
+  mov(map_tmp, FieldOperand(object, offsetof(HeapObject, map_)));
 
   CmpInstanceType(map_tmp, LAST_NAME_TYPE);
   j(below_equal, &ok, Label::kNear);
@@ -1455,10 +1478,10 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(type == InvokeType::kJump || has_frame());
 
   DCHECK(fun == edi);
-  mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-  movzx_w(ecx,
-          FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  mov(ecx, FieldOperand(edi, offsetof(JSFunction, shared_function_info_)));
+  mov(esi, FieldOperand(edi, offsetof(JSFunction, context_)));
+  movzx_w(ecx, FieldOperand(
+                   ecx, offsetof(SharedFunctionInfo, formal_parameter_count_)));
 
   InvokeFunctionCode(edi, new_target, ecx, actual_parameter_count, type);
 }
@@ -1472,8 +1495,9 @@ void MacroAssembler::LoadNativeContextSlot(Register destination, int index) {
   // Load the native context from the current context.
   LoadMap(destination, esi);
   mov(destination,
-      FieldOperand(destination,
-                   Map::kConstructorOrBackPointerOrNativeContextOffset));
+      FieldOperand(
+          destination,
+          offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   // Load the function from the native context.
   mov(destination, Operand(destination, Context::SlotOffset(index)));
 }
@@ -2055,7 +2079,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  mov(ecx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  mov(ecx,
+      FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointFromJSDispatchTable(ecx, ecx);
   call(ecx);
 }
@@ -2063,7 +2088,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  mov(ecx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  mov(ecx,
+      FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointFromJSDispatchTable(ecx, ecx);
   jmp(ecx);
 }

@@ -81,7 +81,6 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // We don't need to record a slot here because the entries in the pointer
   // tables are not compacted and because the pointers stored in the table
   // entries are updated after compacting GC.
-  static_assert(!CodePointerTable::kSupportsCompaction);
   static_assert(!TrustedPointerTable::kSupportsCompaction);
 #else
   UNREACHABLE();
@@ -220,6 +219,7 @@ template <typename Space>
 void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
   if constexpr (std::is_same_v<Space, OldSpace> ||
                 std::is_same_v<Space, SharedSpace> ||
+                std::is_same_v<Space, SharedTrustedSpace> ||
                 std::is_same_v<Space, TrustedSpace> ||
                 std::is_same_v<Space, CodeSpace>) {
     for (auto* p : *space) {
@@ -227,6 +227,7 @@ void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
     }
   } else if constexpr (std::is_same_v<Space, OldLargeObjectSpace> ||
                        std::is_same_v<Space, SharedLargeObjectSpace> ||
+                       std::is_same_v<Space, SharedTrustedLargeObjectSpace> ||
                        std::is_same_v<Space, TrustedLargeObjectSpace> ||
                        std::is_same_v<Space, CodeLargeObjectSpace>) {
     for (auto* p : *space) {
@@ -277,6 +278,12 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
     if (heap->shared_lo_space()) {
       ActivateSpace(heap->shared_lo_space(), marking_mode);
     }
+    if (heap->shared_trusted_space()) {
+      ActivateSpace(heap->shared_trusted_space(), marking_mode);
+    }
+    if (heap->shared_trusted_lo_space()) {
+      ActivateSpace(heap->shared_trusted_lo_space(), marking_mode);
+    }
   }
 
   ActivateSpace(heap->trusted_space(), marking_mode);
@@ -303,6 +310,12 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
     }
     if (heap->shared_lo_space()) {
       DeactivateSpace(heap->shared_lo_space());
+    }
+    if (heap->shared_trusted_space()) {
+      DeactivateSpace(heap->shared_trusted_space());
+    }
+    if (heap->shared_trusted_lo_space()) {
+      DeactivateSpace(heap->shared_trusted_lo_space());
     }
   }
 

@@ -307,6 +307,12 @@ bool ZipReader::OpenEntry() {
   DCHECK(path_in_zip[info.size_filename] == '\0');
   entry_.path_in_original_encoding = path_in_zip.data();
 
+  if (info.size_utf8_filename > 0) {
+    // Use the Info-ZIP Unicode Path Extra Field if present.
+    DCHECK(info.utf8_filename[info.size_utf8_filename] == '\0');
+    entry_.path_in_original_encoding = info.utf8_filename;
+  }
+
   // Convert path from original encoding to Unicode.
   std::u16string path_in_utf16;
   const char* const encoding = encoding_.empty() ? "UTF-8" : encoding_.c_str();

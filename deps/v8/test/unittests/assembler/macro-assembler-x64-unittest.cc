@@ -69,7 +69,7 @@ void PrintCode(Isolate* isolate, CodeDesc desc) {
 
 TEST_F(MacroAssemblerX64Test, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -87,7 +87,7 @@ TEST_F(MacroAssemblerX64Test, TestHardAbort) {
 
 TEST_F(MacroAssemblerX64Test, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -139,6 +139,7 @@ using F13 = int(float*, int32_t*);
 using F14 = int(uint16_t*, int16_t*);
 using F15 = int(uint16_t*, uint16_t*);
 using F16 = int(double*, uint16_t*);
+using F17 = int(int8_t*, int8_t*, int16_t*);
 
 #define __ masm->
 
@@ -199,7 +200,7 @@ TEST_F(MacroAssemblerX64Test, SmiMove) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
@@ -294,7 +295,7 @@ TEST_F(MacroAssemblerX64Test, SmiCompare) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer(2 * Assembler::kDefaultBufferSize);
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -339,7 +340,7 @@ TEST_F(MacroAssemblerX64Test, SmiTag) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -443,7 +444,7 @@ TEST_F(MacroAssemblerX64Test, SmiCheck) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -544,7 +545,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -576,17 +577,15 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   InvokeMajorGC();
   InvokeMajorGC();
 
-  PtrComprCageBase cage_base(isolate);
-
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
-      CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
+      CHECK_EQ(*my_array, it.rinfo()->target_object());
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
-      CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));
+      CHECK_EQ(*old_array, it.rinfo()->target_object());
     }
   }
 #endif  // V8_COMPRESS_POINTERS
@@ -596,7 +595,7 @@ TEST_F(MacroAssemblerX64Test, SmiIndex) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer(2 * Assembler::kDefaultBufferSize);
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -632,7 +631,7 @@ TEST_F(MacroAssemblerX64Test, OperandOffset) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -1289,7 +1288,7 @@ TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -1335,7 +1334,7 @@ TEST_F(MacroAssemblerX64Test, S256Select) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -1435,7 +1434,7 @@ TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       buffer->CreateView());
 
   static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
@@ -1460,7 +1459,7 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1518,7 +1517,7 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1588,7 +1587,7 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
     Isolate* isolate = i_isolate();                                           \
     HandleScope handles(isolate);                                             \
     auto buffer = AllocateAssemblerBuffer();                                  \
-    MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes, \
+    MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true}, \
                              buffer->CreateView());                           \
     MacroAssembler* masm = &assembler;                                        \
     CpuFeatureScope avx_scope(masm, AVX);                                     \
@@ -1637,7 +1636,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Min) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1704,7 +1703,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Max) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1771,7 +1770,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Min) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1841,7 +1840,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -1906,6 +1905,54 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
   }
 }
 
+TEST_F(MacroAssemblerX64Test, I16x8ExtMulHighI8x16SWithDstAliasingSrc2) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const XMMRegister dst = xmm0;
+  const XMMRegister lhs = xmm1;
+  const XMMRegister tmp = xmm2;
+
+  __ movdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ movdqu(dst, Operand(kCArgRegs[1], 0));
+  __ I16x8ExtMulHighS(dst, lhs, dst, tmp);
+  __ movdqu(Operand(kCArgRegs[2], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F17>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<int8_t, 32>> test_cases = {
+      {0,  1,  2,  3,  4,  5,  6,  7,  8, 9,  10, 11,  12,  13, 14, 15,
+       -1, -2, -3, -4, -5, -6, -7, -8, 9, 10, 11, -12, -13, 14, 15, -16},
+      {1, 1,  1, 1,  1, 1,  1, 1,  127, 126, -128, -1, 64, -64, 3,  -3,
+       2, -2, 4, -4, 5, -5, 6, -6, 7,   -7,  8,    -8, 9,  -9,  10, -10}};
+
+  int8_t left[16];
+  int8_t right[16];
+  int16_t output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 16; ++i) {
+      left[i] = arr[i];
+      right[i] = arr[i + 16];
+    }
+
+    f.Call(left, right, output);
+
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(static_cast<int16_t>(left[i + 8] * right[i + 8]), output[i]);
+    }
+  }
+}
+
 namespace {
 
 template <typename S, typename T, typename OpType = T (*)(S, S)>
@@ -1914,7 +1961,7 @@ void RunExtMulTest(Isolate* isolate, OpType expected_op) {
 
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -2025,7 +2072,7 @@ TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16S) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -2083,7 +2130,7 @@ TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32S) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -2145,7 +2192,7 @@ TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16U) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -2202,7 +2249,7 @@ TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32U) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
 
@@ -2263,7 +2310,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Splat) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
   CpuFeatureScope avx_scope(masm, AVX);
@@ -2297,7 +2344,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Splat) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;
   CpuFeatureScope avx_scope(masm, AVX);
@@ -2331,7 +2378,7 @@ TEST_F(MacroAssemblerX64Test, I32x8SConvertF32x8) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -2403,7 +2450,7 @@ TEST_F(MacroAssemblerX64Test, I16x8SConvertF16x8) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -2475,7 +2522,7 @@ TEST_F(MacroAssemblerX64Test, I16x8TruncF16x8U) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
@@ -2545,7 +2592,7 @@ TEST_F(MacroAssemblerX64Test, Cvtpd2ph) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
                            buffer->CreateView());
 
   MacroAssembler* masm = &assembler;

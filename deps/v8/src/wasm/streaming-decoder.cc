@@ -5,6 +5,7 @@
 #include "src/wasm/streaming-decoder.h"
 
 #include <optional>
+#include <span>
 
 #include "src/logging/counters.h"
 #include "src/wasm/decoder.h"
@@ -41,8 +42,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
 
   void Abort() override;
 
-  void NotifyCompilationDiscarded() override {
-    // Discard is safe to happen in pretty much any state.
+  void NotifyCompilationStopped() override {
+    // This is safe to happen in pretty much any state.
     // Update `kReceivingBytes` to `kDiscarded`, but keep `kAborted` or
     // `kFinished`.
     if (stream_state_ == StreamState::kReceivingBytes) {
@@ -361,6 +362,14 @@ void AsyncStreamingDecoder::Finish(
   CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
   CHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
 
+  // If we just finished actual decoding and the byte stream ended too early,
+  // the rest of this function should not see "ok()", so mark the failure now.
+  // If we have cached compiled bytes, then actual decoding was skipped before,
+  // so in that case we shouldn't report an error yet.
+  if (!has_compiled_module_bytes_ && ok() && !state_->is_finishing_allowed()) {
+    Fail();
+  }
+
   // Create a final copy of the overall wire bytes; this will finally be
   // transferred and stored in the NativeModule.
   base::OwnedVector<const uint8_t> bytes_copy;
@@ -404,12 +413,12 @@ void AsyncStreamingDecoder::Finish(
           : processor(proc), wire_bytes(wire_bytes) {}
 
       // Public API:
-      MemorySpan<const uint8_t> GetWireBytes() const override {
-        return {wire_bytes.data(), wire_bytes.size()};
+      std::span<const uint8_t> GetWireBytes() const override {
+        return wire_bytes;
       }
 
       bool SetCachedCompiledModuleBytes(
-          MemorySpan<const uint8_t> module_bytes) override {
+          std::span<const uint8_t> module_bytes) override {
         if (did_try_deserialization) {
           FATAL("SetCachedCompiledModuleBytes can only be called once");
         }

@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
 builder.addGlobal(wasmRefNullType(0), true, false,
   [...wasmI32Const(1), kGCPrefix, kExprArrayNewDefault, 0]);
 builder.addExportOfKind('g', kExternalGlobal, 0);

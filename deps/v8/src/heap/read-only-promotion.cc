@@ -13,9 +13,12 @@
 #include "src/heap/heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/visit-object.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/trusted-pointer-scope.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -222,7 +225,7 @@ class Committee final {
   static PromoRecommendation GetPromoRecommendation(Committee* committee,
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
-    const InstanceType itype = o->map(isolate)->instance_type();
+    const InstanceType itype = o->map()->instance_type();
 #define V(TYPE)                                                \
   if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
     return GetPromoRecommendation##TYPE(committee, isolate,    \
@@ -288,6 +291,7 @@ class Committee final {
       Committee* committee, Isolate* isolate, Tagged<SharedFunctionInfo> o) {
     // Only internal SFIs are guaranteed to remain immutable.
     if (o->has_script(kAcquireLoad)) return kReject;
+
     // kIllegal is used for js_global_object_function, which is created during
     // bootstrapping but never rooted. We currently assumed that all objects in
     // the snapshot are live. But RO space is 1) not GC'd and 2) serialized
@@ -297,6 +301,9 @@ class Committee final {
     // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
     // pre-serialization? Implement a RO GC pass pre-serialization?
     if (o->HasBuiltinId() && o->builtin_id() != Builtin::kIllegal) {
+      // Any uncompiled builtin SFI must have a script and have been rejected
+      // above.
+      CHECK_NE(o->builtin_id(), Builtin::kCompileLazy);
       return kPromote;
     }
     // Api functions are good candidates for promotion.
@@ -357,9 +364,33 @@ class Committee final {
       DCHECK(host->is_builtin());
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      MaybeObjectSlot slot = host->RawMaybeWeakField(HeapObject::kMapOffset);
+      MaybeObjectSlot slot =
+          host->RawMaybeWeakField(offsetof(HeapObject, map_));
       VisitPointers(host, slot, slot + 1);
     }
+#ifdef V8_ENABLE_SANDBOX
+    void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
+                              IndirectPointerMode mode) final {
+      if (!all_slots_are_promo_candidates()) return;
+      IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+      if (handle == kNullIndirectPointerHandle) return;
+
+      Isolate* isolate = committee_->isolate_;
+      TrustedPointerTable* tpt =
+          &IsolateForSandbox(isolate).GetTrustedPointerTableFor(
+              slot.tag_range());
+      Address obj_addr = tpt->Get(handle, slot.tag_range());
+      Tagged<HeapObject> heap_object =
+          Cast<HeapObject>(Tagged<Object>(obj_addr));
+
+      if (!committee_->EvaluateSubgraph({host}, heap_object, accepted_subgraph_,
+                                        visited_, promotees_)) {
+        first_rejected_slot_offset_ =
+            static_cast<int>(slot.address() - host.address());
+        DCHECK_GE(first_rejected_slot_offset_, 0);
+      }
+    }
+#endif  // V8_ENABLE_SANDBOX
 
    private:
     Committee* const committee_;
@@ -426,7 +457,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
-      const int size = src->Size(isolate);
+      const int size = src->Size();
       Tagged<HeapObject> dst =
           rospace->AllocateRaw(size, kTaggedAligned).ToObjectChecked();
       Heap::CopyBlock(dst.address(), src.address(), size);
@@ -467,6 +498,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       VisitObject(isolate, dst, &v);
     }
 
+#ifdef V8_ENABLE_SANDBOX
+    v.ZapOldCodePointerTableEntries();
+#endif
+
     // Iterate all entries in the JSDispatchTable as they could contain
     // pointers to promoted Code objects.
     JSDispatchTable& jdt = isolate->js_dispatch_table();
@@ -477,10 +512,12 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           if (it == moves.end()) return;
           Tagged<HeapObject> new_code = it->second;
           CHECK(IsCode(new_code));
-          // TODO(saelo): is it worth logging something
-          // in this case?
+          // TODO(saelo): is it worth logging something in this case?
           jdt.SetCodeNoWriteBarrier(handle, TrustedCast<Code>(new_code));
         });
+    // Note the we should technically also update the entries in the
+    // read_only_js_dispatch_table_space but it's currently not needed as we
+    // won't be accessing them.
   }
 
   static void DeleteDeadObjects(Isolate* isolate,
@@ -494,7 +531,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // verifier would fail on this now-dead object.
     for (auto [src, dst] : moves) {
       CHECK(!HeapLayout::InReadOnlySpace(src));
-      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
+      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size());
     }
   }
 
@@ -531,8 +568,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #ifdef V8_ENABLE_SANDBOX
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
-        if (Tagged<Code> code; TryCast(dst, &code)) {
-          PromoteCodePointerEntryFor(code);
+        if (IsExposedTrustedObject(dst)) {
+          PromoteTrustedPointerEntryFor(TrustedCast<ExposedTrustedObject>(dst));
         }
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -562,7 +599,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // InstructionStream objects never move to RO space.
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      ProcessSlot(host, host->RawMaybeWeakField(HeapObject::kMapOffset));
+      ProcessSlot(host, host->RawMaybeWeakField(offsetof(HeapObject, map_)));
     }
     void VisitExternalPointer(Tagged<HeapObject> host,
                               ExternalPointerSlot slot) final {
@@ -597,19 +634,13 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                               IndirectPointerMode mode) final {
 #ifdef V8_ENABLE_SANDBOX
-      if (slot.tag_range().Contains(kCodeIndirectPointerTag)) {
-        VisitCodePointer(host, slot);
-      } else {
-        DCHECK(!slot.tag_range().Contains(kCodeIndirectPointerTag));
-      }
+      VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                        IndirectPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
-      if (slot.tag_range().Contains(kCodeIndirectPointerTag)) {
-        VisitCodePointer(host, slot);
-      }
+      VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitCompressedRootPointers(Root root, const char* description,
@@ -624,6 +655,17 @@ class ReadOnlyPromotionImpl final : public AllStatic {
         CHECK(!Contains(*moves_, Cast<HeapObject>(o)));
       }
     }
+
+#ifdef V8_ENABLE_SANDBOX
+    void ZapOldCodePointerTableEntries() {
+      TrustedPointerTable* tpt =
+          &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
+              kCodeIndirectPointerTag);
+      for (auto [old_handle, _new_handle] : code_pointer_moves_) {
+        tpt->Zap(old_handle);
+      }
+    }
+#endif
 
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
@@ -655,48 +697,83 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
 #ifdef V8_ENABLE_SANDBOX
     void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
-      CHECK(slot.tag_range().Contains(kCodeIndirectPointerTag));
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      auto it = code_pointer_moves_.find(old_handle);
-      if (it == code_pointer_moves_.end()) return;
+      if (old_handle == kNullIndirectPointerHandle) return;
 
-      // If we reach here, `host` is a moved object with a code pointer slot
-      // located in RO space. To preserve the 1:1 relation between slots and
-      // table entries, we need to use the relocated code pointer table entry.
-      RecordProcessedSlotIfDebug(slot.address());
-      IndirectPointerHandle new_handle = it->second;
-      slot.Relaxed_StoreHandle(new_handle);
+      TrustedPointerTable* tpt =
+          &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
+              slot.tag_range());
+      Address old_obj_addr = tpt->Get(old_handle, slot.tag_range());
+      Tagged<HeapObject> old_obj =
+          Cast<HeapObject>(Tagged<Object>(old_obj_addr));
 
-      if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
-        LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
+      auto it = moves_->find(old_obj);
+      if (it != moves_->end()) {
+        Tagged<ExposedTrustedObject> promoted_obj =
+            TrustedCast<ExposedTrustedObject>(it->second);
+        auto it2 = promoted_code_to_handle_.find(promoted_obj.address());
+        if (it2 != promoted_code_to_handle_.end()) {
+          IndirectPointerHandle new_handle = it2->second;
+          RecordProcessedSlotIfDebug(slot.address());
+          slot.Relaxed_StoreHandle(new_handle);
+          if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
+            LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
+          }
+          return;
+        }
+      } else if (HeapLayout::InReadOnlySpace(old_obj)) {
+        IndirectPointerHandle new_handle =
+            TrustedCast<ExposedTrustedObject>(old_obj)
+                ->self_indirect_pointer_handle();
+        slot.Relaxed_StoreHandle(new_handle);
+        if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
+          LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
+        }
+        return;
       }
     }
 
-    void PromoteCodePointerEntryFor(Tagged<Code> code) {
-      // If we reach here, `code` is a moved Code object located in RO space.
-      CHECK(HeapLayout::InReadOnlySpace(code));
+    void PromoteTrustedPointerEntryFor(Tagged<ExposedTrustedObject> obj) {
+      // If we reach here, `obj` is a moved ExposedTrustedObject located in RO
+      // space.
+      CHECK(HeapLayout::InReadOnlySpace(obj));
 
-      IndirectPointerSlot slot = code->RawIndirectPointerField(
-          Code::kSelfIndirectPointerOffset, kCodeIndirectPointerTag);
-      CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
+      InstanceType instance_type = obj->map()->instance_type();
+      SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(obj));
+      IndirectPointerTag tag =
+          IndirectPointerTagFromInstanceType(instance_type, shared);
+
+      IndirectPointerSlot slot = obj->RawIndirectPointerField(
+          offsetof(ExposedTrustedObject, self_indirect_pointer_), tag);
 
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      CodePointerTable* cpt = IsolateGroup::current()->code_pointer_table();
+      if (old_handle == kNullIndirectPointerHandle) return;
 
-      // To preserve the 1:1 relation between slots and code table entries,
-      // allocate a new entry (in the code_pointer_space of the RO heap) now.
-      // The slot will be updated later, when the Code object is visited.
-      CodePointerTable::Space* space =
-          IsolateForSandbox(isolate_).GetCodePointerTableSpaceFor(
-              slot.address());
-      IndirectPointerHandle new_handle = cpt->AllocateAndInitializeEntry(
-          space, code.address(), cpt->GetEntrypoint(old_handle, entrypoint_tag),
-          entrypoint_tag);
+      TrustedPointerTable* tpt =
+          &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(tag);
+
+      // To preserve the 1:1 relation between slots and table entries,
+      // allocate a new entry (in the trusted_pointer_space of the RO heap) now.
+      // The slot will be updated later, when the object is visited.
+      TrustedPointerTable::Space* space =
+          IsolateForSandbox(isolate_).GetTrustedPointerTableSpaceFor(
+              tag, slot.address());
+
+      DisallowJavascriptExecution no_js(isolate_);
+      TrustedPointerPublishingScope scope(isolate_, no_js);
+      TrustedPointerTable::UnsealReadOnlySegmentScope unseal_scope(tpt);
+      IndirectPointerHandle new_handle =
+          tpt->AllocateAndInitializeEntry(space, obj.ptr(), tag, &scope);
+      scope.MarkSuccess();
 
       code_pointer_moves_.emplace(old_handle, new_handle);
+      promoted_code_to_handle_.emplace(obj.address(), new_handle);
 
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
-        LogPromotedCodePointerTableEntry(code, old_handle, new_handle);
+        if (Is<Code>(obj)) {
+          LogPromotedCodePointerTableEntry(TrustedCast<Code>(obj), old_handle,
+                                           new_handle);
+        }
       }
     }
 #endif  // V8_ENABLE_SANDBOX
@@ -763,6 +840,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     using IndirectPointerHandleMap =
         std::unordered_map<IndirectPointerHandle, IndirectPointerHandle>;
     IndirectPointerHandleMap code_pointer_moves_;
+    std::unordered_map<Address, IndirectPointerHandle> promoted_code_to_handle_;
 #endif  // V8_ENABLE_SANDBOX
   };
 

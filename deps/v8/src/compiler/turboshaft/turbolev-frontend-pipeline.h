@@ -33,7 +33,7 @@ class TurbolevFrontendPipeline {
   }
 
   void PrintBytecode();
-  void PrintMaglevGraph(const char* msg);
+  void PrintMaglevGraph(maglev::MaglevPhase phase);
   void PrintInliningTreeDebugInfo();
 
   template <typename Phase, typename... Args>

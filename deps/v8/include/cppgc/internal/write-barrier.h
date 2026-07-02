@@ -155,8 +155,9 @@ class V8_EXPORT WriteBarrier final {
 
 template <WriteBarrier::Type type>
 V8_INLINE WriteBarrier::Type SetAndReturnType(WriteBarrier::Params& params) {
-  if constexpr (type == WriteBarrier::Type::kNone)
+  if constexpr (type == WriteBarrier::Type::kNone) {
     return WriteBarrier::Type::kNone;
+  }
 #if V8_ENABLE_CHECKS
   params.type = type;
 #endif  // !V8_ENABLE_CHECKS
@@ -223,8 +224,9 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
                                           MemberStorage storage,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
-    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
+    if (V8_LIKELY(!WriteBarrier::IsEnabled())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
 
     return BarrierEnabledGet(slot, storage.Load(), params);
   }
@@ -233,8 +235,9 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
-    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
+    if (V8_LIKELY(!WriteBarrier::IsEnabled())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
 
     return BarrierEnabledGet(slot, value, params);
   }
@@ -253,8 +256,9 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     HeapHandle& heap_handle = page->heap_handle();
     if (V8_LIKELY(!heap_handle.is_incremental_marking_in_progress())) {
 #if defined(CPPGC_YOUNG_GENERATION)
-      if (!heap_handle.is_young_generation_enabled())
+      if (!heap_handle.is_young_generation_enabled()) {
         return WriteBarrier::Type::kNone;
+      }
       params.heap = &heap_handle;
       params.slot_offset = CagedHeapBase::OffsetFromAddress(slot);
       params.value_offset = CagedHeapBase::OffsetFromAddress(value);
@@ -277,8 +281,9 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
+    if (V8_LIKELY(!WriteBarrier::IsEnabled())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
 
     HeapHandle& handle = callback();
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -461,8 +466,10 @@ void WriteBarrier::GenerationalBarrier(const Params& params, const void* slot) {
   const AgeTable& age_table = local_data.age_table;
 
   // Bail out if the slot (precise or imprecise) is in young generation.
-  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
+  if (V8_LIKELY(age_table.GetAge(params.slot_offset) ==
+                AgeTable::Age::kYoung)) {
     return;
+  }
 
   // Dispatch between different types of barriers.
   // TODO(chromium:1029379): Consider reload local_data in the slow path to

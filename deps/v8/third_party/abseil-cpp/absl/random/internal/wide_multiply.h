@@ -50,7 +50,7 @@ struct wide_multiply {
   }
   static input_type lo(result_type r) { return static_cast<input_type>(r); }
 
-  static_assert(std::is_unsigned<UIntType>::value,
+  static_assert(std::is_unsigned_v<UIntType>,
                 "Class-template wide_multiply<> argument must be unsigned.");
 };
 

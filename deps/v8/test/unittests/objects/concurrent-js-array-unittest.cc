@@ -56,8 +56,8 @@ class BackgroundThread final : public v8::base::Thread {
     for (int i = 0; i < kNumArrays; i++) {
       DirectHandle<JSArray> x = handles_[i];
       DirectHandle<FixedArrayBase> elements =
-          local_heap.NewPersistentHandle(x->elements(isolate, kRelaxedLoad));
-      ElementsKind elements_kind = x->map(isolate)->elements_kind();
+          local_heap.NewPersistentHandle(x->elements(kRelaxedLoad));
+      ElementsKind elements_kind = x->map()->elements_kind();
 
       // Mirroring the conditions in JSArrayRef::GetOwnCowElement.
       if (!IsSmiOrObjectElementsKind(elements_kind)) continue;
@@ -68,7 +68,7 @@ class BackgroundThread final : public v8::base::Thread {
       std::optional<Tagged<Object>> result =
           ConcurrentLookupIterator::TryGetOwnCowElement(
               isolate, Cast<FixedArray>(*elements), elements_kind,
-              Smi::ToInt(x->length(isolate, kRelaxedLoad)), kIndex);
+              Smi::ToInt(x->length(kRelaxedLoad)), kIndex);
 
       if (result.has_value()) {
         // On any success, the elements at index 1 must be the original value

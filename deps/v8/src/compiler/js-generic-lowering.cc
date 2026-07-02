@@ -4,12 +4,15 @@
 
 #include "src/compiler/js-generic-lowering.h"
 
+#include <vector>
+
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
@@ -86,6 +89,10 @@ REPLACE_STUB_CALL(RejectPromise)
 REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
+void JSGenericLowering::LowerJSAsyncFunctionAwait(Node* node) {
+  ReplaceWithBuiltinCall(node, Builtin::kAsyncFunctionAwait);
+}
+
 void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, Builtin builtin) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(isolate(), builtin);
@@ -150,7 +157,7 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()) ||
          (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())));
-  if (JSOperator::IsBinaryWithFeedback(node->opcode())) {
+  if (node->op()->ValueInputCount() > 2) {
     node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
   }
   ReplaceWithBuiltinCall(node, builtin_without_feedback);
@@ -189,6 +196,7 @@ DEF_BINARY_LOWERING(InstanceOf)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThan)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
+#undef DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   // The === operator doesn't need the current context.
@@ -663,6 +671,57 @@ void JSGenericLowering::LowerJSParseInt(Node* node) {
 
 void JSGenericLowering::LowerJSRegExpTest(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kRegExpPrototypeTestFast);
+}
+
+void JSGenericLowering::LowerJSArrayDestructure(Node* node) {
+  ArrayDestructureParameters const& p =
+      ArrayDestructureParametersOf(node->op());
+  int const count = p.count();
+  Node* count_node = jsgraph()->SmiConstant(count);
+  Node* first_reg_node = jsgraph()->SmiConstant(p.first_reg());
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_frame_state = CloneFrameState(jsgraph(), FrameState(frame_state),
+                                            OutputFrameStateCombine::Ignore());
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Node* continuation_parameters[] = {first_reg_node, count_node};
+  Node* lazy_deopt_frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kArrayDestructureLazyDeoptContinuation, context,
+      continuation_parameters, arraysize(continuation_parameters),
+      outer_frame_state, ContinuationFrameStateMode::LAZY);
+
+  Node** projections = zone()->AllocateArray<Node*>(count);
+  for (int i = 0; i < count; ++i) projections[i] = nullptr;
+  NodeProperties::CollectValueProjections(node, projections, count);
+
+  NodeProperties::ReplaceFrameStateInput(node, lazy_deopt_frame_state);
+  node->InsertInput(zone(), 1, count_node);
+  ReplaceWithBuiltinCall(node, Builtin::kArrayDestructure);
+
+  std::vector<Edge> effect_edges;
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) {
+      effect_edges.push_back(edge);
+    }
+  }
+
+  Node* last_effect = node;
+  for (int i = 0; i < count; ++i) {
+    Node* proj = projections[i];
+    if (proj != nullptr) {
+      Node* load = graph()->NewNode(jsgraph()->simplified()->LoadField(
+                                        AccessBuilder::ForFixedArraySlot(i)),
+                                    node, last_effect, control);
+      proj->ReplaceUses(load);
+      proj->Kill();
+      last_effect = load;
+    }
+  }
+
+  for (Edge edge : effect_edges) {
+    edge.UpdateTo(last_effect);
+  }
 }
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {

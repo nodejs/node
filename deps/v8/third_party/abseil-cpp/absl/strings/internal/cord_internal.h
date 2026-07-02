@@ -70,17 +70,6 @@ inline void enable_shallow_subcords(bool enable) {
 }
 
 enum Constants {
-  // The inlined size to use with absl::InlinedVector.
-  //
-  // Note: The InlinedVectors in this file (and in cord.h) do not need to use
-  // the same value for their inlined size. The fact that they do is historical.
-  // It may be desirable for each to use a different inlined size optimized for
-  // that InlinedVector's usage.
-  //
-  // TODO(jgm): Benchmark to see if there's a more optimal value than 47 for
-  // the inlined vector size (47 exists for backward compatibility).
-  kInlinedVectorSize = 47,
-
   // Prefer copying blocks of at most this size, otherwise reference count.
   kMaxBytesToCopy = 511
 };

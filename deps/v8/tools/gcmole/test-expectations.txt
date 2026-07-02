@@ -1,226 +1,341 @@
-tools/gcmole/gcmole-test.cc:33:10: warning: Possibly stale variable due to GCs.
-   33 |   return obj;
+In file included from tools/gcmole/gcmole-test.cc:5:
+In file included from ./src/execution/isolate.h:37:
+In file included from ./src/execution/isolate-data.h:14:
+In file included from ./src/execution/thread-local-top.h:14:
+In file included from ./src/objects/contexts.h:10:
+In file included from ./src/execution/frames.h:23:
+In file included from ./src/wasm/stacks.h:17:
+./src/objects/visitors.h:<number>:<number>: warning: Possibly stale variable due to GCs.
+      |     VisitPointer(host, value);
+      |                  ^
+./src/objects/visitors.h:<number>:<number>: note: Call might cause unexpected GC.
+      |     VisitPointer(host, key);
+      |     ^
+./src/objects/visitors.h:<number>:<number>: note: GC call here.
+      |   virtual void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) {
+      |   ^
+tools/gcmole/gcmole-test.cc:34:10: warning: Possibly stale variable due to GCs.
+   34 |   return obj;
       |          ^
-tools/gcmole/gcmole-test.cc:31:20: note: Call might cause unexpected GC.
-   31 |   isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+tools/gcmole/gcmole-test.cc:32:20: note: Call might cause unexpected GC.
+   32 |   isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
       |                    ^
 ./src/heap/heap.h:<number>:<number>: note: GC call here.
       |   V8_EXPORT_PRIVATE void CollectGarbage(
       |                     ^
-tools/gcmole/gcmole-test.cc:51:3: warning: Possible problem with evaluation order with interleaved GCs.
-   51 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
+tools/gcmole/gcmole-test.cc:52:3: warning: Possible problem with evaluation order with interleaved GCs.
+   52 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
       |   ^
-tools/gcmole/gcmole-test.cc:51:25: note: Call might cause unexpected GC.
-   51 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
-      |                         ^
-tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
-   24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:52:50: note: Call might cause unexpected GC.
+   52 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
+      |                                                  ^
+tools/gcmole/gcmole-test.cc:25:1: note: GC call here.
+   25 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:63:3: warning: Possible problem with evaluation order with interleaved GCs.
-   63 |   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
+tools/gcmole/gcmole-test.cc:64:3: warning: Possible problem with evaluation order with interleaved GCs.
+   64 |   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
       |   ^
-tools/gcmole/gcmole-test.cc:63:37: note: Call might cause unexpected GC.
-   63 |   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
+tools/gcmole/gcmole-test.cc:65:37: note: Call might cause unexpected GC.
+   65 |                             sizeof(*CauseGC(obj2, isolate)));
       |                                     ^
-tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
-   24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:25:1: note: GC call here.
+   25 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:81:7: warning: Possible problem with evaluation order with interleaved GCs.
-   81 |   so->Method(*CauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:80:7: warning: Possible problem with evaluation order with interleaved GCs.
+   80 |   so->Method(*CauseGC(obj1, isolate));
       |       ^
-tools/gcmole/gcmole-test.cc:81:15: note: Call might cause unexpected GC.
-   81 |   so->Method(*CauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:80:15: note: Call might cause unexpected GC.
+   80 |   so->Method(*CauseGC(obj1, isolate));
       |               ^
-tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
-   24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:25:1: note: GC call here.
+   25 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:83:7: warning: Possible problem with evaluation order with interleaved GCs.
-   83 |   so->Method(CauseGCRaw(*obj1, isolate));
+tools/gcmole/gcmole-test.cc:82:7: warning: Possible problem with evaluation order with interleaved GCs.
+   82 |   so->Method(CauseGCRaw(*obj1, isolate));
       |       ^
-tools/gcmole/gcmole-test.cc:81:15: note: Call might cause unexpected GC.
-   81 |   so->Method(*CauseGC(obj1, isolate));
-      |               ^
-tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
-   24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:82:14: note: Call might cause unexpected GC.
+   82 |   so->Method(CauseGCRaw(*obj1, isolate));
+      |              ^
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:127:14: warning: Possible problem with evaluation order with interleaved GCs.
-  127 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:126:14: warning: Possible problem with evaluation order with interleaved GCs.
+  126 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
       |              ^
-tools/gcmole/gcmole-test.cc:127:30: note: Call might cause unexpected GC.
-  127 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:126:30: note: Call might cause unexpected GC.
+  126 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
       |                              ^
-tools/gcmole/gcmole-test.cc:111:3: note: GC call here.
-  111 |   Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) override {
+tools/gcmole/gcmole-test.cc:110:3: note: GC call here.
+  110 |   Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) override {
       |   ^
-tools/gcmole/gcmole-test.cc:129:14: warning: Possible problem with evaluation order with interleaved GCs.
-  129 |   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:128:14: warning: Possible problem with evaluation order with interleaved GCs.
+  128 |   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
       |              ^
-tools/gcmole/gcmole-test.cc:127:30: note: Call might cause unexpected GC.
-  127 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
-      |                              ^
-tools/gcmole/gcmole-test.cc:111:3: note: GC call here.
-  111 |   Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) override {
+tools/gcmole/gcmole-test.cc:128:28: note: Call might cause unexpected GC.
+  128 |   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
+      |                            ^
+tools/gcmole/gcmole-test.cc:103:3: note: GC call here.
+  103 |   virtual Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) {
       |   ^
-tools/gcmole/gcmole-test.cc:150:14: warning: Possible problem with evaluation order with interleaved GCs.
-  150 |   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:149:14: warning: Possible problem with evaluation order with interleaved GCs.
+  149 |   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
       |              ^
-tools/gcmole/gcmole-test.cc:150:22: note: Call might cause unexpected GC.
-  150 |   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
+tools/gcmole/gcmole-test.cc:149:22: note: Call might cause unexpected GC.
+  149 |   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
       |                      ^
-tools/gcmole/gcmole-test.cc:136:3: note: GC call here.
-  136 |   static Handle<Object> StaticCauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:135:3: note: GC call here.
+  135 |   static Handle<Object> StaticCauseGC(Handle<Object> obj, Isolate* isolate) {
       |   ^
-tools/gcmole/gcmole-test.cc:160:9: warning: Possibly stale variable due to GCs.
-  160 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:159:9: warning: Possibly stale variable due to GCs.
+  159 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:157:3: note: Call might cause unexpected GC.
-  157 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:156:3: note: Call might cause unexpected GC.
+  156 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:168:9: warning: Possibly stale variable due to GCs.
-  168 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:167:9: warning: Possibly stale variable due to GCs.
+  167 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:165:3: note: Call might cause unexpected GC.
-  165 |   Safepoint();
+tools/gcmole/gcmole-test.cc:164:3: note: Call might cause unexpected GC.
+  164 |   Safepoint();
       |   ^
-tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
-   22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
+tools/gcmole/gcmole-test.cc:23:1: note: GC call here.
+   23 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
       | ^
-tools/gcmole/gcmole-test.cc:194:9: warning: Possibly stale variable due to GCs.
-  194 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:193:9: warning: Possibly stale variable due to GCs.
+  193 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:191:3: note: Call might cause unexpected GC.
-  191 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:190:3: note: Call might cause unexpected GC.
+  190 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:220:9: warning: Possibly stale variable due to GCs.
-  220 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:219:9: warning: Possibly stale variable due to GCs.
+  219 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:217:3: note: Call might cause unexpected GC.
-  217 |   Safepoint();
+tools/gcmole/gcmole-test.cc:216:3: note: Call might cause unexpected GC.
+  216 |   Safepoint();
       |   ^
-tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
-   22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
+tools/gcmole/gcmole-test.cc:23:1: note: GC call here.
+   23 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
       | ^
-tools/gcmole/gcmole-test.cc:231:9: warning: Possibly stale variable due to GCs.
-  231 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:230:9: warning: Possibly stale variable due to GCs.
+  230 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:229:3: note: Call might cause unexpected GC.
-  229 |   Safepoint();
+tools/gcmole/gcmole-test.cc:228:3: note: Call might cause unexpected GC.
+  228 |   Safepoint();
       |   ^
-tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
-   22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
+tools/gcmole/gcmole-test.cc:23:1: note: GC call here.
+   23 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
       | ^
-tools/gcmole/gcmole-test.cc:238:9: warning: Possibly stale variable due to GCs.
-  238 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:237:9: warning: Possibly stale variable due to GCs.
+  237 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:229:3: note: Call might cause unexpected GC.
-  229 |   Safepoint();
+tools/gcmole/gcmole-test.cc:228:3: note: Call might cause unexpected GC.
+  228 |   Safepoint();
       |   ^
-tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
-   22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
+tools/gcmole/gcmole-test.cc:23:1: note: GC call here.
+   23 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
       | ^
-tools/gcmole/gcmole-test.cc:248:9: warning: Possibly stale variable due to GCs.
-  248 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:247:9: warning: Possibly stale variable due to GCs.
+  247 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:246:3: note: Call might cause unexpected GC.
-  246 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:245:3: note: Call might cause unexpected GC.
+  245 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:258:9: warning: Possibly stale variable due to GCs.
-  258 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:257:9: warning: Possibly stale variable due to GCs.
+  257 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:256:3: note: Call might cause unexpected GC.
-  256 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:255:3: note: Call might cause unexpected GC.
+  255 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:261:9: warning: Possibly stale variable due to GCs.
-  261 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:260:9: warning: Possibly stale variable due to GCs.
+  260 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:256:3: note: Call might cause unexpected GC.
-  256 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:255:3: note: Call might cause unexpected GC.
+  255 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:268:9: warning: Possibly stale variable due to GCs.
-  268 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:267:9: warning: Possibly stale variable due to GCs.
+  267 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:266:3: note: Call might cause unexpected GC.
-  266 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:265:3: note: Call might cause unexpected GC.
+  265 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:284:9: warning: Possibly stale variable due to GCs.
-  284 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:283:9: warning: Possibly stale variable due to GCs.
+  283 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:282:3: note: Call might cause unexpected GC.
-  282 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:281:3: note: Call might cause unexpected GC.
+  281 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:264:1: note: GC call here.
-  264 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
+tools/gcmole/gcmole-test.cc:263:1: note: GC call here.
+  263 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
       | ^
-tools/gcmole/gcmole-test.cc:292:9: warning: Possibly stale variable due to GCs.
-  292 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:291:9: warning: Possibly stale variable due to GCs.
+  291 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:290:3: note: Call might cause unexpected GC.
-  290 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:289:3: note: Call might cause unexpected GC.
+  289 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:264:1: note: GC call here.
-  264 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
+tools/gcmole/gcmole-test.cc:263:1: note: GC call here.
+  263 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
       | ^
-tools/gcmole/gcmole-test.cc:299:9: warning: Possibly stale variable due to GCs.
-  299 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:298:9: warning: Possibly stale variable due to GCs.
+  298 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:297:3: note: Call might cause unexpected GC.
-  297 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:296:3: note: Call might cause unexpected GC.
+  296 |   TestGuardedDeadVarAnalysisNested(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:264:1: note: GC call here.
-  264 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
+tools/gcmole/gcmole-test.cc:263:1: note: GC call here.
+  263 | void TestGuardedDeadVarAnalysisNested(Tagged<JSObject> raw_obj,
       | ^
-tools/gcmole/gcmole-test.cc:316:9: warning: Possibly stale variable due to GCs.
-  316 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:315:9: warning: Possibly stale variable due to GCs.
+  315 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:314:3: note: Call might cause unexpected GC.
-  314 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:313:3: note: Call might cause unexpected GC.
+  313 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:335:9: warning: Possibly stale variable due to GCs.
-  335 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:334:9: warning: Possibly stale variable due to GCs.
+  334 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:331:3: note: Call might cause unexpected GC.
-  331 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:330:3: note: Call might cause unexpected GC.
+  330 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:346:9: warning: Possibly stale variable due to GCs.
-  346 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:345:9: warning: Possibly stale variable due to GCs.
+  345 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:342:3: note: Call might cause unexpected GC.
-  342 |   CauseGCRaw(raw_obj, isolate);
+tools/gcmole/gcmole-test.cc:341:3: note: Call might cause unexpected GC.
+  341 |   CauseGCRaw(raw_obj, isolate);
       |   ^
-tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
-   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:31:1: note: GC call here.
+   31 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
-tools/gcmole/gcmole-test.cc:356:9: warning: Possibly stale variable due to GCs.
-  356 |   Print(raw_obj);
+tools/gcmole/gcmole-test.cc:355:9: warning: Possibly stale variable due to GCs.
+  355 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:352:3: note: Call might cause unexpected GC.
-  352 |   Safepoint();
+tools/gcmole/gcmole-test.cc:354:3: note: Call might cause unexpected GC.
+  354 |   Safepoint();
       |   ^
-tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
-   22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
+tools/gcmole/gcmole-test.cc:23:1: note: GC call here.
+   23 | void Safepoint() { LocalHeap::Current()->Safepoint(); }
       | ^
-25 warnings generated.
+tools/gcmole/gcmole-test.cc:423:3: warning: Possible problem with evaluation order with interleaved GCs.
+  423 |   DummyTakePointers(ReturnRawJSDispatchHandleMember(isolate),
+      |   ^
+tools/gcmole/gcmole-test.cc:424:21: note: Call might cause unexpected GC.
+  424 |                     ReturnRawJSDispatchHandleMember(isolate));
+      |                     ^
+tools/gcmole/gcmole-test.cc:408:1: note: GC call here.
+  408 | JSDispatchHandleMember* ReturnRawJSDispatchHandleMember(Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:429:3: warning: Possible problem with evaluation order with interleaved GCs.
+  429 |   DummyTakePointers2(ReturnRawJSDispatchHandle(isolate),
+      |   ^
+tools/gcmole/gcmole-test.cc:430:22: note: Call might cause unexpected GC.
+  430 |                      ReturnRawJSDispatchHandle(isolate));
+      |                      ^
+tools/gcmole/gcmole-test.cc:413:1: note: GC call here.
+  413 | JSDispatchHandle* ReturnRawJSDispatchHandle(Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:437:7: warning: Possibly stale variable due to GCs.
+  437 |   USE(raw_member);
+      |       ^
+tools/gcmole/gcmole-test.cc:435:3: note: Call might cause unexpected GC.
+  435 |   CauseGCManaged(42, isolate);
+      |   ^
+tools/gcmole/gcmole-test.cc:37:1: note: GC call here.
+   37 | Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:444:7: warning: Possibly stale variable due to GCs.
+  444 |   USE(raw_member);
+      |       ^
+tools/gcmole/gcmole-test.cc:442:3: note: Call might cause unexpected GC.
+  442 |   CauseGCManaged(42, isolate);
+      |   ^
+tools/gcmole/gcmole-test.cc:37:1: note: GC call here.
+   37 | Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:451:7: warning: Possibly stale variable due to GCs.
+  451 |   USE(raw_handle);
+      |       ^
+tools/gcmole/gcmole-test.cc:449:3: note: Call might cause unexpected GC.
+  449 |   CauseGCManaged(42, isolate);
+      |   ^
+tools/gcmole/gcmole-test.cc:37:1: note: GC call here.
+   37 | Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:458:7: warning: Possibly stale variable due to GCs.
+  458 |   USE(raw_member);
+      |       ^
+tools/gcmole/gcmole-test.cc:456:3: note: Call might cause unexpected GC.
+  456 |   CauseGCManaged(42, isolate);
+      |   ^
+tools/gcmole/gcmole-test.cc:37:1: note: GC call here.
+   37 | Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:464:7: warning: Possibly stale variable due to GCs.
+  464 |   USE(raw_obj);
+      |       ^
+tools/gcmole/gcmole-test.cc:462:3: note: Call might cause unexpected GC.
+  462 |   CauseGCManaged(42, isolate);
+      |   ^
+tools/gcmole/gcmole-test.cc:37:1: note: GC call here.
+   37 | Tagged<Managed<int>> CauseGCManaged(int i, Isolate* isolate) {
+      | ^
+tools/gcmole/gcmole-test.cc:508:9: warning: Possibly stale variable due to GCs.
+  508 |   Print(raw_obj);
+      |         ^
+tools/gcmole/gcmole-test.cc:506:11: note: Call might cause unexpected GC.
+  506 |   visitor.VisitPointer(raw_obj, slot);
+      |           ^
+./src/objects/visitors.h:<number>:<number>: note: GC call here.
+      |   virtual void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) {
+      |   ^
+tools/gcmole/gcmole-test.cc:522:9: warning: Possibly stale variable due to GCs.
+  522 |   Print(raw_obj);
+      |         ^
+tools/gcmole/gcmole-test.cc:520:17: note: Call might cause unexpected GC.
+  520 |   base_visitor->VisitPointer(raw_obj, slot);
+      |                 ^
+./src/objects/visitors.h:<number>:<number>: note: GC call here.
+      |   virtual void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) {
+      |   ^
+tools/gcmole/gcmole-test.cc:556:9: warning: Possibly stale variable due to GCs.
+  556 |   Print(raw_obj);
+      |         ^
+tools/gcmole/gcmole-test.cc:555:17: note: Call might cause unexpected GC.
+  555 |   base_visitor->VisitPointer(raw_obj, slot);
+      |                 ^
+./src/objects/visitors.h:<number>:<number>: note: GC call here.
+      |   virtual void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) {
+      |   ^
+tools/gcmole/gcmole-test.cc:572:9: warning: Possibly stale variable due to GCs.
+  572 |   Print(raw_obj);
+      |         ^
+tools/gcmole/gcmole-test.cc:571:11: note: Call might cause unexpected GC.
+  571 |   visitor.VisitPointer(raw_obj, slot);
+      |           ^
+./src/objects/visitors.h:<number>:<number>: note: GC call here.
+      |   virtual void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) {
+      |   ^
+37 warnings generated.

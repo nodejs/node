@@ -12,6 +12,7 @@ let cont_index = builder.addCont(sig_v_v);
 let suspend_tag_index = builder.addTag(kSig_v_v);
 let throw_tag_index = builder.addTag(kSig_v_i);
 let sig_i_c = makeSig([wasmRefNullType(cont_index)], [kWasmI32]);
+let sig_e_v = makeSig([], [kWasmExnRef]);
 const kReturn = 12;
 const kSuspend = 34;
 const kThrow = 56;
@@ -131,10 +132,112 @@ builder.addFunction("resume_throw_resuspend", kSig_i_v)
         kExprCallFunction, resume_throw.index,
     ]).exportFunc();
 
-let instance = builder.instantiate();
-assertEquals(kThrow, instance.exports.resume_throw_cont_new());
-assertThrows(instance.exports.resume_throw_cont_new_bad,
-    WebAssembly.RuntimeError, /resuming an invalid continuation/);
-assertEquals(kThrow, instance.exports.resume_throw_suspended_uncaught());
-assertEquals(kReturn, instance.exports.resume_throw_suspended_caught());
-assertEquals(kSuspend, instance.exports.resume_throw_resuspend());
+let get_exnref = builder.addFunction("get_exnref", sig_e_v)
+    .addBody([
+      kExprBlock, kExnRefCode,
+        kExprTryTable, kWasmVoid, 1,
+        kCatchAllRef, 0,
+          kExprI32Const, kExceptionValue,
+          kExprThrow, throw_tag_index,
+        kExprEnd,
+        kExprUnreachable,
+      kExprEnd,
+    ]);
+let resume_throw_ref = builder.addFunction("resume_throw_ref", sig_i_c)
+    .addBody([
+        kExprBlock, kWasmI32,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchNoRef, throw_tag_index, 0,
+            kExprBlock, kWasmRef, cont_index,
+              kExprCallFunction, get_exnref.index,
+              kExprLocalGet, 0,
+              kExprResumeThrowRef, cont_index, 1,
+              kOnSuspend, suspend_tag_index, 0,
+              kExprI32Const, kReturn,
+              kExprReturn,
+            kExprEnd,
+            kExprDrop,
+            kExprI32Const, kSuspend,
+            kExprReturn,
+          kExprEnd,
+          kExprUnreachable,
+        kExprEnd,
+        kExprI32Const, kExceptionValue,
+        kExprCallFunction, assert_equal.index,
+        kExprI32Const, kThrow,
+    ]).exportFunc();
+builder.addFunction("resume_throw_ref_cont_new", kSig_i_v)
+    .addBody([
+        kExprRefFunc, suspend.index,
+        kExprContNew, cont_index,
+        kExprCallFunction, resume_throw_ref.index,
+    ]).exportFunc();
+builder.addFunction("resume_throw_ref_cont_new_bad", kSig_i_v)
+    .addLocals(wasmRefNullType(cont_index), 1)
+    .addBody([
+        kExprBlock, kWasmI32,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchNoRef, throw_tag_index, 0,
+            kExprCallFunction, get_exnref.index,
+            kExprRefFunc, suspend.index,
+            kExprContNew, cont_index,
+            kExprLocalTee, 0,
+            kExprResumeThrowRef, cont_index, 0,
+          kExprEnd,
+          kExprUnreachable,
+        kExprEnd,
+        kExprLocalGet, 0,
+        kExprResume, cont_index, 0,
+    ]).exportFunc();
+builder.addFunction("resume_throw_ref_suspended_uncaught", kSig_i_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprRefFunc, suspend.index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, suspend_tag_index, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprCallFunction, resume_throw_ref.index,
+    ]).exportFunc();
+builder.addFunction("resume_throw_ref_suspended_caught", kSig_i_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprRefFunc, try_suspend.index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, suspend_tag_index, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprCallFunction, resume_throw_ref.index,
+    ]).exportFunc();
+builder.addFunction("resume_throw_ref_resuspend", kSig_i_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprRefFunc, suspend_twice.index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, suspend_tag_index, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprCallFunction, resume_throw_ref.index,
+    ]).exportFunc();
+
+(function TestResumeThrow() {
+  print(arguments.callee.name);
+  let instance = builder.instantiate();
+  assertEquals(kThrow, instance.exports.resume_throw_cont_new());
+  assertThrows(instance.exports.resume_throw_cont_new_bad,
+      WebAssembly.RuntimeError, /resuming an invalid continuation/);
+  assertEquals(kThrow, instance.exports.resume_throw_suspended_uncaught());
+  assertEquals(kReturn, instance.exports.resume_throw_suspended_caught());
+  assertEquals(kSuspend, instance.exports.resume_throw_resuspend());
+})();
+
+(function TestResumeThrowRef() {
+  print(arguments.callee.name);
+  let instance = builder.instantiate();
+  assertEquals(kThrow, instance.exports.resume_throw_ref_cont_new());
+  assertThrows(instance.exports.resume_throw_ref_cont_new_bad,
+      WebAssembly.RuntimeError, /resuming an invalid continuation/);
+  assertEquals(kThrow, instance.exports.resume_throw_ref_suspended_uncaught());
+  assertEquals(kReturn, instance.exports.resume_throw_ref_suspended_caught());
+  assertEquals(kSuspend, instance.exports.resume_throw_ref_resuspend());
+})();

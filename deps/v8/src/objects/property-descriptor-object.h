@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,11 +14,31 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-descriptor-object-tq.inc"
-
-V8_OBJECT class PropertyDescriptorObject : public StructLayout {
+V8_OBJECT class PropertyDescriptorObject : public Struct {
  public:
-  DEFINE_TORQUE_GENERATED_PROPERTY_DESCRIPTOR_OBJECT_FLAGS()
+  using IsEnumerableBit = base::BitField<bool, 0, 1, uint32_t>;
+  using HasEnumerableBit = IsEnumerableBit::Next<bool, 1>;
+  using IsConfigurableBit = HasEnumerableBit::Next<bool, 1>;
+  using HasConfigurableBit = IsConfigurableBit::Next<bool, 1>;
+  using IsWritableBit = HasConfigurableBit::Next<bool, 1>;
+  using HasWritableBit = IsWritableBit::Next<bool, 1>;
+  using HasValueBit = HasWritableBit::Next<bool, 1>;
+  using HasGetBit = HasValueBit::Next<bool, 1>;
+  using HasSetBit = HasGetBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsEnumerable = IsEnumerableBit::kMask,
+    kHasEnumerable = HasEnumerableBit::kMask,
+    kIsConfigurable = IsConfigurableBit::kMask,
+    kHasConfigurable = HasConfigurableBit::kMask,
+    kIsWritable = IsWritableBit::kMask,
+    kHasWritable = HasWritableBit::kMask,
+    kHasValue = HasValueBit::kMask,
+    kHasGet = HasGetBit::kMask,
+    kHasSet = HasSetBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 9;
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |

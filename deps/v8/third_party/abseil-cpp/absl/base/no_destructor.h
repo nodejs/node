@@ -115,9 +115,9 @@ class NoDestructor {
   // Forwards arguments to the T's constructor: calls T(args...).
   template <typename... Ts,
             // Disable this overload when it might collide with copy/move.
-            typename std::enable_if<!std::is_same<void(std::decay_t<Ts>&...),
-                                                  void(NoDestructor&)>::value,
-                                    int>::type = 0>
+            std::enable_if_t<!std::is_same_v<void(std::decay_t<Ts>&...),
+                                             void(NoDestructor&)>,
+                             int> = 0>
   explicit constexpr NoDestructor(Ts&&... args)
       : impl_(std::forward<Ts>(args)...) {}
 
@@ -175,7 +175,7 @@ class NoDestructor {
   // potential once-init runtime initialization. It somewhat defeats the
   // purpose of NoDestructor in this case, but this makes the class more
   // friendly to generic code.
-  std::conditional_t<std::is_trivially_destructible<T>::value, DirectImpl,
+  std::conditional_t<std::is_trivially_destructible_v<T>, DirectImpl,
                      PlacementImpl>
       impl_;
 };

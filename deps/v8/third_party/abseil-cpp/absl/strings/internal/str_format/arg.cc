@@ -95,7 +95,7 @@ class IntDigits {
   // Supports all integral types.
   template <typename T>
   void PrintAsDec(T v) {
-    static_assert(std::is_integral<T>::value, "");
+    static_assert(std::is_integral_v<T>, "");
     start_ = storage_;
     size_ = static_cast<size_t>(numbers_internal::FastIntToBuffer(v, storage_) -
                                 storage_);
@@ -356,8 +356,7 @@ bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
   // FormatConversionChar is declared, but not defined.
   switch (static_cast<uint8_t>(conv.conversion_char())) {
     case static_cast<uint8_t>(FormatConversionCharInternal::c):
-      return (std::is_same<T, wchar_t>::value ||
-              (conv.length_mod() == LengthMod::l))
+      return (std::is_same_v<T, wchar_t> || (conv.length_mod() == LengthMod::l))
                  ? ConvertWCharTImpl(static_cast<wchar_t>(v), conv, sink)
                  : ConvertCharImpl(static_cast<char>(v), conv, sink);
 

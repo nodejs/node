@@ -115,7 +115,7 @@ static const std::vector<int32_t> unsigned_test_offset_increment() {
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -132,7 +132,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -187,7 +187,7 @@ TEST_F(MacroAssemblerTest, LoadAddress) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
   Label to_jump, skip;
   __ mv(a4, a0);
 
@@ -227,7 +227,7 @@ TEST_F(MacroAssemblerTest, jump_tables4) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 128;
   int32_t values[kNumCases];
@@ -288,7 +288,7 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kSwitchTableCases = 40;
 
@@ -1309,7 +1309,7 @@ TEST_F(MacroAssemblerTest, DeoptExitSizeIsFixed) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       buffer->CreateView());
   static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {

@@ -16,10 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/debug/debug-wasm-objects-tq-inl.inc"
-
-OBJECT_CONSTRUCTORS_IMPL(WasmValueObject, JSObject)
-
 ACCESSORS(WasmValueObject, type, Tagged<String>, kTypeOffset)
 ACCESSORS(WasmValueObject, value, Tagged<Object>, kValueOffset)
 

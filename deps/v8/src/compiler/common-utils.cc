@@ -38,6 +38,11 @@ MaybeHandle<String> ConcatenateStrings(Handle<String> left,
 
   int32_t length = left->length() + right->length();
   if (length > kConstantStringFlattenMaxSize) {
+    // It's also important that we don't call NewConsString on a background
+    // thread with a total string length shorter than ConsString::kMinLength, as
+    // that code path won't handle ThinStrings. If we're on a background thread,
+    // we cannot prevent the main thread from turning our strings thin.
+    static_assert(ConsString::kMinLength <= kConstantStringFlattenMaxSize);
     return broker->local_isolate_or_isolate()
         ->factory()
         ->NewConsString(left, right, AllocationType::kOld)

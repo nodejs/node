@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "src/common/globals.h"
+
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
 #endif
@@ -13,7 +15,9 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/handles/handles-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -136,6 +140,11 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
   ObjectData* return_value = TryGetOrCreateData(object, flags | kCrashOnError);
   DCHECK_NOT_NULL(return_value);
   return return_value;
+}
+
+Address* JSHeapBroker::AllocatePersistentHandle(Tagged<Object> object) {
+  DCHECK(PersistentHandlesScope::IsActive(isolate()));
+  return IndirectHandle<Object>(object, isolate()).location();
 }
 
 bool JSHeapBroker::StackHasOverflowed() const {
@@ -397,6 +406,16 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
+HomomorphicPropertyAccessFeedback::HomomorphicPropertyAccessFeedback(
+    NameRef name, WeakHomomorphicFixedArrayRef homomorphic_array,
+    Tagged<Smi> handler, FeedbackSlotKind slot_kind)
+    : ProcessedFeedback(kHomomorphicPropertyAccess, slot_kind),
+      name_(name),
+      homomorphic_array_(homomorphic_array),
+      handler_(handler) {
+  DCHECK(IsLoadICKind(slot_kind));
+}
+
 MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
     FunctionTemplateInfoRef info_ref, FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kMegaDOMPropertyAccess, slot_kind), info_(info_ref) {
@@ -407,12 +426,22 @@ NamedAccessFeedback::NamedAccessFeedback(
     JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
     FeedbackSlotKind slot_kind,
     bool has_deprecated_map_without_migration_target)
+    : NamedAccessFeedback(
+          broker, name, maps, ZoneVector<OptionalObjectRef>(broker->zone()),
+          slot_kind, has_deprecated_map_without_migration_target) {}
+
+NamedAccessFeedback::NamedAccessFeedback(
+    JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
+    ZoneVector<OptionalObjectRef> const& handlers, FeedbackSlotKind slot_kind,
+    bool has_deprecated_map_without_migration_target)
     : ProcessedFeedback(kNamedAccess, slot_kind),
       name_(name.UnpackIfThin(broker)),
       original_name_maybe_thin_(name),
       maps_(maps),
+      handlers_(handlers),
       has_deprecated_map_without_migration_target_(
           has_deprecated_map_without_migration_target) {
+  DCHECK_EQ(maps.size(), handlers.size());
   DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
          IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
@@ -460,18 +489,21 @@ const ProcessedFeedback& JSHeapBroker::NewInsufficientFeedback(
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
-    FeedbackSource const& source, AccessMode mode,
-    OptionalNameRef static_name) {
+    FeedbackSource const& source, AccessMode mode, OptionalNameRef static_name,
+    bool allow_homomorphic) {
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   FeedbackSlotKind kind = nexus.kind();
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
   ZoneVector<MapRef> maps(zone());
+  ZoneVector<OptionalObjectRef> handlers(zone());
   bool has_deprecated_map_without_migration_target = false;
   nexus.IterateMapsWithUnclearedHandler(
-      [this, &maps, &has_deprecated_map_without_migration_target](
-          DirectHandle<Map> map_handle) {
-        MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
+      [this, &maps, &handlers, &has_deprecated_map_without_migration_target](
+          DirectHandle<Map> map_handle, MaybeObjectDirectHandle handler_obj) {
+        OptionalMapRef maybe_map_ref = TryMakeRef(this, *map_handle);
+        if (!maybe_map_ref.has_value()) return;
+        MapRef map = maybe_map_ref.value();
         // May change concurrently at any time - must be guarded by a
         // dependency if non-deprecation is important.
         if (map.is_deprecated()) {
@@ -480,7 +512,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
           std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
               isolate(), *map.object(), ConcurrencyMode::kConcurrent);
           if (maybe_map.has_value()) {
-            map = MakeRefAssumeMemoryFence(this, maybe_map.value());
+            OptionalMapRef maybe_updated_ref =
+                TryMakeRef(this, maybe_map.value());
+            if (!maybe_updated_ref.has_value()) return;
+            map = maybe_updated_ref.value();
           } else {
             return;  // Couldn't update the deprecated map.
           }
@@ -493,6 +528,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
         }
         if (map.is_abandoned_prototype_map()) return;
         maps.push_back(map);
+
+        OptionalObjectRef handler;
+        if (!handler_obj.is_null()) {
+          handler = TryMakeRef(this, *handler_obj.object());
+        }
+        handlers.push_back(handler);
       });
 
   OptionalNameRef name =
@@ -501,30 +542,86 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (nexus.ic_state() == InlineCacheState::MEGADOM) {
     DCHECK(maps.empty());
     MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
-    if (!maybe_handler.is_null()) {
-      DirectHandle<MegaDomHandler> handler =
-          Cast<MegaDomHandler>(maybe_handler.object());
-      if (!handler->accessor(kAcquireLoad).IsCleared()) {
-        FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
-            this, Cast<FunctionTemplateInfo>(
-                      handler->accessor(kAcquireLoad).GetHeapObject()));
-        return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
-      }
+    if (maybe_handler.is_null()) return NewInsufficientFeedback(kind);
+
+    DirectHandle<MegaDomHandler> handler =
+        Cast<MegaDomHandler>(maybe_handler.object());
+    if (handler->accessor(kAcquireLoad).IsCleared()) {
+      return NewInsufficientFeedback(kind);
     }
+
+    FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
+        this, Cast<FunctionTemplateInfo>(
+                  handler->accessor(kAcquireLoad).GetHeapObject()));
+    return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
+  }
+
+  if (allow_homomorphic && nexus.ic_state() == InlineCacheState::HOMOMORPHIC) {
+    DCHECK(maps.empty());
+    Tagged<Smi> handler;
+    if (!TryCast<Smi>(nexus.GetFeedbackExtra(), &handler)) {
+      return NewInsufficientFeedback(kind);
+    }
+    Tagged<HeapObject> feedback_object;
+    if (!nexus.GetFeedback().GetHeapObjectIfStrong(&feedback_object)) {
+      return NewInsufficientFeedback(kind);
+    }
+    WeakHomomorphicFixedArrayRef homomorphic_array = MakeRefAssumeMemoryFence(
+        this, Cast<WeakHomomorphicFixedArray>(feedback_object));
+
+    return *zone()->New<HomomorphicPropertyAccessFeedback>(
+        *static_name, homomorphic_array, handler, kind);
   }
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
-  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC) {
+  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC &&
+      nexus.ic_state() != InlineCacheState::HOMOMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(),
-                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
+                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC ||
+                       nexus.ic_state() == InlineCacheState::HOMOMORPHIC);
+    DCHECK_EQ(maps.size(), handlers.size());
+    if (mode == AccessMode::kLoad && maps.size() == 1 &&
+        maps[0].instance_type() == JS_PROXY_TYPE && handlers[0].has_value() &&
+        handlers[0].value().IsDataHandler()) {
+      DataHandlerRef data_handler = handlers[0].value().AsDataHandler();
+      if (data_handler.IsFastProxyHandler()) {
+        OptionalObjectRef target_map_obj =
+            data_handler.data(this, LoadHandler::kProxyTargetMapDataIndex);
+        OptionalObjectRef handler_map_obj =
+            data_handler.data(this, LoadHandler::kProxyHandlerMapDataIndex);
+        OptionalObjectRef trap_method =
+            data_handler.data(this, LoadHandler::kProxyTrapMethodDataIndex);
+        OptionalObjectRef smi_handler =
+            data_handler.data(this, LoadHandler::kProxyGetSmiHandlerDataIndex);
+
+        if (target_map_obj.has_value() && target_map_obj.value().IsMap() &&
+            handler_map_obj.has_value() && handler_map_obj.value().IsMap() &&
+            trap_method.has_value() && trap_method.value().IsJSFunction() &&
+            smi_handler.has_value() && smi_handler.value().IsSmi()) {
+          MapRef target_map = target_map_obj.value().AsMap();
+          MapRef handler_map = handler_map_obj.value().AsMap();
+          float frequency = 0.0f;
+          OptionalObjectRef count_obj =
+              data_handler.data(this, LoadHandler::kProxyCounterDataIndex);
+          DCHECK(count_obj.has_value() && count_obj.value().IsSmi());
+          int count = count_obj.value().AsSmi();
+          int invocation_count = nexus.vector()->invocation_count(kRelaxedLoad);
+          frequency = static_cast<float>(count) / std::max(1, invocation_count);
+          return *zone()->New<ProxyFeedback>(
+              *name, maps[0], target_map, handler_map, *trap_method,
+              smi_handler.value().AsSmi(), frequency, kind);
+        }
+      }
+    }
     return *zone()->New<NamedAccessFeedback>(
-        this, *name, maps, kind, has_deprecated_map_without_migration_target);
+        this, *name, maps, handlers, kind,
+        has_deprecated_map_without_migration_target);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
@@ -561,7 +658,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
     int const number = Object::NumberValue(*feedback_value);
-    int const script_context_index =
+    uint32_t const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     ContextRef context = MakeRefAssumeMemoryFence(
@@ -795,11 +892,11 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForForIn(
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
-    FeedbackSource const& source, AccessMode mode,
-    OptionalNameRef static_name) {
+    FeedbackSource const& source, AccessMode mode, OptionalNameRef static_name,
+    bool allow_homomorphic) {
   if (HasFeedback(source)) return GetFeedback(source);
-  ProcessedFeedback const& feedback =
-      ReadFeedbackForPropertyAccess(source, mode, static_name);
+  ProcessedFeedback const& feedback = ReadFeedbackForPropertyAccess(
+      source, mode, static_name, allow_homomorphic);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -814,7 +911,17 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
-  if (HasFeedback(source)) return GetFeedback(source);
+  if (HasFeedback(source)) {
+    ProcessedFeedback const& feedback = GetFeedback(source);
+    if (feedback.kind() == ProcessedFeedback::kProxy) {
+      ProxyFeedback const& proxy = feedback.AsProxy();
+      return *zone()->New<CallFeedback>(
+          proxy.trap_method().AsHeapObject(), proxy.frequency(),
+          SpeculationMode::kDisallowSpeculation, CallFeedbackContent::kTarget,
+          FeedbackSlotKind::kCall);
+    }
+    return feedback;
+  }
   ProcessedFeedback const& feedback = ReadFeedbackForCall(source);
   SetFeedback(source, &feedback);
   return feedback;
@@ -871,10 +978,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
       MapUpdaterGuardIfNeeded mumd_scope(this);
 
       transition_target = map.object()->FindElementsKindTransitionedMap(
-          isolate(),
-          MapHandlesSpan(possible_transition_targets.begin(),
-                         possible_transition_targets.end()),
-          ConcurrencyMode::kConcurrent);
+          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
     }
 
     if (transition_target.is_null()) {
@@ -924,17 +1028,26 @@ OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
-PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
-                                                       AccessMode access_mode) {
+PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
+    MapRef map, NameRef name, AccessMode access_mode,
+    OptionalObjectRef handler) {
   DCHECK_NOT_NULL(dependencies_);
 
-  PropertyAccessTarget target({map, name, access_mode});
+  // Only include handler in the cache key for dictionary map loads.
+  // For everything else, the handler doesn't affect the resulting
+  // PropertyAccessInfo, and including it would cause a cache explosion.
+  OptionalObjectRef cache_handler =
+      (map.is_dictionary_map() && access_mode == AccessMode::kLoad)
+          ? handler
+          : std::nullopt;
+
+  PropertyAccessTarget target({map, name, access_mode, cache_handler});
   auto it = property_access_infos_.find(target);
   if (it != property_access_infos_.end()) return it->second;
 
   AccessInfoFactory factory(this, zone());
   PropertyAccessInfo access_info =
-      factory.ComputePropertyAccessInfo(map, name, access_mode);
+      factory.ComputePropertyAccessInfo(map, name, access_mode, handler);
   TRACE(this, "Storing PropertyAccessInfo for "
                   << access_mode << " of property " << name << " on map "
                   << map);
@@ -985,6 +1098,17 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+ProxyFeedback const& ProcessedFeedback::AsProxy() const {
+  CHECK_EQ(kProxy, kind());
+  return *static_cast<ProxyFeedback const*>(this);
+}
+
+HomomorphicPropertyAccessFeedback const&
+ProcessedFeedback::AsHomomorphicPropertyAccess() const {
+  CHECK_EQ(kHomomorphicPropertyAccess, kind());
+  return *static_cast<HomomorphicPropertyAccessFeedback const*>(this);
 }
 
 MegaDOMPropertyAccessFeedback const&

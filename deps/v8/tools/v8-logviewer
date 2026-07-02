@@ -1,0 +1,41 @@
+#!/bin/bash
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <command> <v8.log> [options]"
+  exit 1
+fi
+# Auto-detect if first argument is a file or a command
+if [ -f "$1" ]; then
+  log_file="$1"
+  shift
+  command="stats"
+  is_default_command="true"
+else
+  command="$1"
+  shift
+  log_file="$1"
+  shift
+fi
+
+tools_path=`cd $(dirname "$0");pwd`
+d8_exec=$("${tools_path}/find-d8.sh" "$log_file") || exit 1
+
+cli_script="${tools_path}/system-analyzer/cli.mjs"
+
+# Intercept help commands (no log file needed)
+if [[ "$@" =~ (--help|help) ]]; then
+  if [ "$is_default_command" = "true" ]; then
+    "$d8_exec" "$cli_script" -- "$@"
+  else
+    "$d8_exec" "$cli_script" -- "$command" "$@"
+  fi
+  exit 0
+fi
+
+
+
+# Run it
+cat "$log_file" | "$d8_exec" "$cli_script" -- "$command" "$@"

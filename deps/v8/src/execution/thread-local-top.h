@@ -30,7 +30,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 29 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -135,6 +135,10 @@ class ThreadLocalTop {
   // GC treats this value as a weak reference and resets it back to kNoContext
   // if the context dies.
   Tagged<Context> topmost_script_having_context_;
+
+  // We cache the last entered context of the HandleScopeImplementer here to
+  // have faster lookups in RunMicrotasks().
+  Tagged<NativeContext> last_entered_context_ = Tagged<NativeContext>();
 
   // This field is updated along with context_ on every operation triggered
   // via V8 Api.

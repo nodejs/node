@@ -61,10 +61,10 @@ enum RegisterCode {
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
   constexpr bool is_byte_register() const { return code() <= 3; }
-#ifdef V8_ENABLE_APX_F
   // Return the fifth bit of the register code as a 0 or 1.  Used often
   // when constructing the REX2 prefix byte.
   constexpr int bit4() const { return (code() >> 4) & 0x1; }
+#ifdef V8_ENABLE_APX_F
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
   constexpr int high_bit() const { return (code() >> 3) & 0x1; }

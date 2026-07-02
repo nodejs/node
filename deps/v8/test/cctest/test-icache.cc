@@ -26,7 +26,7 @@ static constexpr int kNumIterations = 5;
 static constexpr int kBufferSize = 8 * KB;
 
 static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
-  MacroAssembler masm(isolate, CodeObjectRequired::kYes, buffer->CreateView());
+  MacroAssembler masm(isolate, CodeObjectRequired{true}, buffer->CreateView());
 #if V8_TARGET_ARCH_IA32
   __ mov(eax, Operand(esp, kSystemPointerSize));
   for (int i = 0; i < kNumInstr; ++i) {
@@ -80,7 +80,7 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
 }
 
 static void FloodWithNop(Isolate* isolate, TestingAssemblerBuffer* buffer) {
-  MacroAssembler masm(isolate, CodeObjectRequired::kYes, buffer->CreateView());
+  MacroAssembler masm(isolate, CodeObjectRequired{true}, buffer->CreateView());
 #if V8_TARGET_ARCH_IA32
   __ mov(eax, Operand(esp, kSystemPointerSize));
 #elif V8_TARGET_ARCH_X64

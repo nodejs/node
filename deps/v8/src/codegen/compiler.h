@@ -11,6 +11,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/base/threaded-list.h"
 #include "src/codegen/background-merge-task.h"
 #include "src/codegen/bailout-reason.h"
@@ -54,9 +55,9 @@ struct ScriptStreamingData;
 namespace maglev {
 class MaglevCompilationJob;
 
-static inline bool IsMaglevEnabled() { return v8_flags.maglev; }
+inline bool IsMaglevEnabled() { return v8_flags.maglev; }
 
-static inline bool IsMaglevOsrEnabled() {
+inline bool IsMaglevOsrEnabled() {
   return IsMaglevEnabled() && v8_flags.maglev_osr;
 }
 
@@ -86,7 +87,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope,
                       CreateSourcePositions create_source_positions_flag =
-                          CreateSourcePositions::kNo);
+                          CreateSourcePositions{false});
   static bool Compile(Isolate* isolate, DirectHandle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
@@ -613,6 +614,12 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void Run(LocalIsolate* isolate,
            ReusableUnoptimizedCompileState* reusable_state);
 
+  template <typename T>
+  IndirectHandle<T> NewPersistentHandle(Tagged<T> obj) {
+    DCHECK_NOT_NULL(persistent_handles_.get());
+    return persistent_handles_->NewHandle(obj);
+  }
+
   MaybeHandle<SharedFunctionInfo> FinalizeScript(
       Isolate* isolate, DirectHandle<String> source,
       const ScriptDetails& script_details,
@@ -620,14 +627,10 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
   bool FinalizeFunction(Isolate* isolate, Compiler::ClearExceptionFlag flag);
 
-  void AbortFunction();
-
   UnoptimizedCompileFlags flags() const { return flags_; }
 
  private:
   void ReportStatistics(Isolate* isolate);
-
-  void ClearFunctionJobPointer();
 
   bool is_streaming_compilation() const;
 

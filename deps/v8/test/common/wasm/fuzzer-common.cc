@@ -25,6 +25,7 @@
 #include "include/v8-metrics.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/objects/managed.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -68,9 +69,8 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
-    constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), kIsShared);
+                           func_code.end(), SharedFlag{false});
     auto result = ExecuteLiftoffCompilation(
         &env, func_body,
         LiftoffOptions{.func_index = static_cast<int>(func.func_index),
@@ -455,9 +455,6 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
       isolate, enabled_features, detected_features,
       CompileTimeImportsForFuzzing(), module, code_size_estimate);
   native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
-  // The module is known to be valid as this point (it was compiled by the
-  // caller before).
-  module->set_all_functions_validated();
 
   // The value is -3 so that it is different than the compilation ID of actual
   // compilations, different than the sentinel value of the CompilationState
@@ -763,8 +760,8 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<WasmMemoryObject> ref_memory =
         ref_instance_data->memory_object(memory_index);
 
-    std::shared_ptr<BackingStore> store = memory->backing_store();
-    std::shared_ptr<BackingStore> ref_store = ref_memory->backing_store();
+    Managed<BackingStore>::Ptr store = memory->backing_store();
+    Managed<BackingStore>::Ptr ref_store = ref_memory->backing_store();
 
     size_t memory_size = store->byte_length();
     size_t ref_memory_size = ref_store->byte_length();
@@ -934,7 +931,8 @@ int ExecuteAgainstReference(Isolate* isolate,
 ) {
   HandleScope handle_scope(isolate);
 
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   const base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int exported_main = FindExportedMainFunction(module, wire_bytes);
@@ -1103,16 +1101,16 @@ int ExecuteAgainstReference(Isolate* isolate,
   if (should_trace_memory) {
     std::ostringstream ss;
     ss << "\nMemory trace.\n";
-    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace, native_module,
-                                ss);
+    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
   if (should_trace_globals) {
     std::ostringstream ss;
     ss << "\nGlobal trace.\n";
-    CompareAndPrintGlobalTraces(global_trace, ref_global_trace, native_module,
-                                ss);
+    CompareAndPrintGlobalTraces(global_trace, ref_global_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
@@ -1204,7 +1202,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
         : isolate(isolate) {
       // Enable all staged features.
 #define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
-  v8_flags.experimental_wasm_##feat = true;
+  v8_flags.wasm_##feat = true;
       FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(
           ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
@@ -1221,16 +1219,17 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // The "pure Wasm" part of this proposal is considered ready for
       // fuzzing, the JS-related part (prototypes etc) not yet.
-      v8_flags.experimental_wasm_custom_descriptors = true;
+      v8_flags.wasm_custom_descriptors = true;
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
       // Fuzz revectorization, which is otherwise still considered experimental.
-      v8_flags.experimental_wasm_revectorize = true;
+      v8_flags.wasm_revectorize = true;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #if V8_TARGET_ARCH_ARM64
       // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
-      v8_flags.experimental_wasm_simd_opt = true;
+      v8_flags.future_wasm_simd_opt = true;
+      v8_flags.wasm_deinterleave_loads = true;
 #endif  // V8_TARGET_ARCH_ARM64
 
       // Enforce implications from enabling features.
@@ -1301,15 +1300,30 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
-  // The first byte specifies some internal configuration, like which function
-  // is compiled with which compiler, and other flags.
-  uint8_t configuration_byte = data.empty() ? 0 : data[0];
+  // The first byte specifies which flags are set.
+  uint8_t flags_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
 
   // Enable Wasm type assertions half the time.
-  const bool assert_types = configuration_byte & 1;
-  configuration_byte >>= 1;
+#if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
+  // TurboFan compilation (see crbug.com/520317061).
+  const bool assert_types = false;
+#else
+  const bool assert_types = flags_byte & 1;
+#endif
+  flags_byte >>= 1;
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
+  // Enable rescheduling of operations in the Turboshaft graph half the time.
+  const bool turbofan_random_rescheduling = flags_byte & 1;
+  flags_byte >>= 1;
+  FlagScope<bool> rescheduling_scope(&v8_flags.wasm_random_rescheduling,
+                                     turbofan_random_rescheduling);
+
+  // The next byte specifies some internal configuration, like which function
+  // is compiled with which compiler.
+  uint8_t configuration_byte = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
 
   // Derive the compiler configuration for the first four functions from the
   // configuration byte, to choose for each function between:

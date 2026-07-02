@@ -1,6 +1,10 @@
 # This directory is owned and maintained by Microsoft.
 # Therefore, owner approval by one of their developers is required.
 set noparent
+
+# Allow eng reviewers to override approval.
+file://ENG_REVIEW_OWNERS #{LAST_RESORT_SUGGESTION}
+
 paolosev@microsoft.com
 Emmanuel.Romero@microsoft.com
 

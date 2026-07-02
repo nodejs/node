@@ -350,16 +350,16 @@ class ManagedBindings : public BindingsBenchmarkBase<ManagedBindings> {
                                              WrapperTypeInfo* info,
                                              WrappableBase* wrappable) {
     // Set V8 to C++ reference.
-    v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, v8_wrapper,
-                                                         wrappable);
+    v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, v8_wrapper,
+                                                            wrappable);
     // Set C++ to V8 reference.
     wrappable->SetWrapper(isolate, v8_wrapper);
   }
 
   template <typename T>
   static V8_INLINE T* Unwrap(v8::Isolate* isolate, v8::Local<v8::Object> thiz) {
-    return v8::Object::Unwrap<v8::CppHeapPointerTag::kDefaultTag, T>(isolate,
-                                                                     thiz);
+    return v8::Object::Unwrap<v8::CppHeapPointerTag::kTagForTesting, T>(isolate,
+                                                                        thiz);
   }
 
   static void SetupContextTemplate(

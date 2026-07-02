@@ -37,7 +37,7 @@ macro IsSubstringAt(string: String, searchStr: String, start: intptr): bool {
       string, searchStr, IsSubstringAtFunctor{start: start});
 }
 
-// https://tc39.github.io/ecma262/#sec-string.prototype.endswith
+// https://tc39.es/ecma262/#sec-string.prototype.endswith
 transitioning javascript builtin StringPrototypeEndsWith(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Boolean {

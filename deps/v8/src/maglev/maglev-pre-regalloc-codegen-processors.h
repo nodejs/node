@@ -164,6 +164,7 @@ class MaxCallDepthProcessor {
         return info.frame_size_in_bytes();
       }
     }
+    UNREACHABLE();
   }
 
   int max_call_stack_args_ = 0;

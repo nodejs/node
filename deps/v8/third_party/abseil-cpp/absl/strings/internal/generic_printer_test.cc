@@ -15,6 +15,7 @@
 #include "absl/strings/internal/generic_printer.h"
 
 #include <array>
+#include <clocale>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -32,6 +33,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -231,6 +233,32 @@ TEST(GenericPrinterTest, PreciseLongDouble) {
   EXPECT_THAT(GenericPrintToString(0.L), EndsWith("L"));
 }
 
+TEST(GenericPrinterTest, PreciseFPUnderCommaRadixLocale) {
+  // The values are formatted with locale-independent absl::StrFormat (a '.'
+  // radix), so the round-trip shortening must not depend on LC_NUMERIC. Under a
+  // comma-radix locale a locale-sensitive reader stops at the '.', which used
+  // to defeat the shortened output.
+  const char* saved = std::setlocale(LC_NUMERIC, nullptr);
+  std::string saved_locale = saved ? saved : "C";
+  absl::Cleanup restore = [&] {
+    std::setlocale(LC_NUMERIC, saved_locale.c_str());
+  };
+
+  bool set = false;
+  for (const char* name : {"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE", "fr_FR"}) {
+    if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+      set = true;
+      break;
+    }
+  }
+  if (!set) {
+    GTEST_SKIP() << "No comma-radix locale available on this system.";
+  }
+
+  EXPECT_EQ("1.1f", GenericPrintToString(1.1f));
+  EXPECT_EQ("1.1", GenericPrintToString(1.1));
+}
+
 TEST(GenericPrinterTest, StreamableLvalue) {
   generic_logging_test::Streamable x{234};
   EXPECT_EQ("Streamable{234}", GenericPrintToString(x));
@@ -296,10 +324,9 @@ TEST(GenericPrinterTest, Map) {
 TEST(GenericPrinterTest, StreamAdapter) {
   std::stringstream ss;
   static_assert(
-      std::is_same<
-          typename std::remove_reference<decltype(ss << GenericPrint())>::type,
-          internal_generic_printer::GenericPrintStreamAdapter::Impl<
-              std::stringstream>>::value,
+      std::is_same<std::remove_reference_t<decltype(ss << GenericPrint())>,
+                   internal_generic_printer::GenericPrintStreamAdapter::Impl<
+                       std::stringstream>>::value,
       "expected ostream << GenericPrint() to yield adapter impl");
 
   ss << GenericPrint() << "again, " << "back-up, " << "cue, "
@@ -373,6 +400,10 @@ TEST(GenericPrinterTest, Optional) {
                                    generic_logging_test::Streamable{3})));
 }
 
+TEST(GenericPrinterTest, Monostate) {
+  EXPECT_EQ("monostate", GenericPrintToString(std::monostate{}));
+}
+
 TEST(GenericPrinterTest, Tuple) {
   EXPECT_EQ("<1, two, 3>", GenericPrintToString(std::make_tuple(1, "two", 3)));
 }
@@ -396,8 +427,8 @@ TEST(GenericPrinterTest, Variant) {
 }
 
 TEST(GenericPrinterTest, VariantMonostate) {
-  EXPECT_THAT(GenericPrintToString(std::variant<std::monostate, std::string>()),
-              IsUnprintable());
+  EXPECT_EQ("('(index = 0)' monostate)",
+            GenericPrintToString(std::variant<std::monostate, std::string>()));
 }
 
 TEST(GenericPrinterTest, VariantNonStreamable) {

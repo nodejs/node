@@ -8,6 +8,9 @@
 #include <stddef.h>
 #include <memory>
 
+// Include first to ensure that V8_USE_PERFETTO can be defined before use.
+#include "v8config.h"
+
 #if defined(V8_USE_PERFETTO)
 #include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/trace-categories.h"

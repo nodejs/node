@@ -90,6 +90,12 @@ class RecomputePhiUseHintsProcessor {
     return ProcessResult::kContinue;
   }
 
+  template <typename Derived>
+  ProcessResult Process(AssumeTypeT<Derived>* node,
+                        const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
     if (ValueNode* value_node = node->TryCast<ValueNode>()) {
@@ -348,10 +354,12 @@ class AnyUseMarkingProcessor {
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);
     DropUseOfValueInStoresToCapturedAllocations();
+    DCHECK(drop_uses_stack_.empty());
   }
 
  private:
   std::vector<Node*> stores_to_allocations_;
+  base::SmallVector<ValueNode*, 8> drop_uses_stack_;
 
   void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
                         Graph::SmallAllocationVector& deps) {
@@ -382,7 +390,7 @@ class AnyUseMarkingProcessor {
       auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
-      if (alloc->IsEscaping()) {
+      if (alloc->HasEscapingUses()) {
         // Escape this allocation and all its dependencies.
         EscapeAllocation(graph, alloc, it.second);
       } else {
@@ -410,24 +418,43 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input input) {
+  void RemoveUseAndPushIfUnused(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
-        !input_node->Is<ArgumentsElements>())
+        !input_node->Is<ArgumentsElements>()) {
       return;
+    }
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
-      DropInputUses(input_node);
+      input_node->mark_unused_inputs_visited();
+      drop_uses_stack_.push_back(input_node);
     }
   }
 
-  void DropInputUses(ValueNode* node) {
-    for (Input input : node->inputs()) {
-      DropInputUses(input);
+  void DrainDropUsesStack() {
+    while (!drop_uses_stack_.empty()) {
+      ValueNode* current = drop_uses_stack_.back();
+      drop_uses_stack_.pop_back();
+      DCHECK(!current->properties().can_eager_deopt());
+      DCHECK(!current->properties().can_lazy_deopt());
+      for (Input input : current->inputs()) {
+        RemoveUseAndPushIfUnused(input);
+      }
     }
-    DCHECK(!node->properties().can_eager_deopt());
-    DCHECK(!node->properties().can_lazy_deopt());
+  }
+
+  void DropInputUses(Input input) {
+    DCHECK(drop_uses_stack_.empty());
+    RemoveUseAndPushIfUnused(input);
+    DrainDropUsesStack();
+  }
+
+  void DropInputUses(ValueNode* node) {
+    DCHECK(drop_uses_stack_.empty());
+    DCHECK(!node->unused_inputs_were_visited());
+    drop_uses_stack_.push_back(node);
     node->mark_unused_inputs_visited();
+    DrainDropUsesStack();
   }
 };
 
@@ -477,33 +504,101 @@ class DeadNodeSweepingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  (!NodeT::kProperties.is_required_when_unused() ||
-                   std::is_same_v<ArgumentsElements, NodeT>)) {
-      if (!node->is_used()) {
-        return ProcessResult::kRemove;
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (V8_UNLIKELY(v8_flags.trace_maglev_escape_analysis) &&
+          IsSweepableDeadNode(node)) {
+        InlinedAllocation* object =
+            node->input(0).node()->template Cast<InlinedAllocation>();
+        std::cout << "* Removing store node " << PrintNodeLabel(node)
+                  << " to allocation " << PrintNodeLabel(object) << std::endl;
       }
-      return ProcessResult::kContinue;
     }
+
+    if (IsSweepableDeadNode(node)) return ProcessResult::kRemove;
+
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  static bool IsSweepableDeadNode(NodeT* node) {
+    if (IsDead(node)) return true;
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node " << PrintNodeLabel(node)
-                      << " to allocation " << PrintNodeLabel(object)
-                      << std::endl;
-          }
-          return ProcessResult::kRemove;
-        }
+        if (!object->HasBeenAnalysed()) return false;
+        if (!object->HasEscaped()) return true;
+      }
+    }
+
+    return false;
+  }
+
+ private:
+  MaglevGraphLabeller* labeller_ = nullptr;
+};
+
+// Tracks which exception handlers are reachable by collecting catch blocks
+// from throwing nodes. Unreachable exception handlers (and their successors)
+// are aborted and marked dead.
+class ReachableExceptionHandlerTracker {
+ public:
+  explicit ReachableExceptionHandlerTracker(Graph* graph)
+      : graph_(graph), reachable_exception_handlers_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  void PostPhiProcessing() {}
+
+  void MarkReachable(BasicBlock* block) {
+    reachable_exception_handlers_.insert(block);
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // TODO(victorgomes): Support removing the unreachable blocks instead of
+    // just skipping it.
+    if (V8_UNLIKELY(block->IsUnreachable())) {
+      return AbortBlock(block);
+    }
+
+    if (block->is_exception_handler_block()) {
+      if (!IsReachable(block)) {
+        return AbortBlock(block);
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      if (node->exception_handler_info()->HasExceptionHandler() &&
+          !node->exception_handler_info()->ShouldLazyDeopt()) {
+        MarkReachable(node->exception_handler_info()->catch_block());
       }
     }
     return ProcessResult::kContinue;
   }
 
  private:
-  MaglevGraphLabeller* labeller_ = nullptr;
+  BlockProcessResult AbortBlock(BasicBlock* block) {
+    ControlNode* control = block->reset_control_node();
+    block->RemovePredecessorFollowing(control);
+    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
+    block->set_deferred(true);
+    block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
+  }
+
+  bool IsReachable(BasicBlock* block) const {
+    return reachable_exception_handlers_.contains(block);
+  }
+
+  Graph* graph_;
+  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
 };
 
 }  // namespace v8::internal::maglev

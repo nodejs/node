@@ -28,6 +28,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/source_location.h"
 
 namespace {
 #if GTEST_HAS_DEATH_TEST
@@ -86,6 +87,23 @@ TEST(TailCallsModifiesTest, AtLocationFileLineLifetime) {
   LOG(INFO).AtLocation(std::string("/my/very/very/very_long_source_file.cc"),
                        777)
       << "hello world";
+}
+
+TEST(TailCallsModifiesTest, AtLocationSourceLocation) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  const int log_line = __LINE__ + 1;
+  constexpr absl::SourceLocation loc = absl::SourceLocation::current();
+  auto do_log = [loc] { LOG(INFO).AtLocation(loc) << "hello world"; };
+
+  EXPECT_CALL(test_sink,
+              Send(AllOf(SourceFilename(Eq(__FILE__)),
+                         SourceBasename(Eq("log_modifier_methods_test.cc")),
+                         SourceLine(Eq(log_line)))));
+
+  test_sink.StartCapturingLogs();
+  do_log();
 }
 
 TEST(TailCallsModifiesTest, NoPrefix) {

@@ -6,6 +6,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/yield-processor.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -62,6 +63,7 @@ class V8_NODISCARD WaiterQueueLockGuard final {
         state_->load()));
     new_state_ = JSSynchronizationPrimitive::IsWaiterQueueLockedField::update(
         new_state_, false);
+    TSAN_RELEASE(state_);
     state_->store(new_state_, std::memory_order_release);
   }
 
@@ -86,9 +88,13 @@ bool JSSynchronizationPrimitive::TryLockWaiterQueueExplicit(
     std::atomic<StateT>* state, StateT& expected) {
   // Try to acquire the queue lock.
   expected = IsWaiterQueueLockedField::update(expected, false);
-  return state->compare_exchange_weak(
+  bool success = state->compare_exchange_weak(
       expected, IsWaiterQueueLockedField::update(expected, true),
       std::memory_order_acquire, std::memory_order_relaxed);
+  if (success) {
+    TSAN_ACQUIRE(state);
+  }
+  return success;
 }
 
 // static
@@ -100,6 +106,7 @@ void JSSynchronizationPrimitive::SetWaiterQueueStateOnly(
   StateT desired;
   do {
     desired = new_state | (expected & ~kWaiterQueueMask);
+    TSAN_RELEASE(state);
   } while (!state->compare_exchange_weak(
       expected, desired, std::memory_order_release, std::memory_order_relaxed));
 }
@@ -136,8 +143,9 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
 
     // Release the queue lock and reinstall the same queue head by creating a
     // new state.
-    DCHECK_EQ(state->load(),
-              IsWaiterQueueLockedField::update(current_state, true));
+    DCHECK_EQ(state->load() & kWaiterQueueMask,
+              IsWaiterQueueLockedField::update(current_state, true) &
+                  kWaiterQueueMask);
     StateT new_state = SetWaiterQueueHead(requester, waiter_head, kEmptyState);
     new_state = IsWaiterQueueLockedField::update(new_state, false);
     SetWaiterQueueStateOnly(state, new_state);
@@ -245,7 +253,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     Isolate* requester, std::atomic<StateT>* state,
     WaiterQueueNode* timed_out_waiter) {
   // First acquire the queue lock, which is itself a spinlock.
-  StateT current_state = state->load(std::memory_order_relaxed);
+  StateT current_state = state->load(std::memory_order_acquire);
   // There are no waiters, but the js mutex lock may be held by another thread.
   if (!HasWaitersField::decode(current_state)) return false;
 
@@ -270,8 +278,9 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
       [&](WaiterQueueNode* node) { return node == timed_out_waiter; });
 
   // Release the queue lock and install the new waiter queue head.
-  DCHECK_EQ(state->load(),
-            IsWaiterQueueLockedField::update(current_state, true));
+  DCHECK_EQ(
+      state->load() & kWaiterQueueMask,
+      IsWaiterQueueLockedField::update(current_state, true) & kWaiterQueueMask);
   StateT new_state = kUnlockedUncontended;
   new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
 
@@ -287,9 +296,13 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     // held by either this thread or another thread that can't go through the
     // unlock fast path because this thread is holding the waiter queue lock.
     // Hence, it is safe to always set the "is locked" bit in new_state.
-    new_state = IsLockedField::update(new_state, true);
-    DCHECK(!IsWaiterQueueLockedField::decode(new_state));
     current_state = IsLockedField::update(current_state, false);
+    new_state = IsLockedField::update(new_state, true);
+
+    // We also need to unlock the waiter queue lock.
+    current_state = IsWaiterQueueLockedField::update(current_state, true);
+    DCHECK(!IsWaiterQueueLockedField::decode(new_state));
+    TSAN_RELEASE(state);
     if (state->compare_exchange_strong(current_state, new_state,
                                        std::memory_order_acq_rel,
                                        std::memory_order_relaxed)) {
@@ -299,6 +312,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     }
 
     DCHECK(IsLockedField::decode(state->load()));
+    TSAN_RELEASE(state);
     state->store(new_state, std::memory_order_release);
     return false;
   }
@@ -375,13 +389,16 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   DCHECK_NOT_NULL(waiter_head);
   WaiterQueueNode* old_head = WaiterQueueNode::Dequeue(&waiter_head);
 
+  // Notify the node before releasing the lock, so that there is no risk of a
+  // race between this notify and another thread timing out and clearing up the
+  // node.
+  old_head->Notify();
+
   // Release both the lock and the queue lock, and install the new waiter queue
   // head.
   StateT new_state = IsLockedField::update(current_state, false);
   new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
   waiter_queue_lock_guard.set_new_state(new_state);
-
-  old_head->Notify();
 }
 
 // static
@@ -454,7 +471,7 @@ uint32_t JSAtomicsCondition::DequeueExplicit(
     Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
     std::atomic<StateT>* state, const DequeueAction& action_under_lock) {
   // First acquire the queue lock, which is itself a spinlock.
-  StateT current_state = state->load(std::memory_order_relaxed);
+  StateT current_state = state->load(std::memory_order_acquire);
 
   if (!HasWaitersField::decode(current_state)) return 0;
   WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);

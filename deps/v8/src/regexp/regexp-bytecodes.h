@@ -12,6 +12,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
@@ -23,14 +24,17 @@ namespace internal {
   V(Char, base::uc16)                       \
   V(JumpTarget, uint32_t)
 
-#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)                           \
-  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,                     \
-    RegExpMacroAssembler::kMaxCPOffset)                                      \
-  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister)               \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,                    \
-    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,                \
-    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)                  \
-  V(StandardCharacterSet, StandardCharacterSet,                              \
+#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)                  \
+  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,            \
+    RegExpMacroAssembler::kMaxCPOffset)                             \
+  V(BoundsCheckOffset, int32_t, RegExpMacroAssembler::kMinCPOffset, \
+    RegExpMacroAssembler::kMaxCPOffset +                            \
+        RegExpMacroAssembler::kMaxEatsAtLeastValue)                 \
+  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister)      \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,           \
+    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,       \
+    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)         \
+  V(StandardCharacterSet, StandardCharacterSet,                     \
     StandardCharacterSet::kEverything, StandardCharacterSet::kWord)
 
 // Special operand types that don't have a direct mapping to a C-type.
@@ -43,16 +47,16 @@ namespace internal {
   BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V) \
   SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)
 
-enum class RegExpBytecodeOperandType : uint8_t {
+enum class BytecodeOperandType : uint8_t {
 #define DECLARE_OPERAND(Name, ...) k##Name,
   BYTECODE_OPERAND_TYPE_LIST(DECLARE_OPERAND)
 #undef DECLARE_OPERAND
 };
 
-using ReBcOpType = RegExpBytecodeOperandType;
+using ReBcOpType = BytecodeOperandType;
 
 // Bytecode properties, used for analysis.
-enum class RegExpBytecodeFlag : uint32_t {
+enum class BytecodeFlag : uint32_t {
   // Control flow.
   //
   // This bytecode doesn't fall through, i.e. it either terminates or jumps
@@ -73,10 +77,10 @@ enum class RegExpBytecodeFlag : uint32_t {
   // This bytecode uses the current_character register's value.
   kUsesCC = 1 << 3,
 };
-using RegExpBytecodeFlags = base::Flags<RegExpBytecodeFlag>;
-DEFINE_OPERATORS_FOR_FLAGS(RegExpBytecodeFlags)
+using BytecodeFlags = base::Flags<BytecodeFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(BytecodeFlags)
 
-using ReBcFlag = RegExpBytecodeFlag;
+using ReBcFlag = BytecodeFlag;
 
 // Bytecodes that indicate something is invalid. These don't have a direct
 // equivalent in RegExpMacroAssembler.
@@ -117,8 +121,10 @@ using ReBcFlag = RegExpBytecodeFlag;
   /* Jump to another bytecode given its offset.                             */ \
   V(GoTo, (label), (ReBcOpType::kJumpTarget), (ReBcFlag::kNoFallthrough))      \
   /* Check if offset is in range and load character at given offset.        */ \
-  V(LoadCurrentCharacter, (cp_offset, on_failure),                             \
-    (ReBcOpType::kOffset, ReBcOpType::kJumpTarget), (ReBcFlag::kLoadsCC))      \
+  V(LoadCurrentCharacter, (cp_offset, bounds_check_offset, on_failure),        \
+    (ReBcOpType::kOffset, ReBcOpType::kBoundsCheckOffset,                      \
+     ReBcOpType::kJumpTarget),                                                 \
+    (ReBcFlag::kLoadsCC))                                                      \
   /* Checks if current position + given offset is in range.                 */ \
   /* I.e. jumps to |on_failure| if current pos + |cp_offset| >= subject len */ \
   V(CheckPosition, (cp_offset, on_failure),                                    \
@@ -175,10 +181,10 @@ using ReBcFlag = RegExpBytecodeFlag;
 // Bytecodes dealing with multiple characters, introduced due to special logic
 // in the bytecode-generator or requiring additional logic when assembling;
 // e.g. they have arguments only used in the interpreter, different
-// MacroAssembler names, non-default MacroAssembler arguments that need to be
-// provided, etc.
-// These share a method with Basic Bytecodes in RegExpMacroAssembler.
-// Format: V(CamelName, (OperandNames...), (OperandTypes...), (Flags...))
+// RegExpMacroAssembler names, non-default RegExpMacroAssembler arguments that
+// need to be provided, etc. These share a method with Basic Bytecodes in
+// RegExpMacroAssembler. Format: V(CamelName, (OperandNames...),
+// (OperandTypes...), (Flags...))
 #define SPECIAL_BYTECODE_LIST(V)                                               \
   V(Backtrack, (return_code), (ReBcOpType::kInt16),                            \
     (ReBcFlag::kNoFallthrough))                                                \
@@ -190,12 +196,16 @@ using ReBcFlag = RegExpBytecodeFlag;
   /* Todo(pthier): Change order to (table, label) and move to Basic */         \
   V(CheckBitInTable, (on_bit_set, table),                                      \
     (ReBcOpType::kJumpTarget, ReBcOpType::kBitTable), (ReBcFlag::kUsesCC))     \
-  V(Load2CurrentChars, (cp_offset, on_failure),                                \
-    (ReBcOpType::kOffset, ReBcOpType::kJumpTarget), (ReBcFlag::kLoadsCC))      \
+  V(Load2CurrentChars, (cp_offset, bounds_check_offset, on_failure),           \
+    (ReBcOpType::kOffset, ReBcOpType::kBoundsCheckOffset,                      \
+     ReBcOpType::kJumpTarget),                                                 \
+    (ReBcFlag::kLoadsCC))                                                      \
   V(Load2CurrentCharsUnchecked, (cp_offset), (ReBcOpType::kOffset),            \
     (ReBcFlag::kLoadsCC))                                                      \
-  V(Load4CurrentChars, (cp_offset, on_failure),                                \
-    (ReBcOpType::kOffset, ReBcOpType::kJumpTarget), (ReBcFlag::kLoadsCC))      \
+  V(Load4CurrentChars, (cp_offset, bounds_check_offset, on_failure),           \
+    (ReBcOpType::kOffset, ReBcOpType::kBoundsCheckOffset,                      \
+     ReBcOpType::kJumpTarget),                                                 \
+    (ReBcFlag::kLoadsCC))                                                      \
   V(Load4CurrentCharsUnchecked, (cp_offset), (ReBcOpType::kOffset),            \
     (ReBcFlag::kLoadsCC))                                                      \
   V(Check4Chars, (characters, on_equal),                                       \
@@ -236,52 +246,50 @@ using ReBcFlag = RegExpBytecodeFlag;
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckBitInTable and AdvanceCpAndGoto             */ \
   V(SkipUntilBitInTable,                                                       \
-    (cp_offset, advance_by, table, on_match, on_no_match),                     \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
-     ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),                        \
-    (ReBcFlag::kLoadsCC))                                                      \
-  /* Combination of:                                                        */ \
-  /* CheckPosition, LoadCurrentCharacterUnchecked, CheckCharacterAfterAnd   */ \
-  /* and AdvanceCpAndGoto                                                   */ \
-  /* TODO(pthier): mask should be kChar */                                     \
-  /* TODO(pthier): eats_at_least should be Offset                           */ \
-  V(SkipUntilCharAnd,                                                          \
-    (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
+    (cp_offset, advance_by, table, bounds_check_offset, on_match,              \
      on_no_match),                                                             \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kJumpTarget,        \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
+     ReBcOpType::kBoundsCheckOffset, ReBcOpType::kJumpTarget,                  \
      ReBcOpType::kJumpTarget),                                                 \
     (ReBcFlag::kLoadsCC))                                                      \
   /* Combination of:                                                        */ \
-  /* LoadCurrentCharacter, CheckCharacter and AdvanceCpAndGoto */              \
-  V(SkipUntilChar, (cp_offset, advance_by, character, on_match, on_no_match),  \
+  /* LoadCurrentCharacter, CheckCharacterAfterAnd and AdvanceCpAndGoto      */ \
+  /* TODO(pthier): mask should be kChar */                                     \
+  V(SkipUntilCharAnd,                                                          \
+    (cp_offset, advance_by, character, mask, bounds_check_offset, on_match,    \
+     on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
+     ReBcOpType::kUint32, ReBcOpType::kBoundsCheckOffset,                      \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),                        \
     (ReBcFlag::kLoadsCC))                                                      \
   /* Combination of:                                                        */ \
-  /* CheckPosition, LoadCurrentCharacterUnchecked, CheckCharacter           */ \
-  /* and AdvanceCpAndGoto                                                   */ \
-  V(SkipUntilCharPosChecked,                                                   \
-    (cp_offset, advance_by, character, eats_at_least, on_match, on_no_match),  \
+  /* LoadCurrentCharacter, CheckCharacter and AdvanceCpAndGoto */              \
+  V(SkipUntilChar,                                                             \
+    (cp_offset, advance_by, character, bounds_check_offset, on_match,          \
+     on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kOffset, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),   \
+     ReBcOpType::kBoundsCheckOffset, ReBcOpType::kJumpTarget,                  \
+     ReBcOpType::kJumpTarget),                                                 \
     (ReBcFlag::kLoadsCC))                                                      \
-  /* TODO(pthier): eats_at_least should be Offset instead of Uint32         */ \
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckCharacter, CheckCharacter and               */ \
   /* AdvanceCpAndGoto                                                       */ \
   V(SkipUntilCharOrChar,                                                       \
-    (cp_offset, advance_by, char1, char2, on_match, on_no_match),              \
+    (cp_offset, advance_by, char1, char2, bounds_check_offset, on_match,       \
+     on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kChar, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),     \
+     ReBcOpType::kChar, ReBcOpType::kBoundsCheckOffset,                        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),                        \
     (ReBcFlag::kLoadsCC))                                                      \
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckCharacterGT, CheckBitInTable, GoTo and      */ \
   /* AdvanceCpAndGoto                                                       */ \
   V(SkipUntilGtOrNotBitInTable,                                                \
-    (cp_offset, advance_by, character, table, on_match, on_no_match),          \
+    (cp_offset, advance_by, character, table, bounds_check_offset, on_match,   \
+     on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kBitTable, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget), \
+     ReBcOpType::kBitTable, ReBcOpType::kBoundsCheckOffset,                    \
+     ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget),                        \
     (ReBcFlag::kLoadsCC))                                                      \
   /* Combination of:                                                        */ \
   /* CheckPosition, Load4CurrentCharsUnchecked, AndCheck4Chars,             */ \
@@ -292,7 +300,7 @@ using ReBcFlag = RegExpBytecodeFlag;
     (cp_offset, advance_by, both_chars, both_mask, max_offset, chars1, mask1,  \
      chars2, mask2, on_match1, on_match2, on_failure),                         \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kUint32,            \
-     ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kUint32,            \
+     ReBcOpType::kUint32, ReBcOpType::kBoundsCheckOffset, ReBcOpType::kUint32, \
      ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget,                         \
      ReBcOpType::kJumpTarget),                                                 \
@@ -305,17 +313,18 @@ using ReBcFlag = RegExpBytecodeFlag;
   /* This pattern is common for finding a match from an alternative, e.g.:  */ \
   /* /<script|<style|<link/i.                                               */ \
   V(SkipUntilOneOfMasked3,                                                     \
-    (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_cp_offset, bc1_on_failure,  \
-     bc2_cp_offset, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,           \
-     bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
-     bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
+    (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_bounds_check_offset,        \
+     bc1_on_failure, bc1_cp_offset, bc2_characters, bc2_mask, bc3_by,          \
+     bc4_bounds_check_offset, bc4_cp_offset, bc5_characters, bc5_mask,         \
+     bc5_on_equal, bc6_characters, bc6_mask, bc6_on_equal, bc7_characters,     \
+     bc7_mask, fallthrough_jump_target),                                       \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
-     ReBcOpType::kOffset, ReBcOpType::kJumpTarget, ReBcOpType::kOffset,        \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
+     ReBcOpType::kBoundsCheckOffset, ReBcOpType::kJumpTarget,                  \
      ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
-     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
-     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
-     ReBcOpType::kJumpTarget),                                                 \
+     ReBcOpType::kOffset, ReBcOpType::kBoundsCheckOffset, ReBcOpType::kOffset, \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget),       \
     (ReBcFlag::kLoadsCC))
 
 #define REGEXP_BYTECODE_LIST(V) \
@@ -324,7 +333,7 @@ using ReBcFlag = RegExpBytecodeFlag;
   SPECIAL_BYTECODE_LIST(V)      \
   PEEPHOLE_BYTECODE_LIST(V)
 
-enum class RegExpBytecode : uint8_t {
+enum class Bytecode : uint8_t {
 #define DECLARE_BYTECODE(CamelName, ...) k##CamelName,
   REGEXP_BYTECODE_LIST(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
@@ -338,22 +347,22 @@ enum class RegExpBytecode : uint8_t {
 // We can pack operands if multiple operands fit into 4 bytes.
 static constexpr int kBytecodeAlignment = 4;
 
-template <RegExpBytecode bc>
-class RegExpBytecodeOperands;
+template <Bytecode bc>
+class BytecodeOperands;
 
-class RegExpBytecodes final : public AllStatic {
+class Bytecodes final : public AllStatic {
  public:
-  static constexpr int kCount = static_cast<uint8_t>(RegExpBytecode::kLast) + 1;
-  static constexpr uint8_t ToByte(RegExpBytecode bc) {
+  static constexpr int kCount = static_cast<uint8_t>(Bytecode::kLast) + 1;
+  static constexpr uint8_t ToByte(Bytecode bc) {
     return static_cast<uint8_t>(bc);
   }
-  static constexpr RegExpBytecode FromByte(uint8_t byte) {
+  static constexpr Bytecode FromByte(uint8_t byte) {
     DCHECK(IsValid(byte));
-    return static_cast<RegExpBytecode>(byte);
+    return static_cast<Bytecode>(byte);
   }
   // Extract the bytecode from the given `ptr`, which must point at the
   // word32-aligned region containing the bytecode. Endian-ness independent.
-  static constexpr RegExpBytecode FromPtr(const void* ptr) {
+  static constexpr Bytecode FromPtr(const void* ptr) {
     if (!std::is_constant_evaluated()) {
       DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kBytecodeAlignment));
     }
@@ -361,38 +370,38 @@ class RegExpBytecodes final : public AllStatic {
   }
   static constexpr bool IsValid(uint8_t byte) { return byte < kCount; }
   static constexpr bool IsValidJumpTarget(uint8_t byte) {
-    return IsValid(byte) && FromByte(byte) != RegExpBytecode::kBreak;
+    return IsValid(byte) && FromByte(byte) != Bytecode::kBreak;
   }
 
-  // Calls |f| templatized by RegExpBytecode. This allows the usage of the
+  // Calls |f| templatized by Bytecode. This allows the usage of the
   // functions template argument in other templates.
   // Example:
-  // RegExpBytecode bc = <runtime value>;
-  // DispatchOnBytecode(bc, []<RegExpBytecode bc>() { DoFancyStuff<bc>(); });
+  // Bytecode bc = <runtime value>;
+  // DispatchOnBytecode(bc, []<Bytecode bc>() { DoFancyStuff<bc>(); });
   template <typename Func>
-  static decltype(auto) DispatchOnBytecode(RegExpBytecode bytecode, Func&& f);
+  static decltype(auto) DispatchOnBytecode(Bytecode bytecode, Func&& f);
 
-  static constexpr const char* Name(RegExpBytecode bytecode);
+  static constexpr const char* Name(Bytecode bytecode);
   static constexpr const char* Name(uint8_t bytecode);
 
-  static constexpr uint8_t Size(RegExpBytecode bytecode);
+  static constexpr uint8_t Size(Bytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
-  static constexpr uint8_t Size(RegExpBytecodeOperandType type);
+  static constexpr uint8_t Size(BytecodeOperandType type);
 
-  static constexpr RegExpBytecodeFlags Flags(RegExpBytecode bytecode);
-  static constexpr RegExpBytecodeFlags Flags(uint8_t bytecode);
+  static constexpr BytecodeFlags Flags(Bytecode bytecode);
+  static constexpr BytecodeFlags Flags(uint8_t bytecode);
 };
 
-class RegExpBytecodeAnalysis;
+class BytecodeAnalysis;
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
                                const char* pattern);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
-                               const char* pattern,
-                               RegExpBytecodeAnalysis* analysis);
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
+                               const char* pattern, BytecodeAnalysis* analysis);
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

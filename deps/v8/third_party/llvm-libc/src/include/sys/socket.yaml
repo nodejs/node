@@ -1,0 +1,197 @@
+header: sys/socket.h
+standards:
+  - posix
+macros:
+  - macro_name: AF_UNSPEC
+    macro_header: sys-socket-macros.h
+types:
+  - type_name: struct_sockaddr
+  - type_name: struct_sockaddr_storage
+  - type_name: socklen_t
+  - type_name: sa_family_t
+  - type_name: struct_cmsghdr
+  - type_name: struct_mmsghdr
+  - type_name: struct_timespec
+  - type_name: struct_msghdr
+  - type_name: struct_iovec
+  - type_name: struct_linger
+  - type_name: size_t
+  - type_name: ssize_t
+enums: []
+objects: []
+functions:
+  - name: accept
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct sockaddr *__restrict
+      - type: socklen_t *__restrict
+  - name: accept4
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct sockaddr *__restrict
+      - type: socklen_t *__restrict
+      - type: int
+  - name: bind
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const struct sockaddr *
+      - type: socklen_t
+  - name: connect
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const struct sockaddr *
+      - type: socklen_t
+  - name: getpeername
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct sockaddr *__restrict
+      - type: socklen_t *__restrict
+  - name: getsockname
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct sockaddr *__restrict
+      - type: socklen_t *__restrict
+  - name: getsockopt
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+      - type: void *__restrict
+      - type: socklen_t *__restrict
+  - name: listen
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: recv
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: void *
+      - type: size_t
+      - type: int
+  - name: recvfrom
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: void *__restrict
+      - type: size_t
+      - type: int
+      - type: struct sockaddr *__restrict
+      - type: socklen_t *__restrict
+  - name: recvmmsg
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct mmsghdr *
+      - type: unsigned int
+      - type: int
+      - type: struct timespec *
+  - name: recvmsg
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: struct msghdr *
+      - type: int
+  - name: send
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const void*
+      - type: size_t
+      - type: int
+  - name: sendmmsg
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct mmsghdr *
+      - type: unsigned int
+      - type: int
+  - name: sendmsg
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const struct msghdr *
+      - type: int
+  - name: sendto
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const void *
+      - type: size_t
+      - type: int
+      - type: const struct sockaddr *
+      - type: socklen_t
+  - name: setsockopt
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+      - type: const void *
+      - type: socklen_t
+  - name: shutdown
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: socket
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+  - name: socketpair
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+      - type: int*

@@ -151,10 +151,11 @@ class DeferredPostJob {
   void Clear() { job_task_.reset(); }
 
   void DoRealPostJob(Platform* platform) {
-    if (do_post_)
+    if (do_post_) {
       real_handle_ = platform->PostJob(priority_, std::move(job_task_));
-    else
+    } else {
       real_handle_ = platform->CreateJob(priority_, std::move(job_task_));
+    }
     if (was_cancelled_) {
       real_handle_->Cancel();
     }

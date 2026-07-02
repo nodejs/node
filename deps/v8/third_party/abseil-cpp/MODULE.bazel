@@ -17,7 +17,6 @@
 module(
     name = "abseil-cpp",
     version = "head",
-    compatibility_level = 1,
 )
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl",
@@ -25,13 +24,13 @@ cc_configure = use_extension("@rules_cc//cc:extensions.bzl",
                              dev_dependency = True)
 use_repo(cc_configure, "local_config_cc")
 
-bazel_dep(name = "rules_cc", version = "0.2.9")
-bazel_dep(name = "bazel_skylib", version = "1.8.1")
-bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.18")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "platforms", version = "1.1.0")
 
 bazel_dep(
     name = "google_benchmark",
-    version = "1.9.4",
+    version = "1.9.5",
     dev_dependency = True,
 )
 
@@ -39,5 +38,5 @@ bazel_dep(
 # intended to be used by Abseil users depend on GoogleTest.
 bazel_dep(
     name = "googletest",
-    version = "1.17.0",
+    version = "1.17.0.bcr.2",
 )

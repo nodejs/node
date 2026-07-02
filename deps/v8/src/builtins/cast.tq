@@ -75,6 +75,16 @@ macro IsHeapNumber(o: HeapObject): bool {
 }
 
 @export
+macro IsJSModuleNamespace(o: Object): bool {
+  return Is<JSModuleNamespace>(o);
+}
+
+@export
+macro IsJSPrototype(o: HeapObject): bool {
+  return Is<JSPrototype>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
@@ -119,6 +129,11 @@ macro IsSymbol(o: HeapObject): bool {
   return Is<Symbol>(o);
 }
 
+@export
+macro IsTuple2(o: HeapObject): bool {
+  return Is<Tuple2>(o);
+}
+
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 extern macro TaggedToSmi(Object): Smi
@@ -130,9 +145,6 @@ extern macro TaggedToDirectString(Object): DirectString
 extern macro HeapObjectToCallable(HeapObject): Callable
     labels CastError;
 extern macro HeapObjectToConstructor(HeapObject): Constructor
-    labels CastError;
-extern macro HeapObjectToJSFunctionWithPrototypeSlot(HeapObject):
-    JSFunctionWithPrototypeSlot
     labels CastError;
 
 macro Cast<A : type extends WeakHeapObject>(o: A|Object):
@@ -465,11 +477,6 @@ Cast<DirectString>(o: String): DirectString
 Cast<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
-}
-
-Cast<JSFunctionWithPrototypeSlot>(o: HeapObject): JSFunctionWithPrototypeSlot
-    labels CastError {
-  return HeapObjectToJSFunctionWithPrototypeSlot(o) otherwise CastError;
 }
 
 Cast<BigInt>(o: HeapObject): BigInt labels CastError {
@@ -927,6 +934,21 @@ Cast<FixedArray|Undefined>(o: HeapObject): FixedArray|
       return o;
     }
     case (o: FixedArray): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+Cast<FixedDoubleArray|Undefined>(o: HeapObject): FixedDoubleArray|
+    Undefined labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: FixedDoubleArray): {
       return o;
     }
     case (Object): {

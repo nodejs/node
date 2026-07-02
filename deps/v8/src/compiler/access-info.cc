@@ -8,6 +8,7 @@
 #include <optional>
 #include <ostream>
 
+#include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -16,7 +17,9 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
@@ -24,7 +27,13 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/templates.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -49,13 +58,13 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
       return access_mode == AccessMode::kLoad &&
              map.object()->is_prototype_map();
     }
-    return !map.object()->has_named_interceptor() &&
+    return !map.has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasmObjectMap(*map.object())) {
-    DCHECK(!map.object()->has_named_interceptor());
+    DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
     // we can't express that in this helper function.
@@ -172,12 +181,11 @@ PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
-                                                    MapRef receiver_map,
-                                                    CellRef cell) {
-  return PropertyAccessInfo(zone, kModuleExport, {} /* holder */,
-                            cell /* constant */, {} /* api_holder */,
-                            {} /* name */, {{receiver_map}, zone});
+PropertyAccessInfo PropertyAccessInfo::ModuleExport(
+    Zone* zone, MapRef receiver_map, CellRef cell, OptionalJSObjectRef holder) {
+  return PropertyAccessInfo(zone, kModuleExport, holder, cell /* constant */,
+                            {} /* api_holder */, {} /* name */,
+                            {{receiver_map}, zone});
 }
 
 // static
@@ -200,6 +208,14 @@ PropertyAccessInfo PropertyAccessInfo::TypedArrayLength(Zone* zone,
                             {{receiver_map}, zone});
   result.set_elements_kind(receiver_map.elements_kind());
   return result;
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DictionaryDataField(
+    Zone* zone, MapRef receiver_map, OptionalJSObjectRef holder,
+    InternalIndex dictionary_index, NameRef name) {
+  return PropertyAccessInfo(zone, kDictionaryDataField, holder,
+                            {{receiver_map}, zone}, dictionary_index, name);
 }
 
 // static
@@ -381,6 +397,13 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return true;
     }
 
+    case kDictionaryDataField: {
+      DCHECK_EQ(AccessMode::kLoad, access_mode);
+      if (dictionary_index_ != that->dictionary_index_) return false;
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
+    }
+
     case kNotFound:
     case kStringLength:
     case kStringWrapperLength: {
@@ -396,6 +419,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kModuleExport:
       return false;
   }
+  UNREACHABLE();
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
@@ -557,13 +581,10 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_value.AsHeapObject().IsJSFunction()) return {};
 
         SharedFunctionInfoRef sfi = trap_value.AsJSFunction().shared(broker());
-        Tagged<Object> trusted_data =
+        Tagged<Union<Smi, TrustedObject>> trusted_data =
             sfi.object()->GetTrustedData(broker()->local_isolate_or_isolate());
         Tagged<WasmExportedFunctionData> wasm_data;
         if (!TryCast(trusted_data, &wasm_data)) return {};
-        // Supporting receiver-is-first-param mode would require passing
-        // the Proxy's handler to the eventual building of the Call node.
-        if (wasm_data->receiver_is_first_param()) return {};
         const wasm::CanonicalSig* wasm_signature = wasm_data->internal()->sig();
         if (wasm_signature->parameter_count() < 2) return {};
         wasm::CanonicalValueType key_type = wasm_signature->GetParam(1);
@@ -587,6 +608,11 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         // Finally: all good!
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
+      }
+      if (proto_map.IsWasmObjectMap()) {
+        // Wasm objects are opaque and frozen, so we can safely skip over them.
+        prototype = proto_map.prototype(broker());
+        continue;
       }
       // Nothing else can occur on prototype chains.
       UNREACHABLE();
@@ -638,7 +664,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   DirectHandle<DescriptorArray> descriptors =
       map.instance_descriptors(broker()).object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
-  int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) {
     // The ICs collect feedback in PREMONOMORPHIC state already,
@@ -648,8 +673,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // here and fall back to use the regular IC logic instead.
     return Invalid();
   }
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
-                                                        details_representation);
+  FieldIndex field_index = FieldIndex::ForDetails(*map.object(), details);
   // Private brands are used when loading private methods, which are stored in a
   // BlockContext, an internal object.
   Type field_type = name.object()->IsPrivateBrand() ? Type::OtherInternal()
@@ -760,17 +784,16 @@ PropertyAccessInfo AccessorAccessInfoHelper(
             Cast<JSModuleNamespace>(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cast<Cell>(module_namespace->module()->exports()->Lookup(
-            isolate, name.object(),
-            Smi::ToInt(Object::GetHash(*name.object())))));
+            name.object(), Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {
-      // ES#sec-module-namespace-exotic-objects-set-p-v-receiver
-      // ES#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
+      // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
       //
       // Storing to a module namespace object is always an error or a no-op in
       // JS.
       return PropertyAccessInfo::Invalid(zone);
     }
-    if (IsTheHole(cell->value(kRelaxedLoad), isolate)) {
+    if (IsTheHole(cell->value(kRelaxedLoad))) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }
@@ -779,7 +802,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       return PropertyAccessInfo::Invalid(zone);
     }
     return PropertyAccessInfo::ModuleExport(zone, receiver_map,
-                                            cell_ref.value());
+                                            cell_ref.value(), holder);
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
@@ -843,7 +866,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
           TryMakeRef(broker, cached_property_name.value());
       if (cached_property_name_ref.has_value()) {
         PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-            holder_map, cached_property_name_ref.value(), access_mode);
+            holder_map, cached_property_name_ref.value(), access_mode,
+            std::nullopt);
         if (!access_info.IsInvalid()) return access_info;
       }
     }
@@ -957,13 +981,33 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    MapRef map, NameRef name, AccessMode access_mode) const {
+    MapRef map, NameRef name, AccessMode access_mode,
+    OptionalObjectRef handler) const {
   CHECK(name.IsUniqueName());
 
   // Dictionary property const tracking is unsupported with concurrent inlining.
   CHECK(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
+
+  if (map.is_dictionary_map() && access_mode == AccessMode::kLoad &&
+      handler.has_value() && handler->IsSmi()) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      return Invalid();
+    }
+    auto smi_handler = Cast<Smi>(*handler->object());
+    if (LoadHandler::GetHandlerKind(smi_handler) ==
+        LoadHandler::Kind::kNormal) {
+      if (LoadHandler::IsDataPropertyBits::decode(smi_handler.value())) {
+        uint32_t index =
+            LoadHandler::DictionaryIndexBits::decode(smi_handler.value());
+        if (index != LoadHandler::DictionaryIndexBits::kMax) {
+          return PropertyAccessInfo::DictionaryDataField(
+              zone(), map, OptionalJSObjectRef(), InternalIndex(index), name);
+        }
+      }
+    }
+  }
 
   if (access_mode == AccessMode::kHas && !IsJSReceiverMap(*map.object())) {
     return Invalid();
@@ -1421,12 +1465,11 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // TODO(bmeurer): Handle transition to data constant?
   if (details.location() != PropertyLocation::kField) return Invalid();
 
-  int const index = details.field_index();
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) return Invalid();
 
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(
-      *transition_map.object(), index, details_representation);
+  FieldIndex field_index =
+      FieldIndex::ForDetails(*transition_map.object(), details);
   Type field_type = Type::NonInternal();
   OptionalMapRef field_map;
 

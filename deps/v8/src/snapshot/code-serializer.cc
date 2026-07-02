@@ -27,6 +27,7 @@
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 
 namespace v8 {
@@ -201,7 +202,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     DisallowGarbageCollection no_gc;
     Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
     if (restore_bytecode) {
-      sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
+      sfi->SetActiveBytecodeArray(debug_info->debug_bytecode_array(),
                                   isolate());
     }
     if (v8_flags.profile_guided_optimization &&
@@ -271,8 +272,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   CHECK(!InstanceTypeChecker::IsJSGlobalProxy(instance_type) &&
         !InstanceTypeChecker::IsJSGlobalObject(instance_type));
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(cage_base()),
-                obj->CanBeRehashed(cage_base()));
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
   // We expect no instantiated function objects or contexts.
   CHECK(!InstanceTypeChecker::IsJSFunction(instance_type) &&
         !InstanceTypeChecker::IsContext(instance_type));
@@ -478,6 +478,7 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
     case SerializedCodeSanityCheckResult::kReadOnlySnapshotChecksumMismatch:
       return "read-only snapshot checksum mismatch";
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -693,6 +694,7 @@ CodeSerializer::FinishOffThreadDeserialize(
 #ifdef DEBUG
     if (!Cast<String>(result_script->source())->Equals(*source)) {
       isolate->PushStackTraceAndDie(
+          "deserialized script source mismatch",
           reinterpret_cast<void*>(result_script->source().ptr()),
           reinterpret_cast<void*>(source->ptr()));
     }
@@ -742,7 +744,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   AllocateData(size);
 
   // Zero out pre-payload data. Part of that is only used for padding.
-  memset(data_, 0, kHeaderSize);
+  Memset(data_, 0, kHeaderSize);
 
   // Set header values.
   SetMagicNumber();
@@ -755,7 +757,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
-  memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
+  Memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
 
   // Copy serialized data.
   CopyBytes(data_ + kHeaderSize, payload->data(),

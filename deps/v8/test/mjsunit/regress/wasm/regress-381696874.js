@@ -47,13 +47,11 @@ for (let coll of colls) {
       [makeField(kWasmI32, true), makeField(wasmRefType($s0), true)]);
 
   builder.startRecGroup();
-  let $s_dst =
-      builder.addStruct(convert_to_fields(coll.none), kNoSuperType, false);
+  let $s_dst = builder.addStruct(convert_to_fields(coll.none));
   builder.endRecGroup();
 
   builder.startRecGroup();
-  let $s_src =
-      builder.addStruct(convert_to_fields(coll.any), kNoSuperType, false);
+  let $s_src = builder.addStruct(convert_to_fields(coll.any));
   builder.endRecGroup();
 
   let $sig_i_r = builder.addType(makeSig([kWasmExternRef], [kWasmI32]));

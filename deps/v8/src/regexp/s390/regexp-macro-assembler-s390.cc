@@ -17,6 +17,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /*
  * This assembler uses the following register assignment convention
@@ -104,7 +105,7 @@ RegExpMacroAssemblerS390::RegExpMacroAssemblerS390(Isolate* isolate, Zone* zone,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
-          isolate, CodeObjectRequired::kYes,
+          isolate, CodeObjectRequired{true},
           NewAssemblerBuffer(kRegExpCodeSize))),
       no_root_array_scope_(masm_.get()),
       num_registers_(registers_to_save),
@@ -149,7 +150,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
-    if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
+    if (is_int8(by)) {
       __ agsi(register_location(reg), Operand(by));
     } else {
       __ LoadU64(r2, register_location(reg), r0);
@@ -538,11 +539,12 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpMacroAssemblerS390::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by, Label* on_match, Label* on_no_match) {
+    int advance_by, int bounds_check_offset, Label* on_match,
+    Label* on_no_match) {
   // TODO(pthier): Optimize. Table can be loaded outside of the loop.
   Label again;
   Bind(&again);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckBitInTable(table, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
@@ -704,7 +706,7 @@ void RegExpMacroAssemblerS390::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   Label return_r2;
 
   // Finalize code - write the entry point code now we know how many
@@ -826,10 +828,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
     __ b(&return_r2);
 
     __ bind(&stack_limit_hit);
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r3);
     CallCheckStackGuardState(r2, extra_space_for_variables);
     __ CmpS64(r2, Operand::Zero());
     // If returned value is non-zero, we exit with the returned value as result.
     __ bne(&return_r2);
+    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     __ bind(&stack_ok);
   }
@@ -1120,8 +1124,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 
@@ -1339,8 +1342,8 @@ int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame,
                                                    uintptr_t extra_space) {
-  Tagged<InstructionStream> re_code =
-      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
+  Tagged<InstructionStream> re_code = SbxCast<InstructionStream>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_code)));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<intptr_t>(re_frame, kStartIndexOffset),
@@ -1469,7 +1472,7 @@ void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ mov(r2, Operand(l));
   __ LoadU64(r2, MemOperand(r2));
-  __ SubS64(r2, r2, Operand(RegExpStack::kStackLimitSlackSize));
+  __ SubS64(r2, r2, Operand(Stack::kStackLimitSlackSize));
   __ CmpU64(backtrack_stackpointer(), r2);
   __ bgt(&no_stack_overflow);
   __ DebugBreak();
@@ -1495,7 +1498,6 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   }
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
-
 
 void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
@@ -1537,6 +1539,7 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
 
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

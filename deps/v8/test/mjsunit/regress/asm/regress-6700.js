@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 let kMinHeapSize = 4096;
 
 (function TestLeftRight() {
@@ -18,7 +16,6 @@ let kMinHeapSize = 4096;
   }
   var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer);
-  assertTrue(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42] = 23;
   assertEquals(23, module.f(42));
 })();
@@ -35,7 +32,6 @@ let kMinHeapSize = 4096;
   }
   var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
-  assertTrue(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 >> 4] = 23;
   assertEquals(23, module.f(42));
 })();
@@ -52,7 +48,6 @@ let kMinHeapSize = 4096;
   }
   var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
-  assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 & 0xfc] = 23;
   assertEquals(23, module.f(42));
 })();
@@ -69,7 +64,6 @@ let kMinHeapSize = 4096;
   }
   var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
-  assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 >> 3] = 23;
   assertEquals(23, module.f(42));
 })();
@@ -86,7 +80,6 @@ let kMinHeapSize = 4096;
   }
   var buffer = new ArrayBuffer(kMinHeapSize);
   var module = new Module(this, {}, buffer)
-  assertFalse(%IsAsmWasmCode(Module));
   new Int32Array(buffer)[42 << 2] = 23;
   assertEquals(23, module.f(42));
 })();

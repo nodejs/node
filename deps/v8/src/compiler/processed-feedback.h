@@ -18,10 +18,12 @@ class CompareOperationFeedback;
 class ElementAccessFeedback;
 class ForInFeedback;
 class GlobalAccessFeedback;
+class HomomorphicPropertyAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
 class MegaDOMPropertyAccessFeedback;
 class NamedAccessFeedback;
+class ProxyFeedback;
 class RegExpLiteralFeedback;
 class TemplateObjectFeedback;
 
@@ -38,8 +40,10 @@ class ProcessedFeedback : public ZoneObject {
     kInstanceOf,
     kTypeOf,
     kLiteral,
+    kHomomorphicPropertyAccess,
     kMegaDOMPropertyAccess,
     kNamedAccess,
+    kProxy,
     kRegExpLiteral,
     kTemplateObject,
   };
@@ -57,6 +61,8 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
+  ProxyFeedback const& AsProxy() const;
+  HomomorphicPropertyAccessFeedback const& AsHomomorphicPropertyAccess() const;
   MegaDOMPropertyAccessFeedback const& AsMegaDOMPropertyAccess() const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
@@ -174,12 +180,18 @@ class NamedAccessFeedback : public ProcessedFeedback {
  public:
   NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
                       ZoneVector<MapRef> const& maps,
+                      ZoneVector<OptionalObjectRef> const& handlers,
+                      FeedbackSlotKind slot_kind,
+                      bool has_deprecated_map_without_migration_target = false);
+  NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
+                      ZoneVector<MapRef> const& maps,
                       FeedbackSlotKind slot_kind,
                       bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
   NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
+  ZoneVector<OptionalObjectRef> const& handlers() const { return handlers_; }
   bool has_deprecated_map_without_migration_target() const {
     return has_deprecated_map_without_migration_target_;
   }
@@ -193,7 +205,26 @@ class NamedAccessFeedback : public ProcessedFeedback {
   // crucial for checks that rely on object identity.
   NameRef const original_name_maybe_thin_;
   ZoneVector<MapRef> const maps_;
+  ZoneVector<OptionalObjectRef> const handlers_;
   bool has_deprecated_map_without_migration_target_;
+};
+
+class HomomorphicPropertyAccessFeedback : public ProcessedFeedback {
+ public:
+  HomomorphicPropertyAccessFeedback(
+      NameRef name, WeakHomomorphicFixedArrayRef homomorphic_array,
+      Tagged<Smi> handler, FeedbackSlotKind slot_kind);
+
+  NameRef name() const { return name_; }
+  WeakHomomorphicFixedArrayRef homomorphic_array() const {
+    return homomorphic_array_;
+  }
+  Tagged<Smi> handler() const { return handler_; }
+
+ private:
+  NameRef const name_;
+  WeakHomomorphicFixedArrayRef const homomorphic_array_;
+  Tagged<Smi> const handler_;
 };
 
 class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
@@ -228,6 +259,38 @@ class CallFeedback : public ProcessedFeedback {
   float const frequency_;
   SpeculationMode const mode_;
   CallFeedbackContent const content_;
+};
+
+class ProxyFeedback : public ProcessedFeedback {
+ public:
+  ProxyFeedback(NameRef name, MapRef receiver_map, MapRef target_map,
+                MapRef handler_map, ObjectRef trap_method, int handler_smi,
+                float frequency, FeedbackSlotKind slot_kind)
+      : ProcessedFeedback(kProxy, slot_kind),
+        name_(name),
+        receiver_map_(receiver_map),
+        target_map_(target_map),
+        handler_map_(handler_map),
+        trap_method_(trap_method),
+        handler_smi_(handler_smi),
+        frequency_(frequency) {}
+
+  NameRef name() const { return name_; }
+  MapRef receiver_map() const { return receiver_map_; }
+  MapRef target_map() const { return target_map_; }
+  MapRef handler_map() const { return handler_map_; }
+  ObjectRef trap_method() const { return trap_method_; }
+  int handler_smi() const { return handler_smi_; }
+  float frequency() const { return frequency_; }
+
+ private:
+  NameRef const name_;
+  MapRef const receiver_map_;
+  MapRef const target_map_;
+  MapRef const handler_map_;
+  ObjectRef const trap_method_;
+  int const handler_smi_;
+  float const frequency_;
 };
 
 template <class T, ProcessedFeedback::Kind K>

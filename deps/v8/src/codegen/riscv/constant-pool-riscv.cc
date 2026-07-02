@@ -70,7 +70,7 @@ void ConstantPool::Emit() {
   // overestimating the size of the pool in {ComputeSize} due to it being
   // rounded up to kInt32Size.
   int code_size = assm_->SizeOfCodeGeneratedSince(&before_pool);
-  if (v8_flags.riscv_c_extension) {
+  if (CpuFeatures::IsSupported(RVC)) {
     DCHECK_LE(code_size, size);
     while (code_size < size) {
       assm_->db(0xcc);
@@ -162,7 +162,7 @@ int ConstantPool::SizeOfPrologue() const {
 int ConstantPool::SizeOfPool(int padding) const {
   int prologue_size = SizeOfPrologue();
   int padding_after = RoundUp(padding, kInt32Size) - padding;
-  DCHECK(v8_flags.riscv_c_extension || padding_after == 0);
+  DCHECK(CpuFeatures::IsSupported(RVC) || padding_after == 0);
   int entries_size = static_cast<int>(EntryCount() * kInt64Size);
   return prologue_size + padding + entries_size + padding_after;
 }

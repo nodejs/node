@@ -14,26 +14,30 @@ namespace internal {
 
 using RegList = RegListBase<Register>;
 using DoubleRegList = RegListBase<DoubleRegister>;
+using Simd128RegList = RegListBase<Simd128Register>;
 ASSERT_TRIVIALLY_COPYABLE(RegList);
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegList);
+ASSERT_TRIVIALLY_COPYABLE(Simd128RegList);
 
+const int kNumJSCallerSaved = 15;
 const RegList kJSCallerSaved = {a0, a1, a2, a3, a4, a5, a6, a7,
                                 t0, t1, t2, t3, t4, t5, t8};
 
-const int kNumJSCallerSaved = 15;
-
 // Callee-saved registers preserved when switching from C to JavaScript.
+const int kNumCalleeSaved = 10;
 const RegList kCalleeSaved = {C_CALL_CALLEE_SAVE_REGISTERS};
 
-const int kNumCalleeSaved = 10;
-
-const DoubleRegList kCalleeSavedFPU = {C_CALL_CALLEE_SAVE_FP_REGISTERS};
-
 const int kNumCalleeSavedFPU = 8;
-
+const DoubleRegList kCalleeSavedFPU = {C_CALL_CALLEE_SAVE_FP_REGISTERS};
 const DoubleRegList kCallerSavedFPU = {f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,
                                        f8,  f9,  f10, f11, f12, f13, f14, f15,
                                        f16, f17, f18, f19, f20, f21, f22, f23};
+
+const DoubleRegList kCalleeSavedVR = {};
+const DoubleRegList kCallerSavedVR = {f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,
+                                      f8,  f9,  f10, f11, f12, f13, f14, f15,
+                                      f16, f17, f18, f19, f20, f21, f22, f23,
+                                      f24, f25, f26, f27, f28, f29, f30, f31};
 
 }  // namespace internal
 }  // namespace v8

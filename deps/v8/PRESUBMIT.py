@@ -132,12 +132,16 @@ def _V8PresubmitChecks(input_api, output_api):
   if not GCMoleProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError("GCMole pattern check failed"))
-  results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
-      input_api, output_api, bot_allowlist=[
-        'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
-        'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
-        'chrome-cherry-picker@chops-service-accounts.iam.gserviceaccount.com',
-      ]))
+  results.extend(
+      input_api.canned_checks.CheckAuthorizedAuthor(
+          input_api,
+          output_api,
+          bot_allowlist=[
+              'chrome-cherry-picker@chops-service-accounts.iam.gserviceaccount.com',
+              'chromium-autoroll@skia-public.iam.gserviceaccount.com',
+              'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
+              'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
+          ]))
   return results
 
 
@@ -473,6 +477,102 @@ def _RunTestsWithVPythonSpec(input_api, output_api):
     input_api.canned_checks.CheckVPythonSpec(input_api, output_api))
 
 
+def _CheckMultiLineIfBraces(input_api, output_api):
+  """Checks that multi-line if statements are enclosed in curly braces."""
+
+  def FilterFile(affected_file):
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(r'src[\\\/].*\.cc', r'src[\\\/].*\.h',
+                        r'test[\\\/].*\.cc', r'test[\\\/].*\.h'),
+        files_to_skip=files_to_skip)
+
+  # Strip C++ comments, preprocessor directives, and string/char literals,
+  # replacing them with whitespace while preserving newlines so line numbers remain exact.
+  clean_pattern = input_api.re.compile(
+      r'//[^\n]*|/\*[\s\S]*?\*\/|#(?:[^\n\\]|\\[\s\S])*|"(?:\\.|[^"\\])*"|(?<!\d)\'(?:\\.|[^\'\\])*\''
+  )
+
+  def replacer(m):
+    return ''.join('\n' if c == '\n' else ' ' for c in m.group(0))
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    original_text = '\n'.join(f.NewContents())
+    changed_line_nums = set(line_num for line_num, _ in f.ChangedContents())
+
+    text = clean_pattern.sub(replacer, original_text)
+
+    # Find all occurrences of 'if'
+    for match in input_api.re.finditer(r'(?<!#)\bif\s*(?:constexpr\s*)?\(',
+                                       text):
+      start_idx = match.end() - 1
+      # Find matching closing ')'
+      paren_count = 0
+      end_idx = -1
+      for i in range(start_idx, len(text)):
+        if text[i] == '(':
+          paren_count += 1
+        elif text[i] == ')':
+          paren_count -= 1
+          if paren_count == 0:
+            end_idx = i
+            break
+
+      if end_idx != -1:
+        # Match intervening whitespace and C++20 attributes (like [[likely]])
+        after_paren = text[end_idx + 1:]
+        gap_match = input_api.re.match(r'^(?:[ \t\r\n]|\[\[[\s\S]*?\]\])*',
+                                       after_paren)
+        j = end_idx + 1 + gap_match.end()
+        newline_seen = '\n' in gap_match.group(0)
+
+        # It is a multi-line if statement if either the condition spanned multiple lines
+        # or there was a newline before the body.
+        cond_text = text[match.start():end_idx + 1]
+        is_multiline = ('\n' in cond_text) or newline_seen
+
+        if is_multiline and j < len(text) and text[j] != '{':
+          # Compute line numbers
+          start_line = text.count('\n', 0, match.start()) + 1
+          body_line = text.count('\n', 0, j) + 1
+          # Find the statement text on body_line
+          line_end = original_text.find('\n', j)
+          if line_end == -1:
+            line_end = len(original_text)
+          stmt_text = original_text[j:line_end].strip()
+
+          if start_line in changed_line_nums or body_line in changed_line_nums:
+            errors.append(f'  {f.LocalPath()}:{body_line} {stmt_text}')
+
+  if errors:
+    return [
+        output_api.PresubmitPromptOrNotify(
+            'V8 C++ style requires curly braces around the body of multi-line if statements.\n'
+            'Please add braces around the following statements:', errors)
+    ]
+  return []
+
+
+def _CheckDepsGitignored(input_api, output_api):
+  """Checks that all dependencies in DEPS are gitignored."""
+  affected_files = [f.LocalPath() for f in input_api.AffectedFiles()]
+  if {"DEPS", ".gitignore"}.isdisjoint(affected_files):
+    return []
+
+  script_path = input_api.os_path.join(input_api.PresubmitLocalPath(), "tools",
+                                       "dev", "verify_deps_ignored.py")
+
+  return input_api.RunTests([
+      input_api.Command(
+          name="verify_deps_ignored",
+          cmd=[input_api.python3_executable, script_path],
+          kwargs={"cwd": input_api.PresubmitLocalPath()},
+          message=output_api.PresubmitError)
+  ])
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
@@ -482,6 +582,7 @@ def _CommonChecks(input_api, output_api):
       input_api.canned_checks.CheckOwnersFormat,
       input_api.canned_checks.CheckOwners,
       _CheckCommitMessageBugEntry,
+      _CheckLandOnChromiumBranch,
       input_api.canned_checks.CheckPatchFormatted,
       _CheckGenderNeutralInLicenses,
       _V8PresubmitChecks,
@@ -495,6 +596,8 @@ def _CommonChecks(input_api, output_api):
       _CheckBannedCpp,
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
+      _CheckMultiLineIfBraces,
+      _CheckDepsGitignored,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])
@@ -535,6 +638,44 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
     elif not re.match(r'\w+[:\/]\d+', bug):
       results.append(bogus_bug_msg.format(bug))
   return [output_api.PresubmitError(r) for r in results]
+
+
+def _CheckLandOnChromiumBranch(input_api, output_api):
+  """Check that CLs landing on chromium branches have a reason."""
+  if not input_api.gerrit:
+    return []
+
+  try:
+    if input_api.change.issue and hasattr(input_api.gerrit, 'GetDestRef'):
+      target_branch = input_api.gerrit.GetDestRef(input_api.change.issue)
+    else:
+      target_branch = input_api.gerrit.branch
+  except Exception:
+    return []
+
+  if not target_branch:
+    return []
+  if not target_branch.startswith('refs/'):
+    target_branch = 'refs/heads/%s' % target_branch
+  if not target_branch.startswith('refs/heads/chromium/'):
+    return []
+
+  description = input_api.change.FullDescriptionText()
+  if input_api.re.search(r'^LAND_ON_CHROMIUM_BRANCH=.+', description,
+                         input_api.re.MULTILINE):
+    return []
+
+  return [
+      output_api.PresubmitError(
+          'You are about to land a commit on a chromium branch. Note this is '
+          'valid for cherry-picks on Canary, Dev or Mini branches only. If your '
+          'cherry-pick targets such a branch, you can bypass this warning by '
+          'adding LAND_ON_CHROMIUM_BRANCH=<reason> to the CL description. If your '
+          'commit is intended for a release channel (Beta, Stable or Extended), '
+          'please use the appropriate branch named refs/branch-heads/XX.X. The '
+          'branch number follows the Chromium milestone name divided by 10, '
+          'e.g. M123 -> refs/branch-heads/12.3')
+  ]
 
 
 def _CheckJSONFiles(input_api, output_api):

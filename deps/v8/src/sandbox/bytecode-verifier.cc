@@ -4,6 +4,7 @@
 
 #include "src/sandbox/bytecode-verifier.h"
 
+#include "src/base/numerics/checked_math.h"
 #include "src/codegen/handler-table.h"
 #include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -51,11 +52,13 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
     if (interpreter::Bytecodes::IsJump(current_bytecode)) {
       unsigned target_offset = iterator.GetJumpTargetOffset();
       Check(target_offset < bytecode_length, "Invalid jump offset");
-      // We're specifically disallowing a forward jump with offset zero (i.e.
-      // to itself here) as that may cause our compilers to become confused.
-      Check(!interpreter::Bytecodes::IsForwardJump(current_bytecode) ||
-                target_offset > current_offset,
-            "Invalid jump offset");
+      if (interpreter::Bytecodes::IsForwardJump(current_bytecode)) {
+        // We're specifically disallowing a forward jump with offset zero (i.e.
+        // to itself here) as that may cause our compilers to become confused.
+        Check(target_offset > current_offset, "Invalid jump offset");
+      } else {
+        Check(target_offset <= current_offset, "Invalid jump offset");
+      }
       seen_jumps.Add(target_offset);
     } else if (interpreter::Bytecodes::IsSwitch(current_bytecode)) {
       for (const auto entry : iterator.GetJumpTableTargetOffsets()) {
@@ -70,14 +73,18 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
   Check(seen_jumps.IsSubsetOf(valid_offsets), "Invalid control-flow");
 
   HandlerTable table(*bytecode);
-  for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+  for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
     unsigned start = table.GetRangeStart(i);
     unsigned end = table.GetRangeEnd(i);
     unsigned handler = table.GetRangeHandler(i);
     Check(end <= bytecode_length && start <= end,
           "Invalid exception handler range");
+    Check(handler >= end, "Exception handler must be after the try-range");
     Check(handler < bytecode_length && valid_offsets.Contains(handler),
           "Invalid exception handler offset");
+    int data = table.GetRangeData(i);
+    Check((data >= 0 && data < bytecode->register_count()),
+          "Invalid exception handler data");
   }
 }
 
@@ -125,10 +132,10 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   interpreter::Register incoming_new_target_or_generator =
       bytecode->incoming_new_target_or_generator_register();
   if (incoming_new_target_or_generator.is_valid()) {
-    VerifyRegister(incoming_new_target_or_generator, false);
+    VerifyRegister(incoming_new_target_or_generator, true);
   }
 
-  unsigned constant_pool_length = bytecode->constant_pool()->length();
+  uint32_t constant_pool_length = bytecode->constant_pool()->ulength().value();
 
   interpreter::BytecodeArrayIterator iterator(bytecode);
   interpreter::Bytecode previous_bytecode = interpreter::Bytecode::kIllegal;
@@ -173,12 +180,15 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         case interpreter::OperandType::kRegOutList: {
           bool is_output =
               interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
-          int count = iterator.GetRegisterOperandRange(i);
+          uint32_t count = iterator.GetRegisterOperandRange(i);
           if (count > 0) {
             interpreter::Register start = iterator.GetRegisterOperand(i);
             VerifyRegister(start, is_output);
             if (count > 1) {
-              interpreter::Register end(start.index() + count - 1);
+              base::internal::CheckedNumeric<int> end_index = start.index();
+              end_index += count - 1;
+              Check(end_index.IsValid(), "Register range end overflows");
+              interpreter::Register end(end_index.ValueOrDie());
               VerifyRegister(end, is_output);
               Check(start.is_parameter() == end.is_parameter(),
                     "Register range crosses parameter/local boundary");
@@ -187,7 +197,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
           break;
         }
         case interpreter::OperandType::kConstantPoolIndex: {
-          unsigned index = iterator.GetConstantPoolIndexOperand(i);
+          uint32_t index = iterator.GetConstantPoolIndexOperand(i);
           Check(index < constant_pool_length,
                 "Constant pool index out of bounds");
           break;
@@ -238,6 +248,10 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         "Bytecode does not end with a control-flow terminating instruction");
   }
 
+  Check(bytecode->frame_size() >= 0, "Invalid bytecode array frame size");
+  Check(bytecode->parameter_count() >= kJSArgcReceiverSlots,
+        "Invalid bytecode array parameter count");
+
   // Finally perform lightweight verification for CFI. If we ever enable full
   // verification in production then we'd most likely want to avoid iterating
   // over the bytecode twice, so we'd have to embed the CFI checks also here.
@@ -258,11 +272,31 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   // It's unclear if we'll ever need this in production, but if we decide to
   // use it, we should do a more thorough audit to determine which functions
   // should be disallowed here.
+
+  if (!v8_flags.fuzzing) return true;
+
   switch (id) {
-#if V8_ENABLE_WEBASSEMBLY
-    case Runtime::kWasmTriggerTierUp:
+    case Runtime::kLoadLookupSlotForCall_Baseline:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug:
+    case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
+    case Runtime::kBytecodeBudgetInterrupt_Maglev:
+    case Runtime::kPatchLoadICUninitializedBaseline:
       return false;
+#if V8_ENABLE_WEBASSEMBLY
+#define CASE_WASM_INTRINSIC(Name, ...) case Runtime::k##Name:
+#define CASE_WASM_INTRINSIC_INLINE(Name, ...) case Runtime::kInline##Name:
+    // Only allow fuzzing-safe Wasm intrinsics because these intrinsics are
+    // never called by JS bytecode in production and inappropriate calls often
+    // lead to uninteresting fuzzer crashes.
+    FOR_EACH_INTRINSIC_WASM(CASE_WASM_INTRINSIC, CASE_WASM_INTRINSIC_INLINE)
+    FOR_EACH_INTRINSIC_WASM_TEST(CASE_WASM_INTRINSIC,
+                                 CASE_WASM_INTRINSIC_INLINE)
+#undef CASE_WASM_INTRINSIC_INLINE
+#undef CASE_WASM_INTRINSIC
+    return Runtime::IsEnabledForFuzzing(id);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
     default:
       return true;
   }

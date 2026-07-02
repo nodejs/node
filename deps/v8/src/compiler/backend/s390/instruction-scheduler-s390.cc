@@ -344,7 +344,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_S128Not:
     case kS390_S128Select:
     case kS390_S128AndNot:
-      return kNoOpcodeFlags;
+      // register-register instructions may have memory operands folded in by
+      // the instruction selector. When they do, they read from memory and must
+      // not be reordered past stores by the scheduler.
+      return (instr->addressing_mode() == kMode_None) ? kNoOpcodeFlags
+                                                      : kIsLoadOperation;
 
     case kS390_LoadWordS8:
     case kS390_LoadWordU8:

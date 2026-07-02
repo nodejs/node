@@ -129,8 +129,9 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
     FreelistHead empty_freelist;
     from_space->freelist_head_.store(empty_freelist, std::memory_order_relaxed);
 
-    for (Address field : from_space->invalidated_fields_)
+    for (Address field : from_space->invalidated_fields_) {
       space->invalidated_fields_.push_back(field);
+    }
     from_space->ClearInvalidatedFields();
   }
 
@@ -277,6 +278,27 @@ uint32_t ExternalPointerTable::Sweep(Space* space, Counters* counters) {
   return SweepAndCompact(space, counters);
 }
 
+void ExternalPointerTable::Verify(Isolate* isolate, Space* space) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto payload = at(index).GetRawPayload();
+    ExternalPointerTag tag = payload.ExtractTag();
+    if (tag == kExternalPointerFreeEntryTag ||
+        tag == kExternalPointerEvacuationEntryTag ||
+        tag == kExternalPointerZappedEntryTag) {
+      return;
+    }
+
+    Address pointer = payload.Untag(tag);
+    if (pointer == kNullAddress) return;
+
+    // We don't know the C++ type of the referenced object, so we cannot do
+    // much verification on it. What we can do is try to load the first byte of
+    // the object (we assume we don't have zero-sized objects). This way, we
+    // can at least detect issues like use-after-free on ASan builds.
+    USE(*reinterpret_cast<const uint8_t*>(pointer));
+  });
+}
+
 void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
     uint32_t new_index, ExternalPointerHandle* handle_location,
     uint32_t start_of_evacuation_area) {
@@ -290,8 +312,10 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   ExternalPointerHandle new_handle = IndexToHandle(new_index);
 
   // The compaction algorithm always moves an entry from the evacuation area to
-  // the front of the table. These DCHECKs verify this invariant.
-  DCHECK_GE(old_index, start_of_evacuation_area);
+  // the front of the table. Verify this invariant. The SBXCHECK below is not
+  // actually necessary but results in early crasher for corruptions with
+  // compaction enabled.
+  SBXCHECK_GE(old_index, start_of_evacuation_area);
   DCHECK_LT(new_index, start_of_evacuation_area);
   auto& new_entry = at(new_index);
   at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);

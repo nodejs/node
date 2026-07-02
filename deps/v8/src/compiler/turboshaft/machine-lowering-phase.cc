@@ -16,6 +16,10 @@
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/turboshaft/wasm-lowering-reducer.h"
+#endif
+
 namespace v8::internal::compiler::turboshaft {
 
 void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
@@ -24,11 +28,16 @@ void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   // and it would be better to not tie the Maglev graph builder to
   // SimplifiedLowering just yet, so I'm hijacking MachineLoweringPhase to run
   // JSGenericLoweringReducer without requiring a whole phase just for that.
-  CopyingPhase<StringEscapeAnalysisReducer, JSGenericLoweringReducer,
-               DataViewLoweringReducer, MachineLoweringReducer,
-               FastApiCallLoweringReducer, VariableReducer,
-               SelectLoweringReducer, MachineOptimizationReducer,
-               ValueNumberingReducer>::Run(data, temp_zone);
+  CopyingPhase<
+#if V8_ENABLE_WEBASSEMBLY
+      // We need the `WasmLoweringReducer` for lowering, e.g., `global.get` etc.
+      // if we ended up inlining any Wasm calls.
+      WasmLoweringReducer,
+#endif
+      StringEscapeAnalysisReducer, JSGenericLoweringReducer,
+      DataViewLoweringReducer, MachineLoweringReducer,
+      FastApiCallLoweringReducer, VariableReducer, SelectLoweringReducer,
+      MachineOptimizationReducer, ValueNumberingReducer>::Run(data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

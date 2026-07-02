@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "src/base/contextual.h"
+#include "src/base/strong-alias.h"
 #include "src/base/template-meta-programming/functional.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -29,27 +30,35 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
-#define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
+#define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName,             \
+                                             SynchronizationPointName)        \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurboshaft, \
-                                       RuntimeCallStats::kThreadSpecific)     \
+                                       RuntimeCallStats::kThreadSpecific,     \
+                                       SynchronizationPointName)              \
   static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;                \
   static void AssertTurboshaftPhase() {                                       \
     static_assert(TurboshaftPhase<Name##Phase>);                              \
   }
 
-#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name) \
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Turboshaft##Name)
+#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name)                  \
+  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Turboshaft##Name, \
+                                       "Turboshaft" #Name)
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(Name) \
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Name)
+  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Name, "Turboshaft" #Name)
 
 #define DECL_TURBOSHAFT_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS_WITH_LEGACY_NAME( \
     Name)                                                                      \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, PhaseKind::kTurboshaft,           \
-                                       RuntimeCallStats::kExact)               \
+                                       RuntimeCallStats::kExact,               \
+                                       "Turboshaft" #Name)                     \
   static constexpr char kPhaseName[] = "V8.TF" #Name;                          \
   static void AssertTurboshaftPhase() {                                        \
     static_assert(TurboshaftPhase<Name##Phase>);                               \
   }
+
+namespace v8::internal {
+class WasmTrustedInstanceData;
+}
 
 namespace v8::internal::compiler {
 class RegisterAllocationData;
@@ -425,10 +434,40 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  bool wasm_shared() const { return wasm_shared_; }
+  // The Wasm instance data is only set during Wasm-in-JS inlining in the JS
+  // pipeline. In the Wasm pipeline, it is always null.
+  Handle<WasmTrustedInstanceData> wasm_instance() const {
+    DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);
+    return wasm_instance_;
+  }
+
+  bool TrySetWasmInstanceForInlining(const wasm::WasmModule* module,
+                                     Handle<WasmTrustedInstanceData> instance) {
+    // This is used during Wasm-in-JS body inlining in the JavaScript (!)
+    // pipeline.
+    DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);
+    DCHECK(!instance.is_null());
+
+    // We should only ever inline functions from one Wasm instance (and thus
+    // one Wasm module) in a single JS compilation job.
+    if (wasm_instance_.is_null()) {
+      // First Wasm call being inlined.
+      DCHECK_EQ(wasm_module_, nullptr);
+      wasm_module_ = module;
+      wasm_instance_ = instance;
+      return true;
+    } else if (wasm_instance_.address() == instance.address()) {
+      // Another Wasm call to inline, but from the same instance.
+      DCHECK_EQ(wasm_module_, module);
+      return true;
+    }
+    return false;
+  }
+
+  SharedFlag wasm_shared() const { return wasm_shared_; }
 
   void SetIsWasmFunction(const wasm::WasmModule* module,
-                         const wasm::FunctionSig* sig, bool shared) {
+                         const wasm::FunctionSig* sig, SharedFlag shared) {
     wasm_module_ = module;
     wasm_module_sig_ = sig;
     wasm_shared_ = shared;
@@ -467,6 +506,19 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
   void clear_wasm_shuffle_analyzer() { wasm_shuffle_analyzer_ = nullptr; }
+
+  bool turbolev_graph_has_inlineable_wasm_calls() const {
+    return turbolev_graph_has_inlineable_wasm_calls_;
+  }
+  void set_turbolev_graph_has_inlineable_wasm_calls() {
+    turbolev_graph_has_inlineable_wasm_calls_ = true;
+  }
+  bool wasm_in_js_inlined_any_body() const {
+    return wasm_in_js_inlined_any_body_;
+  }
+  void set_wasm_in_js_inlined_any_body() {
+    wasm_in_js_inlined_any_body_ = true;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -543,8 +595,26 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::FunctionSig* wasm_module_sig_ = nullptr;
   const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
-  bool wasm_shared_ = false;
+  // The Wasm instance data of the inlined Wasm module. Set only during
+  // Wasm-in-JS inlining in the JS pipeline.
+  Handle<WasmTrustedInstanceData> wasm_instance_ = {};
+  SharedFlag wasm_shared_ = SharedFlag{false};
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
+  // When creating the Turboshaft graph from Maglev for Turbolev, we record in
+  // {turbolev_graph_has_inlineable_wasm_calls_} whether there are inlineable
+  // Wasm calls. This way, the WasmInJSInliningPhase can be ran conditionally
+  // and avoid a useless CopyingPhase for pure-JS functions, in order to reduce
+  // compile time.
+  // TODO(dmercadier,353475584): once WasmInJSInliningPhase has been merged with
+  // MachineLoweringPhase, we can get rid of this trick, since the
+  // MachineLoweringPhase runs unconditionally anyways.
+  bool turbolev_graph_has_inlineable_wasm_calls_ = false;
+  // {wasm_in_js_inlined_any_body_} is set to true if we successfully inlined
+  // at least one Wasm body during the WasmInJSInliningPhase. This is used to
+  // predicate the subsequent WasmGCOptimizePhase, avoiding running it if no
+  // Wasm body was inlined (e.g., if we only inlined JS-to-Wasm wrappers but
+  // bailed out of body inlining).
+  bool wasm_in_js_inlined_any_body_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

@@ -20,8 +20,6 @@ class PromiseReaction;
 class MicrotaskQueueBuiltinsAssembler;
 class SandboxTesting;
 
-#include "torque-generated/src/objects/promise-tq.inc"
-
 // Struct to hold state required for PromiseReactionJob. See the comment on the
 // PromiseReaction below for details on how this is being managed to reduce the
 // memory and allocation overhead. This is the base class for the concrete
@@ -122,7 +120,7 @@ V8_OBJECT class PromiseResolveThenableJobTask : public Microtask {
 } V8_OBJECT_END;
 
 // Struct to hold the state of a PromiseCapability.
-V8_OBJECT class PromiseCapability : public StructLayout {
+V8_OBJECT class PromiseCapability : public Struct {
  public:
   inline Tagged<UnionOf<JSReceiver, Undefined>> promise() const;
   inline void set_promise(Tagged<UnionOf<JSReceiver, Undefined>> value,
@@ -165,7 +163,7 @@ V8_OBJECT class PromiseCapability : public StructLayout {
 // Smi 0. On the JSPromise instance they are linked in reverse order,
 // and are turned into the proper order again when scheduling them on
 // the microtask queue.
-V8_OBJECT class PromiseReaction : public StructLayout {
+V8_OBJECT class PromiseReaction : public Struct {
  public:
   enum Type { kFulfill, kReject };
 

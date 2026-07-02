@@ -27,6 +27,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/memory/memory.h"
@@ -77,10 +78,9 @@ using IsMoveAssignOk = std::is_move_assignable<ValueType<A>>;
 template <typename A>
 using IsSwapOk = absl::type_traits_internal::IsSwappable<ValueType<A>>;
 
-template <typename A,
-          bool IsTriviallyDestructible =
-              absl::is_trivially_destructible<ValueType<A>>::value &&
-              std::is_same<A, std::allocator<ValueType<A>>>::value>
+template <typename A, bool IsTriviallyDestructible =
+                          std::is_trivially_destructible_v<ValueType<A>> &&
+                          std::is_same_v<A, std::allocator<ValueType<A>>>>
 struct DestroyAdapter;
 
 template <typename A>
@@ -288,15 +288,15 @@ class Storage {
   struct ElementwiseSwapPolicy {};
   struct ElementwiseConstructPolicy {};
 
-  using MoveAssignmentPolicy = absl::conditional_t<
+  using MoveAssignmentPolicy = std::conditional_t<
       // Fast path: if the value type can be trivially move assigned and
       // destroyed, and we know the allocator doesn't do anything fancy, then
       // it's safe for us to simply adopt the contents of the storage for
       // `other` and remove its own reference to them. It's as if we had
       // individually move-assigned each value and then destroyed the original.
-      absl::conjunction<absl::is_trivially_move_assignable<ValueType<A>>,
-                        absl::is_trivially_destructible<ValueType<A>>,
-                        std::is_same<A, std::allocator<ValueType<A>>>>::value,
+      std::conjunction_v<std::is_trivially_move_assignable<ValueType<A>>,
+                         std::is_trivially_destructible<ValueType<A>>,
+                         std::is_same<A, std::allocator<ValueType<A>>>>,
       MemcpyPolicy,
       // Otherwise we use move assignment if possible. If not, we simulate
       // move assignment using move construction.
@@ -304,22 +304,22 @@ class Storage {
       // Note that this is in contrast to e.g. std::vector and std::optional,
       // which are themselves not move-assignable when their contained type is
       // not.
-      absl::conditional_t<IsMoveAssignOk<A>::value, ElementwiseAssignPolicy,
-                          ElementwiseConstructPolicy>>;
+      std::conditional_t<IsMoveAssignOk<A>::value, ElementwiseAssignPolicy,
+                         ElementwiseConstructPolicy>>;
 
   // The policy to be used specifically when swapping inlined elements.
-  using SwapInlinedElementsPolicy = absl::conditional_t<
+  using SwapInlinedElementsPolicy = std::conditional_t<
       // Fast path: if the value type can be trivially relocated, and we
       // know the allocator doesn't do anything fancy, then it's safe for us
       // to simply swap the bytes in the inline storage. It's as if we had
       // relocated the first vector's elements into temporary storage,
       // relocated the second's elements into the (now-empty) first's,
       // and then relocated from temporary storage into the second.
-      absl::conjunction<absl::is_trivially_relocatable<ValueType<A>>,
-                        std::is_same<A, std::allocator<ValueType<A>>>>::value,
+      std::conjunction_v<absl::is_trivially_relocatable<ValueType<A>>,
+                         std::is_same<A, std::allocator<ValueType<A>>>>,
       MemcpyPolicy,
-      absl::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
-                          ElementwiseConstructPolicy>>;
+      std::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
+                         ElementwiseConstructPolicy>>;
 
   static SizeType<A> NextCapacity(SizeType<A> current_capacity) {
     return current_capacity * 2;
@@ -348,8 +348,8 @@ class Storage {
     // Fast path: if no destructors need to be run and we know the allocator
     // doesn't do anything fancy, then all we need to do is deallocate (and
     // maybe not even that).
-    if (absl::is_trivially_destructible<ValueType<A>>::value &&
-        std::is_same<A, std::allocator<ValueType<A>>>::value) {
+    if (std::is_trivially_destructible_v<ValueType<A>> &&
+        std::is_same_v<A, std::allocator<ValueType<A>>>) {
       DeallocateIfAllocated();
       return;
     }
@@ -476,7 +476,7 @@ class Storage {
   }
 
   void SubtractSize(SizeType<A> count) {
-    ABSL_HARDENING_ASSERT(count <= GetSize());
+    absl::base_internal::HardeningAssertLE(count, GetSize());
 
     GetSizeAndIsAllocated() -= count << static_cast<SizeType<A>>(1);
   }
@@ -500,18 +500,17 @@ class Storage {
     //
     {
       using V = ValueType<A>;
-      ABSL_HARDENING_ASSERT(
-          other_storage.GetIsAllocated() ||
-          (std::is_same<A, std::allocator<V>>::value &&
-           (
-               // First case above
-               absl::is_trivially_relocatable<V>::value ||
-               // Second case above
-               (absl::is_trivially_move_assignable<V>::value &&
-                absl::is_trivially_destructible<V>::value) ||
-               // Third case above
-               (absl::is_trivially_copy_constructible<V>::value ||
-                absl::is_trivially_copy_assignable<V>::value))));
+      ABSL_ASSERT(other_storage.GetIsAllocated() ||
+                  (std::is_same_v<A, std::allocator<V>> &&
+                   (
+                       // First case above
+                       absl::is_trivially_relocatable<V>::value ||
+                       // Second case above
+                       (std::is_trivially_move_assignable_v<V> &&
+                        std::is_trivially_destructible_v<V>) ||
+                       // Third case above
+                       (std::is_trivially_copy_constructible_v<V> ||
+                        std::is_trivially_copy_assignable_v<V>))));
     }
 
     GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
@@ -575,7 +574,7 @@ void Storage<T, N, A>::DestroyContents() {
 template <typename T, size_t N, typename A>
 void Storage<T, N, A>::InitFrom(const Storage& other) {
   const SizeType<A> n = other.GetSize();
-  ABSL_HARDENING_ASSERT(n > 0);  // Empty sources handled handled in caller.
+  ABSL_ASSERT(n > 0);  // Empty sources handled in caller.
   ConstPointer<A> src;
   Pointer<A> dst;
   if (!other.GetIsAllocated()) {
@@ -596,8 +595,8 @@ void Storage<T, N, A>::InitFrom(const Storage& other) {
   // Fast path: if the value type is trivially copy constructible and we know
   // the allocator doesn't do anything fancy, then we know it is legal for us to
   // simply memcpy the other vector's elements.
-  if (absl::is_trivially_copy_constructible<ValueType<A>>::value &&
-      std::is_same<A, std::allocator<ValueType<A>>>::value) {
+  if (std::is_trivially_copy_constructible_v<ValueType<A>> &&
+      std::is_same_v<A, std::allocator<ValueType<A>>>) {
     std::memcpy(reinterpret_cast<char*>(dst),
                 reinterpret_cast<const char*>(src), n * sizeof(ValueType<A>));
   } else {
@@ -613,8 +612,8 @@ template <typename ValueAdapter>
 auto Storage<T, N, A>::Initialize(ValueAdapter values,
                                   SizeType<A> new_size) -> void {
   // Only callable from constructors!
-  ABSL_HARDENING_ASSERT(!GetIsAllocated());
-  ABSL_HARDENING_ASSERT(GetSize() == 0);
+  ABSL_ASSERT(!GetIsAllocated());
+  ABSL_ASSERT(GetSize() == 0);
 
   Pointer<A> construct_data;
   if (new_size > GetInlinedCapacity()) {
@@ -878,8 +877,8 @@ auto Storage<T, N, A>::Erase(ConstIterator<A> from,
   // simply destroy the elements in the "erasure window" (which cannot throw)
   // and then memcpy downward to close the window.
   if (absl::is_trivially_relocatable<ValueType<A>>::value &&
-      std::is_nothrow_destructible<ValueType<A>>::value &&
-      std::is_same<A, std::allocator<ValueType<A>>>::value) {
+      std::is_nothrow_destructible_v<ValueType<A>> &&
+      std::is_same_v<A, std::allocator<ValueType<A>>>) {
     DestroyAdapter<A>::DestroyElements(
         GetAllocator(), storage_view.data + erase_index, erase_size);
     std::memmove(
@@ -930,7 +929,7 @@ auto Storage<T, N, A>::Reserve(SizeType<A> requested_capacity) -> void {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::ShrinkToFit() -> void {
   // May only be called on allocated instances!
-  ABSL_HARDENING_ASSERT(GetIsAllocated());
+  ABSL_ASSERT(GetIsAllocated());
 
   StorageView<A> storage_view{GetAllocatedData(), GetSize(),
                               GetAllocatedCapacity()};
@@ -979,7 +978,7 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
   using std::swap;
-  ABSL_HARDENING_ASSERT(this != other_storage_ptr);
+  ABSL_ASSERT(this != other_storage_ptr);
 
   if (GetIsAllocated() && other_storage_ptr->GetIsAllocated()) {
     swap(data_.allocated, other_storage_ptr->data_.allocated);

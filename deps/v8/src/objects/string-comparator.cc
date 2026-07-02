@@ -16,7 +16,7 @@ void StringComparator::State::Init(
       String::VisitFlat(this, string, 0, access_guard);
   iter_.Reset(cons_string);
   if (!cons_string.is_null()) {
-    int offset;
+    uint32_t offset;
     string = iter_.Next(&offset);
     // We are resetting the iterator with zero offset, so we should never have
     // a per-segment offset.
@@ -39,7 +39,7 @@ void StringComparator::State::Advance(
     return;
   }
   // Advance state.
-  int offset;
+  uint32_t offset;
   Tagged<String> next = iter_.Next(&offset);
   DCHECK_EQ(0, offset);
   DCHECK(!next.is_null());

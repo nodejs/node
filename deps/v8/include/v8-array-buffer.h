@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include <memory>
+#include <span>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
-#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
 #include "v8-platform.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -341,8 +341,8 @@ class V8_EXPORT ArrayBuffer : public Object {
   /**
    * Copy up to |bytes_to_copy| bytes from this ArrayBuffer starting at
    * position |source_start| to the target ArrayBuffer starting at position
-   * |target_start|. Nothing is copied if the source ArrayBuffer is detached,
-   * or if the target ArrayBuffer is detached or immutable.
+   * |target_start|. Nothing is copied if the source or target ArrayBuffer is
+   * detached.
    * Returns the number of bytes actually copied.
    */
   size_t CopyArrayBufferBytes(size_t source_start, size_t bytes_to_copy,
@@ -462,14 +462,14 @@ class V8_EXPORT ArrayBufferView : public Object {
   size_t CopyContents(void* dest, size_t byte_length);
 
   /**
-   * Returns the contents of the ArrayBufferView's buffer as a MemorySpan. If
+   * Returns the contents of the ArrayBufferView's buffer as a std::span. If
    * the contents are on the V8 heap, they get copied into `storage`. Otherwise
    * a view into the off-heap backing store is returned. The provided storage
    * should be at least as large as the maximum on-heap size of a TypedArray,
    * was defined in gn with `typed_array_max_size_in_heap`. The default value is
    * 64 bytes.
    */
-  v8::MemorySpan<uint8_t> GetContents(v8::MemorySpan<uint8_t> storage);
+  std::span<uint8_t> GetContents(std::span<uint8_t> storage);
 
   /**
    * Returns true if ArrayBufferView's backing ArrayBuffer has already been

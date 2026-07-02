@@ -62,6 +62,10 @@ class BasicBlock {
     DCHECK(!is_dead());
     return nodes_;
   }
+  const ZoneVector<Node*>& nodes() const {
+    DCHECK(!is_dead());
+    return nodes_;
+  }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {
@@ -181,6 +185,16 @@ class BasicBlock {
     return predecessor_at(predecessor_count() - 1);
   }
 
+  int get_predecessor_index(BasicBlock* pred) const {
+    DCHECK(has_state());
+    for (int i = 0; i < predecessor_count(); ++i) {
+      if (predecessor_at(i) == pred) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   int predecessor_id() const {
     return control_node()->Cast<UnconditionalControlNode>()->predecessor_id();
   }
@@ -245,6 +259,21 @@ class BasicBlock {
   void ForEachSuccessor(Func&& functor) const {
     ControlNode* control = control_node();
     ForEachSuccessorFollowing(control, functor);
+  }
+
+  // Invokes `f` on every NodeBase in the block: each phi (if any), then each
+  // (non-null) node, then the control node. Avoids repeating the
+  // phi/node/control walk at call sites. The block must not be dead.
+  template <typename Func>
+  void ForEachNodeAndControl(Func&& f) {
+    if (has_phi()) {
+      for (Phi* phi : *phis()) f(phi);
+    }
+    for (Node* node : nodes()) {
+      if (node != nullptr) f(node);
+    }
+    DCHECK_NOT_NULL(control_node());
+    f(control_node());
   }
 
   Label* label() {

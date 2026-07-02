@@ -53,7 +53,9 @@ cc_library(
 cc_test(
     name = "any_invocable_test",
     srcs = [
-        "any_invocable_test.cc",
+        "any_invocable_test.h",
+        "any_invocable_test_inst1.cc",
+        "any_invocable_test_inst2.cc",
         "internal/any_invocable.h",
     ],
     copts = ABSL_TEST_COPTS,
@@ -65,6 +67,32 @@ cc_test(
         "//absl/base:nullability",
         "//absl/meta:type_traits",
         "//absl/utility",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "bind_back",
+    srcs = ["internal/back_binder.h"],
+    hdrs = ["bind_back.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/container:compressed_tuple",
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "bind_back_test",
+    srcs = ["bind_back_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bind_back",
+        "//absl/memory",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -149,7 +177,6 @@ cc_test(
         "//absl/base:config",
         "//absl/strings",
         "//absl/strings:string_view",
-        "//absl/types:variant",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

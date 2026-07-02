@@ -23,13 +23,13 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // Returns object[Symbol.iterator].
   TNode<JSAny> GetIteratorMethod(TNode<Context> context, TNode<JSAny>);
 
-  // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
+  // https://tc39.es/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
   IteratorRecord GetIterator(TNode<Context> context, TNode<JSAny> object);
   IteratorRecord GetIterator(TNode<Context> context, TNode<JSAny> object,
                              TNode<Object> method);
 
-  // https://tc39.github.io/ecma262/#sec-iteratorstep
+  // https://tc39.es/ecma262/#sec-iteratorstep
   // If the iterator is done, goto {if_done}, otherwise returns an iterator
   // result.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
@@ -55,7 +55,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                             fast_iterator_result_map);
   }
 
-  // https://tc39.github.io/ecma262/#sec-iteratorvalue
+  // https://tc39.es/ecma262/#sec-iteratorvalue
   // Return the `value` field from an iterator.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
@@ -72,8 +72,14 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                std::function<void(TNode<Object>)> func,
                std::initializer_list<compiler::CodeAssemblerVariable*>
                    merged_variables = {});
+  void Iterate(TNode<Context> context, TNode<JSAny> iterable,
+               TNode<Object> iterable_fn,
+               std::function<TNode<BoolT>()> condition,
+               std::function<void(TNode<Object>)> func,
+               std::initializer_list<compiler::CodeAssemblerVariable*>
+                   merged_variables = {});
 
-  // #sec-iterabletolist
+  // https://tc39.es/ecma262/#sec-iterabletolist
   // Build a JSArray by iterating over {iterable} using {iterator_fn},
   // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<JSAny> iterable,
@@ -87,8 +93,8 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                                   TNode<Object> iterator_fn,
                                   GrowableFixedArray* values);
 
-  // Currently at https://tc39.github.io/proposal-intl-list-format/
-  // #sec-createstringlistfromiterable
+  // Currently at https://tc39.es/proposal-intl-list-format/
+  // https://tc39.es/ecma262/#sec-createstringlistfromiterable
   TNode<FixedArray> StringListFromIterable(TNode<Context> context,
                                            TNode<JSAny> iterable);
 
@@ -96,6 +102,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                           TVariable<JSArray>* var_result, Label* slow);
   TNode<JSArray> FastIterableToList(TNode<Context> context,
                                     TNode<JSAny> iterable, Label* slow);
+
+  TNode<FixedArray> ArrayDestructure(TNode<Context> context,
+                                     TNode<Object> receiver, TNode<Smi> count);
+
+  void StoreRegister(TNode<Smi> reg, TNode<Object> value);
 };
 
 }  // namespace internal

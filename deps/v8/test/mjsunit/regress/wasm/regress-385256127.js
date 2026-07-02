@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-const f1 = new WebAssembly.Function(
-    { parameters: [], results: []}, (x) => 123);
-const f2 = new WebAssembly.Function(
-    { parameters: ["i32"], results: ["i32"]}, f1);
+const f2 = new WebAssemblyFunction(
+    { parameters: ["i32"], results: ["i32"]}, (x) => 0);
 
 const table = new WebAssembly.Table({
   element: "anyfunc",

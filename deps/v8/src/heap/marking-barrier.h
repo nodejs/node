@@ -9,6 +9,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/hashing.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"
@@ -67,6 +68,7 @@ class MarkingBarrier {
       case MarkingMode::kMinorMarking:
         return true;
     }
+    UNREACHABLE();
   }
 
   Heap* heap() const { return heap_; }

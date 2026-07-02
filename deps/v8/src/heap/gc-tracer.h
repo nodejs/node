@@ -37,44 +37,47 @@ enum YoungGenerationSpeedMode {
   DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);       \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                 \
       tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain); \
-  TRACE_EVENT0(TRACE_GC_CATEGORIES,                                   \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                    \
+              perfetto::StaticString(                                 \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))))
 
-#define TRACE_GC_ARG1(tracer, scope_id, arg0_name, arg0_value)            \
-  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                         \
-  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);           \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);     \
-  TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               arg0_name, arg0_value)
+#define TRACE_GC_ARG1(tracer, scope_id, arg0_name, arg0_value)                \
+  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                             \
+  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);               \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);         \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              arg0_name, arg0_value)
 
-#define TRACE_GC_WITH_FLOW(tracer, scope_id, bind_id, flow_flags)         \
-  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                         \
-  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);           \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);     \
-  TRACE_EVENT_WITH_FLOW0(                                                 \
-      TRACE_GC_CATEGORIES,                                                \
-      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
-      flow_flags)
+#define TRACE_GC_WITH_FLOW(tracer, scope_id, flow)                            \
+  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                             \
+  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);               \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);         \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              flow)
 
 #define TRACE_GC1(tracer, scope_id, thread_kind_or_job_delegate) \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(            \
       tracer, GCTracer::Scope::ScopeId(scope_id),                \
       thread_kind_or_job_delegate);                              \
-  TRACE_EVENT0(TRACE_GC_CATEGORIES,                              \
-               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                               \
+              perfetto::StaticString(                            \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))))
 
-#define TRACE_GC1_WITH_FLOW(tracer, scope_id, thread_kind_or_job_delegate, \
-                            bind_id, flow_flags)                           \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                      \
-      tracer, GCTracer::Scope::ScopeId(scope_id),                          \
-      thread_kind_or_job_delegate);                                        \
-  TRACE_EVENT_WITH_FLOW0(                                                  \
-      TRACE_GC_CATEGORIES,                                                 \
-      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id,  \
-      flow_flags)
+#define TRACE_GC1_WITH_FLOW(tracer, scope_id, thread_kind_or_job_delegate,    \
+                            flow)                                             \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                             \
+      thread_kind_or_job_delegate);                                           \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              flow)
 
 #define TRACE_GC_EPOCH(tracer, scope_id, thread_kind_or_job_delegate, ...)    \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
@@ -85,24 +88,24 @@ enum YoungGenerationSpeedMode {
                   GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
               "epoch", tracer->CurrentEpoch(), ##__VA_ARGS__)
 
-#define TRACE_GC_EPOCH_WITH_FLOW(                                         \
-    tracer, scope_id, thread_kind_or_job_delegate, bind_id, flow_flags)   \
-  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
-      tracer, GCTracer::Scope::ScopeId(scope_id),                         \
-      thread_kind_or_job_delegate);                                       \
-  TRACE_EVENT_WITH_FLOW1(                                                 \
-      TRACE_GC_CATEGORIES,                                                \
-      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
-      flow_flags, "epoch", tracer->CurrentEpoch())
+#define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id,                            \
+                                 thread_kind_or_job_delegate, flow)           \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                         \
+      tracer, GCTracer::Scope::ScopeId(scope_id),                             \
+      thread_kind_or_job_delegate);                                           \
+  TRACE_EVENT(TRACE_GC_CATEGORIES,                                            \
+              perfetto::StaticString(                                         \
+                  GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id))), \
+              flow, "epoch", tracer->CurrentEpoch())
 
-#define TRACE_GC_NOTE(note)                  \
-  do {                                       \
-    TRACE_EVENT0(TRACE_GC_CATEGORIES, note); \
+#define TRACE_GC_NOTE(note)                 \
+  do {                                      \
+    TRACE_EVENT(TRACE_GC_CATEGORIES, note); \
   } while (0)
 
-#define TRACE_GC_NOTE_WITH_FLOW(note, bind_id, flow_flags)                  \
-  do {                                                                      \
-    TRACE_EVENT_WITH_FLOW0(TRACE_GC_CATEGORIES, note, bind_id, flow_flags); \
+#define TRACE_GC_NOTE_WITH_FLOW(note, flow)       \
+  do {                                            \
+    TRACE_EVENT(TRACE_GC_CATEGORIES, note, flow); \
   } while (0)
 
 using CollectionEpoch = uint32_t;
@@ -197,6 +200,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     GarbageCollectionReason gc_reason;
     GarbageCollectionReason incremental_marking_reason{
         GarbageCollectionReason::kUnknown};
+    HeapGrowingMode growing_mode;
+
     const char* collector_reason;
 
     // The Isolate's priority during the current GC cycle. The priority is set
@@ -377,9 +382,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 #endif
 
   // Sample and accumulate bytes allocated since the last GC.
-  void SampleAllocation(base::TimeTicks current, size_t new_space_counter_bytes,
-                        size_t old_generation_counter_bytes,
-                        size_t embedder_counter_bytes);
+  void SampleAllocation(base::TimeTicks current,
+                        uint64_t new_space_counter_bytes,
+                        uint64_t old_generation_counter_bytes,
+                        uint64_t embedder_counter_bytes,
+                        uint64_t external_counter_bytes);
 
   void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
@@ -432,15 +439,17 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Returns 0 if no allocation events have been recorded.
   double NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
-  // Allocation throughput in the old generation in bytes/millisecond in the
-  // last time_ms milliseconds.
+  // Allocation throughput in the old generation in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double OldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
-  // Allocation throughput in the embedder in bytes/millisecond in the
-  // last time_ms milliseconds.
+  // Allocation throughput in the embedder in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double EmbedderAllocationThroughputInBytesPerMillisecond() const;
+
+  // Allocation throughput in external memory in bytes/millisecond.
+  // Returns 0 if no allocation events have been recorded.
+  double ExternalAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
@@ -572,9 +581,10 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Timestamp and allocation counter at the last sampled allocation event.
   base::TimeTicks allocation_time_;
-  size_t new_space_allocation_counter_bytes_ = 0;
-  size_t old_generation_allocation_counter_bytes_ = 0;
-  size_t embedder_allocation_counter_bytes_ = 0;
+  uint64_t new_space_allocation_counter_bytes_ = 0;
+  uint64_t old_generation_allocation_counter_bytes_ = 0;
+  uint64_t embedder_allocation_counter_bytes_ = 0;
+  uint64_t external_allocation_counter_bytes_ = 0;
 
   std::optional<double> combined_mark_compact_speed_cache_;
 
@@ -594,15 +604,32 @@ class V8_EXPORT_PRIVATE GCTracer {
   BytesAndDurationBuffer recorded_major_totals_;
   BytesAndDurationBuffer recorded_embedder_marking_;
 
-  static constexpr base::TimeDelta kSmoothedAllocationSpeedDecayRate =
+  // Use different decay rates here based on whether the allocation throughput
+  // is increasing or decreasing. We use 100ms as decay rate for increasing
+  // allocation rate and 1s as decay rate for decreasing allocation rate. So for
+  // example to get from an allocation rate  of 1GB/s down to 1MB/s it takes ~10
+  // seconds. But going from the 1MB/s back up to 1GB/s can be achieved in ~1
+  // second instead. This allows us to quickly react to spikes and at the same
+  // time we do not throttle down too much for short periods of idleness.
+  // Shrinking too quickly can result in e.g. prematurely reducing new space
+  // size.
+  static constexpr base::TimeDelta kSmoothedAllocationSpeedIncreaseDecayRate =
       v8::base::TimeDelta::FromMilliseconds(100);
+  static constexpr base::TimeDelta kSmoothedAllocationSpeedDeclineDecayRate =
+      v8::base::TimeDelta::FromMilliseconds(1000);
 
   SmoothedBytesAndDuration new_generation_allocations_{
-      kSmoothedAllocationSpeedDecayRate};
+      kSmoothedAllocationSpeedIncreaseDecayRate,
+      kSmoothedAllocationSpeedDeclineDecayRate};
   SmoothedBytesAndDuration old_generation_allocations_{
-      kSmoothedAllocationSpeedDecayRate};
+      kSmoothedAllocationSpeedIncreaseDecayRate,
+      kSmoothedAllocationSpeedDeclineDecayRate};
   SmoothedBytesAndDuration embedder_generation_allocations_{
-      kSmoothedAllocationSpeedDecayRate};
+      kSmoothedAllocationSpeedIncreaseDecayRate,
+      kSmoothedAllocationSpeedDeclineDecayRate};
+  SmoothedBytesAndDuration external_allocations_{
+      kSmoothedAllocationSpeedIncreaseDecayRate,
+      kSmoothedAllocationSpeedDeclineDecayRate};
 
   // Estimate for young generation speed. Based on walltime and concurrency
   // estimates.

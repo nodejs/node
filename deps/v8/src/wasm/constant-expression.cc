@@ -4,6 +4,7 @@
 
 #include "src/wasm/constant-expression.h"
 
+#include "src/base/logging.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/factory.h"
@@ -13,7 +14,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8 {
@@ -43,7 +44,7 @@ ValueOrError EvaluateConstantExpression(
                        module->canonical_type(ValueType::RefNull(expr.type())));
     case ConstantExpression::Kind::kRefFunc: {
       uint32_t index = expr.index();
-      bool function_is_shared =
+      SharedFlag function_is_shared =
           module->type(module->functions[index].sig_index).is_shared;
       DirectHandle<WasmFuncRef> value =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
@@ -66,8 +67,7 @@ ValueOrError EvaluateConstantExpression(
       // We have already validated the expression, so we might as well
       // revalidate it as non-shared, which is strictly more permissive.
       // TODO(14616): Rethink this.
-      constexpr bool kIsShared = false;
-      FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
+      FunctionBody body(&sig, ref.offset(), start, end, SharedFlag{false});
       WasmDetectedFeatures detected;
       ValueOrError result;
       {
@@ -95,6 +95,7 @@ ValueOrError EvaluateConstantExpression(
       return result;
     }
   }
+  UNREACHABLE();
 }
 
 }  // namespace wasm

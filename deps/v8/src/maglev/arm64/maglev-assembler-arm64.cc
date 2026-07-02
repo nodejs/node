@@ -436,7 +436,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
-    Add(index, index, offset);
+    Add(index.W(), index.W(), offset.W());
     B(&loop);
   }
 
@@ -618,6 +618,13 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
   TemporaryRegisterScope temps(this);
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    // Fjcvtzs clears the Z flag if the conversion to int32 is inexact, and when
+    // the input is -0.
+    Fjcvtzs(dst.W(), src);
+    B(ne, fail);
+    return;
+  }
   DoubleRegister converted_back = temps.AcquireScratchDouble();
 
   // Convert the input float64 value to int32.

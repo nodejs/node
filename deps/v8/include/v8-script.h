@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <span>
 #include <tuple>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
-#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-message.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -283,11 +283,25 @@ class V8_EXPORT Module : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
+   * Evaluates async dependencies of a module and defer its evaluation
+   *
+   * It implements 13.3.10.4.1 ContinueDynamicImport, Step 6.e.
+   * (https://tc39.es/proposal-defer-import-eval/#sec-ContinueDynamicImport).
+   * This will gather all async dependencies of this module and trigger their
+   * evaluation. It returns a Promise that is similar to a Promise.all for all
+   * modules that are going to be evaluated. This module and its sync
+   * dependencies are not going to be evaluated.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> EvaluateForImportDefer(
+      Local<Context> context);
+
+  /**
    * Returns the namespace object of this module.
    *
    * The module's status must be at least kInstantiated.
    */
-  Local<Value> GetModuleNamespace();
+  Local<Value> GetModuleNamespace(
+      v8::ModuleImportPhase phase = v8::ModuleImportPhase::kEvaluation);
 
   /**
    * Returns the corresponding context-unbound module script.
@@ -348,8 +362,15 @@ class V8_EXPORT Module : public Data {
    */
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
-      const MemorySpan<const Local<String>>& export_names,
-      SyntheticModuleEvaluationSteps evaluation_steps);
+      const std::span<const Local<String>>& export_names,
+      SyntheticModuleEvaluationSteps evaluation_steps,
+      Local<Data> host_defined_options = Local<Data>());
+
+  /**
+   * Returns the host defined options set during CreateSyntheticModule().
+   * Must only be called on SyntheticModules.
+   */
+  Local<Data> GetSyntheticModuleHostDefinedOptions() const;
 
   /**
    * Set this module's exported value for the name export_name to the specified
@@ -764,6 +785,7 @@ class V8_EXPORT ScriptCompiler {
     kNoCacheBecauseResourceWithNoCacheHandler,
     kNoCacheBecauseDeferredProduceCodeCache,
     kNoCacheBecauseStaticCodeCache,
+    kNoCacheBecauseInlineScriptCacheTooCold,
   };
 
   /**

@@ -15,6 +15,8 @@ struct IteratorRecord {
   next: JSAny;
 }
 
+const kIteratorRecordFieldCount: constexpr int31 = 2;
+
 extern macro IteratorBuiltinsAssembler::FastIterableToList(
     implicit context: Context)(JSAny): JSArray labels Slow;
 
@@ -40,6 +42,29 @@ extern transitioning macro IteratorBuiltinsAssembler::IteratorValue(
     implicit context: Context)(JSReceiver): JSAny;
 extern transitioning macro IteratorBuiltinsAssembler::IteratorValue(
     implicit context: Context)(JSReceiver, Map): JSAny;
+
+// https://tc39.es/ecma262/#sec-iteratorstepvalue
+transitioning macro IteratorStepValue(
+    implicit context: Context)(iterated: IteratorRecord,
+    fastIteratorResultMap: Map): JSAny
+    labels Done, DoneWithException(JSAny, JSMessageObject|TheHole) {
+  static_assert(
+      kIteratorRecordFieldCount * kTaggedSize ==
+      torque_internal::SizeOf<IteratorRecord>());
+  try {
+    // 1. Let result be ? IteratorStep(iteratorRecord)
+    const result = IteratorStep(iterated, fastIteratorResultMap)
+        otherwise Done;
+    // 3. Let value be Completion(IteratorValue(result))
+    const value = IteratorValue(result, fastIteratorResultMap);
+    // 5. Return ? value
+    return value;
+  } catch (e, message) {
+    // Both IteratorStep and Completion(value) can throw. They mark the iterator
+    // as done and let the caller decide what to do with the exception.
+    goto DoneWithException(e, message);
+  }
+}
 
 extern transitioning macro IteratorBuiltinsAssembler::IterableToList(
     implicit context: Context)(JSAny, JSAny): JSArray;
@@ -104,40 +129,22 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
-struct ForOfNextResult {
-  value: Object;
-  done: Object;
-}
-
 extern transitioning macro ForOfNextHelper(
-    Context, Object, Object, Undefined|FeedbackVector,
-    uintptr): ForOfNextResult;
+    Context, Object, Object, Undefined|FeedbackVector, uintptr): JSAny|Hole;
 
 transitioning builtin ForOfNext(
     context: Context, iterator: JSAny, next: JSFunction,
-    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): ForOfNextResult {
+    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): Object {
   return ForOfNextHelper(
       context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 }
 
 transitioning builtin ForOfNextBaseline(
-    context: Context, iterator: JSAny, next: JSFunction, resultSlot: RawPtr,
-    callSlot: Smi): Undefined {
+    context: Context, iterator: JSAny, next: JSFunction,
+    callSlot: Smi): Object {
   const feedbackVector = LoadFeedbackVectorFromBaseline();
-  const result: ForOfNextResult = ForOfNextHelper(
+  return ForOfNextHelper(
       context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
-
-  // The result slot address points to the first interpreter register slot.
-  const firstResultSlot = resultSlot;
-  // The second interpreter register slot is one word before, since stacks grow
-  // toward zero.
-  const secondResultSlot =
-      resultSlot + torque_internal::TimesSizeOf<intptr>(-1);
-
-  StoreFullTaggedNoWriteBarrier(firstResultSlot, result.value);
-  StoreFullTaggedNoWriteBarrier(secondResultSlot, result.done);
-
-  return Undefined;
 }
 
 @export

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 (function TestF32StoreConvertsF64ToF32() {
   function Module(stdlib, foreign, heap) {
     'use asm';
@@ -20,7 +18,6 @@
   var view = new Float32Array(buffer);
   assertEquals(Math.fround(23.42), view[0]);
   assertEquals(Math.fround(23.42), view[1]);
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestF64StoreConvertsF32ToF64() {
@@ -40,5 +37,4 @@
   var view = new Float64Array(buffer);
   assertEquals(Math.fround(23.42), view[0]);
   assertEquals(Math.fround(23.42), view[1]);
-  assertTrue(%IsAsmWasmCode(Module));
 })();

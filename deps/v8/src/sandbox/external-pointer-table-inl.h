@@ -45,11 +45,17 @@ void ExternalPointerTableEntry::SetExternalPointer(Address value,
   DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
   DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
-  Payload new_payload(value, tag);
-  // Writing an entry currently also marks it as alive. In the future, we might
-  // want to drop this and instead use write barriers where necessary.
-  new_payload.SetMarkBit();
-  payload_.store(new_payload, std::memory_order_relaxed);
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  while (true) {
+    Payload new_payload(value, tag);
+    if (old_payload.HasMarkBitSet()) {
+      new_payload.SetMarkBit();
+    }
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
   MaybeUpdateRawPointerForLSan(value);
 }
 
@@ -65,15 +71,19 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
   // The 2nd most significant byte must be empty as we store the tag in int.
   DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
 
-  Payload new_payload(value, tag);
-  // Writing an entry currently also marks it as alive. In the future, we might
-  // want to drop this and instead use write barriers where necessary.
-  new_payload.SetMarkBit();
-  Payload old_payload =
-      payload_.exchange(new_payload, std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-  MaybeUpdateRawPointerForLSan(value);
-  return old_payload.Untag(tag);
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    Payload new_payload(value, tag);
+    if (old_payload.HasMarkBitSet()) {
+      new_payload.SetMarkBit();
+    }
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      MaybeUpdateRawPointerForLSan(value);
+      return old_payload.Untag(tag);
+    }
+  }
 }
 
 ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
@@ -109,21 +119,20 @@ std::optional<uint32_t> ExternalPointerTableEntry::GetNextFreelistEntryIndex()
   return payload.ExtractFreelistLink();
 }
 
-void ExternalPointerTableEntry::Mark() {
+bool ExternalPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-
-  auto new_payload = old_payload;
-  new_payload.SetMarkBit();
-
-  // We don't need to perform the CAS in a loop: if the new value is not equal
-  // to the old value, then the mutator must've just written a new value into
-  // the entry. This in turn must've set the marking bit already (see e.g.
-  // SetExternalPointer), so we don't need to do it again.
-  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
-                                                  std::memory_order_relaxed);
-  DCHECK(success || old_payload.HasMarkBitSet());
-  USE(success);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    if (old_payload.HasMarkBitSet()) {
+      return false;
+    }
+    auto new_payload = old_payload;
+    new_payload.SetMarkBit();
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      return true;
+    }
+  }
 }
 
 void ExternalPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
@@ -264,13 +273,16 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   uint32_t index = HandleToIndex(handle);
   DCHECK(space->Contains(index));
 
-  // If the table is being compacted and the entry is inside the evacuation
-  // area, then allocate and set up an evacuation entry for it.
-  MaybeCreateEvacuationEntry(space, index, handle_location);
+  // Bail out in case the entry was already marked.
+  if (!at(index).Mark()) {
+    return;
+  }
 
-  // Even if the entry is marked for evacuation, it still needs to be marked as
-  // alive as it may be visited during sweeping before being evacuation.
-  at(index).Mark();
+  // If the table is being compacted and the entry is inside the evacuation
+  // area, then allocate and set up an evacuation entry for it. Only one such
+  // entry must exist for any given `handle_location` which is ensured by
+  // properly bailing out on marked entries above.
+  MaybeCreateEvacuationEntry(space, index, handle_location);
 }
 
 void ExternalPointerTable::Evacuate(Space* from_space, Space* to_space,

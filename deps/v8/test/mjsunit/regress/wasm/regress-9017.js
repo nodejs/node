@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --liftoff --nowasm-tier-up
-//
 // This test is intended to make Liftoff generate code that uses a very large
 // stack frame, and then try to call another function (which would write to the
 // stack pointer location). On Windows, large frames need extra code to touch

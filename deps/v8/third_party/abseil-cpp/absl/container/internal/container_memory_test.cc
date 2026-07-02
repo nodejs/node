@@ -270,9 +270,9 @@ TEST(MapSlotPolicy, TransferReturnsTrue) {
   {
     using slot_policy = map_slot_policy<int, float>;
     EXPECT_TRUE(
-        (std::is_same<decltype(slot_policy::transfer<std::allocator<char>>(
-                          nullptr, nullptr, nullptr)),
-                      std::true_type>::value));
+        (std::is_same_v<decltype(slot_policy::transfer<std::allocator<char>>(
+                            nullptr, nullptr, nullptr)),
+                        std::true_type>));
   }
   {
     struct NonRelocatable {
@@ -285,9 +285,9 @@ TEST(MapSlotPolicy, TransferReturnsTrue) {
     EXPECT_FALSE(absl::is_trivially_relocatable<NonRelocatable>::value);
     using slot_policy = map_slot_policy<int, NonRelocatable>;
     EXPECT_TRUE(
-        (std::is_same<decltype(slot_policy::transfer<std::allocator<char>>(
-                          nullptr, nullptr, nullptr)),
-                      std::false_type>::value));
+        (std::is_same_v<decltype(slot_policy::transfer<std::allocator<char>>(
+                            nullptr, nullptr, nullptr)),
+                        std::false_type>));
   }
 }
 
@@ -295,17 +295,17 @@ TEST(MapSlotPolicy, DestroyReturnsTrue) {
   {
     using slot_policy = map_slot_policy<int, float>;
     EXPECT_TRUE(
-        (std::is_same<decltype(slot_policy::destroy<std::allocator<char>>(
-                          nullptr, nullptr)),
-                      std::true_type>::value));
+        (std::is_same_v<decltype(slot_policy::destroy<std::allocator<char>>(
+                            nullptr, nullptr)),
+                        std::true_type>));
   }
   {
-    EXPECT_FALSE(std::is_trivially_destructible<std::unique_ptr<int>>::value);
+    EXPECT_FALSE(std::is_trivially_destructible_v<std::unique_ptr<int>>);
     using slot_policy = map_slot_policy<int, std::unique_ptr<int>>;
     EXPECT_TRUE(
-        (std::is_same<decltype(slot_policy::destroy<std::allocator<char>>(
-                          nullptr, nullptr)),
-                      std::false_type>::value));
+        (std::is_same_v<decltype(slot_policy::destroy<std::allocator<char>>(
+                            nullptr, nullptr)),
+                        std::false_type>));
   }
 }
 

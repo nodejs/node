@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
 // Flags: --expose-gc --wasm-wrapper-tiering-budget=1
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -22,7 +21,7 @@ function foo() {
   gc();
 }
 const func =
-    new WebAssembly.Function({parameters: ['i32'], results: ['i32']}, foo);
+    new WebAssemblyFunction({parameters: ['i32'], results: ['i32']}, foo);
 
 let instance = builder.instantiate({m: {val: func}});
 instance.exports.main(3);

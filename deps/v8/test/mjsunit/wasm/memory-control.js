@@ -31,3 +31,10 @@ empty_descriptor.map(memory, 0x10000);
 for (let i = 0; i < file_content.length; ++i) {
   assertEquals(view[i + 0x10000], 0);
 }
+
+(function regress524832527() {
+  let descriptor = new WebAssembly.MemoryMapDescriptor(65536);
+  let proxy = new Proxy({}, {});
+  assertThrows(() => descriptor.map.call(proxy), TypeError);
+  assertThrows(() => descriptor.unmap.call(proxy), TypeError);
+})();

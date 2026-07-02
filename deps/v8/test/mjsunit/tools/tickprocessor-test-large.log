@@ -639,7 +639,7 @@ code-creation,Builtin,2,11508,0x557426390740,212,CEntry_Return2_DontSaveFPRegs_A
 code-creation,Builtin,2,11523,0x557426390820,404,CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit
 code-creation,Builtin,2,11537,0x5574263909c0,404,CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit
 code-creation,Builtin,2,11551,0x557426390b60,4,DirectCEntry
-code-creation,Builtin,2,11563,0x557426390b80,1136,StringAdd_CheckNone
+code-creation,Builtin,2,11563,0x557426390b80,1136,StringAdd_NoMapCheck
 code-creation,Builtin,2,11575,0x557426391000,2600,SubString
 code-creation,Builtin,2,11587,0x557426391a40,16,StackCheck
 code-creation,Builtin,2,11599,0x557426391a60,84,DoubleToI
@@ -1047,7 +1047,7 @@ code-creation,Builtin,2,15614,0x557426407200,328,Copy
 code-creation,Builtin,2,15622,0x557426407360,6072,MergeAt
 code-creation,Builtin,2,15631,0x557426408b20,824,GallopLeft
 code-creation,Builtin,2,15639,0x557426408e60,828,GallopRight
-code-creation,Builtin,2,15648,0x5574264091a0,3880,ArrayTimSort
+code-creation,Builtin,2,15648,0x5574264091a0,3880,ArrayPowerSort
 code-creation,Builtin,2,15656,0x55742640a0e0,2128,ArrayPrototypeSort
 code-creation,Builtin,2,15665,0x55742640a940,100,WasmInt32ToHeapNumber
 code-creation,Builtin,2,15674,0x55742640a9c0,120,WasmTaggedNonSmiToInt32

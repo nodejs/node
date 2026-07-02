@@ -38,6 +38,7 @@
 
 #include <string>
 #include <tuple>
+#include <vector>
 
 #if !HWY_TEST_STANDALONE
 #include "gtest/gtest.h"  // IWYU pragma: export
@@ -57,6 +58,34 @@ namespace hwy {
 #define HWY_GTEST_INSTANTIATE_TEST_SUITE_P INSTANTIATE_TEST_CASE_P
 #endif
 
+// Wraps the target parameter so we can provide a `PrintTo` overload.
+struct TestTargetParam {
+  int64_t target;
+  // Implicit conversion ensures that `int64_t target = GetParam()` still works.
+  operator int64_t() const { return target; }
+};
+
+// Overload called by GTest's PrintToString.
+inline void PrintTo(const TestTargetParam& param, std::ostream* os) {
+  *os << hwy::TargetName(param.target);
+}
+
+// Converts native targets to our wrapper before passing to GTest.
+inline std::vector<TestTargetParam> GetTestTargetParams() {
+  std::vector<TestTargetParam> ret;
+  for (int64_t t : hwy::SupportedAndGeneratedTargets()) {
+    ret.push_back({t});
+  }
+  return ret;
+}
+
+// Function to convert the test parameter of a TestWithParamTarget for
+// passing to HWY_GTEST_INSTANTIATE_TEST_SUITE_P.
+static inline std::string TestParamTargetName(
+    const testing::TestParamInfo<TestTargetParam>& info) {
+  return TargetName(info.param.target);
+}
+
 // Helper class to run parametric tests using the hwy target as parameter. To
 // use this define the following in your test:
 //   class MyTestSuite : public TestWithParamTarget {
@@ -64,7 +93,7 @@ namespace hwy {
 //   };
 //   HWY_TARGET_INSTANTIATE_TEST_SUITE_P(MyTestSuite);
 //   TEST_P(MyTestSuite, MyTest) { ... }
-class TestWithParamTarget : public testing::TestWithParam<int64_t> {
+class TestWithParamTarget : public testing::TestWithParam<TestTargetParam> {
  protected:
   void SetUp() override { SetSupportedTargetsForTest(GetParam()); }
 
@@ -73,25 +102,19 @@ class TestWithParamTarget : public testing::TestWithParam<int64_t> {
     // was compiled with more than one target. In the single-target case only
     // static dispatch will be used anyway.
 #if (HWY_TARGETS & (HWY_TARGETS - 1)) != 0
-    EXPECT_TRUE(GetChosenTarget().IsInitialized())
-        << "This hwy target parametric test doesn't use dynamic-dispatch and "
-           "doesn't need to be parametric.";
+    if (!this->IsSkipped()) {
+      EXPECT_TRUE(GetChosenTarget().IsInitialized())
+          << "This hwy target parametric test doesn't use dynamic-dispatch and "
+             "doesn't need to be parametric.";
+    }
 #endif
     SetSupportedTargetsForTest(0);
   }
 };
 
-// Function to convert the test parameter of a TestWithParamTarget for
-// displaying it in the gtest test name.
-static inline std::string TestParamTargetName(
-    const testing::TestParamInfo<int64_t>& info) {
-  return TargetName(info.param);
-}
-
-#define HWY_TARGET_INSTANTIATE_TEST_SUITE_P(suite)              \
-  HWY_GTEST_INSTANTIATE_TEST_SUITE_P(                           \
-      suite##Group, suite,                                      \
-      testing::ValuesIn(::hwy::SupportedAndGeneratedTargets()), \
+#define HWY_TARGET_INSTANTIATE_TEST_SUITE_P(suite)                          \
+  HWY_GTEST_INSTANTIATE_TEST_SUITE_P(                                       \
+      suite##Group, suite, testing::ValuesIn(::hwy::GetTestTargetParams()), \
       ::hwy::TestParamTargetName)
 
 // Helper class similar to TestWithParamTarget to run parametric tests that
@@ -105,7 +128,7 @@ static inline std::string TestParamTargetName(
 //   TEST_P(MyTestSuite, MyTest) { ... GetParam() .... }
 template <typename T>
 class TestWithParamTargetAndT
-    : public ::testing::TestWithParam<std::tuple<int64_t, T>> {
+    : public ::testing::TestWithParam<std::tuple<TestTargetParam, T>> {
  public:
   // Expose the parametric type here so it can be used by the
   // HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T macro.
@@ -114,7 +137,7 @@ class TestWithParamTargetAndT
  protected:
   void SetUp() override {
     SetSupportedTargetsForTest(std::get<0>(
-        ::testing::TestWithParam<std::tuple<int64_t, T>>::GetParam()));
+        ::testing::TestWithParam<std::tuple<TestTargetParam, T>>::GetParam()));
   }
 
   void TearDown() override {
@@ -131,23 +154,22 @@ class TestWithParamTargetAndT
 
   T GetParam() {
     return std::get<1>(
-        ::testing::TestWithParam<std::tuple<int64_t, T>>::GetParam());
+        ::testing::TestWithParam<std::tuple<TestTargetParam, T>>::GetParam());
   }
 };
 
 template <typename T>
 std::string TestParamTargetNameAndT(
-    const testing::TestParamInfo<std::tuple<int64_t, T>>& info) {
+    const testing::TestParamInfo<std::tuple<TestTargetParam, T>>& info) {
   return std::string(TargetName(std::get<0>(info.param))) + "_" +
          ::testing::PrintToString(std::get<1>(info.param));
 }
 
-#define HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(suite, generator)     \
-  HWY_GTEST_INSTANTIATE_TEST_SUITE_P(                               \
-      suite##Group, suite,                                          \
-      ::testing::Combine(                                           \
-          testing::ValuesIn(::hwy::SupportedAndGeneratedTargets()), \
-          generator),                                               \
+#define HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(suite, generator)           \
+  HWY_GTEST_INSTANTIATE_TEST_SUITE_P(                                     \
+      suite##Group, suite,                                                \
+      ::testing::Combine(testing::ValuesIn(::hwy::GetTestTargetParams()), \
+                         generator),                                      \
       ::hwy::TestParamTargetNameAndT<suite::HwyParamType>)
 
 // Helper macro to export a function and define a test that tests it. This is
@@ -167,10 +189,29 @@ std::string TestParamTargetNameAndT(
   TEST_P(suite, func_name) { HWY_DYNAMIC_DISPATCH(func_name)(GetParam()); } \
   static_assert(true, "For requiring trailing semicolon")
 
+// Export and test a function on ONLY the best available target.
+#define HWY_EXPORT_AND_TEST_BEST_P(suite, func_name)                \
+  HWY_EXPORT(func_name);                                          \
+  TEST_P(suite, func_name) {                                      \
+    int64_t current_targets = hwy::SupportedTargets();            \
+    hwy::SetSupportedTargetsForTest(0);                           \
+    int64_t all_supported = hwy::SupportedTargets() & HWY_TARGETS;    \
+    hwy::SetSupportedTargetsForTest(current_targets);             \
+    int64_t best_target = all_supported & -all_supported;           \
+    if (GetParam() == best_target) {                          \
+      HWY_DYNAMIC_DISPATCH(func_name)();                            \
+    } else {                                                        \
+      GTEST_SKIP() << "Skipping " << hwy::TargetName(GetParam())     \
+                   << " as not the best target";                  \
+    }                                                               \
+  }                                                                 \
+  static_assert(true, "For requiring trailing semicolon")
+
 #define HWY_BEFORE_TEST(suite)                      \
   class suite : public hwy::TestWithParamTarget {}; \
   HWY_TARGET_INSTANTIATE_TEST_SUITE_P(suite);       \
   static_assert(true, "For requiring trailing semicolon")
+
 
 #define HWY_AFTER_TEST() static_assert(true, "For requiring trailing semicolon")
 

@@ -408,20 +408,16 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     return i_function->shared();
   }
 
-  static i::Tagged<i::MaybeObject> WeakOrSmi(i::Tagged<i::Object> obj) {
-    return IsSmi(obj) ? i::Cast<i::Smi>(obj) : i::MakeWeak(obj);
-  }
-
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
       i::Tagged<i::SharedFunctionInfo> sfi, i::Isolate* i_isolate) {
-    i::Tagged<i::Object> data = sfi->GetTrustedData(i_isolate);
+    auto data = sfi->GetTrustedData(i_isolate);
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
     if (i::Tagged<i::BytecodeArray> bytes; TryCast(data, &bytes)) {
-      data = bytes->wrapper();
+      return bytes->wrapper();
     }
-    return data;
+    return i::Cast<i::Object>(data);
   }
 
   void ValidateStandaloneGraphAndPopulateArray(
@@ -431,36 +427,38 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       bool eager_should_be_compiled = true) {
     i::DisallowGarbageCollection no_gc;
     CHECK(toplevel_sfi->is_compiled());
-    array->set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
-    array->set(kToplevelFunctionData, WeakOrSmi(ExtractSharedFunctionInfoData(
-                                          toplevel_sfi, i_isolate)));
+    array->set(kToplevelSfi, MakeWeak(toplevel_sfi));
+    array->set(
+        kToplevelFunctionData,
+        MakeWeakOrSmi(ExtractSharedFunctionInfoData(toplevel_sfi, i_isolate)));
     array->set(kToplevelFeedbackMetadata,
-               WeakOrSmi(toplevel_sfi->feedback_metadata()));
+               MakeWeak(toplevel_sfi->feedback_metadata()));
     i::Tagged<i::Script> script = i::Cast<i::Script>(toplevel_sfi->script());
-    array->set(kScript, WeakOrSmi(script));
+    array->set(kScript, MakeWeak(script));
     i::Tagged<i::WeakFixedArray> sfis = script->infos();
-    CHECK_EQ(sfis->length(), 4);
-    CHECK_EQ(sfis->get(0), WeakOrSmi(toplevel_sfi));
+    CHECK_EQ(sfis->length().value(), 4);
+    CHECK_EQ(sfis->get(0), MakeWeak(toplevel_sfi));
     i::Tagged<i::SharedFunctionInfo> eager =
         i::Cast<i::SharedFunctionInfo>(sfis->get(1).GetHeapObjectAssumeWeak());
     CHECK_EQ(eager->is_compiled(), eager_should_be_compiled);
-    array->set(kEagerSfi, WeakOrSmi(eager));
+    array->set(kEagerSfi, MakeWeak(eager));
     if (eager_should_be_compiled) {
-      array->set(kEagerFunctionData,
-                 WeakOrSmi(ExtractSharedFunctionInfoData(eager, i_isolate)));
-      array->set(kEagerFeedbackMetadata, WeakOrSmi(eager->feedback_metadata()));
+      array->set(
+          kEagerFunctionData,
+          MakeWeakOrSmi(ExtractSharedFunctionInfoData(eager, i_isolate)));
+      array->set(kEagerFeedbackMetadata, MakeWeak(eager->feedback_metadata()));
       i::Tagged<i::SharedFunctionInfo> iife = i::Cast<i::SharedFunctionInfo>(
           sfis->get(2).GetHeapObjectAssumeWeak());
       CHECK(iife->is_compiled());
-      array->set(kIifeSfi, WeakOrSmi(iife));
+      array->set(kIifeSfi, MakeWeak(iife));
       array->set(kIifeFunctionData,
-                 WeakOrSmi(ExtractSharedFunctionInfoData(iife, i_isolate)));
-      array->set(kIifeFeedbackMetadata, WeakOrSmi(iife->feedback_metadata()));
+                 MakeWeakOrSmi(ExtractSharedFunctionInfoData(iife, i_isolate)));
+      array->set(kIifeFeedbackMetadata, MakeWeak(iife->feedback_metadata()));
     }
     i::Tagged<i::SharedFunctionInfo> lazy =
         i::Cast<i::SharedFunctionInfo>(sfis->get(3).GetHeapObjectAssumeWeak());
     CHECK_EQ(lazy->is_compiled(), lazy_should_be_compiled);
-    array->set(kLazySfi, WeakOrSmi(lazy));
+    array->set(kLazySfi, MakeWeak(lazy));
   }
 
   void AgeBytecodeAndGC(ScriptObjectFlag sfis_to_age,
@@ -953,6 +951,177 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
       String::NewFromOneByte(isolate(), kFunctionText).ToLocalChecked();
   Local<Value> actual = RunGlobalFunc("f");
   CHECK(expected->StrictEquals(actual));
+}
+
+// POC: Relaxed-store publication of fresh SharedFunctionInfo into
+// Script::infos() read concurrently by BackgroundMergeTask without acquire.
+//
+// Writer (main thread): calling an uncompiled outer closure triggers lazy
+// compilation, which for every nested function literal calls
+// Compiler::GetSharedFunctionInfo -> NewSharedFunctionInfoForLiteral ->
+// SharedFunctionInfo::SetScript. SetScript publishes the freshly-allocated
+// SFI into the live cached Script's infos() WeakFixedArray with a relaxed
+// store (fixed-array-inl.h TaggedArrayBase::set -> Relaxed_Store).
+//
+// Reader (background thread): BackgroundMergeTask::BeginMergeInBackground
+// iterates the same infos() array and relaxed-loads each slot
+// (compiler.cc:2447), then immediately dereferences the loaded object
+// (HasBytecodeArray / scope_info / RecordScopeInfos at 2466-2504).
+//
+// There is no release fence between SFI field initialisation and the infos()
+// pointer store, and no acquire on the infos() load. TSAN reports this as a
+// data race; on ARM/ARM64 the background thread may observe the new pointer
+// before the SFI's field stores are visible.
+TEST_F(MergeDeserializedCodeTest,
+       DISABLED_ConcurrentLazyCompileDuringBackgroundMerge) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
+      true;
+  i::v8_flags.lazy_compile_dispatcher = false;
+
+  // Source layout (literal-id order):
+  //   [0]                toplevel
+  //   [1..kPadLiterals]  many padding closures, each with many nested
+  //                      literals -> the deserialised cache contains an SFI
+  //                      for every one of these slots, so the background
+  //                      merge does non-trivial work per slot and takes
+  //                      milliseconds to walk the array.
+  //   [tail..]           kNumQuick small closures with one nested literal
+  //                      each. Calling these on the main thread is fast and
+  //                      allocates fresh SFIs into the *high-index* infos()
+  //                      slots while the merge loop is still walking towards
+  //                      them.
+  constexpr int kNumPad = 60;
+  constexpr int kPadInner = 400;
+  constexpr int kNumQuick = 200;
+  std::string src = "var pad = [];\n";
+  for (int o = 0; o < kNumPad; ++o) {
+    src += "pad[" + std::to_string(o) + "] = function(){\n";
+    for (int j = 0; j < kPadInner; ++j) {
+      src += "  var g" + std::to_string(j) + " = function(){return " +
+             std::to_string(j) + ";};\n";
+    }
+    src += "};\n";
+  }
+  src += "var quick = [];\n";
+  for (int q = 0; q < kNumQuick; ++q) {
+    src += "quick[" + std::to_string(q) +
+           "] = function(){ let c=1; var i=function(){return c;}; };\n";
+  }
+
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  PersistentScriptOrigin default_origin(isolate(), NewString(""));
+
+  // 1) Compile, run the toplevel (creates JSFunctions for outers), call every
+  // outer so that *all* nested SFIs exist and get serialised into the code
+  // cache. A fully-populated cache makes the background merge do non-trivial
+  // work for every slot, lengthening the race window.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(src.c_str()), &origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+    // Compile all padding + quick closures so the code cache is fully
+    // populated; this makes the deserialised new_script have an SFI in every
+    // slot, so the background merge does work for every iteration.
+    CHECK(!Script::Compile(
+               context(),
+               NewString("for (var p of pad) p(); for (var q of quick) q();"))
+               .ToLocalChecked()
+               ->Run(context())
+               .IsEmpty());
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+
+    // Age every compiled SFI in the live cached Script's infos()
+    i::Tagged<i::Script> i_script =
+        i::Cast<i::Script>(GetSharedFunctionInfo(script)->script());
+    i::IndirectHandle<i::WeakFixedArray> old_infos(i_script->infos(),
+                                                   i_isolate);
+    // Age every compiled SFI so its bytecode is flushed on the next GC. This
+    // drops the only strong references to the nested SFIs (the outer constant
+    // pools), so after GC the nested infos() slots become cleared and
+    // subsequent lazy compilation will allocate *fresh* SFIs there.
+    for (uint32_t k = 0; k < old_infos->ulength().value(); ++k) {
+      i::Tagged<i::MaybeObject> mo = old_infos->get(k);
+      i::Tagged<i::HeapObject> ho;
+      if (mo.GetHeapObjectIfWeak(&ho) && i::Is<i::SharedFunctionInfo>(ho)) {
+        i::Tagged<i::SharedFunctionInfo> sfi =
+            i::Cast<i::SharedFunctionInfo>(ho);
+        if (sfi->is_compiled()) {
+          i::SharedFunctionInfo::EnsureOldForTesting(sfi);
+        }
+      }
+    }
+  }
+
+  {
+    i::DisableConservativeStackScanningScopeForTesting no_css(
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
+    InvokeMajorGC(i_isolate);
+  }
+
+  // Pre-fetch the surviving quick JSFunctions so the lazy-compile loop below
+  // has minimal overhead between merge_thread.Start() and the first SetScript.
+  std::vector<v8::Global<v8::Function>> quick_funcs(kNumQuick);
+  {
+    v8::HandleScope handle_scope(isolate());
+    Local<Object> arr = context()
+                            ->Global()
+                            ->Get(context(), NewString("quick"))
+                            .ToLocalChecked()
+                            .As<Object>();
+    for (int q = 0; q < kNumQuick; ++q) {
+      Local<Value> f = arr->Get(context(), q).ToLocalChecked();
+      CHECK(f->IsFunction());
+      quick_funcs[q].Reset(isolate(), f.As<Function>());
+    }
+  }
+
+  // 2) Deserialise the (fully-populated) cache off-thread.
+  DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
+      isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                     cached_data->data, cached_data->length,
+                     ScriptCompiler::CachedData::BufferNotOwned)));
+  CHECK(deserialize_thread.Start());
+  deserialize_thread.Join();
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+      deserialize_thread.TakeTask();
+  task->SourceTextAvailable(isolate(), NewString(src.c_str()),
+                            default_origin.AsScriptOrigin());
+  CHECK(task->ShouldMergeWithExistingScript());
+
+  // 3) RACE: start the background merge, then on the main thread immediately
+  // lazy-compile the small `quick` closures.
+  //
+  // Background: BeginMergeInBackground iterates all ~24k infos() slots,
+  // relaxed-loading each one (compiler.cc:2447) and dereferencing every weak
+  // entry (HasBytecodeArray / scope_info / SetScopeInfo / RecordScopeInfos at
+  // compiler.cc:2466-2504) without any acquire fence or lock.
+  //
+  // Main thread: each quick[q]() call lazy-compiles the closure body,
+  // creating a fresh nested SharedFunctionInfo (published into the live
+  // Script's infos() via SetScript -> WeakFixedArray::set -> Relaxed_Store)
+  // and installing a fresh ScopeInfo on the existing quick[q] SFI -- both
+  // mutate state reachable from old_script->infos() while the background
+  // merge is reading and writing the same fields with plain non-atomic
+  // accessors (e.g. TaggedField::load at tagged-field-inl.h:234).
+  MergeThread merge_thread(task.get());
+  CHECK(merge_thread.Start());
+  {
+    v8::HandleScope handle_scope(isolate());
+    for (int q = 0; q < kNumQuick; ++q) {
+      quick_funcs[q]
+          .Get(isolate())
+          ->Call(context(), Undefined(isolate()), 0, nullptr)
+          .ToLocalChecked();
+    }
+  }
+  merge_thread.Join();
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {

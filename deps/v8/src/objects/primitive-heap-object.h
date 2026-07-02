@@ -16,12 +16,12 @@ namespace internal {
 // An abstract superclass for classes representing JavaScript primitive values
 // other than Smi. It doesn't carry any functionality but allows primitive
 // classes to be identified in the type system.
-V8_OBJECT class PrimitiveHeapObject : public HeapObjectLayout {
+V8_OBJECT class PrimitiveHeapObject : public HeapObject {
  public:
   DECL_VERIFIER(PrimitiveHeapObject)
 } V8_OBJECT_END;
 
-static_assert(sizeof(PrimitiveHeapObject) == sizeof(HeapObjectLayout));
+static_assert(sizeof(PrimitiveHeapObject) == sizeof(HeapObject));
 static_assert(is_subtype_v<PrimitiveHeapObject, HeapObject>);
 
 }  // namespace internal

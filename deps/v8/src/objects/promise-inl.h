@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/promise-tq-inl.inc"
-
 Tagged<Object> PromiseReactionJobTask::argument() const {
   return argument_.load();
 }

@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 
+#include "absl/container/node_hash_set.h"
 #include "src/base/contextual.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
@@ -368,11 +369,11 @@ inline std::optional<ParseResult> Symbol::RunAction(const Item* item,
 
 V8_EXPORT_PRIVATE const Item* RunEarleyAlgorithm(
     Symbol* start, const LexerResult& tokens,
-    std::unordered_set<Item, base::hash<Item>>* processed);
+    absl::node_hash_set<Item, base::hash<Item>>* processed);
 
 inline std::optional<ParseResult> ParseTokens(Symbol* start,
                                               const LexerResult& tokens) {
-  std::unordered_set<Item, base::hash<Item>> table;
+  absl::node_hash_set<Item, base::hash<Item>> table;
   const Item* final_item = RunEarleyAlgorithm(start, tokens, &table);
   return start->RunAction(final_item, tokens);
 }

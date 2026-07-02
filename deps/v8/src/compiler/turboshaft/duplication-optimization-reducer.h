@@ -126,24 +126,25 @@ class DuplicationOptimizationReducer : public Next {
 
   OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     if (offset == 0 && element_size_log2 == 0 && index.valid()) {
       index = MaybeDuplicateOutputGraphShift(index.value());
     }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+    return Next::ReduceStore(
+        base, index, value, kind, stored_rep, write_barrier, memory_order,
+        offset, element_size_log2, maybe_initializing_or_transitioning,
+        maybe_indirect_pointer_tag);
   }
 #endif
 
  private:
   bool MaybeDuplicateCond(const Operation& cond, OpIndex input_idx,
                           V<Word32>* new_cond) {
-    if (cond.saturated_use_count.IsOne()) return false;
+    if (cond.saturated_use_count.Is(1)) return false;
 
     switch (cond.opcode) {
       case Opcode::kComparison:
@@ -165,15 +166,15 @@ class DuplicationOptimizationReducer : public Next {
 
   bool MaybeCanDuplicateGenericBinop(OpIndex input_idx, OpIndex left,
                                      OpIndex right) {
-    if (__ input_graph().Get(left).saturated_use_count.IsOne() &&
-        __ input_graph().Get(right).saturated_use_count.IsOne()) {
+    if (__ input_graph().Get(left).saturated_use_count.Is(1) &&
+        __ input_graph().Get(right).saturated_use_count.Is(1)) {
       // We don't duplicate binops when all of their inputs are used a single
       // time (this would increase register pressure by keeping 2 values alive
       // instead of 1).
       return false;
     }
     OpIndex binop_output_idx = __ MapToNewGraph(input_idx);
-    if (__ Get(binop_output_idx).saturated_use_count.IsZero()) {
+    if (__ Get(binop_output_idx).saturated_use_count.Is(0)) {
       // This is the 1st use of {binop} in the output graph, so there is no need
       // to duplicate it just yet.
       return false;
@@ -233,7 +234,7 @@ class DuplicationOptimizationReducer : public Next {
     WordRepresentation shift_rep;
     if (__ matcher().MatchConstantShift(index, &shifted, &shift_kind,
                                         &shift_rep, &shifted_by) &&
-        !__ matcher().Get(index).saturated_use_count.IsZero()) {
+        !__ matcher().Get(index).saturated_use_count.Is(0)) {
       // We don't check the use count of {shifted}, because it might have uses
       // in the future that haven't been emitted yet.
       DisableValueNumbering disable_gvn(this);

@@ -1,0 +1,14 @@
+header: sys/personality.h
+macros:
+  - macro_name: PER_LINUX
+    macro_header: sys-personality-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: personality
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: unsigned long

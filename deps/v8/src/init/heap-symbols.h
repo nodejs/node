@@ -921,7 +921,6 @@
   V(_, promise_forwarding_handler_symbol)                 \
   V(_, promise_handled_by_symbol)                         \
   V(_, promise_awaited_by_symbol)                         \
-  V(_, regexp_result_names_symbol)                        \
   V(_, regexp_result_regexp_input_symbol)                 \
   V(_, regexp_result_regexp_last_index_symbol)            \
   V(_, sealed_symbol)                                     \

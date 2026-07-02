@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_GRAPH_PRINTER_H_
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-phase.h"
 
 namespace v8 {
 namespace internal {
@@ -31,10 +33,12 @@ class ProcessingState;
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
+class LineCountingStream;
+
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(std::ostream& os,
-                                 bool has_regalloc_data = false);
+  explicit MaglevPrintingVisitor(std::ostream& os, Graph* graph,
+                                 MaglevPhase phase);
 
   void PreProcessGraph(Graph* graph);
   void PostProcessGraph(Graph* graph) {}
@@ -49,17 +53,30 @@ class MaglevPrintingVisitor {
   std::ostream& os() { return *os_for_additional_info_; }
 
  private:
+  bool has_regalloc_data() const {
+    return is_maglev_ && phase_ >= MaglevPhase::kAnyUseMarking;
+  }
+  bool print_sweepable_dead_phis() const {
+    // The AnyUseMarking processor can keep phis in the graph but remove their
+    // backedge, which leads to DCHECK failures when trying to print regalloc
+    // data for the removed backedge when displaying phi gap moves. We thus use
+    // the avoid printing regalloc data for dead phis' inputs after this phase.
+    return is_maglev_ && phase_ == MaglevPhase::kAnyUseMarking;
+  }
+
   std::ostream& os_;
+  LineCountingStream* counting_stream_;
   std::unique_ptr<std::ostream> os_for_additional_info_;
   std::set<BasicBlock*> loop_headers_;
   std::vector<BasicBlock*> targets_;
   NodeIdT max_node_id_ = kInvalidNodeId;
   MaglevGraphLabeller::Provenance existing_provenance_;
-  bool has_regalloc_data_;
+  MaglevPhase phase_;
+  bool is_maglev_;
 };
 
-void PrintGraph(std::ostream& os, Graph* const graph,
-                bool has_regalloc_data = false);
+void PrintGraph(std::ostream& os, Graph* const graph, MaglevPhase phase);
+void PrintGraphToFile(Graph* const graph, MaglevPhase phase);
 
 #else
 
@@ -67,7 +84,9 @@ void PrintGraph(std::ostream& os, Graph* const graph,
 
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(std::ostream& os) : os_(os) {}
+  explicit MaglevPrintingVisitor(std::ostream& os, Graph* graph,
+                                 MaglevPhase phase)
+      : os_(os) {}
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
@@ -95,7 +114,8 @@ class MaglevPrintingVisitor {
 };
 
 inline void PrintGraph(std::ostream& os, Graph* const graph,
-                       bool has_regalloc_data = false) {}
+                       MaglevPhase phase) {}
+inline void PrintGraphToFile(Graph* const graph, MaglevPhase phase) {}
 
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 

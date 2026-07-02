@@ -1,0 +1,51 @@
+header: sys/ipc.h
+standards:
+  - posix
+  - linux
+macros:
+  - macro_name: IPC_PRIVATE
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_CREAT
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_EXCL
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_NOWAIT
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_RMID
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_SET
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_STAT
+    macro_header: sys-ipc-macros.h
+    standards:
+      - posix
+  - macro_name: IPC_INFO
+    macro_header: sys-ipc-macros.h
+    standards:
+      - linux
+types:
+  - type_name: key_t
+  - type_name: uid_t
+  - type_name: gid_t
+  - type_name: mode_t
+  - type_name: struct_ipc_perm
+functions:
+  - name: ftok
+    standards:
+      - posix
+    return_type: key_t
+    arguments:
+      - type: const char *
+      - type: int

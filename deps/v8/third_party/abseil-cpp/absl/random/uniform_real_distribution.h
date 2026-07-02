@@ -98,7 +98,7 @@ class uniform_real_distribution {
     friend class uniform_real_distribution;
     result_type lo_, hi_, range_;
 
-    static_assert(std::is_floating_point<RealType>::value,
+    static_assert(std::is_floating_point_v<RealType>,
                   "Class-template absl::uniform_real_distribution<> must be "
                   "parameterized using a floating-point type.");
   };
@@ -159,7 +159,7 @@ uniform_real_distribution<RealType>::operator()(
   using random_internal::GeneratePositiveTag;
   using random_internal::GenerateRealFromBits;
   using real_type =
-      absl::conditional_t<std::is_same<RealType, float>::value, float, double>;
+      std::conditional_t<std::is_same_v<RealType, float>, float, double>;
 
   while (true) {
     const result_type sample =

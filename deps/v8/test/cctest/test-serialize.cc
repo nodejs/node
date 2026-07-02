@@ -1154,6 +1154,102 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
   TypedArrayTestHelper(code, expectations);
 }
 
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithDeferredOffHeapTypedArray) {
+  Int32Expectations expectations = {std::make_tuple("restoredBytes[0]", 12),
+                                    std::make_tuple("restoredBytes[4095]", 48)};
+  v8::StartupData blob;
+  DisableEmbeddedBlobRefcounting();
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 4096);
+      v8::Local<v8::Uint8Array> bytes = v8::Uint8Array::New(buffer, 0, 4096);
+      CHECK(bytes->Set(context, 0, v8::Integer::New(isolate, 12)).FromJust());
+      CHECK(
+          bytes->Set(context, 4095, v8::Integer::New(isolate, 48)).FromJust());
+
+      v8::Local<v8::ObjectTemplate> holder_template =
+          v8::ObjectTemplate::New(isolate);
+      holder_template->SetInternalFieldCount(2);
+      v8::Local<v8::Object> holder =
+          holder_template->NewInstance(context).ToLocalChecked();
+      holder->SetInternalField(0, bytes);
+      holder->SetAlignedPointerInInternalField(1, nullptr,
+                                               kInternalFieldDataTag);
+      CHECK(context->Global()
+                ->Set(context,
+                      v8::String::NewFromUtf8Literal(isolate, "holder"), holder)
+                .FromJust());
+      CHECK(context->Global()
+                ->Set(context,
+                      v8::String::NewFromUtf8Literal(isolate, "restoredBytes"),
+                      bytes)
+                .FromJust());
+
+      CompileRun(
+          "var root = (() => {"
+          "  let node = holder;"
+          "  for (let i = 0; i < 124; ++i) {"
+          "    node = { next: node };"
+          "  }"
+          "  return node;"
+          "})();"
+          "delete globalThis.holder;");
+      TestInt32Expectations(expectations);
+      CompileRun("delete globalThis.restoredBytes;");
+      creator.SetDefaultContext(
+          context, v8::SerializeInternalFieldsCallback(
+                       SerializeInternalFields, reinterpret_cast<void*>(2016)));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.snapshot_blob = &blob;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = TestSerializer::NewIsolate(create_params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(
+        isolate, nullptr, v8::MaybeLocal<v8::ObjectTemplate>(),
+        v8::MaybeLocal<v8::Value>(),
+        v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
+                                              reinterpret_cast<void*>(2017)));
+    v8::Context::Scope c_scope(context);
+
+    v8::Local<v8::Value> root_value =
+        context->Global()
+            ->Get(context, v8::String::NewFromUtf8Literal(isolate, "root"))
+            .ToLocalChecked();
+    v8::Local<v8::Object> current = root_value.As<v8::Object>();
+    v8::Local<v8::String> next =
+        v8::String::NewFromUtf8Literal(isolate, "next");
+    for (int i = 0; i < 124; ++i) {
+      current = current->Get(context, next).ToLocalChecked().As<v8::Object>();
+    }
+    v8::Local<v8::Value> restored_bytes =
+        current->GetInternalField(0).As<v8::Value>();
+    CHECK(restored_bytes->IsUint8Array());
+    CHECK(context->Global()
+              ->Set(context,
+                    v8::String::NewFromUtf8Literal(isolate, "restoredBytes"),
+                    restored_bytes)
+              .FromJust());
+    TestInt32Expectations(expectations);
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
   const char* code =
       "var x = new Int32Array([12, 24, 48, 96]);"
@@ -1757,7 +1853,8 @@ int CountBuiltins() {
   int counter = 0;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (Tagged<Code> code; TryCast(obj, &code)) {
+    if (Is<Code>(obj)) {
+      Tagged<Code> code = TrustedCast<Code>(obj);
       if (code->kind() == CodeKind::BUILTIN) counter++;
     }
   }
@@ -4578,12 +4675,13 @@ UNINITIALIZED_TEST(SerializeContextData) {
         // provided), but in the wide pointer case we don't actually know
         // whether it's a pointer or a Smi, so we just let these values pass
         // through.
-        if (V8_ENABLE_SANDBOX_BOOL)
+        if (V8_ENABLE_SANDBOX_BOOL) {
           CHECK_NULL(
               context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
-        else
+        } else {
           CHECK_EQ(raw_data,
                    context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
+        }
       }
       isolate->Dispose();
     }
@@ -4661,10 +4759,11 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
           object_template->NewInstance(context).ToLocalChecked();
       wrappable1 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
-      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj1,
-                                                           wrappable1);
-      CHECK_EQ(wrappable1, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
-                               isolate, obj1));
+      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj1,
+                                                              wrappable1);
+      CHECK_EQ(
+          wrappable1,
+          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj1));
       CHECK(context->Global()->Set(context, v8_str("obj1"), obj1).FromJust());
 
       v8::Local<v8::Object> obj2 =
@@ -4672,10 +4771,11 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
       wrappable2 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
       wrappable2->is_special = true;
-      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj2,
-                                                           wrappable2);
-      CHECK_EQ(wrappable2, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
-                               isolate, obj2));
+      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj2,
+                                                              wrappable2);
+      CHECK_EQ(
+          wrappable2,
+          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj2));
       CHECK(context->Global()->Set(context, v8_str("obj2"), obj2).FromJust());
 
       creator.SetDefaultContext(context, SerializeInternalFieldsCallback(),
@@ -6070,14 +6170,15 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
 }
 
 void CheckInfosAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
-  CHECK_GT(sfis->length(), 0);
+  const uint32_t sfis_len = sfis->length().value();
+  CHECK_GT(sfis_len, 0);
   int no_of_weak = 0;
-  for (int i = 0; i < sfis->length(); ++i) {
+  for (uint32_t i = 0; i < sfis_len; ++i) {
     Tagged<MaybeObject> maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
     CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
-           IsUndefined(heap_object, isolate)) ||
+           IsUndefined(heap_object)) ||
           Is<SharedFunctionInfo>(heap_object) || Is<ScopeInfo>(heap_object));
     if (maybe_object.IsWeak()) {
       ++no_of_weak;

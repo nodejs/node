@@ -53,22 +53,22 @@ typedef ::testing::Types<float, double, long double> FloatingPointTypes;
 TYPED_TEST_SUITE(Uint128IntegerTraitsTest, IntegerTypes);
 
 TYPED_TEST(Uint128IntegerTraitsTest, ConstructAssignTest) {
-  static_assert(std::is_constructible<absl::uint128, TypeParam>::value,
+  static_assert(std::is_constructible_v<absl::uint128, TypeParam>,
                 "absl::uint128 must be constructible from TypeParam");
-  static_assert(std::is_assignable<absl::uint128&, TypeParam>::value,
+  static_assert(std::is_assignable_v<absl::uint128&, TypeParam>,
                 "absl::uint128 must be assignable from TypeParam");
-  static_assert(!std::is_assignable<TypeParam&, absl::uint128>::value,
+  static_assert(!std::is_assignable_v<TypeParam&, absl::uint128>,
                 "TypeParam must not be assignable from absl::uint128");
 }
 
 TYPED_TEST_SUITE(Uint128FloatTraitsTest, FloatingPointTypes);
 
 TYPED_TEST(Uint128FloatTraitsTest, ConstructAssignTest) {
-  static_assert(std::is_constructible<absl::uint128, TypeParam>::value,
+  static_assert(std::is_constructible_v<absl::uint128, TypeParam>,
                 "absl::uint128 must be constructible from TypeParam");
-  static_assert(!std::is_assignable<absl::uint128&, TypeParam>::value,
+  static_assert(!std::is_assignable_v<absl::uint128&, TypeParam>,
                 "absl::uint128 must not be assignable from TypeParam");
-  static_assert(!std::is_assignable<TypeParam&, absl::uint128>::value,
+  static_assert(!std::is_assignable_v<TypeParam&, absl::uint128>,
                 "TypeParam must not be assignable from absl::uint128");
 }
 
@@ -76,29 +76,27 @@ TYPED_TEST(Uint128FloatTraitsTest, ConstructAssignTest) {
 // These type traits done separately as TYPED_TEST requires typeinfo, and not
 // all platforms have this for __int128 even though they define the type.
 TEST(Uint128, IntrinsicTypeTraitsTest) {
-  static_assert(std::is_constructible<absl::uint128, __int128>::value,
+  static_assert(std::is_constructible_v<absl::uint128, __int128>,
                 "absl::uint128 must be constructible from __int128");
-  static_assert(std::is_assignable<absl::uint128&, __int128>::value,
+  static_assert(std::is_assignable_v<absl::uint128&, __int128>,
                 "absl::uint128 must be assignable from __int128");
-  static_assert(!std::is_assignable<__int128&, absl::uint128>::value,
+  static_assert(!std::is_assignable_v<__int128&, absl::uint128>,
                 "__int128 must not be assignable from absl::uint128");
 
-  static_assert(std::is_constructible<absl::uint128, unsigned __int128>::value,
+  static_assert(std::is_constructible_v<absl::uint128, unsigned __int128>,
                 "absl::uint128 must be constructible from unsigned __int128");
-  static_assert(std::is_assignable<absl::uint128&, unsigned __int128>::value,
+  static_assert(std::is_assignable_v<absl::uint128&, unsigned __int128>,
                 "absl::uint128 must be assignable from unsigned __int128");
-  static_assert(!std::is_assignable<unsigned __int128&, absl::uint128>::value,
+  static_assert(!std::is_assignable_v<unsigned __int128&, absl::uint128>,
                 "unsigned __int128 must not be assignable from absl::uint128");
 }
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Uint128, TrivialTraitsTest) {
-  static_assert(absl::is_trivially_default_constructible<absl::uint128>::value,
-                "");
-  static_assert(absl::is_trivially_copy_constructible<absl::uint128>::value,
-                "");
-  static_assert(absl::is_trivially_copy_assignable<absl::uint128>::value, "");
-  static_assert(std::is_trivially_destructible<absl::uint128>::value, "");
+  static_assert(std::is_trivially_default_constructible_v<absl::uint128>, "");
+  static_assert(std::is_trivially_copy_constructible_v<absl::uint128>, "");
+  static_assert(std::is_trivially_copy_assignable_v<absl::uint128>, "");
+  static_assert(std::is_trivially_destructible_v<absl::uint128>, "");
 }
 
 TEST(Uint128, AllTests) {
@@ -576,11 +574,11 @@ class Int128IntegerTraitsTest : public ::testing::Test {};
 TYPED_TEST_SUITE(Int128IntegerTraitsTest, IntegerTypes);
 
 TYPED_TEST(Int128IntegerTraitsTest, ConstructAssignTest) {
-  static_assert(std::is_constructible<absl::int128, TypeParam>::value,
+  static_assert(std::is_constructible_v<absl::int128, TypeParam>,
                 "absl::int128 must be constructible from TypeParam");
-  static_assert(std::is_assignable<absl::int128&, TypeParam>::value,
+  static_assert(std::is_assignable_v<absl::int128&, TypeParam>,
                 "absl::int128 must be assignable from TypeParam");
-  static_assert(!std::is_assignable<TypeParam&, absl::int128>::value,
+  static_assert(!std::is_assignable_v<TypeParam&, absl::int128>,
                 "TypeParam must not be assignable from absl::int128");
 }
 
@@ -590,11 +588,11 @@ class Int128FloatTraitsTest : public ::testing::Test {};
 TYPED_TEST_SUITE(Int128FloatTraitsTest, FloatingPointTypes);
 
 TYPED_TEST(Int128FloatTraitsTest, ConstructAssignTest) {
-  static_assert(std::is_constructible<absl::int128, TypeParam>::value,
+  static_assert(std::is_constructible_v<absl::int128, TypeParam>,
                 "absl::int128 must be constructible from TypeParam");
-  static_assert(!std::is_assignable<absl::int128&, TypeParam>::value,
+  static_assert(!std::is_assignable_v<absl::int128&, TypeParam>,
                 "absl::int128 must not be assignable from TypeParam");
-  static_assert(!std::is_assignable<TypeParam&, absl::int128>::value,
+  static_assert(!std::is_assignable_v<TypeParam&, absl::int128>,
                 "TypeParam must not be assignable from absl::int128");
 }
 
@@ -602,28 +600,27 @@ TYPED_TEST(Int128FloatTraitsTest, ConstructAssignTest) {
 // These type traits done separately as TYPED_TEST requires typeinfo, and not
 // all platforms have this for __int128 even though they define the type.
 TEST(Int128, IntrinsicTypeTraitsTest) {
-  static_assert(std::is_constructible<absl::int128, __int128>::value,
+  static_assert(std::is_constructible_v<absl::int128, __int128>,
                 "absl::int128 must be constructible from __int128");
-  static_assert(std::is_assignable<absl::int128&, __int128>::value,
+  static_assert(std::is_assignable_v<absl::int128&, __int128>,
                 "absl::int128 must be assignable from __int128");
-  static_assert(!std::is_assignable<__int128&, absl::int128>::value,
+  static_assert(!std::is_assignable_v<__int128&, absl::int128>,
                 "__int128 must not be assignable from absl::int128");
 
-  static_assert(std::is_constructible<absl::int128, unsigned __int128>::value,
+  static_assert(std::is_constructible_v<absl::int128, unsigned __int128>,
                 "absl::int128 must be constructible from unsigned __int128");
-  static_assert(!std::is_assignable<absl::int128&, unsigned __int128>::value,
+  static_assert(!std::is_assignable_v<absl::int128&, unsigned __int128>,
                 "absl::int128 must be assignable from unsigned __int128");
-  static_assert(!std::is_assignable<unsigned __int128&, absl::int128>::value,
+  static_assert(!std::is_assignable_v<unsigned __int128&, absl::int128>,
                 "unsigned __int128 must not be assignable from absl::int128");
 }
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Int128, TrivialTraitsTest) {
-  static_assert(absl::is_trivially_default_constructible<absl::int128>::value,
-                "");
-  static_assert(absl::is_trivially_copy_constructible<absl::int128>::value, "");
-  static_assert(absl::is_trivially_copy_assignable<absl::int128>::value, "");
-  static_assert(std::is_trivially_destructible<absl::int128>::value, "");
+  static_assert(std::is_trivially_default_constructible_v<absl::int128>, "");
+  static_assert(std::is_trivially_copy_constructible_v<absl::int128>, "");
+  static_assert(std::is_trivially_copy_assignable_v<absl::int128>, "");
+  static_assert(std::is_trivially_destructible_v<absl::int128>, "");
 }
 
 TEST(Int128, BoolConversionTest) {

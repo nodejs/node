@@ -82,7 +82,7 @@ inline bool CUnescape(absl::string_view source,
 
 // CEscape()
 //
-// Escapes a 'src' string using C-style escapes sequences
+// Escapes a `src` string using C-style escapes sequences
 // (https://en.cppreference.com/w/cpp/language/escape), escaping other
 // non-printable/non-whitespace bytes as octal sequences (e.g. "\377").
 //
@@ -95,7 +95,7 @@ std::string CEscape(absl::string_view src);
 
 // CHexEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping
+// Escapes a `src` string using C-style escape sequences, escaping
 // other non-printable/non-whitespace bytes as hexadecimal sequences (e.g.
 // "\xFF").
 //
@@ -108,7 +108,7 @@ std::string CHexEscape(absl::string_view src);
 
 // Utf8SafeCEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping bytes as
+// Escapes a `src` string using C-style escape sequences, escaping bytes as
 // octal sequences, and passing through UTF-8 characters without conversion.
 // I.e., when encountering any bytes with their high bit set, this function
 // will not escape those values, whether or not they are valid UTF-8.
@@ -116,26 +116,32 @@ std::string Utf8SafeCEscape(absl::string_view src);
 
 // Utf8SafeCHexEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping bytes as
+// Escapes a `src` string using C-style escape sequences, escaping bytes as
 // hexadecimal sequences, and passing through UTF-8 characters without
 // conversion.
 std::string Utf8SafeCHexEscape(absl::string_view src);
 
 // Base64Escape()
 //
-// Encodes a `src` string into a base64-encoded 'dest' string with padding
+// Encodes a `src` string into a base64-encoded `dest` string with padding
 // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
 // 2045.
-void Base64Escape(absl::string_view src, std::string* absl_nonnull dest);
 std::string Base64Escape(absl::string_view src);
+ABSL_REFACTOR_INLINE inline void
+Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+  *dest = Base64Escape(src);
+}
 
 // WebSafeBase64Escape()
 //
 // Encodes a `src` string into a base64 string, like Base64Escape() does, but
-// outputs '-' instead of '+' and '_' instead of '/', and does not pad 'dest'.
+// outputs '-' instead of '+' and '_' instead of '/', and does not pad `dest`.
 // This function conforms with RFC 4648 section 5 (base64url).
-void WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest);
 std::string WebSafeBase64Escape(absl::string_view src);
+ABSL_REFACTOR_INLINE inline void
+WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+  *dest = WebSafeBase64Escape(src);
+}
 
 // Base64Unescape()
 //
@@ -149,10 +155,11 @@ bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
 // WebSafeBase64Unescape()
 //
 // Converts a `src` string encoded in "web safe" Base64 (RFC 4648 section 5) to
-// its binary equivalent, writing it to a `dest` buffer. If `src` contains
-// invalid characters, `dest` is cleared and returns `false`. If padding is
-// included (note that `WebSafeBase64Escape()` does not produce it), it must be
-// correct. In the padding, '=' and '.' are treated identically.
+// its binary equivalent, writing it to a `dest` buffer, returning `true` on
+// success. If `src` contains invalid characters, `dest` is cleared and returns
+// `false`. If padding is included (note that `WebSafeBase64Escape()` does not
+// produce it), it must be correct. In the padding, '=' and '.' are treated
+// identically.
 bool WebSafeBase64Unescape(absl::string_view src,
                            std::string* absl_nonnull dest);
 

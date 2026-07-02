@@ -275,7 +275,13 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
       inlinees.empty() || data.empty() || !(data.last() & 1);
+#if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
+  // TurboFan compilation (see crbug.com/520317061).
+  const bool assert_types = false;
+#else
   const bool assert_types = !data.empty() && (data.last() & 2);
+#endif
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
@@ -412,7 +418,7 @@ V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // shared-everything-threads fuzzing.
   i::v8_flags.shared_heap = true;
   i::v8_flags.shared_strings = true;
-  i::v8_flags.experimental_wasm_shared = true;
+  i::v8_flags.wasm_shared = true;
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;

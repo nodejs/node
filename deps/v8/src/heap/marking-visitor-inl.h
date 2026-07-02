@@ -82,9 +82,9 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   }
   // TODO(chromium:1495151): Remove after diagnosing.
   if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
-                  IsFreeSpaceOrFiller(
-                      heap_object, ObjectVisitorWithCageBases::cage_base()))) {
-    heap_->isolate()->PushStackTraceAndDie(
+                  IsFreeSpaceOrFiller(heap_object))) {
+    heap_->isolate()->PushParamsAndDie(
+        "marking non-marking free space or filler",
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
@@ -196,8 +196,7 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
     Tagged<InstructionStream> host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-  Tagged<HeapObject> object =
-      rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
+  Tagged<HeapObject> object = rinfo->target_object();
   const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, object);
   if (!target_worklist) {
     return;
@@ -343,6 +342,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
+  DCHECK(!Is<InstructionStream>(host));
   JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
@@ -354,20 +354,35 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     return;
   }
 
-  if (Tagged<InstructionStream> istream; TryCast(host, &istream)) {
-    Tagged<Code> code = UncheckedCast<Code>(istream->raw_code(kAcquireLoad));
-    if (code->IsWeakObjectInOptimizedCode(handle)) {
-      local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
-          DispatchHandleAndCode{handle, code});
-      return;
-    }
-  }
-
   jdt.Mark(handle);
 
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
   // marked here. See also VisitJSFunction below.
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
+    Tagged<InstructionStream> host, JSDispatchHandle handle) {
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
+#ifdef DEBUG
+  JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
+  JSDispatchTable::Space* ro_space = heap_->read_only_js_dispatch_table_space();
+  jdt.VerifyEntry(handle, space, ro_space);
+#endif  // DEBUG
+
+  if (jdt.IsMarked(handle)) {
+    return;
+  }
+
+  Tagged<Code> code = UncheckedCast<Code>(host->raw_code(kAcquireLoad));
+  if (code->IsWeakObjectInOptimizedCode(handle)) {
+    local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
+        DispatchHandleAndCode{handle, code});
+    return;
+  }
+
+  jdt.Mark(handle);
 }
 
 // ===========================================================================
@@ -386,9 +401,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
   // We're not flushing the Code, so mark it as alive.
   // Here we can see JSFunctions that aren't fully initialized (e.g. during
   // deserialization) so we need to check for the null handle.
-  JSDispatchHandle handle(
-      js_function->Relaxed_ReadField<JSDispatchHandle::underlying_type>(
-          JSFunction::kDispatchHandleOffset));
+  JSDispatchHandle handle(js_function->dispatch_handle());
   if (handle != kNullJSDispatchHandle) {
     // See `ProcessStrongHeapObject()` for synchronization details.
     Tagged<Code> code = heap_->isolate()->js_dispatch_table().GetCode(handle);
@@ -412,7 +425,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
 
     // The SFI itself is synchronized via acq/rel pair here.
     Tagged<Object> maybe_sfi =
-        ACQUIRE_READ_FIELD(*js_function, JSFunction::kSharedFunctionInfoOffset);
+        js_function->shared_function_info_.Acquire_Load();
     Tagged<SharedFunctionInfo> sfi;
     if (!TryCast(maybe_sfi, &sfi)) {
       DCHECK_EQ(maybe_sfi,
@@ -420,7 +433,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     }
     // Code is synchronized via acq/release pair here and in the dispatch table
     // if enabled.
-    Tagged<Object> maybe_code =
+    Tagged<Union<Smi, Code>> maybe_code =
         js_function->raw_code(heap_->isolate(), kAcquireLoad);
     Tagged<Code> code;
     if (!TryCast(maybe_code, &code)) {
@@ -455,17 +468,16 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     VisitIndirectPointer(
         shared_info,
         shared_info->RawIndirectPointerField(
-            SharedFunctionInfo::kTrustedFunctionDataOffset,
+            offsetof(SharedFunctionInfo, trusted_function_data_),
             SharedFunctionInfo::kTrustedDataIndirectPointerRange),
         IndirectPointerMode::kStrong);
 #else
-    VisitPointer(
-        shared_info,
-        shared_info->RawField(SharedFunctionInfo::kTrustedFunctionDataOffset));
+    VisitPointer(shared_info, shared_info->RawField(offsetof(
+                                  SharedFunctionInfo, trusted_function_data_)));
 #endif
     VisitPointer(shared_info,
                  shared_info->RawField(
-                     SharedFunctionInfo::kUntrustedFunctionDataOffset));
+                     offsetof(SharedFunctionInfo, untrusted_function_data_)));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
@@ -487,6 +499,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
 template <typename ConcreteVisitor>
 bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     Tagged<SharedFunctionInfo> sfi) const {
+  if (HeapLayout::InReadOnlySpace(sfi)) return false;
   if (IsFlushingDisabled(code_flush_mode_)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
@@ -494,11 +507,13 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     return false;
   }
 
-  // Get a snapshot of the function data field, and if it is a bytecode array,
-  // check if it is old. Note, this is done this way since this function can be
-  // called by the concurrent marker.
-  Tagged<Object> data = sfi->GetTrustedData(heap_->isolate());
-  if (IsCode(data)) {
+  // Get a snapshot of the function data field if it is discardable. Note, this
+  // is done this way since this function can be called by the concurrent
+  // marker.
+  Tagged<SharedFunctionInfo::DiscardableData> data;
+  if (!sfi->CanDiscardCompiled(&data)) return false;
+
+  if (Is<Code>(data)) {
     Tagged<Code> baseline_code = TrustedCast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
@@ -511,6 +526,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     return false;
   }
 
+  // TODO(leszeks): Support flushing of InterpreterData.
   return IsBytecodeArray(data);
 }
 
@@ -576,8 +592,8 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // called on a concurrent thread. JSFunction itself should be fully
   // initialized here but the SharedFunctionInfo, InstructionStream objects may
   // not be initialized. We read using acquire loads to defend against that.
-  Tagged<Object> maybe_shared =
-      ACQUIRE_READ_FIELD(js_function, JSFunction::kSharedFunctionInfoOffset);
+  Tagged<Object> maybe_shared = ACQUIRE_READ_FIELD(
+      js_function, offsetof(JSFunction, shared_function_info_));
   if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
   // See crbug.com/v8/11972 for more details on acquire / release semantics for
@@ -589,7 +605,9 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.
-  MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
+  if (IsHeapObject(maybe_code)) {
+    MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
+  }
 #endif
   if (!IsCode(maybe_code)) return false;
   Tagged<Code> code = TrustedCast<Code>(maybe_code);
@@ -751,7 +769,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
             heap_, concrete_visitor()->marking_state(), target)) {
       // Record the slot inside the JSWeakRef, since the VisitJSWeakRef above
       // didn't visit it.
-      ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
+      ObjectSlot slot(&weak_ref->target_);
       concrete_visitor()->RecordSlot(weak_ref, slot, target);
     } else {
       // JSWeakRef points to a potentially dead object. We have to process them
@@ -852,8 +870,9 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
     Tagged<Map> map) {
-  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map->CanTransition())
+  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map->CanTransition()) {
     return;
+  }
 
   // Maps that can transition share their descriptor arrays and require
   // special visiting logic to avoid memory leaks.
@@ -863,8 +882,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // slot holding the descriptor array will be implicitly recorded when the
   // pointer fields of this map are visited.
   Tagged<Object> maybe_descriptors =
-      TaggedField<Object, Map::kInstanceDescriptorsOffset>::Acquire_Load(
-          heap_->isolate(), map);
+      TaggedField<Object, offsetof(Map, instance_descriptors_)>::Acquire_Load(
+          map);
 
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.
@@ -952,23 +971,15 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
   // otherwise fail to mark the table entry as alive.
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
-  if (tag_range == kCodeIndirectPointerTag) {
-    CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
-    CodePointerTable::Space* space = this->heap_->code_pointer_space();
-    table->Mark(space, handle);
-  } else {
-    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
-    bool use_shared_table = IsSharedTrustedPointerType(tag_range);
-    DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
-    TrustedPointerTable* table = use_shared_table
-                                     ? this->shared_trusted_pointer_table_
-                                     : this->trusted_pointer_table_;
-    TrustedPointerTable::Space* space =
-        use_shared_table
-            ? this->heap_->isolate()->shared_trusted_pointer_space()
-            : this->heap_->trusted_pointer_space();
-    table->Mark(space, handle);
-  }
+  const bool use_shared_table = IsSharedTrustedPointerType(tag_range);
+  DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
+  TrustedPointerTable* table = use_shared_table
+                                   ? this->shared_trusted_pointer_table_
+                                   : this->trusted_pointer_table_;
+  TrustedPointerTable::Space* space =
+      use_shared_table ? this->heap_->isolate()->shared_trusted_pointer_space()
+                       : this->heap_->trusted_pointer_space();
+  table->Mark(space, handle);
 #else
   UNREACHABLE();
 #endif

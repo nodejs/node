@@ -53,7 +53,8 @@ namespace v8::internal::maglev {
   V(OtherCallable, (1 << 15))                       \
   V(JSDataView, (1 << 16))                          \
   V(OtherHeapObject, (1 << 17))                     \
-  V(OtherJSReceiver, (1 << 18))
+  V(OtherJSReceiver, (1 << 18))                     \
+  V(BigInt, (1 << 19))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -68,6 +69,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(NullOrUndefined, kNull | kUndefined)                                    \
   V(Oddball, kNullOrUndefined | kBoolean)                                   \
   V(Number, kSmi | kHeapNumber)                                             \
+  V(Numeric, kNumber | kBigInt)                                             \
   V(NumberOrBoolean, kNumber | kBoolean)                                    \
   V(NumberOrUndefined, kNumber | kUndefined)                                \
   V(NumberOrOddball, kNumber | kOddball)                                    \
@@ -81,10 +83,11 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(StringOrStringWrapper, kString | kStringWrapper)                        \
   V(StringOrOddball, kString | kOddball)                                    \
   V(Name, kString | kSymbol)                                                \
-  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */             \
-  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)           \
+  V(JSPrimitive,                                                            \
+    kNumber | kString | kBoolean | kNullOrUndefined | kSymbol | kBigInt)    \
   V(JSReceiver,                                                             \
     kJSArray | kCallable | kStringWrapper | kJSDataView | kOtherJSReceiver) \
+  V(JSReceiverOrNull, kJSReceiver | kNull)                                  \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)            \
   V(AnyHeapObject, kUnknown - kSmi)
 
@@ -137,6 +140,12 @@ inline constexpr NodeType UnionType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
                                static_cast<NodeTypeInt>(right));
 }
+inline constexpr NodeType RemoveType(NodeType left, NodeType right) {
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
+                               ~static_cast<NodeTypeInt>(right));
+}
 // TODO(jgruber): Switch the default value back to kDefault once
 // BranchResult/BuildBranchIfFoo can signal an Abort.
 inline constexpr bool NodeTypeIs(
@@ -157,6 +166,8 @@ inline constexpr bool NodeTypeIsForPrinting(NodeType type, NodeType to_check) {
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
+// TODO(dmercadier): similarly to NodeTypeIs, try to disallow kNone here because
+// it can lead to confusing results.
 inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check,
                                     bool allow_standalone = false) {
   DCHECK_IMPLIES(!allow_standalone, !NodeTypeIsNeverStandalone(type));

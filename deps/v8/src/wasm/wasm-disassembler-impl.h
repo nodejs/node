@@ -240,7 +240,7 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
   enum FunctionHeader : bool { kSkipHeader = false, kPrintHeader = true };
 
   FunctionBodyDisassembler(Zone* zone, const WasmModule* module,
-                           uint32_t func_index, bool shared,
+                           uint32_t func_index, SharedFlag shared,
                            WasmDetectedFeatures* detected,
                            const FunctionSig* sig, const uint8_t* start,
                            const uint8_t* end, uint32_t offset,

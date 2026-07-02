@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /* clang-format off
  *
@@ -90,7 +91,7 @@ RegExpMacroAssemblerLOONG64::RegExpMacroAssemblerLOONG64(Isolate* isolate,
                                                          int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
-          isolate, CodeObjectRequired::kYes,
+          isolate, CodeObjectRequired{true},
           NewAssemblerBuffer(kInitialBufferSize))),
       no_root_array_scope_(masm_.get()),
       num_registers_(registers_to_save),
@@ -492,11 +493,12 @@ void RegExpMacroAssemblerLOONG64::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpMacroAssemblerLOONG64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by, Label* on_match, Label* on_no_match) {
+    int advance_by, int bounds_check_offset, Label* on_match,
+    Label* on_no_match) {
   // TODO(pthier): Optimize. Table can be loaded outside of the loop.
   Label again;
   Bind(&again);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckBitInTable(table, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
@@ -647,7 +649,7 @@ void RegExpMacroAssemblerLOONG64::PopRegExpBasePointer(
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   Label return_v0;
   if (0 /* todo masm_->has_exception()*/) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -740,10 +742,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
       __ jmp(&return_v0);
 
       __ bind(&stack_limit_hit);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
       CallCheckStackGuardState(a0, extra_space_for_variables);
       // If returned value is non-zero, we exit with the returned value as
       // result.
       __ Branch(&return_v0, ne, a0, Operand(zero_reg));
+      LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
       __ bind(&stack_ok);
     }
@@ -993,8 +997,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 
@@ -1202,8 +1205,8 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int64_t RegExpMacroAssemblerLOONG64::CheckStackGuardState(
     Address* return_address, Address raw_code, Address re_frame,
     uintptr_t extra_space) {
-  Tagged<InstructionStream> re_code =
-      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
+  Tagged<InstructionStream> re_code = SbxCast<InstructionStream>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_code)));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndexOffset)),
@@ -1335,7 +1338,7 @@ void RegExpMacroAssemblerLOONG64::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ li(a0, l);
   __ Ld_d(a0, MemOperand(a0, 0));
-  __ Sub_d(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ Sub_d(a0, a0, Operand(Stack::kStackLimitSlackSize));
   __ Branch(&no_stack_overflow, hi, backtrack_stackpointer(), Operand(a0));
   __ DebugBreak();
   __ bind(&no_stack_overflow);
@@ -1379,6 +1382,7 @@ void RegExpMacroAssemblerLOONG64::LoadCurrentCharacterUnchecked(
 
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

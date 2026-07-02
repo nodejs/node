@@ -102,6 +102,42 @@ transitioning macro PromiseReactionJob(
   }
 }
 
+@export
+transitioning macro PromiseFulfillReactionJobInline(
+    implicit context: Context)(value: JSAny, handler: JSAny,
+    promiseOrCapability: HeapObject): JSAny labels Slow {
+  if (handler == Undefined) {
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        return ResolvePromise(promise, value);
+      }
+      case (HeapObject): {
+        goto Slow;
+      }
+    }
+  } else {
+    goto Slow;
+  }
+}
+
+@export
+transitioning macro PromiseRejectReactionJobInline(
+    implicit context: Context)(reason: JSAny, handler: JSAny,
+    promiseOrCapability: HeapObject): JSAny labels Slow {
+  if (handler == Undefined) {
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        return RejectPromise(promise, reason, False);
+      }
+      case (HeapObject): {
+        goto Slow;
+      }
+    }
+  } else {
+    goto Slow;
+  }
+}
+
 transitioning builtin PromiseFulfillReactionJob(
     implicit context: Context)(value: JSAny, handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {

@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "include/v8-internal.h"
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
@@ -33,9 +34,6 @@ namespace internal {
 
 Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
     : isolate_(isolate),
-#if V8_COMPRESS_POINTERS
-      cage_base_(isolate),
-#endif  // V8_COMPRESS_POINTERS
       hot_objects_(isolate->heap()),
       reference_map_(isolate),
       external_reference_encoder_(isolate),
@@ -98,6 +96,7 @@ const char* ToString(SnapshotSpace space) {
     case SnapshotSpace::kTrusted:
       return "Trusted";
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -159,11 +158,12 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
-  if (IsThinString(*obj, isolate())) {
+  if (IsThinString(*obj)) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());
-  } else if (Tagged<Code> code; TryCast(*obj, &code)) {
+  } else if (Is<Code>(*obj)) {
+    Tagged<Code> code = TrustedCast<Code>(*obj);
     // The only expected Code objects here are baseline code and builtins.
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
@@ -271,8 +271,8 @@ bool Serializer::SerializePendingObject(Tagged<HeapObject> obj) {
 }
 
 bool Serializer::ObjectIsBytecodeHandler(Tagged<HeapObject> obj) const {
-  Tagged<Code> code;
-  if (!TryCast(obj, &code)) return false;
+  if (!Is<Code>(obj)) return false;
+  Tagged<Code> code = TrustedCast<Code>(obj);
   return (code->kind() == CodeKind::BYTECODE_HANDLER);
 }
 
@@ -463,17 +463,22 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
     LOG(serializer_->isolate_,
-        CodeNameEvent(object_->address(), sink_->Position(), code_name));
+        CodeNameEvent(object_->address(), static_cast<int>(sink_->Position()),
+                      code_name));
   }
 
-  if (map.SafeEquals(*object_)) {
+  if (IsMetaMap(*object_)) {
     if (map == ReadOnlyRoots(isolate()).meta_map()) {
       DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
       sink_->Put(kNewContextlessMetaMap, "NewContextlessMetaMap");
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+      sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
     } else {
       DCHECK_EQ(space, SnapshotSpace::kOld);
       DCHECK(IsContext(map->native_context_or_null()));
       sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+      sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
 
       // Defer serialization of the native context in order to break
       // a potential cycle through the map slot:
@@ -510,6 +515,15 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // deferred.
     DCHECK(IsMap(map));
     serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
+    if (IsExtendedMap(*object_)) {
+      // Extended maps store their actual size in bit_field_ex_, write it
+      // upfront to make sure the ExtendedMap size can be fully initialized,
+      // before deserializing tagged fields which might cause GC.
+      // It must be serialized right after the map field.
+      sink_->Put(kExtendedMapBitFieldEx, "NewExtendedMap");
+      sink_->Put(Cast<ExtendedMap>(*object_)->bit_field_ex(),
+                 "ExtendedMap::bit_field_ex");
+    }
 
     // Make sure the map serialization didn't accidentally recursively serialize
     // this object.
@@ -693,7 +707,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   // with the encoded external reference, which we restore upon deserialize.
   // For the rest we serialize them to look like ordinary sequential strings.
   auto string = Cast<ExternalString>(object_);
-  Address resource = string->resource_as_address();
+  Address resource = string->resource_as_address(isolate());
   ExternalReferenceEncoder::Value reference;
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
@@ -718,8 +732,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // Instead of serializing this as an external string, we serialize
   // an imaginary sequential string with the same content.
   ReadOnlyRoots roots(isolate());
-  PtrComprCageBase cage_base(isolate());
-  DCHECK(IsExternalString(*object_, cage_base));
+  DCHECK(IsExternalString(*object_));
   DirectHandle<ExternalString> string = Cast<ExternalString>(object_);
   uint32_t length = string->length();
   Tagged<Map> map;
@@ -727,8 +740,8 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   int allocation_size;
   const uint8_t* resource;
   // Find the map and size for the imaginary sequential string.
-  bool internalized = IsInternalizedString(*object_, cage_base);
-  if (IsExternalOneByteString(*object_, cage_base)) {
+  bool internalized = IsInternalizedString(*object_);
+  if (IsExternalOneByteString(*object_)) {
     map = internalized ? roots.internalized_one_byte_string_map()
                        : roots.seq_one_byte_string_map();
     allocation_size = SeqOneByteString::SizeFor(length);
@@ -748,7 +761,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.
-  int bytes_to_output = allocation_size - HeapObject::kHeaderSize;
+  int bytes_to_output = allocation_size - sizeof(HeapObject);
   DCHECK(IsAligned(bytes_to_output, kTaggedSize));
   int slots_to_output = bytes_to_output >> kTaggedSizeLog2;
 
@@ -758,7 +771,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Serialize string header (except for map).
   uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
-  for (size_t i = sizeof(HeapObjectLayout); i < sizeof(SeqString); i++) {
+  for (size_t i = sizeof(HeapObject); i < sizeof(SeqString); i++) {
     sink_->Put(string_start[i], "StringHeader");
   }
 
@@ -838,8 +851,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
     }
   }
 
-  PtrComprCageBase cage_base(isolate());
-  InstanceType instance_type = object_->map(cage_base)->instance_type();
+  InstanceType instance_type = object_->map()->instance_type();
   if (InstanceTypeChecker::IsExternalString(instance_type)) {
     SerializeExternalString();
     return;
@@ -863,7 +875,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
         ReadOnlyRoots(isolate()).undefined_value());
   }
 
-  DCHECK(!IsFreeSpaceOrFiller(*object_, cage_base));
+  DCHECK(!IsFreeSpaceOrFiller(*object_));
 
   SerializeObject();
 }
@@ -908,12 +920,13 @@ SnapshotSpace GetSnapshotSpace(Isolate* isolate, Tagged<HeapObject> object) {
       case RO_SPACE:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 }
 }  // namespace
 
 void Serializer::ObjectSerializer::SerializeObject() {
-  Tagged<Map> map = object_->map(serializer_->cage_base());
+  Tagged<Map> map = object_->map();
   int size = object_->SizeFromMap(map);
 
   // Descriptor arrays have complex element weakness, that is dependent on the
@@ -1141,7 +1154,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
   // We serialize the slot as initialized-but-unused slot.  The actual API
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
-  DCHECK(IsJSApiWrapperObjectMap(object_->map(cage_base)));
+  DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
@@ -1153,8 +1166,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
 
 void Serializer::ObjectSerializer::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
-  PtrComprCageBase cage_base(isolate());
-  InstanceType instance_type = object_->map(cage_base)->instance_type();
+  InstanceType instance_type = object_->map()->instance_type();
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
@@ -1236,7 +1248,7 @@ void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
   // These fields only exist on the ExposedTrustedObject class, and they are
   // located directly after the Map word.
   DCHECK_EQ(bytes_processed_so_far_,
-            ExposedTrustedObject::kSelfIndirectPointerOffset);
+            offsetof(ExposedTrustedObject, self_indirect_pointer_));
 
   // Nothing to do here. We already emitted the kInitializeSelfIndirectPointer
   // after processing the Map word in SerializePrologue.
@@ -1383,41 +1395,31 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
         reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     PtrComprCageBase cage_base(isolate_);
-    if (IsSharedFunctionInfo(*object_, cage_base)) {
+    if (IsSharedFunctionInfo(*object_)) {
       // The bytecode age field can be changed by GC concurrently.
       static_assert(SharedFunctionInfo::kAgeSize == kUInt16Size);
       uint16_t field_value = 0;
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               SharedFunctionInfo::kAgeOffset,
+                               offsetof(SharedFunctionInfo, age_),
                                sizeof(field_value),
                                reinterpret_cast<uint8_t*>(&field_value));
-    } else if (IsDescriptorArray(*object_, cage_base)) {
+    } else if (IsDescriptorArray(*object_)) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.
       const auto field_value = DescriptorArrayMarkingState::kInitialGCState;
       static_assert(sizeof(field_value) == DescriptorArray::kSizeOfRawGcState);
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               DescriptorArray::kRawGcStateOffset,
+                               offsetof(DescriptorArray, raw_gc_state_),
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
-    } else if (IsCode(*object_, cage_base)) {
-#ifdef V8_ENABLE_SANDBOX
-      // When the sandbox is enabled, this field contains the handle to this
-      // Code object's code pointer table entry. This will be recomputed after
-      // deserialization.
-      static uint8_t field_value[kIndirectPointerSize] = {0};
-      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               Code::kSelfIndirectPointerOffset,
-                               sizeof(field_value), field_value);
-#else
-      // In this case, instruction_start field contains a raw value that will
-      // similarly be recomputed after deserialization, so write zeros to keep
-      // the snapshot deterministic.
+    } else if (IsCode(*object_)) {
+      // The instruction_start field contains a raw value that will be
+      // recomputed after deserialization, so write zeros to keep the snapshot
+      // deterministic.
       static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
-#endif  // V8_ENABLE_SANDBOX
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

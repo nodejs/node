@@ -144,6 +144,11 @@ inline VRegister VRegister::VRegFromCode(unsigned code) {
   return VRegister::Create(code, kVRegSizeInBits);
 }
 
+inline ZRegister ZRegister::ZRegFromCode(unsigned code) {
+  DCHECK_LT(code, static_cast<unsigned>(kNumberOfZRegisters));
+  return ZRegister::Create(code);
+}
+
 inline Register CPURegister::W() const {
   DCHECK(IsRegister());
   return Register::WRegFromCode(code());
@@ -192,6 +197,11 @@ inline VRegister CPURegister::D() const {
 inline VRegister CPURegister::Q() const {
   DCHECK(IsVRegister());
   return VRegister::QRegFromCode(code());
+}
+
+inline ZRegister CPURegister::Z() const {
+  DCHECK(IsVRegister() || IsZRegister());
+  return ZRegister::ZRegFromCode(code());
 }
 
 // Immediate.
@@ -665,7 +675,7 @@ Address RelocInfo::constant_pool_entry_address() {
   return Assembler::target_pointer_address_at(pc_);
 }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed =
@@ -721,6 +731,19 @@ void WritableRelocInfo::set_target_external_reference(
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    &jit_allocation_, icache_flush_mode);
+}
+
+Address RelocInfo::wasm_code_pointer() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void WritableRelocInfo::set_wasm_code_pointer(Address target) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  // We only call `set_wasm_code_pointer` while processing an entire code
+  // object, and will always flush the i-cache at the end of that operation.
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   &jit_allocation_, SKIP_ICACHE_FLUSH);
 }
 
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {

@@ -33,7 +33,7 @@
 
 #include <stdio.h>
 
-#if defined(__MACH__)
+#if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #elif defined(_WIN32)
 #include <Windows.h>
@@ -191,7 +191,7 @@ class StrippingTest : public ::testing::Test {
       absl::FPrintF(stderr, "Failed to open /pkg/bin/<binary name>: %s\n", err);
     }
     return fp;
-#elif defined(__MACH__)
+#elif defined(__APPLE__)
     uint32_t size = 0;
     int ret = _NSGetExecutablePath(nullptr, &size);
     if (ret != -1) {

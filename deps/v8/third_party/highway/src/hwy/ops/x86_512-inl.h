@@ -637,16 +637,48 @@ HWY_API VFromD<D> Iota(D d, const T2 first) {
 
 // ================================================== LOGICAL
 
-// ------------------------------ Not
+#if HWY_X86_HAVE_TERNARY_LOGIC
+namespace detail {
 
-template <typename T>
-HWY_API Vec512<T> Not(const Vec512<T> v) {
-  const DFromV<decltype(v)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m512i vu = BitCast(du, v).raw;
-  return BitCast(d, VU{_mm512_ternarylogic_epi32(vu, vu, vu, 0x55)});
-}
+// Per-target partial specialization.
+template <uint8_t kTernLogOp>
+struct TernaryLogicImpl<kTernLogOp, 64> {
+  template <class V>
+  HWY_INLINE V operator()(V a, V b, V c) const {
+    const DFromV<decltype(a)> d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m512i ret = _mm512_ternarylogic_epi64(
+        BitCast(du, a).raw, BitCast(du, b).raw, BitCast(du, c).raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+};
+
+// Same, but with writemask. If !mask, returns a.
+template <uint8_t kTernLogOp>
+struct MaskedTernaryLogicImpl<kTernLogOp, 64> {
+  template <class V, class D = DFromV<V>, HWY_IF_T_SIZE_D(D, 4)>
+  HWY_INLINE V operator()(MFromD<D> mask, V a, V b, V c) const {
+    const D d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m512i ret = _mm512_mask_ternarylogic_epi32(a.raw, mask.raw, b.raw,
+                                                       c.raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+  template <class V, class D = DFromV<V>, HWY_IF_T_SIZE_D(D, 8)>
+  HWY_INLINE V operator()(MFromD<D> mask, V a, V b, V c) const {
+    const D d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m512i ret = _mm512_mask_ternarylogic_epi64(a.raw, mask.raw, b.raw,
+                                                       c.raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+};
+
+}  // namespace detail
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ And
 
@@ -716,66 +748,6 @@ HWY_API Vec512<float> Xor(const Vec512<float> a, const Vec512<float> b) {
 }
 HWY_API Vec512<double> Xor(const Vec512<double> a, const Vec512<double> b) {
   return Vec512<double>{_mm512_xor_pd(a.raw, b.raw)};
-}
-
-// ------------------------------ Xor3
-template <typename T>
-HWY_API Vec512<T> Xor3(Vec512<T> x1, Vec512<T> x2, Vec512<T> x3) {
-#if !HWY_IS_MSAN
-  const DFromV<decltype(x1)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m512i ret = _mm512_ternarylogic_epi64(
-      BitCast(du, x1).raw, BitCast(du, x2).raw, BitCast(du, x3).raw, 0x96);
-  return BitCast(d, VU{ret});
-#else
-  return Xor(x1, Xor(x2, x3));
-#endif
-}
-
-// ------------------------------ Or3
-template <typename T>
-HWY_API Vec512<T> Or3(Vec512<T> o1, Vec512<T> o2, Vec512<T> o3) {
-#if !HWY_IS_MSAN
-  const DFromV<decltype(o1)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m512i ret = _mm512_ternarylogic_epi64(
-      BitCast(du, o1).raw, BitCast(du, o2).raw, BitCast(du, o3).raw, 0xFE);
-  return BitCast(d, VU{ret});
-#else
-  return Or(o1, Or(o2, o3));
-#endif
-}
-
-// ------------------------------ OrAnd
-template <typename T>
-HWY_API Vec512<T> OrAnd(Vec512<T> o, Vec512<T> a1, Vec512<T> a2) {
-#if !HWY_IS_MSAN
-  const DFromV<decltype(o)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m512i ret = _mm512_ternarylogic_epi64(
-      BitCast(du, o).raw, BitCast(du, a1).raw, BitCast(du, a2).raw, 0xF8);
-  return BitCast(d, VU{ret});
-#else
-  return Or(o, And(a1, a2));
-#endif
-}
-
-// ------------------------------ IfVecThenElse
-template <typename T>
-HWY_API Vec512<T> IfVecThenElse(Vec512<T> mask, Vec512<T> yes, Vec512<T> no) {
-#if !HWY_IS_MSAN
-  const DFromV<decltype(yes)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  return BitCast(d, VU{_mm512_ternarylogic_epi64(BitCast(du, mask).raw,
-                                                 BitCast(du, yes).raw,
-                                                 BitCast(du, no).raw, 0xCA)});
-#else
-  return IfThenElse(MaskFromVec(mask), yes, no);
-#endif
 }
 
 // ------------------------------ Operator overloads (internal-only if float)
@@ -4856,6 +4828,65 @@ HWY_API Vec512<T> InterleaveOddBlocks(Full512<T> d, Vec512<T> a, Vec512<T> b) {
   return OddEvenBlocks(b, SlideDownBlocks<1>(d, a));
 }
 
+// ------------------------------ InterleaveLowerBlocks (TwoTablesLookupLanes)
+
+// Note that _mm512_shuffle_f32x4 etc. can only use `a` to populate the lower
+// half of the result, so we would require at least two instructions. We instead
+// use table lookups.
+
+template <typename T>
+HWY_API Vec512<T> InterleaveLowerBlocks(Full512<T> d, Vec512<T> a,
+                                        Vec512<T> b) {
+  const Repartition<uint64_t, decltype(d)> du64;
+  HWY_ALIGN static constexpr int64_t kIdx[8] = {0, 1, 8, 9, 2, 3, 10, 11};
+  const auto idx = SetTableIndices(du64, kIdx);
+  return BitCast(d,
+                 TwoTablesLookupLanes(BitCast(du64, a), BitCast(du64, b), idx));
+}
+
+HWY_API Vec512<float> InterleaveLowerBlocks(Full512<float> d, Vec512<float> a,
+                                            Vec512<float> b) {
+  HWY_ALIGN static constexpr int32_t kIdx[16] = {0, 1, 2, 3, 16, 17, 18, 19,
+                                                 4, 5, 6, 7, 20, 21, 22, 23};
+  const auto idx = SetTableIndices(d, kIdx);
+  return TwoTablesLookupLanes(a, b, idx);
+}
+
+HWY_API Vec512<double> InterleaveLowerBlocks(Full512<double> d,
+                                             Vec512<double> a,
+                                             Vec512<double> b) {
+  HWY_ALIGN static constexpr int64_t kIdx[8] = {0, 1, 8, 9, 2, 3, 10, 11};
+  const auto idx = SetTableIndices(d, kIdx);
+  return TwoTablesLookupLanes(a, b, idx);
+}
+
+// ------------------------------ InterleaveUpperBlocks (TwoTablesLookupLanes)
+template <typename T>
+HWY_API Vec512<T> InterleaveUpperBlocks(Full512<T> d, Vec512<T> a,
+                                        Vec512<T> b) {
+  const Repartition<uint64_t, decltype(d)> du64;
+  HWY_ALIGN static constexpr int64_t kIdx[8] = {4, 5, 12, 13, 6, 7, 14, 15};
+  const auto idx = SetTableIndices(du64, kIdx);
+  return BitCast(
+      d, TwoTablesLookupLanes(du64, BitCast(du64, a), BitCast(du64, b), idx));
+}
+
+HWY_API Vec512<float> InterleaveUpperBlocks(Full512<float> d, Vec512<float> a,
+                                            Vec512<float> b) {
+  HWY_ALIGN static constexpr int32_t kIdx[16] = {
+      8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31};
+  const auto idx = SetTableIndices(d, kIdx);
+  return TwoTablesLookupLanes(a, b, idx);
+}
+
+HWY_API Vec512<double> InterleaveUpperBlocks(Full512<double> d,
+                                             Vec512<double> a,
+                                             Vec512<double> b) {
+  HWY_ALIGN static constexpr int64_t kIdx[8] = {4, 5, 12, 13, 6, 7, 14, 15};
+  const auto idx = SetTableIndices(d, kIdx);
+  return TwoTablesLookupLanes(a, b, idx);
+}
+
 // ------------------------------ ReverseBlocks
 
 template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_NOT_FLOAT3264_D(D)>
@@ -6744,73 +6775,31 @@ HWY_API Vec512<uint64_t> CLMulUpper(Vec512<uint64_t> va, Vec512<uint64_t> vb) {
 // SumsOfAdjShufQuadAbsDiff)
 
 template <int kAOffset, int kBOffset>
-static Vec512<uint16_t> SumsOfAdjQuadAbsDiff(Vec512<uint8_t> a,
-                                             Vec512<uint8_t> b) {
+HWY_API Vec512<uint16_t> SumsOfAdjQuadAbsDiff(Vec512<uint8_t> a,
+                                              Vec512<uint8_t> b) {
   static_assert(0 <= kAOffset && kAOffset <= 1,
                 "kAOffset must be between 0 and 1");
   static_assert(0 <= kBOffset && kBOffset <= 3,
                 "kBOffset must be between 0 and 3");
 
+#if HWY_X86_HAVE_AVX10_2_OPS
+  // AVX10.2 now has the _mm512_mpsadbw_epu8 intrinsic available
+  return Vec512<uint16_t>{_mm512_mpsadbw_epu8(
+      a.raw, b.raw,
+      (kAOffset << 5) | (kBOffset << 3) | (kAOffset << 2) | kBOffset)};
+#else
   const DFromV<decltype(a)> d;
   const RepartitionToWideX2<decltype(d)> du32;
 
-  // While AVX3 does not have a _mm512_mpsadbw_epu8 intrinsic, the
-  // SumsOfAdjQuadAbsDiff operation is implementable for 512-bit vectors on
-  // AVX3 using SumsOfShuffledQuadAbsDiff and U32 Broadcast.
+  // The _mm512_mpsadbw_epu8 intrinsic is not available prior to AVX10.2.
+  // The SumsOfAdjQuadAbsDiff operation is implementable for 512-bit vectors on
+  // pre-AVX10.2 targets that support AVX3 using SumsOfShuffledQuadAbsDiff and
+  // U32 Broadcast.
   return SumsOfShuffledQuadAbsDiff<kAOffset + 2, kAOffset + 1, kAOffset + 1,
                                    kAOffset>(
       a, BitCast(d, Broadcast<kBOffset>(BitCast(du32, b))));
+#endif
 }
-
-#if !HWY_IS_MSAN
-// ------------------------------ I32/I64 SaturatedAdd (MaskFromVec)
-
-HWY_API Vec512<int32_t> SaturatedAdd(Vec512<int32_t> a, Vec512<int32_t> b) {
-  const DFromV<decltype(a)> d;
-  const auto sum = a + b;
-  const auto overflow_mask = MaskFromVec(
-      Vec512<int32_t>{_mm512_ternarylogic_epi32(a.raw, b.raw, sum.raw, 0x42)});
-  const auto i32_max = Set(d, LimitsMax<int32_t>());
-  const Vec512<int32_t> overflow_result{_mm512_mask_ternarylogic_epi32(
-      i32_max.raw, MaskFromVec(a).raw, i32_max.raw, i32_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, sum);
-}
-
-HWY_API Vec512<int64_t> SaturatedAdd(Vec512<int64_t> a, Vec512<int64_t> b) {
-  const DFromV<decltype(a)> d;
-  const auto sum = a + b;
-  const auto overflow_mask = MaskFromVec(
-      Vec512<int64_t>{_mm512_ternarylogic_epi64(a.raw, b.raw, sum.raw, 0x42)});
-  const auto i64_max = Set(d, LimitsMax<int64_t>());
-  const Vec512<int64_t> overflow_result{_mm512_mask_ternarylogic_epi64(
-      i64_max.raw, MaskFromVec(a).raw, i64_max.raw, i64_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, sum);
-}
-
-// ------------------------------ I32/I64 SaturatedSub (MaskFromVec)
-
-HWY_API Vec512<int32_t> SaturatedSub(Vec512<int32_t> a, Vec512<int32_t> b) {
-  const DFromV<decltype(a)> d;
-  const auto diff = a - b;
-  const auto overflow_mask = MaskFromVec(
-      Vec512<int32_t>{_mm512_ternarylogic_epi32(a.raw, b.raw, diff.raw, 0x18)});
-  const auto i32_max = Set(d, LimitsMax<int32_t>());
-  const Vec512<int32_t> overflow_result{_mm512_mask_ternarylogic_epi32(
-      i32_max.raw, MaskFromVec(a).raw, i32_max.raw, i32_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, diff);
-}
-
-HWY_API Vec512<int64_t> SaturatedSub(Vec512<int64_t> a, Vec512<int64_t> b) {
-  const DFromV<decltype(a)> d;
-  const auto diff = a - b;
-  const auto overflow_mask = MaskFromVec(
-      Vec512<int64_t>{_mm512_ternarylogic_epi64(a.raw, b.raw, diff.raw, 0x18)});
-  const auto i64_max = Set(d, LimitsMax<int64_t>());
-  const Vec512<int64_t> overflow_result{_mm512_mask_ternarylogic_epi64(
-      i64_max.raw, MaskFromVec(a).raw, i64_max.raw, i64_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, diff);
-}
-#endif  // !HWY_IS_MSAN
 
 // ------------------------------ Mask testing
 
@@ -7615,16 +7604,6 @@ HWY_API VFromD<D> ReorderWidenMulAccumulate(D d, Vec512<int16_t> a,
 #endif
 }
 
-HWY_API Vec512<int32_t> RearrangeToOddPlusEven(const Vec512<int32_t> sum0,
-                                               Vec512<int32_t> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
-HWY_API Vec512<uint32_t> RearrangeToOddPlusEven(const Vec512<uint32_t> sum0,
-                                                Vec512<uint32_t> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
 // ------------------------------ SumOfMulQuadAccumulate
 
 #if HWY_TARGET <= HWY_AVX3_DL
@@ -7635,6 +7614,23 @@ HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
     VFromD<Repartition<int8_t, DI32>> b_i, VFromD<DI32> sum) {
   return VFromD<DI32>{_mm512_dpbusd_epi32(sum.raw, a_u.raw, b_i.raw)};
 }
+
+#if HWY_X86_HAVE_AVX10_2_OPS
+template <class DI32, HWY_IF_I32_D(DI32), HWY_IF_V_SIZE_D(DI32, 64)>
+HWY_API VFromD<DI32> SumOfMulQuadAccumulate(DI32 /*di32*/,
+                                            VFromD<Repartition<int8_t, DI32>> a,
+                                            VFromD<Repartition<int8_t, DI32>> b,
+                                            VFromD<DI32> sum) {
+  return VFromD<DI32>{_mm512_dpbssd_epi32(sum.raw, a.raw, b.raw)};
+}
+
+template <class DU32, HWY_IF_U32_D(DU32), HWY_IF_V_SIZE_D(DU32, 64)>
+HWY_API VFromD<DU32> SumOfMulQuadAccumulate(
+    DU32 /*du32*/, VFromD<Repartition<uint8_t, DU32>> a,
+    VFromD<Repartition<uint8_t, DU32>> b, VFromD<DU32> sum) {
+  return VFromD<DU32>{_mm512_dpbuud_epi32(sum.raw, a.raw, b.raw)};
+}
+#endif  // HWY_X86_HAVE_AVX10_2_OPS
 
 #endif
 

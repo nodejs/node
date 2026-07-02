@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/execution/vm-state.h"
@@ -27,7 +28,7 @@ namespace internal {
 
 constexpr MainAllocator::BlackAllocation MainAllocator::ComputeBlackAllocation(
     MainAllocator::IsNewGeneration is_new_generation) {
-  if (is_new_generation == IsNewGeneration::kYes) {
+  if (is_new_generation == kNewGeneration) {
     return BlackAllocation::kAlwaysDisabled;
   }
   if (v8_flags.sticky_mark_bits) {
@@ -83,13 +84,14 @@ Address MainAllocator::AlignTopForTesting(AllocationAlignment alignment,
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  SafeHeapObjectSize safe_size_in_bytes =
+      SafeHeapObjectSize(ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes));
 
   AllocationResult result =
-      AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
+      AllocateFastAligned(safe_size_in_bytes, nullptr, alignment, origin);
 
   return V8_UNLIKELY(result.IsFailure())
-             ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
+             ? AllocateRawSlow(safe_size_in_bytes, alignment, origin)
              : result;
 }
 
@@ -193,47 +195,26 @@ void MainAllocator::InvokeAllocationObservers(Address soon_object,
             allocation_counter().NextBytes());
 }
 
-AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
-                                                AllocationAlignment alignment,
-                                                AllocationOrigin origin) {
-  AllocationResult result =
-      alignment != kTaggedAligned
-          ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
-          : AllocateRawSlowUnaligned(size_in_bytes, origin);
-  return result;
-}
-
-AllocationResult MainAllocator::AllocateRawSlowUnaligned(
-    int size_in_bytes, AllocationOrigin origin) {
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
-    return AllocationResult::Failure();
-  }
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsFailure());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
-
-  return result;
-}
-
-AllocationResult MainAllocator::AllocateRawSlowAligned(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+AllocationResult MainAllocator::AllocateRawSlow(
+    SafeHeapObjectSize size_in_bytes, AllocationAlignment alignment,
+    AllocationOrigin origin) {
   if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
 
-  int max_aligned_size = size_in_bytes + Heap::GetMaximumFillToAlign(alignment);
-  int aligned_size_in_bytes;
+  SafeHeapObjectSize max_aligned_size = SafeHeapObjectSize(
+      size_in_bytes.value() +
+      static_cast<uint32_t>(Heap::GetMaximumFillToAlign(alignment)));
+  SafeHeapObjectSize aligned_size_in_bytes;
 
   AllocationResult result = AllocateFastAligned(
       size_in_bytes, &aligned_size_in_bytes, alignment, origin);
   DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
 
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, max_aligned_size);
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes.value(),
+                            aligned_size_in_bytes.value(),
+                            max_aligned_size.value());
 
   return result;
 }
@@ -312,9 +293,11 @@ bool MainAllocator::IsPendingAllocation(Address object_address) {
   return top && top <= object_address && object_address < limit;
 }
 
-bool MainAllocator::EnsureAllocation(int size_in_bytes,
+bool MainAllocator::EnsureAllocation(SafeHeapObjectSize size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin) {
+  CHECK_LT(size_in_bytes.value(), kRegularPageSize);
+
 #ifdef V8_RUNTIME_CALL_STATS
   std::optional<RuntimeCallTimerScope> rcs_scope;
   if (is_main_thread()) {
@@ -326,7 +309,8 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
   if (is_main_thread()) {
     vmstate.emplace(isolate_heap()->isolate());
   }
-  return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
+  return allocator_policy_->EnsureAllocation(size_in_bytes.value(), alignment,
+                                             origin);
 }
 
 void MainAllocator::FreeLinearAllocationArea() {
@@ -414,7 +398,7 @@ void MainAllocator::Verify() const {
 bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
                                                AllocationAlignment alignment,
                                                AllocationOrigin origin) {
-  return EnsureAllocation(size_in_bytes, alignment, origin);
+  return EnsureAllocation(SafeHeapObjectSize(size_in_bytes), alignment, origin);
 }
 
 int MainAllocator::ObjectAlignment() const {
@@ -575,8 +559,9 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
   // This method should be called only when there are no more pages for main
   // thread to sweep.
   DCHECK(space_heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-  if (!v8_flags.concurrent_sweeping || !space_heap()->sweeping_in_progress())
+  if (!v8_flags.concurrent_sweeping || !space_heap()->sweeping_in_progress()) {
     return false;
+  }
   Sweeper* sweeper = space_heap()->sweeper();
   if (!sweeper->AreMinorSweeperTasksRunning() &&
       !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
@@ -622,8 +607,9 @@ bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
   if (IsPagedNewSpaceAtFullCapacity(space_) &&
       !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
-          NormalPage::kPageSize))
+          NormalPage::kPageSize)) {
     return false;
+  }
   if (!space_->paged_space()->AllocatePage()) return false;
   return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
                                                                   origin);
@@ -701,8 +687,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
       space_->RefillFreeList();
 
       // Retry the free list allocation.
-      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes),
+                                    origin)) {
         return true;
+      }
     }
 
     static constexpr int kMaxPagesToSweep = 1;
@@ -732,8 +720,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
                      !page->is_black_allocated());
       space_->AddPage(page);
-      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes),
+                                    origin)) {
         return true;
+      }
     }
   }
 
@@ -777,10 +767,12 @@ bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
 }
 
 bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
-  if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity()))
+  if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity())) {
     return false;
-  if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
+  }
+  if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity())) {
     return false;
+  }
 
   const bool is_main_thread =
       allocator_->is_main_thread() ||
@@ -792,8 +784,9 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
 
   TRACE_GC_EPOCH_WITH_FLOW(
       isolate_heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
-      isolate_heap()->sweeper()->GetTraceIdForFlowEvent(sweeping_scope_id),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      perfetto::Flow::ProcessScoped(
+          isolate_heap()->sweeper()->GetTraceIdForFlowEvent(
+              sweeping_scope_id)));
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =
@@ -955,7 +948,10 @@ std::pair<Address, Address> LinearAreaOriginalData::GetTopAndLimitLocked()
 void LinearAreaOriginalData::SetTopAndLimit(Address top, Address limit) {
   base::MutexGuard guard(mutex_);
   // The order of the two stores is important. See GetTopAndLimit().
-  original_limit_.store(limit, std::memory_order_relaxed);
+  // The release-store here guarantees that once we start changing LAB
+  // boundaries, all object initialization stores are observable as well for the
+  // concurrent marker.
+  original_limit_.store(limit, std::memory_order_release);
   // Use acquire/release semantics here to prevent subsequent stores to move
   // before this store here.
   original_top_.exchange(top, std::memory_order_acq_rel);

@@ -320,16 +320,14 @@ class MaybeObjectDirectHandle final {
  public:
   inline MaybeObjectDirectHandle()
       : reference_type_(HeapObjectReferenceType::STRONG) {}
-  inline MaybeObjectDirectHandle(Tagged<MaybeObject> object, Isolate* isolate);
-  inline MaybeObjectDirectHandle(Tagged<Object> object, Isolate* isolate);
-  inline MaybeObjectDirectHandle(Tagged<Smi> object, Isolate* isolate);
-  inline MaybeObjectDirectHandle(Tagged<MaybeObject> object,
-                                 LocalHeap* local_heap);
-  inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
-  inline MaybeObjectDirectHandle(Tagged<Smi> object, LocalHeap* local_heap);
+  template <typename T>
+  inline MaybeObjectDirectHandle(Tagged<T> object, Isolate* isolate);
+  template <typename T>
+  inline MaybeObjectDirectHandle(Tagged<T> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object)
       : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
 
+  // NOLINTNEXTLINE
   inline MaybeObjectDirectHandle(MaybeObjectHandle obj);
 
   static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,

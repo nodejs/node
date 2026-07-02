@@ -29,6 +29,17 @@
 }],  # ALWAYS
 
 ##############################################################################
+['lower_limits_mode', {
+  # These tests need longer strings.
+  'debugger/not-hold-promises': [SKIP],
+  'heap-profiler/console-retaining-path': [SKIP],
+  'heap-profiler/heap-snapshot-js-weak-refs': [SKIP],
+  'heap-profiler/take-heap-snapshot-on-pause': [SKIP],
+  'runtime/console-messages-limits': [SKIP],
+  'runtime/remote-object': [SKIP],
+}],
+
+##############################################################################
 ['arch == x64 and mode == debug', {
   # Flaky tests: https://crbug.com/v8/10876
   'debugger/pause-on-oom-extrawide': [PASS, FAIL],

@@ -14,6 +14,7 @@
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -67,6 +68,9 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
     std::optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
+  // IteratorStep is used at the top of iterator loops, so check for stack
+  // overflow and process pending interrupts here.
+  PerformStackCheck(context);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   TNode<JSAny> result = Call(context, iterator.next, iterator.object);
 
@@ -162,7 +166,17 @@ void IteratorBuiltinsAssembler::Iterate(
     TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterable_fn,
     std::function<void(TNode<Object>)> func,
     std::initializer_list<compiler::CodeAssemblerVariable*> merged_variables) {
-  Label done(this);
+  Iterate(
+      context, iterable, iterable_fn, [this]() { return Int32TrueConstant(); },
+      func, merged_variables);
+}
+
+void IteratorBuiltinsAssembler::Iterate(
+    TNode<Context> context, TNode<JSAny> iterable, TNode<Object> iterable_fn,
+    std::function<TNode<BoolT>()> condition,
+    std::function<void(TNode<Object>)> func,
+    std::initializer_list<compiler::CodeAssemblerVariable*> merged_variables) {
+  Label done(this), early_break(this);
 
   IteratorRecord iterator_record = GetIterator(context, iterable, iterable_fn);
 
@@ -174,6 +188,8 @@ void IteratorBuiltinsAssembler::Iterate(
 
   BIND(&loop_start);
   {
+    GotoIfNot(condition(), &early_break);
+
     TNode<JSReceiver> next = IteratorStep(context, iterator_record, &done);
     TNode<Object> next_value = IteratorValue(context, next);
 
@@ -186,8 +202,14 @@ void IteratorBuiltinsAssembler::Iterate(
     Goto(&loop_start);
   }
 
-  BIND(&if_exception);
-  {
+  if (early_break.is_used()) {
+    BIND(&early_break);
+    IteratorClose(context, iterator_record);
+    Goto(&done);
+  }
+
+  if (if_exception.is_used()) {
+    BIND(&if_exception);
     TNode<HeapObject> message = GetPendingMessage();
     SetPendingMessage(TheHoleConstant());
     IteratorCloseOnException(context, iterator_record.object);
@@ -239,6 +261,7 @@ void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
           {values->var_array(), values->var_capacity(), values->var_length()});
 }
 
+// https://tc39.es/ecma262/#sec-iterabletolist
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);
@@ -336,6 +359,7 @@ TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
   return list.ToFixedArray();
 }
 
+// https://tc39.es/ecma262/#sec-createstringlistfromiterable
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);
@@ -518,6 +542,74 @@ TF_BUILTIN(CallIteratorWithFeedbackLazyDeoptContinuation,
   Return(iterator);
 }
 
+TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
+  BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
+  BIND(&is_jsreceiver);
+
+  TNode<Object> var_done =
+      GetProperty(context, CAST(result_object), factory()->done_string());
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(var_done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+
+  BIND(&if_notjsreceiver);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
+  Unreachable();
+}
+
+TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+  auto done = Parameter<Object>(Descriptor::kDone);
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+}
+
+TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  TNode<Object> value =
+      GetProperty(context, CAST(result_object), factory()->value_string());
+
+  Return(value);
+}
+
+TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto value = Parameter<Object>(Descriptor::kValue);
+  Return(value);
+}
+
 // This builtin creates a FixedArray based on an Iterable and doesn't have a
 // fast path for anything.
 TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,
@@ -528,6 +620,139 @@ TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,
   TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
   TailCallBuiltin(Builtin::kIterableToFixedArray, context, iterable,
                   iterator_fn);
+}
+
+TNode<FixedArray> IteratorBuiltinsAssembler::ArrayDestructure(
+    TNode<Context> context, TNode<Object> receiver, TNode<Smi> count_smi) {
+  // TODO(leszeks): Add a mode for bytecode and Sparkplug where the builtin
+  // takes the on-stack address of the first register + register list length,
+  // and writes directly from array backing store to register stack slot instead
+  // of allocating an intermediate FixedArray.
+  TNode<JSAny> iterable = CAST(receiver);
+  TNode<IntPtrT> count = PositiveSmiUntag(count_smi);
+  TVARIABLE(FixedArray, var_result, EmptyFixedArrayConstant());
+  Label done(this), slow_path(this), fast_array(this);
+
+  // Fast path conditions:
+  // 1. Not forced to slow path (e.g. via flags or stress modes).
+  // 2. Debug is not active (to allow debugger stepping hook checks).
+  // 3. The iterable is a fast JSArray with unmodified iteration
+  //    protocols (IsFastJSArrayWithNoCustomIteration /
+  //    IsFastJSArrayForReadWithNoCustomIteration).
+  GotoIfForceSlowPath(&slow_path);
+  GotoIf(IsDebugActive(), &slow_path);
+  Branch(Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),
+                  IsFastJSArrayForReadWithNoCustomIteration(context, iterable)),
+         &fast_array, &slow_path);
+
+  BIND(&fast_array);
+  {
+    GotoIf(WordEqual(count, IntPtrConstant(0)), &done);
+    TNode<FixedArray> allocated_result =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, count, AllocationFlag::kNone));
+    FillFixedArrayWithValue(PACKED_ELEMENTS, allocated_result,
+                            IntPtrConstant(0), count,
+                            RootIndex::kUndefinedValue);
+    var_result = allocated_result;
+    TNode<JSArray> list = CAST(iterable);
+    TNode<FixedArrayBase> elements = LoadElements(list);
+    TNode<IntPtrT> length = PositiveSmiUntag(CAST(LoadJSArrayLength(list)));
+    TNode<IntPtrT> copy_len = IntPtrMin(count, length);
+    GotoIf(WordEqual(copy_len, IntPtrConstant(0)), &done);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(list));
+    Label if_double(this), if_not_double(this);
+    Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_not_double);
+
+    BIND(&if_double);
+    {
+      CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, PACKED_ELEMENTS,
+                             allocated_result, IntPtrConstant(0), copy_len,
+                             copy_len, UPDATE_WRITE_BARRIER,
+                             HoleConversionMode::kConvertToUndefined);
+      Goto(&done);
+    }
+
+    BIND(&if_not_double);
+    {
+      CopyFixedArrayElements(PACKED_ELEMENTS, elements, PACKED_ELEMENTS,
+                             allocated_result, IntPtrConstant(0), copy_len,
+                             copy_len, UPDATE_WRITE_BARRIER,
+                             HoleConversionMode::kConvertToUndefined);
+      Goto(&done);
+    }
+  }
+
+  BIND(&slow_path);
+  {
+    TVARIABLE(FixedArray, var_allocated, EmptyFixedArrayConstant());
+    Label allocate_done(this);
+    GotoIf(WordEqual(count, IntPtrConstant(0)), &allocate_done);
+    TNode<FixedArray> res =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, count, AllocationFlag::kNone));
+    FillFixedArrayWithValue(PACKED_ELEMENTS, res, IntPtrConstant(0), count,
+                            RootIndex::kUndefinedValue);
+    var_allocated = res;
+    Goto(&allocate_done);
+
+    BIND(&allocate_done);
+    var_result = var_allocated.value();
+
+    TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
+    Iterate(
+        context, iterable, GetIteratorMethod(context, iterable),
+        [&]() { return IntPtrLessThan(var_index.value(), count); },
+        [&](TNode<Object> next_value) {
+          StoreFixedArrayElement(var_allocated.value(), var_index.value(),
+                                 next_value);
+          var_index = IntPtrAdd(var_index.value(), IntPtrConstant(1));
+        },
+        {&var_index});
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+TF_BUILTIN(ArrayDestructure, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto count = Parameter<Smi>(Descriptor::kCount);
+
+  Return(ArrayDestructure(context, receiver, count));
+}
+
+// Continuation builtin invoked when lazy deoptimization triggers during or
+// after Builtin::kArrayDestructure. Because JSArrayDestructure lowers to a stub
+// call returning a FixedArray, unoptimized interpreted code expects the
+// destructured elements to reside directly in sequential register stack slots
+// rather than inside an array. This continuation takes the returned FixedArray
+// and unpacks its elements directly into the interpreted stack frame slots
+// starting at first_reg.
+TF_BUILTIN(ArrayDestructureLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto first_reg_smi = Parameter<Smi>(Descriptor::kFirstReg);
+  auto count_smi = Parameter<Smi>(Descriptor::kCount);
+  auto result = Parameter<FixedArray>(Descriptor::kResult);
+
+  TNode<RawPtrT> caller_fp = LoadParentFramePointer();
+  TNode<IntPtrT> first_reg = PositiveSmiUntag(first_reg_smi);
+  TNode<IntPtrT> count = PositiveSmiUntag(count_smi);
+
+  BuildFastLoop<IntPtrT>(
+      IntPtrConstant(0), count,
+      [&](TNode<IntPtrT> i) {
+        TNode<Object> val = LoadFixedArrayElement(result, i);
+        TNode<IntPtrT> reg_index = IntPtrAdd(first_reg, i);
+        TNode<IntPtrT> offset = IntPtrSub(
+            IntPtrConstant(InterpreterFrameConstants::kRegisterFileFromFp),
+            TimesSystemPointerSize(reg_index));
+        TNode<RawPtrT> target_addr = ReinterpretCast<RawPtrT>(
+            IntPtrAdd(ReinterpretCast<IntPtrT>(caller_fp), offset));
+        StoreFullTaggedNoWriteBarrier(target_addr, IntPtrConstant(0), val);
+      },
+      1, kNoLoopUnrolling, IndexAdvanceMode::kPost);
+
+  Return(result);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

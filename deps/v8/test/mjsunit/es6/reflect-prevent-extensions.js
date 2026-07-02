@@ -94,7 +94,7 @@ arr[1]= 42;
 assertEquals(42, arr[1]);
 
 
-// Test the the extensible flag is not inherited.
+// Test that the extensible flag is not inherited.
 var parent = {};
 parent.x = 42;
 assertTrue(Reflect.preventExtensions(parent));

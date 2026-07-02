@@ -7,10 +7,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 let {tag, thrower} = (()=>{
   let builder = new WasmModuleBuilder();
   let $s0 = builder.addStruct([makeField(kWasmI64, true)]);
-  let $s1 = builder.addStruct([makeField(kWasmI64, true),
-                               makeField(kWasmI64, true),
-                               makeField(kWasmI64, true)],
-                              $s0);
+  let $s1 = builder.addStruct({fields: [makeField(kWasmI64, true),
+                                        makeField(kWasmI64, true),
+                                        makeField(kWasmI64, true)],
+                               supertype: $s0});
   // sig_v_s0 <: sig_v_s1
   let $sig_v_s1 = builder.addType(makeSig([wasmRefType($s1)], []), kNoSuperType,
                                   false);
@@ -27,9 +27,10 @@ let {tag, thrower} = (()=>{
 
 let builder = new WasmModuleBuilder();
 let $s0 = builder.addStruct([makeField(kWasmI64, true)]);
-let $s1 = builder.addStruct([makeField(kWasmI64, true),
-                             makeField(kWasmI64, true),
-                             makeField(kWasmI64, true)], $s0);
+let $s1 = builder.addStruct({fields: [makeField(kWasmI64, true),
+                                      makeField(kWasmI64, true),
+                                      makeField(kWasmI64, true)],
+                             supertype: $s0});
 let $sig_v_s1 = builder.addType(makeSig([wasmRefType($s1)], []), kNoSuperType,
                                 false);
 let $sig_v_s0 = builder.addType(makeSig([wasmRefType($s0)], []), $sig_v_s1);

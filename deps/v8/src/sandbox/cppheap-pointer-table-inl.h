@@ -44,10 +44,18 @@ void CppHeapPointerTableEntry::SetPointer(Address value,
   DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kCppHeapPointerPayloadShift));
   DCHECK_NE(tag, CppHeapPointerTag::kFreeEntryTag);
   DCHECK_NE(tag, CppHeapPointerTag::kEvacuationEntryTag);
-  DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
-
-  Payload new_payload(value, tag);
-  payload_.store(new_payload, std::memory_order_relaxed);
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    Payload new_payload(value, tag);
+    if (old_payload.HasMarkBitSet()) {
+      new_payload.SetMarkBit();
+    }
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
 }
 
 bool CppHeapPointerTableEntry::HasPointer(
@@ -73,18 +81,20 @@ std::optional<uint32_t> CppHeapPointerTableEntry::GetNextFreelistEntryIndex()
   return payload.ExtractFreelistLink();
 }
 
-void CppHeapPointerTableEntry::Mark() {
+bool CppHeapPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-
-  auto new_payload = old_payload;
-  new_payload.SetMarkBit();
-
-  // We don't need to perform the CAS in a loop: if the new value is not equal
-  // to the old value, then the mutator must've just written a new value into
-  // the entry. The mutator will also set the markbit through the write barrier.
-  payload_.compare_exchange_strong(old_payload, new_payload,
-                                   std::memory_order_relaxed);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    if (old_payload.HasMarkBitSet()) {
+      return false;
+    }
+    auto new_payload = old_payload;
+    new_payload.SetMarkBit();
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      return true;
+    }
+  }
 }
 
 void CppHeapPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
@@ -160,13 +170,16 @@ void CppHeapPointerTable::Mark(Space* space, CppHeapPointerHandle handle,
   uint32_t index = HandleToIndex(handle);
   DCHECK(space->Contains(index));
 
-  // If the table is being compacted and the entry is inside the evacuation
-  // area, then allocate and set up an evacuation entry for it.
-  MaybeCreateEvacuationEntry(space, index, handle_location);
+  // Bail out in case the entry was already marked.
+  if (!at(index).Mark()) {
+    return;
+  }
 
-  // Even if the entry is marked for evacuation, it still needs to be marked as
-  // alive as it may be visited during sweeping before being evacuation.
-  at(index).Mark();
+  // If the table is being compacted and the entry is inside the evacuation
+  // area, then allocate and set up an evacuation entry for it. Only one such
+  // entry must exist for any given `handle_location` which is ensured by
+  // properly bailing out on marked entries above.
+  MaybeCreateEvacuationEntry(space, index, handle_location);
 }
 
 // static

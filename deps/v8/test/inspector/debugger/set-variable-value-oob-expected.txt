@@ -1,0 +1,5 @@
+Tests mitigation of OOB stack write in SetExpression
+Paused in trigger()
+Successfully set variable a to 0x1337
+Value of a: 4919
+trigger() returned: 4919

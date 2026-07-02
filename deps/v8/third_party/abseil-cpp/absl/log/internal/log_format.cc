@@ -51,8 +51,8 @@ namespace {
 // comparisons when log_internal::Tid is unsigned. It can be replaced with a
 // constexpr if once the minimum C++ version Abseil supports is C++17.
 template <typename T>
-inline std::enable_if_t<!std::is_signed<T>::value>
-PutLeadingWhitespace(T tid, char*& p) {
+inline std::enable_if_t<!std::is_signed_v<T>> PutLeadingWhitespace(T tid,
+                                                                   char*& p) {
   if (tid < 10) *p++ = ' ';
   if (tid < 100) *p++ = ' ';
   if (tid < 1000) *p++ = ' ';
@@ -62,8 +62,8 @@ PutLeadingWhitespace(T tid, char*& p) {
 }
 
 template <typename T>
-inline std::enable_if_t<std::is_signed<T>::value>
-PutLeadingWhitespace(T tid, char*& p) {
+inline std::enable_if_t<std::is_signed_v<T>> PutLeadingWhitespace(T tid,
+                                                                  char*& p) {
   if (tid >= 0 && tid < 10) *p++ = ' ';
   if (tid > -10 && tid < 100) *p++ = ' ';
   if (tid > -100 && tid < 1000) *p++ = ' ';

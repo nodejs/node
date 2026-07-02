@@ -193,8 +193,8 @@ class V8FileLogger : public LogEventListener {
   void SetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override;
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
-                             RegExpFlags flags) override;
+                             DirectHandle<String> escaped_source,
+                             regexp::Flags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -235,6 +235,9 @@ class V8FileLogger : public LogEventListener {
       const char* type, DirectHandle<Map> from, DirectHandle<Map> to,
       const char* reason = nullptr,
       DirectHandle<HeapObject> name_or_sfi = DirectHandle<HeapObject>());
+  void MapEvent(DisallowGarbageCollection& no_gc, const char* type,
+                Tagged<Map> from, Tagged<Map> to, const char* reason = nullptr,
+                Tagged<HeapObject> name_or_sfi = Tagged<HeapObject>());
   void MapCreate(Tagged<Map> map);
   void MapDetails(Tagged<Map> map);
   void MapMoveEvent(Tagged<Map> from, Tagged<Map> to);
@@ -447,8 +450,8 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
-                             RegExpFlags flags) override;
+                             DirectHandle<String> escaped_source,
+                             regexp::Flags flags) override;
   void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
   void GetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override {}
@@ -520,8 +523,8 @@ class ExternalLogEventListener : public LogEventListener {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
-                             RegExpFlags flags) override;
+                             DirectHandle<String> escaped_source,
+                             regexp::Flags flags) override;
   void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
   void GetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override {}

@@ -7,10 +7,10 @@
 
 #include <optional>
 
+#include "src/base/bit-field.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,11 +21,41 @@ class MessageLocation;
 class WasmInstanceObject;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/call-site-info-tq.inc"
-
-V8_OBJECT class CallSiteInfo : public StructLayout {
+V8_OBJECT class CallSiteInfo : public Struct {
  public:
-  DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
+  using IsWasmBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IsAsmJsWasmBit = IsWasmBit::Next<bool, 1>;
+  using IsStrictBit = IsAsmJsWasmBit::Next<bool, 1>;
+  using IsConstructorBit = IsStrictBit::Next<bool, 1>;
+  using IsAsmJsAtNumberConversionBit = IsConstructorBit::Next<bool, 1>;
+  using IsAsyncBit = IsAsmJsAtNumberConversionBit::Next<bool, 1>;
+  using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
+  using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
+  using IsDeferredBaselineFrameBit = IsSourcePositionComputedBit::Next<bool, 1>;
+#if V8_ENABLE_DRUMBRAKE
+  using IsWasmInterpretedFrameBit = IsDeferredBaselineFrameBit::Next<bool, 1>;
+#endif
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsWasm = IsWasmBit::kMask,
+    kIsAsmJsWasm = IsAsmJsWasmBit::kMask,
+    kIsStrict = IsStrictBit::kMask,
+    kIsConstructor = IsConstructorBit::kMask,
+    kIsAsmJsAtNumberConversion = IsAsmJsAtNumberConversionBit::kMask,
+    kIsAsync = IsAsyncBit::kMask,
+    kIsBuiltin = IsBuiltinBit::kMask,
+    kIsSourcePositionComputed = IsSourcePositionComputedBit::kMask,
+    kIsDeferredBaselineFrame = IsDeferredBaselineFrameBit::kMask,
+#if V8_ENABLE_DRUMBRAKE
+    kIsWasmInterpretedFrame = IsWasmInterpretedFrameBit::kMask,
+#endif
+  };
+  using Flags = base::Flags<Flag>;
+#if V8_ENABLE_DRUMBRAKE
+  static constexpr int kFlagCount = 10;
+#else
+  static constexpr int kFlagCount = 9;
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool IsWasm() const;
@@ -51,8 +81,9 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   bool IsNative() const;
 
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(Tagged<HeapObject> code,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_code_object(
+      Tagged<Union<Code, BytecodeArray, Undefined>> code,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<JSAny> receiver_or_instance() const;
   inline void set_receiver_or_instance(
@@ -69,16 +100,30 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   inline int flags() const;
   inline void set_flags(int value);
 
-  inline Tagged<FixedArray> parameters() const;
-  inline void set_parameters(Tagged<FixedArray> value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
   DECL_PRINTER(CallSiteInfo)
 
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
+
+  // For delayed CallSiteInfo creation (storing the raw data for several
+  // CallSiteInfos in a FixedArray).
+  enum Fields { kCode = 0, kReceiver, kFunction, kOffset, kFlags, kCount };
+
+  // Deferred flags: defined in the Torque bitfield, but only meaningful in
+  // raw capture arrays.  Stripped before creating actual CallSiteInfo objects.
+  static constexpr int kDeferredFlagsMask = kIsDeferredBaselineFrame;
+
+  static DirectHandle<CallSiteInfo> ConstructFromRawData(
+      Isolate* isolate, DirectHandle<FixedArray> frames, int index);
+
+  // Expand a raw stack-capture array that may contain deferred entries
+  // (optimized/baseline frames that were not Summarize'd at capture time)
+  // into a fully-resolved raw array where every entry corresponds to one
+  // logical JS frame.  Non-deferred entries are copied as-is.
+  static Handle<FixedArray> ExpandDeferredFrames(Isolate* isolate,
+                                                 Handle<FixedArray> raw_data);
 
   V8_EXPORT_PRIVATE static int GetLineNumber(DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static int GetColumnNumber(DirectHandle<CallSiteInfo> info);
@@ -146,7 +191,6 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
   TaggedMember<Smi> flags_;
-  TaggedMember<FixedArray> parameters_;
 } V8_OBJECT_END;
 
 template <>

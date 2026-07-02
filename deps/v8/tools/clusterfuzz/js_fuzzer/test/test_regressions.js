@@ -201,6 +201,20 @@ describe('Regression tests', () => {
         'regress/super/member_expected.js');
   });
 
+  it('does not cross-insert wrong await', () => {
+    // Enforce mutations at every possible location.
+    this.settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
+
+    const fakeDb = new db.MutateDb('test_data/regress/await/db');
+    const mutator = new crossOver.CrossOverMutator(this.settings, fakeDb);
+
+    const source = helpers.loadTestData('regress/await/input.js');
+    mutator.mutate(source);
+
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult('regress/await/expected.js', mutated);
+  });
+
   it('does not cross-insert duplicate variables', () => {
     // Ensure we don't declare a duplicate variable when the
     // declaration is part of a cross-over inserted snippet.

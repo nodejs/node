@@ -32,6 +32,9 @@
   'debug/debug-scopes': [PASS, HEAVY],
   'debug/debug-stepout-scope-part*': [PASS, HEAVY],
   'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
+
+  # Test is only useful with ASAN.
+  'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -128,8 +131,7 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   'debug/wasm/*': [SKIP],
-  'regress/regress-crbug-840288': [SKIP],
-  'regress/regress-crbug-1032042': [SKIP],
+  'regress/wasm/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################

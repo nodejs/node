@@ -108,7 +108,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
-    Tagged<Map> map = host->map(ObjectVisitorWithCageBases::cage_base());
+    Tagged<Map> map = host->map();
     ProcessStrongHeapObject(host, host->map_slot(), map);
   }
   V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
@@ -152,6 +152,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                      IndirectPointerSlot slot) final;
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
+  void VisitJSDispatchTableEntry(Tagged<InstructionStream> host,
                                  JSDispatchHandle handle) override;
 
   V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,

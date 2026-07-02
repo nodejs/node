@@ -8,6 +8,7 @@
 #include "include/v8-local-handle.h"
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/property-details.h"
 #include "src/utils/allocation.h"
 
@@ -130,9 +131,9 @@ class Accessors : public AllStatic {
 
   // Returns true for properties that are accessors to object fields.
   // If true, the matching FieldIndex is returned through |field_index|.
-  static bool IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
-                                      DirectHandle<Name> name,
-                                      FieldIndex* field_index);
+  static bool IsJSObjectFieldAccessor(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
+      FieldIndex* field_index, InternalIndex* fake_descriptor_index = nullptr);
 
   static MaybeDirectHandle<Object> ReplaceAccessorWithDataProperty(
       Isolate* isolate, DirectHandle<JSObject> holder, DirectHandle<Name> name,

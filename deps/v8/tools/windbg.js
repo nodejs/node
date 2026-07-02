@@ -1,4 +1,4 @@
-﻿// Copyright 2019 the V8 project authors. All rights reserved.
+// Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -687,7 +687,7 @@ function print_handles_data(print_handles = false) {
 
   let iso = cast(isolate_address, "v8::internal::Isolate");
   let hsd = iso.handle_scope_data_;
-  let hsimpl = iso.handle_scope_implementer_;
+  let hsimpl = iso.isolate_data_.handle_scope_implementer_;
 
   // depth level
   print(`Nested depth level: ${hsd.level}`);

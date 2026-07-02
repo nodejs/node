@@ -97,7 +97,7 @@ FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
       StoreHoles(UnsafeCast<FixedArrayType>(elements), newLength, length);
     } else if (insertCount > actualDeleteCount) {
       // If the backing store is big enough, then moving elements is enough.
-      if (newLength <= elements.length) {
+      if (Convert<intptr>(newLength) <= elements.length_intptr) {
         DoMoveElements(
             UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
       } else {
@@ -378,7 +378,7 @@ transitioning macro SlowSplice(
   return a;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.splice
+// https://tc39.es/ecma262/#sec-array.prototype.splice
 transitioning javascript builtin ArrayPrototypeSplice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

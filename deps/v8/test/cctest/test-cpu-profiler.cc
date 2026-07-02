@@ -52,6 +52,7 @@
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/log.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profiler-listener.h"
@@ -225,8 +226,7 @@ TEST(CodeEvents) {
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
                                     comment2_code, "comment2");
 
-  PtrComprCageBase cage_base(isolate);
-  if (IsBytecodeArray(*comment2_code, cage_base)) {
+  if (IsBytecodeArray(*comment2_code)) {
     profiler_listener.BytecodeMoveEvent(comment2_code->GetBytecodeArray(),
                                         moved_code->GetBytecodeArray());
   } else {
@@ -236,27 +236,27 @@ TEST(CodeEvents) {
   }
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart(cage_base));
+  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
   CHECK(isolate->logger()->RemoveListener(&profiler_listener));
   processor->StopSynchronously();
 
   // Check the state of the symbolizer.
   CodeEntry* aaa = symbolizer->instruction_stream_map()->FindEntry(
-      aaa_code->InstructionStart(cage_base));
+      aaa_code->InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment = symbolizer->instruction_stream_map()->FindEntry(
-      comment_code->InstructionStart(cage_base));
+      comment_code->InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
   CHECK(!symbolizer->instruction_stream_map()->FindEntry(
-      comment2_code->InstructionStart(cage_base)));
+      comment2_code->InstructionStart()));
 
   CodeEntry* comment2 = symbolizer->instruction_stream_map()->FindEntry(
-      moved_code->InstructionStart(cage_base));
+      moved_code->InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -304,16 +304,14 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
                                     frame3_code, "ddd");
 
-  PtrComprCageBase cage_base(isolate);
-  EnqueueTickSampleEvent(processor, frame1_code->InstructionStart(cage_base));
-  EnqueueTickSampleEvent(processor,
-                         frame2_code->InstructionStart(cage_base) +
-                             frame2_code->InstructionSize(cage_base) / 2,
-                         frame1_code->InstructionStart(cage_base) +
-                             frame1_code->InstructionSize(cage_base) / 2);
-  EnqueueTickSampleEvent(processor, frame3_code->InstructionEnd(cage_base) - 1,
-                         frame2_code->InstructionEnd(cage_base) - 1,
-                         frame1_code->InstructionEnd(cage_base) - 1);
+  EnqueueTickSampleEvent(processor, frame1_code->InstructionStart());
+  EnqueueTickSampleEvent(
+      processor,
+      frame2_code->InstructionStart() + frame2_code->InstructionSize() / 2,
+      frame1_code->InstructionStart() + frame1_code->InstructionSize() / 2);
+  EnqueueTickSampleEvent(processor, frame3_code->InstructionEnd() - 1,
+                         frame2_code->InstructionEnd() - 1,
+                         frame1_code->InstructionEnd() - 1);
 
   CHECK(isolate->logger()->RemoveListener(&profiler_listener));
   processor->StopSynchronously();
@@ -362,7 +360,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   // Create code between profiles. This should not be logged yet.
   i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
 
-  CHECK(!instruction_stream_map->FindEntry(code2->InstructionStart(isolate)));
+  CHECK(!instruction_stream_map->FindEntry(code2->InstructionStart()));
 }
 
 TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
@@ -380,37 +378,34 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   CpuProfile* profile = profiler.StopProfiling("");
   CHECK(profile);
 
-  PtrComprCageBase cage_base(isolate);
   // Check that our code is still in the code map.
   InstructionStreamMap* instruction_stream_map = profiler.code_map_for_test();
   CodeEntry* code1_entry =
-      instruction_stream_map->FindEntry(code1->InstructionStart(cage_base));
+      instruction_stream_map->FindEntry(code1->InstructionStart());
   CHECK(code1_entry);
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
 
   profiler.DeleteProfile(profile);
 
   // We should still have an entry in kEagerLogging mode.
-  code1_entry =
-      instruction_stream_map->FindEntry(code1->InstructionStart(cage_base));
+  code1_entry = instruction_stream_map->FindEntry(code1->InstructionStart());
   CHECK(code1_entry);
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
 
   // Create code between profiles. This should be logged too.
   i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
-  CHECK(instruction_stream_map->FindEntry(code2->InstructionStart(cage_base)));
+  CHECK(instruction_stream_map->FindEntry(code2->InstructionStart()));
 
   profiler.StartProfiling("");
   CpuProfile* profile2 = profiler.StopProfiling("");
   CHECK(profile2);
 
   // Check that we still have code map entries for both code objects.
-  code1_entry =
-      instruction_stream_map->FindEntry(code1->InstructionStart(cage_base));
+  code1_entry = instruction_stream_map->FindEntry(code1->InstructionStart());
   CHECK(code1_entry);
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
   CodeEntry* code2_entry =
-      instruction_stream_map->FindEntry(code2->InstructionStart(cage_base));
+      instruction_stream_map->FindEntry(code2->InstructionStart());
   CHECK(code2_entry);
   CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
 
@@ -418,12 +413,10 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
 
   // Check that we still have code map entries for both code objects, even after
   // the last profile is deleted.
-  code1_entry =
-      instruction_stream_map->FindEntry(code1->InstructionStart(cage_base));
+  code1_entry = instruction_stream_map->FindEntry(code1->InstructionStart());
   CHECK(code1_entry);
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
-  code2_entry =
-      instruction_stream_map->FindEntry(code2->InstructionStart(cage_base));
+  code2_entry = instruction_stream_map->FindEntry(code2->InstructionStart());
   CHECK(code2_entry);
   CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
 }
@@ -470,14 +463,12 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
                                     code, "bbb");
 
-  PtrComprCageBase cage_base(isolate);
   v8::internal::TickSample sample;
-  sample.pc = reinterpret_cast<void*>(code->InstructionStart(cage_base));
+  sample.pc = reinterpret_cast<void*>(code->InstructionStart());
   sample.tos = nullptr;
   sample.frames_count = TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample.frames_count; ++i) {
-    sample.stack[i] =
-        reinterpret_cast<void*>(code->InstructionStart(cage_base));
+    sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
   sample.timestamp = base::TimeTicks::Now();
   processor->AddSample(sample);
@@ -653,8 +644,9 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
 
 static unsigned TotalHitCount(const v8::CpuProfileNode* node) {
   unsigned hit_count = node->GetHitCount();
-  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i)
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     hit_count += TotalHitCount(node->GetChild(i));
+  }
   return hit_count;
 }
 
@@ -662,8 +654,9 @@ static unsigned TotalHitCount(const v8::CpuProfileNode* node,
                               const std::string& name) {
   if (name.compare(node->GetFunctionNameStr()) == 0) return TotalHitCount(node);
   unsigned hit_count = 0;
-  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i)
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     hit_count += TotalHitCount(node->GetChild(i), name);
+  }
   return hit_count;
 }
 
@@ -1017,7 +1010,7 @@ class TestApiCallbacks {
   }
 
   static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info) {
+                     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->CollectSample(info.GetIsolate());
   }
@@ -1335,7 +1328,7 @@ static void TickLines(bool optimize) {
         !isolate->use_optimizer());
   i::DirectHandle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!(*code).is_null());
-  i::Address code_address = code->InstructionStart(isolate);
+  i::Address code_address = code->InstructionStart();
   CHECK_NE(code_address, kNullAddress);
 
   CodeEntryStorage storage;
@@ -1398,19 +1391,23 @@ static void TickLines(bool optimize) {
   int hit_line = 5;
   int hit_col = 1;
   int hit_count = 10;
-  for (int i = 0; i < hit_count; i++)
+  for (int i = 0; i < hit_count; i++) {
     func_node->IncrementLineAndColumnTicks({hit_line, hit_col});
+  }
 
   unsigned int line_count = func_node->GetHitLineCount();
   CHECK_EQ(2u, line_count);  // Expect two hit source lines - #1 and #5.
-  base::ScopedVector<v8::CpuProfileNode::LineTick> entries(line_count);
+  auto entries =
+      base::OwnedVector<v8::CpuProfileNode::LineTick>::NewForOverwrite(
+          line_count);
   CHECK(func_node->GetLineTicks(&entries[0], line_count));
   int value = 0;
-  for (int i = 0; i < entries.length(); i++)
+  for (size_t i = 0; i < entries.size(); i++) {
     if (entries[i].line == hit_line && entries[i].column == hit_col) {
       value = entries[i].hit_count;
       break;
     }
+  }
   CHECK_EQ(hit_count, value);
 }
 
@@ -2820,10 +2817,12 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
+#ifdef DEBUG
   if (i::v8_flags.turboshaft_verify_load_store_taggedness) {
     // TODO(dmercadier): investigate why this test doesn't work with this flag.
     return;
   }
+#endif
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -3022,8 +3021,9 @@ class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
  public:
   void AppendTraceEvent(TraceObject* trace_event) override {
     if (trace_event->name() != std::string("Profile") &&
-        trace_event->name() != std::string("ProfileChunk"))
+        trace_event->name() != std::string("ProfileChunk")) {
       return;
+    }
     CHECK(!profile_id_ || trace_event->id() == profile_id_);
     CHECK_EQ(1, trace_event->num_args());
     CHECK_EQ(TRACE_VALUE_TYPE_CONVERTABLE, trace_event->arg_types()[0]);
@@ -4937,11 +4937,11 @@ TEST(CpuProfileJSONSerialization) {
   cpu_profiler->Dispose();
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  base::ScopedVector<char> json(stream.size());
-  stream.WriteTo(json);
+  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
-  OneByteResource* json_res = new OneByteResource(json);
+  OneByteResource* json_res = new OneByteResource(json.as_vector());
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());
@@ -4976,6 +4976,62 @@ TEST(CpuProfileJSONSerialization) {
             .ToLocalChecked()
             .As<v8::Number>()
             ->Value() > 0);
+}
+
+TEST(CpuProfileJSONSerializationWithEscapedStrings) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+
+  // Script URL contains JSON-special characters: double-quote and backslash.
+  const char* origin_url = "test/\"quoted\"/\\path.js";
+  v8::Local<v8::Script> script = CompileWithOrigin(
+      "%NeverOptimizeFunction(foo);\n"
+      "function foo() {\n"
+      "  var n = 0;\n"
+      "  for (var i = 0; i < 1e5; i++) n += i;\n"
+      "  return n;\n"
+      "}\n",
+      origin_url, false);
+  CHECK(!script.IsEmpty());
+  script->Run(env.local()).ToLocalChecked();
+
+  v8::Local<v8::Function> foo = GetFunction(env.local(), "foo");
+
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(foo, nullptr, 0, 1000);
+
+  // Walk the profile tree to confirm a node with the special URL exists.
+  bool found_special_url = false;
+  std::vector<const v8::CpuProfileNode*> stack;
+  stack.push_back(profile->GetTopDownRoot());
+  while (!stack.empty()) {
+    const v8::CpuProfileNode* node = stack.back();
+    stack.pop_back();
+    if (strcmp(node->GetScriptResourceNameStr(), origin_url) == 0) {
+      found_special_url = true;
+      break;
+    }
+    for (int i = 0; i < node->GetChildrenCount(); i++) {
+      stack.push_back(node->GetChild(i));
+    }
+  }
+  CHECK(found_special_url);
+
+  // If the escaping is broken, json parse will fail
+  TestJSONStream stream;
+  profile->Serialize(&stream, v8::CpuProfile::kJSON);
+  profile->Delete();
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
+
+  OneByteResource* json_res = new OneByteResource(json.as_vector());
+  v8::Local<v8::String> json_string =
+      v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
+  v8::Local<v8::Context> context = v8::Context::New(env.isolate());
+  v8::JSON::Parse(context, json_string).ToLocalChecked();
 }
 
 }  // namespace test_cpu_profiler

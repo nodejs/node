@@ -1,0 +1,3 @@
+Test that destroying context during addBinding does not cause UAF (regress-517972812).
+Triggering evaluate with prototype hijack and context creation...
+Finished evaluate call.

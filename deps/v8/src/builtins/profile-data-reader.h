@@ -8,6 +8,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#if defined(LOG_BUILTIN_BLOCK_COUNT) || defined(BUILTIN_BLOCK_POSITION)
+#include <unordered_map>
+#endif
 #include <vector>
 
 #include "src/common/globals.h"
@@ -31,7 +34,7 @@ class ProfileDataFromFile {
     return BranchHint::kNone;
   }
 
-#ifdef LOG_BUILTIN_BLOCK_COUNT
+#if defined(LOG_BUILTIN_BLOCK_COUNT) || defined(BUILTIN_BLOCK_POSITION)
   uint64_t GetExecutedCount(size_t block_id) const {
     if (executed_count_.count(block_id) == 0) return 0;
     return executed_count_.at(block_id);
@@ -51,7 +54,7 @@ class ProfileDataFromFile {
   // the two destinations of the branch.
   std::map<std::pair<size_t, size_t>, bool> block_hints_by_id;
 
-#ifdef LOG_BUILTIN_BLOCK_COUNT
+#if defined(LOG_BUILTIN_BLOCK_COUNT) || defined(BUILTIN_BLOCK_POSITION)
   std::unordered_map<size_t, uint64_t> executed_count_;
 #endif
 };

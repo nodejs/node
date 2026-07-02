@@ -46,7 +46,7 @@
 #endif
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/s390/assembler-s390-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -164,12 +164,12 @@ static bool supportsSTFLE() {
 #endif
 }
 
-bool CpuFeatures::SupportsWasmSimd128() {
-#if V8_ENABLE_WEBASSEMBLY
-  return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
+  return true;
 #else
   return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -272,31 +272,38 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #endif
   supported_.Add(FPU);
 
+  // Support of the following facilities are mandatory.
+  CHECK(supported_.contains(DISTINCT_OPS));
+  CHECK(supported_.contains(GENERAL_INSTR_EXT));
+  CHECK(supported_.contains(FLOATING_POINT_EXT));
+  CHECK(supported_.contains(VECTOR_FACILITY));
+  CHECK(supported_.contains(MISC_INSTR_EXT2));
+  CHECK(supported_.contains(VECTOR_ENHANCE_FACILITY_1));
+
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
   const char* s390_arch = "s390x";
-  PrintF("target %s\n", s390_arch);
-}
-
-void CpuFeatures::PrintFeatures() {
-  PrintF("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  PrintF("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
-  PrintF("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
-  PrintF("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
-  PrintF("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
-  PrintF("VECTOR_ENHANCE_FACILITY_1=%d\n",
+  PrintF("CPU target: %s\n", s390_arch);
+  PrintF("CPU features: ");
+  PrintF("FPU=%d ", CpuFeatures::IsSupported(FPU));
+  PrintF("FPU_EXT=%d ", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
+  PrintF("GENERAL_INSTR=%d ", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
+  PrintF("DISTINCT_OPS=%d ", CpuFeatures::IsSupported(DISTINCT_OPS));
+  PrintF("VECTOR_FACILITY=%d ", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  PrintF("VECTOR_ENHANCE_FACILITY_1=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-  PrintF("VECTOR_ENHANCE_FACILITY_2=%d\n",
+  PrintF("VECTOR_ENHANCE_FACILITY_2=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2));
-  PrintF("VECTOR_ENHANCE_FACILITY_3=%d\n",
+  PrintF("VECTOR_ENHANCE_FACILITY_3=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3));
-  PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("MISC_INSTR_EXT2=%d ", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
   PrintF("MISC_INSTR_EXT4=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT4));
 }
 
@@ -765,12 +772,9 @@ void Assembler::GrowBuffer(int needed) {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
   int space = buffer_space() + (new_size - old_size);
   new_size += (space < needed) ? needed - space : 0;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
   if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }

@@ -109,7 +109,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+  if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     MaglevAssembler::TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
     int32_t expected_osr_stack_size =
@@ -306,7 +306,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             __ jmp(*done);
           },
           register_snapshot, done, result, char_code, scratch),
-      Ugreater_equal, char_code, Operand(String::kMaxOneByteCharCode));
+      Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
 
   if (char_code_fits_one_byte != nullptr) {
     bind(char_code_fits_one_byte);
@@ -562,6 +562,11 @@ void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fcvtmod_w_d(dst, src);
+    return;
+  }
+
   ZoneLabelRef done(this);
   Label* slow_path = MakeDeferredCode(
       [](MaglevAssembler* masm, DoubleRegister src, Register dst,

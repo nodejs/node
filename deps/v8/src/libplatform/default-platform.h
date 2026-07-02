@@ -13,6 +13,7 @@
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/libplatform/default-thread-isolated-allocator.h"
 
@@ -73,6 +74,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   StackTracePrinter GetStackTracePrinter() override;
   v8::PageAllocator* GetPageAllocator() override;
   v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
+  size_t GetZeroSegmentSize() override;
 
   void NotifyIsolateShutdown(Isolate* isolate);
 
@@ -89,6 +91,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       case TaskPriority::kBestEffort:
         return base::Thread::Priority::kBestEffort;
     }
+    UNREACHABLE();
   }
 
   int priority_to_index(TaskPriority priority) const {

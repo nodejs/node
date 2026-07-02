@@ -4,15 +4,16 @@
 
 #include <memory>
 
-#include "src/api/api-inl.h"
-#include "src/api/api.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/superspread.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
@@ -78,6 +79,37 @@ RUNTIME_FUNCTION(Runtime_ReThrowWithMessage) {
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
+  return isolate->StackOverflow();
+}
+
+RUNTIME_FUNCTION(Runtime_VarargStackOverflow) {
+  HandleScope scope(isolate);
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  }
+
+  int nargs = args.length();
+  if (nargs >= SuperSpreadArgs::kNumExtraArgs) {
+    auto maybe_receiver =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+    auto maybe_target =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kTargetOffsetFromEnd);
+
+    if (v8_flags.superspreading) {
+      if (Handle<JSFunction> target; TryCast(maybe_target, &target)) {
+        if (Handle<JSReceiver> receiver; TryCast(maybe_receiver, &receiver)) {
+#define CASE(Name, Handler)                                      \
+  if (target->code(isolate)->builtin_id() == Builtin::k##Name) { \
+    return Handler(isolate, args);                               \
+  }
+      SUPERSPREAD_BUILTINS(CASE)
+#undef CASE
+        }
+      }
+    }
+  }
   return isolate->StackOverflow();
 }
 
@@ -331,7 +363,7 @@ RUNTIME_FUNCTION(Runtime_ThrowTargetNonFunction) {
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+  TRACE_EVENT("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -346,7 +378,7 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 RUNTIME_FUNCTION(Runtime_HandleNoHeapWritesInterrupts) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+  TRACE_EVENT("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -362,7 +394,7 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(args.length(), 1);
   uint32_t gap = args.positive_smi_value_at(0);
-  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+  TRACE_EVENT("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -382,7 +414,7 @@ Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-  TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterruptWithStackCheck");
+  TRACE_EVENT("v8.execute", "V8.BytecodeBudgetInterruptWithStackCheck");
 
   // Check for stack interrupts here so that we can fold the interrupt check
   // into bytecode budget interrupts.
@@ -394,7 +426,7 @@ Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
     return isolate->StackOverflow();
   } else if (check.InterruptRequested()) {
     Tagged<Object> return_value = isolate->stack_guard()->HandleInterrupts();
-    if (!IsUndefined(return_value, isolate)) {
+    if (!IsUndefined(return_value)) {
       return return_value;
     }
   }
@@ -410,7 +442,7 @@ Tagged<Object> BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   function->TraceOptimizationStatus("budget from %s",
                                     CodeKindToString(code_kind));
-  TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterrupt");
+  TRACE_EVENT("v8.execute", "V8.BytecodeBudgetInterrupt");
 
   isolate->tiering_manager()->OnInterruptTick(function, code_kind);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -498,8 +530,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  int length = args.smi_value_at(0);
-  DCHECK_LT(0, length);
+  uint32_t length = args.positive_smi_value_at(0);
+  DCHECK_LT(0u, length);
   return *isolate->factory()->NewByteArray(length);
 }
 
@@ -722,8 +754,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  // Valid context is required for calling Object::ToString as a part of
-  // rendering of an unhandled exception report.
+  // Valid context is required for reporting an unhandled exception.
   DCHECK(!isolate->context().is_null());
 
   DirectHandle<Object> exception = args.at(0);

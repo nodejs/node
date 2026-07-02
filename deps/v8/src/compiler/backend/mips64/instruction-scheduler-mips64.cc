@@ -49,6 +49,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64MulHighU:
     case kMips64Dadd:
     case kMips64DaddOvf:
+    case kMips64Add128:
     case kMips64Dclz:
     case kMips64Dctz:
     case kMips64Ddiv:
@@ -63,6 +64,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Dmod:
     case kMips64DmodU:
     case kMips64Dmul:
+    case kMips64DmulWide:
+    case kMips64DmuluWide:
     case kMips64Dpopcnt:
     case kMips64Dror:
     case kMips64Dsar:
@@ -70,6 +73,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Dshr:
     case kMips64Dsub:
     case kMips64DsubOvf:
+    case kMips64Sub128:
     case kMips64Ext:
     case kMips64F64x2Abs:
     case kMips64F64x2Neg:

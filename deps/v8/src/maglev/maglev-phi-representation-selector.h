@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -148,6 +149,14 @@ class MaglevPhiRepresentationSelector {
   };
   using UntaggingKindList = base::SmallVector<UntaggingKind, 8>;
 
+  enum class RetaggingKind {
+    kSmi,  // Input guaranteed to be in Smi range, so we'll use an Unsafe
+           // conversion.
+    kHeapNumber,
+    kAnyNumber
+  };
+  RetaggingKind GetRetaggingKindForPhi(Phi* phi);
+
  private:
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
@@ -161,13 +170,14 @@ class MaglevPhiRepresentationSelector {
   void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
                              int input_index, const SmiConstant* input);
   void UntagConstantInput(Phi* phi, ValueRepresentation repr, bool truncating,
-                          int input_index, const Constant* input);
+                          int input_index, const HeapConstant* input);
   void UntagConversionInput(Phi* phi, ValueRepresentation repr, bool truncating,
                             int input_index, ValueNode* input);
   void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,
                              bool truncating, int input_index, Phi* input_phi);
   void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
                              int input_index, Phi* input_phi);
+  bool ShouldSkipUntagging(Phi* phi);
   template <class NodeT>
   ValueNode* GetReplacementForPhiInputConversion(ValueNode* input, Phi* phi,
                                                  uint32_t input_index);
@@ -217,8 +227,8 @@ class MaglevPhiRepresentationSelector {
         // we need to retag it (with some additional checks/changes for some
         // nodes, cf the overload of UpdateNodePhiInput).
         ProcessResult result = UpdateNodePhiInput(node, phi, i, state);
-        if (V8_UNLIKELY(result == ProcessResult::kRemove)) {
-          return ProcessResult::kRemove;
+        if (V8_UNLIKELY(result != ProcessResult::kContinue)) {
+          return result;
         }
       }
     }
@@ -233,16 +243,13 @@ class MaglevPhiRepresentationSelector {
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreTaggedFieldWithWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
+
   ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBoolean* node, Phi* phi, int input_index,
+                                   const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBooleanLogicalNot* node, Phi* phi,
                                    int input_index,
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
@@ -250,10 +257,15 @@ class MaglevPhiRepresentationSelector {
 
   void EnsurePhiInputsTagged(Phi* phi);
 
+  template <typename NodeT>
+  ProcessResult UpdateNodePhiInputForToBoolean(NodeT* node, Phi* phi,
+                                               int input_index, bool flip);
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
   ProcessResult UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
+
+  ProcessResult EmitUnconditionalDeopt(NodeBase* node, DeoptimizeReason reason);
 
   // Returns a tagged node that represents a tagged version of {phi}.
   // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,
@@ -266,8 +278,7 @@ class MaglevPhiRepresentationSelector {
   ValueNode* EnsurePhiTagged(
       Phi* phi, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
-      std::optional<int> predecessor_index = std::nullopt,
-      bool force_smi = false);
+      std::optional<int> predecessor_index = std::nullopt);
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(BasicBlock* block, BasicBlockPosition pos,
@@ -298,7 +309,9 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
-  bool is_turbolev() const { return graph_->compilation_info()->is_turbolev(); }
+  bool HasKey(Phi* phi) const { return phi_keys_.contains(phi); }
+  Key GetKey(Phi* phi) const { return phi_keys_.at(phi); }
+  void SetKey(Phi* phi, Key key) { phi_keys_[phi] = key; }
 
   Graph* graph_;
 
@@ -313,9 +326,13 @@ class MaglevPhiRepresentationSelector {
 
   absl::flat_hash_map<BasicBlock::Id, Snapshot> snapshots_;
 
+  bool enable_truncated_int32_phis_;
+
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
 #endif
+
+  ZoneAbslFlatHashMap<Phi*, Key> phi_keys_;
 
   DeoptFrame* eager_deopt_frame_ = nullptr;
 };

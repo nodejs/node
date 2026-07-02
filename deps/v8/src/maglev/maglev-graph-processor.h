@@ -5,6 +5,9 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 
+#include <algorithm>
+
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -56,12 +59,21 @@ enum class ProcessResult {
   kContinue,  // Process exited normally, and the following processors will be
               // called on the node.
   kRemove,    // Remove the current node from the graph (and do not call the
-              // following processors).
+              // following processors). If the node processor supports splicing
+              // and recorded a pending splice during Process(), the visited
+              // node is rewritten to Identity-to-spliced-result, the subgraph
+              // blocks are stitched in, and tail nodes + original control move
+              // to the join block. Only the first node processor can record a
+              // splice.
   kRevisit,   // Process this node again. Note that the node is allowed to have
               // changed.
   kTruncateBlock,  // Remove all nodes from this point from the basic block
                    // (including the current node) and do not call the following
-                   // processors.
+                   // processors. If the node processor supports splicing and
+                   // recorded a pending splice during Process(), the subgraph
+                   // is stitched in before the truncation point (the visited
+                   // node and the tail are dropped; the subgraph's exit takes
+                   // the original control, which becomes a dead edge).
   kHoist,          // Hoist the current instruction to the parent basic block
                    // and reset the current instruction to the beginning of the
                    // block. Parent block must be dominating.
@@ -86,8 +98,12 @@ class ProcessingState {
   ProcessingState(const ProcessingState&) = delete;
   ProcessingState& operator=(const ProcessingState&) = delete;
 
-  BasicBlock* block() const { return *block_it_; }
+  BasicBlock* block() const {
+    if (block_it_ == block_end_) return nullptr;
+    return *block_it_;
+  }
   BasicBlock* next_block() const {
+    DCHECK_NE(block_it_, block_end_);
     BlockConstIterator next_block_it = block_it_ + 1;
     if (next_block_it == block_end_) return nullptr;
     return *next_block_it;
@@ -113,7 +129,9 @@ class GraphProcessor {
 
   void ProcessGraph(Graph* graph) {
     graph_ = graph;
-
+    // Initializing {block_it_} to `graph->end()` so that the ProcessingState
+    // can return nullptr as the block of the constant nodes.
+    block_it_ = graph->end();
     node_processor_.PreProcessGraph(graph);
 
     auto process_constants = [&](auto& map) {
@@ -138,7 +156,7 @@ class GraphProcessor {
       }
     };
     // LINT.IfChange(maglev_constant_nodes)
-    process_constants(graph->constants());
+    process_constants(graph->heap_constants());
     process_constants(graph->root());
     process_constants(graph->smi());
     process_constants(graph->tagged_index());
@@ -202,6 +220,14 @@ class GraphProcessor {
         }
         ProcessResult result = ProcessNodeBase(
             node, GetCurrentState(node_it_ - block->nodes().begin()));
+        if constexpr (SupportsSplice<NodeProcessor>) {
+          // A pending splice is only consumed by kRemove / kTruncateBlock;
+          // any other result with a pending splice would leak it into the
+          // next node and apply it at the wrong site.
+          DCHECK_IMPLIES(node_processor_.HasPendingSplice(),
+                         result == ProcessResult::kRemove ||
+                             result == ProcessResult::kTruncateBlock);
+        }
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
             ++node_it_;
@@ -209,10 +235,22 @@ class GraphProcessor {
           case ProcessResult::kRevisit:
             break;
           case ProcessResult::kRemove:
+            if constexpr (SupportsSplice<NodeProcessor>) {
+              if (node_processor_.HasPendingSplice()) {
+                ApplyPendingSplice(block, node, /*truncate=*/false);
+                break;
+              }
+            }
             *node_it_ = nullptr;
             ++node_it_;
             break;
           case ProcessResult::kTruncateBlock:
+            if constexpr (SupportsSplice<NodeProcessor>) {
+              if (node_processor_.HasPendingSplice()) {
+                ApplyPendingSplice(block, node, /*truncate=*/true);
+                break;
+              }
+            }
             block->nodes().resize(node_it_ - block->nodes().begin());
             node_it_ = block->nodes().end();
             graph_->set_may_have_unreachable_blocks(true);
@@ -284,9 +322,102 @@ class GraphProcessor {
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   void PreProcess(NodeBase* node, const ProcessingState& state) {}
+
+  // The NodeProcessor supports the SpliceAndContinue protocol.
+  template <typename NP>
+  static constexpr bool SupportsSplice = requires(NP* np) {
+    np->TakePendingSplice();
+    np->HasPendingSplice();
+  };
+
+  // Splices the subgraph recorded by the processor's reducer into the
+  // graph at the visited node. If `truncate` is false, the tail (after the
+  // visited node) moves to splice.exit; the visited node itself is expected
+  // to have already been rewritten by the processor's visitor (typically
+  // to Identity-to-spliced-result). If `truncate` is true, the visited
+  // node and tail are dropped (the reduction aborted with partial subgraph
+  // nodes already emitted) and the graph is marked as potentially having
+  // unreachable blocks.
+  void ApplyPendingSplice(BasicBlock* block, Node* node, bool truncate)
+    requires SupportsSplice<NodeProcessor>
+  {
+    auto splice = node_processor_.TakePendingSplice();
+
+    ZoneVector<Node*> tail_nodes(graph_->zone());
+    if (truncate) {
+      // Drop the visited node and everything after it.
+      auto& nodes = block->nodes();
+      auto it = std::find(nodes.begin(), nodes.end(), node);
+      DCHECK_NE(it, nodes.end());
+      nodes.resize(it - nodes.begin());
+    } else {
+      // The visitor must have rewritten the visited node to an Identity
+      // (typically to the spliced result Phi), so uses on the join-block
+      // side observe the merged value.
+      DCHECK(node->Is<Identity>());
+      tail_nodes = block->Split(node, graph_->zone());
+    }
+
+    // Redirect `block`'s control flow to the subgraph entry. The original
+    // control becomes the exit block's control.
+    // TODO(victorgomes): We can avoid creating the new Jump node by appending
+    // the splice block entry.
+    ControlNode* original_control = block->reset_control_node();
+    BasicBlockRef* jump_ref = graph_->zone()->New<BasicBlockRef>();
+    Jump* jump_to_entry =
+        NodeBase::New<Jump>(graph_->zone(), /*input_count=*/0, jump_ref);
+    jump_ref->Bind(splice.entry);
+    jump_to_entry->set_owner(block);
+    block->set_control_node(jump_to_entry);
+    splice.entry->set_predecessor(block);
+
+    if (splice.exit == nullptr) {
+      // The subgraph deopts/throws on every path, so there is no join block to
+      // reconnect: the original control (and the already-truncated tail) is
+      // dead. Unwire its successors from `block`.
+      DCHECK(truncate);
+      block->RemovePredecessorFollowing(original_control);
+    } else {
+      // Move tail (if any) + original control to the join block.
+      for (Node* n : tail_nodes) {
+        if (n == nullptr) continue;
+        n->set_owner(splice.exit);
+        splice.exit->nodes().push_back(n);
+      }
+      original_control->set_owner(splice.exit);
+      splice.exit->set_control_node(original_control);
+
+      // Successors of the original control had `block` as predecessor;
+      // they now have the join block.
+      splice.exit->ForEachSuccessor(
+          [block, exit = splice.exit](BasicBlock* succ) {
+            if (!succ->has_state()) {
+              DCHECK_EQ(succ->predecessor(), block);
+              succ->set_predecessor(exit);
+              return;
+            }
+            for (int i = 0; i < succ->predecessor_count(); i++) {
+              if (succ->predecessor_at(i) == block) {
+                succ->state()->set_predecessor_at(i, exit);
+                break;
+              }
+            }
+          });
+    }
+
+    size_t current_idx = block_it_ - graph_->begin();
+    graph_->AddBlocksAt(splice.all_blocks, current_idx);
+    block_it_ = graph_->begin() + current_idx;
+    node_it_ = block->nodes().end();
+
+    if (truncate) {
+      graph_->set_may_have_unreachable_blocks(true);
+    }
+  }
 
   NodeProcessor node_processor_;
   Graph* graph_;
@@ -383,7 +514,7 @@ class GraphBackwardProcessor {
         }
       }
     };
-    process_constants(graph->constants());
+    process_constants(graph->heap_constants());
     process_constants(graph->root());
     process_constants(graph->smi());
     process_constants(graph->tagged_index());
@@ -406,6 +537,7 @@ class GraphBackwardProcessor {
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   NodeProcessor node_processor_;
@@ -455,7 +587,6 @@ class NodeMultiProcessor<Processor, Processors...>
       case ProcessResult::kRevisit:
       case ProcessResult::kAbort:
       case ProcessResult::kRemove:
-        return res;
       case ProcessResult::kTruncateBlock:
         return res;
       case ProcessResult::kHoist:
@@ -464,6 +595,7 @@ class NodeMultiProcessor<Processor, Processors...>
         // the needs of the actual processors. Implement once needed.
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
   void PreProcessGraph(Graph* graph) {
     processor_.PreProcessGraph(graph);
@@ -486,7 +618,23 @@ class NodeMultiProcessor<Processor, Processors...>
       case BlockProcessResult::kSkip:
         return res;
     }
+    UNREACHABLE();
   }
+
+  // Forward splice plumbing to the head processor when it exposes the
+  // take/clear interface. Only the first processor in the chain may record
+  // a pending splice (the multi-processor short-circuits on its result).
+  template <typename P = Processor>
+  auto TakePendingSplice() const
+      -> decltype(std::declval<const P&>().TakePendingSplice()) {
+    return processor_.TakePendingSplice();
+  }
+  template <typename P = Processor>
+  auto HasPendingSplice() const
+      -> decltype(std::declval<const P&>().HasPendingSplice()) {
+    return processor_.HasPendingSplice();
+  }
+
   void PostPhiProcessing() {
     processor_.PostPhiProcessing();
     Base::PostPhiProcessing();

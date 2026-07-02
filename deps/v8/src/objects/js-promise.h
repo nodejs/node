@@ -6,17 +6,17 @@
 #define V8_OBJECTS_JS_PROMISE_H_
 
 #include "include/v8-promise.h"
+#include "src/base/bit-field.h"
+#include "src/handles/handles.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/js-promise-tq.inc"
 
 // Representation of promise objects in the specification. Our layout of
 // JSPromise differs a bit from the layout in the specification, for example
@@ -28,10 +28,17 @@ namespace internal {
 // We also overlay the result and reactions fields on the JSPromise, since
 // the reactions are only necessary for pending promises, whereas the result
 // is only meaningful for settled promises.
-class JSPromise
-    : public TorqueGeneratedJSPromise<JSPromise, JSObjectWithEmbedderSlots> {
+V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
  public:
   static constexpr uint32_t kInvalidAsyncTaskId = 0;
+
+  inline Tagged<UnionOf<PromiseReaction, JSAny>> reactions_or_result() const;
+  inline void set_reactions_or_result(
+      Tagged<UnionOf<PromiseReaction, JSAny>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   // [result]: Checks that the promise is settled and returns the result.
   inline Tagged<Object> result() const;
@@ -57,40 +64,68 @@ class JSPromise
   V8_EXPORT_PRIVATE Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
 
-  // ES section #sec-fulfillpromise
+  // [is_native_resolver_invoked]: This is a part of simpler anti double
+  // settlement mechanism for native promises unlike the "promiseOrEmpty"
+  // machinery required by the spec for JavaScript promises.
+  // https://tc39.es/ecma262/#sec-createresolvingfunctions
+  // Returns true if v8::Resolver::Resolve() or Reject() was called for this
+  // promise.
+  DECL_BOOLEAN_ACCESSORS(is_native_resolver_invoked)
+
+  // https://tc39.es/ecma262/#sec-fulfillpromise
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);
-  // ES section #sec-rejectpromise
+  // https://tc39.es/ecma262/#sec-rejectpromise
   static Handle<Object> Reject(DirectHandle<JSPromise> promise,
                                DirectHandle<Object> reason,
                                bool debug_event = true);
-  // ES section #sec-promise-resolve-functions
+  // https://tc39.es/ecma262/#sec-promise-resolve-functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       DirectHandle<JSPromise> promise, DirectHandle<Object> resolution);
+
+  // This is intened to be used when we have an array of native promises, so the
+  // expectation is a call like PerformPromiseAll([native-promise, ...],
+  // %Promise%, NewPromiseCapability(%Promise%), %Promise.resolve%), following
+  // the expectation of native promise adoption.
+  // If https://github.com/tc39/proposal-defer-import-eval/pull/77/ lands, this
+  // function will be the implementation of
+  // https://tc39.es/ecma262/#sec-safe-perform-promise-all
+  // TODO(caiolima): update this comment after PR decision.
+  V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> PerformPromiseAll(
+      Isolate* isolate, const DirectHandleVector<JSPromise>& promises);
 
   // Dispatched behavior.
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-  static const int kSizeWithEmbedderFields =
-      kHeaderSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
-
   // Flags layout.
-  DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
+  using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
+  using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
+  using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
+  using IsSilentBit = HasHandlerBit::Next<bool, 1>;
+  using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
 
   static_assert(v8::Promise::kPending == 0);
   static_assert(v8::Promise::kFulfilled == 1);
   static_assert(v8::Promise::kRejected == 2);
 
+ public:
+  // Smi 0 terminated list of PromiseReaction objects in case the JSPromise
+  // was not settled yet, otherwise the result.
+  TaggedMember<UnionOf<PromiseReaction, JSAny>> reactions_or_result_;
+  // SmiTagged<JSPromiseFlags>.
+  TaggedMember<Smi> flags_;
+
  private:
-  // ES section #sec-triggerpromisereactions
+  // https://tc39.es/ecma262/#sec-triggerpromisereactions
   static Handle<Object> TriggerPromiseReactions(Isolate* isolate,
                                                 DirectHandle<Object> reactions,
                                                 DirectHandle<Object> argument,
                                                 PromiseReaction::Type type);
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSPromise)
-};
+V8_OBJECT class JSPromiseConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

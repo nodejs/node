@@ -454,6 +454,7 @@ size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t CanonicalTypeNamesProvider::EstimateCurrentMemoryConsumption() const {
+  base::MutexGuard lock(&mutex_);
   size_t result = sizeof(this) + payload_size_estimate_;
   result += type_names_.capacity() * sizeof(StringT);
   result += ContentSize(field_names_);
@@ -468,13 +469,13 @@ size_t CanonicalTypeNamesProvider::EstimateCurrentMemoryConsumption() const {
 }
 
 void CanonicalTypeNamesProvider::DecodeNameSections() {
-  // TODO(jkummerow): We'll probably need to lock read accesses too.
-  base::MutexGuard lock(&mutex_);
+  mutex_.AssertHeld();
   type_names_.resize(GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
   GetWasmEngine()->DecodeAllNameSections(this);
 }
 
 void CanonicalTypeNamesProvider::DecodeNames(NativeModule* native_module) {
+  mutex_.AssertHeld();  // Only called indirectly from {DecodeNameSections}.
   const WasmModule* module = native_module->module();
   if (module->canonical_typenames_decoded) return;
   module->canonical_typenames_decoded = true;
@@ -490,13 +491,14 @@ void CanonicalTypeNamesProvider::DecodeNames(NativeModule* native_module) {
 void CanonicalTypeNamesProvider::PrintTypeName(
     StringBuilder& out, CanonicalTypeIndex type_index,
     NamesProvider::IndexAsComment index_as_comment) {
+  base::MutexGuard lock(&mutex_);
   uint32_t index = type_index.index;
-  if (index > type_names_.size() || type_names_[index].empty()) {
+  if (index >= type_names_.size() || type_names_[index].empty()) {
     DecodeNameSections();
   }
   // {index} should now always be in range, but let's be robust towards
   // invalid parameter values.
-  if (index > type_names_.size() || type_names_[index].empty()) {
+  if (index >= type_names_.size() || type_names_[index].empty()) {
     out << "$canon" << index;
     return;
   }
@@ -532,8 +534,9 @@ void CanonicalTypeNamesProvider::PrintValueType(StringBuilder& out,
 void CanonicalTypeNamesProvider::PrintFieldName(StringBuilder& out,
                                                 CanonicalTypeIndex struct_index,
                                                 uint32_t field_index) {
+  base::MutexGuard lock(&mutex_);
   uint32_t index = struct_index.index;
-  if (index > type_names_.size()) DecodeNameSections();
+  if (index >= type_names_.size()) DecodeNameSections();
 
   auto per_type = field_names_.find(index);
   if (per_type != field_names_.end()) {
@@ -546,19 +549,6 @@ void CanonicalTypeNamesProvider::PrintFieldName(StringBuilder& out,
     }
   }
   out << "$field" << field_index;
-}
-
-// At the time of this writing, different std::string implementations
-// support 15 to 23 characters for inline storage. For accurate tracking
-// of memory consumption, dynamically determine this threshold.
-size_t CanonicalTypeNamesProvider::DetectInlineStringThreshold() {
-  for (size_t i = 0; i < 32; i++) {
-    std::string s(i, 'c');
-    Address str = reinterpret_cast<Address>(&s);
-    Address data = reinterpret_cast<Address>(s.data());
-    if (data < str || data >= str + sizeof(s)) return i;
-  }
-  return 32;
 }
 
 }  // namespace wasm

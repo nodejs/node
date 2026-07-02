@@ -327,10 +327,9 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   // redirected to the original `state` object. The `state` object must outlive
   // the `HashState` instance. `T` must be a subclass of `HashStateBase<T>` -
   // users should not define their own HashState types.
-  template <
-      typename T,
-      absl::enable_if_t<
-          std::is_base_of<hash_internal::HashStateBase<T>, T>::value, int> = 0>
+  template <typename T,
+            std::enable_if_t<
+                std::is_base_of_v<hash_internal::HashStateBase<T>, T>, int> = 0>
   static HashState Create(T* state) {
     HashState s;
     s.Init(state);
