@@ -18,18 +18,20 @@ From a high-level, the Commit Queue works as follow:
 1. Collaborators will add `commit-queue` label to pull requests ready to land
 2. Every five minutes the queue will do the following for each mergeable pull request
    with the label:
-   1. Check if the PR also has a `request-ci` label (if it has, skip this PR
+   1. For regular pull requests without `fast-track`, skip PRs that have only one
+      approval unless they have been open for at least 7 days
+   2. Check if the PR also has a `request-ci` label (if it has, skip this PR
       since it's pending a CI run)
-   2. Check if the last Jenkins CI is finished running (if it is not, skip this
+   3. Check if the last Jenkins CI is finished running (if it is not, skip this
       PR)
-   3. Remove the `commit-queue` label
-   4. Run `git node land <pr> --oneCommitMax`
-   5. If it fails:
+   4. Remove the `commit-queue` label
+   5. Run `git node land <pr> --oneCommitMax`
+   6. If it fails:
       1. Abort `git node land` session
       2. Add `commit-queue-failed` label to the PR
       3. Leave a comment on the PR with the output from `git node land`
       4. Skip next steps, go to next PR in the queue
-   6. If it succeeds:
+   7. If it succeeds:
       1. Push the changes to nodejs/node
       2. Leave a comment on the PR with `Landed in ...`
       3. Close the PR
@@ -79,9 +81,10 @@ reasons:
 `@node-core/utils` is configured with a personal token and
 a Jenkins token from
 [@nodejs-github-bot](https://github.com/nodejs/github-bot).
-`octokit/graphql-action` is used to fetch all pull requests with the
-`commit-queue` label. The output is a JSON payload, so `jq` is used to turn
-that into a list of PR ids we can pass as arguments to
+The workflow fetches pull requests with the `commit-queue` label. For pull
+requests without `fast-track`, it filters out PRs that have only one approval
+unless they have been open for at least 7 days. The output is then turned into
+a list of PR ids we can pass as arguments to
 [`commit-queue.sh`](../../tools/actions/commit-queue.sh).
 
 > The personal token only needs permission for public repositories and to read
