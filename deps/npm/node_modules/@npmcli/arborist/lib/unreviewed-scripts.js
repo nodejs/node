@@ -50,6 +50,13 @@ const collectUnreviewedScripts = async ({
       // its own lifecycle scripts.
       continue
     }
+    if (node.inert) {
+      // Inert = an optional dep that can't be installed here (failed the
+      // os/cpu/libc or engine check, or failed to load). reify drops it
+      // before any script runs, so its install scripts never execute and it
+      // must not be flagged (npm/cli#9562).
+      continue
+    }
 
     const verdict = isScriptAllowed(node, resolvedPolicy)
     if (verdict === true || verdict === false) {

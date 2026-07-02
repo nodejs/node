@@ -181,6 +181,7 @@ Object {
     "man/man1/npm-help.1",
     "man/man1/npm-init.1",
     "man/man1/npm-install-ci-test.1",
+    "man/man1/npm-install-scripts.1",
     "man/man1/npm-install-test.1",
     "man/man1/npm-install.1",
     "man/man1/npm-link.1",
