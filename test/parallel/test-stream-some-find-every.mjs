@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
 import { setTimeout } from 'timers/promises';
-import { Readable } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import assert from 'assert';
 
 
@@ -76,6 +76,36 @@ function oneTo5Async() {
     const findStream = oneTo5();
     await findStream.find(common.mustCall((x) => x > 1, 2));
     await checkDestroyed(findStream);
+
+    const openSomeStream = new PassThrough({ objectMode: true });
+    openSomeStream.write(1);
+    openSomeStream.write(2);
+    openSomeStream.write(3);
+    assert.strictEqual(
+      await openSomeStream.some(common.mustCall((x) => x > 2, 3)),
+      true,
+    );
+    await checkDestroyed(openSomeStream);
+
+    const openEveryStream = new PassThrough({ objectMode: true });
+    openEveryStream.write(1);
+    openEveryStream.write(2);
+    openEveryStream.write(3);
+    assert.strictEqual(
+      await openEveryStream.every(common.mustCall((x) => x < 3, 3)),
+      false,
+    );
+    await checkDestroyed(openEveryStream);
+
+    const openFindStream = new PassThrough({ objectMode: true });
+    openFindStream.write(1);
+    openFindStream.write(2);
+    openFindStream.write(3);
+    assert.strictEqual(
+      await openFindStream.find(common.mustCall((x) => x > 1, 2)),
+      2,
+    );
+    await checkDestroyed(openFindStream);
 
     // When short circuit isn't possible the whole stream is iterated
     await oneTo5().some(common.mustCall(() => false, 5));
