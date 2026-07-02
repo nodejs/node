@@ -1238,6 +1238,11 @@
           'sources': [
             'src/res/node.rc',
           ],
+          'libraries': [
+            'Dbghelp.lib',
+            'winmm.lib',
+            'Ws2_32.lib',
+          ],
         }],
       ],
     }, # node_lib_target_name
@@ -1745,6 +1750,10 @@
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
+      # node_mksnapshot statically links node_base; it must not use the
+      # dllimport path meant for executables that load the libnode DLL.
+      'defines!': [ 'BUILDING_NODE_EXTENSION' ],
+
       'sources': [
         'src/node_snapshot_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
@@ -1822,12 +1831,26 @@
          'sources': [
            'tools/gen_node_def.cc'
          ],
+         'conditions': [
+           # When cross-compiling, build this tool for the host so it can
+           # run during the build. The MSVS generator expects it to be
+           # named gen_node_def_host.exe in that case.
+           ['want_separate_host_toolset', {
+             'toolsets': ['host'],
+           }],
+         ],
        },
        {
          'target_name': 'generate_node_def',
          'dependencies': [
-           'gen_node_def',
            '<(node_lib_target_name)',
+         ],
+         'conditions': [
+           ['want_separate_host_toolset', {
+             'dependencies': ['gen_node_def#host'],
+           }, {
+             'dependencies': ['gen_node_def'],
+           }],
          ],
          'type': 'none',
          'actions': [
