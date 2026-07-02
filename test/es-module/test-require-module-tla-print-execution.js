@@ -24,7 +24,7 @@ const fixtures = require('../common/fixtures');
       // The immediately required module is shown regardless of the flag.
       assert.match(output, /Required module: .*tla[/\\]execution\.mjs/);
       // The location of the top-level await is shown with a caret.
-      assert.match(output, /tla\/execution\.mjs:3/);
+      assert.match(output, /tla[/\\]execution\.mjs:3/);
       assert(output.includes("await Promise.resolve('hi');\n^"), output);
       return true;
     },
