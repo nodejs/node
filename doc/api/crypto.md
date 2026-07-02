@@ -3792,6 +3792,8 @@ behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 specifies the desired output length in bytes. It is required for XOF hash
 functions without a default output length.
 
+When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
+
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
 On recent releases of OpenSSL, `openssl list -digest-algorithms` will
@@ -7000,6 +7002,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
+[`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
 [`crypto.privateEncrypt()`]: #cryptoprivateencryptprivatekey-buffer
 [`crypto.publicDecrypt()`]: #cryptopublicdecryptkey-buffer
