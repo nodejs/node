@@ -4,14 +4,12 @@ await Promise.resolve('hi');
 ^
 
 Error [ERR_REQUIRE_ASYNC_MODULE]: require() cannot be used on an ESM graph with top-level await. Use import() instead.
+Required module: <project-root>/test/fixtures/es-modules/tla/execution.mjs
 Require stack:
 - <project-root>/test/fixtures/es-modules/tla/require-execution.js
     at <node-internal-frames>
     at <node-internal-frames> {
-  code: 'ERR_REQUIRE_ASYNC_MODULE',
-  requireStack: [
-    '<project-root>/test/fixtures/es-modules/tla/require-execution.js'
-  ]
+  code: 'ERR_REQUIRE_ASYNC_MODULE'
 }
 
 Node.js <node-version>

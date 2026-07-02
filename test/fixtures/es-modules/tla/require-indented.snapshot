@@ -9,14 +9,12 @@ for await (const x of [Promise.resolve(1)]) {
 ^
 
 Error [ERR_REQUIRE_ASYNC_MODULE]: require() cannot be used on an ESM graph with top-level await. Use import() instead.
+Required module: <project-root>/test/fixtures/es-modules/tla/tla-indented.mjs
 Require stack:
 - <project-root>/test/fixtures/es-modules/tla/require-indented.js
     at <node-internal-frames>
     at <node-internal-frames> {
-  code: 'ERR_REQUIRE_ASYNC_MODULE',
-  requireStack: [
-    '<project-root>/test/fixtures/es-modules/tla/require-indented.js'
-  ]
+  code: 'ERR_REQUIRE_ASYNC_MODULE'
 }
 
 Node.js <node-version>
