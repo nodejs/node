@@ -7,7 +7,7 @@ const path = require('path');
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
 function runBenchmark(name, env) {
-  const argv = ['test'];
+  const argv = process.env.NODE_RUN_ALL_BENCH_TESTS ? ['--set', 'n=1', '--set', 'roundtrips=1'] : ['test'];
 
   argv.push(name);
 
@@ -28,8 +28,11 @@ function runBenchmark(name, env) {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
 
-    // This bit makes sure that each benchmark file is being sent settings such
-    // that the benchmark file runs just one set of options. This helps keep the
+    // If NODE_RUN_ALL_BENCH_TESTS is passed it means all the configs need to be run
+    if (process.env.NODE_RUN_ALL_BENCH_TESTS) return;
+
+    // If NODE_RUN_ALL_BENCH_TESTS isn't passed this bit makes sure that each benchmark file
+    // is being sent settings such that the benchmark file runs just one set of options. This helps keep the
     // benchmark tests from taking a long time to run. Therefore, stdout should be composed as follows:
     // The first and last lines should be empty.
     // Each test should be separated by a blank line.
@@ -37,7 +40,6 @@ function runBenchmark(name, env) {
     // The second line of each test should contain the configuration for the test.
     // If the test configuration is not a group, there should be exactly two lines.
     // Otherwise, it is possible to have more than two lines.
-
     const splitTests = stdout.split(/\n\s*\n/);
 
     for (let testIdx = 1; testIdx < splitTests.length - 1; testIdx++) {
