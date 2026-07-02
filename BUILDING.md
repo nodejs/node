@@ -122,6 +122,7 @@ platforms. This is true regardless of entries in the table below.
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                                            |
 | AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                            |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                                            |
+| Android          | arm64            | >= 7.0                            | Experimental |                                                            |
 | OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                            |
 
 <!--lint disable final-definition-->
@@ -906,10 +907,9 @@ To use it with ClangCL, run this instead:
 
 ### Android
 
-Android is not a supported platform. Patches to improve the Android build are
-welcome. There is no testing on Android in the current continuous integration
-environment. The participation of people dedicated and determined to improve
-Android building, testing, and support is encouraged.
+Android is an experimental platform. Patches to improve the Android build are
+welcome. The participation of people dedicated and determined to improve Android
+building, testing, and support is encouraged.
 
 Be sure you have downloaded and extracted
 [Android NDK](https://developer.android.com/ndk) before in
@@ -922,6 +922,23 @@ make -j4
 
 The Android SDK version should be at least 24 (Android 7.0) and the target
 architecture supports \[arm, arm64/aarch64, x86, x86\_64].
+
+The static Node.js archive is generated at `out/Release/obj.target/libnode.a`.
+This archive is a thin archive by default. It references object files in the
+build directory and may still require the other static dependency archives under
+`out/Release/obj.target/` when embedding Node.js elsewhere. To produce one
+standalone archive for distribution, merge the target static archives with the
+NDK `llvm-ar`.
+
+To reduce the Android build size, disable optional features in the `./configure`
+call made by `android_configure.py`. Common options include:
+
+```bash
+--without-ssl
+--without-node-snapshot
+--without-intl
+--without-inspector
+```
 
 ## `Intl` (ECMA-402) support
 
