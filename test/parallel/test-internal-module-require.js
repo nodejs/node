@@ -24,8 +24,6 @@ const expectedPublicModules = new Set([
   '_http_incoming',
   '_http_outgoing',
   '_http_server',
-  '_tls_common',
-  '_tls_wrap',
   'assert',
   'async_hooks',
   'buffer',
