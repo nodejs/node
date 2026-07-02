@@ -9,7 +9,6 @@ assert.throws(() => {
   require('../fixtures/es-modules/tla/unresolved.mjs');
 }, (err) => {
   common.expectRequiredTLAError(err);
-  assert.match(err.message, /From .*test-require-module-tla-unresolved\.js/);
-  assert.match(err.message, /Requiring .*unresolved\.mjs/);
+  assert.deepStrictEqual(common.parseRequireStack(err.message), [__filename]);
   return true;
 });
