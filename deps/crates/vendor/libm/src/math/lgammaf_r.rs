@@ -100,7 +100,7 @@ fn sin_pi(mut x: f32) -> f32 {
     }
 }
 
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn lgammaf_r(mut x: f32) -> (f32, i32) {
     let u = x.to_bits();
     let mut t: f32;

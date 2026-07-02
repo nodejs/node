@@ -116,6 +116,10 @@ struct ModuleBuilder {
     functions_by_name: BTreeMap<Ident, Function>,
     sub_modules: Vec<Module>,
     imports: Vec<(Path, Ident)>,
+    /// As we traverse through the module, are we inside of #[diplomat::bridge]?
+    /// If so, then `analyze_types` is set to true, and types, functions, and traits are all updated according to information parsed.
+    ///
+    /// Otherwise, we traverse through modules until we find a module marked by #[diplomat::bridge]
     analyze_types: bool,
     type_parent_attrs: Attrs,
     impl_parent_attrs: Attrs,
@@ -267,22 +271,25 @@ impl ModuleBuilder {
                 }
             }
             Item::Macro(mac) => {
-                if let Some(i) = &mac.ident {
-                    let macro_rules_attr = mac.attrs.iter().find(|a| {
-                        a.path() == &syn::parse_str::<syn::Path>("diplomat::macro_rules").unwrap()
-                    });
+                if self.analyze_types {
+                    if let Some(i) = &mac.ident {
+                        let macro_rules_attr = mac.attrs.iter().find(|a| {
+                            a.path()
+                                == &syn::parse_str::<syn::Path>("diplomat::macro_rules").unwrap()
+                        });
 
-                    if macro_rules_attr.is_some() {
-                        self.mod_macros.add_item_macro(mac);
+                        if macro_rules_attr.is_some() {
+                            self.mod_macros.add_item_macro(mac);
+                        } else {
+                            println!(
+                                r#"WARNING: Found macro_rules definition "macro_rules! {i}" with no #[diplomat::macro_rules] attribute. This will not be evaluated in Diplomat bindings."#
+                            );
+                        }
                     } else {
-                        println!(
-                            r#"WARNING: Found macro_rules definition "macro_rules! {i}" with no #[diplomat::macro_rules] attribute. This will not be evaluated in Diplomat bindings."#
-                        );
-                    }
-                } else {
-                    let items = self.mod_macros.evaluate_item_macro(mac);
-                    for i in items {
-                        self.add(&i);
+                        let items = self.mod_macros.evaluate_item_macro(mac);
+                        for i in items {
+                            self.add(&i);
+                        }
                     }
                 }
             }
@@ -366,6 +373,10 @@ impl Module {
         out.insert(path_to_self, mod_symbols);
     }
 
+    /// Convert an [`ItemMod`] to a [`Module`].
+    ///
+    /// `force_analyze` is for forcibly parsing the module in the case where we know the `#[diplomat::bridge]` attribute should be present,
+    /// but proc_macro (or some other analyzer) has removed the attribute in advance.
     pub fn from_syn(input: &ItemMod, force_analyze: bool) -> Module {
         let mod_attrs: Attrs = (&*input.attrs).into();
 

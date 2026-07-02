@@ -5,14 +5,20 @@ use crate::lookahead;
 #[cfg(feature = "parsing")]
 use crate::parse::{Parse, Parser};
 use crate::{Error, Result};
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+#[cfg(feature = "parsing")]
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::ffi::CStr;
+use core::fmt::{self, Display};
+#[cfg(feature = "extra-traits")]
+use core::hash::{Hash, Hasher};
+use core::str::{self, FromStr};
 use proc_macro2::{Ident, Literal, Span};
 #[cfg(feature = "parsing")]
 use proc_macro2::{TokenStream, TokenTree};
-use std::ffi::{CStr, CString};
-use std::fmt::{self, Display};
-#[cfg(feature = "extra-traits")]
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
 
 ast_enum_of_structs! {
     /// A Rust literal such as a string or integer or boolean.
@@ -345,7 +351,7 @@ impl LitCStr {
 
 impl LitByte {
     pub fn new(value: u8, span: Span) -> Self {
-        let mut token = Literal::u8_suffixed(value);
+        let mut token = Literal::byte_character(value);
         token.set_span(span);
         LitByte {
             repr: Box::new(LitRepr {
@@ -609,7 +615,7 @@ impl LitBool {
 #[cfg(feature = "extra-traits")]
 mod debug_impls {
     use crate::lit::{LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitInt, LitStr};
-    use std::fmt::{self, Debug};
+    use core::fmt::{self, Debug};
 
     #[cfg_attr(docsrs, doc(cfg(feature = "extra-traits")))]
     impl Debug for LitStr {
@@ -865,9 +871,11 @@ pub(crate) mod parsing {
     };
     use crate::parse::{Parse, ParseStream, Unexpected};
     use crate::token::{self, Token};
+    use alloc::boxed::Box;
+    use alloc::rc::Rc;
+    use alloc::string::ToString;
+    use core::cell::Cell;
     use proc_macro2::{Literal, Punct, Span};
-    use std::cell::Cell;
-    use std::rc::Rc;
 
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for Lit {
@@ -1134,10 +1142,14 @@ mod value {
         Lit, LitBool, LitByte, LitByteStr, LitCStr, LitChar, LitFloat, LitFloatRepr, LitInt,
         LitIntRepr, LitRepr, LitStr,
     };
+    use alloc::borrow::ToOwned;
+    use alloc::boxed::Box;
+    use alloc::ffi::CString;
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
+    use core::char;
+    use core::ops::{Index, RangeFrom};
     use proc_macro2::{Literal, Span};
-    use std::char;
-    use std::ffi::CString;
-    use std::ops::{Index, RangeFrom};
 
     impl Lit {
         /// Interpret a Syn literal from a proc-macro2 literal.

@@ -101,7 +101,7 @@ impl fmt::Debug for DataLocale {
     }
 }
 
-impl_writeable_for_each_subtag_str_no_test!(DataLocale, selff, selff.script.is_none() && selff.region.is_none() && selff.variant.is_none() && selff.subdivision.is_none() => selff.language.write_to_string());
+impl_writeable_for_each_subtag_str_no_test!(DataLocale, selff, selff.script.is_none() && selff.region.is_none() && selff.variant.is_none() && selff.subdivision.is_none() => Some(selff.language.as_str()));
 
 impl From<LanguageIdentifier> for DataLocale {
     fn from(langid: LanguageIdentifier) -> Self {
@@ -141,6 +141,7 @@ impl From<&Locale> for DataLocale {
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for DataLocale {
     type Err = ParseError;
@@ -153,12 +154,16 @@ impl FromStr for DataLocale {
 impl DataLocale {
     #[inline]
     /// Parses a [`DataLocale`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
 
     /// Parses a [`DataLocale`] from a UTF-8 byte slice.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let locale = Locale::try_from_utf8(code_units)?;

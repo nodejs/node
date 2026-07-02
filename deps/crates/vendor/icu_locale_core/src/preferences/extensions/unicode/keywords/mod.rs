@@ -14,7 +14,9 @@ mod currency;
 pub use currency::*;
 mod currency_format;
 pub use currency_format::*;
+#[cfg(feature = "alloc")]
 mod dictionary_break;
+#[cfg(feature = "alloc")]
 pub use dictionary_break::*;
 mod emoji;
 pub use emoji::*;

@@ -15,11 +15,6 @@
 // Provider structs must be stable
 #![allow(clippy::exhaustive_structs, clippy::exhaustive_enums)]
 
-pub mod chinese_based;
-pub mod hijri;
-pub use chinese_based::{CalendarChineseV1, CalendarDangiV1};
-pub use hijri::CalendarHijriSimulatedMeccaV1;
-
 use crate::types::Weekday;
 use icu_provider::fallback::{LocaleFallbackConfig, LocaleFallbackPriority};
 use icu_provider::prelude::*;
@@ -46,9 +41,6 @@ const _: () = {
         pub use icu_locale as locale;
     }
     make_provider!(Baked);
-    impl_calendar_chinese_v1!(Baked);
-    impl_calendar_dangi_v1!(Baked);
-    impl_calendar_hijri_simulated_mecca_v1!(Baked);
     impl_calendar_japanese_modern_v1!(Baked);
     impl_calendar_japanese_extended_v1!(Baked);
     impl_calendar_week_v1!(Baked);
@@ -83,9 +75,6 @@ icu_provider::data_marker!(
 #[cfg(feature = "datagen")]
 /// The latest minimum set of markers required by this component.
 pub const MARKERS: &[DataMarkerInfo] = &[
-    CalendarChineseV1::INFO,
-    CalendarDangiV1::INFO,
-    CalendarHijriSimulatedMeccaV1::INFO,
     CalendarJapaneseModernV1::INFO,
     CalendarJapaneseExtendedV1::INFO,
     CalendarWeekV1::INFO,
@@ -107,6 +96,7 @@ pub const MARKERS: &[DataMarkerInfo] = &[
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_calendar::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(not(feature = "alloc"), zerovec::skip_derive(ZeroMapKV))]
 pub struct EraStartDate {
     /// The year the era started in
     pub year: i32,
@@ -198,7 +188,7 @@ impl WeekdaySet {
     pub const fn new(days: &[Weekday]) -> Self {
         let mut i = 0;
         let mut w = 0;
-        #[allow(clippy::indexing_slicing)]
+        #[expect(clippy::indexing_slicing)]
         while i < days.len() {
             w |= days[i].bit_value();
             i += 1;
@@ -295,6 +285,7 @@ impl<'de> serde::Deserialize<'de> for WeekdaySet {
 }
 
 #[test]
+#[cfg(feature = "datagen")]
 fn test_weekdayset_bake() {
     databake::test_bake!(
         WeekdaySet,

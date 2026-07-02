@@ -9,6 +9,8 @@ use core::fmt;
 use core::ops::Deref;
 
 use super::*;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 /// A zero-copy, byte-aligned vector for variable-width types.
 ///
@@ -222,7 +224,7 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
         Self(VarZeroVecInner::Borrowed(VarZeroSlice::new_empty()))
     }
 
-    /// Parse a VarZeroVec from a slice of the appropriate format
+    /// Parse a [`VarZeroVec`] from a slice of the appropriate format
     ///
     /// Slices of the right format can be obtained via [`VarZeroSlice::as_bytes()`].
     ///
@@ -294,7 +296,7 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
         }
     }
 
-    /// Converts a borrowed ZeroVec to an owned ZeroVec. No-op if already owned.
+    /// Converts a borrowed [`VarZeroVec`] to an owned [`VarZeroVec`]. No-op if already owned.
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
@@ -319,7 +321,7 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
         }
     }
 
-    /// Obtain this `VarZeroVec` as a [`VarZeroSlice`]
+    /// Obtain this [`VarZeroVec`] as a [`VarZeroSlice`]
     pub fn as_slice(&self) -> &VarZeroSlice<T, F> {
         match self.0 {
             #[cfg(feature = "alloc")]
@@ -328,7 +330,7 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
         }
     }
 
-    /// Takes the byte vector representing the encoded data of this VarZeroVec. If borrowed,
+    /// Takes the byte vector representing the encoded data of this [`VarZeroVec`]. If borrowed,
     /// this function allocates a byte vector and copies the borrowed bytes into it.
     ///
     /// The bytes can be passed back to [`Self::parse_bytes()`].
@@ -350,7 +352,7 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     /// assert_eq!(borrowed, &*strings);
     /// ```
     #[cfg(feature = "alloc")]
-    pub fn into_bytes(self) -> alloc::vec::Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         match self.0 {
             VarZeroVecInner::Owned(vec) => vec.into_bytes(),
             VarZeroVecInner::Borrowed(vec) => vec.as_bytes().to_vec(),
@@ -375,14 +377,14 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
 }
 
 #[cfg(feature = "alloc")]
-impl<A, T, F> From<&alloc::vec::Vec<A>> for VarZeroVec<'static, T, F>
+impl<A, T, F> From<&Vec<A>> for VarZeroVec<'static, T, F>
 where
     T: VarULE + ?Sized,
     A: EncodeAsVarULE<T>,
     F: VarZeroVecFormat,
 {
     #[inline]
-    fn from(elements: &alloc::vec::Vec<A>) -> Self {
+    fn from(elements: &Vec<A>) -> Self {
         Self::from(elements.as_slice())
     }
 }

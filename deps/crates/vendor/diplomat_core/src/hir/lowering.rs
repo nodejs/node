@@ -5,8 +5,8 @@ use super::{
     OutStructDef, OutStructField, OutStructPath, OutType, Param, ParamLifetimeLowerer, ParamSelf,
     PrimitiveType, ReturnLifetimeLowerer, ReturnType, ReturnableStructPath,
     SelfParamLifetimeLowerer, SelfType, Slice, SpecialMethod, SpecialMethodPresence, StructDef,
-    StructField, StructPath, SuccessType, SymbolId, TraitDef, TraitParamSelf, TraitPath,
-    TyPosition, Type, TypeDef, TypeId,
+    StructField, StructPath, SuccessType, TraitDef, TraitParamSelf, TraitPath, TyPosition, Type,
+    TypeDef, TypeId,
 };
 use crate::ast::attrs::AttrInheritContext;
 use crate::{ast, Env};
@@ -125,7 +125,6 @@ pub(crate) struct ItemAndInfo<'ast, Ast> {
 
     /// Any parent attributes resolved from the module, for a method context
     pub(crate) method_parent_attrs: Attrs,
-    pub(crate) id: SymbolId,
 }
 
 impl<'ast> LoweringContext<'ast> {
@@ -250,7 +249,6 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_enum.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
@@ -292,7 +290,6 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_opaque.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
@@ -385,7 +382,6 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_struct.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
@@ -617,7 +613,6 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_out_struct.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
@@ -649,7 +644,6 @@ impl<'ast> LoweringContext<'ast> {
         method: &'ast ast::Method,
         in_path: &ast::Path,
         attrs: Attrs,
-        self_id: TypeId,
         special_method_presence: &mut SpecialMethodPresence,
     ) -> Result<Method, ()> {
         let name = self.lower_ident(&method.name, "method name");
@@ -679,6 +673,7 @@ impl<'ast> LoweringContext<'ast> {
         )?;
 
         let abi_name = self.lower_ident(&method.abi_name, "method abi name")?;
+
         let hir_method = Method {
             docs: method.docs.clone(),
             name: name?,
@@ -690,9 +685,11 @@ impl<'ast> LoweringContext<'ast> {
             attrs,
         };
 
+        let self_type_id = self.lower_self_type(method, in_path);
+
         self.attr_validator.validate(
             &hir_method.attrs,
-            AttributeContext::Method(&hir_method, self_id, special_method_presence),
+            AttributeContext::Method(&hir_method, self_type_id, special_method_presence),
             &mut self.errors,
         );
 
@@ -710,6 +707,39 @@ impl<'ast> LoweringContext<'ast> {
         Ok(hir_method)
     }
 
+    fn lower_self_type(
+        &mut self,
+        method: &'ast ast::Method,
+        in_path: &ast::Path,
+    ) -> Option<TypeId> {
+        method
+            .self_type
+            .as_ref()
+            .map(|self_type| match self_type.resolve(in_path, self.env) {
+                ast::CustomType::Enum(e) => self
+                    .lookup_id
+                    .resolve_enum(e)
+                    .expect("enum is in env")
+                    .into(),
+                ast::CustomType::Opaque(o) => self
+                    .lookup_id
+                    .resolve_opaque(o)
+                    .expect("opaque is in env")
+                    .into(),
+                ast::CustomType::Struct(s) => {
+                    if let Some(s_id) = self.lookup_id.resolve_struct(s) {
+                        s_id.into()
+                    } else if let Some(os_id) = self.lookup_id.resolve_out_struct(s) {
+                        os_id.into()
+                    } else {
+                        unreachable!(
+                            "struct `{}` not found in the set of structs or out_structs.",
+                            s.name
+                        )
+                    }
+                }
+            })
+    }
     /// Lowers many [`ast::Method`]s into a vector of [`hir::Method`]s.
     ///
     /// If there are any errors, they're pushed to `errors` and `None` is returned.
@@ -718,7 +748,6 @@ impl<'ast> LoweringContext<'ast> {
         ast_methods: &'ast [ast::Method],
         in_path: &ast::Path,
         method_parent_attrs: &Attrs,
-        self_id: TypeId,
         special_method_presence: &mut SpecialMethodPresence,
     ) -> Result<Vec<Method>, ()> {
         let mut methods = Ok(Vec::with_capacity(ast_methods.len()));
@@ -734,8 +763,7 @@ impl<'ast> LoweringContext<'ast> {
             if attrs.disable {
                 continue;
             }
-            let method =
-                self.lower_method(method, in_path, attrs, self_id, special_method_presence);
+            let method = self.lower_method(method, in_path, attrs, special_method_presence);
             match (method, &mut methods) {
                 (Ok(method), Ok(methods)) => {
                     if matches!(

@@ -4,8 +4,8 @@
 //! Per the spec, returns the canonicalized result of:
 //! - `x` if `x > y`
 //! - `y` if `y > x`
+//! - +0.0 if x and y are zero with opposite signs
 //! - qNaN if either operation is NaN
-//! - Logic following +0.0 > -0.0
 //!
 //! Excluded from our implementation is sNaN handling.
 
@@ -17,12 +17,11 @@ pub fn fmaximum<F: Float>(x: F, y: F) -> F {
         x
     } else if y.is_nan() {
         y
-    } else if x > y || (y.to_bits() == F::NEG_ZERO.to_bits() && x.is_sign_positive()) {
+    } else if x > y || (y.biteq(F::NEG_ZERO) && x.is_sign_positive()) {
         x
     } else {
         y
     };
 
-    // Canonicalize
-    res * F::ONE
+    res.canonicalize()
 }

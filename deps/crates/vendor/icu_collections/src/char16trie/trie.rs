@@ -88,12 +88,14 @@ pub struct Char16Trie<'data> {
 
 impl<'data> Char16Trie<'data> {
     /// Returns a new [`Char16Trie`] with ownership of the provided data.
+    #[inline]
     pub fn new(data: ZeroVec<'data, u16>) -> Self {
         Self { data }
     }
 
     /// Returns a new [`Char16TrieIterator`] backed by borrowed data from the `trie` data
-    pub fn iter(&self) -> Char16TrieIterator {
+    #[inline]
+    pub fn iter(&self) -> Char16TrieIterator<'_> {
         Char16TrieIterator::new(&self.data)
     }
 }
@@ -164,6 +166,7 @@ macro_rules! trie_unwrap {
 
 impl<'a> Char16TrieIterator<'a> {
     /// Returns a new [`Char16TrieIterator`] backed by borrowed data for the `trie` array
+    #[inline]
     pub fn new(trie: &'a ZeroSlice<u16>) -> Self {
         Self {
             trie,

@@ -73,6 +73,12 @@ fn duration_to_string_auto_precision() {
         .as_temporal_string(ToStringRoundingOptions::default())
         .unwrap();
     assert_eq!(&result, "P1Y2M3W4DT5H6M7.98765S");
+
+    let duration = Duration::new(0, 0, 0, 2, 0, 0, 0, 0, 0, 1).unwrap();
+    let result = duration
+        .as_temporal_string(ToStringRoundingOptions::default())
+        .unwrap();
+    assert_eq!(&result, "P2DT0.000000001S");
 }
 
 #[test]
@@ -153,10 +159,9 @@ fn negative_fields_to_string() {
 
 #[test]
 fn preserve_precision_loss() {
-    const MAX_SAFE_INT: i64 = 9_007_199_254_740_991;
     let duration = Duration::from_partial_duration(PartialDuration {
-        milliseconds: Some(MAX_SAFE_INT),
-        microseconds: Some(MAX_SAFE_INT as i128),
+        milliseconds: Some(MAX_SAFE_INTEGER),
+        microseconds: Some(MAX_SAFE_INTEGER as i128),
         ..Default::default()
     })
     .unwrap();
@@ -192,8 +197,6 @@ fn duration_from_str() {
 
 #[test]
 fn duration_max_safe() {
-    const MAX_SAFE_INTEGER: i64 = 9007199254740991;
-
     // From test262 built-ins/Temporal/Duration/prototype/subtract/result-out-of-range-3.js
     assert!(Duration::new(0, 0, 0, 0, 0, 0, 0, 0, 9_007_199_254_740_991_926_258, 0).is_err());
 
@@ -398,23 +401,54 @@ fn test_duration_compare() {
         )
     }
 }
-/*
-TODO: Uncomment
 
-The below test should fail, but currently doesn't. This has to do with weird
-floating point math in IsValidDuration Step 6-8 that defers to C++ std::remquo
-
-Needs further clarification.
+const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 
 #[test]
 fn duration_round_out_of_range_norm_conversion() {
-    const MAX_SAFE_INT: i64 = 9_007_199_254_740_991;
-    let duration = Duration::new(0, 0, 0, 0, 0, 0, MAX_SAFE_INT, 0, 0, 999_999_999).unwrap();
-    let err = duration.round_with_provider( RoundingOptions {
-        largest_unit: Some(Unit::Nanosecond),
-        increment: Some(RoundingIncrement::ONE),
-        ..Default::default()
-    }, None, &NeverProvider::default());
+    let duration = Duration::new(0, 0, 0, 0, 0, 0, MAX_SAFE_INTEGER, 0, 0, 999_999_999).unwrap();
+    let err = duration.round_with_provider(
+        RoundingOptions {
+            largest_unit: Some(Unit::Nanosecond),
+            increment: Some(RoundingIncrement::ONE),
+            ..Default::default()
+        },
+        None,
+        &NeverProvider::default(),
+    );
     assert!(err.is_err())
 }
-*/
+
+#[test]
+#[cfg_attr(not(feature = "float64_representable_durations"), should_panic)]
+fn duration_float64_representable() {
+    // built-ins/Temporal/Duration/prototype/add/float64-representable-integer
+    let duration = Duration::new(0, 0, 0, 0, 0, 0, 0, 0, MAX_SAFE_INTEGER as i128, 0).unwrap();
+    let duration2 = Duration::new(0, 0, 0, 0, 0, 0, 0, 0, MAX_SAFE_INTEGER as i128 - 1, 0).unwrap();
+    let added = duration.add(&duration2).unwrap();
+    assert_eq!(added.microseconds, 18014398509481980);
+    assert_eq!(
+        added.as_temporal_string(Default::default()).unwrap(),
+        "PT18014398509.48198S"
+    );
+    let one_ms = Duration::new(0, 0, 0, 0, 0, 0, 0, 0, 1, 0).unwrap();
+    let added_plus_one = added.add(&one_ms).unwrap();
+    assert_eq!(
+        added, added_plus_one,
+        "Should not internally use a more accurate representation when adding"
+    );
+}
+
+#[test]
+#[cfg(feature = "compiled_data")]
+fn total_full_numeric_precision() {
+    // Tests that Duration::total operates without any loss of precision
+
+    // built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6
+    let d = Duration::new(0, 0, 0, 0, 816, 0, 0, 0, 0, 2_049_187_497_660).unwrap();
+    assert_eq!(d.total(Unit::Hour, None).unwrap(), 816.56921874935);
+
+    // built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7
+    let d = Duration::new(0, 0, 0, 0, 0, 0, 0, MAX_SAFE_INTEGER + 1, 1999, 0).unwrap();
+    assert_eq!(d.total(Unit::Millisecond, None).unwrap(), 9007199254740994.);
+}

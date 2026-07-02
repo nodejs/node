@@ -3,7 +3,6 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::Yokeable;
-use core::mem;
 
 /// This method casts `yokeable` between `&'a mut Y<'static>` and `&'a mut Y<'a>`,
 /// and passes it to `f`.
@@ -21,5 +20,6 @@ where
     // Cast away the lifetime of `Y`
     // Safety: this is equivalent to f(transmute(yokeable)), and the documentation of
     // [`Yokeable::transform_mut`] and this function explain why doing so is sound.
-    unsafe { f(mem::transmute::<&'a mut Y, &'a mut Y::Output>(yokeable)) }
+    let y = unsafe { &mut *(yokeable as *mut Y as *mut Y::Output).cast() };
+    f(y)
 }
