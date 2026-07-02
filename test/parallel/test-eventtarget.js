@@ -685,7 +685,21 @@ let asyncTest = Promise.resolve();
     et.dispatchEvent(new Event('foo'));
   });
 }
-
+{
+  // Two listeners sharing the same retainer key must NOT evict each
+  // other from the weak retention map — both must survive a GC cycle
+  // and both must be removable independently.
+  // Regression test for https://github.com/nodejs/node/issues/63954
+  const et = new EventTarget();
+  const aCalled = common.mustNotCall();
+  const bCalled = common.mustCall();
+  et.addEventListener('a', aCalled, { [kWeakHandler]: et });
+  et.addEventListener('b', bCalled, { [kWeakHandler]: et });
+  globalThis.gc();
+  et.removeEventListener('a', aCalled);
+  et.dispatchEvent(new Event('a'));
+  et.dispatchEvent(new Event('b'));
+}
 {
   const et = new EventTarget();
 
