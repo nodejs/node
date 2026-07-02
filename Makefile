@@ -932,6 +932,22 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 		) \
 	fi
 
+doc/node.1:
+	$(error Please use 'make node.1' instead of 'make $@'.)
+
+.PHONY: node.1
+node.1: doc/api/cli.md tools/doc/node_modules
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+			-o doc \
+		) \
+	fi
+
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
 	@$(PYTHON) -mwebbrowser file://$(abspath $<)
@@ -1480,8 +1496,26 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@$(call available-node,$(run-lint-md))
 	@touch $@
 
+tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
+	$(info Verifying that $< is up to date...)
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $< verification (no crypto and/or no ICU)"; \
+	else \
+		$(RM) -r out/doc/.manpagecheck && \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+		) \
+		if ! diff -u $< out/doc/.manpagecheck/node.1; then \
+			echo '$< is out of date; run `make node.1` to regenerate it.' >&2; \
+			exit 1; \
+		fi; \
+	fi
+	@touch $@
+
 .PHONY: lint-md
-lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+lint-md: lint-js-doc | tools/.mdlintstamp tools/.manpagelintstamp ## Lint the markdown documents maintained by us in the codebase.
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
