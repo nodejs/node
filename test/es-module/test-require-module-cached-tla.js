@@ -8,7 +8,9 @@ const assert = require('assert');
   await import('../fixtures/es-modules/tla/resolved.mjs');
   assert.throws(() => {
     require('../fixtures/es-modules/tla/resolved.mjs');
-  }, {
-    code: 'ERR_REQUIRE_ASYNC_MODULE',
+  }, (err) => {
+    common.expectRequiredTLAError(err);
+    assert.deepStrictEqual(common.parseRequireStack(err.message), [__filename]);
+    return true;
   });
 })().then(common.mustCall());

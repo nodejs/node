@@ -9,7 +9,6 @@ assert.throws(() => {
   require('../fixtures/es-modules/tla/rejected.mjs');
 }, (err) => {
   common.expectRequiredTLAError(err);
-  assert.match(err.message, /From .*test-require-module-tla-rejected\.js/);
-  assert.match(err.message, /Requiring .*rejected\.mjs/);
+  assert.deepStrictEqual(common.parseRequireStack(err.message), [__filename]);
   return true;
 });

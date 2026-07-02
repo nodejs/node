@@ -917,6 +917,21 @@ function expectRequiredTLAError(err) {
   }
 }
 
+// Extract the entries of the rendered "Require stack:" list (each shown as
+// "- <path>") from an error message or a process output string.
+function parseRequireStack(output) {
+  const lines = output.replace(/\r/g, '').split('\n');
+  const start = lines.indexOf('Require stack:');
+  if (start === -1) {
+    return [];
+  }
+  const stack = [];
+  for (let i = start + 1; i < lines.length && lines[i].startsWith('- '); i++) {
+    stack.push(lines[i].slice(2));
+  }
+  return stack;
+}
+
 function sleepSync(ms) {
   const sab = new SharedArrayBuffer(4);
   const i32 = new Int32Array(sab);
@@ -962,6 +977,7 @@ const common = {
   mustSucceed,
   nodeProcessAborted,
   PIPE,
+  parseRequireStack,
   parseTestMetadata,
   platformTimeout,
   printSkipMessage,
