@@ -1535,6 +1535,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--run",
             "Run a script specified in package.json",
             &PerProcessOptions::run);
+  AddOption("--enable-run-hooks",
+            "When used with --run, also run the matching \"pre<script>\" "
+            "lifecycle hook (if any) before the script",
+            &PerProcessOptions::enable_run_hooks);
   AddOption(
       "--disable-wasm-trap-handler",
       "Disable trap-handler-based WebAssembly bound checks. V8 will insert "
