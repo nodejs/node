@@ -957,9 +957,13 @@ It is possible to run code containing inline types unless the
 
 <!-- YAML
 added: v23.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64221
+    description: This is enabled by default.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 Enable experimental import support for `.node` addons.
 
