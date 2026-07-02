@@ -117,6 +117,8 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
                        double delay_in_seconds) {
     auto locked = tasks_.Lock();
 
+    if (has_shut_down_) return;
+
     auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
     auto delayed = std::make_unique<ScheduleTask>(
         this, std::move(entry), delay_in_seconds);
@@ -178,6 +180,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
         timers.push_back(timer);
       for (uv_timer_t* timer : timers)
         scheduler_->TakeTimerTask(timer);
+      scheduler_->has_shut_down_ = true;
       uv_close(reinterpret_cast<uv_handle_t*>(&scheduler_->flush_tasks_),
                [](uv_handle_t* handle) {});
     }
@@ -241,6 +244,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   uv_loop_t loop_;
   uv_async_t flush_tasks_;
   std::unordered_set<uv_timer_t*> timers_;
+  bool has_shut_down_ = false;
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
