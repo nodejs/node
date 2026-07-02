@@ -203,6 +203,15 @@ bool Session::Application::AcknowledgeStreamData(stream_id id, size_t datalen) {
   return true;
 }
 
+void Session::Application::ReceiveDatagram(
+    const uint8_t* data,
+    size_t datalen,
+    const Session::DatagramReceivedFlags& flags) {
+  // Raw QUIC applications have no datagram framing: deliver the payload
+  // verbatim to the session-level ondatagram handler.
+  session().DeliverRawDatagram(data, datalen, flags);
+}
+
 void Session::Application::CollectSessionTicketAppData(
     SessionTicket::AppData* app_data) const {
   // By default, write just the application type byte.

@@ -1155,6 +1155,12 @@ struct Session::Impl final : public MemoryRetainer {
       return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
+    // On HTTP/3 sessions, raw unframed session-level datagrams are invalid
+    if (session->has_application() &&
+        session->application().type() == Session::Application::Type::HTTP3) {
+      return args.GetReturnValue().Set(BigInt::New(env->isolate(), 0));
+    }
+
     DCHECK(args[0]->IsArrayBufferView());
     session->impl_->handshake_deferred_ = false;
     SendPendingDataScope send_scope(session);
@@ -3251,6 +3257,16 @@ void Session::DatagramReceived(const uint8_t* data,
                                size_t datalen,
                                DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
+  if (datalen == 0 || !has_application()) return;
+
+  // Dispatch through the application for protocol-specific framing
+  application().ReceiveDatagram(data, datalen, flag);
+}
+
+void Session::DeliverRawDatagram(const uint8_t* data,
+                                 size_t datalen,
+                                 DatagramReceivedFlags flag) {
+  DCHECK(!is_destroyed());
   // If there is nothing watching for the datagram on the JavaScript side,
   // or if the datagram is zero-length, we just drop it on the floor.
   if (!HasListenerFlag(impl_->state()->listener_flags,
@@ -3264,6 +3280,10 @@ void Session::DatagramReceived(const uint8_t* data,
   JS_TRY_ALLOCATE_BACKING(env(), backing, datalen)
   memcpy(backing->Data(), data, datalen);
   EmitDatagram(Store(std::move(backing), datalen), flag);
+}
+
+void Session::IncrementDatagramsReceived() {
+  STAT_INCREMENT(Stats, datagrams_received);
 }
 
 void Session::GenerateNewConnectionId(ngtcp2_cid* cid,
@@ -3478,6 +3498,11 @@ void Session::set_max_datagram_size(uint16_t size) {
   if (!is_destroyed()) {
     impl_->state()->max_datagram_size = size;
   }
+}
+
+uint16_t Session::max_datagram_size() const {
+  if (is_destroyed()) return 0;
+  return impl_->state()->max_datagram_size;
 }
 
 void Session::EmitGoaway(stream_id last_stream_id) {

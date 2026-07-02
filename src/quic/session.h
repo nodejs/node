@@ -592,6 +592,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Http3ApplicationImpl to block datagram sends when the peer's
   // SETTINGS_H3_DATAGRAM=0 (RFC 9297 §3).
   void set_max_datagram_size(uint16_t size);
+  // The current maximum datagram payload the peer will accept, or 0 if
+  // datagrams are not usable (transport datagrams not negotiated, or the
+  // peer disabled SETTINGS_H3_DATAGRAM).
+  uint16_t max_datagram_size() const;
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
   void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
@@ -620,6 +624,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
                         DatagramReceivedFlags flag);
+  void DeliverRawDatagram(const uint8_t* data,
+                          size_t datalen,
+                          DatagramReceivedFlags flag);
+  void IncrementDatagramsReceived();
   void GenerateNewConnectionId(ngtcp2_cid* cid,
                                size_t len,
                                ngtcp2_stateless_reset_token* token);
