@@ -2086,6 +2086,61 @@ emitted when the last segment of the response headers and body have been
 handed off to the operating system for transmission over the network. It
 does not imply that the client has received anything yet.
 
+### Event: `'sendingHeaders'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted synchronously, exactly once, immediately before the status line and
+response headers are serialized and sent to the client. The listener is called
+with `this` bound to the response.
+
+This is the moment at which the response is about to become committed: when the
+event fires, [`response.headersSent`][] is still `false`, so a listener may make
+final changes to the outgoing message. From inside the listener it is valid to:
+
+* read headers with [`response.getHeader()`][] / [`response.getHeaders()`][];
+* add, replace, or remove headers with [`response.setHeader()`][],
+  [`outgoingMessage.appendHeader()`][], and [`response.removeHeader()`][];
+* change [`response.statusCode`][] and [`response.statusMessage`][].
+
+The event is emitted regardless of how the headers are flushed: an explicit call
+to [`response.writeHead()`][], implicit headers triggered by the first
+[`response.write()`][] or [`response.end()`][], or [`response.flushHeaders()`][].
+Because it is a single emission point, multiple independent listeners (for
+example logging, session, and content-negotiation middleware) can each register
+without coordinating with one another. Listeners run in registration order.
+
+The listener runs synchronously and must not be an `async` function: work
+deferred past an `await` runs after the headers are already sent, so only
+changes made synchronously take effect.
+
+```js
+const server = http.createServer((req, res) => {
+  res.on('sendingHeaders', function() {
+    // Set a header at the last possible moment, based on final state.
+    this.setHeader('X-Response-Time', `${Date.now() - req.startTime}ms`);
+    if (!this.getHeader('Content-Type')) {
+      this.setHeader('Content-Type', 'text/plain');
+    }
+  });
+
+  res.end('hello');
+});
+```
+
+A header passed inline to `response.writeHead()` is visible to the listener and
+can be modified there, including the array form:
+
+```js
+res.on('sendingHeaders', function() {
+  // 'X-Inline' was passed to writeHead() below; it can still be removed here.
+  this.removeHeader('X-Inline');
+});
+res.writeHead(200, ['X-Inline', 'value', 'Content-Type', 'text/plain']);
+```
+
 ### `response.addTrailers(headers)`
 
 <!-- YAML
@@ -4755,6 +4810,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`net.Socket`]: net.md#class-netsocket
 [`net.createConnection()`]: net.md#netcreateconnectionoptions-connectlistener
 [`new URL()`]: url.md#new-urlinput-base
+[`outgoingMessage.appendHeader()`]: #outgoingmessageappendheadername-value
 [`outgoingMessage.setHeader(name, value)`]: #outgoingmessagesetheadername-value
 [`outgoingMessage.setHeaders()`]: #outgoingmessagesetheadersheaders
 [`outgoingMessage.socket`]: #outgoingmessagesocket
@@ -4772,9 +4828,15 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`request.writableFinished`]: #requestwritablefinished
 [`request.write(data, encoding)`]: #requestwritechunk-encoding-callback
 [`response.end()`]: #responseenddata-encoding-callback
+[`response.flushHeaders()`]: #responseflushheaders
 [`response.getHeader()`]: #responsegetheadername
+[`response.getHeaders()`]: #responsegetheaders
+[`response.headersSent`]: #responseheaderssent
+[`response.removeHeader()`]: #responseremoveheadername
 [`response.setHeader()`]: #responsesetheadername-value
 [`response.socket`]: #responsesocket
+[`response.statusCode`]: #responsestatuscode
+[`response.statusMessage`]: #responsestatusmessage
 [`response.strictContentLength`]: #responsestrictcontentlength
 [`response.writableEnded`]: #responsewritableended
 [`response.writableFinished`]: #responsewritablefinished
