@@ -146,6 +146,75 @@ class TestWriter extends EE {
   r.pipe(w);
 }
 
+{
+  // Verify data listener ordering around pipe.
+  function makeWritable(events) {
+    return new W({
+      write(chunk, enc, cb) {
+        events.push('write');
+        cb();
+      },
+    });
+  }
+
+  {
+    const events = [];
+    const r = R.from(['x']);
+    const w = makeWritable(events);
+
+    r.on('data', () => events.push('data'));
+    r.pipe(w);
+    w.on('finish', common.mustCall(() => {
+      assert.deepStrictEqual(events, ['data', 'write']);
+    }));
+  }
+
+  {
+    const events = [];
+    const r = R.from(['x']);
+    const w = makeWritable(events);
+
+    r.pipe(w);
+    r.on('data', () => events.push('data'));
+    w.on('finish', common.mustCall(() => {
+      assert.deepStrictEqual(events, ['write', 'data']);
+    }));
+  }
+
+  {
+    const events = [];
+    const r = R.from(['x']);
+    const w = makeWritable(events);
+
+    r.pipe(w);
+    r.prependListener('data', () => events.push('data'));
+    w.on('finish', common.mustCall(() => {
+      assert.deepStrictEqual(events, ['data', 'write']);
+    }));
+  }
+
+  {
+    const events = [];
+    const r = R.from(['a', 'b']);
+    const w = new W({
+      write: common.mustCall((chunk, enc, cb) => {
+        events.push(`write:${chunk}`);
+        if (String(chunk) === 'a') {
+          r.on('data', common.mustCall((chunk) => {
+            events.push(`data:${chunk}`);
+          }));
+        }
+        cb();
+      }, 2),
+    });
+
+    r.pipe(w);
+    w.on('finish', common.mustCall(() => {
+      assert.deepStrictEqual(events, ['write:a', 'write:b', 'data:b']);
+    }));
+  }
+}
+
 
 [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function(SPLIT) {
   // Verify unpipe
