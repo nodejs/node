@@ -1,6 +1,5 @@
-// Tests the output of require(esm) on a graph with top-level await when
-// --experimental-print-required-tla is enabled: the location of the
-// top-level await (with a caret) and the require stack.
+// Snapshot tests for the output of require(esm) on a graph with top-level await when
+// --experimental-print-required-tla is enabled.
 
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
