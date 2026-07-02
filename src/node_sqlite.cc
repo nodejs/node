@@ -3852,7 +3852,9 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), nChangeset);
-  std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
+  if (nChangeset > 0) {
+    std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
+  }
   Local<Uint8Array> uint8Array = Uint8Array::New(buffer, 0, nChangeset);
 
   args.GetReturnValue().Set(uint8Array);
