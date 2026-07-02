@@ -6,6 +6,10 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const { hasOpenSSL } = require('../common/crypto');
+const {
+  DH_CHECK_P_NOT_PRIME,
+  DH_CHECK_P_NOT_SAFE_PRIME,
+} = crypto.constants;
 
 // Second OAKLEY group, see
 // https://github.com/nodejs/node-v0.x-archive/issues/2338 and
@@ -15,6 +19,47 @@ const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
           '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
           'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 crypto.createDiffieHellman(p, 'hex');
+
+if (!process.features.openssl_is_boringssl) {
+  const notPrime = Buffer.from(p, 'hex');
+  notPrime[notPrime.length - 1] = 0xfd;
+  assert.strictEqual(
+    crypto.createDiffieHellman(notPrime, Buffer.from([2])).verifyError,
+    DH_CHECK_P_NOT_PRIME);
+
+  const notSafePrime = Buffer.from(
+    'd2d6d13e1c1e0bbb63c742199dee010411f089ac74f0f7213348388280700fd6' +
+    '0ef9c1e7b096a4257dcbce61c544a5d1d23db4c49c63ce302f63be5cf5804327',
+    'hex');
+  assert.strictEqual(
+    crypto.createDiffieHellman(notSafePrime, Buffer.from([2])).verifyError,
+    DH_CHECK_P_NOT_SAFE_PRIME);
+
+  const group = crypto.getDiffieHellman('modp14');
+  const alice = crypto.createDiffieHellman(
+    group.getPrime(), group.getGenerator());
+  alice.generateKeys();
+  const groupPrime = BigInt(`0x${group.getPrime('hex')}`);
+  assert.throws(
+    () => alice.computeSecret(Buffer.from([1])),
+    {
+      code: 'ERR_CRYPTO_INVALID_KEYLEN',
+      message: 'Supplied key is too small'
+    });
+  assert.throws(
+    () => alice.computeSecret(group.getPrime()),
+    {
+      code: 'ERR_CRYPTO_INVALID_KEYLEN',
+      message: 'Supplied key is too large'
+    });
+  assert.throws(
+    () => alice.computeSecret(
+      Buffer.from((groupPrime - 1n).toString(16), 'hex')),
+    {
+      code: 'ERR_CRYPTO_INVALID_KEYLEN',
+      message: 'Supplied key is too large'
+    });
+}
 
 // Confirm DH_check() results are exposed for optional examination.
 const bad_dh = process.features.openssl_is_boringssl ?
@@ -26,6 +71,11 @@ if (hasOpenSSL(3)) {
   const smallSafePrime = crypto.createDiffieHellman(
     Buffer.from([23]), Buffer.from([2]));
   assert.notStrictEqual(smallSafePrime.verifyError, 0);
+
+  assert.throws(
+    () => crypto.createDiffieHellman(Buffer.from(p, 'hex'),
+                                     Buffer.from(p, 'hex')),
+    { code: 'ERR_OSSL_DH_BAD_GENERATOR' });
 }
 
 const availableCurves = new Set(crypto.getCurves());

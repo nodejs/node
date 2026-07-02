@@ -5693,6 +5693,7 @@ Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
   GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_);
 
   if (type == EVP_PKEY_RSA_PSS) {
+    MarkPopErrorOnReturn pop_errors;
     PssParams params;
     if (ReadRsaPssParams(pkey, &params)) pss_params_ = params;
   }

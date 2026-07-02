@@ -206,6 +206,13 @@ void New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+#ifndef OPENSSL_IS_BORINGSSL
+  if (BN_num_bits(bn_p.get()) >= 512 && BN_cmp(bn_g.get(), bn_p.get()) >= 0) {
+    PutDhError(DH_R_BAD_GENERATOR);
+    return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+  }
+#endif
+
   auto dh = DHPointer::New(std::move(bn_p), std::move(bn_g));
   if (!dh) {
     return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid DH parameters");

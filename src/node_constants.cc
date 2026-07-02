@@ -57,6 +57,22 @@
 #if !defined(RSA_PKCS1_PSS_PADDING)
 #define RSA_PKCS1_PSS_PADDING 6
 #endif
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
+// OpenSSL hides these deprecated DH check constants under
+// OPENSSL_NO_DEPRECATED, but the numeric verifyError values remain public API.
+#if !defined(DH_CHECK_P_NOT_PRIME)
+#define DH_CHECK_P_NOT_PRIME 0x01
+#endif
+#if !defined(DH_CHECK_P_NOT_SAFE_PRIME)
+#define DH_CHECK_P_NOT_SAFE_PRIME 0x02
+#endif
+#if !defined(DH_UNABLE_TO_CHECK_GENERATOR)
+#define DH_UNABLE_TO_CHECK_GENERATOR 0x04
+#endif
+#if !defined(DH_NOT_SUITABLE_GENERATOR)
+#define DH_NOT_SUITABLE_GENERATOR 0x08
+#endif
+#endif
 #ifndef OPENSSL_NO_ENGINE
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
 // Engine constants remain public API while engine implementation lives in the

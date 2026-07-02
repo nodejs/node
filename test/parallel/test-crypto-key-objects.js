@@ -909,6 +909,41 @@ if (!process.features.openssl_is_boringssl) {
         }
       }
     }
+
+    const der = publicKey.export({ format: 'der', type: 'spki' });
+    const saltLengthParam = Buffer.from([0xa2, 0x03, 0x02, 0x01, 0x10]);
+    const saltLengthOffset = der.indexOf(saltLengthParam);
+    assert.notStrictEqual(saltLengthOffset, -1);
+
+    const importMalformedPublicKey = (key) => {
+      const malformedKey = createPublicKey({
+        key,
+        format: 'der',
+        type: 'spki'
+      });
+      assert.strictEqual(malformedKey.asymmetricKeyType, 'rsa-pss');
+      assert.strictEqual(malformedKey.asymmetricKeyDetails.modulusLength, 2048);
+      assert.strictEqual(malformedKey.asymmetricKeyDetails.publicExponent,
+                         65537n);
+    };
+
+    {
+      const negativeSaltLength = Buffer.from(der);
+      negativeSaltLength[saltLengthOffset + saltLengthParam.length - 1] = 0x80;
+      importMalformedPublicKey(negativeSaltLength);
+    }
+
+    {
+      const oversizedSaltLength = Buffer.concat([
+        der.subarray(0, saltLengthOffset),
+        Buffer.from([0xa2, 0x0b, 0x02, 0x09, 1, 0, 0, 0, 0, 0, 0, 0, 0x10]),
+        der.subarray(saltLengthOffset + saltLengthParam.length),
+      ]);
+      oversizedSaltLength.writeUInt16BE(der.readUInt16BE(2) + 8, 2);
+      oversizedSaltLength[5] = der[5] + 8;
+      oversizedSaltLength[18] = der[18] + 8;
+      importMalformedPublicKey(oversizedSaltLength);
+    }
   }
 
   {
