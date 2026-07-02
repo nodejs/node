@@ -139,6 +139,9 @@ The following methods from the `node:dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59829
+    description: The `options` object now accepts a `rotate` option.
   - version:
       - v16.7.0
       - v14.18.0
@@ -159,6 +162,8 @@ Create a new resolver.
     each name server before giving up. **Default:** `4`
   * `maxTimeout` {integer} The max retry timeout, in milliseconds.
     **Default:** `0`, disabled.
+  * `rotate` {boolean} Perform round-robin selection of the nameservers for each resolution.
+    **Default:** `undefined`, depends on system configuration and Node.js build settings.
 
 ### `resolver.cancel()`
 
