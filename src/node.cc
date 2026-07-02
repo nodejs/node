@@ -697,8 +697,22 @@ void ResetStdio() {
       sigset_t sa;
       int err;
 
+      // Only restore the termios state if this process is (still) the
+      // foreground process group for the controlling terminal. If we are a
+      // background job, calling tcsetattr() would either be silently ignored
+      // (with SIGTTOU blocked, see below) or, worse, clobber the terminal
+      // state of whichever process is currently in the foreground -- e.g.
+      // the parent shell's readline.
+      // See https://github.com/nodejs/node/issues/35536.
+      pid_t fg_pgrp = tcgetpgrp(fd);
+      if (fg_pgrp == -1 || fg_pgrp != getpgrp()) continue;
+
       // We might be a background job that doesn't own the TTY so block SIGTTOU
       // before making the tcsetattr() call, otherwise that signal suspends us.
+      // The foreground-pgrp check above handles the common case, but a race
+      // is still possible if the foreground pgrp changes between tcgetpgrp()
+      // and tcsetattr(); blocking SIGTTOU keeps us from being suspended in
+      // that race.
       sigemptyset(&sa);
       sigaddset(&sa, SIGTTOU);
 
