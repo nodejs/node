@@ -583,3 +583,28 @@ test('coverage with directory and file named "file"', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
   assertIncludesReport(result, 'start of coverage report');
 });
+
+// Regression test for https://github.com/nodejs/node/issues/61586
+// When a branch leads to ignored code, it should be marked as covered.
+test('coverage ignores branches leading to ignored code', skipIfNoInspector, async (t) => {
+  const fixture = fixtures.path('test-runner', 'coverage-ignore-branch.test.js');
+  const child = spawnSync(process.execPath,
+                          [
+                            '--test',
+                            '--experimental-test-coverage',
+                            '--test-coverage-exclude=!test/**',
+                            '--test-reporter',
+                            fixtures.fileURL('test-runner/custom_reporters/coverage.mjs'),
+                            fixture,
+                          ]);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  const coverage = JSON.parse(stdout);
+
+  const file = coverage.summary.files.find((f) => f.path.endsWith('coverage-ignore-branch.js'));
+  assert(file, 'Expected coverage-ignore-branch.js in coverage report');
+
+  // All branches should be covered because the untaken falsy branch
+  // leads to code that is ignored via /* node:coverage ignore next */.
+  assert.strictEqual(file.coveredBranchCount, file.totalBranchCount);
+});
