@@ -140,6 +140,23 @@ const getCases = (testdir) => {
         },
       }],
     },
+
+    packageExtensions: {
+      name: 'bar',
+      version: '1.2.3',
+      location: 'node_modules/bar',
+      dependents: [{
+        type: 'prod',
+        name: 'bar',
+        spec: '^1.0.0',
+        packageExtensions: { selector: 'foo@1', field: 'dependencies' },
+        from: {
+          name: 'foo',
+          version: '1.0.0',
+          location: 'node_modules/foo',
+        },
+      }],
+    },
   }
 
   cases.manyDeps = {

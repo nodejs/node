@@ -1,6 +1,5 @@
 const { resolve, dirname, join } = require('node:path')
 const Config = require('@npmcli/config')
-const which = require('which')
 const fs = require('node:fs/promises')
 const { definitions, flatten, nerfDarts, shorthands } = require('@npmcli/config/lib/definitions')
 const usage = require('./utils/npm-usage.js')
@@ -82,16 +81,6 @@ class Npm {
   }
 
   async #load () {
-    await time.start('npm:load:whichnode', async () => {
-      // TODO should we throw here?
-      const node = await which(process.argv[0]).catch(() => {})
-      if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-        log.verbose('node symlink', node)
-        process.execPath = node
-        this.config.execPath = node
-      }
-    })
-
     await time.start('npm:load:configload', () => this.config.load())
 
     // npm --versions
@@ -111,7 +100,6 @@ class Npm {
     const command = deref(commandArg)
 
     await this.#display.load({
-      command,
       loglevel: this.config.get('loglevel'),
       stdoutColor: this.color,
       stderrColor: this.logColor,
@@ -303,8 +291,10 @@ class Npm {
           ? commandInstance.execWorkspaces(positionalArgs, flags)
           : commandInstance.exec(positionalArgs, flags))
     } else {
-      // Legacy commands without definitions
-      this.config.logWarnings()
+      // Legacy commands without definitions: still validate unknown CLI configs/flags and (when finite) extra positionals.
+      if (typeof commandInstance.validateCli === 'function') {
+        commandInstance.validateCli([], args)
+      }
       return time.start(`command:${commandName}`, () =>
         execWorkspaces ? commandInstance.execWorkspaces(args) : commandInstance.exec(args))
     }

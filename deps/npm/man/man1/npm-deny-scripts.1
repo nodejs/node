@@ -1,4 +1,4 @@
-.TH "NPM-DENY-SCRIPTS" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-DENY-SCRIPTS" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-deny-scripts\fR - Deny install scripts for specific dependencies
 .SS "Synopsis"
@@ -15,7 +15,7 @@ Note: This command is unaware of workspaces.
 .P
 The companion command to npm help approve-scripts. Writes \fBfalse\fR entries into the \fBallowScripts\fR field of your project's \fBpackage.json\fR, recording that a dependency must not run install scripts even if a future version would otherwise be eligible.
 .P
-In the current release, install scripts still run by default, so \fBdeny-scripts\fR only affects how installs of denied packages are reported. A future release will block unreviewed install scripts and respect deny entries at install time.
+Dependency install scripts are blocked by default. Adding a \fBfalse\fR entry with \fBdeny-scripts\fR makes the denial explicit (so it survives \fBnpm approve-scripts --all\fR) and excludes the package from any future \fB--allow-scripts-pending\fR review prompts.
 .P
 .RS 2
 .nf

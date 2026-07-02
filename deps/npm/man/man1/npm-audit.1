@@ -1,4 +1,4 @@
-.TH "NPM-AUDIT" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-AUDIT" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-audit\fR - Run a security audit
 .SS "Synopsis"
@@ -19,7 +19,7 @@ Note that some vulnerabilities cannot be fixed automatically and will require ma
 By default, the audit command will exit with a non-zero code if any vulnerability is found. It may be useful in CI environments to include the \fB--audit-level\fR parameter to specify the minimum vulnerability level that will cause the command to fail. This option does not filter the report output, it simply changes the command's failure threshold.
 .SS "Package lock"
 .P
-By default npm requires a package-lock or shrinkwrap in order to run the audit. You can bypass the package lock with \fB--no-package-lock\fR but be aware the results may be different with every run, since npm will re-build the dependency tree each time.
+By default npm requires a package-lock in order to run the audit. You can bypass the package lock with \fB--no-package-lock\fR but be aware the results may be different with every run, since npm will re-build the dependency tree each time.
 .SS "Audit Signatures"
 .P
 To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
@@ -336,7 +336,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P

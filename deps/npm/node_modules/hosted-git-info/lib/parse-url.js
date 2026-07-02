@@ -1,5 +1,3 @@
-const url = require('url')
-
 const lastIndexOfBefore = (str, char, beforeChar) => {
   const startPosition = str.indexOf(beforeChar)
   return str.lastIndexOf(char, startPosition > -1 ? startPosition : Infinity)
@@ -7,7 +5,7 @@ const lastIndexOfBefore = (str, char, beforeChar) => {
 
 const safeUrl = (u) => {
   try {
-    return new url.URL(u)
+    return new URL(u)
   } catch {
     // this fn should never throw
   }

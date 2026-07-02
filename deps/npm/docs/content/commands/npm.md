@@ -14,7 +14,7 @@ Note: This command is unaware of workspaces.
 
 ### Version
 
-11.17.0
+12.0.0-pre.1
 
 ### Description
 
@@ -82,8 +82,8 @@ If you're using npm to develop and publish your code, check out the following he
 * install:
   It's a good idea to install things if you don't need the symbolic link.
   Especially, installing other peoples code from the registry is done via [`npm install`](/commands/npm-install)
-* adduser:
-  Create an account or log in.
+* login:
+  Log in to the registry and store credentials.
   When you do this, npm will store credentials in the user config file.
 * publish:
   Use the [`npm publish`](/commands/npm-publish) command to upload your code to the registry.

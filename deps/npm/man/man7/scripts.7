@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "June 2026" "NPM@11.17.0" ""
+.TH "SCRIPTS" "7" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBScripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -131,7 +131,7 @@ The \fBdependencies\fR script is run any time an \fBnpm\fR command causes change
 .SS "npm help ci"
 .RS 0
 .IP \(bu 4
-\fBpreinstall\fR
+\fBpreinstall\fR (before dependencies are installed)
 .IP \(bu 4
 \fBinstall\fR
 .IP \(bu 4
@@ -147,7 +147,9 @@ The \fBdependencies\fR script is run any time an \fBnpm\fR command causes change
 .RE 0
 
 .P
-These all run after the actual installation of modules into \fBnode_modules\fR, in order, with no internal actions happening in between
+\fBpreinstall\fR runs before any dependencies are fetched or unpacked into \fBnode_modules\fR, so scripts can prepare the environment (for example, setting up authentication for a private registry) before tarballs are fetched. For \fBnpm ci\fR, \fBpreinstall\fR fires \fIafter\fR the lockfile has been validated against \fBpackage.json\fR, so it cannot influence dependency resolution \[em] that remains locked to \fBpackage-lock.json\fR. The remaining scripts run after the installation of modules into \fBnode_modules\fR, in order, with no internal actions happening in between.
+.P
+Because \fBpreinstall\fR runs before reify, scripts cannot rely on packages from \fBnode_modules\fR. \fBnpm ci\fR wipes \fBnode_modules\fR before \fBpreinstall\fR fires, so \fBrequire()\fR of a dependency will always fail. Use \fBinstall\fR or \fBpostinstall\fR for setup that depends on installed packages.
 .SS "npm help diff"
 .RS 0
 .IP \(bu 4
@@ -156,10 +158,10 @@ These all run after the actual installation of modules into \fBnode_modules\fR, 
 
 .SS "npm help install"
 .P
-These also run when you run \fBnpm install -g <pkg-name>\fR
+These run on a bare \fBnpm install\fR in a local project (no package arguments).
 .RS 0
 .IP \(bu 4
-\fBpreinstall\fR
+\fBpreinstall\fR (before dependencies are installed)
 .IP \(bu 4
 \fBinstall\fR
 .IP \(bu 4
@@ -174,6 +176,10 @@ These also run when you run \fBnpm install -g <pkg-name>\fR
 \fBpostprepare\fR
 .RE 0
 
+.P
+\fBpreinstall\fR runs before any dependencies are fetched or unpacked into \fBnode_modules\fR, so scripts can prepare the environment (for example, setting up authentication for a private registry) before resolution begins. The remaining scripts run after installation has completed.
+.P
+Because \fBpreinstall\fR runs before reify, scripts cannot rely on packages from \fBnode_modules\fR. On a fresh checkout, \fBrequire()\fR of a dependency will fail. On a repeat \fBnpm install\fR against an existing \fBnode_modules/\fR, it may incidentally succeed because the previously-installed tree is still on disk, but the version available is whatever was previously installed and may be removed or replaced by the upcoming install. Use \fBinstall\fR or \fBpostinstall\fR for setup that depends on installed packages.
 .P
 If there is a \fBbinding.gyp\fR file in the root of your package and you haven't defined your own \fBinstall\fR or \fBpreinstall\fR scripts, npm will default the \fBinstall\fR command to compile using node-gyp via \fBnode-gyp rebuild\fR
 .P

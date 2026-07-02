@@ -7,6 +7,13 @@ const { default: tufmock } = require('@tufjs/repo-mock')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const MockRegistry = require('@npmcli/mock-registry')
 
+// pacote bundles its own copy of sigstore, which may be nested rather than
+// hoisted. Resolve sigstore relative to pacote so test mocks replace the copy
+// pacote actually requires.
+const pacoteSigstore = require.resolve('sigstore', {
+  paths: [path.dirname(require.resolve('pacote'))],
+})
+
 const gunzip = zlib.gunzipSync
 const gzip = zlib.gzipSync
 
@@ -161,6 +168,86 @@ t.test('audit fix - bulk endpoint', async t => {
     fs.existsSync(path.join(npm.prefix, 'node_modules', 'test-dep-a', 'fixed.txt')),
     'has test-dep-a@1.0.1 on disk'
   )
+})
+
+t.test('audit fix exits non-zero when min-release-age blocks a fix', async t => {
+  const { npm, logs } = await loadMockNpm(t, {
+    prefixDir: tree,
+    config: { 'min-release-age': 30 },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: 'test-dep-a',
+    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
+  })
+  // 1.0.0 is old enough to install; the fix 1.0.1 was published too recently.
+  manifest.time['1.0.0'] = '2020-01-01T00:00:00.000Z'
+  manifest.time['1.0.1'] = new Date().toISOString()
+  await registry.package({
+    manifest,
+    tarballs: {
+      '1.0.0': path.join(npm.prefix, 'test-dep-a-vuln'),
+    },
+    times: 2,
+  })
+  const advisory = registry.advisory({ id: 100, vulnerable_versions: '<1.0.1' })
+  registry.nock.post('/-/npm/v1/security/advisories/bulk', body => {
+    const unzipped = JSON.parse(gunzip(Buffer.from(body, 'hex')))
+    return t.same(unzipped, { 'test-dep-a': ['1.0.0'] })
+  })
+    .reply(200, { 'test-dep-a': [advisory] })
+    .post('/-/npm/v1/security/advisories/bulk', body => {
+      const unzipped = JSON.parse(gunzip(Buffer.from(body, 'hex')))
+      return t.same(unzipped, { 'test-dep-a': ['1.0.0'] })
+    })
+    .reply(200, { 'test-dep-a': [advisory] })
+
+  await npm.exec('audit', ['fix'])
+
+  t.equal(process.exitCode, 1, 'exits non-zero because the fix was blocked')
+  t.ok(
+    logs.warn.some(w =>
+      /left at a vulnerable version because a fix is newer than the release-age cutoff/.test(w)),
+    'warns that the fix was blocked by min-release-age'
+  )
+  const lock = JSON.parse(fs.readFileSync(path.join(npm.prefix, 'package-lock.json'), 'utf8'))
+  t.equal(lock.packages['node_modules/test-dep-a'].version, '1.0.0',
+    'test-dep-a was left at the vulnerable version')
+})
+
+t.test('json audit reports fixBlockedByReleaseAge when a fix is too new', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: tree,
+    config: {
+      json: true,
+      'min-release-age': 30,
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: 'test-dep-a',
+    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
+  })
+  manifest.time['1.0.0'] = '2020-01-01T00:00:00.000Z'
+  manifest.time['1.0.1'] = new Date().toISOString()
+  await registry.package({ manifest })
+  const advisory = registry.advisory({ id: 100, vulnerable_versions: '<1.0.1' })
+  const bulkBody = gzip(JSON.stringify({ 'test-dep-a': ['1.0.0'] }))
+  registry.nock.post('/-/npm/v1/security/advisories/bulk', bulkBody)
+    .reply(200, {
+      'test-dep-a': [advisory],
+    })
+
+  await npm.exec('audit', [])
+  const report = JSON.parse(joinedOutput())
+  t.match(report.vulnerabilities['test-dep-a'].fixBlockedByReleaseAge, { version: '1.0.1' },
+    'json output flags the fix that min-release-age blocked')
 })
 
 t.test('audit fix no package lock', async t => {
@@ -1853,7 +1940,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1882,7 +1969,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1911,7 +1998,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1943,7 +2030,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1968,7 +2055,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2009,7 +2096,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithMultipleValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2039,7 +2126,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },
@@ -2074,7 +2161,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },
@@ -2103,7 +2190,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithMultipleValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },

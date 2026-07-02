@@ -51,6 +51,10 @@ Array [
 
 exports[`test/lib/commands/publish.js TAP foreground-scripts defaults to true > must match snapshot 1`] = `
 Array [
+  "run test-fg-scripts@0.0.0 prepack",
+  "run echo prepack!",
+  "run test-fg-scripts@0.0.0 postpack",
+  "run echo postpack!",
   "package: test-fg-scripts@0.0.0",
   "Tarball Contents",
   "110B package.json",
@@ -123,10 +127,6 @@ Object {
     "url": "https://github.com/npm/cli/issues",
   },
   "description": "a package manager for JavaScript",
-  "directories": Object {
-    "doc": "./doc",
-    "man": "./man",
-  },
   "exports": Object {
     ".": Array [
       Object {
@@ -153,100 +153,6 @@ Object {
   ],
   "license": "Artistic-2.0",
   "main": "./index.js",
-  "man": Array [
-    "man/man1/npm-access.1",
-    "man/man1/npm-adduser.1",
-    "man/man1/npm-approve-scripts.1",
-    "man/man1/npm-audit.1",
-    "man/man1/npm-bugs.1",
-    "man/man1/npm-cache.1",
-    "man/man1/npm-ci.1",
-    "man/man1/npm-completion.1",
-    "man/man1/npm-config.1",
-    "man/man1/npm-dedupe.1",
-    "man/man1/npm-deny-scripts.1",
-    "man/man1/npm-deprecate.1",
-    "man/man1/npm-diff.1",
-    "man/man1/npm-dist-tag.1",
-    "man/man1/npm-docs.1",
-    "man/man1/npm-doctor.1",
-    "man/man1/npm-edit.1",
-    "man/man1/npm-exec.1",
-    "man/man1/npm-explain.1",
-    "man/man1/npm-explore.1",
-    "man/man1/npm-find-dupes.1",
-    "man/man1/npm-fund.1",
-    "man/man1/npm-get.1",
-    "man/man1/npm-help-search.1",
-    "man/man1/npm-help.1",
-    "man/man1/npm-init.1",
-    "man/man1/npm-install-ci-test.1",
-    "man/man1/npm-install-test.1",
-    "man/man1/npm-install.1",
-    "man/man1/npm-link.1",
-    "man/man1/npm-ll.1",
-    "man/man1/npm-login.1",
-    "man/man1/npm-logout.1",
-    "man/man1/npm-ls.1",
-    "man/man1/npm-org.1",
-    "man/man1/npm-outdated.1",
-    "man/man1/npm-owner.1",
-    "man/man1/npm-pack.1",
-    "man/man1/npm-ping.1",
-    "man/man1/npm-pkg.1",
-    "man/man1/npm-prefix.1",
-    "man/man1/npm-profile.1",
-    "man/man1/npm-prune.1",
-    "man/man1/npm-publish.1",
-    "man/man1/npm-query.1",
-    "man/man1/npm-rebuild.1",
-    "man/man1/npm-repo.1",
-    "man/man1/npm-restart.1",
-    "man/man1/npm-root.1",
-    "man/man1/npm-run.1",
-    "man/man1/npm-sbom.1",
-    "man/man1/npm-search.1",
-    "man/man1/npm-set.1",
-    "man/man1/npm-shrinkwrap.1",
-    "man/man1/npm-stage.1",
-    "man/man1/npm-star.1",
-    "man/man1/npm-stars.1",
-    "man/man1/npm-start.1",
-    "man/man1/npm-stop.1",
-    "man/man1/npm-team.1",
-    "man/man1/npm-test.1",
-    "man/man1/npm-token.1",
-    "man/man1/npm-trust.1",
-    "man/man1/npm-undeprecate.1",
-    "man/man1/npm-uninstall.1",
-    "man/man1/npm-unpublish.1",
-    "man/man1/npm-unstar.1",
-    "man/man1/npm-update.1",
-    "man/man1/npm-version.1",
-    "man/man1/npm-view.1",
-    "man/man1/npm-whoami.1",
-    "man/man1/npm.1",
-    "man/man1/npx.1",
-    "man/man5/folders.5",
-    "man/man5/install.5",
-    "man/man5/npm-global.5",
-    "man/man5/npm-json.5",
-    "man/man5/npm-shrinkwrap-json.5",
-    "man/man5/npmrc.5",
-    "man/man5/package-json.5",
-    "man/man5/package-lock-json.5",
-    "man/man7/config.7",
-    "man/man7/dependency-selectors.7",
-    "man/man7/developers.7",
-    "man/man7/logging.7",
-    "man/man7/orgs.7",
-    "man/man7/package-spec.7",
-    "man/man7/registry.7",
-    "man/man7/removal.7",
-    "man/man7/scope.7",
-    "man/man7/scripts.7",
-    "man/man7/workspaces.7",
-  ],
   "name": "npm",
   "readmeFilename": "README.md",
   "repository": Object {
@@ -320,15 +226,6 @@ exports[`test/lib/commands/publish.js TAP re-loads publishConfig.registry if add
 `
 
 exports[`test/lib/commands/publish.js TAP respects publishConfig.registry, runs appropriate scripts > new package version 1`] = `
-
-> @npmcli/test-package@1.0.0 prepublishOnly
-> touch scripts-prepublishonly
-
-> @npmcli/test-package@1.0.0 publish
-> touch scripts-publish
-
-> @npmcli/test-package@1.0.0 postpublish
-> touch scripts-postpublish
 + @npmcli/test-package@1.0.0
 `
 

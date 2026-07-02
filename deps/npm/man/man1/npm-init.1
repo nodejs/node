@@ -1,4 +1,4 @@
-.TH "NPM-INIT" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-INIT" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
@@ -178,13 +178,13 @@ The value \fBnpm init\fR should use by default for the package author's homepage
 .SS "\fBinit-license\fR"
 .RS 0
 .IP \(bu 4
-Default: "ISC"
+Default: ""
 .IP \(bu 4
 Type: String
 .RE 0
 
 .P
-The value \fBnpm init\fR should use by default for the package license.
+The value \fBnpm init\fR should use by default for the package license. If not set, the license field will be omitted from new packages.
 .SS "\fBinit-module\fR"
 .RS 0
 .IP \(bu 4

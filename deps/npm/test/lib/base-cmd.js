@@ -118,7 +118,9 @@ t.test('flags() method with no definitions', async t => {
 })
 
 t.test('flags() throws error for unknown flags', async t => {
-  const { npm } = await loadMockNpm(t)
+  const { npm } = await loadMockNpm(t, {
+    npm: { argv: ['test-command', '--unknown-flag'] },
+  })
 
   class TestCommand extends BaseCommand {
     static name = 'test-command'
@@ -139,14 +141,14 @@ t.test('flags() throws error for unknown flags', async t => {
     }
   }
 
-  // Manually set config.argv to simulate command-line with unknown flag
-  npm.config.argv = ['node', 'npm', 'test-command', '--unknown-flag']
-
   const command = new TestCommand(npm)
   await t.rejects(
     command.exec(),
-    { message: /Unknown flag.*--unknown-flag/ },
-    'throws error for unknown flag'
+    {
+      code: 'EUNKNOWNCONFIG',
+      message: /Unknown cli config:[\s\S]*--unknown-flag/,
+    },
+    'throws EUNKNOWNCONFIG for unknown flag'
   )
 })
 
@@ -416,7 +418,9 @@ t.test('flags() returns defaults when argv is empty', async t => {
 })
 
 t.test('flags() throws error for multiple unknown flags with pluralization', async t => {
-  const { npm } = await loadMockNpm(t)
+  const { npm } = await loadMockNpm(t, {
+    npm: { argv: ['test-command', '--unknown-one', '--unknown-two'] },
+  })
 
   class TestCommand extends BaseCommand {
     static name = 'test-command'
@@ -442,8 +446,11 @@ t.test('flags() throws error for multiple unknown flags with pluralization', asy
   const command = new TestCommand(npm)
   await t.rejects(
     command.exec(),
-    { message: /Unknown flags:.*--unknown-one.*--unknown-two/ },
-    'throws error with pluralized "flags" for multiple unknown flags'
+    {
+      code: 'EUNKNOWNCONFIG',
+      message: /Unknown cli configs:[\s\S]*--unknown-one[\s\S]*--unknown-two/,
+    },
+    'throws EUNKNOWNCONFIG with pluralized "configs" for multiple unknown flags'
   )
 })
 
@@ -636,8 +643,8 @@ t.test('flags() throws error for extra positional arguments beyond expected coun
   // Should throw error for extra positional
   await t.rejects(
     command.exec(),
-    { message: 'Unknown positional argument: extra1' },
-    'throws error for first extra positional'
+    { message: 'Unknown positional arguments: extra1, extra2' },
+    'throws error for extra positionals'
   )
 })
 
@@ -676,4 +683,179 @@ t.test('flags() does not throw when positionals is null (unlimited)', async t =>
   // All positionals should remain - no error thrown
   t.same(remains, ['pkg1', 'extra1', 'extra2'], 'all positionals are in remains')
   t.equal(flags.id, null, 'id flag uses default')
+})
+
+t.test('validateCli throws aggregated error for unknown file configs', async t => {
+  const { npm } = await loadMockNpm(t, {
+    homeDir: {
+      '.npmrc': [
+        'bogus-user-key=yes',
+        '@scope:bogus-scoped=no',
+      ].join('\n'),
+    },
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+  }
+
+  const command = new TestCommand(npm)
+  await t.rejects(
+    (async () => command.validateCli())(),
+    {
+      code: 'EUNKNOWNCONFIG',
+      message: /Unknown npm configuration keys:[\s\S]*bogus-user-key[\s\S]*bogus-scoped[\s\S]*npm help npmrc/,
+    },
+    'throws EUNKNOWNCONFIG aggregating plain and scoped keys'
+  )
+})
+
+t.test('validateCli uses singular "key" when only one unknown file config', async t => {
+  const { npm } = await loadMockNpm(t, {
+    homeDir: {
+      '.npmrc': 'only-one-bad-key=yes',
+    },
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+  }
+
+  const command = new TestCommand(npm)
+  await t.rejects(
+    (async () => command.validateCli())(),
+    {
+      code: 'EUNKNOWNCONFIG',
+      message: /Unknown npm configuration key:\n/,
+    },
+    'singular phrasing when only one unknown key'
+  )
+})
+
+t.test('validateCli bypasses checks when skipConfigValidation is set', async t => {
+  const { npm } = await loadMockNpm(t, {
+    homeDir: {
+      '.npmrc': 'bogus-user-key=yes',
+    },
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+    static skipConfigValidation = true
+  }
+
+  const command = new TestCommand(npm)
+  t.doesNotThrow(() => command.validateCli(), 'skipConfigValidation bypasses unknown-file-config check')
+})
+
+t.test('validateCli combines cli and file unknowns into a single error', async t => {
+  const { npm } = await loadMockNpm(t, {
+    homeDir: {
+      '.npmrc': 'bogus-user-key=yes',
+    },
+    npm: { argv: ['test-command', '--unknown-cli'] },
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+    async exec () {
+      return this.flags()
+    }
+  }
+
+  const command = new TestCommand(npm)
+  let err
+  try {
+    command.validateCli()
+    t.fail('expected throw')
+  } catch (e) {
+    err = e
+  }
+  t.equal(err.code, 'EUNKNOWNCONFIG')
+  t.match(err.message, /Unknown cli config:[\s\S]*--unknown-cli/,
+    'message contains the cli section')
+  t.match(err.message, /Unknown npm configuration key:[\s\S]*bogus-user-key/,
+    'message contains the file section')
+  t.match(err.unknownConfigs, [
+    { where: 'cli', key: 'unknown-cli' },
+    { where: 'user', key: 'bogus-user-key' },
+  ], 'structured payload contains both cli and file entries')
+})
+
+t.test('validateCli does not throw on unknown env (npm_config_*) configs', async t => {
+  // Env unknowns warn but never error — they are excluded from getUnknownConfigs() by default.
+  // This test locks in the carve-out at the validateCli boundary so the env→warn behavior cannot silently flip if the filter changes.
+  const { npm } = await loadMockNpm(t, {
+    globals: {
+      'process.env.npm_config_bogus_env': 'yes',
+    },
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+  }
+
+  const command = new TestCommand(npm)
+  t.doesNotThrow(() => command.validateCli(),
+    'unknown env-set config does not throw at validateCli')
+  // sanity: the unknown was in fact seen by Config, just filtered from getUnknownConfigs()
+  t.ok(
+    npm.config.getUnknownConfigs('env').some(u => u.key === 'bogus-env'),
+    'env unknown is still tracked internally'
+  )
+})
+
+t.test('flags() throws with scoped (nerfdart) display for unknown cli config', async t => {
+  const { npm } = await loadMockNpm(t, {
+    argv: ['--@scope:bogus=yes'],
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+
+    async exec () {
+      return this.flags()
+    }
+  }
+
+  npm.config.argv = ['node', 'npm', 'test-command', '--@scope:bogus=yes']
+  const command = new TestCommand(npm)
+  await t.rejects(
+    command.exec(),
+    {
+      code: 'EUNKNOWNCONFIG',
+      message: /Unknown cli config:[\s\S]*--bogus \(@scope:bogus\)/,
+    },
+    'scoped display form uses baseKey (key) layout, throws EUNKNOWNCONFIG'
+  )
+})
+
+t.test('flags() throws singular "argument" for a single extra positional', async t => {
+  const { npm } = await loadMockNpm(t, {
+    argv: ['pkg1', 'extra1'],
+  })
+
+  class TestCommand extends BaseCommand {
+    static name = 'test-command'
+    static description = 'Test command'
+    static positionals = 1
+
+    async exec () {
+      return this.flags()
+    }
+  }
+
+  npm.config.argv = ['node', 'npm', 'test-command', 'pkg1', 'extra1']
+  const command = new TestCommand(npm)
+  await t.rejects(
+    command.exec(),
+    { message: 'Unknown positional argument: extra1' },
+    'singular phrasing when only one extra positional'
+  )
 })

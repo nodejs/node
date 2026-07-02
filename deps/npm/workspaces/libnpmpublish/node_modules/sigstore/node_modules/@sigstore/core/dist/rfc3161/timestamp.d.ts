@@ -1,0 +1,36 @@
+import { ASN1Obj } from '../asn1';
+import * as crypto from '../crypto';
+import { TSTInfo } from './tstinfo';
+export declare class RFC3161Timestamp {
+    root: ASN1Obj;
+    constructor(asn1: ASN1Obj);
+    static parse(der: Buffer<ArrayBuffer>): RFC3161Timestamp;
+    get status(): bigint;
+    get contentType(): string;
+    get eContentType(): string;
+    get signingTime(): Date;
+    get signerIssuer(): Buffer;
+    get signerSerialNumber(): Buffer;
+    get signerDigestAlgorithm(): string;
+    get signatureAlgorithm(): string;
+    get signatureValue(): Buffer;
+    get tstInfo(): TSTInfo;
+    verify(data: Buffer, publicKey: crypto.KeyObject): void;
+    private verifyMessageDigest;
+    private verifySignature;
+    private get pkiStatusInfoObj();
+    private get timeStampTokenObj();
+    private get contentTypeObj();
+    private get signedDataObj();
+    private get encapContentInfoObj();
+    private get signerInfosObj();
+    private get signerInfoObj();
+    private get eContentTypeObj();
+    private get eContentObj();
+    private get signedAttrsObj();
+    private get messageDigestAttributeObj();
+    private get signerSidObj();
+    private get signerDigestAlgorithmObj();
+    private get signatureAlgorithmObj();
+    private get signatureValueObj();
+}

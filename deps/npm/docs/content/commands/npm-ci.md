@@ -18,13 +18,12 @@ This command is similar to [`npm install`](/commands/npm-install), except it's m
 
 The main differences between using `npm install` and `npm ci` are:
 
-* The project **must** have an existing `package-lock.json` or
-  `npm-shrinkwrap.json`.
+* The project **must** have an existing `package-lock.json`.
 * If dependencies in the package lock do not match those in `package.json`,
   `npm ci` will exit with an error, instead of updating the package lock.
 * `npm ci` can only install entire projects at a time: individual dependencies cannot be added with this command.
 * If a `node_modules` is already present, it will be automatically removed before `npm ci` begins its install.
-* It will never write to `package.json` or any of the package-locks:
+* It will never write to `package.json` or `package-lock.json`:
   installs are essentially frozen.
 
 NOTE: If you create your `package-lock.json` file by running `npm install` with flags that can affect the shape of your dependency tree, such as
@@ -114,8 +113,7 @@ on deeper dependencies. Sets `--install-strategy=shallow`.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.
@@ -227,7 +225,7 @@ dependencies to be used for other commands like `npm view`
 
 #### `allow-git`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from git references. That
@@ -235,6 +233,11 @@ is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Git dependencies run `git` against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in `.npmrc`) or per command (on the CLI) when you
+need git deps.
 
 `all` allows any git dependencies to be fetched and installed. `none`
 prevents any git dependencies from being fetched and installed. `root` only
@@ -246,7 +249,7 @@ like `npm view`
 
 #### `allow-remote`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from urls. That is,
@@ -254,6 +257,13 @@ dependencies that point to a tarball url instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set `replace-registry-host` or
+override this setting. Opt in explicitly per project (in `.npmrc`) or per
+command (on the CLI) when you intentionally install from a URL.
 
 `all` allows any url to be installed. `none` prevents any url from being
 installed. `root` only allows urls defined in your project's package.json to
@@ -290,11 +300,12 @@ the package's self-reported name. `--ignore-scripts` and
 * Type: Boolean
 
 If `true`, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by `allowScripts` will fail
-the install instead of running with a notice.
+any dependency with install scripts that is not covered by `allowScripts`
+will fail the install instead of being blocked with a warning.
 
 Dependencies explicitly denied with `false` in `allowScripts` are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 `--ignore-scripts` and `--dangerously-allow-all-scripts` both override this
 setting.
 

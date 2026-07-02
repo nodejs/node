@@ -72,7 +72,7 @@ t.test('should log output as valid json', async t => {
 })
 
 t.test('should log scoped package output as valid json', async t => {
-  const { npm, outputs, outputErrors, logs } = await loadMockNpm(t, {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
     prefixDir: {
       'package.json': JSON.stringify({
         name: '@myscope/test-package',
@@ -90,7 +90,6 @@ t.test('should log scoped package output as valid json', async t => {
   await npm.exec('pack', [])
   const filename = 'myscope-test-package-1.0.0.tgz'
   t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
-  t.matchSnapshot(outputErrors, 'stderr has banners')
   t.matchSnapshot(logs.notice, 'logs pack contents')
   t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
@@ -132,12 +131,8 @@ t.test('foreground-scripts defaults to true', async t => {
   const filename = 'test-fg-scripts-0.0.0.tgz'
   t.strictSame(
     outputs,
-    [
-      '\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n',
-      '\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n',
-      filename,
-    ],
-    'prepack and postpack log to stdout'
+    [filename],
+    'tarball filename is the only stdout output'
   )
   t.matchSnapshot(logs.notice, 'logs pack contents')
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))

@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-view----11170">
+<h1 id="----npm-view----1200-pre1">
     <span>npm-view</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">View registry info</span>
 </header>
@@ -355,7 +355,8 @@ the specified workspaces, and not on the root project.</p>
 <h3 id="output">Output</h3>
 <p>If only a single string field for a single version is output, then it will not be colorized or quoted, to enable piping the output to another command.
 If the field is an object, it will be output as a JavaScript object literal.</p>
-<p>If the <code>--json</code> flag is given, the outputted fields will be JSON.</p>
+<p>If the <code>--json</code> flag is given, the outputted fields will be JSON.
+The output is always an array, even if only a single version matches.</p>
 <p>If the version range matches multiple versions then each printed value will be prefixed with the version it applies to.</p>
 <p>If multiple fields are requested, then each of them is prefixed with the field name.</p>
 <h3 id="see-also">See Also</h3>

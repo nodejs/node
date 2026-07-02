@@ -11,7 +11,7 @@ const { depth: dfwalk } = require('treeverse')
 const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp')
 const { promiseRetry } = require('@gar/promise-retry')
 const { log, time } = require('proc-log')
-const { resolve } = require('node:path')
+const { resolve, delimiter } = require('node:path')
 const { isScriptAllowed } = require('../script-allowed.js')
 
 const boolEnv = b => b ? '1' : ''
@@ -199,10 +199,28 @@ module.exports = cls => class Builder extends cls {
       const { package: { bin, scripts = {} } } = node.target
       const { preinstall, install, postinstall, prepare } = scripts
       const tests = { bin, preinstall, install, postinstall, prepare }
+      // allowScripts gate (RFC npm/rfcs#868): `true` runs lifecycle
+      // scripts; `false` and `null` (unreviewed) block. Bypassed by
+      // --dangerously-allow-all-scripts and workspaces (owner-managed).
+      // --ignore-scripts still wins (in #build); bins are never gated.
+      //
+      // Checked on node.target, not the Link: a Link's `resolved` is
+      // node_modules-relative (`file:../../dep`) so it can't match a
+      // project-root-relative policy key; the target carries the realpath
+      // and link specs that script-allowed.js matches on (npm/cli#9498).
+      // For non-links node.target === node, so registry deps are unaffected.
+      const scriptsAllowed =
+        this.options.dangerouslyAllowAllScripts ||
+        node.isWorkspace ||
+        isScriptAllowed(node.target, this.options.allowScripts) === true
       for (const [key, has] of Object.entries(tests)) {
-        if (has) {
-          this.#queues[key].push(node)
+        if (!has) {
+          continue
         }
+        if (key !== 'bin' && !scriptsAllowed) {
+          continue
+        }
+        this.#queues[key].push(node)
       }
     }
     timeEnd()
@@ -223,18 +241,6 @@ module.exports = cls => class Builder extends cls {
 
   async #addToBuildSet (node, set, refreshed = false) {
     if (set.has(node)) {
-      return
-    }
-
-    // Phase 1 allowScripts gate: a `false` verdict from the policy matcher
-    // means the user explicitly denied install scripts for this node, so skip
-    // it. `true` and `null` (unreviewed) both fall through to the existing
-    // detection logic — unreviewed nodes still run their scripts in Phase 1
-    // and are surfaced via the post-reify advisory warning. The global
-    // --ignore-scripts kill switch in #build() still takes precedence, and
-    // --dangerously-allow-all-scripts bypasses this gate entirely.
-    if (!this.options.dangerouslyAllowAllScripts &&
-        isScriptAllowed(node, this.options.allowScripts) === false) {
       return
     }
 
@@ -301,6 +307,7 @@ module.exports = cls => class Builder extends cls {
     await promiseCallLimit(queue.map(node => async () => {
       const {
         path,
+        name,
         integrity,
         resolved,
         optional,
@@ -309,6 +316,7 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
+        isInStore,
       } = node.target
 
       // skip any that we know we'll be deleting
@@ -329,6 +337,12 @@ module.exports = cls => class Builder extends cls {
         npm_package_peer: boolEnv(peer),
         npm_package_dev_optional:
           boolEnv(devOptional && !dev && !optional),
+      }
+      // In the linked strategy a store package's dependencies are symlinked siblings in its store node_modules.
+      // A separate bin invoked by the script (e.g. napi-postinstall) resolves modules from its own realpath in the store and cannot see those deps, so expose them via NODE_PATH.
+      if (isInStore) {
+        const storeNodeModules = resolve(path, ...name.split('/').map(() => '..'))
+        env.NODE_PATH = [storeNodeModules, process.env.NODE_PATH].filter(Boolean).join(delimiter)
       }
       const runOpts = {
         event,

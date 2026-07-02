@@ -1,5 +1,5 @@
 const { log } = require('proc-log')
-const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
+const { definitions } = require('@npmcli/config/lib/definitions')
 const nopt = require('nopt')
 
 class BaseCommand {
@@ -325,10 +325,9 @@ class BaseCommand {
       delete parsed.argv
     }
 
-    // Validate flags - only if command has definitions (new system)
-    if (this.constructor.definitions && this.constructor.definitions.length > 0) {
-      this.#validateFlags(parsed, commandDefinitions, remains)
-    }
+    // Validate unknown CLI flags/configs and unexpected positionals.
+    // Runs for every command; command-specific flags are allow-listed here so they don't trip the global unknown-config collection from Config.loadCLI().
+    this.validateCli(commandDefinitions, remains)
 
     // Check for conflicts between main flags and their aliases
     // Also map aliases back to their main keys
@@ -365,64 +364,75 @@ class BaseCommand {
     return [{ ...defaults, ...filtered }, remains]
   }
 
-  // Validate flags and throw errors for unknown flags or unexpected positionals
-  #validateFlags (parsed, commandDefinitions, remains) {
-    // Build a set of all valid flag names (global + command-specific + shorthands)
-    const validFlags = new Set([
-      ...Object.keys(definitions),
+  // Unified CLI validation — runs for every command (definitions-based and legacy).
+  // Reads collected unknown configs from Config (they were collected, not thrown, during Config.load()), subtracts any command-specific definitions, and throws a single aggregated error.
+  // Also enforces extra-positional errors for commands that set a finite `static positionals`.
+  // Shellout commands (run/exec/lifecycle) leave `static positionals = null` and are unaffected.
+  // Commands that set `static skipConfigValidation = true` (config, help, doctor, completion, version) bypass both unknown-config checks so they can operate against a broken .npmrc.
+  validateCli (commandDefinitions = this.constructor.definitions || [], remains = null) {
+    const allowlist = new Set([
       ...commandDefinitions.map(d => d.key),
-      ...Object.keys(shorthands), // Add global shorthands like 'verbose', 'dd', etc.
+      ...commandDefinitions.flatMap(d => Array.isArray(d.alias) ? d.alias : []),
     ])
 
-    // Add aliases to valid flags
-    for (const def of commandDefinitions) {
-      if (def.alias && Array.isArray(def.alias)) {
-        for (const alias of def.alias) {
-          validFlags.add(alias)
+    if (!this.constructor.skipConfigValidation) {
+      const cliUnknowns = this.npm.config.getUnknownConfigs('cli')
+        .filter(u => !allowlist.has(u.key) && !allowlist.has(u.baseKey))
+
+      const fileUnknowns = []
+      for (const where of ['builtin', 'project', 'user', 'global']) {
+        fileUnknowns.push(...this.npm.config.getUnknownConfigs(where))
+      }
+
+      if (cliUnknowns.length > 0 || fileUnknowns.length > 0) {
+        const sections = []
+        if (cliUnknowns.length > 0) {
+          const lines = cliUnknowns.map(u =>
+            u.baseKey ? `  - --${u.baseKey} (${u.key})` : `  - --${u.key}`
+          )
+          sections.push(
+            `Unknown cli config${cliUnknowns.length > 1 ? 's' : ''}:`,
+            ...lines,
+            'Run `npm help config` for supported options.'
+          )
+        }
+        if (fileUnknowns.length > 0) {
+          if (sections.length > 0) {
+            sections.push('')
+          }
+          const lines = fileUnknowns.map(u => {
+            const display = u.baseKey ? `"${u.baseKey}" (${u.key})` : `"${u.key}"`
+            return `  - ${u.where} config ${display} from ${u.source}`
+          })
+          sections.push(
+            `Unknown npm configuration key${fileUnknowns.length > 1 ? 's' : ''}:`,
+            ...lines,
+            'See `npm help npmrc` for supported config options.'
+          )
+        }
+        throw Object.assign(new Error(sections.join('\n')), {
+          code: 'EUNKNOWNCONFIG',
+          unknownConfigs: [...cliUnknowns, ...fileUnknowns],
+        })
+      }
+    }
+
+    // Positionals consumed as flag values by command-specific definitions were queued as "unknown positional" warnings by Config.unknownHandler; drop those since they're actually flag arguments.
+    if (Array.isArray(remains)) {
+      const remainsSet = new Set(remains)
+      for (const unknownPos of this.npm.config.getUnknownPositionals()) {
+        if (!remainsSet.has(unknownPos)) {
+          this.npm.config.removeUnknownPositional(unknownPos)
         }
       }
     }
 
-    // Check parsed flags against valid flags
-    const unknownFlags = []
-    for (const key of Object.keys(parsed)) {
-      if (!validFlags.has(key)) {
-        unknownFlags.push(key)
-      }
-    }
-
-    // Throw error if unknown flags were found
-    if (unknownFlags.length > 0) {
-      const flagList = unknownFlags.map(f => `--${f}`).join(', ')
-      throw this.usageError(`Unknown flag${unknownFlags.length > 1 ? 's' : ''}: ${flagList}`)
-    }
-
-    // Remove warnings for command-specific definitions that npm's global config doesn't know about (these were queued as "unknown" during config.load())
-    for (const def of commandDefinitions) {
-      this.npm.config.removeWarning(def.key)
-      if (def.alias && Array.isArray(def.alias)) {
-        for (const alias of def.alias) {
-          this.npm.config.removeWarning(alias)
-        }
-      }
-    }
-
-    // Remove warnings for unknown positionals that were actually consumed as flag values by command-specific definitions (e.g., --id <value> where --id is command-specific)
-    const remainsSet = new Set(remains)
-    for (const unknownPos of this.npm.config.getUnknownPositionals()) {
-      if (!remainsSet.has(unknownPos)) {
-        // This value was consumed as a flag value, not truly a positional
-        this.npm.config.removeUnknownPositional(unknownPos)
-      }
-    }
-
-    // Warn about extra positional arguments beyond what the command expects
-    const expectedPositionals = this.constructor.positionals
-    if (expectedPositionals !== null && remains.length > expectedPositionals) {
-      const extraPositionals = remains.slice(expectedPositionals)
-      for (const extra of extraPositionals) {
-        throw new Error(`Unknown positional argument: ${extra}`)
-      }
+    const expected = this.constructor.positionals
+    if (expected !== null && remains !== null && remains.length > expected) {
+      const extra = remains.slice(expected)
+      throw this.usageError(
+        `Unknown positional argument${extra.length > 1 ? 's' : ''}: ${extra.join(', ')}`
+      )
     }
 
     this.npm.config.logWarnings()

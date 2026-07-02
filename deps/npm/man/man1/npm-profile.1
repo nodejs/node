@@ -1,4 +1,4 @@
-.TH "NPM-PROFILE" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-PROFILE" "1" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBnpm-profile\fR - Change settings on your registry profile
 .SS "Synopsis"
@@ -29,8 +29,6 @@ email: e@example.com (verified)
 two-factor auth: auth-and-writes
 fullname: Example User
 homepage:
-freenode:
-twitter:
 github:
 created: 2015-02-26T01:38:35.892Z
 updated: 2017-10-02T21:29:45.922Z
@@ -38,7 +36,7 @@ updated: 2017-10-02T21:29:45.922Z
 .RE
 .RS 0
 .IP \(bu 4
-\fBnpm profile set <property> <value>\fR: Set the value of a profile property. You can set the following properties this way: email, fullname, homepage, freenode, twitter, github
+\fBnpm profile set <property> <value>\fR: Set the value of a profile property. You can set the following properties this way: email, fullname, homepage, github
 .IP \(bu 4
 \fBnpm profile set password\fR: Change your password. This is interactive, you'll be prompted for your current password and a new password. You'll also be prompted for an OTP if you have two-factor authentication enabled.
 .IP \(bu 4
@@ -110,7 +108,7 @@ If not set, and a registry response fails with a challenge for a one-time passwo
 .SS "See Also"
 .RS 0
 .IP \(bu 4
-npm help adduser
+npm help login
 .IP \(bu 4
 npm help registry
 .IP \(bu 4

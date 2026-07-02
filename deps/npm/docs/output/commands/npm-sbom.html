@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-sbom----11170">
+<h1 id="----npm-sbom----1200-pre1">
     <span>npm-sbom</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">Generate a Software Bill of Materials (SBOM)</span>
 </header>
@@ -389,7 +389,7 @@ SBOMs can be generated in either <a href="https://spdx.dev/">SPDX</a> or <a href
 }
 </code></pre>
 <h3 id="package-lock-only-mode">Package lock only mode</h3>
-<p>If package-lock-only is enabled, only the information in the package lock (or shrinkwrap) is loaded.
+<p>If package-lock-only is enabled, only the information in the package lock is loaded.
 This means that information from the package.json files of your dependencies will not be included in the result set (e.g.
 description, homepage, engines).</p>
 <h3 id="configuration">Configuration</h3>
@@ -401,8 +401,7 @@ description, homepage, engines).</p>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
-<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
-physically installed on disk.</p>
+<code>package-lock.json</code> file. They are just not physically installed on disk.</p>
 <p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment

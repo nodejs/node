@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-update----11170">
+<h1 id="----npm-update----1200-pre1">
     <span>npm-update</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@12.0.0-pre.1</span>
 </h1>
 <span class="description">Update packages</span>
 </header>
@@ -347,8 +347,7 @@ on deeper dependencies. Sets <code>--install-strategy=shallow</code>.</p>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
-<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
-physically installed on disk.</p>
+<code>package-lock.json</code> file. They are just not physically installed on disk.</p>
 <p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
@@ -429,10 +428,11 @@ the package's self-reported name. <code>--ignore-scripts</code> and
 <li>Type: Boolean</li>
 </ul>
 <p>If <code>true</code>, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by <code>allowScripts</code> will fail
-the install instead of running with a notice.</p>
+any dependency with install scripts that is not covered by <code>allowScripts</code>
+will fail the install instead of being blocked with a warning.</p>
 <p>Dependencies explicitly denied with <code>false</code> in <code>allowScripts</code> are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 <code>--ignore-scripts</code> and <code>--dangerously-allow-all-scripts</code> both override this
 setting.</p>
 <h4 id="dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></h4>
@@ -471,6 +471,8 @@ wins (an explicit absolute date overrides a relative window). Across
 sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
 global), so a higher-priority source can always relax or override a
 lower-priority one.</p>
+<p>As with <code>min-release-age</code>, when this cutoff blocks a fix that <code>npm audit fix</code> would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.</p>
 <p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
 filter.</p>
 <h4 id="min-release-age"><code>min-release-age</code></h4>
@@ -488,6 +490,11 @@ your <code>.npmrc</code> is preserved when npm internally spawns a sub-process w
 <code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
 apply, <code>before</code> wins within a single source and across sources the standard
 precedence rules apply.</p>
+<p>When this window stops <code>npm audit fix</code> from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+<code>min-release-age-exclude</code>, or relax <code>min-release-age</code> or <code>before</code>.</p>
 <p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
 filter.</p>
 <p>This value is not exported to the environment for child processes.</p>
@@ -597,7 +604,6 @@ workspaces.</p>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-outdated.html">npm outdated</a></li>
-<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>

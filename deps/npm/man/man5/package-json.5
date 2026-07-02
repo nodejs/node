@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "June 2026" "NPM@11.17.0" ""
+.TH "PACKAGE.JSON" "5" "June 2026" "NPM@12.0.0-pre.1" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -324,7 +324,7 @@ Some files are always ignored by default:
 .IP \(bu 4
 \fBnpm-debug.log\fR
 .IP \(bu 4
-\fBpackage-lock.json\fR (use \fB\[rs]fBnpm-shrinkwrap.json\[rs]fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR if you wish it to be published)
+\fBpackage-lock.json\fR
 .IP \(bu 4
 \fBpnpm-lock.yaml\fR
 .IP \(bu 4
@@ -426,10 +426,15 @@ Note that you can also set the executable files using \fI(directories.bin)\fR.
 .P
 See \fBfolders\fR \fI\(la/configuring-npm/folders#executables\(ra\fR for more info on executables.
 .SS "man"
+.RS 0
 .P
-Specify either a single file or an array of filenames to put in place for the \fBman\fR program to find.
+\fBNote:\fR As of npm v12, man pages are no longer registered with the system \fBman\fR program. This field is retained for backward compatibility with package metadata and tools that consume it, but \fBman <pkgname>\fR will not work after a global install. Use \fBnpm help <pkgname>\fR instead where supported.
+.RE 0
+
 .P
-If only a single file is provided, then it's installed such that it is the result from \fBman <pkgname>\fR, regardless of its actual filename. For example:
+Specify either a single file or an array of filenames to include as man pages.
+.P
+If only a single file is provided, then it corresponds to \fBman <pkgname>\fR, regardless of its actual filename. For example:
 .P
 .RS 2
 .nf
@@ -443,7 +448,7 @@ If only a single file is provided, then it's installed such that it is the resul
 .fi
 .RE
 .P
-would link the \fB./man/doc.1\fR file in such that it is the target for \fBman foo\fR
+would associate the \fB./man/doc.1\fR file such that it is the target for \fBman foo\fR
 .P
 If the filename doesn't start with the package name, then it's prefixed. So, this:
 .P
@@ -462,9 +467,9 @@ If the filename doesn't start with the package name, then it's prefixed. So, thi
 .fi
 .RE
 .P
-will create files to do \fBman foo\fR and \fBman foo-bar\fR.
+will correspond to \fBman foo\fR and \fBman foo-bar\fR.
 .P
-Man files must end with a number, and optionally a \fB.gz\fR suffix if they are compressed. The number dictates which man section the file is installed into.
+Man files must end with a number, and optionally a \fB.gz\fR suffix if they are compressed. The number dictates which man section the file belongs to.
 .P
 .RS 2
 .nf
@@ -494,7 +499,7 @@ If you specify a \fBbin\fR directory in \fBdirectories.bin\fR, all the files in 
 Because of the way the \fBbin\fR directive works, specifying both a \fBbin\fR path and setting \fBdirectories.bin\fR is an error. If you want to specify individual files, use \fBbin\fR, and for all the files in an existing \fBbin\fR directory, use \fBdirectories.bin\fR.
 .SS "directories.man"
 .P
-A folder that is full of man pages. Sugar to generate a "man" array by walking the folder.
+A folder that is full of man pages. Sugar to generate a "man" array by walking the folder. See the note on \fB\[rs]fBman\[rs]fR\fR \fI(man)\fR above: as of npm v12, these are no longer installed into the system \fBman\fR path.
 .SS "repository"
 .P
 Specify the place where your code lives. This is helpful for people who want to contribute. If the git repo is on GitHub, then the \fBnpm repo\fR command will be able to find you.
@@ -879,6 +884,18 @@ Alternatively, \fB"bundleDependencies"\fR can be defined as a boolean value. A v
 .P
 If a dependency can be used, but you would like npm to proceed if it cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR object. This is a map of package name to version or URL, just like the \fBdependencies\fR object. The difference is that build failures do not cause installation to fail. Running \fBnpm install --omit=optional\fR will prevent these dependencies from being installed.
 .P
+For example:
+.P
+.RS 2
+.nf
+{
+  "optionalDependencies": {
+    "@npm/foo": "^1.0.0"
+  }
+}
+.fi
+.RE
+.P
 It is still your program's responsibility to handle the lack of the dependency. For example, something like this:
 .P
 .RS 2
@@ -908,7 +925,7 @@ If you need to make specific changes to dependencies of your dependencies, for e
 .P
 Overrides provide a way to replace a package in your dependency tree with another version, or another package entirely. These changes can be scoped as specific or as vague as desired.
 .P
-Overrides are only considered in the root \fBpackage.json\fR file for a project. Overrides in installed dependencies (including npm help workspaces) are not considered in dependency tree resolution. Published packages may dictate their resolutions by pinning dependencies or using an \fB\[rs]fBnpm-shrinkwrap.json\[rs]fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR file.
+Overrides are only considered in the root \fBpackage.json\fR file for a project. Overrides in installed dependencies (including npm help workspaces) are not considered in dependency tree resolution. Published packages may dictate their resolutions by pinning dependencies or using \fB\[rs]fBbundleDependencies\[rs]fR\fR \fI(bundleDependencies)\fR.
 .P
 To make sure the package \fB@npm/foo\fR is always installed as version \fB1.0.0\fR no matter what version your dependencies rely on:
 .P
@@ -1069,6 +1086,72 @@ These replacement methods work for both top-level overrides and nested overrides
 }
 .fi
 .RE
+.SS "packageExtensions"
+.P
+\fBpackageExtensions\fR lets a project apply small, declarative repairs to the manifests of third-party dependencies before npm resolves the dependency tree. Use it to add a missing \fBdependencies\fR, \fBoptionalDependencies\fR, or \fBpeerDependencies\fR entry, or to correct \fBpeerDependencies\fR and \fBpeerDependenciesMeta\fR, while you wait for the upstream package to publish a fix.
+.P
+This is especially useful with \fB\[rs]fBinstall-strategy=linked\[rs]fR\fR \fI\(la/using-npm/config#install-strategy\(ra\fR, where dependencies are fully isolated and a package only sees what it actually declared. A package that worked under a hoisted layout because a dependency happened to be hoisted above it can fail under \fBlinked\fR; \fBpackageExtensions\fR records the missing edge as explicit, reviewable, root-owned policy.
+.P
+\fBpackageExtensions\fR complements \fB\[rs]fBoverrides\[rs]fR\fR \fI(overrides)\fR: \fBoverrides\fR changes what an existing dependency edge resolves to, while \fBpackageExtensions\fR adds or corrects the dependency metadata that creates the edge in the first place. For changing the resolved version of a dependency that is already declared, use \fBoverrides\fR.
+.P
+Like \fBoverrides\fR, \fBpackageExtensions\fR is only honored in the root \fBpackage.json\fR of a project (the workspace root in a workspace). The field in installed dependencies and in non-root workspace packages is ignored. Because it is root-only project policy, npm refuses to publish a non-private package that contains \fBpackageExtensions\fR; it remains available to private packages and unpublished local projects.
+.P
+Each key is a package selector: a package name with an optional semver range.
+.P
+.RS 2
+.nf
+{
+  "packageExtensions": {
+    "broken-package@1": {
+      "dependencies": {
+        "missing-runtime-dep": "^2.0.0"
+      }
+    },
+    "typescript-plugin@4.3.0": {
+      "peerDependencies": {
+        "typescript": ">=5"
+      },
+      "peerDependenciesMeta": {
+        "typescript": {
+          "optional": true
+        }
+      }
+    },
+    "@scope/uses-types@2": {
+      "dependencies": {
+        "@types/node": "^22.0.0"
+      }
+    }
+  }
+}
+.fi
+.RE
+.RS 0
+.IP \(bu 4
+\fB"foo"\fR matches all versions of \fBfoo\fR.
+.IP \(bu 4
+\fB"foo@1"\fR matches versions satisfying \fB1\fR.
+.IP \(bu 4
+\fB"@scope/foo@^2.3.0"\fR matches versions satisfying \fB^2.3.0\fR.
+.RE 0
+
+.P
+Selectors match a candidate package's own \fBname\fR and \fBversion\fR. They do not accept dist-tags, git, file, directory, URL, or \fBnpm:\fR alias specs. For aliases, the selector matches the underlying package name. At most one selector may match a given package; overlapping selectors that both match the same package fail the install.
+.P
+Only \fBdependencies\fR, \fBoptionalDependencies\fR, \fBpeerDependencies\fR, and \fBpeerDependenciesMeta\fR may be extended. The merge rules are:
+.RS 0
+.IP \(bu 4
+\fBdependencies\fR and \fBoptionalDependencies\fR entries add a missing dependency only. Adding a name that the package already declares in either field is an error; use \fBoverrides\fR to change a version.
+.IP \(bu 4
+\fBpeerDependencies\fR entries are merged by name, replacing an existing range.
+.IP \(bu 4
+\fBpeerDependenciesMeta\fR entries are merged by name and then by key, so you can add \fBoptional: true\fR without dropping other metadata. Every \fBpeerDependenciesMeta\fR entry must correspond to a \fBpeerDependencies\fR entry.
+.RE 0
+
+.P
+Deletion is not supported; a \fBnull\fR, \fBfalse\fR, or \fB"-"\fR value is an error.
+.P
+\fBpackageExtensions\fR does not rewrite the installed package's \fBpackage.json\fR on disk and does not modify \fBbundleDependencies\fR. Affected packages are recorded in \fBpackage-lock.json\fR and surfaced by npm help explain and npm help ls, so each repair is easy to audit and to remove once upstream is fixed.
 .SS "engines"
 .P
 You can specify the version of node that your stuff works on:

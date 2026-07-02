@@ -1,8 +1,7 @@
-const url = require('url')
-const path = require('path')
-const Stream = require('stream').Stream
-const os = require('os')
-const debug = require('./debug')
+const os = require('node:os')
+const path = require('node:path')
+const { Stream } = require('node:stream')
+const { URL } = require('node:url')
 
 function validateString (data, k, val) {
   data[k] = String(val)
@@ -31,7 +30,6 @@ function validatePath (data, k, val) {
 }
 
 function validateNumber (data, k, val) {
-  debug('validate Number %j %j %j', k, val, isNaN(val))
   if (isNaN(val)) {
     return false
   }
@@ -40,7 +38,6 @@ function validateNumber (data, k, val) {
 
 function validateDate (data, k, val) {
   const s = Date.parse(val)
-  debug('validate Date %j %j %j', k, val, s)
   if (isNaN(s)) {
     return false
   }
@@ -63,13 +60,11 @@ function validateBoolean (data, k, val) {
 }
 
 function validateUrl (data, k, val) {
-  // Changing this would be a breaking change in the npm cli
-  /* eslint-disable-next-line node/no-deprecated-api */
-  val = url.parse(String(val))
-  if (!val.host) {
+  const parsed = URL.parse(String(val))
+  if (!parsed) {
     return false
   }
-  data[k] = val.href
+  data[k] = parsed.href
 }
 
 function validateStream (data, k, val) {
@@ -82,7 +77,7 @@ function validateStream (data, k, val) {
 module.exports = {
   String: { type: String, validate: validateString },
   Boolean: { type: Boolean, validate: validateBoolean },
-  url: { type: url, validate: validateUrl },
+  url: { type: URL, validate: validateUrl },
   Number: { type: Number, validate: validateNumber },
   path: { type: path, validate: validatePath },
   Stream: { type: Stream, validate: validateStream },

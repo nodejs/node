@@ -301,7 +301,7 @@ Some files are always ignored by default:
 * `config.gypi`
 * `node_modules`
 * `npm-debug.log`
-* `package-lock.json` (use [`npm-shrinkwrap.json`](/configuring-npm/npm-shrinkwrap-json) if you wish it to be published)
+* `package-lock.json`
 * `pnpm-lock.yaml`
 * `yarn.lock`
 * `bun.lockb`
@@ -399,9 +399,11 @@ See [folders](/configuring-npm/folders#executables) for more info on executables
 
 ### man
 
-Specify either a single file or an array of filenames to put in place for the `man` program to find.
+> **Note:** As of npm v12, man pages are no longer registered with the system `man` program. This field is retained for backward compatibility with package metadata and tools that consume it, but `man <pkgname>` will not work after a global install. Use `npm help <pkgname>` instead where supported.
 
-If only a single file is provided, then it's installed such that it is the result from `man <pkgname>`, regardless of its actual filename.
+Specify either a single file or an array of filenames to include as man pages.
+
+If only a single file is provided, then it corresponds to `man <pkgname>`, regardless of its actual filename.
 For example:
 
 ```json
@@ -414,7 +416,7 @@ For example:
 }
 ```
 
-would link the `./man/doc.1` file in such that it is the target for `man foo`
+would associate the `./man/doc.1` file such that it is the target for `man foo`
 
 If the filename doesn't start with the package name, then it's prefixed.
 So, this:
@@ -432,10 +434,10 @@ So, this:
 }
 ```
 
-will create files to do `man foo` and `man foo-bar`.
+will correspond to `man foo` and `man foo-bar`.
 
 Man files must end with a number, and optionally a `.gz` suffix if they are compressed.
-The number dictates which man section the file is installed into.
+The number dictates which man section the file belongs to.
 
 ```json
 {
@@ -469,7 +471,7 @@ If you want to specify individual files, use `bin`, and for all the files in an 
 #### directories.man
 
 A folder that is full of man pages.
-Sugar to generate a "man" array by walking the folder.
+Sugar to generate a "man" array by walking the folder. See the note on [`man`](#man) above: as of npm v12, these are no longer installed into the system `man` path.
 
 ### repository
 
@@ -840,6 +842,16 @@ This is a map of package name to version or URL, just like the `dependencies` ob
 The difference is that build failures do not cause installation to fail.
 Running `npm install --omit=optional` will prevent these dependencies from being installed.
 
+For example:
+
+```json
+{
+  "optionalDependencies": {
+    "@npm/foo": "^1.0.0"
+  }
+}
+```
+
 It is still your program's responsibility to handle the lack of the dependency.
 For example, something like this:
 
@@ -872,7 +884,7 @@ These changes can be scoped as specific or as vague as desired.
 
 Overrides are only considered in the root `package.json` file for a project.
 Overrides in installed dependencies (including [workspaces](/using-npm/workspaces)) are not considered in dependency tree resolution.
-Published packages may dictate their resolutions by pinning dependencies or using an [`npm-shrinkwrap.json`](/configuring-npm/npm-shrinkwrap-json) file.
+Published packages may dictate their resolutions by pinning dependencies or using [`bundleDependencies`](#bundledependencies).
 
 To make sure the package `@npm/foo` is always installed as version `1.0.0` no matter what version your dependencies rely on:
 
@@ -1020,6 +1032,66 @@ For example, to replace a transitive dependency with a fork:
   }
 }
 ```
+
+### packageExtensions
+
+`packageExtensions` lets a project apply small, declarative repairs to the manifests of third-party dependencies before npm resolves the dependency tree.
+Use it to add a missing `dependencies`, `optionalDependencies`, or `peerDependencies` entry, or to correct `peerDependencies` and `peerDependenciesMeta`, while you wait for the upstream package to publish a fix.
+
+This is especially useful with [`install-strategy=linked`](/using-npm/config#install-strategy), where dependencies are fully isolated and a package only sees what it actually declared.
+A package that worked under a hoisted layout because a dependency happened to be hoisted above it can fail under `linked`; `packageExtensions` records the missing edge as explicit, reviewable, root-owned policy.
+
+`packageExtensions` complements [`overrides`](#overrides): `overrides` changes what an existing dependency edge resolves to, while `packageExtensions` adds or corrects the dependency metadata that creates the edge in the first place.
+For changing the resolved version of a dependency that is already declared, use `overrides`.
+
+Like `overrides`, `packageExtensions` is only honored in the root `package.json` of a project (the workspace root in a workspace).
+The field in installed dependencies and in non-root workspace packages is ignored.
+Because it is root-only project policy, npm refuses to publish a non-private package that contains `packageExtensions`; it remains available to private packages and unpublished local projects.
+
+Each key is a package selector: a package name with an optional semver range.
+
+```json
+{
+  "packageExtensions": {
+    "broken-package@1": {
+      "dependencies": {
+        "missing-runtime-dep": "^2.0.0"
+      }
+    },
+    "typescript-plugin@4.3.0": {
+      "peerDependencies": {
+        "typescript": ">=5"
+      },
+      "peerDependenciesMeta": {
+        "typescript": {
+          "optional": true
+        }
+      }
+    },
+    "@scope/uses-types@2": {
+      "dependencies": {
+        "@types/node": "^22.0.0"
+      }
+    }
+  }
+}
+```
+
+- `"foo"` matches all versions of `foo`.
+- `"foo@1"` matches versions satisfying `1`.
+- `"@scope/foo@^2.3.0"` matches versions satisfying `^2.3.0`.
+
+Selectors match a candidate package's own `name` and `version`. They do not accept dist-tags, git, file, directory, URL, or `npm:` alias specs. For aliases, the selector matches the underlying package name. At most one selector may match a given package; overlapping selectors that both match the same package fail the install.
+
+Only `dependencies`, `optionalDependencies`, `peerDependencies`, and `peerDependenciesMeta` may be extended. The merge rules are:
+
+- `dependencies` and `optionalDependencies` entries add a missing dependency only. Adding a name that the package already declares in either field is an error; use `overrides` to change a version.
+- `peerDependencies` entries are merged by name, replacing an existing range.
+- `peerDependenciesMeta` entries are merged by name and then by key, so you can add `optional: true` without dropping other metadata. Every `peerDependenciesMeta` entry must correspond to a `peerDependencies` entry.
+
+Deletion is not supported; a `null`, `false`, or `"-"` value is an error.
+
+`packageExtensions` does not rewrite the installed package's `package.json` on disk and does not modify `bundleDependencies`. Affected packages are recorded in `package-lock.json` and surfaced by [`npm explain`](/commands/npm-explain) and [`npm ls`](/commands/npm-ls), so each repair is easy to audit and to remove once upstream is fixed.
 
 ### engines
 

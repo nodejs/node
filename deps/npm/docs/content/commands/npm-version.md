@@ -173,8 +173,7 @@ run any pre- or post-scripts.
 
 ### Description
 
-Run this in a package directory to bump the version and write the new data back to `package.json`, `package-lock.json`, and, if present,
-`npm-shrinkwrap.json`.
+Run this in a package directory to bump the version and write the new data back to `package.json` and `package-lock.json`.
 
 The `newversion` argument should be a valid semver string, a valid second argument to [semver.inc](https://github.com/npm/node-semver#functions) (one of `patch`, `minor`, `major`, `prepatch`, `preminor`, `premajor`, `prerelease`), or `from-git`.
 In the second case, the existing version will be incremented by 1 in the specified field.

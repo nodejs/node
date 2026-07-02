@@ -49,7 +49,6 @@ t.test('legacy', t => {
       homeDir: {
         '.npmrc': [
           '//registry.npmjs.org/:_authToken=user',
-          '//registry.npmjs.org/:always-auth=user',
           '//registry.npmjs.org/:email=test-email-old@npmjs.org',
         ].join('\n'),
       },
@@ -63,8 +62,8 @@ t.test('legacy', t => {
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
     t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
-      email: 'test-email-old@npmjs.org',
-    }, 'should only have token and un-nerfed old email')
+      '//registry.npmjs.org/:email': 'test-email-old@npmjs.org',
+    }, 'should only have token and nerfed email')
   })
 
   t.test('scoped login default registry', async t => {
@@ -129,6 +128,19 @@ t.test('web', t => {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
     })
     t.match(outputs[0], '/npm-cli-test/login/cli/00000000-0000-0000-0000-000000000000')
+  })
+  t.test('proxy registry whose doneUrl points at the canonical registry', async t => {
+    // Regression for npm/cli#8875: a proxy/mirror returns a doneUrl on registry.npmjs.org.
+    // npm must poll the configured proxy where the session lives, not the canonical registry.
+    const proxy = 'https://proxy.registry.example/'
+    const { npm, registry, login, rc } = await mockLogin(t, {
+      registry: proxy,
+      config: { 'auth-type': 'web', registry: proxy },
+    })
+    registry.weblogin({ token: 'npm_proxy-token', doneRegistry: 'https://registry.npmjs.org' })
+    await login.exec([])
+    t.same(npm.config.get('//proxy.registry.example/:_authToken'), 'npm_proxy-token')
+    t.match(rc(), { '//proxy.registry.example/:_authToken': 'npm_proxy-token' })
   })
   t.test('server error', async t => {
     const { registry, login } = await mockLogin(t, {

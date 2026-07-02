@@ -23,7 +23,7 @@ Note that nested packages will *also* show the paths to the specified packages.
 For example, running `npm ls promzard` in npm's source tree will show:
 
 ```bash
-npm@11.17.0 /path/to/npm
+npm@12.0.0-pre.1 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 ```
@@ -120,8 +120,7 @@ project. If `--all` is set, then npm will show all dependencies by default.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.

@@ -247,6 +247,9 @@ class PlaceDep {
       installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       error: this.dep.errors[0],
+      ...(this.dep.packageExtensionsApplied
+        ? { packageExtensionsApplied: this.dep.packageExtensionsApplied }
+        : {}),
       ...(this.dep.overrides ? { overrides: this.dep.overrides } : {}),
       ...(this.dep.isLink ? { target: this.dep.target, realpath: this.dep.realpath } : {}),
     })
