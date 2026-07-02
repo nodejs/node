@@ -49,7 +49,13 @@ function checkMethods(certificate) {
     stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
     stripLineEndings(spkacPublicPem.toString('utf8'))
   );
-  assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
+  // Refs: https://github.com/nodejs/node/issues/63264
+  // exportPublicKey surfaces internal OpenSSL failures (including invalid
+  // SPKAC input) via an exception, rather than silently returning ''.
+  assert.throws(
+    () => certificate.exportPublicKey(spkacFail),
+    { code: 'ERR_OSSL_ASN1_WRONG_TAG' },
+  );
 
   assert.strictEqual(
     certificate.exportChallenge(spkacValid).toString('utf8'),
