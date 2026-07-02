@@ -8,6 +8,7 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   named: bool: 1 bit;
   has_no_side_effect: bool: 1 bit;
   has_new_callbacks_signature: bool: 1 bit;
+  has_dont_delete_property: bool: 1 bit;
 }
 
 extern class InterceptorInfo extends HeapObject {
