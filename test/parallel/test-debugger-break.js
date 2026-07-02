@@ -22,7 +22,7 @@ const cli = startCLI([script]);
   );
   assert.match(
     cli.output,
-    /> 1 (?:\(function \([^)]+\) \{ )?const x = 10;/,
+    /> 1 const x = 10;/,
     'shows the source and marks the current line');
 
   await cli.stepCommand('n');
