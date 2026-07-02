@@ -33,14 +33,25 @@ jobs:
       - name: Get Pull Requests
         id: get_mergeable_prs
         run: |
-          prs=$(gh pr list \
+          seven_days_ago=$(date --date="7 days ago" +"%Y-%m-%dT%H:%M:%SZ")
+          regular_prs=$(gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
                   --base "$GITHUB_REF_NAME" \
                   --label 'commit-queue' \
-                  --json 'number' \
-                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked" \
-                  -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
+                  --json 'number,createdAt,reviews,commits' \
+                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked -label:fast-track" \
+                  --limit 100 | jq --arg seven_days_ago "$seven_days_ago" -r '
+                    .[]
+                    | . as $pr
+                    | ([.reviews[]
+                        | select(
+                            .state == "APPROVED" and
+                            .author.login != null and
+                            .submittedAt > $pr.commits[-1].committedDate
+                          )
+                        | .author.login] | unique | length) as $approvals
+                    | select($approvals >= 2 or ($approvals == 1 and .createdAt <= $seven_days_ago))
+                    | .number' | xargs)
           fast_track_prs=$(gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
                   --base "$GITHUB_REF_NAME" \
@@ -50,7 +61,7 @@ jobs:
                   --json 'number' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
-          numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
+          numbers=$(echo "${regular_prs} ${fast_track_prs}" | xargs)
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
