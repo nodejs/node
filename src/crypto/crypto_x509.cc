@@ -21,6 +21,7 @@ using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::Digest;
 using ncrypto::ECKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
 using ncrypto::X509Pointer;
@@ -183,19 +184,35 @@ MaybeLocal<Value> GetDer(Environment* env, const X509View& view) {
 
 MaybeLocal<Value> GetSubjectAltNameString(Environment* env,
                                           const X509View& view) {
-  Local<Value> ret;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   auto bio = view.getSubjectAltName();
-  if (!bio) [[unlikely]]
+  if (!bio) [[unlikely]] {
+    // Distinguish "extension absent" (empty OpenSSL error queue) from an
+    // internal OpenSSL failure (e.g. allocation or extension parsing).
+    auto err = mark_pop_error_on_return.peekError();
+    if (err != 0) {
+      ThrowCryptoError(env, err, "Failed to get subjectAltName");
+      return {};
+    }
     return Undefined(env->isolate());
+  }
+  Local<Value> ret;
   if (!ToV8Value(env->context(), bio).ToLocal(&ret)) return {};
   return ret;
 }
 
 MaybeLocal<Value> GetInfoAccessString(Environment* env, const X509View& view) {
-  Local<Value> ret;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   auto bio = view.getInfoAccess();
-  if (!bio) [[unlikely]]
+  if (!bio) [[unlikely]] {
+    auto err = mark_pop_error_on_return.peekError();
+    if (err != 0) {
+      ThrowCryptoError(env, err, "Failed to get infoAccess");
+      return {};
+    }
     return Undefined(env->isolate());
+  }
+  Local<Value> ret;
   if (!ToV8Value(env->context(), bio).ToLocal(&ret)) {
     return {};
   }

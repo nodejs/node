@@ -330,6 +330,11 @@ oans248kpal88CGqsN2so/wZKxVnpiXlPHMdiNL7hRSUqlHkUi07FrP2Htg8kjI=
   assert.match(
     legacyObject.serialNumber,
     legacyObjectCheck.serialNumberPattern);
+  // Refs: https://github.com/nodejs/node/issues/63265
+  // agent1-cert.pem has no subjectAltName extension; the legacy object should
+  // still report this as `undefined` (extension absent), not throw, while
+  // internal OpenSSL failures are now surfaced as exceptions.
+  assert.strictEqual(legacyObject.subjectaltname, undefined);
 }
 
 {
