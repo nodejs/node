@@ -95,10 +95,7 @@ describe('TLS callback exception handling', () => {
         reject(e);
       }
     }));
-
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -113,7 +110,7 @@ describe('TLS callback exception handling', () => {
       }),
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
@@ -307,9 +304,6 @@ describe('TLS callback exception handling', () => {
       }
     }));
 
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
 
     await new Promise((res) => server.listen(0, res));
 
@@ -324,7 +318,7 @@ describe('TLS callback exception handling', () => {
       }),
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
@@ -354,10 +348,7 @@ describe('TLS callback exception handling', () => {
         reject(e);
       }
     }));
-
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -368,7 +359,7 @@ describe('TLS callback exception handling', () => {
       ALPNProtocols: ['http/1.1', 'h2'],
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
@@ -397,10 +388,7 @@ describe('TLS callback exception handling', () => {
         reject(e);
       }
     }));
-
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -411,7 +399,7 @@ describe('TLS callback exception handling', () => {
       ALPNProtocols: ['http/1.1'],
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
@@ -430,9 +418,7 @@ describe('TLS callback exception handling', () => {
 
     const { promise, resolve, reject } = createTestPromise();
 
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -474,9 +460,7 @@ describe('TLS callback exception handling', () => {
 
     const { promise, resolve, reject } = createTestPromise();
 
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -527,10 +511,7 @@ describe('TLS callback exception handling', () => {
         reject(e);
       }
     }));
-
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -541,7 +522,7 @@ describe('TLS callback exception handling', () => {
       rejectUnauthorized: false,
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
@@ -574,10 +555,7 @@ describe('TLS callback exception handling', () => {
         reject(e);
       }
     }));
-
-    server.on('secureConnection', () => {
-      reject(new Error('secureConnection should not fire'));
-    });
+    server.on('secureConnection', common.mustNotCall('secureConnection listener'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -588,7 +566,7 @@ describe('TLS callback exception handling', () => {
       rejectUnauthorized: false,
     });
 
-    client.on('error', () => {});
+    client.on('error', common.mustCall());
 
     await promise;
   });
