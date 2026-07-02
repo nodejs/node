@@ -2308,6 +2308,8 @@ Http2Stream::Http2Stream(Http2Session* session,
   if (options & STREAM_OPTION_GET_TRAILERS)
     set_has_trailers();
 
+  if (options & STREAM_OPTION_AUTO_EMPTY_TRAILERS) set_auto_empty_trailers();
+
   PushStreamListener(&stream_listener_);
 
   if (options & STREAM_OPTION_EMPTY_PAYLOAD)
@@ -2435,6 +2437,8 @@ int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
   if (options & STREAM_OPTION_GET_TRAILERS)
     set_has_trailers();
 
+  if (options & STREAM_OPTION_AUTO_EMPTY_TRAILERS) set_auto_empty_trailers();
+
   if (!is_writable())
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
 
@@ -2468,39 +2472,60 @@ int Http2Stream::SubmitInfo(const Http2Headers& headers) {
 }
 
 void Http2Stream::OnTrailers() {
+  CHECK(!this->is_destroyed());
+  set_has_trailers(false);
+  if (!auto_empty_trailers()) {
+    EmitWantTrailers();
+    return;
+  }
+  // The JS side has not registered any trailers, so the stream can be
+  // finished without calling into JS at all. The empty DATA frame cannot be
+  // submitted synchronously because OnTrailers() runs from inside the data
+  // source read callback for the final DATA frame; defer it to the next
+  // turn of the event loop, just like the JS sendTrailers() path does.
+  Debug(this, "auto-submitting empty trailers");
+  env()->SetImmediate(
+      [self = BaseObjectPtr<Http2Stream>(this)](Environment* env) {
+        if (self->is_destroyed()) return;
+        // Hand control back to the JS side if trailers were registered in
+        // the meantime or if submitting the empty DATA frame failed.
+        if (!self->auto_empty_trailers() || self->SubmitEmptyTrailers() != 0)
+          self->EmitWantTrailers();
+      });
+}
+
+void Http2Stream::EmitWantTrailers() {
   Debug(this, "let javascript know we are ready for trailers");
   CHECK(!this->is_destroyed());
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
-  set_has_trailers(false);
   MakeCallback(env()->http2session_on_stream_trailers_function(), 0, nullptr);
 }
 
-// Submit informational headers for a stream.
-int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
+// Sending an empty trailers frame poses problems in Safari, Edge & IE.
+// Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
+// to indicate that the stream is ready to be closed.
+int Http2Stream::SubmitEmptyTrailers() {
   CHECK(!this->is_destroyed());
   Http2Scope h2scope(this);
+  Debug(this, "sending empty trailers");
+  Http2Stream::Provider::Stream prov(this, 0);
+  int ret = nghttp2_submit_data(
+      session_->session(), NGHTTP2_FLAG_END_STREAM, id_, *prov);
+  CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
+  return ret;
+}
+
+// Submit trailing headers for a stream.
+int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
+  CHECK(!this->is_destroyed());
+  if (headers.length() == 0) return SubmitEmptyTrailers();
+  Http2Scope h2scope(this);
   Debug(this, "sending %d trailers", headers.length());
-  int ret;
-  // Sending an empty trailers frame poses problems in Safari, Edge & IE.
-  // Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
-  // to indicate that the stream is ready to be closed.
-  if (headers.length() == 0) {
-    Http2Stream::Provider::Stream prov(this, 0);
-    ret = nghttp2_submit_data(
-        session_->session(),
-        NGHTTP2_FLAG_END_STREAM,
-        id_,
-        *prov);
-  } else {
-    ret = nghttp2_submit_trailer(
-        session_->session(),
-        id_,
-        headers.data(),
-        headers.length());
-  }
+  int ret = nghttp2_submit_trailer(
+      session_->session(), id_, headers.data(), headers.length());
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -3110,6 +3135,15 @@ void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
       stream->SubmitTrailers(Http2Headers(env, headers)));
 }
 
+// Called by the JS layer when trailers are registered after the response
+// headers were already submitted with STREAM_OPTION_AUTO_EMPTY_TRAILERS set,
+// so that the trailers are handed back to JS instead of being auto-emptied.
+void Http2Stream::DisableAutoTrailers(const FunctionCallbackInfo<Value>& args) {
+  Http2Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+  stream->set_auto_empty_trailers(false);
+}
+
 // Grab the numeric id of the Http2Stream
 void Http2Stream::GetID(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
@@ -3547,6 +3581,8 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, stream, "pushPromise", Http2Stream::PushPromise);
   SetProtoMethod(isolate, stream, "info", Http2Stream::Info);
   SetProtoMethod(isolate, stream, "trailers", Http2Stream::Trailers);
+  SetProtoMethod(
+      isolate, stream, "disableAutoTrailers", Http2Stream::DisableAutoTrailers);
   SetProtoMethod(isolate, stream, "respond", Http2Stream::Respond);
   SetProtoMethod(isolate, stream, "rstStream", Http2Stream::RstStream);
   SetProtoMethod(isolate, stream, "refreshState", Http2Stream::RefreshState);
