@@ -287,7 +287,7 @@ needs to be pointed out separately during the onboarding.
   access to the projects coverity project as outlined in [static-analysis][].
 * If you are interested in helping out with CI reliability, check out the
   [reliability repository][] and [guide on how to deal with CI flakes][]. When
-  fixing a flaky test in `test/sequentual`, it is recommended to run
+  fixing a flaky test in `test/sequential`, it is recommended to run
   [`node-stress-single-test`][] on both the main branch and the test branch
   to verify the fix makes the test more stable under repeated runs. It is also
   good for tests in `test/parallel`, but not very reliable because the job runs
