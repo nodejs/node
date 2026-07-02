@@ -156,10 +156,13 @@ class ChannelWrap final : public AsyncWrap {
               v8::Local<v8::Object> object,
               int timeout,
               int tries,
-              int max_timeout);
+              int max_timeout,
+              unsigned int qcache_max_ttl);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AresGetAddrInfo(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   void Setup();
   void EnsureServers();
@@ -192,6 +195,7 @@ class ChannelWrap final : public AsyncWrap {
   int timeout_;
   int tries_;
   int max_timeout_;
+  unsigned int qcache_max_ttl_;
   int active_query_count_ = 0;
   NodeAresTask::List task_list_;
 };

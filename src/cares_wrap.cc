@@ -816,11 +816,13 @@ ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object,
                          int timeout,
                          int tries,
-                         int max_timeout)
+                         int max_timeout,
+                         unsigned int qcache_max_ttl)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
       timeout_(timeout),
       tries_(tries),
-      max_timeout_(max_timeout) {
+      max_timeout_(max_timeout),
+      qcache_max_ttl_(qcache_max_ttl) {
   MakeWeak();
 
   Setup();
@@ -834,15 +836,17 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 3);
+  CHECK_EQ(args.Length(), 4);
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
   CHECK(args[2]->IsInt32());
+  CHECK(args[3]->IsUint32());
   const int timeout = args[0].As<Int32>()->Value();
   const int tries = args[1].As<Int32>()->Value();
   const int max_timeout = args[2].As<Int32>()->Value();
+  const unsigned int qcache_max_ttl = args[3].As<Uint32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout, tries, max_timeout);
+  new ChannelWrap(env, args.This(), timeout, tries, max_timeout, qcache_max_ttl);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -894,7 +898,7 @@ void ChannelWrap::Setup() {
   options.sock_state_cb_data = this;
   options.timeout = timeout_;
   options.tries = tries_;
-  options.qcache_max_ttl = 0;
+  options.qcache_max_ttl = qcache_max_ttl_;
 
   int r;
   if (!library_inited_) {
@@ -2016,6 +2020,195 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+}  // anonymous namespace
+class AresGetAddrInfoReqWrap final : public AsyncWrap {
+ public:
+  AresGetAddrInfoReqWrap(Environment* env,
+                         Local<Object> req_wrap_obj,
+                         uint8_t order)
+      : AsyncWrap(env, req_wrap_obj, PROVIDER_GETADDRINFOREQWRAP),
+        order_(order) {
+    MakeWeak();
+  }
+
+  uint8_t order() const { return order_; }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {}
+  SET_MEMORY_INFO_NAME(AresGetAddrInfoReqWrap)
+  SET_SELF_SIZE(AresGetAddrInfoReqWrap)
+
+ private:
+  const uint8_t order_;
+};
+
+struct AresGetAddrInfoCallbackData {
+  ChannelWrap* channel;
+  AresGetAddrInfoReqWrap* req_wrap;
+  AresGetAddrInfoCallbackData(ChannelWrap* c,
+                              AresGetAddrInfoReqWrap* r)
+      : channel(c), req_wrap(r) {}
+};
+
+void AfterAresGetAddrInfo(void* arg,
+                          int status,
+                          int timeouts,
+                          struct ares_addrinfo* result) {
+  auto data = std::unique_ptr<AresGetAddrInfoCallbackData>(
+      static_cast<AresGetAddrInfoCallbackData*>(arg));
+  auto cleanup = OnScopeLeave([&]() {
+    if (result) ares_freeaddrinfo(result);
+  });
+
+  ChannelWrap* channel = data->channel;
+  AresGetAddrInfoReqWrap* req_wrap = data->req_wrap;
+  Environment* env = req_wrap->env();
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  channel->ModifyActivityQueryCount(-1);
+
+  Local<Value> argv[] = {
+    Integer::New(env->isolate(), status),
+    Null(env->isolate())
+  };
+
+  uint32_t n = 0;
+  const uint8_t order = req_wrap->order();
+
+  if (status == ARES_SUCCESS) {
+    Local<Array> results = Array::New(env->isolate());
+
+    auto add = [&](bool want_ipv4, bool want_ipv6) -> Maybe<void> {
+      for (auto p = result->nodes; p != nullptr; p = p->ai_next) {
+        const char* addr;
+        if (want_ipv4 && p->ai_family == AF_INET) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in*>(p->ai_addr)->sin_addr));
+        } else if (want_ipv6 && p->ai_family == AF_INET6) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in6*>(p->ai_addr)->sin6_addr));
+        } else {
+          continue;
+        }
+
+        char ip[INET6_ADDRSTRLEN];
+        if (uv_inet_ntop(p->ai_family, addr, ip, sizeof(ip)))
+          continue;
+
+        Local<String> s = OneByteString(env->isolate(), ip);
+        if (results->Set(env->context(), n, s).IsNothing())
+          return Nothing<void>();
+        n++;
+      }
+      return JustVoid();
+    };
+
+    switch (order) {
+      case DNS_ORDER_IPV4_FIRST:
+        if (add(true, false).IsNothing() || add(false, true).IsNothing())
+          return;
+        break;
+      case DNS_ORDER_IPV6_FIRST:
+        if (add(false, true).IsNothing() || add(true, false).IsNothing())
+          return;
+        break;
+      default:
+        if (add(true, true).IsNothing()) return;
+        break;
+    }
+
+    if (n == 0) {
+      argv[0] = Integer::New(env->isolate(), ARES_ENOTFOUND);
+    }
+
+    argv[1] = results;
+  }
+
+  TRACE_EVENT_NESTABLE_ASYNC_END2(TRACING_CATEGORY_NODE2(dns, native),
+                                  "lookup",
+                                  req_wrap,
+                                  "count",
+                                  n,
+                                  "order",
+                                  order);
+
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
+}
+
+void ChannelWrap::AresGetAddrInfo(const FunctionCallbackInfo<Value>& args) {
+  ChannelWrap* channel;
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
+  Environment* env = channel->env();
+
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString());
+  CHECK(args[2]->IsInt32());
+  CHECK(args[4]->IsUint32());
+
+  Local<Object> req_wrap_obj = args[0].As<Object>();
+  node::Utf8Value hostname(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, hostname.ToStringView(), args);
+
+  std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
+
+  int32_t flags = 0;
+  if (args[3]->IsInt32()) {
+    flags = args[3].As<Int32>()->Value();
+  }
+
+  int family;
+  switch (args[2].As<Int32>()->Value()) {
+    case 0:
+      family = AF_UNSPEC;
+      break;
+    case 4:
+      family = AF_INET;
+      break;
+    case 6:
+      family = AF_INET6;
+      break;
+    default:
+      UNREACHABLE("bad address family");
+  }
+
+  uint8_t order = args[4].As<Uint32>()->Value();
+
+  auto req_wrap = new AresGetAddrInfoReqWrap(env, req_wrap_obj, order);
+
+  struct ares_addrinfo_hints hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = family;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = flags;
+
+  auto callback_data = new AresGetAddrInfoCallbackData(channel, req_wrap);
+
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(dns, native),
+                                    "lookup",
+                                    req_wrap,
+                                    "hostname",
+                                    TRACE_STR_COPY(ascii_hostname.data()),
+                                    "family",
+                                    family == AF_INET    ? "ipv4"
+                                    : family == AF_INET6 ? "ipv6"
+                                                         : "unspec");
+
+  channel->EnsureServers();
+  channel->ModifyActivityQueryCount(1);
+  ares_getaddrinfo(channel->cares_channel(),
+                   ascii_hostname.data(),
+                   nullptr,
+                   &hints,
+                   AfterAresGetAddrInfo,
+                   callback_data);
+
+  args.GetReturnValue().Set(0);
+}
+
+namespace {
 
 void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -2342,6 +2535,8 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, channel_wrap, "setServers", SetServers);
   SetProtoMethod(isolate, channel_wrap, "setLocalAddress", SetLocalAddress);
   SetProtoMethod(isolate, channel_wrap, "cancel", Cancel);
+  SetProtoMethod(
+      isolate, channel_wrap, "getaddrinfo", ChannelWrap::AresGetAddrInfo);
 
   SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
@@ -2362,6 +2557,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetServers);
   registry->Register(SetLocalAddress);
   registry->Register(Cancel);
+  registry->Register(ChannelWrap::AresGetAddrInfo);
 }
 
 }  // namespace cares_wrap
