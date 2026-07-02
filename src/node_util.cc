@@ -27,6 +27,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -42,6 +43,7 @@ using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 // If a UTF-16 character is a low/trailing surrogate.
@@ -192,6 +194,106 @@ static void Sleep(const FunctionCallbackInfo<Value>& args) {
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
+}
+
+// Returns [buffer, byteOffset, byteLength] in a single binding crossing,
+// equivalent to reading the three properties via
+// Reflect.get(view.constructor.prototype, ..., view). Uses the V8 API
+// directly so it is immune to prototype tampering and avoids the JS-side
+// overhead of the defensive accessors in lib/internal/.
+void GetArrayBufferView(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  CHECK(args[0]->IsArrayBufferView());
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+  Local<Value> values[] = {
+      view->Buffer(),
+      Number::New(isolate, static_cast<double>(view->ByteOffset())),
+      Number::New(isolate, static_cast<double>(view->ByteLength())),
+  };
+  args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
+}
+
+static bool ReadNonNegativeInteger(Local<Value> value, uint64_t* result) {
+  constexpr double kMaxSafeInteger = 9007199254740991.0;
+  double number = value.As<Number>()->Value();
+  if (number < 0 || number > kMaxSafeInteger) {
+    return false;
+  }
+  *result = static_cast<uint64_t>(number);
+  return static_cast<double>(*result) == number;
+}
+
+// Returns true iff bytes can be safely copied between the buffers given the
+// requested offsets and count. Matches lib/internal/webstreams/util.js:
+//   toBuffer !== fromBuffer &&
+//   !toBuffer.detached &&
+//   !fromBuffer.detached &&
+//   toIndex + count <= toBuffer.byteLength &&
+//   fromIndex + count <= fromBuffer.byteLength
+void CanCopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
+  CHECK(args[3]->IsNumber());
+  CHECK(args[4]->IsNumber());
+
+  // SharedArrayBuffer handles are interoperable with ArrayBuffer handles in
+  // V8, so we can use the ArrayBuffer accessors uniformly. WasDetached()
+  // always returns false on a SAB.
+  Local<ArrayBuffer> to_buffer = args[0].As<ArrayBuffer>();
+  Local<ArrayBuffer> from_buffer = args[2].As<ArrayBuffer>();
+
+  if (to_buffer->StrictEquals(from_buffer)) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+  if (to_buffer->WasDetached() || from_buffer->WasDetached()) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
+  uint64_t to_index;
+  uint64_t from_index;
+  uint64_t count;
+  if (!ReadNonNegativeInteger(args[1], &to_index) ||
+      !ReadNonNegativeInteger(args[3], &from_index) ||
+      !ReadNonNegativeInteger(args[4], &count)) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
+  const uint64_t to_byte_length = to_buffer->ByteLength();
+  const uint64_t from_byte_length = from_buffer->ByteLength();
+
+  bool ok = to_index <= to_byte_length && count <= to_byte_length - to_index &&
+            from_index <= from_byte_length &&
+            count <= from_byte_length - from_index;
+  args.GetReturnValue().Set(ok);
+}
+
+// Equivalent to:
+//   new Uint8Array(view.buffer.slice(view.byteOffset,
+//                                    view.byteOffset + view.byteLength))
+// Allocates a fresh ArrayBuffer with the view's bytes copied into it, then
+// returns a Uint8Array over the full new buffer. Avoids the JS-side
+// Reflect.get + slice round-trip.
+void CloneAsUint8Array(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK(args[0]->IsArrayBufferView());
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+  size_t byte_length = view->ByteLength();
+  Local<ArrayBuffer> new_buffer;
+  if (!ArrayBuffer::MaybeNew(isolate, byte_length).ToLocal(&new_buffer)) {
+    // MaybeNew does not schedule an exception on allocation failure.
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+    return;
+  }
+  if (byte_length > 0) {
+    size_t copied = view->CopyContents(new_buffer->Data(), byte_length);
+    CHECK_EQ(copied, byte_length);
+  }
+  args.GetReturnValue().Set(Uint8Array::New(new_buffer, 0, byte_length));
 }
 
 static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
@@ -480,6 +582,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
+  registry->Register(GetArrayBufferView);
+  registry->Register(CanCopyArrayBuffer);
+  registry->Register(CloneAsUint8Array);
   registry->Register(GuessHandleType);
   registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
@@ -589,6 +694,11 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "parseEnv", ParseEnv);
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethodNoSideEffect(
+      context, target, "getArrayBufferView", GetArrayBufferView);
+  SetMethodNoSideEffect(
+      context, target, "canCopyArrayBuffer", CanCopyArrayBuffer);
+  SetMethod(context, target, "cloneAsUint8Array", CloneAsUint8Array);
   SetMethod(context,
             target,
             "constructSharedArrayBuffer",

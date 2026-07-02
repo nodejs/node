@@ -1524,6 +1524,16 @@ static void SetDetachKey(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 
+bool ReadNonNegativeInteger(Local<Value> value, uint64_t* result) {
+  constexpr double kMaxSafeInteger = static_cast<double>((1LL << 53) - 1);
+  double number = value.As<Number>()->Value();
+  if (number < 0 || number > kMaxSafeInteger) {
+    return false;
+  }
+  *result = static_cast<uint64_t>(number);
+  return static_cast<double>(*result) == number;
+}
+
 std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
   void* pointer;
   size_t byte_length;
@@ -1551,10 +1561,10 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[4] == bytesToCopy
 
   CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
-  CHECK(args[1]->IsUint32());
+  CHECK(args[1]->IsNumber());
   CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
-  CHECK(args[3]->IsUint32());
-  CHECK(args[4]->IsUint32());
+  CHECK(args[3]->IsNumber());
+  CHECK(args[4]->IsNumber());
 
   void* destination;
   size_t destination_byte_length;
@@ -1565,16 +1575,25 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   size_t source_byte_length;
   std::tie(source, source_byte_length) = DecomposeBufferToParts(args[2]);
 
-  uint32_t destination_offset = args[1].As<Uint32>()->Value();
-  uint32_t source_offset = args[3].As<Uint32>()->Value();
-  size_t bytes_to_copy = args[4].As<Uint32>()->Value();
+  uint64_t destination_offset;
+  uint64_t source_offset;
+  uint64_t bytes_to_copy;
+  CHECK(ReadNonNegativeInteger(args[1], &destination_offset));
+  CHECK(ReadNonNegativeInteger(args[3], &source_offset));
+  CHECK(ReadNonNegativeInteger(args[4], &bytes_to_copy));
 
-  CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
-  CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
+  CHECK_LE(destination_offset, static_cast<uint64_t>(destination_byte_length));
+  CHECK_LE(source_offset, static_cast<uint64_t>(source_byte_length));
+  CHECK_LE(bytes_to_copy,
+           static_cast<uint64_t>(destination_byte_length) - destination_offset);
+  CHECK_LE(bytes_to_copy,
+           static_cast<uint64_t>(source_byte_length) - source_offset);
 
-  uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset;
-  uint8_t* src = static_cast<uint8_t*>(source) + source_offset;
-  memcpy(dest, src, bytes_to_copy);
+  uint8_t* dest = static_cast<uint8_t*>(destination) +
+                  static_cast<size_t>(destination_offset);
+  uint8_t* src =
+      static_cast<uint8_t*>(source) + static_cast<size_t>(source_offset);
+  memcpy(dest, src, static_cast<size_t>(bytes_to_copy));
 }
 
 // Converts a number parameter to size_t suitable for ArrayBuffer sizes
