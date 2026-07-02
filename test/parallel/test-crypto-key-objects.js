@@ -915,7 +915,7 @@ if (!process.features.openssl_is_boringssl) {
     const saltLengthOffset = der.indexOf(saltLengthParam);
     assert.notStrictEqual(saltLengthOffset, -1);
 
-    const importMalformedPublicKey = (key) => {
+    const importMalformedPublicKey = common.mustCall((key) => {
       const malformedKey = createPublicKey({
         key,
         format: 'der',
@@ -925,7 +925,7 @@ if (!process.features.openssl_is_boringssl) {
       assert.strictEqual(malformedKey.asymmetricKeyDetails.modulusLength, 2048);
       assert.strictEqual(malformedKey.asymmetricKeyDetails.publicExponent,
                          65537n);
-    };
+    }, 2);
 
     {
       const negativeSaltLength = Buffer.from(der);
