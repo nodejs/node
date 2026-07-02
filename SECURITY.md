@@ -284,6 +284,14 @@ the community they pose.
 * Defense-in-depth issues are never treated as Node.js security vulnerabilities,
   do not receive CVEs, and are handled as regular bugs or hardening improvements.
 
+#### Malicious protocol peers
+
+* Node.js treats data from remote network peers as untrusted, and bugs in
+  parsers or protocol implementations may be security vulnerabilities.
+* Node.js treats data from HTTP/1.1 keep-alive connections as trusted, meaning that a Node.js
+  client consuming unsolicited or misordered responses within the same HTTP/1.1 connection
+  reuse lifecycle are generally not considered Node.js vulnerabilities.
+
 #### Malicious Third-Party Modules (CWE-1357)
 
 * Code is trusted by Node.js. Therefore any scenario that requires a malicious
