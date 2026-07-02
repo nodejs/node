@@ -247,7 +247,11 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 }
 
 void MarkInvalidXofLength() {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+#else
   EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+#endif
 }
 
 // DEP0198 EOL requires XOFs without an OpenSSL-defined default output length
@@ -459,7 +463,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
     if (!mdctx_.hasXofFlag()) [[unlikely]] {
-      EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+      MarkInvalidXofLength();
       mdctx_.reset();
       return false;
     }
