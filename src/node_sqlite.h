@@ -18,6 +18,13 @@
 #include <vector>
 
 namespace node {
+
+namespace diagnostics_channel {
+class Channel;
+}  // namespace diagnostics_channel
+
+class ExternalReferenceRegistry;
+
 namespace sqlite {
 
 // Mapping from JavaScript property names to SQLite limit constants
@@ -161,6 +168,27 @@ class StatementExecutionHelper {
                                        bool use_big_ints);
 };
 
+class DatabaseSync;
+
+class BindingData : public BaseObject {
+ public:
+  SET_BINDING_ID(sqlite_binding_data)
+
+  BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BindingData)
+  SET_SELF_SIZE(BindingData)
+
+  std::unordered_set<DatabaseSync*> open_databases;
+
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
 class DatabaseSync : public BaseObject {
  public:
   enum InternalFields {
@@ -205,6 +233,10 @@ class DatabaseSync : public BaseObject {
                                 const char* param2,
                                 const char* param3,
                                 const char* param4);
+  static int TraceCallback(unsigned int type,
+                           void* user_data,
+                           void* p,
+                           void* x);
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
@@ -227,6 +259,8 @@ class DatabaseSync : public BaseObject {
   // enable that use case.
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
+  void EnableTracing();
+  void DisableTracing();
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
@@ -245,6 +279,7 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
+  diagnostics_channel::Channel* trace_channel_ = nullptr;
 
   friend class DatabaseSyncLimits;
   friend class Session;

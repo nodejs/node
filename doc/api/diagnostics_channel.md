@@ -1916,10 +1916,41 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+#### SQLite
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'sqlite.db.query'`
+
+* `sql` {string} The expanded SQL with bound parameter values substituted.
+  If expansion fails, the source SQL with unsubstituted placeholders is used
+  instead.
+* `database` {DatabaseSync} The [`DatabaseSync`][] instance that executed the
+  statement.
+* `duration` {number} SQLite's internal estimate of the statement run time in
+  nanoseconds. This reflects C-layer execution time only and does not include
+  JavaScript binding overhead such as argument marshaling or result-row
+  construction.
+
+Emitted after a SQL statement finishes executing against a [`DatabaseSync`][]
+instance. This is a **profiling** event: it fires once per statement upon
+completion and reports an estimated duration from SQLite's internal profiler.
+It is not a distributed-tracing span. There is no corresponding start event,
+no async context propagation, and no parent-span linkage. If you need
+OpenTelemetry-compatible spans or async context propagation, wrap your SQLite
+calls with a [`TracingChannel`][] at the JavaScript layer instead.
+
+Publishing is zero-overhead when there are no subscribers.
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`BoundedChannel`]: #class-boundedchannel
+[`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
