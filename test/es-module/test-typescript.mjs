@@ -61,6 +61,17 @@ test('execute a TypeScript file with node_modules', async () => {
   assert.strictEqual(result.code, 0);
 });
 
+test('execute a TypeScript package from node_modules via "exports"', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    fixtures.path('typescript/ts/test-import-ts-exports-node-modules.ts'),
+  ]);
+
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!\nHello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
+});
+
 test('expect error when executing a TypeScript file with imports with no extensions', async () => {
   const result = await spawnPromisified(process.execPath, [
     fixtures.path('typescript/ts/test-import-no-extension.ts'),
@@ -166,12 +177,13 @@ test('expect stack trace of a TypeScript file to be correct', async () => {
 
 test('execute CommonJS TypeScript file from node_modules with require-module', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/ts/test-import-ts-node-modules.ts'),
   ]);
 
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.stdout, '');
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute a TypeScript file with CommonJS syntax requiring .cts', async () => {

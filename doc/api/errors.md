@@ -3415,16 +3415,6 @@ import 'package-name'; // supported
 
 `import` with URL schemes other than `file` and `data` is unsupported.
 
-<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
-
-### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
-
-<!-- YAML
-added: v22.6.0
--->
-
-Type stripping is not supported for files descendent of a `node_modules` directory.
-
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
 ### `ERR_UNSUPPORTED_RESOLVE_REQUEST`
@@ -4290,6 +4280,19 @@ removed: v11.7.0
 An attempt was made to launch a Node.js process with an unknown `stdout` or
 `stderr` file type. This error is usually an indication of a bug within Node.js
 itself, although it is possible for user code to trigger it.
+
+<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
+
+### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
+
+<!-- YAML
+added: v22.6.0
+removed: REPLACEME
+-->
+
+Type stripping was not supported for files descendent of a `node_modules`
+directory. This restriction has been removed, and these files are now
+type-stripped like any other TypeScript file.
 
 <a id="ERR_V8BREAKITERATOR"></a>
 

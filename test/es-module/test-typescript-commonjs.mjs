@@ -133,24 +133,26 @@ test('execute a .cts file importing a .mts file export', async () => {
   assert.strictEqual(result.code, 0);
 });
 
-test('expect failure of a .cts file in node_modules', async () => {
+test('execute a .cts file in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/cts/test-cts-node_modules.cts'),
   ]);
 
-  assert.strictEqual(result.stdout, '');
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
-test('expect failure of a .ts file in node_modules', async () => {
+test('execute a .ts file in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/cts/test-ts-node_modules.cts'),
   ]);
 
-  assert.strictEqual(result.stdout, '');
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('expect failure of a .cts requiring esm without default type module', async () => {
@@ -164,15 +166,16 @@ test('expect failure of a .cts requiring esm without default type module', async
   assert.strictEqual(result.code, 1);
 });
 
-test('expect failure of a .cts file requiring esm in node_modules', async () => {
+test('execute a .cts file requiring esm in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-require-module',
+    '--no-warnings',
     fixtures.path('typescript/cts/test-mts-node_modules.cts'),
   ]);
 
-  assert.strictEqual(result.stdout, '');
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('cts -> require mts -> import cts', async () => {
