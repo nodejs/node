@@ -276,6 +276,14 @@ the community they pose.
 
 ### Examples of non-vulnerabilities
 
+#### Defense-in-depth issues
+
+* Bugs whose fixes would only improve resilience after another security
+  boundary has already failed, or reduce the impact of an issue outside the
+  Node.js threat model, are considered defense-in-depth issues.
+* Defense-in-depth issues are never treated as Node.js security vulnerabilities,
+  do not receive CVEs, and are handled as regular bugs or hardening improvements.
+
 #### Malicious Third-Party Modules (CWE-1357)
 
 * Code is trusted by Node.js. Therefore any scenario that requires a malicious
