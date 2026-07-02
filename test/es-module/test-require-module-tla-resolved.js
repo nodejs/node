@@ -8,7 +8,6 @@ const assert = require('assert');
 assert.throws(() => {
   require('../fixtures/es-modules/tla/resolved.mjs');
 }, (err) => {
-  common.expectRequiredTLAError(err);
-  assert.deepStrictEqual(common.parseRequireStack(err.message), [__filename]);
+  common.expectRequiredTLAError(err, [__filename]);
   return true;
 });
