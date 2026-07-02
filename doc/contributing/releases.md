@@ -39,24 +39,40 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 
 ## Who can make a release?
 
-Release authorization is given by the Node.js TSC. Once authorized, an
-individual must have the following:
+Individuals who are Members of the
+[backporters team](https://github.com/orgs/nodejs/teams/backporters) can
+land things on the staging branches and prepare releases. This is a
+prerequisite to being able to prepare releases which is the first step
+to becoming a releaser.
+
+Release authorization is given by the Node.js TSC. This is required to
+promote a release after it has been prepared. If you are working on
+preparing a release for the first time you can do that and have someone else
+who is already onboarded promote the release on your behalf. Once
+authorized by the TSC, an individual will be require the following:
 
 ### 1. Jenkins release access
 
-There are three relevant Jenkins jobs that should be used for a release flow:
+There are four relevant Jenkins jobs that should be used for a release flow:
 
 **a.** **Test runs:**
 **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)**
 is used for a final full-test run to ensure that the current _HEAD_ is stable.
 
-**b.** **Nightly builds:** (optional)
+**b.** **CitGM:**
+**[citgm-smoker](https://ci.nodejs.org/job/citgm-smoker/)** is used to run
+the CitGM tool which tests a build of Node.js against a defined set of
+community modules.  This is used during a release process to ensure that
+none of the commonly used modules which are tested by CitGM show functional
+regressions with the new Node.js version which could impact users.
+
+**c.** **Nightly builds:** (optional)
 **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** can be used
 to create a nightly release for the current _HEAD_ if public test releases are
 required. Builds triggered with this job are published straight to
 <https://nodejs.org/download/nightly/> and are available for public download.
 
-**c.** **Release builds:**
+**d.** **Release builds:**
 **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** does all of
 the work to build all required release assets. Promotion of the release files is
 a manual step once they are ready (see below).
@@ -66,8 +82,8 @@ this access to individuals authorized by the TSC.
 
 ### 2. \<nodejs.org> access
 
-The _dist_ user on nodejs.org controls the assets available in
-<https://nodejs.org/download/>. <https://nodejs.org/dist/> is an alias for
+The _dist_ user on the `nodejs.org` host controls the assets available in
+<https://nodejs.org/download/>.  <https://nodejs.org/dist/> is an alias for
 <https://nodejs.org/download/release/>.
 
 The Jenkins release build workers upload their artifacts to the web server as
@@ -90,6 +106,12 @@ responsible for that release. In order to be able to verify downloaded binaries,
 the public should be able to check that the `SHASUMS256.txt` file has been
 signed by someone who has been authorized to create a release.
 
+If you do not currently have a key then you should create one with a
+suitable strength with `gpg --full-generate-key`. The default options
+(currently "ECC sign and encrypt" and "Curve 25519") are good choices and
+consistent with the
+[ssh key recommendations in the GOVERNANCE.md file](https://github.com/nodejs/Release/blob/main/GOVERNANCE.md#ssh-key-guidance).
+
 The public keys should be fetchable from a known third-party keyserver.
 The OpenPGP keyserver at <https://keys.openpgp.org/> is recommended.
 Use the [submission](https://keys.openpgp.org/upload) form to submit
@@ -108,11 +130,28 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys <FINGERPRINT>
 
 The key you use may be a child/subkey of an existing key.
 
+If you wish to also upload your key to the commonly used Ubuntu keyservers
+you can do so with
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
+```
+
+and check it by switching the server name in the `--recv-keys` operation
+list above to the Ubuntu keyserver.
+
 Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
 
-> It is recommended to sign all commits under the Node.js repository.
-> Run: `git config commit.gpgsign true` inside the `node` folder.
+> All commits to branches in `nodejs/node` other than `main` and `actions/*` MUST be signed
+> otherwise pushing to those branches will be rejected by GitHub.
+> Run: `git config commit.gpgsign true` inside the `node` folder or use the
+> `-S` flag on your git operations (The examples in this document will
+> include `-S` expliticlty)
+
+While GitHub allows signing individual commits using an ssh key,
+that is not covered here as this will not allow you to sign releases, so you
+will need to set up a GPG signing key in GitHub.
 
 ## How to create a release
 
@@ -123,7 +162,7 @@ Notes:
 * Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
 * Examples will use the fictional release version `1.2.3`.
-* When preparing a security release, follow the security steps in the details
+* When preparing a _security release_, follow the security steps in the details
   sections.
 
 ### 0. Pre-release steps
@@ -135,13 +174,6 @@ and the release blog post is available on the project website.
 
 Build can be contacted best by opening up an issue on the [Build issue
 tracker][].
-
-When preparing a security release, contact Build at least two weekdays in
-advance of the expected release. To ensure that the security patch(es) can be
-properly tested, run a `node-test-pull-request` job against the `main` branch
-of the `nodejs-private/node-private` repository a day or so before the
-[CI lockdown procedure][] begins. This is to confirm that Jenkins can properly
-access the private repository.
 
 ### 1. Update the staging branch
 
@@ -174,11 +206,11 @@ When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
 backport PR with `Landed in ...`. Update the label on the original PR from
 `backport-requested-vN.x` to `backported-to-vN.x`.
 
-You can add the `Backport-PR-URL` metadata by using `--backport` with
-`git node land`
+You can add the `Backport-PR-URL` metadata automatically when landing by
+using `--backport` with `git node land`:
 
 ```bash
-git node land --backport $PR-NUMBER
+git node land -S --backport $PR-NUMBER
 ```
 
 To determine the relevant commits, use
@@ -189,16 +221,32 @@ metadata, as well as the GitHub labels such as `semver-minor` and
 omitted from a commit, the commit will show up because it's unsure if it's a
 duplicate or not.
 
+A `branch-diff` run can use a lot of credits and users are
+[limited by default to 5000 per hour](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2026-03-10).
+It is not unusual for a run of branch-diff to
+use around 1000 of these. For this reason it is recommended that when you
+run branch-diff you redirect the output to a file and then process it. You
+can check your current usage with `gh rate_limit` if you have the GitHub CLI
+installed and configured, or using the curl command from
+[this link](https://docs.github.com/en/rest/rate-limit/rate-limit?apiVersion=2026-03-10)
+with authentication e.g.
+
+```bash
+curl -H "Authorization: token $YOURGITHUBTOKEN" -X GET https://api.github.com/rate_limit
+```
+
 For a list of commits that could be landed in a minor release on v1.x:
 
 ```bash
 N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x --filter-release --format=simple'
 ```
 
-If the target branch is an LTS line, you should also exclude the `baking-for-lts`:
+If the target branch is an LTS line, you should also exclude the
+`baking-for-lts` and use a Current version released at least two weeks before the expected release date.
+In this example we use 25.5.0 as the base version to prepare a release for Node.js 24:
 
 ```bash
-N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x,baking-for-lts --filter-release --format=simple'
+N=24 sh -c 'branch-diff v$N.x-staging v26.5.0 --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x,baking-for-lts --filter-release --format=simple'
 ```
 
 Previously released commits and version bumps do not need to be
@@ -215,6 +263,11 @@ Carefully review the list of commits:
 
 When you are ready to cherry-pick commits, you can automate with the following
 command.
+
+Since this is slightly different from the previous branch-diff output - it
+contains only the commit SHAs and in revert order - you may wish to save
+this before piping it directly to `git cherry-pick` in case it does not go
+cleanly.
 
 ```bash
 N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x --filter-release --format=sha --reverse' | xargs git cherry-pick -S
@@ -351,6 +404,8 @@ This will ensure they are included in the "Notable Changes" section of the CHANG
 
 ### 3. Update `src/node_version.h`
 
+_(This step will be done automatically if you are using `create-release-proposal` or `git node release --prepare`)_
+
 Set the version for the proposed release using the following macros, which are
 already defined in `src/node_version.h`:
 
@@ -368,6 +423,8 @@ be produced with a version string that does not have a trailing pre-release tag:
 ```
 
 ### 4. Update the changelog
+
+_(This step will be done automatically if you are using `create-release-proposal` or `git node release --prepare`)_
 
 #### Step 1: Collect the formatted list of changes
 
@@ -485,13 +542,15 @@ are formatted correctly.
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
 `REPLACEME` tags (see [Writing Documentation](./api-documentation.md#writing-documentation)).
-Check for these tags with
 
 ```bash
 grep REPLACEME doc/api/*.md
 ```
 
-and substitute this node version with
+The above command will check for the presence of the tags and show you which
+files need to be updated.  You can then perform the replacements with one of
+the following commands using either `sed` or `perl`.  In these examples
+`$VERSION` must be prefixed with a `v`:
 
 ```bash
 sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md
@@ -509,8 +568,6 @@ or
 perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md
 ```
 
-`$VERSION` should be prefixed with a `v`.
-
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
@@ -519,6 +576,8 @@ occur when the PR is landed, but a check will be made when the release build is
 run.
 
 ### 5. Create release commit
+
+_(This step will be done automatically if you are using `create-release-proposal` or `git node release --prepare`)_
 
 The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
 `REPLACEME` changes should be the final commit that will be tagged for the
@@ -560,6 +619,8 @@ Otherwise, you will leak the commits before the security release.
 </details>
 
 ### 6. Propose release on GitHub
+
+_(This step will be done automatically if you are using `create-release-proposal` or `git node release --prepare`)_
 
 Push the release branch to `nodejs/node`, not to your own fork. This allows
 release branches to more easily be passed between members of the release team if
@@ -612,12 +673,17 @@ purpose. Run it once with the base `vx.x` branch as a reference and with the
 proposal branch to check if new regressions could be introduced in the
 ecosystem.
 
-Use `ncu-ci` to compare `vx.x` run (10) and proposal branch (11)
+Use `ncu-ci` with the two build numbers from the `citgm-smoker` job to
+compare the base `vx.x` run (10) and the new proposal branch (11).
 
 ```bash
 npm i -g @node-core/utils
 ncu-ci citgm 10 11
 ```
+
+A number of the modules tested by CitGM are not completely
+reliable so differences shown by the comparison are not immediately cause
+for concern.
 
 <details>
 <summary>Security release</summary>
@@ -744,7 +810,7 @@ Once you have produced builds that you're happy with you can either run
 `git node release --promote`:
 
 ```bash
-git node release --promote https://github.com/nodejs/node/pull/XXXX -S
+git node release -S --promote https://github.com/nodejs/node/pull/XXXX
 ```
 
 to automate the remaining steps until step 16 or you can perform it manually
@@ -760,11 +826,10 @@ fetch the proposal from using the `--fetch-from` flag.
 When promoting several releases, you can pass multiple URLs:
 
 ```bash
-git node release --promote \
+git node release -S --promote \
   --fetch-from git@github.com:nodejs-private/node-private.git \
   https://github.com/nodejs-private/node-private/pull/XXXX \
-  https://github.com/nodejs-private/node-private/pull/XXXX \
-  -S
+  https://github.com/nodejs-private/node-private/pull/XXXX
 ```
 
 </details>
@@ -1494,7 +1559,6 @@ Typical resolution: sign the release again.
 ```
 
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
-[CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Snap]: https://snapcraft.io/node
 [`create-release-post.yml`]: https://github.com/nodejs/nodejs.org/actions/workflows/create-release-post.yml
