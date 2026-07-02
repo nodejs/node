@@ -682,6 +682,12 @@ MaybeLocal<Object> GetPubKey(Environment* env, const ncrypto::Rsa& rsa) {
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
+  // FIX: Reject non-positive modulus (zero or negative)
+  // Addresses issue #63824
+  if (n == nullptr || BN_is_zero(n) || BN_is_negative(n)) {
+    return Undefined(env->isolate());
+  }
+  
   auto bio = BIOPointer::New(n);
   if (!bio) [[unlikely]]
     return {};
