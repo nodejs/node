@@ -25,8 +25,10 @@ for (const cipher of ciphers) {
     continue;
   }
   assert(info);
-  const info2 = getCipherInfo(info.nid);
-  assert.deepStrictEqual(info, info2);
+  if (info.nid !== undefined) {
+    const info2 = getCipherInfo(info.nid);
+    assert.deepStrictEqual(info, info2);
+  }
 }
 
 const info = getCipherInfo('aes-128-cbc');
@@ -81,4 +83,28 @@ if (!process.features.openssl_is_boringssl) {
     assert(getCipherInfo('aes-128-ocb', { ivLength: n }));
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-ocb test cases');
+}
+
+if (ciphers.includes('aes-128-siv')) {
+  const info = getCipherInfo('aes-128-siv');
+  assert.strictEqual(info.name, 'aes-128-siv');
+  assert.strictEqual(info.mode, 'siv');
+  assert.strictEqual(info.keyLength, 32);
+  assert.strictEqual(info.ivLength, undefined);
+  assert(getCipherInfo('aes-128-siv', { ivLength: 0 }));
+  assert(!getCipherInfo('aes-128-siv', { ivLength: 1 }));
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-siv test cases');
+}
+
+if (ciphers.includes('aes-128-gcm-siv')) {
+  const info = getCipherInfo('aes-128-gcm-siv');
+  assert.strictEqual(info.name, 'aes-128-gcm-siv');
+  assert.strictEqual(info.mode, 'gcm-siv');
+  assert.strictEqual(info.keyLength, 16);
+  assert.strictEqual(info.ivLength, 12);
+  assert(getCipherInfo('aes-128-gcm-siv', { ivLength: 12 }));
+  assert(!getCipherInfo('aes-128-gcm-siv', { ivLength: 11 }));
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-gcm-siv test cases');
 }

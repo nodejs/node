@@ -3187,12 +3187,78 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 
 // ============================================================================
 
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+Cipher::Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher)
+    : cipher_(cipher.get()), fetched_cipher_(std::move(cipher)) {}
+#endif
+
+Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  if (other.fetched_cipher_ != nullptr) {
+    if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
+      fetched_cipher_.reset(other.fetched_cipher_.get());
+    } else {
+      cipher_ = nullptr;
+    }
+  }
+#endif
+}
+
+Cipher& Cipher::operator=(const Cipher& other) {
+  if (this == &other) return *this;
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  if (other.fetched_cipher_ != nullptr) {
+    if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
+      fetched_cipher_.reset(other.fetched_cipher_.get());
+    } else {
+      fetched_cipher_.reset();
+      cipher_ = nullptr;
+      return *this;
+    }
+  } else {
+    fetched_cipher_.reset();
+  }
+#endif
+  cipher_ = other.cipher_;
+  return *this;
+}
+
 const Cipher Cipher::FromName(const char* name) {
-  return Cipher(EVP_get_cipherbyname(name));
+  const EVP_CIPHER* cipher = EVP_get_cipherbyname(name);
+  if (cipher != nullptr) return Cipher(cipher);
+
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
+      EVP_CIPHER_fetch(nullptr, name, nullptr));
+  if (fetched == nullptr) return Cipher();
+
+  const int mode = EVP_CIPHER_mode(fetched.get());
+  const bool is_siv_mode =
+#if OPENSSL_WITH_AES_SIV
+      mode == EVP_CIPH_SIV_MODE ||
+#endif
+#if OPENSSL_WITH_AES_GCM_SIV
+      mode == EVP_CIPH_GCM_SIV_MODE ||
+#endif
+      false;
+  if (is_siv_mode) return Cipher(std::move(fetched));
+
+  return Cipher();
+#else
+  return Cipher();
+#endif
 }
 
 const Cipher Cipher::FromNid(int nid) {
-  return Cipher(EVP_get_cipherbynid(nid));
+  const EVP_CIPHER* cipher = EVP_get_cipherbynid(nid);
+  if (cipher != nullptr) return Cipher(cipher);
+
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  const char* name = OBJ_nid2sn(nid);
+  if (name != nullptr) return FromName(name);
+#endif
+
+  return Cipher();
 }
 
 const Cipher Cipher::FromCtx(const CipherCtxPointer& ctx) {
@@ -3244,6 +3310,24 @@ bool Cipher::isCcmMode() const {
 bool Cipher::isOcbMode() const {
   if (!cipher_) return false;
   return getMode() == EVP_CIPH_OCB_MODE;
+}
+
+bool Cipher::isSivMode() const {
+  if (!cipher_) return false;
+#if OPENSSL_WITH_AES_SIV
+  return getMode() == EVP_CIPH_SIV_MODE;
+#else
+  return false;
+#endif
+}
+
+bool Cipher::isGcmSivMode() const {
+  if (!cipher_) return false;
+#if OPENSSL_WITH_AES_GCM_SIV
+  return getMode() == EVP_CIPH_GCM_SIV_MODE;
+#else
+  return false;
+#endif
 }
 
 bool Cipher::isStreamMode() const {
@@ -3300,6 +3384,14 @@ std::string_view Cipher::getModeLabel() const {
       return "ocb";
     case EVP_CIPH_OFB_MODE:
       return "ofb";
+#if OPENSSL_WITH_AES_SIV
+    case EVP_CIPH_SIV_MODE:
+      return "siv";
+#endif
+#if OPENSSL_WITH_AES_GCM_SIV
+    case EVP_CIPH_GCM_SIV_MODE:
+      return "gcm-siv";
+#endif
     case EVP_CIPH_WRAP_MODE:
       return "wrap";
     case EVP_CIPH_XTS_MODE:
@@ -3314,7 +3406,16 @@ const char* Cipher::getName() const {
   if (!cipher_) return {};
   // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
   // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
-  return OBJ_nid2sn(getNid());
+  const int nid = getNid();
+  if (nid != NID_undef) {
+    const char* name = OBJ_nid2sn(nid);
+    if (name != nullptr) return name;
+  }
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  return EVP_CIPHER_get0_name(cipher_);
+#else
+  return {};
+#endif
 }
 
 bool Cipher::isSupportedAuthenticatedMode() const {
@@ -3323,6 +3424,12 @@ bool Cipher::isSupportedAuthenticatedMode() const {
     case EVP_CIPH_GCM_MODE:
 #ifndef OPENSSL_NO_OCB
     case EVP_CIPH_OCB_MODE:
+#endif
+#if OPENSSL_WITH_AES_SIV
+    case EVP_CIPH_SIV_MODE:
+#endif
+#if OPENSSL_WITH_AES_GCM_SIV
+    case EVP_CIPH_GCM_SIV_MODE:
 #endif
       return true;
     case EVP_CIPH_STREAM_CIPHER:
@@ -3434,6 +3541,24 @@ bool CipherCtxPointer::isCcmMode() const {
 bool CipherCtxPointer::isWrapMode() const {
   if (!ctx_) return false;
   return getMode() == EVP_CIPH_WRAP_MODE;
+}
+
+bool CipherCtxPointer::isSivMode() const {
+  if (!ctx_) return false;
+#if OPENSSL_WITH_AES_SIV
+  return getMode() == EVP_CIPH_SIV_MODE;
+#else
+  return false;
+#endif
+}
+
+bool CipherCtxPointer::isGcmSivMode() const {
+  if (!ctx_) return false;
+#if OPENSSL_WITH_AES_GCM_SIV
+  return getMode() == EVP_CIPH_GCM_SIV_MODE;
+#else
+  return false;
+#endif
 }
 
 bool CipherCtxPointer::isChaCha20Poly1305() const {
@@ -4264,6 +4389,22 @@ struct CipherCallbackContext {
   void operator()(const char* name) { cb(name); }
 };
 
+#if OPENSSL_WITH_AES_SIV
+constexpr const char* kProviderOnlyAesSivCiphers[] = {
+    "aes-128-siv",
+    "aes-192-siv",
+    "aes-256-siv",
+};
+#endif
+
+#if OPENSSL_WITH_AES_GCM_SIV
+constexpr const char* kProviderOnlyAesGcmSivCiphers[] = {
+    "aes-128-gcm-siv",
+    "aes-192-gcm-siv",
+    "aes-256-gcm-siv",
+};
+#endif
+
 #if OPENSSL_VERSION_MAJOR >= 3
 template <class TypeName,
           TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
@@ -4330,6 +4471,24 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  auto maybe_push_provider_only_cipher = [&](const char* name) {
+    EVP_CIPHER* cipher = EVP_CIPHER_fetch(nullptr, name, nullptr);
+    if (cipher == nullptr) return;
+    EVP_CIPHER_free(cipher);
+    context.cb(name);
+  };
+#endif
+#if OPENSSL_WITH_AES_SIV
+  for (const char* name : kProviderOnlyAesSivCiphers) {
+    maybe_push_provider_only_cipher(name);
+  }
+#endif
+#if OPENSSL_WITH_AES_GCM_SIV
+  for (const char* name : kProviderOnlyAesGcmSivCiphers) {
+    maybe_push_provider_only_cipher(name);
+  }
+#endif
 #endif
 }
 

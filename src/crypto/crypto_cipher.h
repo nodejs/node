@@ -86,6 +86,7 @@ class CipherBase : public BaseObject {
   unsigned int auth_tag_len_;
   char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
+  bool has_siv_update_;
   int max_message_size_;
 };
 
