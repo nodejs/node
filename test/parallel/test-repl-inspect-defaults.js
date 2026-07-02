@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const cp = require('child_process');
 const child = cp.spawn(process.execPath, ['-i']);

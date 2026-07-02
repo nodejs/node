@@ -244,10 +244,6 @@
               "type": "boolean",
               "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to to find and print top-level await in the graph"
             },
-            "experimental-repl-await": {
-              "type": "boolean",
-              "description": "experimental await keyword support in REPL"
-            },
             "experimental-require-module": {
               "type": "boolean",
               "description": "Legacy alias for --require-module"

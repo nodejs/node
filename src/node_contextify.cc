@@ -1974,19 +1974,32 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  int ret = SigintWatchdogHelper::GetInstance()->Start();
-  args.GetReturnValue().Set(ret == 0);
-}
+// Runs the JavaScript function passed as the first argument with a
+// `SigintWatchdog` active, so that a SIGINT received while the function is
+// executing terminates execution.
+static void RunInterruptible(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  CHECK(args[0]->IsFunction());
+  Local<Function> fn = args[0].As<Function>();
 
-static void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
-  args.GetReturnValue().Set(had_pending_signals);
-}
+  bool received_signal = false;
+  TryCatchScope try_catch(env);
+  {
+    SigintWatchdog swd(isolate, &received_signal);
+    USE(fn->Call(env->context(), Undefined(isolate), 0, nullptr));
+  }
 
-static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
-  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
-  args.GetReturnValue().Set(ret);
+  // Convert the termination exception into a recoverable state.
+  if (received_signal) {
+    isolate->CancelTerminateExecution();
+  } else if (try_catch.HasCaught()) {
+    // A genuine exception (not a watchdog-triggered termination); propagate it.
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
+    return;
+  }
+
+  args.GetReturnValue().Set(received_signal);
 }
 
 static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
@@ -2020,11 +2033,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   ContextifyFunction::CreatePerIsolateProperties(isolate_data, target);
 
-  SetMethod(isolate, target, "startSigintWatchdog", StartSigintWatchdog);
-  SetMethod(isolate, target, "stopSigintWatchdog", StopSigintWatchdog);
-  // Used in tests.
-  SetMethodNoSideEffect(
-      isolate, target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+  SetMethod(isolate, target, "runInterruptible", RunInterruptible);
 
   SetMethod(isolate, target, "measureMemory", MeasureMemory);
   SetMethod(isolate,
@@ -2074,9 +2083,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   ContextifyFunction::RegisterExternalReferences(registry);
 
   registry->Register(CompileFunctionForCJSLoader);
-  registry->Register(StartSigintWatchdog);
-  registry->Register(StopSigintWatchdog);
-  registry->Register(WatchdogHasPendingSigint);
+  registry->Register(RunInterruptible);
   registry->Register(MeasureMemory);
   registry->Register(ContainsModuleSyntax);
 }

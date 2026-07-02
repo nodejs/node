@@ -2083,14 +2083,6 @@ added: v21.2.0
 
 Disable exposition of [Navigator API][] on the global scope.
 
-### `--no-experimental-repl-await`
-
-<!-- YAML
-added: v16.6.0
--->
-
-Use this flag to disable top-level await in REPL.
-
 ### `--no-experimental-require-module`
 
 <!-- YAML
@@ -3866,7 +3858,6 @@ one is included in the list below.
 * `--no-async-context-frame`
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
-* `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
