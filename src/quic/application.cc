@@ -760,6 +760,12 @@ class DefaultApplication final : public Session::Application {
         // during the onstream callback (via MakeCallback re-entrancy).
         return false;
       }
+
+      // The stream was created, but was immediately destroyed because there's
+      // no onstream handler.
+      if (stream->is_destroyed()) [[unlikely]] {
+        return true;
+      }
     } else {
       stream = BaseObjectPtr<Stream>(Stream::From(stream_user_data));
       if (!stream) {
