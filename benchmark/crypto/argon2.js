@@ -17,10 +17,12 @@ if (!hasOpenSSL(3, 2)) {
 const bench = common.createBenchmark(main, {
   mode: ['sync', 'async'],
   algorithm: ['argon2d', 'argon2i', 'argon2id'],
-  passes: [1, 3],
-  parallelism: [2, 4, 8],
-  memory: [2 ** 11, 2 ** 16, 2 ** 21],
-  n: [50],
+  passes: [3],
+  parallelism: [1],
+  // Argon2 memory cost dominates runtime. Keep the default suite small enough
+  // to finish while still covering a low-cost and a memory-heavy derivation.
+  memory: [2 ** 11, 2 ** 16],
+  n: [5],
 });
 
 function measureSync(n, algorithm, message, nonce, options) {
