@@ -1,7 +1,8 @@
 #include "ncrypto.h"
 
 #if !defined(OPENSSL_NO_ENGINE) &&                                             \
-    (NCRYPTO_ENGINE_COMPAT || NCRYPTO_USE_LEGACY_OPENSSL)
+    ((defined(NCRYPTO_ENGINE_COMPAT) && NCRYPTO_ENGINE_COMPAT) ||              \
+     NCRYPTO_USE_LEGACY_OPENSSL)
 #include <openssl/engine.h>
 #endif
 

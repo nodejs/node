@@ -2023,7 +2023,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
       return;
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-    dh.reset(PEM_read_bio_Parameters(bio.get(), nullptr));
+    EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
+    if (params && params.id() == EVP_PKEY_DH) dh.reset(params.release());
 #else
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
 #endif
@@ -2031,6 +2032,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   // TODO(tniessen): don't silently discard invalid dhparam.
+  // TODO(panva): In a semver-major, reject non-DH parameter PEMs instead of
+  // silently treating them as absent.
   if (!dh)
     return;
 

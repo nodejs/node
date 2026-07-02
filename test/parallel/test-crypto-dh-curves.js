@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 // Second OAKLEY group, see
 // https://github.com/nodejs/node-v0.x-archive/issues/2338 and
@@ -22,7 +22,7 @@ const bad_dh = process.features.openssl_is_boringssl ?
   crypto.createDiffieHellman('02', 'hex');
 assert.notStrictEqual(bad_dh.verifyError, 0);
 
-if (hasOpenSSL3) {
+if (hasOpenSSL(3)) {
   const smallSafePrime = crypto.createDiffieHellman(
     Buffer.from([23]), Buffer.from([2]));
   assert.notStrictEqual(smallSafePrime.verifyError, 0);

@@ -19,7 +19,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#if NCRYPTO_ENGINE_COMPAT && !defined(OPENSSL_NO_ENGINE)
+#if defined(NCRYPTO_ENGINE_COMPAT) && NCRYPTO_ENGINE_COMPAT &&                 \
+    !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
 #endif  // NCRYPTO_ENGINE_COMPAT && !OPENSSL_NO_ENGINE
 

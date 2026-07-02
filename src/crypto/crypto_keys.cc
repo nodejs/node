@@ -386,7 +386,10 @@ bool KeyObjectData::ToEncodedPublicKey(
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
       ECKeyPointer ec_key(pkey);
-      CHECK(ec_key);
+      if (!ec_key) {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+      }
       auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
       const auto group = ec_key.getGroup();
       const auto point = ec_key.getPublicKey();
@@ -432,13 +435,22 @@ bool KeyObjectData::ToEncodedPrivateKey(
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
       ECKeyPointer ec_key(pkey);
-      CHECK(ec_key);
+      if (!ec_key) {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+      }
       const BIGNUM* private_key = ec_key.getPrivateKey();
-      CHECK_NOT_NULL(private_key);
+      if (private_key == nullptr) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC private key");
+        return false;
+      }
       const auto group = ec_key.getGroup();
       auto order = BignumPointer::New();
-      CHECK(order);
-      CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+      if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
+        return false;
+      }
       auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
       if (!buf) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -1463,7 +1475,9 @@ void KeyObjectHandle::ExportECPublicRaw(
   }
 
   ECKeyPointer ec_key(m_pkey);
-  CHECK(ec_key);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
   CHECK(args[0]->IsInt32());
   auto form =
@@ -1494,15 +1508,22 @@ void KeyObjectHandle::ExportECPrivateRaw(
   }
 
   ECKeyPointer ec_key(m_pkey);
-  CHECK(ec_key);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
   const BIGNUM* private_key = ec_key.getPrivateKey();
-  CHECK_NOT_NULL(private_key);
+  if (private_key == nullptr) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to get EC private key");
+  }
 
   const auto group = ec_key.getGroup();
   auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+  if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
+  }
 
   auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
   if (!buf) {

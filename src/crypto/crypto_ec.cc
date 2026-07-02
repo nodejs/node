@@ -471,7 +471,10 @@ bool ExportJWKEcKey(Environment* env,
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   ECKeyPointer ec(m_pkey);
-  CHECK(ec);
+  if (!ec) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return false;
+  }
 
   const auto pub = ec.getPublicKey();
   const auto group = ec.getGroup();
@@ -753,10 +756,11 @@ bool GetEcKeyDetail(Environment* env,
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   ECKeyPointer ec(m_pkey);
-  CHECK(ec);
+  if (!ec) return true;
 
   const auto group = ec.getGroup();
   int nid = EC_GROUP_get_curve_name(group);
+  if (nid == NID_undef) return true;
 
   return target
       ->Set(env->context(),
@@ -772,10 +776,11 @@ bool GetEcKeyDetail(Environment* env,
 
 size_t GroupOrderSize(const EVPKeyPointer& key) {
   ECKeyPointer ec(key);
-  CHECK(ec);
+  if (!ec) return 0;
   auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(ec.getGroup(), order.get(), nullptr));
+  if (!order || !EC_GROUP_get_order(ec.getGroup(), order.get(), nullptr)) {
+    return 0;
+  }
   return order.byteLength();
 }
 }  // namespace crypto

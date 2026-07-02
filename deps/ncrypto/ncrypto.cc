@@ -1837,6 +1837,8 @@ bool GenerateDhPrivateKey(BignumPointer* out,
   return true;
 }
 
+// Recompute DH public keys locally when a private key already exists. Provider
+// keygen creates a fresh keypair, which is both slower and changes semantics.
 bool GenerateDhPublicKey(BignumPointer* out,
                          const BIGNUM* p,
                          const BIGNUM* g,
@@ -1860,6 +1862,8 @@ std::optional<int> CheckDhParams(const BIGNUM* p,
                                  const BIGNUM* g,
                                  const BIGNUM* q,
                                  const BIGNUM* j) {
+  // TODO(panva): In a semver-major, consider tightening OpenSSL 3 validation
+  // to report generator and q failures as strictly as legacy DH_check().
   if (p == nullptr || g == nullptr) return std::nullopt;
 
   const int p_bits = BN_num_bits(p);
@@ -2119,6 +2123,8 @@ DHPointer::CheckResult DHPointer::check() {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!*this) return DHPointer::CheckResult::NONE;
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // TODO(panva): In a semver-major, consider validating named DH groups
+  // through the provider instead of preserving the historical verifyError.
   if (group_name_ != nullptr) return CheckResult::NONE;
 
   DeleteFnPtr<BIGNUM, BN_free> p;
@@ -2564,12 +2570,8 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
   if (!ctx || EVP_PKEY_derive_init(ctx.get()) <= 0) {
     return {};
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
-  if (ourKey.id() == EVP_PKEY_DH &&
-      EVP_PKEY_CTX_set_dh_pad(ctx.get(), 1) <= 0) {
-    return {};
-  }
-#endif
+  // TODO(panva): In a semver-major, consider padding OpenSSL 3 DH derivation
+  // results here to match DiffieHellman::computeSecret().
   if (EVP_PKEY_derive_set_peer(ctx.get(), theirKey.get()) <= 0 ||
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0) {
     return {};
@@ -5651,11 +5653,17 @@ bool ReadRsaPssParams(const EVP_PKEY* pkey, Rsa::PssParams* params) {
                 item, item_len, 0x02, &int_header, &int_len, &int_total)) {
           return false;
         }
-        int64_t salt_length = 0;
+        // TODO(panva): In a semver-major, reject malformed RSA-PSS parameters
+        // at key import instead of omitting asymmetricKeyDetails fields.
+        if (int_len == 0 || int_len > sizeof(uint64_t) ||
+            (item[int_header] & 0x80) != 0) {
+          return false;
+        }
+        uint64_t salt_length = 0;
         for (size_t n = 0; n < int_len; n++) {
           salt_length = (salt_length << 8) | item[int_header + n];
         }
-        params->salt_length = salt_length;
+        params->salt_length = static_cast<int64_t>(salt_length);
         break;
       }
     }

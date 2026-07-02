@@ -232,11 +232,14 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
         const char* curve_name;
         if (kid == EVP_PKEY_EC) {
           ECKeyPointer ec(key);
+          if (!ec) break;
           int nid = EC_GROUP_get_curve_name(ec.getGroup());
+          if (nid == NID_undef) break;
           curve_name = OBJ_nid2sn(nid);
         } else {
           curve_name = OBJ_nid2sn(kid);
         }
+        if (curve_name == nullptr) break;
         values[0] = env->ecdh_string();
         values[1] = OneByteString(env->isolate(), curve_name);
         values[2] = Integer::New(env->isolate(), key.bits());
