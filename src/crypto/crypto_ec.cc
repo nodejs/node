@@ -11,8 +11,12 @@
 #include "v8.h"
 
 #include <openssl/bn.h>
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+#include <openssl/core_names.h>
+#endif
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
+#include <openssl/evp.h>
 
 #include <algorithm>
 
@@ -470,14 +474,14 @@ bool ExportJWKEcKey(Environment* env,
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   const EC_KEY* ec = m_pkey;
-  CHECK_NOT_NULL(ec);
+  if (ec == nullptr) return false;
 
   const auto pub = ECKeyPointer::GetPublicKey(ec);
   const auto group = ECKeyPointer::GetGroup(ec);
 
   int degree_bits = EC_GROUP_get_degree(group);
   int degree_bytes =
-    (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
+      (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
 
   auto x = BignumPointer::New();
   auto y = BignumPointer::New();
@@ -752,7 +756,25 @@ bool GetEcKeyDetail(Environment* env,
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
   const EC_KEY* ec = m_pkey;
-  CHECK_NOT_NULL(ec);
+  if (ec == nullptr) {
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+    char group_name[80];
+    size_t group_name_len = 0;
+    if (EVP_PKEY_get_utf8_string_param(m_pkey.get(),
+                                       OSSL_PKEY_PARAM_GROUP_NAME,
+                                       group_name,
+                                       sizeof(group_name),
+                                       &group_name_len) == 1 &&
+        group_name_len > 0) {
+      return target
+          ->Set(env->context(),
+                env->named_curve_string(),
+                OneByteString(env->isolate(), group_name, group_name_len))
+          .IsJust();
+    }
+#endif
+    return true;
+  }
 
   const auto group = ECKeyPointer::GetGroup(ec);
   int nid = EC_GROUP_get_curve_name(group);
@@ -764,18 +786,5 @@ bool GetEcKeyDetail(Environment* env,
       .IsJust();
 }
 
-// WebCrypto requires a different format for ECDSA signatures than
-// what OpenSSL produces, so we need to convert between them. The
-// implementation here is a adapted from Chromium's impl here:
-// https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/ecdsa.cc
-
-size_t GroupOrderSize(const EVPKeyPointer& key) {
-  const EC_KEY* ec = key;
-  CHECK_NOT_NULL(ec);
-  auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(ECKeyPointer::GetGroup(ec), order.get(), nullptr));
-  return order.byteLength();
-}
 }  // namespace crypto
 }  // namespace node

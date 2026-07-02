@@ -10,6 +10,10 @@
 #include "v8.h"
 
 #include <openssl/bn.h>
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+#include <openssl/core_names.h>
+#endif
+#include <openssl/evp.h>
 #include <openssl/rsa.h>
 
 namespace node {
@@ -332,6 +336,38 @@ bool ExportJWKRsaKey(Environment* env,
   return true;
 }
 
+static bool SetRsaKeyDetail(Environment* env,
+                            Local<Object> target,
+                            const BIGNUM* n,
+                            const BIGNUM* e) {
+  if (n == nullptr || e == nullptr) return false;
+
+  if (target
+          ->Set(env->context(),
+                env->modulus_length_string(),
+                Number::New(env->isolate(),
+                            static_cast<double>(BignumPointer::GetBitCount(n))))
+          .IsNothing()) {
+    return false;
+  }
+
+  auto public_exponent = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      BignumPointer::GetByteCount(e),
+      BackingStoreInitializationMode::kUninitialized);
+  CHECK_EQ(BignumPointer::EncodePaddedInto(
+               e,
+               static_cast<unsigned char*>(public_exponent->Data()),
+               public_exponent->ByteLength()),
+           public_exponent->ByteLength());
+
+  return target
+      ->Set(env->context(),
+            env->public_exponent_string(),
+            ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
+      .IsJust();
+}
+
 KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   Local<Value> n_value;
   Local<Value> e_value;
@@ -439,35 +475,28 @@ bool GetRsaKeyDetail(Environment* env,
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
   const ncrypto::Rsa rsa = m_pkey;
-  if (!rsa) return false;
-
-  auto pub_key = rsa.getPublicKey();
-
-  if (target
-          ->Set(env->context(),
-                env->modulus_length_string(),
-                Number::New(
-                    env->isolate(),
-                    static_cast<double>(BignumPointer::GetBitCount(pub_key.n))))
-          .IsNothing()) {
+  if (!rsa) {
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+    BIGNUM* n = nullptr;
+    BIGNUM* e = nullptr;
+    BignumPointer n_ptr;
+    BignumPointer e_ptr;
+    if (EVP_PKEY_get_bn_param(m_pkey.get(), OSSL_PKEY_PARAM_RSA_N, &n) == 1) {
+      n_ptr.reset(n);
+    }
+    if (EVP_PKEY_get_bn_param(m_pkey.get(), OSSL_PKEY_PARAM_RSA_E, &e) == 1) {
+      e_ptr.reset(e);
+    }
+    if (n_ptr && e_ptr) {
+      return SetRsaKeyDetail(env, target, n_ptr.get(), e_ptr.get());
+    }
+#endif
     return false;
   }
 
-  auto public_exponent = ArrayBuffer::NewBackingStore(
-      env->isolate(),
-      BignumPointer::GetByteCount(pub_key.e),
-      BackingStoreInitializationMode::kUninitialized);
-  CHECK_EQ(BignumPointer::EncodePaddedInto(
-               pub_key.e,
-               static_cast<unsigned char*>(public_exponent->Data()),
-               public_exponent->ByteLength()),
-           public_exponent->ByteLength());
+  auto pub_key = rsa.getPublicKey();
 
-  if (target
-          ->Set(env->context(),
-                env->public_exponent_string(),
-                ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
-          .IsNothing()) {
+  if (!SetRsaKeyDetail(env, target, pub_key.n, pub_key.e)) {
     return false;
   }
 

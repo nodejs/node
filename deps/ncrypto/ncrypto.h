@@ -946,6 +946,7 @@ class EVPKeyPointer final {
     RAW_PUBLIC,
     RAW_PRIVATE,
     RAW_SEED,
+    STORE,
   };
 
   enum class PKParseError { NOT_RECOGNIZED, NEED_PASSPHRASE, FAILED };
@@ -978,6 +979,12 @@ class EVPKeyPointer final {
     PrivateKeyEncodingConfig& operator=(const PrivateKeyEncodingConfig&);
   };
 
+  struct StorePrivateKeyConfig {
+    std::string_view uri;
+    std::optional<std::string_view> properties = std::nullopt;
+    std::optional<Buffer<const char>> passphrase = std::nullopt;
+  };
+
   static ParseKeyResult TryParsePublicKey(
       const PublicKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
@@ -988,6 +995,13 @@ class EVPKeyPointer final {
   static ParseKeyResult TryParsePrivateKey(
       const PrivateKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
+
+  // Loads a private key from an OpenSSL OSSL_STORE URI (e.g. "file:", a
+  // provider-backed scheme such as "pkcs11:"). The optional passphrase is
+  // used as the PIN/passphrase for encrypted or token-protected keys.
+  // Returns NOT_RECOGNIZED when no private key is found at the URI.
+  static ParseKeyResult TryLoadPrivateKeyFromStore(
+      const StorePrivateKeyConfig& config);
 
   EVPKeyPointer() = default;
   explicit EVPKeyPointer(EVP_PKEY* pkey);
@@ -1518,6 +1532,8 @@ class EVPMDCtxPointer final {
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
   bool verify(const Buffer<const unsigned char>& buf,
               const Buffer<const unsigned char>& sig) const;
+  int verifyOneShot(const Buffer<const unsigned char>& buf,
+                    const Buffer<const unsigned char>& sig) const;
 
   const EVP_MD* getDigest() const;
   size_t getDigestSize() const;

@@ -9,16 +9,22 @@ declare namespace InternalCryptoBinding {
   type KeyFormatRawPublic = 3;
   type KeyFormatRawPrivate = 4;
   type KeyFormatRawSeed = 5;
+  type KeyFormatStore = 6;
   type PublicKeyFormat =
     KeyFormatDER | KeyFormatPEM | KeyFormatJWK | KeyFormatRawPublic | undefined;
   type PrivateKeyFormat =
     KeyFormatDER | KeyFormatPEM | KeyFormatJWK |
-    KeyFormatRawPrivate | KeyFormatRawSeed | undefined;
+    KeyFormatRawPrivate | KeyFormatRawSeed | KeyFormatStore | undefined;
   type KeyFormat = PublicKeyFormat | PrivateKeyFormat;
   type KeyEncoding = string | number | null | undefined;
   type KeyPassphrase = ByteSource | null | undefined;
   type NamedCurve = string | null | undefined;
-  type PreparedAsymmetricKeyData = KeyObjectHandle | ByteSource | JwkKey;
+  interface StorePrivateKeyData {
+    uri: string;
+    properties: string | null;
+  }
+  type PreparedAsymmetricKeyData =
+    KeyObjectHandle | ByteSource | JwkKey | StorePrivateKeyData;
   type PreparedSecretKeyData = KeyObjectHandle | ByteSource;
   type CryptoJobAsyncMode = 0;
   type CryptoJobSyncMode = 1;
@@ -862,6 +868,7 @@ export interface CryptoBinding {
   kKeyFormatRawPrivate: InternalCryptoBinding.KeyFormatRawPrivate;
   kKeyFormatRawPublic: InternalCryptoBinding.KeyFormatRawPublic;
   kKeyFormatRawSeed: InternalCryptoBinding.KeyFormatRawSeed;
+  kKeyFormatStore: InternalCryptoBinding.KeyFormatStore;
   kKeyTypePrivate: number;
   kKeyTypePublic: number;
   kKeyTypeSecret: number;

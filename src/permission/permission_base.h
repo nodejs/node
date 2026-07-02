@@ -37,6 +37,9 @@ namespace permission {
 
 #define FFI_PERMISSIONS(V) V(FFI, "ffi", PermissionsRoot, "--allow-ffi")
 
+#define CRYPTO_STORE_PERMISSIONS(V)                                            \
+  V(CryptoStore, "crypto.store", PermissionsRoot, "--allow-crypto-store")
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
@@ -45,7 +48,8 @@ namespace permission {
   INSPECTOR_PERMISSIONS(V)                                                     \
   NET_PERMISSIONS(V)                                                           \
   ADDON_PERMISSIONS(V)                                                         \
-  FFI_PERMISSIONS(V)
+  FFI_PERMISSIONS(V)                                                           \
+  CRYPTO_STORE_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {

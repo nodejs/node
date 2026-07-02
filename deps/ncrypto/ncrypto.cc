@@ -4,13 +4,13 @@
 #include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
 #include <openssl/bytestring.h>
 #include <openssl/cipher.h>
-#include <openssl/pem.h>
 #endif
 #include <algorithm>
 #include <array>
@@ -20,6 +20,8 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#include <openssl/store.h>
+#include <openssl/ui.h>
 #if OPENSSL_WITH_ARGON2
 #include <openssl/thread.h>
 #endif
@@ -74,6 +76,7 @@ namespace {
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
+using X509PubKeyPointer = DeleteFnPtr<X509_PUBKEY, X509_PUBKEY_free>;
 
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
@@ -616,6 +619,26 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   }
 
   return -1;
+}
+
+struct StorePassphraseData {
+  Buffer<char> passphrase{.data = nullptr, .len = 0};
+  bool has_passphrase = false;
+  bool missing_passphrase = false;
+};
+
+int StorePasswordCallback(char* buf, int size, int rwflag, void* u) {
+  auto data = static_cast<StorePassphraseData*>(u);
+  if (data == nullptr || !data->has_passphrase) {
+    if (data != nullptr) data->missing_passphrase = true;
+    return -1;
+  }
+
+  size_t buflen = static_cast<size_t>(size);
+  size_t len = data->passphrase.len;
+  if (buflen < len) return -1;
+  memcpy(buf, reinterpret_cast<const char*>(data->passphrase.data), len);
+  return len;
 }
 
 // Algorithm: http://howardhinnant.github.io/date_algorithms.html
@@ -2613,6 +2636,102 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
   };
 }
 
+EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryLoadPrivateKeyFromStore(
+    const StorePrivateKeyConfig& config) {
+#if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_MAJOR < 3
+  return ParseKeyResult(PKParseError::FAILED);
+#else
+  ClearErrorOnReturn clear_error_on_return;
+  std::string uri_str(config.uri);
+  std::string properties_str;
+  const char* properties = nullptr;
+  if (config.properties.has_value()) {
+    properties_str.assign(config.properties->data(), config.properties->size());
+    properties = properties_str.c_str();
+  }
+
+  std::string passphrase_str;
+  Buffer<char> passbuf{.data = nullptr, .len = 0};
+  if (config.passphrase.has_value()) {
+    passphrase_str.assign(config.passphrase->data, config.passphrase->len);
+    passbuf.data = passphrase_str.data();
+    passbuf.len = passphrase_str.size();
+  }
+  StorePassphraseData passphrase_data{
+      .passphrase = passbuf,
+      .has_passphrase = config.passphrase.has_value(),
+  };
+  UI_METHOD* ui_method =
+      UI_UTIL_wrap_read_pem_callback(StorePasswordCallback, 0);
+  if (ui_method == nullptr) return ParseKeyResult(PKParseError::FAILED);
+
+  const OSSL_PARAM store_params[] = {OSSL_PARAM_END};
+  OSSL_STORE_CTX* ctx = OSSL_STORE_open_ex(uri_str.c_str(),
+                                           nullptr,
+                                           properties,
+                                           ui_method,
+                                           &passphrase_data,
+                                           store_params,
+                                           nullptr,
+                                           nullptr);
+  if (ctx == nullptr) {
+    bool missing_passphrase = passphrase_data.missing_passphrase;
+    int err = ERR_peek_error();
+    UI_destroy_method(ui_method);
+    if (missing_passphrase) {
+      return ParseKeyResult(PKParseError::NEED_PASSPHRASE);
+    }
+    return ParseKeyResult(PKParseError::FAILED, err);
+  }
+
+  if (!OSSL_STORE_expect(ctx, OSSL_STORE_INFO_PKEY)) {
+    bool missing_passphrase = passphrase_data.missing_passphrase;
+    int err = ERR_peek_error();
+    OSSL_STORE_close(ctx);
+    UI_destroy_method(ui_method);
+    if (missing_passphrase) {
+      return ParseKeyResult(PKParseError::NEED_PASSPHRASE);
+    }
+    return ParseKeyResult(PKParseError::FAILED, err);
+  }
+
+  EVPKeyPointer pkey;
+  int store_error = 0;
+  while (!OSSL_STORE_eof(ctx)) {
+    OSSL_STORE_INFO* info = OSSL_STORE_load(ctx);
+    if (info == nullptr) {
+      if (OSSL_STORE_error(ctx)) {
+        store_error = ERR_peek_error();
+        break;
+      }
+      continue;
+    }
+    if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY) {
+      EVP_PKEY* raw_pkey = OSSL_STORE_INFO_get1_PKEY(info);
+      if (raw_pkey != nullptr) {
+        pkey = EVPKeyPointer(raw_pkey);
+      } else {
+        store_error = ERR_peek_error();
+      }
+    }
+    OSSL_STORE_INFO_free(info);
+    if (pkey || store_error != 0) break;
+  }
+
+  OSSL_STORE_close(ctx);
+  UI_destroy_method(ui_method);
+
+  if (passphrase_data.missing_passphrase) {
+    return ParseKeyResult(PKParseError::NEED_PASSPHRASE);
+  }
+  if (store_error != 0) {
+    return ParseKeyResult(PKParseError::FAILED, store_error);
+  }
+  if (!pkey) return ParseKeyResult(PKParseError::NOT_RECOGNIZED);
+  return ParseKeyResult(std::move(pkey));
+#endif
+}
+
 Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
     const PrivateKeyEncodingConfig& config) const {
   if (config.format == PKFormatType::JWK) {
@@ -2638,6 +2757,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 #else
       RSA* rsa = EVP_PKEY_get0_RSA(get());
 #endif
+      if (rsa == nullptr) return Result<BIOPointer, bool>(false);
+
       switch (config.format) {
         case PKFormatType::PEM: {
           err = PEM_write_bio_RSAPrivateKey(
@@ -2701,6 +2822,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 #else
       EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
 #endif
+      if (ec == nullptr) return Result<BIOPointer, bool>(false);
+
       switch (config.format) {
         case PKFormatType::PEM: {
           err = PEM_write_bio_ECPrivateKey(
@@ -2754,6 +2877,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 #else
     RSA* rsa = EVP_PKEY_get0_RSA(get());
 #endif
+    if (rsa == nullptr) return Result<BIOPointer, bool>(false);
+
     if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
       // Encode PKCS#1 as PEM.
       if (PEM_write_bio_RSAPublicKey(bio.get(), rsa) != 1) {
@@ -2773,10 +2898,28 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 
   if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
     // Encode SPKI as PEM.
+#if OPENSSL_VERSION_MAJOR == 3
+    // Build the SubjectPublicKeyInfo wrapper explicitly before PEM encoding.
+    // Provider-backed keys can fail the direct PEM_write_bio_PUBKEY() path even
+    // when OpenSSL can materialize the public wrapper with X509_PUBKEY_set().
+    X509_PUBKEY* pubkey = nullptr;
+    if (X509_PUBKEY_set(&pubkey, get()) != 1) {
+      X509_PUBKEY_free(pubkey);
+      return Result<BIOPointer, bool>(false,
+                                      mark_pop_error_on_return.peekError());
+    }
+    X509PubKeyPointer pubkey_ptr(pubkey);
+    if (PEM_write_bio_X509_PUBKEY(bio.get(), pubkey_ptr.get()) != 1) {
+      return Result<BIOPointer, bool>(false,
+                                      mark_pop_error_on_return.peekError());
+    }
+#else
+    // Non-OpenSSL 3 builds do not all declare PEM_write_bio_X509_PUBKEY().
     if (PEM_write_bio_PUBKEY(bio.get(), get()) != 1) {
       return Result<BIOPointer, bool>(false,
                                       mark_pop_error_on_return.peekError());
     }
+#endif
     return bio;
   }
 
@@ -2842,13 +2985,44 @@ std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
 
   if (id == EVP_PKEY_DSA) {
     const DSA* dsa_key = EVP_PKEY_get0_DSA(get());
+    bool has_bits = false;
     // Both r and s are computed mod q, so their width is limited by that of q.
-    bits = BignumPointer::GetBitCount(DSA_get0_q(dsa_key));
+    if (dsa_key != nullptr) {
+      const BIGNUM* q = DSA_get0_q(dsa_key);
+      if (q != nullptr) {
+        bits = BignumPointer::GetBitCount(q);
+        has_bits = true;
+      }
+    }
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+    if (!has_bits &&
+        EVP_PKEY_get_int_param(get(), OSSL_PKEY_PARAM_FFC_QBITS, &bits) == 1) {
+      has_bits = true;
+    }
+#endif
+    if (!has_bits) return std::nullopt;
   } else if (id == EVP_PKEY_EC) {
-    bits = EC_GROUP_order_bits(ECKeyPointer::GetGroup(*this));
+    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(get());
+    bool has_bits = false;
+    if (ec_key != nullptr) {
+      const EC_GROUP* group = ECKeyPointer::GetGroup(ec_key);
+      if (group != nullptr) {
+        bits = EC_GROUP_order_bits(group);
+        has_bits = true;
+      }
+    }
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(OPENSSL_IS_BORINGSSL)
+    if (!has_bits &&
+        EVP_PKEY_get_int_param(get(), OSSL_PKEY_PARAM_BITS, &bits) == 1) {
+      has_bits = true;
+    }
+#endif
+    if (!has_bits) return std::nullopt;
   } else {
     return std::nullopt;
   }
+
+  if (bits <= 0) return std::nullopt;
 
   return (bits + 7) / 8;
 }
@@ -2880,16 +3054,18 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-    /* Validate DSA2 parameters from FIPS 186-4 */
 #if OPENSSL_VERSION_MAJOR >= 3
   if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
 #else
   if (FIPS_mode() && EVP_PKEY_DSA == id()) {
 #endif
+    // Validate DSA2 parameters from FIPS 186-4.
     const DSA* dsa = EVP_PKEY_get0_DSA(pkey_.get());
+    if (dsa == nullptr) return false;
     const BIGNUM* p;
     const BIGNUM* q;
     DSA_get0_pqg(dsa, &p, &q, nullptr);
+    if (p == nullptr || q == nullptr) return false;
     int L = BignumPointer::GetBitCount(p);
     int N = BignumPointer::GetBitCount(q);
 
@@ -4628,9 +4804,14 @@ DataPointer EVPMDCtxPointer::sign(
 
 bool EVPMDCtxPointer::verify(const Buffer<const unsigned char>& buf,
                              const Buffer<const unsigned char>& sig) const {
-  if (!ctx_) return false;
-  int ret = EVP_DigestVerify(ctx_.get(), sig.data, sig.len, buf.data, buf.len);
-  return ret == 1;
+  return verifyOneShot(buf, sig) == 1;
+}
+
+int EVPMDCtxPointer::verifyOneShot(
+    const Buffer<const unsigned char>& buf,
+    const Buffer<const unsigned char>& sig) const {
+  if (!ctx_) return -1;
+  return EVP_DigestVerify(ctx_.get(), sig.data, sig.len, buf.data, buf.len);
 }
 
 EVPMDCtxPointer EVPMDCtxPointer::New() {

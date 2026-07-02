@@ -3982,14 +3982,19 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
-    material, either in PEM, DER, JWK, or raw format.
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|URL}
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object|URL} The key
+    material, either in PEM, DER, JWK, or raw format, or a {URL} referencing an
+    OpenSSL store.
   * `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, `'raw-private'`,
     or `'raw-seed'`. **Default:** `'pem'`.
   * `type` {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
-  * `passphrase` {string | Buffer} The passphrase to use for decryption.
+  * `passphrase` {string | Buffer} The passphrase to use for decryption. When
+    `key` is a {URL}, this is the optional PIN/passphrase forwarded to the
+    store.
+  * `properties` {string} The optional OpenSSL property query used when
+    fetching the store loader for a {URL} key.
   * `encoding` {string} The string encoding to use when `key` is a string.
   * `asymmetricKeyType` {string} Required when `format` is `'raw-private'`
     or `'raw-seed'` and ignored otherwise.
@@ -4006,6 +4011,19 @@ must be an object with the properties described above.
 
 If the private key is encrypted, a `passphrase` must be specified. The length
 of the passphrase is limited to 1024 bytes.
+
+#### OpenSSL store {URL} keys
+
+> Stability: 1.1 - Active development
+
+If `key` is a {URL} (or an object whose `key` is a {URL}), the private key is
+loaded from the corresponding OpenSSL store URI (for example a `file:` URI or a
+provider-backed scheme such as `pkcs11:`). When the [Permission Model][] is
+enabled, [`--allow-crypto-store`][] is required.
+
+When `properties` is specified with a {URL} key, it is passed to OpenSSL as the
+property query for selecting the store loader. It is not appended to the URL and
+is distinct from provider-specific URI parameters.
 
 ### `crypto.createPublicKey(key)`
 
@@ -4079,6 +4097,10 @@ returned `KeyObject` will be `'public'` and that the private key cannot be
 extracted from the returned `KeyObject`. Similarly, if a `KeyObject` with type
 `'private'` is given, a new `KeyObject` with type `'public'` will be returned
 and it will be impossible to extract the private key from the returned object.
+
+A store-backed private key can be used as a public key by first loading it with
+[`crypto.createPrivateKey()`][]; a {URL} cannot be passed to
+`crypto.createPublicKey()` directly.
 
 ### `crypto.createSecretKey(key[, encoding])`
 
@@ -6960,6 +6982,7 @@ See the [list of SSL OP Flags][] for details.
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [OpenSSL's FIPS README file]: https://github.com/openssl/openssl/blob/openssl-3.0/README-FIPS.md
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man3.0/man1/openssl-spkac.html
+[Permission Model]: permissions.md#permission-model
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
 [RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
@@ -6973,6 +6996,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [Web Crypto API documentation]: webcrypto.md
+[`--allow-crypto-store`]: cli.md#--allow-crypto-store
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
