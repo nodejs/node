@@ -354,8 +354,10 @@ assert.throws(() => new Blob({}), {
   assert(!done);
   setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
-    // it should pull in the next 'hello' which is 5 bytes hence -5.
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // it may have pulled in the next 'hello' which is 5 bytes hence -5.
+    // The ordering of this timer and the stream's setImmediate() pull
+    // continuation can vary across platforms.
+    assert([0, -5].includes(stream[kState].controller.desiredSize));
   }), 0);
 })().then(common.mustCall());
 
