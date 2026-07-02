@@ -42,3 +42,41 @@ for (const [platform, platformGlobs] of Object.entries(globs)) {
 // Test for non-string input
 assert.throws(() => path.matchesGlob(123, 'foo/bar/baz'), /.*must be of type string.*/);
 assert.throws(() => path.matchesGlob('foo/bar/baz', 123), /.*must be of type string.*/);
+
+// Test exclude functionality
+const excludeTests = {
+  win32: [
+    // Basic exclude with string
+    ['foo\\bar\\baz', 'foo\\**\\*', { exclude: 'foo\\bar\\*' }, false],
+    ['foo\\bar\\baz', 'foo\\**\\*', { exclude: 'foo\\other\\*' }, true],
+
+    // Exclude with array
+    ['foo\\bar\\baz', 'foo\\**\\*', { exclude: ['foo\\bar\\*', 'foo\\other\\*'] }, false],
+    ['foo\\test\\file', 'foo\\**\\*', { exclude: ['foo\\bar\\*', 'foo\\other\\*'] }, true],
+
+    // Exclude with function
+    ['foo\\bar\\baz', 'foo\\**\\*', { exclude: (path) => path.includes('bar') }, false],
+    ['foo\\test\\file', 'foo\\**\\*', { exclude: (path) => path.includes('bar') }, true],
+  ],
+  posix: [
+    // Basic exclude with string
+    ['foo/bar/baz', 'foo/**/*', { exclude: 'foo/bar/*' }, false],
+    ['foo/bar/baz', 'foo/**/*', { exclude: 'foo/other/*' }, true],
+
+    // Exclude with array
+    ['foo/bar/baz', 'foo/**/*', { exclude: ['foo/bar/*', 'foo/other/*'] }, false],
+    ['foo/test/file', 'foo/**/*', { exclude: ['foo/bar/*', 'foo/other/*'] }, true],
+
+    // Exclude with function
+    ['foo/bar/baz', 'foo/**/*', { exclude: (path) => path.includes('bar') }, false],
+    ['foo/test/file', 'foo/**/*', { exclude: (path) => path.includes('bar') }, true],
+  ],
+};
+
+for (const [platform, platformTests] of Object.entries(excludeTests)) {
+  for (const [pathStr, pattern, options, expected] of platformTests) {
+    const actual = path[platform].matchesGlob(pathStr, pattern, options);
+    assert.strictEqual(actual, expected,
+                       `Expected ${pathStr} to ${expected ? '' : 'not '}match ${pattern} with exclude on ${platform}`);
+  }
+}
