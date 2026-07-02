@@ -4058,3 +4058,9 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
   delete Error[Symbol.hasInstance];
 }
+
+{ // test case
+  const obj = { a: 1, b: 2, c: 3, d: 4 };
+  const result = util.inspect(obj, { breakLength: Infinity });
+  assert.strictEqual(result, '{ a: 1, b: 2, c: 3, d: 4 }');
+}
