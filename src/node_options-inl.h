@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ranges>
+#include <unordered_map>
 #include "node_options.h"
 #include "util.h"
 
@@ -334,6 +335,8 @@ void OptionsParser<Options>::Parse(
   if (v8_args->empty())
     v8_args->push_back(args.program_name());
 
+  std::unordered_map<std::string, bool> default_field_map = {};
+
   while (!args.empty() && errors->empty()) {
     if (args.first().size() <= 1 || args.first()[0] != '-') break;
 
@@ -421,19 +424,23 @@ void OptionsParser<Options>::Parse(
     }
 
     {
-      std::string implied_name = name;
-      if (is_negation) {
-        // Implications for negated options are defined with "--no-".
-        implied_name.insert(2, "no-");
-      }
-      auto [f, l] = implications_.equal_range(implied_name);
+      auto [f, l] = implications_.equal_range(name);
       std::ranges::for_each(std::ranges::subrange(f, l) | std::views::values,
                             [&](const auto& value) {
                               if (value.type == kV8Option) {
                                 v8_args->push_back(value.name);
                               } else {
+                                bool target_value = value.target_value;
+                                if (!default_field_map.contains(value.name)) {
+                                  default_field_map[value.name] =
+                                      *value.target_field
+                                           ->template Lookup<bool>(options);
+                                }
+                                if (is_negation && value.type == kBoolean) {
+                                  target_value = default_field_map[value.name];
+                                }
                                 *value.target_field->template Lookup<bool>(
-                                    options) = value.target_value;
+                                    options) = target_value;
                               }
                             });
     }
