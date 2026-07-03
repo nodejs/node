@@ -8,8 +8,26 @@
 namespace node {
 namespace tracing {
 
+void replace_substring(std::string* target,
+                       const std::string& search,
+                       const std::string& insert) {
+  size_t pos = target->find(search);
+  for (; pos != std::string::npos; pos = target->find(search, pos)) {
+    target->replace(pos, search.size(), insert);
+    pos += insert.size();
+  }
+}
+
 NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern)
     : log_file_pattern_(log_file_pattern) {}
+
+std::string NodeTraceWriter::GetFilePath(const std::string& log_file_pattern,
+                                         int file_num) {
+  std::string filepath(log_file_pattern);
+  replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
+  replace_substring(&filepath, "${rotation}", std::to_string(file_num));
+  return filepath;
+}
 
 void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
   CHECK_NULL(tracing_loop_);
@@ -60,25 +78,13 @@ NodeTraceWriter::~NodeTraceWriter() {
   }
 }
 
-void replace_substring(std::string* target,
-                       const std::string& search,
-                       const std::string& insert) {
-  size_t pos = target->find(search);
-  for (; pos != std::string::npos; pos = target->find(search, pos)) {
-    target->replace(pos, search.size(), insert);
-    pos += insert.size();
-  }
-}
-
 void NodeTraceWriter::OpenNewFileForStreaming() {
   ++file_num_;
   uv_fs_t req;
 
   // Evaluate a JS-style template string, it accepts the values ${pid} and
   // ${rotation}
-  std::string filepath(log_file_pattern_);
-  replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
-  replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
+  std::string filepath(GetFilePath(log_file_pattern_, file_num_));
 
   if (fd_ != -1) {
     CHECK_EQ(uv_fs_close(nullptr, &req, fd_, nullptr), 0);
