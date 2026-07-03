@@ -80,9 +80,9 @@ function expectSyncExit(caller, spawnArgs, {
   function logAndThrow() {
     const tag = `[process ${child.pid}]:`;
     console.error(`${tag} --- stderr ---`);
-    console.error(stderrStr === undefined ? child.stderr.toString() : stderrStr);
+    console.error(stderrStr === undefined ? (child.stderr?.toString() ?? '') : stderrStr);
     console.error(`${tag} --- stdout ---`);
-    console.error(stdoutStr === undefined ? child.stdout.toString() : stdoutStr);
+    console.error(stdoutStr === undefined ? (child.stdout?.toString() ?? '') : stdoutStr);
     console.error(`${tag} status = ${child.status}, signal = ${child.signal}`);
 
     const error = new Error(`${failures.join('\n')}`);
