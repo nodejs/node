@@ -2353,7 +2353,7 @@ const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-## `tls.getCACertificates([type])`
+## `tls.getCACertificates([type[, cert]])`
 
 <!-- YAML
 added:
@@ -2362,8 +2362,14 @@ added:
 -->
 
 * `type` {string|undefined} The type of CA certificates that will be returned. Valid values
-  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
+  are `"default"`, `"system"`, `"bundled"`, `"extra"` and `"openssl"`.
   **Default:** `"default"`.
+* `cert` {string|ArrayBufferView|X509Certificate|undefined} The certificate used
+  to look up its issuer in the selected CA store. Strings must contain a
+  PEM-encoded certificate. An `ArrayBufferView` may contain a PEM or DER encoded
+  certificate.
+  Required when `type` is `"openssl"`, or when `type` is `"default"` and
+  [`--use-openssl-ca`][] is enabled.
 * Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
   if the same certificate is repeatedly stored in multiple sources.
 
@@ -2372,10 +2378,15 @@ Returns an array containing the CA certificates from various sources, depending 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
     this would include CA certificates from the bundled Mozilla CA store.
+  * When OpenSSL's default CA store is selected, either at build time or through
+    [`--use-openssl-ca`][], `cert` is required. OpenSSL's default certificate
+    locations form the base of the default CA store. Certificate directories
+    use subject-hash lookup and cannot be enumerated without a certificate
+    lookup key. Calling this method without `cert` throws.
   * When [`--use-system-ca`][] is enabled, this would also include certificates from the system's
     trusted store.
-  * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
-    file.
+  * When [`NODE_EXTRA_CA_CERTS`][] is used, certificates from the specified
+    file are included in the default CA store.
 * `"system"`: return the CA certificates that are loaded from the system's trusted store, according
   to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
   when [`--use-system-ca`][] is not enabled.
@@ -2383,6 +2394,10 @@ Returns an array containing the CA certificates from various sources, depending 
   as [`tls.rootCertificates`][].
 * `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
   [`NODE_EXTRA_CA_CERTS`][] is not set.
+* `"openssl"`: return CA certificates looked up from OpenSSL's default CA
+  store using the issuer name of `cert`. This follows OpenSSL's
+  hashed-directory lookup behavior for certificates loaded from the default
+  certificate directory.
 
 ## `tls.getCiphers()`
 
@@ -2562,7 +2577,7 @@ added: v0.11.3
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
-[`tls.getCACertificates()`]: #tlsgetcacertificatestype
+[`tls.getCACertificates()`]: #tlsgetcacertificatestype-cert
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options

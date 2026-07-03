@@ -933,6 +933,8 @@ export interface CryptoBinding {
   getFipsCrypto(): 0 | 1;
   getHashes(): string[];
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
+  lookupDefaultCACertificates(cert: InternalCryptoBinding.ByteSource): string[];
+  lookupOpenSSLCACertificates(cert: InternalCryptoBinding.ByteSource): string[];
   getOpenSSLSecLevelCrypto(): number | undefined;
   getSSLCiphers(): string[];
   getSystemCACertificates(): string[];

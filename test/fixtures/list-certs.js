@@ -13,7 +13,14 @@ const tls = require('tls');
 const { includesCert, extractMetadata } = require('../common/tls');
 
 const CERTS_TYPE = process.env.CERTS_TYPE || 'default';
-const actualCerts = tls.getCACertificates(CERTS_TYPE);
-for (const cert of expectedCerts) {
-  assert(includesCert(actualCerts, cert), 'Expected certificate not found: ' + JSON.stringify(extractMetadata(cert)));
+const EXPECTED_ERROR_CODE = process.env.EXPECTED_ERROR_CODE;
+if (EXPECTED_ERROR_CODE) {
+  assert.throws(() => tls.getCACertificates(CERTS_TYPE), {
+    code: EXPECTED_ERROR_CODE,
+  });
+} else {
+  const actualCerts = tls.getCACertificates(CERTS_TYPE);
+  for (const cert of expectedCerts) {
+    assert(includesCert(actualCerts, cert), 'Expected certificate not found: ' + JSON.stringify(extractMetadata(cert)));
+  }
 }
