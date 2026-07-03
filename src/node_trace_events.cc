@@ -5,7 +5,9 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
+#include "permission/permission.h"
 #include "tracing/agent.h"
+#include "tracing/node_trace_writer.h"
 #include "util-inl.h"
 
 #include <set>
@@ -83,6 +85,12 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (!category_set->enabled_ && !categories.empty()) {
+    const std::string filepath = tracing::NodeTraceWriter::GetFilePath(
+        per_process::cli_options->trace_event_file_pattern, 1);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        category_set->env(),
+        permission::PermissionScope::kFileSystemWrite,
+        filepath);
     // Starts the Tracing Agent if it wasn't started already (e.g. through
     // a command line flag.)
     StartTracingAgent();

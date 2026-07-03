@@ -19,6 +19,9 @@ class NodeTraceWriter : public AsyncTraceWriter {
   explicit NodeTraceWriter(const std::string& log_file_pattern);
   ~NodeTraceWriter() override;
 
+  static std::string GetFilePath(const std::string& log_file_pattern,
+                                 int file_num);
+
   void InitializeOnThread(uv_loop_t* loop) override;
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush(bool blocking) override;
