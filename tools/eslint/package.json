@@ -3,16 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@babel/core": "^8.0.0-rc.6",
-    "@babel/eslint-parser": "^8.0.0-rc.6",
-    "@babel/plugin-syntax-import-source": "^8.0.0-rc.6",
+    "@babel/core": "^8.0.1",
+    "@babel/eslint-parser": "^8.0.1",
+    "@babel/plugin-syntax-import-defer": "^8.0.1",
+    "@babel/plugin-syntax-import-source": "^8.0.1",
     "@eslint/js": "^10.0.1",
     "@eslint/markdown": "^8.0.2",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "eslint": "^10.4.0",
+    "eslint": "^10.5.0",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^63.0.0",
-    "eslint-plugin-regexp": "^3.1.0",
-    "globals": "^17.6.0"
+    "eslint-plugin-jsdoc": "^63.0.9",
+    "eslint-plugin-regexp": "^3.1.1",
+    "globals": "^17.7.0"
   }
 }
