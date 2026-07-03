@@ -124,23 +124,32 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
-### Experimental features behind compile-time flags
+### Experimental features behind compile-time flags and V8 flags
 
 Node.js includes certain experimental features that are only available when
 Node.js is compiled with specific flags. These features are intended for
 development, debugging, or testing purposes and are not enabled in official
 releases.
 
+Node.js may also expose V8 features that are controlled by V8 command-line flags
+(e.g., `--js-staging`, `--max_old_space_size`). These flags
+enable or modify V8-level JavaScript engine behavior that is not part of the
+ECMAScript specification that Node.js implements and is not part of the
+Node.js documented API surface.
+
 * Security vulnerabilities that only affect features behind compile-time flags
-  will **not** be accepted as valid security issues.
+  or V8 flags will **not** be accepted as valid security issues.
 * Any issues with these features will be treated as normal bugs.
-* No CVEs will be issued for issues that only affect compile-time flag features.
-* Bug bounty rewards are not available for compile-time flag feature issues.
+* No CVEs will be issued for issues that only affect compile-time flag or V8 flag features.
+* Bug bounty rewards are not available for compile-time flag or V8 flag feature issues.
 
 This policy recognizes that experimental features behind compile-time flags
 are not ready for public consumption and may have incomplete implementations,
 missing security hardening, or other limitations that make them unsuitable
-for production use.
+for production use. Similarly, V8 flags expose internal V8 engine options that
+are not part of the Node.js documented API surface, are not enabled by
+default in production builds, and may have incomplete implementations or
+missing security hardening.
 
 ### What constitutes a vulnerability
 
