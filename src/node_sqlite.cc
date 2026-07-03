@@ -2599,14 +2599,10 @@ inline bool StatementSync::IsFinalized() {
   return statement_ == nullptr;
 }
 
-void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
-  v8::TryCatch try_catch(args.GetIsolate());
   stmt->Close();
-  if (try_catch.HasCaught()) {
-    CHECK(try_catch.CanContinue());
-  }
 }
 
 inline int StatementSync::ResetStatement() {
@@ -3640,7 +3636,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
         isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
-    SetProtoDispose(isolate, tmpl, StatementSync::Dispose);
+    SetProtoDispose(isolate, tmpl, StatementSync::Close);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
