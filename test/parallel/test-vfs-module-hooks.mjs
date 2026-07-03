@@ -2,12 +2,15 @@
 import '../common/index.mjs';
 import assert from 'assert';
 import { createRequire } from 'module';
+import { pathToFileURL } from 'node:url';
 import vfs from 'node:vfs';
 
 const require = createRequire(import.meta.url);
 
-// NOTE: Each test uses a different mount path (/mh1, /mh2, etc.)
-// because ESM imports are cached by URL.
+// NOTE: mount() takes a purely logical prefix and returns the actual mount
+// point (a reserved path under os.devNull). Each test captures the
+// returned mount point and uses it for requires/imports. Distinct prefixes
+// (/mh1, /mh2, ...) are kept for readability.
 
 // =================================================================
 // Test: CJS bare specifier resolution with exports string shorthand
@@ -27,9 +30,9 @@ const require = createRequire(import.meta.url);
     '/app/entry.js',
     "module.exports = require('str-pkg');",
   );
-  myVfs.mount('/mh1');
+  const mountPoint = myVfs.mount('/mh1');
 
-  const result = require('/mh1/app/entry.js');
+  const result = require(`${mountPoint}/app/entry.js`);
   assert.strictEqual(result.strExport, true);
 
   myVfs.unmount();
@@ -71,14 +74,14 @@ const require = createRequire(import.meta.url);
     '/app/cjs-entry.js',
     "module.exports = require('cond-pkg');",
   );
-  myVfs.mount('/mh2');
+  const mountPoint = myVfs.mount('/mh2');
 
   // ESM import should get the 'import' condition
-  const esmResult = await import('/mh2/app/esm-entry.mjs');
+  const esmResult = await import(`${mountPoint}/app/esm-entry.mjs`);
   assert.strictEqual(esmResult.source, 'esm');
 
   // CJS require should get the 'require' condition
-  const cjsResult = require('/mh2/app/cjs-entry.js');
+  const cjsResult = require(`${mountPoint}/app/cjs-entry.js`);
   assert.strictEqual(cjsResult.source, 'cjs');
 
   myVfs.unmount();
@@ -113,9 +116,9 @@ const require = createRequire(import.meta.url);
     export { main, feature };
     `,
   );
-  myVfs.mount('/mh3');
+  const mountPoint = myVfs.mount('/mh3');
 
-  const result = await import('/mh3/app/entry.mjs');
+  const result = await import(`${mountPoint}/app/entry.mjs`);
   assert.strictEqual(result.main, true);
   assert.strictEqual(result.feature, true);
 
@@ -149,9 +152,9 @@ const require = createRequire(import.meta.url);
     '/app/entry2.mjs',
     "export { fromSubCond } from 'sub-cond-pkg';",
   );
-  myVfs.mount('/mh4');
+  const mountPoint = myVfs.mount('/mh4');
 
-  const result = await import('/mh4/app/entry2.mjs');
+  const result = await import(`${mountPoint}/app/entry2.mjs`);
   assert.strictEqual(result.fromSubCond, 'esm');
 
   myVfs.unmount();
@@ -189,9 +192,9 @@ const require = createRequire(import.meta.url);
     '/app/entry3.mjs',
     "export { nested } from 'nested-cond-pkg';",
   );
-  myVfs.mount('/mh5');
+  const mountPoint = myVfs.mount('/mh5');
 
-  const result = await import('/mh5/app/entry3.mjs');
+  const result = await import(`${mountPoint}/app/entry3.mjs`);
   assert.strictEqual(result.nested, 'node-esm');
 
   myVfs.unmount();
@@ -216,9 +219,9 @@ const require = createRequire(import.meta.url);
     '/app/entry4.js',
     "module.exports = require('main-pkg');",
   );
-  myVfs.mount('/mh6');
+  const mountPoint = myVfs.mount('/mh6');
 
-  const result = require('/mh6/app/entry4.js');
+  const result = require(`${mountPoint}/app/entry4.js`);
   assert.strictEqual(result.fromMain, true);
 
   myVfs.unmount();
@@ -241,9 +244,9 @@ const require = createRequire(import.meta.url);
     '/app/entry5.js',
     "module.exports = require('index-pkg');",
   );
-  myVfs.mount('/mh7');
+  const mountPoint = myVfs.mount('/mh7');
 
-  const result = require('/mh7/app/entry5.js');
+  const result = require(`${mountPoint}/app/entry5.js`);
   assert.strictEqual(result.fromIndex, true);
 
   myVfs.unmount();
@@ -254,16 +257,18 @@ const require = createRequire(import.meta.url);
 // =================================================================
 {
   const myVfs = vfs.create();
-  myVfs.mkdirSync('/lib', { recursive: true });
+  // The embedded specifier must be an absolute mounted path, so mount
+  // first and write the files through the mounted paths.
+  const mountPoint = myVfs.mount('/mh8');
+  myVfs.mkdirSync(`${mountPoint}/lib`, { recursive: true });
+  myVfs.writeFileSync(`${mountPoint}/lib/utils.js`, 'module.exports = { ext: "js" };');
   // File without .js extension in specifier
-  myVfs.writeFileSync('/lib/utils.js', 'module.exports = { ext: "js" };');
   myVfs.writeFileSync(
-    '/lib/main.js',
-    "module.exports = require('/mh8/lib/utils');",
+    `${mountPoint}/lib/main.js`,
+    `module.exports = require(${JSON.stringify(`${mountPoint}/lib/utils`)});`,
   );
-  myVfs.mount('/mh8');
 
-  const result = require('/mh8/lib/main.js');
+  const result = require(`${mountPoint}/lib/main.js`);
   assert.strictEqual(result.ext, 'js');
 
   myVfs.unmount();
@@ -274,14 +279,16 @@ const require = createRequire(import.meta.url);
 // =================================================================
 {
   const myVfs = vfs.create();
-  myVfs.writeFileSync('/data.json', JSON.stringify({ ext: 'json' }));
+  // The embedded specifier must be an absolute mounted path, so mount
+  // first and write the files through the mounted paths.
+  const mountPoint = myVfs.mount('/mh9');
+  myVfs.writeFileSync(`${mountPoint}/data.json`, JSON.stringify({ ext: 'json' }));
   myVfs.writeFileSync(
-    '/reader.js',
-    "module.exports = require('/mh9/data');",
+    `${mountPoint}/reader.js`,
+    `module.exports = require(${JSON.stringify(`${mountPoint}/data`)});`,
   );
-  myVfs.mount('/mh9');
 
-  const result = require('/mh9/reader.js');
+  const result = require(`${mountPoint}/reader.js`);
   assert.strictEqual(result.ext, 'json');
 
   myVfs.unmount();
@@ -306,9 +313,9 @@ const require = createRequire(import.meta.url);
     '/app/scoped-entry.mjs',
     "export { scoped } from '@myorg/mylib';",
   );
-  myVfs.mount('/mh11');
+  const mountPoint = myVfs.mount('/mh11');
 
-  const result = await import('/mh11/app/scoped-entry.mjs');
+  const result = await import(`${mountPoint}/app/scoped-entry.mjs`);
   assert.strictEqual(result.scoped, true);
 
   myVfs.unmount();
@@ -342,9 +349,9 @@ const require = createRequire(import.meta.url);
     export { helpers };
     `,
   );
-  myVfs.mount('/mh12');
+  const mountPoint = myVfs.mount('/mh12');
 
-  const result = await import('/mh12/app/scoped-sub-entry.mjs');
+  const result = await import(`${mountPoint}/app/scoped-sub-entry.mjs`);
   assert.strictEqual(result.helpers, true);
 
   myVfs.unmount();
@@ -357,9 +364,9 @@ const require = createRequire(import.meta.url);
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'module' }));
   myVfs.writeFileSync('/mod.js', 'export const fromModule = true;');
-  myVfs.mount('/mh13');
+  const mountPoint = myVfs.mount('/mh13');
 
-  const result = await import('/mh13/mod.js');
+  const result = await import(`${mountPoint}/mod.js`);
   assert.strictEqual(result.fromModule, true);
 
   myVfs.unmount();
@@ -370,20 +377,22 @@ const require = createRequire(import.meta.url);
 // =================================================================
 {
   const myVfs = vfs.create();
-  myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'module' }));
-  myVfs.writeFileSync('/helper.cjs', 'module.exports = { cjsAlways: true };');
+  // The embedded specifier must be an absolute mounted path, so mount
+  // first and write the files through the mounted paths.
+  const mountPoint = myVfs.mount('/mh14');
+  myVfs.writeFileSync(`${mountPoint}/package.json`, JSON.stringify({ type: 'module' }));
+  myVfs.writeFileSync(`${mountPoint}/helper.cjs`, 'module.exports = { cjsAlways: true };');
   myVfs.writeFileSync(
-    '/use-cjs.js',
+    `${mountPoint}/use-cjs.js`,
     `
     import { createRequire } from 'module';
     const require = createRequire(import.meta.url);
-    const result = require('/mh14/helper.cjs');
+    const result = require(${JSON.stringify(`${mountPoint}/helper.cjs`)});
     export const cjsAlways = result.cjsAlways;
     `,
   );
-  myVfs.mount('/mh14');
 
-  const result = await import('/mh14/use-cjs.js');
+  const result = await import(`${mountPoint}/use-cjs.js`);
   assert.strictEqual(result.cjsAlways, true);
 
   myVfs.unmount();
@@ -395,9 +404,9 @@ const require = createRequire(import.meta.url);
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/fileurl.mjs', 'export const fromFileUrl = true;');
-  myVfs.mount('/mh15');
+  const mountPoint = myVfs.mount('/mh15');
 
-  const result = await import('file:///mh15/fileurl.mjs');
+  const result = await import(pathToFileURL(`${mountPoint}/fileurl.mjs`).href);
   assert.strictEqual(result.fromFileUrl, true);
 
   myVfs.unmount();
@@ -417,10 +426,10 @@ const require = createRequire(import.meta.url);
     '/dir-pkg/entry.js',
     'module.exports = { dirPkg: true };',
   );
-  myVfs.mount('/mh16');
+  const mountPoint = myVfs.mount('/mh16');
 
   // Main field has no extension - tryExtensions should resolve entry → entry.js
-  const result = require('/mh16/dir-pkg');
+  const result = require(`${mountPoint}/dir-pkg`);
   assert.strictEqual(result.dirPkg, true);
 
   myVfs.unmount();
@@ -443,9 +452,9 @@ const require = createRequire(import.meta.url);
     '/app/entry-sub.js',
     "module.exports = require('direct-pkg/lib/util.js');",
   );
-  myVfs.mount('/mh17');
+  const mountPoint = myVfs.mount('/mh17');
 
-  const result = require('/mh17/app/entry-sub.js');
+  const result = require(`${mountPoint}/app/entry-sub.js`);
   assert.strictEqual(result.directSub, true);
 
   myVfs.unmount();
@@ -469,9 +478,9 @@ const require = createRequire(import.meta.url);
     // No .js extension - should be resolved by tryExtensions
     "module.exports = require('ext-pkg/lib/util');",
   );
-  myVfs.mount('/mh18');
+  const mountPoint = myVfs.mount('/mh18');
 
-  const result = require('/mh18/app/entry-ext.js');
+  const result = require(`${mountPoint}/app/entry-ext.js`);
   assert.strictEqual(result.extSub, true);
 
   myVfs.unmount();
@@ -495,9 +504,9 @@ const require = createRequire(import.meta.url);
     '/app/entry-main-ext.js',
     "module.exports = require('main-ext-pkg');",
   );
-  myVfs.mount('/mh19');
+  const mountPoint = myVfs.mount('/mh19');
 
-  const result = require('/mh19/app/entry-main-ext.js');
+  const result = require(`${mountPoint}/app/entry-main-ext.js`);
   assert.strictEqual(result.mainExt, true);
 
   myVfs.unmount();
@@ -524,10 +533,10 @@ const require = createRequire(import.meta.url);
     '/app/entry-arr.js',
     "module.exports = require('arr-exp-pkg');",
   );
-  myVfs.mount('/mh22');
+  const mountPoint = myVfs.mount('/mh22');
 
   // Array target in exports: canonical resolver tries each entry in order
-  const result = require('/mh22/app/entry-arr.js');
+  const result = require(`${mountPoint}/app/entry-arr.js`);
   assert.strictEqual(result.arrExport, true);
 
   myVfs.unmount();
@@ -556,10 +565,10 @@ const require = createRequire(import.meta.url);
     '/app/entry-default.mjs',
     "export { fromDefault } from 'default-pkg';",
   );
-  myVfs.mount('/mh23');
+  const mountPoint = myVfs.mount('/mh23');
 
   // 'browser' condition not active in Node, 'default' should match
-  const result = await import('/mh23/app/entry-default.mjs');
+  const result = await import(`${mountPoint}/app/entry-default.mjs`);
   assert.strictEqual(result.fromDefault, true);
 
   myVfs.unmount();
@@ -572,9 +581,9 @@ const require = createRequire(import.meta.url);
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'commonjs' }));
   myVfs.writeFileSync('/explicit-cjs.js', 'module.exports = { explicitCjs: true };');
-  myVfs.mount('/mh24');
+  const mountPoint = myVfs.mount('/mh24');
 
-  const result = require('/mh24/explicit-cjs.js');
+  const result = require(`${mountPoint}/explicit-cjs.js`);
   assert.strictEqual(result.explicitCjs, true);
 
   myVfs.unmount();
@@ -586,9 +595,9 @@ const require = createRequire(import.meta.url);
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/no-pkg.js', 'module.exports = { noPkg: true };');
-  myVfs.mount('/mh25');
+  const mountPoint = myVfs.mount('/mh25');
 
-  const result = require('/mh25/no-pkg.js');
+  const result = require(`${mountPoint}/no-pkg.js`);
   assert.strictEqual(result.noPkg, true);
 
   myVfs.unmount();
@@ -607,10 +616,10 @@ const require = createRequire(import.meta.url);
     '/node_modules/inner/index.js',
     'module.exports = { inner: true };',
   );
-  myVfs.mount('/mh26');
+  const mountPoint = myVfs.mount('/mh26');
 
   // The walk should stop at node_modules, not inherit type:module from root
-  const result = require('/mh26/node_modules/inner/index.js');
+  const result = require(`${mountPoint}/node_modules/inner/index.js`);
   assert.strictEqual(result.inner, true);
 
   myVfs.unmount();
@@ -627,10 +636,10 @@ const require = createRequire(import.meta.url);
     '/bad-json-dir/index.js',
     'module.exports = { fallbackIndex: true };',
   );
-  myVfs.mount('/mh28');
+  const mountPoint = myVfs.mount('/mh28');
 
   // Should fall through to index.js after failing to parse package.json
-  const result = require('/mh28/bad-json-dir');
+  const result = require(`${mountPoint}/bad-json-dir`);
   assert.strictEqual(result.fallbackIndex, true);
 
   myVfs.unmount();
@@ -643,10 +652,10 @@ const require = createRequire(import.meta.url);
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', '{ broken json }');
   myVfs.writeFileSync('/no-type.js', 'module.exports = { noType: true };');
-  myVfs.mount('/mh29');
+  const mountPoint = myVfs.mount('/mh29');
 
   // Should treat as 'none' (commonjs) since package.json is invalid
-  const result = require('/mh29/no-type.js');
+  const result = require(`${mountPoint}/no-type.js`);
   assert.strictEqual(result.noType, true);
 
   myVfs.unmount();
@@ -670,9 +679,9 @@ const require = createRequire(import.meta.url);
     '/app/entry-solo.js',
     "module.exports = require('@solo/pkg');",
   );
-  myVfs.mount('/mh30');
+  const mountPoint = myVfs.mount('/mh30');
 
-  const result = require('/mh30/app/entry-solo.js');
+  const result = require(`${mountPoint}/app/entry-solo.js`);
   assert.strictEqual(result.solo, true);
 
   myVfs.unmount();
@@ -687,9 +696,9 @@ const require = createRequire(import.meta.url);
     import path from 'node:path';
     export const sep = path.sep;
   `);
-  myVfs.mount('/mh31');
+  const mountPoint = myVfs.mount('/mh31');
 
-  const result = await import('/mh31/use-builtin.mjs');
+  const result = await import(`${mountPoint}/use-builtin.mjs`);
   assert.strictEqual(typeof result.sep, 'string');
 
   myVfs.unmount();
@@ -701,9 +710,9 @@ const require = createRequire(import.meta.url);
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/data.json', JSON.stringify({ preformat: true }));
-  myVfs.mount('/mh32');
+  const mountPoint = myVfs.mount('/mh32');
 
-  const result = await import('/mh32/data.json', { with: { type: 'json' } });
+  const result = await import(`${mountPoint}/data.json`, { with: { type: 'json' } });
   assert.strictEqual(result.default.preformat, true);
 
   myVfs.unmount();
@@ -715,10 +724,10 @@ const require = createRequire(import.meta.url);
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/data.txt', 'module.exports = { txt: true };');
-  myVfs.mount('/mh33');
+  const mountPoint = myVfs.mount('/mh33');
 
   // .txt extension → falls back to 'commonjs' via VFS_FORMAT_MAP default
-  const result = require('/mh33/data.txt');
+  const result = require(`${mountPoint}/data.txt`);
   assert.strictEqual(result.txt, true);
 
   myVfs.unmount();

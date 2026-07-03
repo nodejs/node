@@ -3,10 +3,12 @@
 
 // `vfs.layerId` is a per-process monotonically increasing identifier
 // assigned at construction. It is stable across mount/unmount cycles
-// and surfaces in overlap error messages.
+// and forms the layer segment of the reserved mount namespace.
 
 require('../common');
 const assert = require('assert');
+const os = require('os');
+const path = require('path');
 const vfs = require('node:vfs');
 
 {
@@ -24,20 +26,13 @@ const vfs = require('node:vfs');
   assert.strictEqual(a.layerId, idBefore);
 }
 
-// layerId appears in the overlap error message so the user can tell
-// which instance lost the race.
+// layerId is the layer segment of the mount point, so the owning layer
+// of any VFS path is visible in the path itself.
 {
-  const outer = vfs.create();
-  const inner = vfs.create();
-  outer.mount('/mnt-layer-overlap');
-  assert.throws(
-    () => inner.mount('/mnt-layer-overlap/sub'),
-    (err) => {
-      assert.strictEqual(err.code, 'ERR_INVALID_STATE');
-      assert.match(err.message, new RegExp(`layer ${inner.layerId}`));
-      assert.match(err.message, new RegExp(`layer ${outer.layerId}`));
-      return true;
-    },
-  );
-  outer.unmount();
+  const v = vfs.create();
+  const mountPoint = v.mount('/data');
+  assert.strictEqual(
+    mountPoint,
+    path.join(os.devNull, 'vfs', `layer-${v.layerId}`, 'data'));
+  v.unmount();
 }

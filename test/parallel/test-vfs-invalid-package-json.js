@@ -12,9 +12,9 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/pkg', { recursive: true });
   myVfs.writeFileSync('/pkg/package.json', '{ invalid json');
   myVfs.writeFileSync('/pkg/index.js', 'module.exports = 42;');
-  myVfs.mount('/mnt');
+  const mountPoint = myVfs.mount('/mnt');
 
-  assert.strictEqual(require('/mnt/pkg'), 42);
+  assert.strictEqual(require(`${mountPoint}/pkg`), 42);
 
   myVfs.unmount();
 }
@@ -25,9 +25,9 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/pkg2', { recursive: true });
   myVfs.writeFileSync('/pkg2/package.json', '{"main": "lib.js"}');
   myVfs.writeFileSync('/pkg2/lib.js', 'module.exports = 99;');
-  myVfs.mount('/mnt2');
+  const mountPoint = myVfs.mount('/mnt2');
 
-  assert.strictEqual(require('/mnt2/pkg2'), 99);
+  assert.strictEqual(require(`${mountPoint}/pkg2`), 99);
 
   myVfs.unmount();
 }
@@ -37,9 +37,9 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg3', { recursive: true });
   myVfs.writeFileSync('/pkg3/index.js', 'module.exports = 77;');
-  myVfs.mount('/mnt3');
+  const mountPoint = myVfs.mount('/mnt3');
 
-  assert.strictEqual(require('/mnt3/pkg3'), 77);
+  assert.strictEqual(require(`${mountPoint}/pkg3`), 77);
 
   myVfs.unmount();
 }

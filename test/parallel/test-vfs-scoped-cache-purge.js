@@ -2,12 +2,13 @@
 'use strict';
 
 // Deregistering one of several mounted VFSes must scope-purge the
-// loader caches: entries that belong to the VFS going away are
-// dropped, entries from other VFSes are kept warm. ESM cache entries
-// are tagged with `?vfs-layer=N` and surface in `import.meta.url`.
+// loader caches: entries under the unmounted mount point are dropped,
+// entries from other VFSes are kept warm. Module URLs are plain file
+// URLs under the mount point - no synthetic search params.
 
 const common = require('../common');
 const assert = require('assert');
+const { pathToFileURL } = require('node:url');
 const vfs = require('node:vfs');
 
 // 1) Multi-mount: deregister of one VFS keeps the other's CJS module
@@ -15,17 +16,17 @@ const vfs = require('node:vfs');
 {
   const a = vfs.create();
   a.writeFileSync('/value.js', 'module.exports = "a-cached"');
-  a.mount('/mnt-purge-a');
+  const mountA = a.mount('/mnt-purge');
 
   const b = vfs.create();
   b.writeFileSync('/value.js', 'module.exports = "b-cached"');
-  b.mount('/mnt-purge-b');
+  const mountB = b.mount('/mnt-purge');
 
   // Warm both caches.
-  assert.strictEqual(require('/mnt-purge-a/value.js'), 'a-cached');
-  assert.strictEqual(require('/mnt-purge-b/value.js'), 'b-cached');
+  assert.strictEqual(require(`${mountA}/value.js`), 'a-cached');
+  assert.strictEqual(require(`${mountB}/value.js`), 'b-cached');
 
-  const bKey = require.resolve('/mnt-purge-b/value.js');
+  const bKey = require.resolve(`${mountB}/value.js`);
   assert.ok(bKey in require.cache, 'b should be cached before unmount');
 
   // Unmount A. B's cache entry must survive.
@@ -36,20 +37,28 @@ const vfs = require('node:vfs');
   );
 
   // Re-require yields the same module instance (identity preserved).
-  assert.strictEqual(require('/mnt-purge-b/value.js'), 'b-cached');
+  assert.strictEqual(require(`${mountB}/value.js`), 'b-cached');
 
   b.unmount();
 }
 
-// 2) ESM URLs are tagged with `vfs-layer=<id>` and the tag surfaces in
-//    `import.meta.url`.
+// 2) `import.meta.url` is the plain file URL of the module under the
+//    mount point, and repeated dynamic imports - including through
+//    `import.meta.resolve()` - return the same module namespace.
 (async () => {
   const v = vfs.create();
-  v.writeFileSync('/m.mjs', 'export const url = import.meta.url;');
-  v.mount('/mnt-tag');
+  v.writeFileSync('/m.mjs',
+                  'export const url = import.meta.url;\n' +
+                  'export const resolved = import.meta.resolve("./m.mjs");');
+  const mountPoint = v.mount('/mnt-url');
 
-  const ns = await import('/mnt-tag/m.mjs');
-  assert.match(ns.url, new RegExp(`vfs-layer=${v.layerId}`));
+  const ns = await import(`${mountPoint}/m.mjs`);
+  assert.strictEqual(ns.url, pathToFileURL(`${mountPoint}/m.mjs`).href);
+
+  // Stable identity: importing the URL the module sees for itself
+  // must hit the cache, not re-instantiate the module.
+  const nsAgain = await import(ns.resolved);
+  assert.strictEqual(ns, nsAgain);
 
   v.unmount();
 })().then(common.mustCall());
