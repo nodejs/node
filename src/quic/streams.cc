@@ -617,21 +617,29 @@ struct Stream::Impl {
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     DCHECK(args[0]->IsArrayBufferView());
 
-    // A datagram can only be associated with a stream that has a real id.
-    // A pending stream has no id yet, so there is nothing to bind to.
-    if (stream->is_pending()) {
-      return args.GetReturnValue().Set(BigInt::New(env->isolate(), 0));
-    }
-
     Store store;
     if (!Store::From(args[0].As<ArrayBufferView>()).To(&store)) {
       return;
     }
 
+    // Mint the id up front. It is exposed (returned non-zero to JS) only
+    // if the datagram is committed - queued now, or buffered for a pending
+    // stream. Sync rejection returns 0 and discards (no subsequent status).
+    datagram_id id = stream->session().ReserveDatagramId();
+
+    // A pending stream has no id yet, so the datagram cannot be framed and
+    // bound to a Quarter Stream ID. Buffer it and flush when the stream opens.
+    // If it cannot be buffered (queue full) the id is discarded.
+    if (stream->is_pending()) {
+      bool buffered = stream->EnqueuePendingDatagram(id, std::move(store));
+      return args.GetReturnValue().Set(
+          BigInt::New(env->isolate(), buffered ? id : 0));
+    }
+
     Session::SendPendingDataScope send_scope(&stream->session());
-    datagram_id id =
-        stream->session().application().SendDatagram(stream, std::move(store));
-    args.GetReturnValue().Set(BigInt::New(env->isolate(), id));
+    datagram_id result = stream->session().application().SendDatagram(
+        stream, std::move(store), id);
+    args.GetReturnValue().Set(BigInt::New(env->isolate(), result));
   }
 };
 
@@ -1313,6 +1321,21 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
+  if (!pending_datagram_queue_.empty()) {
+    // Like the headers flush above, this runs inside an ngtcp2 callback, so
+    // the queued datagrams ride the session's deferred flush; no send scope.
+    std::deque<PendingDatagram> queue;
+    pending_datagram_queue_.swap(queue);
+    pending_datagram_bytes_ = 0;
+    for (auto& dgram : queue) {
+      // The id was already returned to JS. If the send is rejected now (e.g.
+      // the framed size exceeds the peer's max) we report ABANDONED.
+      if (session().application().SendDatagram(
+              this, std::move(dgram.data), dgram.id) == 0) {
+        session().DatagramStatus(dgram.id, DatagramStatus::ABANDONED);
+      }
+    }
+  }
   // If the stream is not a local undirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
@@ -1348,6 +1371,23 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
   Debug(this, "Enqueuing headers for pending stream");
   pending_headers_queue_.push_back(std::make_unique<PendingHeaders>(
       kind, Global<Array>(env()->isolate(), headers), flags));
+}
+
+bool Stream::EnqueuePendingDatagram(datagram_id id, Store&& store) {
+  // Bound the pending queue by the stream's outbound high water mark. When
+  // full, we refuse to send the datagram (its id is discarded by the caller).
+  // A high water mark of 0  means unbounded, matching the stream-write path.
+  uint64_t hwm = state()->high_water_mark;
+  size_t incoming = store.length();
+  if (hwm > 0 && !pending_datagram_queue_.empty() &&
+      pending_datagram_bytes_ + incoming > hwm) {
+    Debug(this, "Pending datagram buffer full, refusing datagram %" PRIu64, id);
+    return false;
+  }
+  Debug(this, "Buffering datagram %" PRIu64 " for pending stream", id);
+  pending_datagram_bytes_ += incoming;
+  pending_datagram_queue_.push_back({id, std::move(store)});
+  return true;
 }
 
 bool Stream::is_pending() const {
@@ -1682,6 +1722,19 @@ void Stream::Destroy(QuicError error) {
     Debug(this, "Pending stream being destroyed with error %s", error);
   }
   state()->pending = 0;
+
+  // Datagrams still buffered for a pending stream had their ids returned to
+  // JS but will never reach the wire, so abandon them here to close each
+  // handle. If the session is already gone there is nobody to notify.
+  if (!pending_datagram_queue_.empty()) {
+    if (!session_->is_destroyed()) {
+      for (auto& dgram : pending_datagram_queue_) {
+        session_->DatagramStatus(dgram.id, DatagramStatus::ABANDONED);
+      }
+    }
+    pending_datagram_queue_.clear();
+    pending_datagram_bytes_ = 0;
+  }
 
   maybe_pending_stream_.reset();
 

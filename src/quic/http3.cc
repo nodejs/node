@@ -405,15 +405,17 @@ class Http3ApplicationImpl final : public Session::Application {
     nghttp3_conn_unblock_stream(*this, stream->id());
   }
 
-  datagram_id SendDatagram(Stream* stream, Store&& payload) override {
+  datagram_id SendDatagram(Stream* stream,
+                           Store&& payload,
+                           datagram_id id) override {
     if (!SupportsDatagrams()) return 0;
 
     // HTTP/3 datagrams can only ever be associated with client-initiated
     // bidi streams (requests). Those ids are always divisible by 4, and
     // sent /4 in the framing itself.
-    stream_id id = stream->id();
-    if (id < 0 || id % 4 != 0) return 0;
-    uint64_t qsid = static_cast<uint64_t>(id) / 4;
+    stream_id sid = stream->id();
+    if (sid < 0 || sid % 4 != 0) return 0;
+    uint64_t qsid = static_cast<uint64_t>(sid) / 4;
 
     size_t prefix_len = nghttp3_put_uvarintlen(qsid);
     uv_buf_t buf = payload;
@@ -433,7 +435,7 @@ class Http3ApplicationImpl final : public Session::Application {
     nghttp3_put_uvarint(dest, qsid);
     // N.b. HTTP/3 Datagram payloads can be empty (RFC 9297).
     if (buf.len > 0) memcpy(dest + prefix_len, buf.base, buf.len);
-    return session().SendDatagram(Store(std::move(backing), total));
+    return session().SendDatagram(Store(std::move(backing), total), id);
   }
 
   void ReceiveDatagram(const uint8_t* data,

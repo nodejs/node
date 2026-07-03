@@ -224,10 +224,12 @@ class Session::Application : public MemoryRetainer {
                                size_t datalen,
                                const Session::DatagramReceivedFlags& flags);
 
-  // Sends a datagram associated with the given stream. Applications that do
-  // not support stream-bound datagrams return 0. Returns the underlying QUIC
-  // datagram id, or 0 if the datagram was not queued.
-  virtual datagram_id SendDatagram(Stream* stream, Store&& payload) {
+  // Sends a datagram associated with the given stream, using the caller's
+  // reserved id. Applications that do not support stream-bound datagrams
+  // return 0. Returns the id on success, or 0 if the datagram was not queued.
+  virtual datagram_id SendDatagram(Stream* stream,
+                                   Store&& payload,
+                                   datagram_id id) {
     return 0;
   }
 

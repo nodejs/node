@@ -426,7 +426,16 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void Send(Packet::Ptr packet);
   void Send(Packet::Ptr packet, const PathStorage& path);
-  datagram_id SendDatagram(Store&& data);
+  // Reserves the next datagram id from the session-wide counter without
+  // queueing anything. Every send path mints an id here up front and passes
+  // it to SendDatagram. The id is only "exposed" (returned to JS) once the
+  // datagram is committed (queued now, or buffered for a pending stream); a
+  // reserved id that is never committed is simply discarded.
+  datagram_id ReserveDatagramId();
+  // Queues a datagram for sending using a previously reserved id. Returns the
+  // id on success, or 0 if it could not be queued, in which case the caller
+  // discards the id and emits no status.
+  datagram_id SendDatagram(Store&& data, datagram_id id);
 
   // Pending datagram accessors for use by SendPendingData.
   struct PendingDatagram {

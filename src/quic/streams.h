@@ -15,6 +15,7 @@
 #include "bindingdata.h"
 #include "data.h"
 
+#include <deque>
 #include <vector>
 
 namespace node::quic {
@@ -435,6 +436,11 @@ class Stream final : public AsyncWrap,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
 
+  // Buffers a datagram (with its already-reserved id) sent on a still-pending
+  // stream, bounded by the stream's high water mark. Returns false without
+  // queueing when the buffer is full, in which case the id is discarded.
+  bool EnqueuePendingDatagram(datagram_id id, Store&& store);
+
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Session> session_;
@@ -451,6 +457,13 @@ class Stream final : public AsyncWrap,
   std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
+
+  struct PendingDatagram {
+    datagram_id id;
+    Store data;
+  };
+  std::deque<PendingDatagram> pending_datagram_queue_;
+  size_t pending_datagram_bytes_ = 0;
 
   struct StoredPriority {
     StreamPriority priority = StreamPriority::DEFAULT;

@@ -1170,8 +1170,9 @@ struct Session::Impl final : public MemoryRetainer {
       return;
     }
 
-    args.GetReturnValue().Set(
-        BigInt::New(env->isolate(), session->SendDatagram(std::move(store))));
+    datagram_id id = session->ReserveDatagramId();
+    args.GetReturnValue().Set(BigInt::New(
+        env->isolate(), session->SendDatagram(std::move(store), id)));
   }
 
   JS_METHOD(LocalTransportParams) {
@@ -2542,7 +2543,12 @@ void Session::Send(Packet::Ptr packet, const PathStorage& path) {
   Send(std::move(packet));
 }
 
-datagram_id Session::SendDatagram(Store&& data) {
+datagram_id Session::ReserveDatagramId() {
+  DCHECK(!is_destroyed());
+  return ++impl_->state()->last_datagram_id;
+}
+
+datagram_id Session::SendDatagram(Store&& data, datagram_id id) {
   DCHECK(!is_destroyed());
 
   // Sending a datagram is best effort. If we cannot send it for any reason,
@@ -2577,8 +2583,8 @@ datagram_id Session::SendDatagram(Store&& data) {
     return 0;
   }
 
-  // Assign the datagram ID.
-  datagram_id did = ++impl_->state()->last_datagram_id;
+  // Use the id reserved by the caller.
+  datagram_id did = id;
 
   // Check queue capacity. Apply the drop policy when full.
   auto max_pending = impl_->state()->max_pending_datagrams;

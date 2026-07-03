@@ -330,3 +330,85 @@ const cert = readKey('agent1-cert.pem');
   await clientSession.close();
   await serverEndpoint.close();
 }
+
+// Test 6: a datagram sent on a still-pending stream gets a real, trackable id,
+// is delivered once the stream opens, and reports a terminal status via
+// ondatagramstatus like any other datagram.
+{
+  const serverGotDatagram = Promise.withResolvers();
+  const serverDone = Promise.withResolvers();
+
+  const serverEndpoint = await listen(mustCall(async (ss) => {
+    ss.onstream = mustCall((stream) => {
+      stream.ondatagram = (data) => {
+        deepStrictEqual([...data], [7, 8, 9]);
+        serverGotDatagram.resolve();
+      };
+    }, 2);
+    await serverDone.promise;
+    ss.close();
+  }), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+    application: { enableDatagrams: true },
+    // Only one concurrent client bidi stream, so the second request stays
+    // pending until the first closes.
+    transportParams: { maxDatagramFrameSize: 100, initialMaxStreamsBidi: 1 },
+    onheaders: mustCall(function() {
+      this.sendHeaders({ ':status': '200' });
+      this.writer.endSync();
+    }, 2),
+  });
+
+  const datagramStatus = Promise.withResolvers();
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+    application: { enableDatagrams: true },
+    transportParams: { maxDatagramFrameSize: 100 },
+    ondatagramstatus: (id, status) => datagramStatus.resolve({ id, status }),
+  });
+  await clientSession.opened;
+
+  // First request holds the single available bidi slot.
+  const stream1 = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET', ':path': '/first',
+      ':scheme': 'https', ':authority': 'localhost',
+    },
+    onheaders: mustCall(function(headers) {
+      strictEqual(headers[':status'], '200');
+    }),
+  });
+
+  // Second stream is pending; the datagram is buffered with a real id.
+  const secondResponse = Promise.withResolvers();
+  const stream2 = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET', ':path': '/second',
+      ':scheme': 'https', ':authority': 'localhost',
+    },
+    onheaders: mustCall(() => secondResponse.resolve()),
+  });
+  ok(stream2.pending);
+  const pendingId = stream2.sendDatagram(new Uint8Array([7, 8, 9]));
+  ok(pendingId > 0n);
+
+  // Free the slot; stream2 opens and the buffered datagram flushes.
+  stream1.writer.endSync();
+  for await (const _ of stream1) { /* drain */ } // eslint-disable-line no-unused-vars
+  await stream1.closed;
+
+  await Promise.all([secondResponse.promise, serverGotDatagram.promise]);
+
+  // The buffered datagram is tracked: its id reports exactly one terminal
+  // status (acknowledged on loopback, but lost is also valid).
+  const { id, status } = await datagramStatus.promise;
+  strictEqual(id, pendingId);
+  ok(status === 'acknowledged' || status === 'lost');
+
+  for await (const _ of stream2) { /* drain */ } // eslint-disable-line no-unused-vars
+  await stream2.closed;
+  serverDone.resolve();
+  await clientSession.close();
+  await serverEndpoint.close();
+}
