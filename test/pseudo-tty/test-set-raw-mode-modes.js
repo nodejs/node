@@ -4,12 +4,12 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 
 function isOnlcrEnabled() {
-  const { stdout, status } = spawnSync('stty', ['-a'], {
+  const { stdout, stderr, status } = spawnSync('stty', ['-a'], {
     encoding: 'utf8',
-    stdio: ['inherit', 'pipe', 'inherit'],
+    stdio: ['inherit', 'pipe', 'pipe'],
   });
 
-  assert.strictEqual(status, 0);
+  assert.strictEqual(status, 0, stderr);
   return /(?:^|[\s;])onlcr(?:[\s;]|$)/.test(stdout);
 }
 
