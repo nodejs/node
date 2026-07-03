@@ -18,17 +18,16 @@ const {
   realpathSync,
 } = require('fs');
 
-// path.resolve here so the mount point and the assertion targets are in the
-// platform's native form (e.g. 'D:\vfs_destr' on Windows). VirtualFileSystem
-// stores the mount point via path.resolve internally, so we mirror that.
-const MOUNT = path.resolve('/vfs_destr');
-const FILE = path.join(MOUNT, 'file.txt');
-
 const myVfs = vfs.create();
 myVfs.mkdirSync('/sub', { recursive: true });
 myVfs.writeFileSync('/file.txt', 'hello from vfs');
 myVfs.writeFileSync('/sub/nested.txt', 'nested content');
-myVfs.mount(MOUNT);
+
+// mount() returns the actual mount point (under os.devNull/vfs/...);
+// '/vfs_destr' is just a logical label. The returned path is already in the
+// platform's native form, so assertion targets are built from it directly.
+const MOUNT = myVfs.mount('/vfs_destr');
+const FILE = path.join(MOUNT, 'file.txt');
 
 {
   const content = readFileSync(FILE, 'utf8');

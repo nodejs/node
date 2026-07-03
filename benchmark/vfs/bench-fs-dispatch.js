@@ -9,11 +9,12 @@
 //   binding.op(getValidatedPath(path));
 //
 // With layers=0 the VFS module is never required and `h === null` is
-// the first thing fs sees. With layers>=1 the handler walks
-// activeVFSList calling vfs.shouldHandle(path) on each. The benchmark
-// mounts N VFSes at distinct, unrelated mount points and probes a real
-// file under __dirname, so every call falls through after the VFS list
-// declines the path. That isolates per-layer dispatch cost.
+// the first thing fs sees. With layers>=1 the handler normalizes the
+// path once and rejects it with a single prefix comparison against the
+// reserved VFS namespace - the number of mounted layers should not
+// matter. The benchmark mounts N VFSes and probes a real file under
+// __dirname, so every call falls through after the namespace check
+// declines the path.
 
 const common = require('../common.js');
 const fs = require('fs');
@@ -23,7 +24,7 @@ const bench = common.createBenchmark(main, {
   n: [3e5],
   op: ['statSync', 'existsSync', 'accessSync', 'readFileSync'],
   // 0 = VFS module never loaded (true baseline)
-  // >=1 = that many VFS instances mounted at unrelated paths
+  // >=1 = that many VFS instances mounted
   layers: [0, 1, 2, 5, 10],
 }, {
   flags: ['--experimental-vfs', '--no-warnings'],
@@ -34,7 +35,7 @@ function mountLayers(count) {
   const handles = [];
   for (let i = 0; i < count; i++) {
     const v = vfs.create();
-    v.mount(`/vfs-bench-${i}`);
+    v.mount('/bench');
     handles.push(v);
   }
   return handles;

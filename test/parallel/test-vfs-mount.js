@@ -5,57 +5,87 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const vfs = require('node:vfs');
 
 // Basic mount/unmount API and dispatch through node:vfs from the public fs.
 
-const baseMountPoint = path.resolve('/tmp/vfs-mount-' + process.pid);
-let mountCounter = 0;
-
 function createMountedVfs() {
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount('/data');
   return { myVfs, mountPoint };
 }
 
-// Test: mounted/mountPoint getters
+// Test: mounted/mountPoint getters; mount() returns the mount point in
+// the reserved namespace under os.devNull.
 {
   const myVfs = vfs.create();
   assert.strictEqual(myVfs.mounted, false);
   assert.strictEqual(myVfs.mountPoint, null);
 
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount('/data');
   assert.strictEqual(myVfs.mounted, true);
   assert.strictEqual(myVfs.mountPoint, mountPoint);
+  assert.strictEqual(
+    mountPoint,
+    path.join(os.devNull, 'vfs', `layer-${myVfs.layerId}`, 'data'));
 
   myVfs.unmount();
   assert.strictEqual(myVfs.mounted, false);
   assert.strictEqual(myVfs.mountPoint, null);
+}
+
+// Test: prefix is optional and never resolved against the working
+// directory; relative and absolute prefixes are logical names inside
+// the reserved namespace.
+{
+  const myVfs = vfs.create();
+  const mountPoint = myVfs.mount();
+  assert.strictEqual(
+    mountPoint,
+    path.join(os.devNull, 'vfs', `layer-${myVfs.layerId}`));
+  myVfs.unmount();
+
+  const relative = myVfs.mount('deps');
+  assert.strictEqual(
+    relative,
+    path.join(os.devNull, 'vfs', `layer-${myVfs.layerId}`, 'deps'));
+  myVfs.unmount();
 }
 
 // Test: double-mount throws
 {
   const myVfs = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
-  assert.throws(() => myVfs.mount(mountPoint), { code: 'ERR_INVALID_STATE' });
+  myVfs.mount('/data');
+  assert.throws(() => myVfs.mount('/data'), { code: 'ERR_INVALID_STATE' });
   myVfs.unmount();
 }
 
-// Test: overlapping mounts throw
+// Test: prefix cannot escape the reserved namespace; non-string throws
+{
+  const myVfs = vfs.create();
+  assert.throws(() => myVfs.mount('../../escape'),
+                { code: 'ERR_INVALID_ARG_VALUE' });
+  assert.throws(() => myVfs.mount(42), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.strictEqual(myVfs.mounted, false);
+}
+
+// Test: two instances can use the same logical prefix - each gets a
+// distinct mount point in its own layer namespace.
 {
   const a = vfs.create();
   const b = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  a.mount(mountPoint);
-  assert.throws(() => b.mount(mountPoint), { code: 'ERR_INVALID_STATE' });
-  assert.throws(() => b.mount(path.join(mountPoint, 'inner')),
-                { code: 'ERR_INVALID_STATE' });
+  a.writeFileSync('/f.txt', 'A');
+  b.writeFileSync('/f.txt', 'B');
+  const mountA = a.mount('/same');
+  const mountB = b.mount('/same');
+  assert.notStrictEqual(mountA, mountB);
+  assert.strictEqual(fs.readFileSync(path.join(mountA, 'f.txt'), 'utf8'), 'A');
+  assert.strictEqual(fs.readFileSync(path.join(mountB, 'f.txt'), 'utf8'), 'B');
   a.unmount();
+  b.unmount();
 }
 
 // Test: fs.readFileSync intercepted
@@ -165,8 +195,7 @@ function createMountedVfs() {
 // Test: Symbol.dispose unmounts
 {
   const myVfs = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
+  myVfs.mount('/data');
   assert.strictEqual(myVfs.mounted, true);
   myVfs[Symbol.dispose]();
   assert.strictEqual(myVfs.mounted, false);

@@ -16,11 +16,11 @@ const vfs = require('node:vfs');
     main: './index.js',
     exports: { '.': './index.js' },
   }));
-  myVfs.mount('/mnt/read-test');
+  const mountPoint = myVfs.mount('/mnt/read-test');
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const result = packageJsonReader.read(
-    path.resolve('/mnt/read-test/pkg/package.json'), {},
+    path.join(mountPoint, 'pkg', 'package.json'), {},
   );
 
   assert.strictEqual(result.exists, true);
@@ -30,12 +30,12 @@ const vfs = require('node:vfs');
   assert.deepStrictEqual(result.exports, { '.': './index.js' });
   assert.strictEqual(
     result.pjsonPath,
-    path.resolve('/mnt/read-test/pkg/package.json'),
+    path.join(mountPoint, 'pkg', 'package.json'),
   );
 
   // Non-existent package.json returns exists: false
   const missing = packageJsonReader.read(
-    path.resolve('/mnt/read-test/nope/package.json'), {},
+    path.join(mountPoint, 'nope', 'package.json'), {},
   );
   assert.strictEqual(missing.exists, false);
 
@@ -51,11 +51,11 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/app/src/lib/deep/module.js', '');
-  myVfs.mount('/mnt/parent-test');
+  const mountPoint = myVfs.mount('/mnt/parent-test');
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const result = packageJsonReader.getNearestParentPackageJSON(
-    path.resolve('/mnt/parent-test/app/src/lib/deep/module.js'),
+    path.join(mountPoint, 'app', 'src', 'lib', 'deep', 'module.js'),
   );
 
   assert.ok(result);
@@ -64,7 +64,7 @@ const vfs = require('node:vfs');
   assert.strictEqual(result.data.type, 'module');
   assert.strictEqual(
     result.path,
-    path.resolve('/mnt/parent-test/app/package.json'),
+    path.join(mountPoint, 'app', 'package.json'),
   );
 
   myVfs.unmount();
@@ -80,12 +80,12 @@ const vfs = require('node:vfs');
     exports: { '.': './main.js' },
   }));
   myVfs.writeFileSync('/project/src/index.js', '');
-  myVfs.mount('/mnt/scope-test');
+  const mountPoint = myVfs.mount('/mnt/scope-test');
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const { pathToFileURL } = require('url');
   const scopeUrl = pathToFileURL(
-    path.resolve('/mnt/scope-test/project/src/index.js'),
+    path.join(mountPoint, 'project', 'src', 'index.js'),
   ).href;
   const result = packageJsonReader.getPackageScopeConfig(scopeUrl);
 
@@ -94,17 +94,17 @@ const vfs = require('node:vfs');
   assert.strictEqual(result.name, 'my-project');
   assert.strictEqual(
     result.pjsonPath,
-    path.resolve('/mnt/scope-test/project/package.json'),
+    path.join(mountPoint, 'project', 'package.json'),
   );
 
   // Path with no package.json returns exists: false
   const myVfs2 = vfs.create();
   myVfs2.mkdirSync('/empty/src', { recursive: true });
   myVfs2.writeFileSync('/empty/src/file.js', '');
-  myVfs2.mount('/mnt/scope-empty');
+  const mountPoint2 = myVfs2.mount('/mnt/scope-empty');
 
   const emptyUrl = pathToFileURL(
-    path.resolve('/mnt/scope-empty/empty/src/file.js'),
+    path.join(mountPoint2, 'empty', 'src', 'file.js'),
   ).href;
   const emptyResult = packageJsonReader.getPackageScopeConfig(emptyUrl);
   assert.strictEqual(emptyResult.exists, false);
@@ -121,12 +121,12 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/esm-app/index.js', '');
-  myVfs.mount('/mnt/type-test');
+  const mountPoint = myVfs.mount('/mnt/type-test');
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const { pathToFileURL } = require('url');
   const typeUrl = pathToFileURL(
-    path.resolve('/mnt/type-test/esm-app/index.js'),
+    path.join(mountPoint, 'esm-app', 'index.js'),
   ).href;
   const type = packageJsonReader.getPackageType(typeUrl);
   assert.strictEqual(type, 'module');
@@ -135,10 +135,10 @@ const vfs = require('node:vfs');
   const myVfs2 = vfs.create();
   myVfs2.mkdirSync('/bare', { recursive: true });
   myVfs2.writeFileSync('/bare/file.js', '');
-  myVfs2.mount('/mnt/type-empty');
+  const mountPoint2 = myVfs2.mount('/mnt/type-empty');
 
   const noneUrl = pathToFileURL(
-    path.resolve('/mnt/type-empty/bare/file.js'),
+    path.join(mountPoint2, 'bare', 'file.js'),
   ).href;
   const noneType = packageJsonReader.getPackageType(noneUrl);
   assert.strictEqual(noneType, 'none');
@@ -157,9 +157,9 @@ const vfs = require('node:vfs');
   }));
   myVfs.writeFileSync('/cjs-app/main.js',
                       'module.exports = { format: "cjs", ok: true };');
-  myVfs.mount('/mnt/e2e-cjs');
+  const mountPoint = myVfs.mount('/mnt/e2e-cjs');
 
-  const result = require('/mnt/e2e-cjs/cjs-app/main.js');
+  const result = require(`${mountPoint}/cjs-app/main.js`);
   assert.strictEqual(result.format, 'cjs');
   assert.strictEqual(result.ok, true);
 
@@ -174,10 +174,10 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/esm/mod.mjs', 'export const x = 42;');
-  myVfs.mount('/mnt/e2e-esm');
+  const mountPoint = myVfs.mount('/mnt/e2e-esm');
 
   // Use .mjs to ensure ESM treatment regardless of package type
-  const mod = require('/mnt/e2e-esm/esm/mod.mjs');
+  const mod = require(`${mountPoint}/esm/mod.mjs`);
   assert.strictEqual(mod.x, 42);
 
   myVfs.unmount();

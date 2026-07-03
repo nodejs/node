@@ -14,14 +14,14 @@ const vfs = require('node:vfs');
 {
   const a = vfs.create();
   a.writeFileSync('/m1.js', 'module.exports = "first"');
-  a.mount('/mnt-cycle-1');
-  assert.strictEqual(require('/mnt-cycle-1/m1.js'), 'first');
+  const mountA = a.mount('/mnt-cycle-1');
+  assert.strictEqual(require(`${mountA}/m1.js`), 'first');
   a.unmount();
 
   const b = vfs.create();
   b.writeFileSync('/m2.js', 'module.exports = "second"');
-  b.mount('/mnt-cycle-2');
-  assert.strictEqual(require('/mnt-cycle-2/m2.js'), 'second');
+  const mountB = b.mount('/mnt-cycle-2');
+  assert.strictEqual(require(`${mountB}/m2.js`), 'second');
   b.unmount();
 }
 
@@ -30,8 +30,8 @@ const vfs = require('node:vfs');
 {
   const v = vfs.create();
   v.writeFileSync('/x.js', 'module.exports = 1');
-  v.mount('/mnt-cleanup');
-  require('/mnt-cleanup/x.js');
+  const mountPoint = v.mount('/mnt-cleanup');
+  require(`${mountPoint}/x.js`);
   v.unmount();
   const fs = require('fs');
   assert.strictEqual(typeof fs.readFileSync, 'function');
@@ -45,9 +45,9 @@ const vfs = require('node:vfs');
   v.mkdirSync('/pkg');
   v.writeFileSync('/pkg/package.json', 'null');
   v.writeFileSync('/pkg/index.js', 'module.exports = 1');
-  v.mount('/mnt-null-pjson');
+  const mountPoint = v.mount('/mnt-null-pjson');
   assert.throws(
-    () => require('/mnt-null-pjson/pkg'),
+    () => require(`${mountPoint}/pkg`),
     { code: 'ERR_INVALID_PACKAGE_CONFIG' },
   );
   v.unmount();
@@ -61,28 +61,28 @@ const vfs = require('node:vfs');
   v.mkdirSync('/pkg');
   v.writeFileSync('/pkg/package.json', '{"main": 42}');
   v.writeFileSync('/pkg/index.js', 'module.exports = "via-index"');
-  v.mount('/mnt-lax-main');
-  assert.strictEqual(require('/mnt-lax-main/pkg'), 'via-index');
+  const mountPoint = v.mount('/mnt-lax-main');
+  assert.strictEqual(require(`${mountPoint}/pkg`), 'via-index');
   v.unmount();
 }
 
 // 5) Partial deregister of a multi-mount setup leaves the still-mounted
 //    VFS fully functional. Guards against the prior "nuke caches before
-//    checking activeVFSList.length === 0" sledgehammer.
+//    checking the active-layer count" sledgehammer.
 {
   const a = vfs.create();
   a.writeFileSync('/a.js', 'module.exports = "a"');
-  a.mount('/mnt-multi-a');
+  const mountA = a.mount('/mnt-multi-a');
   const b = vfs.create();
   b.writeFileSync('/b.js', 'module.exports = "b"');
-  b.mount('/mnt-multi-b');
+  const mountB = b.mount('/mnt-multi-b');
 
-  assert.strictEqual(require('/mnt-multi-a/a.js'), 'a');
-  assert.strictEqual(require('/mnt-multi-b/b.js'), 'b');
+  assert.strictEqual(require(`${mountA}/a.js`), 'a');
+  assert.strictEqual(require(`${mountB}/b.js`), 'b');
 
   // Deregister one; the other must still resolve.
   a.unmount();
-  assert.strictEqual(require('/mnt-multi-b/b.js'), 'b');
+  assert.strictEqual(require(`${mountB}/b.js`), 'b');
 
   b.unmount();
 }
@@ -100,9 +100,9 @@ const vfs = require('node:vfs');
   v.writeFileSync(
     '/app/node_modules/badpkg/package.json', '{"main": "./nope.js"}');
   v.writeFileSync('/app/entry.mjs', "import 'badpkg';");
-  v.mount('/mnt-legacy-err');
+  const mountPoint = v.mount('/mnt-legacy-err');
   await assert.rejects(
-    () => import('/mnt-legacy-err/app/entry.mjs'),
+    () => import(`${mountPoint}/app/entry.mjs`),
     (err) => {
       assert.strictEqual(err.code, 'ERR_MODULE_NOT_FOUND');
       assert.match(err.message, /nope\.js/);
@@ -113,3 +113,24 @@ const vfs = require('node:vfs');
   );
   v.unmount();
 })().then(common.mustCall());
+
+// 7) Symlink inside a VFS: the loader resolves through the link, and
+//    unmount purges the cache entries recorded under the resolved
+//    realpath too (the realpath of a VFS file always stays under the
+//    mount point). Remounting the same instance at the same prefix
+//    reuses the same mount point, so a stale entry would be revived.
+{
+  const v = vfs.create();
+  v.mkdirSync('/real', { recursive: true });
+  v.writeFileSync('/real/mod.js', 'module.exports = "one"');
+  v.symlinkSync('/real/mod.js', '/link.js');
+  const mountPoint = v.mount('/mnt-symlink');
+  assert.strictEqual(require(`${mountPoint}/link.js`), 'one');
+  v.unmount();
+
+  v.writeFileSync('/real/mod.js', 'module.exports = "two"');
+  const mountPoint2 = v.mount('/mnt-symlink');
+  assert.strictEqual(mountPoint2, mountPoint);
+  assert.strictEqual(require(`${mountPoint2}/link.js`), 'two');
+  v.unmount();
+}

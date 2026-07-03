@@ -9,14 +9,14 @@ const vfs = require('node:vfs');
 
 // Test requiring a simple virtual module
 // VFS internal path: /hello.js
-// Mount point: /virtual
-// External path: /virtual/hello.js
+// Logical prefix: /virtual — the actual mount point is returned by mount()
+// External path: `${mountPoint}/hello.js`
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.js', 'module.exports = "hello from vfs";');
-  myVfs.mount('/virtual');
+  const mountPoint = myVfs.mount('/virtual');
 
-  const result = require('/virtual/hello.js');
+  const result = require(`${mountPoint}/hello.js`);
   assert.strictEqual(result, 'hello from vfs');
 
   myVfs.unmount();
@@ -32,9 +32,9 @@ const vfs = require('node:vfs');
       getValue: function() { return 42; }
     };
   `);
-  myVfs.mount('/virtual2');
+  const mountPoint = myVfs.mount('/virtual2');
 
-  const config = require('/virtual2/config.js');
+  const config = require(`${mountPoint}/config.js`);
   assert.strictEqual(config.name, 'test-config');
   assert.strictEqual(config.version, '1.0.0');
   assert.strictEqual(config.getValue(), 42);
@@ -42,23 +42,24 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test requiring a virtual module that requires another virtual module
+// Test requiring a virtual module that requires another virtual module.
+// Mount first so the embedded absolute specifier can use the mount point.
 {
   const myVfs = vfs.create();
-  myVfs.writeFileSync('/utils.js', `
+  const mountPoint = myVfs.mount('/virtual3');
+  myVfs.writeFileSync(`${mountPoint}/utils.js`, `
     module.exports = {
       add: function(a, b) { return a + b; }
     };
   `);
-  myVfs.writeFileSync('/main.js', `
-    const utils = require('/virtual3/utils.js');
+  myVfs.writeFileSync(`${mountPoint}/main.js`, `
+    const utils = require(${JSON.stringify(`${mountPoint}/utils.js`)});
     module.exports = {
       sum: utils.add(10, 20)
     };
   `);
-  myVfs.mount('/virtual3');
 
-  const main = require('/virtual3/main.js');
+  const main = require(`${mountPoint}/main.js`);
   assert.strictEqual(main.sum, 30);
 
   myVfs.unmount();
@@ -71,9 +72,9 @@ const vfs = require('node:vfs');
     items: [1, 2, 3],
     enabled: true,
   }));
-  myVfs.mount('/virtual4');
+  const mountPoint = myVfs.mount('/virtual4');
 
-  const data = require('/virtual4/data.json');
+  const data = require(`${mountPoint}/data.json`);
   assert.deepStrictEqual(data.items, [1, 2, 3]);
   assert.strictEqual(data.enabled, true);
 
@@ -91,9 +92,9 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/my-package/index.js', `
     module.exports = { loaded: true };
   `);
-  myVfs.mount('/virtual5');
+  const mountPoint = myVfs.mount('/virtual5');
 
-  const pkg = require('/virtual5/my-package');
+  const pkg = require(`${mountPoint}/my-package`);
   assert.strictEqual(pkg.loaded, true);
 
   myVfs.unmount();
@@ -126,9 +127,9 @@ const vfs = require('node:vfs');
     const helper = require('./helper.js');
     module.exports = helper.help();
   `);
-  myVfs.mount('/virtual8');
+  const mountPoint = myVfs.mount('/virtual8');
 
-  const result = require('/virtual8/lib/index.js');
+  const result = require(`${mountPoint}/lib/index.js`);
   assert.strictEqual(result, 'helped');
 
   myVfs.unmount();
@@ -138,9 +139,9 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'virtual content');
-  myVfs.mount('/virtual9');
+  const mountPoint = myVfs.mount('/virtual9');
 
-  const content = fs.readFileSync('/virtual9/file.txt', 'utf8');
+  const content = fs.readFileSync(`${mountPoint}/file.txt`, 'utf8');
   assert.strictEqual(content, 'virtual content');
 
   myVfs.unmount();
@@ -150,9 +151,9 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/esm.mjs', 'export const msg = "hello from esm";');
-  myVfs.mount('/virtual11');
+  const mountPoint = myVfs.mount('/virtual11');
 
-  const mod = require('/virtual11/esm.mjs');
+  const mod = require(`${mountPoint}/esm.mjs`);
   assert.strictEqual(mod.msg, 'hello from esm');
 
   myVfs.unmount();
@@ -162,9 +163,9 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/esm-default.mjs', 'export default function() { return 42; }');
-  myVfs.mount('/virtual12');
+  const mountPoint = myVfs.mount('/virtual12');
 
-  const mod = require('/virtual12/esm-default.mjs');
+  const mod = require(`${mountPoint}/esm-default.mjs`);
   assert.strictEqual(mod.default(), 42);
 
   myVfs.unmount();
@@ -181,9 +182,9 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/app/lib.js',
                       'export const value = 42;' +
                       ' export function hello() { return "hi"; }');
-  myVfs.mount('/virtual13');
+  const mountPoint = myVfs.mount('/virtual13');
 
-  const mod = require('/virtual13/app/lib.js');
+  const mod = require(`${mountPoint}/app/lib.js`);
   assert.strictEqual(mod.value, 42);
   assert.strictEqual(mod.hello(), 'hi');
 
@@ -201,9 +202,9 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/project/src/utils/math.js',
                       'export const add = (a, b) => a + b;' +
                       ' export default 99;');
-  myVfs.mount('/virtual14');
+  const mountPoint = myVfs.mount('/virtual14');
 
-  const mod = require('/virtual14/project/src/utils/math.js');
+  const mod = require(`${mountPoint}/project/src/utils/math.js`);
   assert.strictEqual(mod.add(3, 4), 7);
   assert.strictEqual(mod.default, 99);
 
@@ -219,9 +220,9 @@ const vfs = require('node:vfs');
   }));
   myVfs.writeFileSync('/cjs-app/index.js',
                       'module.exports = { cjs: true };');
-  myVfs.mount('/virtual15');
+  const mountPoint = myVfs.mount('/virtual15');
 
-  const mod = require('/virtual15/cjs-app/index.js');
+  const mod = require(`${mountPoint}/cjs-app/index.js`);
   assert.strictEqual(mod.cjs, true);
 
   myVfs.unmount();
@@ -238,9 +239,9 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/multi/src/main.js',
                       'import { X } from "./dep.js";' +
                       ' export const result = X + 1;');
-  myVfs.mount('/virtual16');
+  const mountPoint = myVfs.mount('/virtual16');
 
-  const mod = require('/virtual16/multi/src/main.js');
+  const mod = require(`${mountPoint}/multi/src/main.js`);
   assert.strictEqual(mod.result, 101);
 
   myVfs.unmount();
@@ -251,9 +252,9 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/no-pkg.mjs',
                       'export const x = 1; export default "hello";');
-  myVfs.mount('/virtual17');
+  const mountPoint = myVfs.mount('/virtual17');
 
-  const mod = require('/virtual17/no-pkg.mjs');
+  const mod = require(`${mountPoint}/no-pkg.mjs`);
   assert.strictEqual(mod.x, 1);
   assert.strictEqual(mod.default, 'hello');
 
@@ -267,9 +268,9 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/app/package.json',
                       JSON.stringify({ name: 'no-type' }));
   myVfs.writeFileSync('/app/lib.mjs', 'export const val = 42;');
-  myVfs.mount('/virtual18');
+  const mountPoint = myVfs.mount('/virtual18');
 
-  const mod = require('/virtual18/app/lib.mjs');
+  const mod = require(`${mountPoint}/app/lib.mjs`);
   assert.strictEqual(mod.val, 42);
 
   myVfs.unmount();
@@ -284,9 +285,9 @@ const vfs = require('node:vfs');
     type: 'commonjs',
   }));
   myVfs.writeFileSync('/cjs-pkg/esm.mjs', 'export const z = 99;');
-  myVfs.mount('/virtual19');
+  const mountPoint = myVfs.mount('/virtual19');
 
-  const mod = require('/virtual19/cjs-pkg/esm.mjs');
+  const mod = require(`${mountPoint}/cjs-pkg/esm.mjs`);
   assert.strictEqual(mod.z, 99);
 
   myVfs.unmount();
@@ -301,9 +302,9 @@ const vfs = require('node:vfs');
     main: './lib/entry',
   }));
   myVfs.writeFileSync('/pkg/lib/entry.js', 'module.exports = "legacy-main";');
-  myVfs.mount('/virtual20');
+  const mountPoint = myVfs.mount('/virtual20');
 
-  const result = require('/virtual20/pkg');
+  const result = require(`${mountPoint}/pkg`);
   assert.strictEqual(result, 'legacy-main');
 
   myVfs.unmount();
@@ -317,9 +318,9 @@ const vfs = require('node:vfs');
     name: 'no-main-pkg',
   }));
   myVfs.writeFileSync('/pkg2/index.js', 'module.exports = "index-fallback";');
-  myVfs.mount('/virtual21');
+  const mountPoint = myVfs.mount('/virtual21');
 
-  const result = require('/virtual21/pkg2');
+  const result = require(`${mountPoint}/pkg2`);
   assert.strictEqual(result, 'index-fallback');
 
   myVfs.unmount();
@@ -339,9 +340,9 @@ const vfs = require('node:vfs');
                       'export const value = "esm-legacy-main";');
   myVfs.writeFileSync('/app/main.mjs',
                       'export { value } from "esm-legacy-main";');
-  myVfs.mount('/virtual20b');
+  const mountPoint = myVfs.mount('/virtual20b');
 
-  import('/virtual20b/app/main.mjs').then(common.mustCall((mod) => {
+  import(`${mountPoint}/app/main.mjs`).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-legacy-main');
     myVfs.unmount();
   }));
@@ -359,9 +360,9 @@ const vfs = require('node:vfs');
                       'export const value = "esm-index-fallback";');
   myVfs.writeFileSync('/app2/main.mjs',
                       'export { value } from "esm-nomain";');
-  myVfs.mount('/virtual21b');
+  const mountPoint = myVfs.mount('/virtual21b');
 
-  import('/virtual21b/app2/main.mjs').then(common.mustCall((mod) => {
+  import(`${mountPoint}/app2/main.mjs`).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-index-fallback');
     myVfs.unmount();
   }));
@@ -376,10 +377,10 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/esm-pkg/entry', 'export const x = 123;');
-  myVfs.mount('/virtual22');
+  const mountPoint = myVfs.mount('/virtual22');
 
   // Use import() to trigger ESM loader path for extensionless file detection
-  import('/virtual22/esm-pkg/entry').then(common.mustCall((mod) => {
+  import(`${mountPoint}/esm-pkg/entry`).then(common.mustCall((mod) => {
     assert.strictEqual(mod.x, 123);
     myVfs.unmount();
   }));
@@ -389,17 +390,17 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/unmount-test.js', 'module.exports = "before unmount";');
-  myVfs.mount('/virtual10');
+  const mountPoint = myVfs.mount('/virtual10');
 
-  const result = require('/virtual10/unmount-test.js');
+  const result = require(`${mountPoint}/unmount-test.js`);
   assert.strictEqual(result, 'before unmount');
 
   myVfs.unmount();
 
   // After unmounting, the file should not be found
   assert.throws(() => {
-    // Clear require cache first — the cache key is the platform-resolved path
-    delete require.cache[path.resolve('/virtual10/unmount-test.js')];
-    require('/virtual10/unmount-test.js');
+    // Clear require cache first — the cache key is the resolved mounted path
+    delete require.cache[path.join(mountPoint, 'unmount-test.js')];
+    require(`${mountPoint}/unmount-test.js`);
   }, { code: 'MODULE_NOT_FOUND' });
 }
