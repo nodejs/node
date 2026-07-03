@@ -25,7 +25,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -40,7 +40,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -56,7 +56,7 @@ jobs:
     if: ${{ github.event.pull_request && github.event.pull_request.draft == false && github.base_ref == github.event.repository.default_branch }}
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -95,7 +95,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -144,7 +144,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: '*.nix'
@@ -165,7 +165,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -193,7 +193,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -218,7 +218,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -234,7 +234,7 @@ jobs:
     # cannot use ubuntu-24.04-arm here because the docker image is x86 only
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - uses: mszostok/codeowners-validator@7f3f5e28c6d7b8dfae5731e54ce2272ca384592f
@@ -244,7 +244,7 @@ jobs:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -259,7 +259,7 @@ jobs:
   lint-readme:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
