@@ -895,6 +895,8 @@ void ChannelWrap::Setup() {
   options.timeout = timeout_;
   options.tries = tries_;
   options.qcache_max_ttl = 0;
+  // Resolver APIs always perform DNS queries and must not consult hosts files.
+  options.lookups = const_cast<char*>("b");
 
   int r;
   if (!library_inited_) {
@@ -908,7 +910,7 @@ void ChannelWrap::Setup() {
 
   /* We do the call to ares_init_option for caller. */
   int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB |
-                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE;
+                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE | ARES_OPT_LOOKUPS;
 
   if (max_timeout_ > 0) {
     options.maxtimeout = max_timeout_;
