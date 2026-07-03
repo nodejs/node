@@ -61,10 +61,11 @@ is used for a final full-test run to ensure that the current _HEAD_ is stable.
 
 **b.** **CitGM:**
 **[citgm-smoker](https://ci.nodejs.org/job/citgm-smoker/)** is used to run
-the CitGM tool which tests a build of Node.js against a defined set of
-community modules.  This is used during a release process to ensure that
-none of the commonly used modules which are tested by CitGM show functional
-regressions with the new Node.js version which could impact users.
+the [CitGM](https://github.com/nodejs/citgm/) tool which tests a build of
+Node.js against a defined set of community modules.  This is used during a
+release process to ensure that none of the commonly used modules which are
+tested by CitGM show functional regressions with the new Node.js version
+which could impact users.
 
 **c.** **Nightly builds:** (optional)
 **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** can be used
@@ -144,7 +145,8 @@ Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
 
 > All commits to branches in `nodejs/node` other than `main` and `actions/*` MUST be signed
-> otherwise pushing to those branches will be rejected by GitHub.
+> otherwise pushing to those branches will be rejected by the GitHub rules
+> enforced by the Node.js project.
 > Run: `git config commit.gpgsign true` inside the `node` folder or use the
 > `-S` flag on your git operations (The examples in this document will
 > include `-S` expliticlty)
