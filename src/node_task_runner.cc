@@ -171,10 +171,10 @@ std::string EscapeShell(const std::string_view input) {
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
 #else
-  // Replace single quotes("'") with "\\'" and wrap the result
+  // Replace single quotes("'") with `'"'"'` and wrap the result
   // in single quotes.
   std::string escaped =
-      std::regex_replace(std::string(input), std::regex("'"), "\\'");
+      std::regex_replace(std::string(input), std::regex("'"), "'\"'\"'");
   escaped = "'" + escaped + "'";
   // Remove excessive quote pairs and handle edge cases
   static const std::regex tripleSingleQuote("\\\\'''");
