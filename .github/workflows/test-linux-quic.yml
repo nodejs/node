@@ -69,8 +69,6 @@ jobs:
         uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
         with:
           version: v0.16.0
-      - name: Environment Information
-        run: npx envinfo@7.21.0
       - name: Build
         working-directory: node
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support --experimental-quic"
