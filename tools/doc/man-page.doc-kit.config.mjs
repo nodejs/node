@@ -12,7 +12,7 @@ export default {
 
   global: {
     input: [fromRoot('doc/api/cli.md')],
-    output: fromRoot('out/doc/.manpagecheck'),
+    output: fromRoot('tools/doc/.manpagecheck'),
 
     // Point every loadable URL at its local file so no network request is made.
     changelog: fromRoot('CHANGELOG.md'),

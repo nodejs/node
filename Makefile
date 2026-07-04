@@ -1501,13 +1501,13 @@ tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $< verification (no crypto and/or no ICU)"; \
 	else \
-		$(RM) -r out/doc/.manpagecheck && \
+		$(RM) -r tools/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \
-		if ! diff -u $< out/doc/.manpagecheck/node.1; then \
+		if ! diff -u $< tools/doc/.manpagecheck/node.1; then \
 			echo '$< is out of date; run `make node.1` to regenerate it.' >&2; \
 			exit 1; \
 		fi; \
