@@ -147,7 +147,7 @@ The valid arguments for the \fB--allow-fs-read\fR flag are:
 \fB*\fR - To allow all \fBFileSystemRead\fR operations.
 .It
 Multiple paths can be allowed using multiple \fB--allow-fs-read\fR flags.
-Example \fB--allow-fs-read=/folder1/ --allow-fs-read=/folder1/\fR
+Example \fB--allow-fs-read=/folder1/ --allow-fs-read=/folder2/\fR
 .El
 Examples can be found in the File System Permissions documentation.
 The initializer module and custom \fB--require\fR modules has a implicit
@@ -175,7 +175,7 @@ The valid arguments for the \fB--allow-fs-write\fR flag are:
 \fB*\fR - To allow all \fBFileSystemWrite\fR operations.
 .It
 Multiple paths can be allowed using multiple \fB--allow-fs-write\fR flags.
-Example \fB--allow-fs-write=/folder1/ --allow-fs-write=/folder1/\fR
+Example \fB--allow-fs-write=/folder1/ --allow-fs-write=/folder2/\fR
 .El
 Paths delimited by comma (\fB,\fR) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
