@@ -65,6 +65,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -231,6 +232,17 @@ struct StringPtr {
       return OneByteString(env->isolate(), str_, size_);
     else
       return String::Empty(env->isolate());
+  }
+
+  Local<String> ToInternalizedString(Environment* env) const {
+    if (size_ != 0) {
+      return String::NewFromOneByte(env->isolate(),
+                                    reinterpret_cast<const uint8_t*>(str_),
+                                    NewStringType::kInternalized,
+                                    size_)
+          .ToLocalChecked();
+    }
+    return String::Empty(env->isolate());
   }
 
   // Strip trailing OWS (SPC or HTAB) from string.
@@ -940,7 +952,8 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
     for (size_t i = 0; i < num_values_; ++i) {
-      headers_v[i * 2] = fields_[i].ToString(env());
+      // Field names repeat across requests, so internalize them.
+      headers_v[i * 2] = fields_[i].ToInternalizedString(env());
       headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
 
