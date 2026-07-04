@@ -2823,12 +2823,30 @@ A QUIC session failed because version negotiation is required.
 
 ### `ERR_REQUIRE_ASYNC_MODULE`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64260
+    description: Added the `requireStack` and `topLevelAwaitLocations` properties.
+-->
+
 When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
-To see where the top-level await is, use
-`--experimental-print-required-tla` (this would execute the modules
-before looking for the top-level awaits).
+When uncaught, the flag `--experimental-print-required-tla` prints
+the locations of the top-level awaits in the graph to stderr.
+
+This error has the following additional non-enumerable properties:
+
+* `requireStack` {string\[]} The chain of modules that led to the failing
+  `require()`, starting with the module that required the asynchronous module.
+* `topLevelAwaitLocations` {Object\[]} The locations of the top-level awaits in
+  the graph. Only populated when `--experimental-print-required-tla` is enabled.
+  Each entry has the following properties:
+  * `url` {string} The URL of the module containing the top-level await.
+  * `line` {number} The 1-based line number of the top-level await.
+  * `column` {number} The 1-based column number of the top-level await.
+  * `sourceLine` {string} The source line containing the top-level await.
 
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
