@@ -772,9 +772,8 @@ See Package maps for details on the configuration file format and
 resolution algorithm.
 .
 .It Fl -experimental-print-required-tla
-If the ES module being \fBrequire()\fR'd contains top-level \fBawait\fR, this flag
-allows Node.js to evaluate the module, try to locate the
-top-level awaits, and print their location to help users find them.
+If the ES module graph cannot be \fBrequire()\fR'd because it contains any top-level \fBawait\fR,
+this flag allows Node.js to locate and print their locations.
 .
 .It Fl -experimental-quic
 Enable experimental support for the QUIC protocol.
