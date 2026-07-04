@@ -6,11 +6,11 @@
 
 const kHeapObjectTag = 0x1;
 const kCodeWrapperMap = 0x1239;
-const kDispatchHandleOffset = Sandbox.getFieldOffset(
-  Sandbox.getInstanceTypeIdFor("JS_FUNCTION_TYPE"),
-  "dispatch_handle"
-);
-const kFeedbackCellOffset = 0x18;
+const kJSFunctionType = Sandbox.getInstanceTypeIdFor('JS_FUNCTION_TYPE');
+const kDispatchHandleOffset =
+    Sandbox.getFieldOffset(kJSFunctionType, 'dispatch_handle');
+const kFeedbackCellOffset =
+    Sandbox.getFieldOffset(kJSFunctionType, 'feedback_cell');
 
 const memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 const getPtr = (obj) => Sandbox.getAddressOf(obj) + kHeapObjectTag;

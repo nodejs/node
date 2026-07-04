@@ -1,0 +1,243 @@
+add_header_library(
+  algorithm
+  HDRS
+    algorithm.h
+)
+
+add_header_library(
+  array
+  HDRS
+    array.h
+)
+
+add_header_library(
+  bit
+  HDRS
+    bit.h
+  DEPENDS
+    .limits
+    .type_traits
+    libc.hdr.stdint_proxy
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.sanitizer
+    libc.src.__support.macros.properties.compiler
+)
+
+add_header_library(
+  bitset
+  HDRS
+    bitset.h
+)
+
+add_header_library(
+  cstddef
+  HDRS
+    cstddef.h
+  DEPENDS
+    .type_traits
+)
+
+add_header_library(
+  functional
+  HDRS
+    functional.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+)
+
+add_header_library(
+  limits
+  HDRS
+    limits.h
+  DEPENDS
+    .type_traits
+    libc.hdr.limits_macros
+    libc.include.llvm-libc-macros.limits_macros
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  mutex
+  HDRS
+    mutex.h
+)
+
+add_header_library(
+  span
+  HDRS
+    span.h
+  DEPENDS
+    .array
+    .type_traits
+)
+
+add_header_library(
+  string_view
+  HDRS
+    string_view.h
+  DEPENDS
+    libc.src.__support.common
+)
+
+add_header_library(
+  string
+  HDRS
+    string.h
+  DEPENDS
+    .string_view
+    libc.hdr.func.free
+    libc.hdr.func.malloc
+    libc.hdr.func.realloc
+    libc.src.__support.common
+    libc.src.__support.integer_to_string
+    libc.src.__support.macros.null_check
+    libc.src.string.memory_utils.inline_memcpy
+    libc.src.string.memory_utils.inline_memset
+    libc.src.string.string_utils
+)
+
+add_header_library(
+  stringstream
+  HDRS
+    stringstream.h
+  DEPENDS
+    .span
+    .string_view
+    libc.src.__support.integer_to_string
+)
+
+add_header_library(
+  optional
+  HDRS
+    optional.h
+)
+
+add_header_library(
+  type_traits
+  HDRS
+    type_traits.h
+    type_traits/add_lvalue_reference.h
+    type_traits/add_pointer.h
+    type_traits/add_rvalue_reference.h
+    type_traits/aligned_storage.h
+    type_traits/always_false.h
+    type_traits/bool_constant.h
+    type_traits/conditional.h
+    type_traits/decay.h
+    type_traits/enable_if.h
+    type_traits/false_type.h
+    type_traits/integral_constant.h
+    type_traits/invoke_result.h
+    type_traits/invoke.h
+    type_traits/is_arithmetic.h
+    type_traits/is_array.h
+    type_traits/is_assignable.h
+    type_traits/is_base_of.h
+    type_traits/is_class.h
+    type_traits/is_complex.h
+    type_traits/is_const.h
+    type_traits/is_constant_evaluated.h
+    type_traits/is_constructible.h
+    type_traits/is_convertible.h
+    type_traits/is_destructible.h
+    type_traits/is_enum.h
+    type_traits/is_fixed_point.h
+    type_traits/is_floating_point.h
+    type_traits/is_function.h
+    type_traits/is_integral.h
+    type_traits/is_lvalue_reference.h
+    type_traits/is_member_pointer.h
+    type_traits/is_null_pointer.h
+    type_traits/is_object.h
+    type_traits/is_pointer.h
+    type_traits/is_reference.h
+    type_traits/is_rvalue_reference.h
+    type_traits/is_same.h
+    type_traits/is_scalar.h
+    type_traits/is_signed.h
+    type_traits/is_trivially_constructible.h
+    type_traits/is_trivially_copyable.h
+    type_traits/is_trivially_destructible.h
+    type_traits/is_union.h
+    type_traits/is_unsigned.h
+    type_traits/is_void.h
+    type_traits/make_signed.h
+    type_traits/make_unsigned.h
+    type_traits/remove_all_extents.h
+    type_traits/remove_cv.h
+    type_traits/remove_cvref.h
+    type_traits/remove_extent.h
+    type_traits/remove_reference.h
+    type_traits/true_type.h
+    type_traits/type_identity.h
+    type_traits/void_t.h
+  DEPENDS
+    libc.include.llvm-libc-macros.stdfix_macros
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.properties.types
+    libc.src.__support.macros.properties.compiler
+    libc.src.__support.macros.properties.complex_types
+)
+
+add_header_library(
+  utility
+  HDRS
+    utility.h
+    utility/declval.h
+    utility/forward.h
+    utility/in_place.h
+    utility/integer_sequence.h
+    utility/move.h
+)
+
+add_header_library(
+  atomic
+  HDRS
+    atomic.h
+)
+
+add_header_library(
+  expected
+  HDRS
+    expected.h
+)
+
+add_object_library(
+  new
+  SRCS
+    new.cpp
+  HDRS
+    new.h
+  DEPENDS
+    libc.hdr.func.free
+    libc.hdr.func.malloc
+    libc.hdr.func.aligned_alloc
+    libc.src.__support.common
+    libc.src.__support.macros.properties.compiler
+    libc.src.__support.macros.properties.os
+)
+
+add_header_library(
+  scope
+  HDRS
+    scope.h
+  DEPENDS
+    .utility
+)
+
+add_header_library(
+  tuple
+  HDRS
+    tuple.h
+  DEPENDS
+    .utility
+)
+
+add_header_library(
+  simd
+  HDRS
+    simd.h
+  DEPENDS
+    .utility
+    .tuple
+)

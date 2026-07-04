@@ -28,7 +28,7 @@ using Tag = absl::cleanup_internal::Tag;
 
 template <typename Type1, typename Type2>
 constexpr bool IsSame() {
-  return (std::is_same<Type1, Type2>::value);
+  return (std::is_same_v<Type1, Type2>);
 }
 
 struct IdentityFactory {

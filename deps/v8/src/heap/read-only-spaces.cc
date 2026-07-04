@@ -11,6 +11,7 @@
 #include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
@@ -225,7 +226,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (BasePage* metadata : pages_) {
-    if (metadata->Chunk() == chunk) return true;
+    if (metadata->Chunk() == chunk) return metadata->Contains(addr);
   }
   return false;
 }
@@ -250,7 +251,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         continue;
       }
       Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-      const int obj_size = obj->Size();
+      const uint32_t obj_size = obj->SafeSize().value();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!IsFreeSpaceOrFiller(obj)) {
@@ -258,7 +259,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         return obj;
       }
     }
-    return HeapObject();
+    return {};
   }
 
   Address cur_addr_;  // Current iteration point.
@@ -425,7 +426,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnmappableAllocation(
   int filler_size = base::checked_cast<int>(allocation_start - top_);
   Address filler_address = AllocateRawUnaligned(filler_size).ToAddress();
   heap()->CreateFillerObjectAt(filler_address, filler_size,
-                               ClearFreedMemoryMode::kClearFreedMemory);
+                               ClearFreedMemoryMode{true});
 
   CHECK_EQ(allocation_start, top_);
   CHECK_LE(
@@ -448,7 +449,7 @@ Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
   Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > limit_) return HeapObject();
+  if (new_top > limit_) return {};
 
   // Allocation always occurs in the last chunk for RO_SPACE.
   BasePage* chunk = pages_.back();

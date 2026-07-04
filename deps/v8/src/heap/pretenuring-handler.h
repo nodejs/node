@@ -6,6 +6,7 @@
 #define V8_HEAP_PRETENURING_HANDLER_H_
 
 #include <memory>
+#include <unordered_map>
 
 #include "src/objects/allocation-site.h"
 #include "src/objects/heap-object.h"

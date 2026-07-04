@@ -87,7 +87,12 @@ function TestExceptions() {
   // isn't a proper JavaScript object.
   function G() { }
   G.prototype = undefined;
-  assertThrows("({} instanceof G)");
+  assertThrows(() => ({} instanceof G), TypeError);
+
+  // On the other hand, when a value is not an object it should not throw.
+  assertFalse(15 instanceof G);
+  assertFalse(undefined instanceof G);
+  assertFalse("s" instanceof G);
 }
 
 TestExceptions();

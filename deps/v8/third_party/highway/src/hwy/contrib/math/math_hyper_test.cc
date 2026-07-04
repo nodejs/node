@@ -27,6 +27,7 @@
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
+#include "hwy/contrib/math/fast_math-inl.h"
 #include "hwy/tests/test_util-inl.h"
 // clang-format on
 
@@ -94,6 +95,15 @@ HWY_NOINLINE void TestMath(const char* name, T (*fx1)(T),
     ranges[1][0] = BitCastScalar<UintT>(ConvertScalarTo<T>(-0.0));
     ranges[1][1] = min_bits;
     range_count = 2;
+  } else {
+    // If not splitting, ensure we iterate from smaller uint to larger uint.
+    // For negative numbers, min (e.g. -1000) has larger uint representation
+    // than max (e.g. -1).
+    if (ranges[0][0] > ranges[0][1]) {
+      auto tmp = ranges[0][0];
+      ranges[0][0] = ranges[0][1];
+      ranges[0][1] = tmp;
+    }
   }
 
   uint64_t max_ulp = 0;
@@ -189,6 +199,130 @@ DEFINE_MATH_TEST(Tanh,
   std::tanh,  CallTanh,  -DBL_MAX,   +DBL_MAX,    4)
 // clang-format on
 
+template <class T, class D>
+HWY_NOINLINE void TestMathRelative(const char* name, T (*fx1)(T),
+                                   Vec<D> (*fxN)(D, VecArg<Vec<D>>), D d, T min,
+                                   T max, double max_relative_error,
+                                   uint64_t samples = 4000) {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) {
+    static bool once = true;
+    if (once) {
+      once = false;
+      HWY_WARN("Skipping math_test due to GCC issue with excess precision.\n");
+    }
+    return;
+  }
+
+  using UintT = MakeUnsigned<T>;
+
+  const UintT min_bits = BitCastScalar<UintT>(min);
+  const UintT max_bits = BitCastScalar<UintT>(max);
+
+  // If min is negative and max is positive, the range needs to be broken into
+  // two pieces, [+0, max] and [-0, min], otherwise [min, max].
+  int range_count = 1;
+  UintT ranges[2][2] = {{min_bits, max_bits}, {0, 0}};
+  if ((min < 0.0) && (max > 0.0)) {
+    ranges[0][0] = BitCastScalar<UintT>(ConvertScalarTo<T>(+0.0));
+    ranges[0][1] = max_bits;
+    ranges[1][0] = BitCastScalar<UintT>(ConvertScalarTo<T>(-0.0));
+    ranges[1][1] = min_bits;
+    range_count = 2;
+  } else {
+    // If not splitting, ensure we iterate from smaller uint to larger uint.
+    // For negative numbers, min (e.g. -1000) has larger uint representation
+    // than max (e.g. -1).
+    if (ranges[0][0] > ranges[0][1]) {
+      auto tmp = ranges[0][0];
+      ranges[0][0] = ranges[0][1];
+      ranges[0][1] = tmp;
+    }
+  }
+
+  double max_actual_rel_error = 0.0;
+  double sum_rel_error = 0.0;
+  uint64_t count = 0;
+  // Emulation is slower, so cannot afford as many.
+  const UintT kSamplesPerRange =
+  static_cast<UintT>(AdjustedReps(static_cast<size_t>(samples)));
+  for (int range_index = 0; range_index < range_count; ++range_index) {
+    const UintT start = ranges[range_index][0];
+    const UintT stop = ranges[range_index][1];
+    const UintT step = HWY_MAX(1, ((stop - start) / kSamplesPerRange));
+    for (UintT value_bits = start; value_bits <= stop; value_bits += step) {
+      // For reasons unknown, the HWY_MAX is necessary on RVV, otherwise
+      // value_bits can be less than start, and thus possibly NaN.
+      const T value =
+          BitCastScalar<T>(HWY_MIN(HWY_MAX(start, value_bits), stop));
+      const T actual = GetLane(fxN(d, Set(d, value)));
+      const T expected = fx1(value);
+
+      // Skip small inputs and outputs on armv7, it flushes subnormals to zero.
+#if HWY_TARGET <= HWY_NEON_WITHOUT_AES && HWY_ARCH_ARM_V7
+      if ((std::abs(value) < 1e-37f) || (std::abs(expected) < 1e-37f)) {
+        continue;
+      }
+#endif
+
+      if (std::abs(expected) > 0.0) {
+        double rel = std::abs(static_cast<double>(actual) -
+                              static_cast<double>(expected)) /
+                     std::abs(static_cast<double>(expected));
+        max_actual_rel_error = HWY_MAX(max_actual_rel_error, rel);
+        sum_rel_error += rel;
+        count++;
+        if (rel > max_relative_error) {
+          static int print_count = 0;
+          if (print_count < 10) {
+            fprintf(stderr,
+                    "%s: %s(%f) expected %E actual %E rel %E max rel %E\n",
+                    hwy::TypeName(T(), Lanes(d)).c_str(), name,
+                    static_cast<double>(value), static_cast<double>(expected),
+                    static_cast<double>(actual), rel, max_relative_error);
+            print_count++;
+          }
+        }
+      }
+    }
+  }
+  fprintf(stderr, "%s: %s max_rel_error %E\n",
+          hwy::TypeName(T(), Lanes(d)).c_str(), name, max_actual_rel_error);
+  if (count > 0) {
+    fprintf(stderr, "%s: %s avg_rel_error %E\n",
+            hwy::TypeName(T(), Lanes(d)).c_str(), name,
+            sum_rel_error / static_cast<double>(count));
+  }
+  HWY_ASSERT(max_actual_rel_error <= max_relative_error);
+}
+
+struct TestFastTanh {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T, D d) {
+    const double max_relative_error_float = 0.0003;
+    const double max_relative_error_double = 0.0003;
+    const double max_relative_error_small = 0.00004;
+    const uint64_t samples = 1000000;
+    const uint64_t samples_small = 10000;
+    TestMathRelative<T, D>("FastTanh Small", std::tanh, CallFastTanh, d,
+                             static_cast<T>(-1e-2), static_cast<T>(1e-2),
+                             max_relative_error_small, samples_small);
+    if (sizeof(T) == 4) {
+      TestMathRelative<T, D>("FastTanh Float", std::tanh, CallFastTanh, d,
+                             static_cast<T>(-1e35), static_cast<T>(1e35),
+                             max_relative_error_float, samples);
+    } else {
+      TestMathRelative<T, D>("FastTanh Double", std::tanh, CallFastTanh, d,
+                             static_cast<T>(-1e305), static_cast<T>(1e305),
+                             max_relative_error_double, samples);
+    }
+  }
+};
+
+HWY_NOINLINE void TestAllFastTanh() {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) return;
+  ForFloat3264Types(ForPartialVectors<TestFastTanh>());
+}
+
 }  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
@@ -204,6 +338,7 @@ HWY_EXPORT_AND_TEST_P(HwyMathHyperTest, TestAllAsinh);
 HWY_EXPORT_AND_TEST_P(HwyMathHyperTest, TestAllAtanh);
 HWY_EXPORT_AND_TEST_P(HwyMathHyperTest, TestAllSinh);
 HWY_EXPORT_AND_TEST_P(HwyMathHyperTest, TestAllTanh);
+HWY_EXPORT_AND_TEST_P(HwyMathHyperTest, TestAllFastTanh);
 HWY_AFTER_TEST();
 }  // namespace
 }  // namespace hwy

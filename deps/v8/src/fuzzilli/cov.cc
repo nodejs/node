@@ -25,11 +25,63 @@ struct shmem_data {
   unsigned char edges[];
 };
 
-struct shmem_data* shmem;
+shmem_data* shmem;
 
 uint32_t *edges_start, *edges_stop;
 uint32_t builtins_start;
 uint32_t builtins_edge_count;
+
+// We support two modes:
+// 1. Single-DSO mode (standard V8):
+//    - Assumes all instrumented code is in a single DSO.
+//    - Optimization: `*guard = 0` in `__sanitizer_cov_trace_pc_guard` disables
+//      the edge after the first hit. This prevents redundant writes to shared
+//      memory for hot edges. Fuzzilli resets these guards between iterations
+//      via `sanitizer_cov_reset_edgeguards`.
+// 2. Multi-DSO mode (Chromium):
+//    - Supports coverage for multiple DSOs (Chromium, libraries, etc.).
+//    - Accumulates edges across all DSOs instead of crashing on re-init.
+//    - Optimization DISABLED: We cannot easily reset guards for all loaded
+//      DSOs (no global registry of all guard arrays). Thus, we leave
+//      `*guard` non-zero ("edge persistence"). This means `trace_pc_guard`
+//      writes to shared memory every time an edge is hit, which is slower but
+//      necessary for correctness in this mode.
+#ifdef USE_CHROMIUM_FUZZILLI
+constexpr bool support_multi_dso = true;
+#else
+constexpr bool support_multi_dso = false;
+#endif
+
+static void initialize_shmem() {
+  // Map the shared memory region
+  const char* shm_key = getenv("SHM_ID");
+  if (!shm_key) {
+    fprintf(stderr, "[COV] no shared memory bitmap available, skipping\n");
+    shmem =
+        static_cast<shmem_data*>(mmap(nullptr, SHM_SIZE, PROT_READ | PROT_WRITE,
+                                      MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+  } else {
+    int fd = shm_open(shm_key, O_RDWR, S_IREAD | S_IWRITE);
+    if (fd <= -1) {
+      fprintf(stderr, "[COV] Failed to open shared memory region\n");
+      _exit(-1);
+    }
+
+    shmem = static_cast<shmem_data*>(
+        mmap(nullptr, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+  }
+
+  if (shmem == MAP_FAILED) {
+    fprintf(stderr, "[COV] Failed to mmap shared memory region\n");
+    _exit(-1);
+  }
+  shmem->num_edges = 0;
+}
+
+__attribute__((visibility("default"))) void fuzzilli_cov_enable() {
+  // This function exists solely to force the linker to include this object
+  // file.
+}
 
 __attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
   uint32_t N = 0;
@@ -39,53 +91,41 @@ __attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
 
 __attribute__((visibility("default"))) extern "C" void
 __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
-  // We should initialize the shared memory region only once. We can initialize
-  // it multiple times if it's the same region, which is something that appears
-  // to happen on e.g. macOS. If we ever see a different region, we will likely
-  // overwrite the previous one, which is probably not intended and as such we
-  // fail with an error.
-  if (shmem) {
-    if (!(edges_start == start && edges_stop == stop)) {
-      fprintf(stderr,
-              "[COV] Multiple initialization of shmem!"
-              " This is probably not intended! Currently only one edge"
-              " region is supported\n");
-      _exit(-1);
-    }
-    // Already initialized.
+  if (!shmem) {
+    initialize_shmem();
+  }
+
+  // No need to initialize again if it's the same region, which is something
+  // that appears to happen on e.g. macOS.
+  if (edges_start == start && edges_stop == stop) {
     return;
   }
-  // Map the shared memory region
-  const char* shm_key = getenv("SHM_ID");
-  if (!shm_key) {
-    fprintf(stderr, "[COV] no shared memory bitmap available, skipping\n");
-    shmem = (struct shmem_data*)mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE,
-                                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    CHECK_NE(shmem, MAP_FAILED);
-  } else {
-    int fd = shm_open(shm_key, O_RDWR, S_IREAD | S_IWRITE);
-    if (fd <= -1) {
-      fprintf(stderr, "[COV] Failed to open shared memory region\n");
-      _exit(-1);
-    }
 
-    shmem = (struct shmem_data*)mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE,
-                                     MAP_SHARED, fd, 0);
-    if (shmem == MAP_FAILED) {
-      fprintf(stderr, "[COV] Failed to mmap shared memory region\n");
-      _exit(-1);
-    }
+  if (!support_multi_dso && edges_start != nullptr) {
+    // In single-DSO mode, we should initialize the shared memory region only
+    // once. If we ever see a different region, we will overwrite the previous
+    // one, which is probably not intended and as such we fail with an error.
+    fprintf(stderr,
+            "[COV] Multiple initialization of shmem!"
+            " This is probably not intended! Currently only one edge"
+            " region is supported\n");
+    _exit(-1);
   }
 
   edges_start = start;
   edges_stop = stop;
-  sanitizer_cov_reset_edgeguards();
+  for (uint32_t* x = start; x < stop && shmem->num_edges < MAX_EDGES; x++) {
+    *x = ++shmem->num_edges;
+  }
 
-  shmem->num_edges = static_cast<uint32_t>(stop - start);
-  builtins_start = 1 + shmem->num_edges;
+  if (builtins_edge_count == 0) {
+    builtins_start = 1 + shmem->num_edges;
+  }
+
+  const char* shm_key = getenv("SHM_ID");
   fprintf(stderr,
           "[COV] edge counters initialized. Shared memory: %s with %u edges\n",
-          shm_key, shmem->num_edges);
+          shm_key ? shm_key : "anonymous shmem", shmem->num_edges);
 }
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
@@ -175,7 +215,11 @@ __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   shmem->edges[index / 8] |= 1 << (index % 8);
+
+#ifndef USE_CHROMIUM_FUZZILLI
+  // This is a hot path, so use a macro instead of an if statement.
   *guard = 0;
+#endif
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   RestorePreviousPkeyAccessIfNecessary(old_pkru);
@@ -183,6 +227,10 @@ __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 }
 
 void cov_init_builtins_edges(uint32_t num_edges) {
+  // This function should only be called once. If called more than once, it
+  // would incorrectly shift the `builtins_start` offset and allocate duplicate
+  // space in the shared memory bitmap.
+  CHECK(builtins_edge_count == 0);
   if (num_edges + shmem->num_edges > MAX_EDGES) {
     fprintf(stderr,
             "[COV] Error: Insufficient amount of edges left for builtins "

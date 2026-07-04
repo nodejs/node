@@ -426,7 +426,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   wasm::NativeModule* native_module = wasm_call_params.native_module();
   const int fct_index = wasm_call_params.function_index();
-  TRACE("Considering wasm function ["
+  TRACE("Considering Wasm function ["
         << fct_index << "] "
         << WasmFunctionNameForTrace(native_module, fct_index) << " of module "
         << wasm_call_params.native_module() << " for inlining");
@@ -508,15 +508,8 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // surrounding exception handler, if present.
     subgraph_min_node_id = graph()->NodeCount();
 
-    // If we inline the body with Turboshaft later (instead of with TurboFan
-    // here), we don't know yet whether we can inline the body or not. Hence,
-    // don't set the thread-in-wasm flag now, and instead do that if _not_
-    // inlining later in Turboshaft.
-    bool set_in_wasm_flag = !(inline_result.can_inline_body ||
-                              v8_flags.turboshaft_wasm_in_js_inlining);
     BuildInlinedJSToWasmWrapper(graph()->zone(), jsgraph(), sig, isolate(),
-                                source_positions_, continuation_frame_state,
-                                set_in_wasm_flag);
+                                source_positions_, continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     wrapper_start_node = graph()->start();
@@ -553,8 +546,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // given JavaScript function (due to the WasmGCLowering being dependent on
   // module-specific type indices).
   Node* wasm_fct_call = nullptr;
-  if (inline_result.can_inline_body ||
-      v8_flags.turboshaft_wasm_in_js_inlining) {
+  if (inline_result.can_inline_body) {
     AllNodes inlined_nodes(local_zone_, wrapper_end_node, graph());
     for (Node* subnode : inlined_nodes.reachable) {
       // Ignore nodes that are not part of the inlinee.
@@ -566,16 +558,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         break;
       }
     }
-    DCHECK_IMPLIES(inline_result.can_inline_body, wasm_fct_call != nullptr);
-
-    // Attach information about Wasm call target for Turboshaft Wasm-in-JS-
-    // inlining (see https://crbug.com/353475584) in sidetable.
-    if (v8_flags.turboshaft_wasm_in_js_inlining && wasm_fct_call) {
-      auto [it, inserted] = js_wasm_calls_sidetable_->insert(
-          {wasm_fct_call->id(), &wasm_call_params});
-      USE(it);
-      DCHECK(inserted);
-    }
+    DCHECK(wasm_fct_call != nullptr);
   }
 
   Node* context = NodeProperties::GetContextInput(node);

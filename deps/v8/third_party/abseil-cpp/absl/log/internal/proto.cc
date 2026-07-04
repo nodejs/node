@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// All of the data that passes through this code is trusted because it flows
+// through a closed loop within the absl::LogMessage object. It is not a robust
+// protocol buffer encoder or decoder.
+//
+// Encoding: When `LOG(INFO) << "foo"` is called, the library uses the Encode*
+// functions to build a protocol buffer in a private, fixed-size internal buffer
+// (`LogMessageData::encoded_buf`).
+//
+// Decoding: During the same logging call, `LogMessage::Flush()` calls
+// `FinalizeEncodingAndFormat()`, which uses `ProtoField::DecodeFrom` to parse
+// that same internal buffer to generate the human-readable string for
+// text-based log sinks.
+
 #include "absl/log/internal/proto.h"
 
 #include <algorithm>

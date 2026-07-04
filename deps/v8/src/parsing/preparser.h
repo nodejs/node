@@ -1168,7 +1168,7 @@ class PreParser : public ParserBase<PreParser> {
         is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
         &was_added);
     if (!was_added) {
-      Scanner::Location loc(property.position(), property.position() + 1);
+      Scanner::Location loc(position(), end_position());
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                       property_name.string_);
     }
@@ -1189,7 +1189,8 @@ class PreParser : public ParserBase<PreParser> {
     SetLanguageMode(function_scope, LanguageMode::kStrict);
     function_scope->set_start_position(pos);
     function_scope->set_end_position(pos);
-    FunctionState function_state(&function_state_, &scope_, function_scope);
+    FunctionState function_state(&function_state_, &scope_, function_scope,
+                                 &has_generator_in_scope_chain_);
     GetNextInfoId();
   }
 
@@ -1506,9 +1507,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::FromIdentifier(name);
   }
 
-  PreParserExpression ExpressionFromIdentifier(
-      const PreParserIdentifier& name, int start_position,
-      InferName infer = InferName::kYes) {
+  PreParserExpression ExpressionFromIdentifier(const PreParserIdentifier& name,
+                                               int start_position,
+                                               InferName infer = InferName{
+                                                   true}) {
     expression_scope()->NewVariable(name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
   }
@@ -1580,9 +1582,9 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void ReindexArrowFunctionFormalParameters(
-      PreParserFormalParameters* parameters) {}
+      PreParserFormalParameters* parameters, const AllowReindexScope& scope) {}
   V8_INLINE void ReindexComputedMemberName(
-      const PreParserExpression& expression) {}
+      const PreParserExpression& expression, const AllowReindexScope& scope) {}
   V8_INLINE void DeclareFormalParameters(
       const PreParserFormalParameters* parameters) {
     if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();

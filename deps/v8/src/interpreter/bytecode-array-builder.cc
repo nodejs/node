@@ -59,8 +59,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
-      register_optimizer_(nullptr) {
-  DCHECK_GE(parameter_count_, 0);
+      register_optimizer_(nullptr),
+      potentially_throwing_bytecode_count_(0) {
+  DCHECK_GE(parameter_count_, kJSArgcReceiverSlots);
   DCHECK_LE(parameter_count_, std::numeric_limits<uint16_t>::max());
   DCHECK_GE(local_register_count_, 0);
 
@@ -146,7 +147,8 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     // invalidate the existing source position information if it is used.
     if (latest_source_info_.is_statement() ||
         !v8_flags.ignition_filter_expression_positions ||
-        !Bytecodes::IsWithoutExternalSideEffects(bytecode)) {
+        !Bytecodes::IsWithoutExternalSideEffects(bytecode) ||
+        Bytecodes::IsJumpIfToBoolean(bytecode)) {
       source_position = latest_source_info_;
       latest_source_info_.set_invalid();
     }
@@ -175,23 +177,31 @@ void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
 
 void BytecodeArrayBuilder::Write(BytecodeNode* node) {
   AttachOrEmitDeferredSourceInfo(node);
+  if (!Bytecodes::IsWithoutExternalSideEffects(node->bytecode())) {
+    potentially_throwing_bytecode_count_++;
+  }
   bytecode_array_writer_.Write(node);
 }
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()) ||
+         Bytecodes::IsJumpIfToBoolean(node->bytecode()));
   bytecode_array_writer_.WriteJump(node, label);
 }
 
 void BytecodeArrayBuilder::WriteJumpLoop(BytecodeNode* node,
                                          BytecodeLoopHeader* loop_header) {
   AttachOrEmitDeferredSourceInfo(node);
+  // JumpLoop can throw due to interrupt checks (stack overflow, termination).
+  potentially_throwing_bytecode_count_++;
   bytecode_array_writer_.WriteJumpLoop(node, loop_header);
 }
 
 void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
                                        BytecodeJumpTable* jump_table) {
   AttachOrEmitDeferredSourceInfo(node);
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()));
   bytecode_array_writer_.WriteSwitch(node, jump_table);
 }
 
@@ -410,42 +420,44 @@ void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
                                                             Register reg,
                                                             int feedback_slot) {
+  // feedback is embedded into bytecode array for binary operations
+  DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
   switch (op) {
     case Token::kAdd:
-      OutputAdd(reg, feedback_slot);
+      OutputAdd(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kSub:
-      OutputSub(reg, feedback_slot);
+      OutputSub(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kMul:
-      OutputMul(reg, feedback_slot);
+      OutputMul(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kDiv:
-      OutputDiv(reg, feedback_slot);
+      OutputDiv(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kMod:
-      OutputMod(reg, feedback_slot);
+      OutputMod(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kExp:
-      OutputExp(reg, feedback_slot);
+      OutputExp(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitOr:
-      OutputBitwiseOr(reg, feedback_slot);
+      OutputBitwiseOr(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitXor:
-      OutputBitwiseXor(reg, feedback_slot);
+      OutputBitwiseXor(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitAnd:
-      OutputBitwiseAnd(reg, feedback_slot);
+      OutputBitwiseAnd(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kShl:
-      OutputShiftLeft(reg, feedback_slot);
+      OutputShiftLeft(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kSar:
-      OutputShiftRight(reg, feedback_slot);
+      OutputShiftRight(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kShr:
-      OutputShiftRightLogical(reg, feedback_slot);
+      OutputShiftRightLogical(reg, kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();
@@ -469,42 +481,44 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Add_StringConstant_Internalize(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Tagged<Smi> literal, int feedback_slot) {
+  DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
   switch (op) {
     case Token::kAdd:
-      OutputAddSmi(literal.value(), feedback_slot);
+      OutputAddSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kSub:
-      OutputSubSmi(literal.value(), feedback_slot);
+      OutputSubSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kMul:
-      OutputMulSmi(literal.value(), feedback_slot);
+      OutputMulSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kDiv:
-      OutputDivSmi(literal.value(), feedback_slot);
+      OutputDivSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kMod:
-      OutputModSmi(literal.value(), feedback_slot);
+      OutputModSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kExp:
-      OutputExpSmi(literal.value(), feedback_slot);
+      OutputExpSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitOr:
-      OutputBitwiseOrSmi(literal.value(), feedback_slot);
+      OutputBitwiseOrSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitXor:
-      OutputBitwiseXorSmi(literal.value(), feedback_slot);
+      OutputBitwiseXorSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitAnd:
-      OutputBitwiseAndSmi(literal.value(), feedback_slot);
+      OutputBitwiseAndSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kShl:
-      OutputShiftLeftSmi(literal.value(), feedback_slot);
+      OutputShiftLeftSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kSar:
-      OutputShiftRightSmi(literal.value(), feedback_slot);
+      OutputShiftRightSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kShr:
-      OutputShiftRightLogicalSmi(literal.value(), feedback_slot);
+      OutputShiftRightLogicalSmi(literal.value(),
+                                 kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();
@@ -800,18 +814,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
-    Register context, Variable* variable, int depth,
-    ContextSlotMutability mutability) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
+                                                            Variable* variable,
+                                                            int depth) {
   int slot_index = variable->index();
-  if (mutability == kImmutableSlot) {
+  if (variable->maybe_assigned() == kNotAssigned) {
     if (context.is_current_context() && depth == 0) {
       OutputLdaImmutableCurrentContextSlot(slot_index);
     } else {
       OutputLdaImmutableContextSlot(context, slot_index, depth);
     }
   } else {
-    DCHECK_EQ(kMutableSlot, mutability);
+    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (variable->scope()->has_context_cells()) {
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
@@ -835,6 +849,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
   int slot_index = variable->index();
   if (variable->maybe_assigned() != kNotAssigned &&
       variable->scope()->has_context_cells()) {
+    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
     } else {
@@ -941,6 +956,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadEnumeratedKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetPrivateField(Register context,
+                                                            int slot_index,
+                                                            int depth,
+                                                            Register object,
+                                                            int feedback_slot) {
+  OutputGetPrivateField(context, slot_index, depth, object, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrivateField(Register context,
+                                                            int slot_index,
+                                                            int depth,
+                                                            Register object,
+                                                            int feedback_slot) {
+  OutputSetPrivateField(context, slot_index, depth, object, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = IteratorSymbolConstantPoolEntry();
@@ -954,12 +987,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ArrayDestructure(
+    RegisterList outputs, int count) {
+  OutputArrayDestructure(outputs, count);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
-                                                      RegisterList value_done,
                                                       int call_slot) {
-  DCHECK_EQ(2, value_done.register_count());
-  OutputForOfNext(object, next, value_done, call_slot);
+  OutputForOfNext(object, next, call_slot);
   return *this;
 }
 
@@ -1274,6 +1311,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
     register_optimizer_->ResetTypeHintForAccumulator();
   }
   bytecode_array_writer_.BindTryRegionEnd(handler_table_builder(), handler_id);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::DropHandlerEntry(int handler_id) {
+  handler_table_builder()->DropHandlerEntry(handler_id);
   return *this;
 }
 
@@ -1605,6 +1647,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
   DCHECK_EQ(1, Runtime::FunctionForId(function_id)->result_size);
   DCHECK_LE(Bytecodes::SizeForUnsignedOperand(function_id),
             OperandSize::kShort);
+  UpdateMaxArguments(args.register_count());
   if (IntrinsicsHelper::IsSupported(function_id)) {
     IntrinsicsHelper::IntrinsicId intrinsic_id =
         IntrinsicsHelper::FromRuntimeId(function_id);
@@ -1634,6 +1677,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
   DCHECK_LE(Bytecodes::SizeForUnsignedOperand(function_id),
             OperandSize::kShort);
   DCHECK_EQ(2, return_pair.register_count());
+  UpdateMaxArguments(args.register_count());
   OutputCallRuntimeForPair(static_cast<uint16_t>(function_id), args,
                            args.register_count(), return_pair);
   return *this;
@@ -1646,6 +1690,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
                                                           RegisterList args) {
+  UpdateMaxArguments(args.register_count());
   OutputCallJSRuntime(context_index, args, args.register_count());
   return *this;
 }
@@ -1778,16 +1823,18 @@ uint32_t BytecodeArrayBuilder::GetInputOutputRegisterOperand(Register reg) {
 uint32_t BytecodeArrayBuilder::GetInputRegisterListOperand(
     RegisterList reg_list) {
   DCHECK(RegisterListIsValid(reg_list));
-  if (register_optimizer_)
+  if (register_optimizer_) {
     reg_list = register_optimizer_->GetInputRegisterList(reg_list);
+  }
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
 }
 
 uint32_t BytecodeArrayBuilder::GetOutputRegisterListOperand(
     RegisterList reg_list) {
   DCHECK(RegisterListIsValid(reg_list));
-  if (register_optimizer_)
+  if (register_optimizer_) {
     register_optimizer_->PrepareOutputRegisterList(reg_list);
+  }
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
 }
 

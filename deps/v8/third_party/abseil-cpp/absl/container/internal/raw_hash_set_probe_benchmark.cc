@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <regex>  // NOLINT
 #include <string>
 #include <utility>
@@ -36,7 +37,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 
 namespace {
 
@@ -450,10 +450,10 @@ constexpr int kNameWidth = 15;
 constexpr int kDistWidth = 16;
 
 bool CanRunBenchmark(absl::string_view name) {
-  static const absl::NoDestructor<absl::optional<std::regex>> filter([] {
+  static const absl::NoDestructor<std::optional<std::regex>> filter([] {
     return benchmarks.empty() || benchmarks == "all"
-               ? absl::nullopt
-               : absl::make_optional(std::regex(std::string(benchmarks)));
+               ? std::nullopt
+               : std::make_optional(std::regex(std::string(benchmarks)));
   }());
   return !filter->has_value() || std::regex_search(std::string(name), **filter);
 }

@@ -49,7 +49,7 @@ class VariantsGenerator(object):
     """Generator producing (variant, flags, procid suffix) tuples."""
     flags_set = self._get_flags_set(test)
     for n, variant in enumerate(self._get_variants(test)):
-      yield (variant, flags_set[variant][0], n)
+      yield (variant, flags_set[variant], n)
 
   def _get_flags_set(self, test):
     return ALL_VARIANT_FLAGS

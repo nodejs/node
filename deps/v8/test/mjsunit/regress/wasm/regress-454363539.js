@@ -46,7 +46,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestInliningI64Array() {
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   builder.addFunction('createArray', makeSig([], [kWasmExternRef]))
     .addBody([

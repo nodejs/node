@@ -18,6 +18,10 @@
 #include <zircon/syscalls.h>
 #endif
 
+#if defined(ABSL_HAVE_ALARM)
+#include <signal.h>
+#endif
+
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"

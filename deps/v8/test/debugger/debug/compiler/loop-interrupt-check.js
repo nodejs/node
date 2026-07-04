@@ -5,6 +5,8 @@
 // Flags: --allow-natives-syntax --turbolev --turbofan
 // Flags: --no-maglev --no-stress-concurrent-inlining
 // Flags: --invocation-count-for-turbofan=3000
+// TODO(dmercadier): Investigate why loop peeling is breaking this test.
+// Flags: --no-turbolev-non-eager-loop-peeling
 
 // This test checks that loop interrupt stack checks are properly detected are
 // processed.

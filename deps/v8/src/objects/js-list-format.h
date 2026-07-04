@@ -29,10 +29,7 @@ class ListFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-list-format-tq.inc"
-
-class JSListFormat
-    : public TorqueGeneratedJSListFormat<JSListFormat, JSObject> {
+V8_OBJECT class JSListFormat : public JSObject {
  public:
   // Creates relative time format object with properties derived from input
   // locales and options.
@@ -45,12 +42,12 @@ class JSListFormat
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder);
 
-  // ecma402 #sec-formatlist
+  // https://tc39.es/ecma402/#sec-formatlist
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatList(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
 
-  // ecma42 #sec-formatlisttoparts
+  // ecma42 https://tc39.es/ecma262/#sec-formatlisttoparts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatListToParts(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
@@ -61,11 +58,20 @@ class JSListFormat
   Handle<String> TypeAsString(Isolate* isolate) const;
 
   // ListFormat accessors.
-  DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::ListFormatter>>)
+  inline Tagged<String> locale() const;
+  inline void set_locale(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Managed<icu::ListFormatter>> icu_formatter() const;
+  inline void set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   // Style: identifying the relative time format style used.
   //
-  // ecma402/#sec-properties-of-intl-listformat-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-listformat-instances
   enum class Style {
     LONG,   // Everything spelled out.
     SHORT,  // Abbreviations used when possible.
@@ -76,7 +82,7 @@ class JSListFormat
 
   // Type: identifying the list of types used.
   //
-  // ecma402/#sec-properties-of-intl-listformat-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-listformat-instances
   enum class Type {
     CONJUNCTION,  // for "and"-based lists (e.g., "A, B and C")
     DISJUNCTION,  // for "or"-based lists (e.g., "A, B or C"),
@@ -86,7 +92,8 @@ class JSListFormat
   inline Type type() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_LIST_FORMAT_FLAGS()
+  using StyleBits = base::BitField<JSListFormat::Style, 0, 2, uint32_t>;
+  using TypeBits = StyleBits::Next<JSListFormat::Type, 2>;
 
   static_assert(StyleBits::is_valid(Style::LONG));
   static_assert(StyleBits::is_valid(Style::SHORT));
@@ -96,9 +103,17 @@ class JSListFormat
   static_assert(TypeBits::is_valid(Type::UNIT));
 
   DECL_PRINTER(JSListFormat)
+  DECL_VERIFIER(JSListFormat)
 
-  TQ_OBJECT_CONSTRUCTORS(JSListFormat)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<String> locale_;
+  TaggedMember<Foreign> icu_formatter_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+inline constexpr int JSListFormat::kHeaderSize = sizeof(JSListFormat);
 
 }  // namespace internal
 }  // namespace v8

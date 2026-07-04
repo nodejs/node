@@ -38,7 +38,7 @@ class ReflectionTest : public testing::Test {
 #if ABSL_FLAGS_STRIP_NAMES
     GTEST_SKIP() << "This test requires flag names to be present";
 #endif
-    flag_saver_ = absl::make_unique<absl::FlagSaver>();
+    flag_saver_ = std::make_unique<absl::FlagSaver>();
   }
   void TearDown() override { flag_saver_.reset(); }
 

@@ -63,7 +63,7 @@ class TransitionArray;
   /* Keep track of all ephemerons for concurrent marking tasks. Only store    \
      ephemerons in these worklists if both (key, value) are unreachable at    \
      the moment.                                                              \
-     MarkCompactCollector::MarkTransitiveClosureUntilFixpoint drains/fills    \
+     MarkCompactCollector::MarkTransitiveClosureFixpoint drains/fills         \
      these worklists. current_ephemerons is used as draining worklist in      \
      the current fixpoint iteration. */                                       \
   F(Ephemeron, current_ephemerons, CurrentEphemerons)                         \

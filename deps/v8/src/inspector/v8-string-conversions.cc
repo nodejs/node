@@ -395,8 +395,9 @@ std::basic_string<UChar> UTF8ToUTF16(const char* stringStart, size_t length) {
   if (convertUTF8ToUTF16(&stringCurrent,
                          reinterpret_cast<const char*>(stringStart + length),
                          &bufferCurrent, bufferCurrent + buffer.size(), nullptr,
-                         true) != conversionOK)
+                         true) != conversionOK) {
     return std::basic_string<UChar>();
+  }
   size_t utf16Length = bufferCurrent - bufferStart;
   return std::basic_string<UChar>(bufferStart, bufferStart + utf16Length);
 }

@@ -528,6 +528,8 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   // OUT: $xx..xxyy..yyzz..zz (A sequence of uint64_t values represented as
   //                           consecutive 8-bytes blocks).
   std::vector<std::string> toks = StringSplit(str, ":;");
+  if (toks.empty()) return ErrorCode::BadFormat;
+
   if (toks[0] == "WasmCallStack") {
     std::vector<wasm_addr_t> call_stack_pcs = gdb_server_->GetWasmCallStack();
     std::vector<uint64_t> buffer;

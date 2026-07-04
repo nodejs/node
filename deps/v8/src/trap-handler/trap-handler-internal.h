@@ -60,8 +60,8 @@ class TrapHandlerGuard {
 struct CodeProtectionInfo {
   uintptr_t base;
   size_t size;
-  size_t num_protected_instructions;
-  ProtectedInstructionData instructions[1];
+  size_t num_trapping_instructions;
+  TrappingInstructionData instructions[1];
 };
 
 class MetadataLock {
@@ -97,6 +97,12 @@ struct SandboxRecord {
   SandboxRecord* next;
 };
 
+struct CoveredMemoryRecord {
+  uintptr_t base;
+  size_t size;
+  CoveredMemoryRecord* next;
+};
+
 class SandboxRecordsLock {
   static std::atomic_flag spinlock_;
 
@@ -108,7 +114,19 @@ class SandboxRecordsLock {
   void operator=(const SandboxRecordsLock&) = delete;
 };
 
+class CoveredMemoryRecordsLock {
+  static std::atomic_flag spinlock_;
+
+ public:
+  TH_DISABLE_ASAN CoveredMemoryRecordsLock();
+  TH_DISABLE_ASAN ~CoveredMemoryRecordsLock();
+
+  CoveredMemoryRecordsLock(const CoveredMemoryRecordsLock&) = delete;
+  void operator=(const CoveredMemoryRecordsLock&) = delete;
+};
+
 extern SandboxRecord* gSandboxRecordsHead;
+extern CoveredMemoryRecord* gCoveredMemoryRecordsHead;
 
 extern std::atomic_size_t gRecoveredTrapCount;
 
@@ -118,10 +136,8 @@ extern std::atomic<uintptr_t> gLandingPad;
 // returns true, otherwise, returns false.
 TH_DISABLE_ASAN bool IsFaultAddressCovered(uintptr_t fault_addr);
 
-// Checks whether the accessed memory is covered by the trap handler. In
-// particular, when the V8 sandbox is enabled, only faulting accesses to memory
-// inside the sandbox are handled by the trap handler since all Wasm memory
-// objects are inside the sandbox.
+// Checks whether the accessed memory is covered by a previously registered
+// memory region.
 TH_DISABLE_ASAN bool IsAccessedMemoryCovered(uintptr_t accessed_addr);
 
 }  // namespace trap_handler

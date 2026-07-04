@@ -41,6 +41,7 @@ int64_t CapRelativeIndex(double relative, int64_t minimum, int64_t maximum) {
 
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.copywithin
 BUILTIN(TypedArrayPrototypeCopyWithin) {
   HandleScope scope(isolate);
 
@@ -68,7 +69,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
       from = CapRelativeIndex(num, 0, len);
 
       DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
-      if (!IsUndefined(*end, isolate)) {
+      if (!IsUndefined(*end)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
                                            Object::IntegerValue(isolate, end));
         final = CapRelativeIndex(num, 0, len);
@@ -142,7 +143,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   return *array;
 }
 
-// ES#sec-%typedarray%.prototype.fill
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.fill
 BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 
@@ -189,7 +190,7 @@ BUILTIN(TypedArrayPrototypeFill) {
     // 10. If end is undefined, let relativeEnd be len; else let relativeEnd be
     //     ? ToIntegerOrInfinity(end).
     num = args.atOrUndefined(isolate, 3);
-    if (!IsUndefined(*num, isolate)) {
+    if (!IsUndefined(*num)) {
       // 11. If relativeEnd = -∞, let endIndex be 0.
       // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
       // 13. Else, let endIndex be min(relativeEnd, len).
@@ -242,6 +243,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                         isolate, array, obj_value, start, end));
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.includes
 BUILTIN(TypedArrayPrototypeIncludes) {
   HandleScope scope(isolate);
 
@@ -273,6 +275,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.indexof
 BUILTIN(TypedArrayPrototypeIndexOf) {
   HandleScope scope(isolate);
 
@@ -308,6 +311,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.lastindexof
 BUILTIN(TypedArrayPrototypeLastIndexOf) {
   HandleScope scope(isolate);
 
@@ -346,6 +350,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.reverse
 BUILTIN(TypedArrayPrototypeReverse) {
   HandleScope scope(isolate);
 
@@ -594,7 +599,7 @@ BUILTIN(Uint8ArrayFromBase64) {
 
   MaybeDirectHandle<JSArrayBuffer> result_buffer =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
-          output_length, InitializedFlag::kUninitialized);
+          output_length, InitializedFlag{false});
   if (!result_buffer.ToHandle(&buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory,
@@ -631,8 +636,12 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
-  // 2. Perform ? ValidateUint8Array(into).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  // 2. Perform ? ValidateUint8Array(into, write).
+  DirectHandle<JSTypedArray> uint8array;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uint8array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name,
+                             TypedArrayAccessMode::kWrite));
   ElementsKind elements_kind = uint8array->GetElementsKind();
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
@@ -909,7 +918,7 @@ BUILTIN(Uint8ArrayFromHex) {
 
   MaybeDirectHandle<JSArrayBuffer> result_buffer =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
-          output_length, InitializedFlag::kUninitialized);
+          output_length, InitializedFlag{false});
 
   if (!result_buffer.ToHandle(&buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -961,8 +970,12 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
-  // 2. Perform ? ValidateUint8Array(into).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  // 2. Perform ? ValidateUint8Array(into, write).
+  DirectHandle<JSTypedArray> uint8array;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uint8array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name,
+                             TypedArrayAccessMode::kWrite));
   ElementsKind elements_kind = uint8array->GetElementsKind();
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {

@@ -43,7 +43,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   34 S> */ B(LdaZero),
                 B(Star0),

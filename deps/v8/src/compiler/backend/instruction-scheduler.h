@@ -32,6 +32,89 @@ enum ArchOpcodeFlags {
                    // across such an instruction.
 };
 
+#define FOREACH_ARCH_RESOURCE(V) \
+  V(Fetch)                       \
+  V(IntSingle)                   \
+  V(IntMulti)                    \
+  V(FP)                          \
+  V(Load)                        \
+  V(Store)
+
+enum class ArchInstResource : uint8_t {
+#define DEFINE_RESOURCE(resource) k##resource,
+  FOREACH_ARCH_RESOURCE(DEFINE_RESOURCE)
+#undef DEFINE_RESOURCE
+      kNumResources,
+};
+
+class ResourceAllocation {
+ public:
+  using TableEntry = std::pair<ArchInstResource, int8_t>;
+  constexpr static int kNumResources =
+      static_cast<int>(ArchInstResource::kNumResources);
+
+  ResourceAllocation(std::array<TableEntry, kNumResources> resources) {
+#ifdef DEBUG
+    // Check all the entries in the array are for unique resources.
+    std::unordered_set<ArchInstResource> resource_set;
+    for (auto [resource, units] : resources) {
+      resource_set.insert(resource);
+    }
+    DCHECK_EQ(resource_set.size(), resources.size());
+#endif  // DEBUG
+    for (auto [resource, units] : resources) {
+      SetUnits(resource, units);
+    }
+    Reset();
+  }
+
+  void PrintState() const;
+
+  void MarkIssue(ArchInstResource resource) {
+    int index = static_cast<int>(resource);
+    DCHECK_GT(free_units_[index], 0);
+    free_units_[index]--;
+  }
+
+  inline bool CanIssue(ArchInstResource resource) const {
+    DCHECK_GE(GetFreeUnits(resource), 0);
+    return GetFreeUnits(resource) != 0;
+  }
+
+  // Get the number of free units of the given resource.
+  int8_t GetFreeUnits(ArchInstResource resource) const {
+    return free_units_[static_cast<int>(resource)];
+  }
+
+  // Reset the allocation table.
+  void Reset() {
+    for (int i = 0; i < static_cast<int>(ArchInstResource::kNumResources);
+         ++i) {
+      FreeUnits(static_cast<ArchInstResource>(i));
+    }
+  }
+
+ private:
+  // Set the maximum number of units for the given resource.
+  void SetUnits(ArchInstResource resource, int8_t units) {
+    total_units_[static_cast<int>(resource)] = units;
+  }
+
+  // Set the number of free units to the maximum available.
+  void FreeUnits(ArchInstResource resource) {
+    int8_t total = GetTotalUnits(resource);
+    free_units_[static_cast<int>(resource)] = total;
+  }
+
+  // Get the total number of units of the given resource.
+  int8_t GetTotalUnits(ArchInstResource resource) const {
+    return total_units_[static_cast<int>(resource)];
+  }
+
+  std::array<int8_t, kNumResources> total_units_ = {0};
+  std::array<int8_t, kNumResources> free_units_ = {0};
+};
+
 class InstructionScheduler final : public ZoneObject {
  public:
   V8_EXPORT_PRIVATE InstructionScheduler(Zone* zone,
@@ -51,12 +134,18 @@ class InstructionScheduler final : public ZoneObject {
    public:
     using SuccessorList = SmallZoneVector<ScheduleGraphNode*, 8>;
 
-    ScheduleGraphNode(Zone* zone, Instruction* instr);
+    ScheduleGraphNode(Zone* zone, Instruction* instr,
+                      ArchInstResource resource);
 
     // Mark the instruction represented by 'node' as a dependency of this one.
     // The current instruction will be registered as an unscheduled predecessor
     // of 'node' (i.e. it must be scheduled before 'node').
     void AddSuccessor(ScheduleGraphNode* node);
+
+    // Mark the instruction represented by 'node' as a data-dependency of this
+    // one. The current instruction will be registered as an unscheduled
+    // predecessor of 'node' (i.e. it must be scheduled before 'node').
+    void AddDataSuccessor(ScheduleGraphNode* node);
 
     // Check if all the predecessors of this instruction have been scheduled.
     bool HasUnscheduledPredecessor() {
@@ -71,6 +160,11 @@ class InstructionScheduler final : public ZoneObject {
 
     Instruction* instruction() { return instr_; }
     SuccessorList& successors() { return successors_; }
+    SuccessorList& data_successors() { return data_successors_; }
+    const SuccessorList& data_successors() const { return data_successors_; }
+    int unscheduled_predecessors_count() const {
+      return unscheduled_predecessors_count_;
+    }
     int latency() const { return latency_; }
 
     int total_latency() const { return total_latency_; }
@@ -79,9 +173,12 @@ class InstructionScheduler final : public ZoneObject {
     int start_cycle() const { return start_cycle_; }
     void set_start_cycle(int start_cycle) { start_cycle_ = start_cycle; }
 
+    ArchInstResource resource() const { return resource_; }
+
    private:
     Instruction* instr_;
     SuccessorList successors_;
+    SuccessorList data_successors_;
 
     // Number of unscheduled predecessors for this node.
     int unscheduled_predecessors_count_;
@@ -99,6 +196,9 @@ class InstructionScheduler final : public ZoneObject {
     // scheduler to indicate when the value of all the operands of this
     // instruction will be available.
     int start_cycle_;
+
+    // The hardware resource that instr requires.
+    ArchInstResource resource_;
   };
 
   // Keep track of all nodes ready to be scheduled (i.e. all their dependencies
@@ -107,18 +207,57 @@ class InstructionScheduler final : public ZoneObject {
   // to pop node from the queue.
   class SchedulingQueue {
    public:
-    explicit SchedulingQueue(Zone* zone);
+    explicit SchedulingQueue(ResourceAllocation resource_table, Zone* zone);
 
     void Advance(int cycle);
     void AddNode(ScheduleGraphNode* node);
     void AddReady(ScheduleGraphNode* node);
 
-    bool IsEmpty() const { return ready_.empty() && waiting_.empty(); }
+    bool IsEmpty() const { return IsWaitingEmpty() && IsReadyEmpty(); }
+    bool IsReadyEmpty() const { return ready_.empty(); }
+    bool IsWaitingEmpty() const { return waiting_.empty(); }
     ScheduleGraphNode* PopBestCandidate(int cycle);
 
+    // Use this heuristic when total latencies are the same.
+    inline size_t GetTieBreakLatency(const ScheduleGraphNode* node) const {
+      // The main heuristic looks at total latency, so start with only the
+      // latency of the node for the tie-breaker.
+      int latency = node->latency();
+      // Accumulate the total latency of all the successors that are just
+      // waiting for node to be scheduled.
+      for (ScheduleGraphNode* successor : node->data_successors()) {
+        if (successor->unscheduled_predecessors_count() == 1) {
+          latency += successor->total_latency();
+        }
+      }
+      return latency;
+    }
+
    private:
+    inline int GetTotalLatency(const ScheduleGraphNode* node) const {
+      return node->total_latency();
+    }
+
+    ResourceAllocation& resource_table() { return resource_table_; }
+
+    struct ReadyQueuePayload {
+      ScheduleGraphNode* node;
+      ArchInstResource resource;
+    };
+    inline bool CanIssue(ArchInstResource resource) {
+      return resource_table().CanIssue(resource);
+    }
+    inline bool CanIssue(const ScheduleGraphNode* node) {
+      return resource_table().CanIssue(node->resource());
+    }
+    void MarkIssue(ArchInstResource resource) {
+      resource_table().MarkIssue(resource);
+      resource_table().MarkIssue(ArchInstResource::kFetch);
+    }
+
     SmallZoneVector<ScheduleGraphNode*, 8> ready_;
     SmallZoneVector<ScheduleGraphNode*, 16> waiting_;
+    ResourceAllocation resource_table_;
     std::optional<base::RandomNumberGenerator> random_number_generator_;
   };
 
@@ -179,6 +318,8 @@ class InstructionScheduler final : public ZoneObject {
   void ComputeTotalLatencies();
 
   static int GetInstructionLatency(const Instruction* instr);
+  static ArchInstResource GetInstructionResource(const Instruction* instr);
+  static ResourceAllocation GetResourceTable();
 
   Zone* zone() { return zone_; }
   InstructionSequence* sequence() { return sequence_; }
@@ -197,13 +338,6 @@ class InstructionScheduler final : public ZoneObject {
   // which will be added as predecessors of the next instruction with side
   // effects.
   ZoneVector<ScheduleGraphNode*> pending_loads_;
-
-  // Live-in register markers are nop instructions which are emitted at the
-  // beginning of a basic block so that the register allocator will find a
-  // defining instruction for live-in values. They must not be moved.
-  // All these nops are chained together and added as a predecessor of every
-  // other instructions in the basic block.
-  ScheduleGraphNode* last_live_in_reg_marker_;
 
   // Last deoptimization or trap instruction encountered while building the
   // graph.

@@ -8,12 +8,6 @@
 #include "src/objects/heap-number.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/memory.h"
-#include "src/objects/primitive-heap-object-inl.h"
-
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
 namespace v8 {
 namespace internal {
 
@@ -28,9 +22,11 @@ void HeapNumber::set_value_as_bits(uint64_t bits) {
   value_.set_value_as_bits(bits);
 }
 
+bool HeapNumber::is_the_hole() const {
+  return value_as_bits() == kHoleNanInt64;
+}
+
 }  // namespace internal
 }  // namespace v8
-
-#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_HEAP_NUMBER_INL_H_

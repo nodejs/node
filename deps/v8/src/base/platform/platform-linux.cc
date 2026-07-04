@@ -27,8 +27,9 @@
 #include <sys/mman.h>  // mmap & munmap & mremap
 #include <sys/stat.h>  // open
 #include <sys/sysmacros.h>
-#include <sys/types.h>  // mmap & munmap
-#include <unistd.h>     // sysconf
+#include <sys/types.h>    // mmap & munmap
+#include <sys/utsname.h>  // uname
+#include <unistd.h>       // sysconf
 
 #include <cmath>
 #include <cstdio>
@@ -44,6 +45,12 @@
 #include "src/base/platform/platform-posix-time.h"
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
+
+#if !defined(MREMAP_DONTUNMAP)
+// We define this to support building against versions that do not yet expose
+// it. Instead, we check at runtime in KernelSupportsRemapDontUnmap.
+#define MREMAP_DONTUNMAP 4
+#endif
 
 namespace v8 {
 namespace base {
@@ -158,10 +165,29 @@ MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
         return region.start <= target_start && target_start + size < region.end;
       },
       true);
-  if (result)
+  if (result) {
     return (*result)[0];
-  else
+  } else {
     return {};
+  }
+}
+
+bool KernelSupportsRemapDontUnmap() {
+  static bool supported = [] {
+    struct utsname buffer;
+    CHECK_EQ(uname(&buffer), 0);
+
+    int major, minor;
+    CHECK_EQ(sscanf(buffer.release, "%d.%d", &major, &minor), 2);
+
+    // MREMAP_DONTUNMAP was added in Linux 5.7, but before Linux 5.13 it only
+    // worked on private anonymous mappings, whereas RemapPages() needs it on
+    // the file-backed mapping. On older kernels mremap() may fail or have
+    // the wrong semantics.
+    return major > 5 || (major == 5 && minor >= 13);
+  }();
+
+  return supported;
 }
 }  // namespace
 
@@ -210,6 +236,25 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
       IsAligned(reinterpret_cast<uintptr_t>(new_address), AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
 
+  int protection = GetProtectionFromMemoryPermission(access);
+
+  if (KernelSupportsRemapDontUnmap()) {
+    void* result =
+        mremap(const_cast<void*>(address), size, size,
+               MREMAP_MAYMOVE | MREMAP_FIXED | MREMAP_DONTUNMAP, new_address);
+    if (result != MAP_FAILED) {
+      CHECK_EQ(result, new_address);
+      CHECK_EQ(0, mprotect(new_address, size, protection));
+      // If a remap faultily involves an anonymous mapping, the source will have
+      // been zero'd. Short sanity check in non-debug mode.
+      CHECK_EQ(0, memcmp(address, new_address, sizeof(uint64_t)));
+      // Long-form sanity check in debug mode.
+      DCHECK_EQ(0, memcmp(address, new_address, size));
+      return true;
+    }
+  }
+
+  // Fallback to reading /proc/self/maps if mremap approach fails.
   MemoryRegion enclosing_region = FindEnclosingMapping(address_addr, size);
   // Not found.
   if (!enclosing_region.start) return false;
@@ -224,11 +269,6 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
   // open(). However, the libc uses openat() in its open() wrapper, and the
   // SELinux restrictions allow us to read from the path we want to look at,
   // so we are in the clear.
-  //
-  // Note that this may not be allowed by the sandbox on Linux (and Chrome
-  // OS). On these systems, consider using mremap() with the MREMAP_DONTUNMAP
-  // flag. However, since we need it on non-anonymous mapping, this would only
-  // be available starting with version 5.13.
   int fd = open(enclosing_region.pathname, O_RDONLY);
   if (fd == -1) return false;
 
@@ -256,7 +296,6 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
 
   size_t offset_in_mapping = address_addr - enclosing_region.start;
   size_t offset_in_file = enclosing_region.offset + offset_in_mapping;
-  int protection = GetProtectionFromMemoryPermission(access);
 
   void* mapped_address = mmap(new_address, size, protection,
                               MAP_FIXED | MAP_PRIVATE, fd, offset_in_file);
@@ -300,12 +339,15 @@ std::optional<MemoryRegion> SignalSafeMapsParser::Next() {
   entry.raw_permissions[4] = '\0';
 
   entry.permissions = PagePermissions::kNoAccess;
-  if (entry.raw_permissions[0] == 'r')
+  if (entry.raw_permissions[0] == 'r') {
     entry.permissions |= PagePermissions::kRead;
-  if (entry.raw_permissions[1] == 'w')
+  }
+  if (entry.raw_permissions[1] == 'w') {
     entry.permissions |= PagePermissions::kWrite;
-  if (entry.raw_permissions[2] == 'x')
+  }
+  if (entry.raw_permissions[2] == 'x') {
     entry.permissions |= PagePermissions::kExecute;
+  }
 
   char c;
   if (!ReadChar(&c)) return std::nullopt;

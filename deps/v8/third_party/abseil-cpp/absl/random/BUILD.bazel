@@ -128,13 +128,14 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":mocking_access",
         ":random",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
-        "//absl/random/internal:distribution_caller",
         "//absl/random/internal:fast_uniform_bits",
+        "//absl/random/internal:traits",
     ],
 )
 
@@ -160,6 +161,7 @@ cc_library(
     ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":mocking_access",
         ":random",
         "//absl/base:config",
         "//absl/base:fast_type_id",
@@ -168,6 +170,16 @@ cc_library(
         "//absl/random/internal:mock_helpers",
         "//absl/utility",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "mocking_access",
+    hdrs = ["mocking_access.h"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:fast_type_id",
+        "//absl/meta:type_traits",
     ],
 )
 

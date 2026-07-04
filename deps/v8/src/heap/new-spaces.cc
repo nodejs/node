@@ -550,7 +550,6 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate,
 // that it works (it depends on the invariants we are checking).
 void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
                                       SpaceVerificationVisitor* visitor) const {
-  PtrComprCageBase cage_base(isolate);
   for (const NormalPage* page = to_space_.first_page(); page;
        page = page->next_page()) {
     visitor->VerifyPage(page);
@@ -562,7 +561,7 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
-      int size = object->Size(cage_base);
+      int size = object->Size();
 
       visitor->VerifyObject(object);
       current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);

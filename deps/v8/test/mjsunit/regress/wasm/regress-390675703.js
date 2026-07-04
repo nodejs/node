@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-wrapper-tiering-budget=1 --experimental-wasm-type-reflection
+// Flags: --wasm-wrapper-tiering-budget=1
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const func0 =
-    new WebAssembly.Function({parameters: [], results: []}, function f1() {});
+    new WebAssemblyFunction({parameters: [], results: []}, function f1() {});
 
 let builder = new WasmModuleBuilder();
 let js_index = builder.addImport("m", "js", kSig_v_v);

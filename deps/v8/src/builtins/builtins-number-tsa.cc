@@ -94,11 +94,11 @@ class NumberBuiltinsAssemblerTS
 
     BIND(if_int);
     {
-      // Check if AdditiveSafeInteger: (value - kMinAdditiveSafeInteger) >> 53
-      // == 0
-      V<Word64> shifted_value =
-          Word64ShiftRightLogical(Word64Sub(value_i64, kMinAdditiveSafeInteger),
-                                  kAdditiveSafeIntegerBitLength);
+      // Check if AdditiveSafeIntegerFeedback: (value -
+      // kMinAdditiveSafeIntegerFeedback) >> 51 == 0
+      V<Word64> shifted_value = Word64ShiftRightLogical(
+          Word64Sub(value_i64, kMinAdditiveSafeIntegerFeedback),
+          kAdditiveSafeIntegerFeedbackBitLength);
       GOTO_IF_NOT(Word64Equal(shifted_value, 0), if_fail);
       return value_i64;
     }
@@ -283,7 +283,7 @@ class NumberBuiltinsAssemblerTS
           // Fast path where both {lhs} and {rhs} are strings. Since {lhs} is a
           // string we no longer need an Oddball check.
           CombineFeedback(BinaryOperationFeedback::kString);
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
+          V<Object> result = CallBuiltin<builtin::StringAdd_NoMapCheck>(
               context,
               {.left = V<String>::Cast(lhs), .right = V<String>::Cast(rhs)});
           GOTO(done, result);
@@ -300,7 +300,7 @@ class NumberBuiltinsAssemblerTS
           CombineFeedback(BinaryOperationFeedback::kStringOrStringWrapper);
           V<String> rhs_string = V<String>::Cast(LoadField(
               rhs_heap_object, AccessBuilderTS::ForJSPrimitiveWrapperValue()));
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
+          V<Object> result = CallBuiltin<builtin::StringAdd_NoMapCheck>(
               context, {.left = V<String>::Cast(lhs), .right = rhs_string});
           GOTO(done, result);
         } ELSE {
@@ -402,12 +402,11 @@ TS_BUILTIN(Add_WithFeedback, NumberBuiltinsAssemblerTS) {
   V<Object> lhs = Parameter<Object>(Descriptor::kLeft);
   V<Object> rhs = Parameter<Object>(Descriptor::kRight);
   V<Context> context = Parameter<Context>(Descriptor::kContext);
-  V<FeedbackVector> feedback_vector =
-      Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  V<WordPtr> slot = Parameter<WordPtr>(Descriptor::kSlot);
+  V<BytecodeArray> bytecode_array =
+      Parameter<BytecodeArray>(Descriptor::kBytecodeArray);
+  V<WordPtr> feedback_offset = Parameter<WordPtr>(Descriptor::kFeedbackOffset);
 
-  SetFeedbackSlot(slot);
-  SetFeedbackVector(feedback_vector);
+  SetEmbeddedFeedback(bytecode_array, feedback_offset);
 
   V<Object> result = AddWithFeedback(
       context, lhs, rhs, UpdateFeedbackMode::kGuaranteedFeedback, false);

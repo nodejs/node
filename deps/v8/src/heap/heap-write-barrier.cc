@@ -127,7 +127,7 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
   if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
     MutablePage* host_chunk_metadata =
         MutablePage::FromHeapObject(Isolate::Current(), host);
-    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::ATOMIC>(
         host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
   }
 }
@@ -136,12 +136,6 @@ void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
                                ArrayBufferExtension* extension) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, extension);
-}
-
-void WriteBarrier::MarkingSlow(Tagged<DescriptorArray> descriptor_array,
-                               int number_of_own_descriptors) {
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(descriptor_array);
-  marking_barrier->Write(descriptor_array, number_of_own_descriptors);
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
@@ -160,6 +154,13 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());
+
+  if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
+    MutablePage* host_page =
+        MutablePage::FromHeapObject(marking_barrier->heap()->isolate(), host);
+    RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::Insert<AccessMode::ATOMIC>(
+        host_page, host_page->Offset(slot.address()));
+  }
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -511,10 +512,9 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
 
 // Instantiate `WriteBarrier::WriteBarrierForRange()` for `ObjectSlot` and
 // `MaybeObjectSlot`.
-template void WriteBarrier::ForRange<ObjectSlot>(Heap* heap,
-                                                 Tagged<HeapObject> object,
-                                                 ObjectSlot start_slot,
-                                                 ObjectSlot end_slot);
+template V8_EXPORT_PRIVATE void WriteBarrier::ForRange<ObjectSlot>(
+    Heap* heap, Tagged<HeapObject> object, ObjectSlot start_slot,
+    ObjectSlot end_slot);
 template void WriteBarrier::ForRange<MaybeObjectSlot>(
     Heap* heap, Tagged<HeapObject> object, MaybeObjectSlot start_slot,
     MaybeObjectSlot end_slot);
@@ -534,7 +534,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
     mode |= kDoGenerationalOrShared;
   }
 
-  if (heap->incremental_marking()->IsMarking()) {
+  if (source_chunk->IsMarking()) {
     mode |= kDoMarking;
     if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;

@@ -434,7 +434,7 @@ TEST(Ieee754, Expm1) {
   EXPECT_EQ(kInfinity, expm1(kInfinity));
   EXPECT_EQ(0.0, expm1(-0.0));
   EXPECT_EQ(0.0, expm1(0.0));
-  EXPECT_EQ(1.718281828459045, expm1(1.0));
+  EXPECT_EQ(1.7182818284590453, expm1(1.0));
   EXPECT_EQ(2.6881171418161356e+43, expm1(100.0));
   EXPECT_EQ(8.218407461554972e+307, expm1(709.0));
   EXPECT_EQ(kInfinity, expm1(710.0));

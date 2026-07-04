@@ -4,6 +4,8 @@
 
 #include "src/snapshot/snapshot-data.h"
 
+#include <limits>
+
 #include "src/common/assert-scope.h"
 #include "src/snapshot/serializer.h"
 
@@ -35,7 +37,8 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 
   // Set header values.
   SetMagicNumber();
-  SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
+  CHECK_LE(payload->size(), std::numeric_limits<uint32_t>::max());
+  SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Copy serialized data.
   CopyBytes(data_ + kHeaderSize, payload->data(),

@@ -20,6 +20,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class IsolateGroup;
 class IsolateSafepointScope;
 class LocalHeap;
 class PerClientSafepointData;
@@ -95,12 +96,8 @@ class IsolateSafepoint final {
   void LeaveLocalSafepointScope();
 
   // Methods for entering/leaving global safepoint scopes.
-  void TryInitiateGlobalSafepointScope(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void InitiateGlobalSafepointScope(Isolate* initiator,
                                     PerClientSafepointData* client_data);
-  void InitiateGlobalSafepointScopeRaw(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
   // Blocks until all running threads reached a safepoint.
@@ -141,10 +138,11 @@ class IsolateSafepoint final {
 
     // Remove list from doubly-linked list
     if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
-    if (local_heap->prev_)
+    if (local_heap->prev_) {
       local_heap->prev_->next_ = local_heap->next_;
-    else
+    } else {
       local_heaps_head_ = local_heap->next_;
+    }
   }
 
   Isolate* isolate() const;
@@ -187,10 +185,12 @@ class V8_NODISCARD IsolateSafepointScope {
 // of the shared isolate.
 class GlobalSafepoint final {
  public:
-  explicit GlobalSafepoint(Isolate* isolate);
+  explicit GlobalSafepoint(IsolateGroup* group);
 
   void AppendClient(Isolate* client);
   void RemoveClient(Isolate* client);
+
+  V8_EXPORT_PRIVATE Isolate* shared_space_isolate() const;
 
   template <typename Callback>
   void IterateClientIsolates(Callback callback) {
@@ -205,7 +205,9 @@ class GlobalSafepoint final {
 
   template <typename Callback>
   void IterateSharedSpaceAndClientIsolates(Callback callback) {
-    callback(shared_space_isolate_);
+    Isolate* shared_isolate = shared_space_isolate();
+    DCHECK_NOT_NULL(shared_isolate);
+    callback(shared_isolate);
     IterateClientIsolates(callback);
   }
 
@@ -219,7 +221,7 @@ class GlobalSafepoint final {
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_space_isolate_;
+  IsolateGroup* const group_;
   // RecursiveMutex is needed since we need to support nested
   // GlobalSafepointScopes.
   base::RecursiveMutex clients_mutex_;
@@ -237,7 +239,6 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_space_isolate_;
 };
 
 enum class SafepointKind { kIsolate, kGlobal };

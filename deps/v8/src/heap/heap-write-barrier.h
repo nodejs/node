@@ -85,7 +85,10 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
                               Tagged<T> value, WriteBarrierMode mode);
   template <typename T>
-  static inline void ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
+  static inline void ForValue(HeapObject* host, TaggedMemberBase* slot,
+                              Tagged<T> value, WriteBarrierMode mode);
+  template <typename T>
+  static inline void ForValue(HeapObject* host, MaybeObjectSlot slot,
                               Tagged<T> value, WriteBarrierMode mode);
   static inline void ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
                                            ObjectSlot slot,
@@ -94,8 +97,6 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForRelocInfo(Tagged<InstructionStream> host,
                                   RelocInfo* rinfo, Tagged<HeapObject> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  static inline void ForDescriptorArray(Tagged<DescriptorArray>,
-                                        int number_of_own_descriptors);
   static inline void ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
                                              ArrayBufferExtension* extension);
   static inline void ForExternalPointer(
@@ -106,17 +107,24 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename T, IndirectPointerTagRange kTagRange>
   static inline void ForIndirectPointer(
-      HeapObjectLayout* host, TrustedPointerMember<T, kTagRange>* slot,
+      HeapObject* host, TrustedPointerMember<T, kTagRange>* slot,
       Tagged<T> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForProtectedPointer(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
       Tagged<TrustedObject> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  template <typename T>
+  static inline void ForProtectedPointer(
+      HeapObject* host, TaggedMemberBase* slot, Tagged<T> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForCppHeapPointer(
       Tagged<CppHeapPointerWrapperObjectT> host, CppHeapPointerSlot slot,
       void* value);
   static inline void ForJSDispatchHandle(
       Tagged<HeapObject> host, JSDispatchHandle handle,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  static inline void ForJSDispatchHandle(
+      HeapObject* host, JSDispatchHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Executes generational and/or marking write barrier for a [start, end) range
   // of non-weak slots inside |object|.
@@ -144,7 +152,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
   template <typename T>
-  static inline bool IsRequired(const HeapObjectLayout* host, T value);
+  static inline bool IsRequired(const HeapObject* host, T value);
 
   static bool VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                JSDispatchHandle value,
@@ -203,8 +211,6 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static void MarkingSlow(Tagged<InstructionStream> host, RelocInfo*,
                           Tagged<HeapObject> value);
   static void MarkingSlow(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
-  static void MarkingSlow(Tagged<DescriptorArray>,
-                          int number_of_own_descriptors);
   static void MarkingSlow(Tagged<HeapObject> host, ExternalPointerSlot slot);
   static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot);
   static void MarkingSlow(Tagged<TrustedObject> host, ProtectedPointerSlot slot,

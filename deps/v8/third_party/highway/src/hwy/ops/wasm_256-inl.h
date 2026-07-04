@@ -588,11 +588,6 @@ HWY_API Vec256<T> Xor(Vec256<T> a, Vec256<T> b) {
 }
 
 template <typename T>
-HWY_API Vec256<T> Xor3(Vec256<T> x1, Vec256<T> x2, Vec256<T> x3) {
-  return Xor(x1, Xor(x2, x3));
-}
-
-template <typename T>
 HWY_API Vec256<T> Or3(Vec256<T> o1, Vec256<T> o2, Vec256<T> o3) {
   return Or(o1, Or(o2, o3));
 }
@@ -1422,6 +1417,17 @@ HWY_API V InterleaveOddBlocks(D, V a, V b) {
   ret.v0 = a.v1;
   ret.v1 = b.v1;
   return ret;
+}
+
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveLowerBlocks(D d, V a, V b) {
+  return InterleaveEvenBlocks(d, a, b);
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveUpperBlocks(D d, V a, V b) {
+  return InterleaveOddBlocks(d, a, b);
 }
 
 // ------------------------------ ReverseBlocks
@@ -2408,14 +2414,6 @@ HWY_API Vec256<T32> ReorderWidenMulAccumulate(D32 d32, Vec256<T16> a,
   const Half<decltype(d32)> d32h;
   sum0.v0 = ReorderWidenMulAccumulate(d32h, a.v0, b.v0, sum0.v0, sum1.v0);
   sum0.v1 = ReorderWidenMulAccumulate(d32h, a.v1, b.v1, sum0.v1, sum1.v1);
-  return sum0;
-}
-
-// ------------------------------ RearrangeToOddPlusEven
-template <typename TW>
-HWY_API Vec256<TW> RearrangeToOddPlusEven(Vec256<TW> sum0, Vec256<TW> sum1) {
-  sum0.v0 = RearrangeToOddPlusEven(sum0.v0, sum1.v0);
-  sum0.v1 = RearrangeToOddPlusEven(sum0.v1, sum1.v1);
   return sum0;
 }
 

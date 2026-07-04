@@ -167,8 +167,8 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwait(Node* node) {
-  return Change(
-      node, Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwait), 0);
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionAwait());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionEnter(Node* node) {

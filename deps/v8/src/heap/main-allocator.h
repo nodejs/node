@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
@@ -131,7 +132,8 @@ class LinearAreaOriginalData {
   std::pair<Address, Address> GetTopAndLimit() const {
     // The order of the two loads is important. See SetTopAndLimit().
     auto top = original_top_.load(std::memory_order_acquire);
-    auto limit = original_limit_.load(std::memory_order_relaxed);
+    // This synchronizes with the release store in SetTopAndLimit().
+    auto limit = original_limit_.load(std::memory_order_acquire);
     return std::make_pair(top, limit);
   }
 
@@ -155,7 +157,9 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
-  enum class IsNewGeneration { kNo, kYes };
+  using IsNewGeneration = base::StrongAlias<struct IsNewGenerationTag, bool>;
+  static constexpr IsNewGeneration kNewGeneration{true};
+  static constexpr IsNewGeneration kOldGeneration{false};
 
   // Use this constructor on main/background threads. `allocation_info` can be
   // used for allocation support in generated code (currently new and old
@@ -208,7 +212,7 @@ class MainAllocator {
   }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
+  AllocateRaw(SafeHeapObjectSize size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin, AllocationHint hint);
 
   V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
@@ -273,35 +277,25 @@ class MainAllocator {
 
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateFastUnaligned(
+      SafeHeapObjectSize size_in_bytes, AllocationOrigin origin);
 
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the result_aligned_size_in_bytes.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* result_aligned_size_in_bytes,
+  AllocateFastAligned(SafeHeapObjectSize size_in_bytes,
+                      SafeHeapObjectSize* result_aligned_size_in_bytes,
                       AllocationAlignment alignment, AllocationOrigin origin);
 
   // Slow path of allocation function
   V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
+  AllocateRawSlow(SafeHeapObjectSize size_in_bytes,
+                  AllocationAlignment alignment, AllocationOrigin origin);
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawSlowUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
-                         AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin);
+  bool EnsureAllocation(SafeHeapObjectSize size_in_bytes,
+                        AllocationAlignment alignment, AllocationOrigin origin);
 
   void MarkLabStartInitialized();
 

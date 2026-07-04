@@ -41,6 +41,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
+        "//absl/base:core_headers",
     ],
 )
 
@@ -69,6 +70,8 @@ cc_library(
         ":algorithm",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
+        "//absl/base:iterator_traits_internal",
         "//absl/meta:type_traits",
     ],
 )
@@ -83,7 +86,9 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/memory",
+        "//absl/meta:type_traits",
         "//absl/random",
         "//absl/types:span",
         "@googletest//:gtest",

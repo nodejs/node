@@ -1,0 +1,40 @@
+header: arpa/inet.h
+standards:
+  - posix
+merge_yaml_files:
+  - ../htons-family.yaml
+public_includes:
+  # This is permitted (but not required) by POSIX and many applications depend
+  # on it. If we have a "pedantic" mode in the future, we might want to exclude
+  # it there.
+  - netinet/in.h
+macros:
+  # Macros also defined by netinet/in.h, but listing them explicitly as they are
+  # required by POSIX.
+  - macro_name: INET_ADDRSTRLEN
+    macro_header: inet-address-macros.h
+  - macro_name: INET6_ADDRSTRLEN
+    macro_header: inet-address-macros.h
+types:
+  # Types also defined by netinet/in.h, but listing them explicitly as they are
+  # required by POSIX.
+  - type_name: in_port_t
+  - type_name: in_addr_t
+  - type_name: socklen_t
+  - type_name: struct_in_addr
+enums: []
+objects: []
+functions:
+  - name: inet_addr
+    standards:
+      - posix
+    return_type: in_addr_t
+    arguments:
+      - type: const char *
+  - name: inet_aton
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: struct in_addr *

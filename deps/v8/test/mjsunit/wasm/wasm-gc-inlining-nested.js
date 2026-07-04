@@ -20,7 +20,7 @@ function testOptimized(run, fctToOptimize) {
 
 let wasm = (function createWasmModule() {
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('createArray', makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([

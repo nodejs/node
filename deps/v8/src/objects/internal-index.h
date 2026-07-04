@@ -57,6 +57,11 @@ class InternalIndex {
     entry_++;
     return *this;
   }
+  InternalIndex operator++(int) {
+    InternalIndex old = *this;
+    ++(*this);
+    return old;
+  }
 
   bool operator<(const InternalIndex& other) const {
     return entry_ < other.entry_;

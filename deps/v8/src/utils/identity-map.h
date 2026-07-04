@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/hashing.h"
 #include "src/handles/handles.h"
 #include "src/heap/gc-callbacks.h"
@@ -178,7 +179,7 @@ class IdentityMap : public IdentityMapBase {
 
   // Iterator over IdentityMap. The IteratableScope used to create this Iterator
   // must be live for the duration of the iteration.
-  class Iterator {
+  class V8_GSL_POINTER Iterator {
    public:
     Iterator& operator++() {
       index_ = map_->NextIndex(index_);

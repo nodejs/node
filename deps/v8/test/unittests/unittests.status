@@ -265,6 +265,7 @@
   'SyncPrimitivesArmTest*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
+  'RegExpTest.AssertionMergingToNode': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
@@ -325,6 +326,7 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
 }],
 
 # With the official_build flag exceptions are disabled. Therefore torque
@@ -350,6 +352,8 @@
 ['system == windows', {
   # Bug: crbug.com/v8/14320
   'TimeTicks.NowResolution': [PASS,FAIL],
+  # Bug: crbug.com/517077061
+  'InspectorTest.NoUAFWhenResettingContextGroupDuringArgumentWrapping': [PASS, FAIL],
 }],  # system == windows
 
 ##############################################################################
@@ -403,9 +407,9 @@
 }],  # 'full_debug'
 
 ##############################################################################
-['ubsan', {
-  # https://crbug.com/456051623
-  'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
-}],  # 'ubsan'
+['dumpling', {
+  # Unexpected output.
+  'IsolateTest.DebugTraceMinimal': [FAIL],
+}],
 
 ]

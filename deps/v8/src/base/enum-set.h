@@ -5,6 +5,7 @@
 #ifndef V8_BASE_ENUM_SET_H_
 #define V8_BASE_ENUM_SET_H_
 
+#include <compare>
 #include <ostream>
 #include <type_traits>
 
@@ -57,7 +58,7 @@ class EnumSet {
 
   constexpr EnumSet operator~() const { return EnumSet(~bits_); }
 
-  constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }
+  constexpr auto operator<=>(const EnumSet&) const = default;
 
   constexpr EnumSet operator|(EnumSet set) const {
     return EnumSet(bits_ | set.bits_);

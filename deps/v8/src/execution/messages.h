@@ -107,7 +107,7 @@ class ErrorUtils : public AllStatic {
 
   // Formats a textual stack trace from the given structured stack trace.
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.
-  static MaybeDirectHandle<Object> FormatStackTrace(
+  static MaybeDirectHandle<JSAny> FormatStackTrace(
       Isolate* isolate, DirectHandle<JSObject> error,
       DirectHandle<Object> stack_trace);
 
@@ -144,7 +144,7 @@ class ErrorUtils : public AllStatic {
       Isolate* isolate, DirectHandle<JSObject> maybe_error_object);
   static void SetFormattedStack(Isolate* isolate,
                                 DirectHandle<JSObject> maybe_error_object,
-                                DirectHandle<Object> formatted_stack);
+                                DirectHandle<JSAny> formatted_stack);
 
   // Collects the stack trace and installs the stack property accessors.
   static MaybeHandle<Object> CaptureStackTrace(Isolate* isolate,

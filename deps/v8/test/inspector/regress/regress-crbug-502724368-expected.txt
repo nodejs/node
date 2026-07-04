@@ -1,0 +1,22 @@
+Migrated d8 inspector test for crbug 502724368
+Evaluating: class C { get #x() { return 1; } m() { C; debugger; return this.#x; } }; new C().m();
+Debugger paused!
+Setting #x to 0.00001111
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+Evaluating this.#x
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}

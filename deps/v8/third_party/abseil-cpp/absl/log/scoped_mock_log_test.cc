@@ -261,7 +261,7 @@ TEST(ScopedMockLogTest, NoSequenceWithMultipleThreads) {
 
 TEST(ScopedMockLogTsanTest,
      ScopedMockLogCanBeDeletedWhenAnotherThreadIsLogging) {
-  auto log = absl::make_unique<absl::ScopedMockLog>();
+  auto log = std::make_unique<absl::ScopedMockLog>();
   EXPECT_CALL(*log, Log(absl::LogSeverity::kInfo, __FILE__, "Thread log"))
       .Times(AnyNumber());
 

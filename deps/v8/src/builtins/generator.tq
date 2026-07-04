@@ -1,0 +1,43 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace generator {
+
+// Continuation invoked after the inlined `Generator.prototype.next` call in
+// optimized code lazy-deopts. Mirrors the post-call work of the
+// GeneratorPrototypeNext builtin's InnerResume:
+//   - On exception: close the generator and rethrow.
+//   - On normal completion when the generator naturally returned: close it
+//     and wrap the result in an iterator-result object.
+//   - Otherwise (yielded): return the result as-is.
+//
+// LAZY_WITH_CATCH lets the deoptimizer treat this frame as a catch handler
+// when a throw arrives at the inlined call PC after the optimized code is
+// invalidated.
+transitioning javascript builtin GeneratorPrototypeNextLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(generator: JSAny,
+    exception: JSAny|TheHole, result: JSAny): JSAny {
+  const gen = UnsafeCast<JSGeneratorObject>(generator);
+
+  // Exception path: close the generator and rethrow.
+  typeswitch (exception) {
+    case (TheHole): {
+    }
+    case (e: JSAny): {
+      gen.continuation = SmiConstant(kGeneratorClosed);
+      ReThrow(e);
+    }
+  }
+
+  // Normal completion: if the generator's body naturally returned, its
+  // continuation is now kGeneratorExecuting; close it and wrap the result.
+  // Otherwise (yielded), return the result as-is.
+  if (gen.continuation == SmiConstant(kGeneratorExecuting)) {
+    gen.continuation = SmiConstant(kGeneratorClosed);
+    return AllocateJSIteratorResult(result, True);
+  }
+  return result;
+}
+
+}  // namespace generator

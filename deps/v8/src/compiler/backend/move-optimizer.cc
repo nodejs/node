@@ -37,8 +37,9 @@ class OperandSet {
   void InsertOp(const InstructionOperand& op) {
     set_->push_back(op);
 
-    if (kFPAliasing == AliasingKind::kCombine && op.IsFPRegister())
+    if (kFPAliasing == AliasingKind::kCombine && op.IsFPRegister()) {
       fp_reps_ |= RepresentationBit(LocationOperand::cast(op).representation());
+    }
   }
 
   bool Contains(const InstructionOperand& op) const {

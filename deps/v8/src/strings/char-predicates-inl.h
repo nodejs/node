@@ -169,13 +169,21 @@ bool IsWhiteSpaceOrLineTerminator(base::uc32 c) {
   return kOneByteCharFlags[c] & kIsWhiteSpaceOrLineTerminator;
 }
 
-bool IsLineTerminatorSequence(base::uc32 c, base::uc32 next) {
-  if (kOneByteCharFlags[static_cast<uint8_t>(c)] & kMaybeLineEnd) {
+template <typename Char>
+bool IsLineTerminatorSequence(Char c, Char next) {
+  if constexpr (sizeof(Char) == 1) {
+    // One-byte: U+2028/U+2029 cannot occur, only \n and \r.
     if (c == '\n') return true;
     if (c == '\r') return next != '\n';
-    return base::IsInRange(static_cast<unsigned int>(c), 0x2028u, 0x2029u);
+    return false;
+  } else {
+    if (kOneByteCharFlags[static_cast<uint8_t>(c)] & kMaybeLineEnd) {
+      if (c == '\n') return true;
+      if (c == '\r') return next != '\n';
+      return base::IsInRange(static_cast<unsigned int>(c), 0x2028u, 0x2029u);
+    }
+    return false;
   }
-  return false;
 }
 
 }  // namespace internal

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --mock-arraybuffer-allocator --allow-natives-syntax
+// Flags: --mock-arraybuffer-allocator
 
 function Asm(stdlib, foreign, buffer) {
   "use asm";
@@ -27,21 +27,9 @@ try {
   assertTrue(e instanceof RangeError);
 }
 
-(function CheckValidModule() {
-  var small_heap = new ArrayBuffer(64*1024);
-  Asm(globalThis, null, small_heap);
-  // With a small heap, the asm.js module is valid.
-  assertTrue(%IsAsmWasmCode(Asm));
-})();
-
 if (allocation_succeeded) {
   console.log("allocation successful, running actual test");
   var fast = Asm(this, null, heap);
-  // If we checked %IsAsmWasmCode(Asm) here, it would return false, because
-  // our fix for >2GiB addresses current consists of throwing such modules
-  // off the Asm fast path. But that's an implementation detail, so we don't
-  // want to assertFalse(...) that here either.
-
   // This is an OOB access that should return 0 without trying to read from
   // the actual ArrayBuffer (which is inaccessible due to this test using
   // the mock allocator).

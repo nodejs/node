@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/execution/microtask-queue.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/lookup-inl.h"
@@ -29,13 +30,6 @@ namespace v8::internal {
 V8_INLINE Isolate::PerIsolateThreadData*
 Isolate::CurrentPerIsolateThreadData() {
   return g_current_per_isolate_thread_data_;
-}
-
-// static
-V8_INLINE Isolate* Isolate::Current() {
-  Isolate* isolate = TryGetCurrent();
-  DCHECK_NOT_NULL(isolate);
-  return isolate;
 }
 
 bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
@@ -62,7 +56,7 @@ void Isolate::set_topmost_script_having_context(Tagged<Context> context) {
 
 void Isolate::clear_topmost_script_having_context() {
   static_assert(Context::kNoContext == 0);
-  thread_local_top()->topmost_script_having_context_ = Context();
+  thread_local_top()->topmost_script_having_context_ = {};
 }
 
 DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
@@ -85,7 +79,7 @@ DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
 }
 
 void Isolate::set_pending_message(Tagged<Object> message_obj) {
-  DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
+  DCHECK(IsTheHole(message_obj) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;
 }
 
@@ -97,23 +91,21 @@ void Isolate::clear_pending_message() {
   set_pending_message(ReadOnlyRoots(this).the_hole_value());
 }
 
-bool Isolate::has_pending_message() {
-  return !IsTheHole(pending_message(), this);
-}
+bool Isolate::has_pending_message() { return !IsTheHole(pending_message()); }
 
 Tagged<Object> Isolate::exception() {
   CHECK(has_exception());
-  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_));
   return thread_local_top()->exception_;
 }
 
 void Isolate::set_exception(Tagged<Object> exception_obj) {
-  DCHECK(!IsExceptionHole(exception_obj, this));
+  DCHECK(!IsExceptionHole(exception_obj));
   thread_local_top()->exception_ = exception_obj;
 }
 
 void Isolate::clear_internal_exception() {
-  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_));
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
@@ -124,8 +116,8 @@ void Isolate::clear_exception() {
 
 bool Isolate::has_exception() {
   ThreadLocalTop* top = thread_local_top();
-  DCHECK(!IsExceptionHole(top->exception_, this));
-  return !IsTheHole(top->exception_, this);
+  DCHECK(!IsExceptionHole(top->exception_));
+  return !IsTheHole(top->exception_);
 }
 
 bool Isolate::is_execution_terminating() {
@@ -204,6 +196,14 @@ void Isolate::FireBeforeCallEnteredCallback() {
   }
 }
 
+MicrotaskQueue* Isolate::default_microtask_queue() const {
+  return default_microtask_queue_;
+}
+
+void Isolate::set_default_microtask_queue(MicrotaskQueue* value) {
+  default_microtask_queue_ = value;
+}
+
 Handle<JSGlobalObject> Isolate::global_object() {
   return handle(context()->global_object(), this);
 }
@@ -218,6 +218,8 @@ Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
 }
 
 Isolate::ExceptionScope::~ExceptionScope() {
+  // Do not interrupt termination.
+  if (isolate_->is_execution_terminating()) return;
   isolate_->set_exception(*exception_);
 }
 

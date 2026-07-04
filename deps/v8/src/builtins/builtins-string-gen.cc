@@ -344,7 +344,7 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
           // advanced along loop's {var_index}.
           Increment(&rhs_ptr, kChunk);
         },
-        kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kChunk, kLoopUnrolling, IndexAdvanceMode::kPost);
   } else {
     BuildFastLoop<RawPtrT>(
         vars, lhs_data, lhs_end,
@@ -357,7 +357,7 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
           // advanced along loop's {var_index}.
           Increment(&rhs_ptr, kChunk);
         },
-        kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kChunk, kLoopUnrolling, IndexAdvanceMode::kPost);
   }
   Goto(if_equal);
 }
@@ -395,7 +395,7 @@ void StringBuiltinsAssembler::StringEqual_Loop(
         // advanced along loop's {var_index}.
         Increment(&rhs_ptr, ElementSizeInBytes(rhs_type.representation()));
       },
-      ElementSizeInBytes(lhs_type.representation()), LoopUnrollingMode::kNo,
+      ElementSizeInBytes(lhs_type.representation()), kNoLoopUnrolling,
       IndexAdvanceMode::kPost);
 
   // All characters are checked and no difference was found, so the strings
@@ -414,7 +414,7 @@ TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
 
   BIND(&if_isword16);
   {
-    var_result = StringFromSingleCharCode(codepoint);
+    var_result = StringFromSingleCharCode(UncheckedCast<Uint16T>(codepoint));
     Goto(&return_result);
   }
 
@@ -690,7 +690,7 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
   return LoadObjectField<String>(string, offsetof(ThinString, actual_));
 }
 
-TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
+TF_BUILTIN(StringAdd_NoMapCheck, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   TNode<ContextOrEmptyContext> context =
@@ -999,7 +999,7 @@ TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
   GenerateStringEqual(left, right, length);
 }
 
-TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+TF_BUILTIN(WasmStringAdd_NoMapCheck, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   TNode<ContextOrEmptyContext> context =
@@ -1036,7 +1036,7 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 
-// ES6 #sec-string.fromcharcode
+// https://tc39.es/ecma262/#sec-string.fromcharcode
 // NOTE: This needs to be kept in sync with the Turboshaft implementation in
 // `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
@@ -1061,8 +1061,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // string on the fly otherwise.
     TNode<Object> code = arguments.AtIndex(0);
     TNode<Word32T> code32 = TruncateTaggedToWord32(context, code);
-    TNode<Int32T> code16 =
-        Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
+    static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+    TNode<Uint16T> code16 = TruncateWord32ToUint16(code32);
     TNode<String> result = StringFromSingleCharCode(code16);
     arguments.PopAndReturn(result);
   }
@@ -1082,7 +1082,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     CodeStubAssembler::VariableList vars({&var_max_index}, zone());
     arguments.ForEach(vars, [&](TNode<Object> arg) {
       TNode<Word32T> code32 = TruncateTaggedToWord32(context, arg);
-      code16 = Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
+      static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+      code16 = TruncateWord32ToUint16(code32);
 
       GotoIf(
           Int32GreaterThan(code16, Int32Constant(String::kMaxOneByteCharCode)),
@@ -1127,8 +1128,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
         vars,
         [&](TNode<Object> arg) {
           TNode<Word32T> code32 = TruncateTaggedToWord32(context, arg);
-          TNode<Word32T> code16 =
-              Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
+          static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+          TNode<Uint16T> code16 = TruncateWord32ToUint16(code32);
 
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               var_max_index.value(), UINT16_ELEMENTS,
@@ -1252,7 +1253,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   return var_result.value();
 }
 
-// ES6 #sec-string.prototype.replace
+// https://tc39.es/ecma262/#sec-string.prototype.replace
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
@@ -1390,7 +1391,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
              match_start_index, subject_string);
     const TNode<String> replacement_string =
         ToString_Inline(context, replacement);
-    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_NoMapCheck, context,
                                   var_result.value(), replacement_string));
     Goto(&out);
   }
@@ -1401,7 +1402,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     const TNode<Object> replacement =
         GetSubstitution(context, subject_string, match_start_index,
                         match_end_index, replace_string);
-    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_NoMapCheck, context,
                                   var_result.value(), replacement));
     Goto(&out);
   }
@@ -1412,12 +1413,12 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
         CallBuiltin(Builtin::kStringSubstring, context, subject_string,
                     SmiUntag(match_end_index), subject_length);
     const TNode<Object> result = CallBuiltin(
-        Builtin::kStringAdd_CheckNone, context, var_result.value(), suffix);
+        Builtin::kStringAdd_NoMapCheck, context, var_result.value(), suffix);
     Return(result);
   }
 }
 
-// ES #sec-string.prototype.matchAll
+// https://tc39.es/ecma262/#sec-string.prototype.matchAll
 TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
@@ -1571,14 +1572,14 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
                                      string_data));
           TNode<Uint8T> char_code =
               Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
-          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
+          TNode<String> entry = StringFromSingleCharCode(char_code);
 
           // TODO(ishell): make it possible to skip write barriers here.
           // The single-character strings are in RO space so it should
           // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
-        1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        1, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
@@ -1603,7 +1604,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
   return result_array.value();
 }
 
-// ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
+// https://tc39.es/ecma262/#sec-string.prototype.split
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kSeparatorArg = 0;
   const int kLimitArg = 1;
@@ -1652,32 +1653,14 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       [=, this] { return ToUint32(context, limit); });
   const TNode<String> separator_string = ToString_Inline(context, separator);
 
-  Label return_empty_array(this);
+  Label return_empty_array(this), return_subject_as_array(this);
 
   // Shortcut for {limit} == 0.
   GotoIf(TaggedEqual(limit_number, smi_zero), &return_empty_array);
 
   // ECMA-262 says that if {separator} is undefined, the result should
   // be an array of size 1 containing the entire string.
-  {
-    Label next(this);
-    GotoIfNot(IsUndefined(separator), &next);
-
-    const ElementsKind kind = PACKED_ELEMENTS;
-    const TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
-
-    TNode<Smi> length = SmiConstant(1);
-    TNode<IntPtrT> capacity = IntPtrConstant(1);
-    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
-
-    TNode<FixedArray> fixed_array = CAST(LoadElements(result));
-    StoreFixedArrayElement(fixed_array, 0, subject_string);
-
-    args.PopAndReturn(result);
-
-    BIND(&next);
-  }
+  GotoIf(IsUndefined(separator), &return_subject_as_array);
 
   // If the separator string is empty then return the elements in the subject.
   {
@@ -1694,10 +1677,22 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<JSAny> result =
-      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
-                         separator_string, limit_number);
-  args.PopAndReturn(result);
+  // Fast path for a separator that does not occur in the subject string.
+  const TNode<Smi> first_index =
+      CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
+                       separator_string, smi_zero));
+  Label next_split(this);
+  Branch(SmiEqual(first_index, SmiConstant(-1)), &return_subject_as_array,
+         &next_split);
+
+  BIND(&next_split);
+
+  {
+    const TNode<JSAny> result =
+        CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                           separator_string, limit_number, first_index);
+    args.PopAndReturn(result);
+  }
 
   BIND(&return_empty_array);
   {
@@ -1707,10 +1702,25 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     TNode<Smi> length = smi_zero;
     TNode<IntPtrT> capacity = IntPtrConstant(0);
-    TNode<JSArray> result_array =
-        AllocateJSArray(kind, array_map, capacity, length);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
 
-    args.PopAndReturn(result_array);
+    args.PopAndReturn(result);
+  }
+
+  BIND(&return_subject_as_array);
+  {
+    const ElementsKind kind = PACKED_ELEMENTS;
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+
+    TNode<Smi> length = SmiConstant(1);
+    TNode<IntPtrT> capacity = IntPtrConstant(1);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
+
+    TNode<FixedArray> fixed_array = CAST(LoadElements(result));
+    StoreFixedArrayElement(fixed_array, 0, subject_string);
+
+    args.PopAndReturn(result);
   }
 }
 
@@ -1854,10 +1864,10 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   // affect iteration.
   TNode<PropertyCell> protector_cell = StringIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->string_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 // Instantiate template due to shared library requirements.
@@ -1935,7 +1945,7 @@ void StringBuiltinsAssembler::CopyStringCharacters(
           Increment(&current_to_offset, to_increment);
         }
       },
-      from_increment, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+      from_increment, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
@@ -2028,8 +2038,8 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
       var_bits = Word32Or(var_bits.value(), c);
     };
     BuildFastLoop<IntPtrT>(vars, var_cursor, var_cursor.value(), end_offset,
-                           one_char_loop, sizeof(uint16_t),
-                           LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+                           one_char_loop, sizeof(uint16_t), kNoLoopUnrolling,
+                           IndexAdvanceMode::kPost);
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {
@@ -2154,7 +2164,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
   // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
   BIND(&single_char);
   {
-    TNode<Int32T> char_code = StringCharCodeAt(string, Unsigned(from));
+    TNode<Uint16T> char_code = StringCharCodeAt(string, Unsigned(from));
     var_result = StringFromSingleCharCode(char_code);
     Goto(&end);
   }

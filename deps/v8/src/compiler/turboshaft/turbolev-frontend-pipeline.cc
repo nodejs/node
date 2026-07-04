@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/logging.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"
@@ -18,25 +19,31 @@
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-serializer.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-inlining.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-kna-processor.h"
+#include "src/maglev/maglev-loop-peeler.h"
+#include "src/maglev/maglev-phase.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-range-analysis.h"
 #include "src/maglev/maglev-range-verification.h"
 #include "src/maglev/maglev-truncation.h"
+#include "src/maglev/turbolev-escape-analysis.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 // TODO(victorgomes): Should we create a Turbolev phase kind?
 #define DECL_TURBOLEV_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurbolev, \
-                                       RuntimeCallStats::kThreadSpecific)   \
+                                       RuntimeCallStats::kThreadSpecific,   \
+                                       "Turbolev" #Name)                    \
                                                                             \
-  static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;
+  static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;              \
+  static constexpr maglev::MaglevPhase phase = maglev::MaglevPhase::k##Name;
 
 #define DECL_TURBOLEV_PHASE_CONSTANTS(Name) \
   DECL_TURBOLEV_PHASE_CONSTANTS_IMPL(Name, Turbolev##Name)
@@ -47,7 +54,8 @@ TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
       compilation_info_(maglev::MaglevCompilationInfo::NewForTurbolev(
           data->isolate(), data->broker(), data->info()->closure(),
           data->info()->osr_offset(),
-          data->info()->function_context_specializing())) {
+          data->info()->function_context_specializing(),
+          data->info()->debug_name())) {
   // We need to be certain that the parameter count reported by our output
   // Code object matches what the code we compile expects. Otherwise, this
   // may lead to effectively signature mismatches during function calls. This
@@ -59,14 +67,16 @@ TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
   // TODO(victorgomes): Investigate support for Turbolev without
   // MaglevGraphLabeller
   compilation_info_->set_graph_labeller(new maglev::MaglevGraphLabeller());
+  compilation_info_->set_optimization_id(data->info()->optimization_id());
 }
 
-void TurbolevFrontendPipeline::PrintMaglevGraph(const char* msg) {
+void TurbolevFrontendPipeline::PrintMaglevGraph(maglev::MaglevPhase phase) {
   CodeTracer* code_tracer = data_.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
-  tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
+  tracing_scope.stream() << "\n----- " << maglev::PhaseName(phase) << " -----"
+                         << std::endl;
 
-  maglev::PrintGraph(tracing_scope.stream(), graph_);
+  maglev::PrintGraph(tracing_scope.stream(), graph_, phase);
 }
 
 namespace {
@@ -159,7 +169,7 @@ void TurbolevFrontendPipeline::PrintBytecode() {
 }
 
 struct MaglevGraphBuilderPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(MaglevGraphBuilder)
+  DECL_TURBOLEV_PHASE_CONSTANTS(MaglevGraphBuilding)
 
   bool Run(maglev::Graph* graph) {
     // TODO(victorgomes): These could be initialized inside the graph builder
@@ -174,11 +184,20 @@ struct MaglevGraphBuilderPhase {
 };
 
 struct InlinerPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(Inliner)
+  DECL_TURBOLEV_PHASE_CONSTANTS(Inlining)
 
   bool Run(maglev::Graph* graph) {
     maglev::MaglevInliner inliner(graph);
     return inliner.Run();
+  }
+};
+
+struct LoopPeelerPhase {
+  DECL_TURBOLEV_PHASE_CONSTANTS(LoopPeeling)
+
+  bool Run(maglev::Graph* graph) {
+    maglev::MaglevLoopPeeler peeler(graph);
+    return peeler.Run();
   }
 };
 
@@ -207,6 +226,18 @@ struct PhiUntaggingPhase {
   }
 };
 
+struct EscapeAnalysisPhase {
+  DECL_TURBOLEV_PHASE_CONSTANTS(EscapeAnalysis)
+
+  bool Run(maglev::Graph* graph) {
+    maglev::MaglevCompilationInfo* compilation_info = graph->compilation_info();
+    // TODO(dmercadier): use a proper temporary zone.
+    Zone* temp_zone = graph->zone();
+    maglev::EscapeAnalysis::Run(graph, compilation_info, temp_zone);
+    return true;
+  }
+};
+
 struct RangeAnalysisPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(RangeAnalysis)
 
@@ -229,13 +260,18 @@ struct PostOptimizerPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(PostOptimizer)
 
   bool Run(maglev::Graph* graph, maglev::NodeRanges* ranges) {
-    maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
+    maglev::ReachableExceptionHandlerTracker exception_handler_tracker(graph);
+    maglev::RecomputeKnownNodeAspectsProcessor kna_processor(
+        graph, exception_handler_tracker);
     maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
     maglev::GraphMultiProcessor<maglev::MaglevGraphOptimizer&,
+                                maglev::ReachableExceptionHandlerTracker&,
                                 maglev::RecomputeKnownNodeAspectsProcessor&,
-                                maglev::RecomputePhiUseHintsProcessor>
-        optimization_pass(optimizer, kna_processor,
-                          maglev::RecomputePhiUseHintsProcessor{graph->zone()});
+                                maglev::RecomputePhiUseHintsProcessor,
+                                maglev::BoundsCheckEliminationProcessor>
+        optimization_pass(optimizer, exception_handler_tracker, kna_processor,
+                          maglev::RecomputePhiUseHintsProcessor{graph->zone()},
+                          maglev::BoundsCheckEliminationProcessor{graph});
     optimization_pass.ProcessGraph(graph);
 
     // Remove unreachable blocks if we have any.
@@ -247,13 +283,18 @@ struct PostOptimizerPhase {
 };
 
 struct PostHocPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(PostHoc)
+  DECL_TURBOLEV_PHASE_CONSTANTS(AnyUseMarking)
 
   bool Run(maglev::Graph* graph) {
+    if (!v8_flags.turbolev_escape_analysis) {
+      // Unwrap deopt frames before escape analysis.
+      graph->UnwrapDeoptFrames();
+    }
     // Escape analysis.
     maglev::GraphMultiProcessor<maglev::ReturnedValueRepresentationSelector,
                                 maglev::AnyUseMarkingProcessor>
-        processor;
+        processor(
+            maglev::AnyUseMarkingProcessor{!v8_flags.turbolev_escape_analysis});
     processor.ProcessGraph(graph);
     return true;
   }
@@ -265,7 +306,7 @@ struct DeadNodeSweepingPhase {
   bool Run(maglev::Graph* graph) {
     // Dead nodes elimination (which, amongst other things, cleans up the left
     // overs of escape analysis).
-    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor;
+    maglev::GraphProcessor<maglev::DeadNodeSweepingProcessor> processor;
     processor.ProcessGraph(graph);
     return true;
   }
@@ -282,9 +323,14 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
                                                  Phase::kCounterMode);
 #endif
   Phase phase;
+  SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
   bool result = phase.Run(graph_, std::forward<Args>(args)...);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-    PrintMaglevGraph(Phase::phase_name());
+    PrintMaglevGraph(Phase::phase);
+  }
+  if (compilation_info_->trace_json_enabled()) {
+    maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
+                                   Phase::phase);
   }
 #ifdef DEBUG
   maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
@@ -303,15 +349,34 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (v8_flags.turbolev_non_eager_inlining) {
     if (!Run<InlinerPhase>()) return {};
   }
+  if (v8_flags.turbolev_non_eager_loop_peeling) {
+    if (Run<LoopPeelerPhase>()) {
+      Run<PostOptimizerPhase>(nullptr);
+    }
+  }
   if (v8_flags.maglev_truncation && graph_->may_have_truncation()) {
     Run<TruncationPhase>();
+  }
+  if (graph_->compilation_info()->flags().enable_truncated_int32_phis) {
+    // This only needs to run unless we have accurate usage hints.
+    // TODO(turbolev): sort out perf problems blocking
+    // https://chromium-review.git.corp.google.com/c/v8/v8/+/7595239 from
+    // landing.
     Run<PostOptimizerPhase>(nullptr);
   }
-  Run<PhiUntaggingPhase>();
+  graph_->UnwrapDeoptFrames();
+  if (v8_flags.turbolev_untagged_phis) {
+    Run<PhiUntaggingPhase>();
+  }
   if (v8_flags.maglev_range_analysis) {
     maglev::NodeRanges ranges(graph_);
     Run<RangeAnalysisPhase>(ranges);
     Run<PostOptimizerPhase>(&ranges);
+  }
+  if (v8_flags.turbolev_escape_analysis) {
+    // TODO(dmercadier): it would make sense to run this before Phi untagging so
+    // that Phi untagging can untag the Phis created by Escape Analysis.
+    Run<EscapeAnalysisPhase>();
   }
   Run<PostHocPhase>();
   Run<DeadNodeSweepingPhase>();

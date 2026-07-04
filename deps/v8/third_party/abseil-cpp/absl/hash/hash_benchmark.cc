@@ -350,7 +350,7 @@ struct PodPairInt64 {
 
 template <class T>
 struct PodRand {
-  static_assert(std::is_pod<T>::value, "");
+  static_assert(std::is_pod_v<T>, "");
   static_assert(kEntropySize + sizeof(T) < sizeof(entropy), "");
 
   T Get(size_t i) const {

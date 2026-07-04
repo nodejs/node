@@ -9,7 +9,7 @@ builder.startRecGroup();
 builder.addStruct([]);
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
 builder.endRecGroup();
 builder.startRecGroup();
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));

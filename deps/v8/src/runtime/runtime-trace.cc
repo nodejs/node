@@ -269,7 +269,7 @@ RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
     DumplingUnoptimizedJSFrame frame_view(frame);
     isolate->dumpling_manager()->DoPrint(
         &frame_view, function, function_local_bytecode_offset, frame_dump_type,
-        bytecode_array, accumulator);
+        bytecode_array, *accumulator);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

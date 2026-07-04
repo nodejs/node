@@ -9,6 +9,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap-layout-inl.h"

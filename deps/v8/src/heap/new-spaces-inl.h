@@ -8,14 +8,12 @@
 #include "src/heap/new-spaces.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/normal-page.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/tagged-impl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {
@@ -74,7 +72,7 @@ bool SemiSpaceNewSpace::IsAddressBelowAgeMark(Address address) const {
   // However, on page promotion (new to old) during a full GC the page flags are
   // already updated to old space before using this method.
 #ifdef DEBUG
-  auto* metadata = chunk->Metadata(heap()->isolate());
+  auto* metadata = chunk->Metadata(Isolate::FromHeap(heap()));
   DCHECK_IMPLIES(!chunk->InYoungGeneration(), metadata->will_be_promoted());
   DCHECK(!metadata->is_large());
 #endif  // DEBUG

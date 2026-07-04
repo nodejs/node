@@ -13,8 +13,7 @@
 namespace v8 {
 namespace internal {
 
-
-V8_OBJECT class Hole : public HeapObjectLayout {
+V8_OBJECT class Hole : public HeapObject {
  public:
   DECL_VERIFIER(Hole)
   DECL_PRINTER(Hole)

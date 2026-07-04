@@ -461,7 +461,7 @@ double DictionaryValue::doubleProperty(const String& name, double defaultValue) 
 void DictionaryValue::remove(const String& name)
 {
     m_data.erase(name);
-    m_order.erase(std::remove(m_order.begin(), m_order.end(), name), m_order.end());
+    std::erase(m_order, name);
 }
 
 void DictionaryValue::AppendSerialized(std::vector<uint8_t>* bytes) const {

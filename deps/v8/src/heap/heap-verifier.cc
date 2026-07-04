@@ -140,13 +140,13 @@ void VerifyPointersVisitor::VisitCompressedRootPointers(Root root,
 }
 
 void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
-  VerifyHeapObjectImpl(host->map(cage_base()));
+  VerifyHeapObjectImpl(host->map());
 }
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-  CHECK(IsMap(heap_object->map(cage_base())));
+  CHECK(IsMap(heap_object->map()));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
       !v8_flags.sticky_mark_bits && HeapLayout::InYoungGeneration(heap_object),
@@ -156,9 +156,8 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
 void VerifyPointersVisitor::VerifyCodeObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidCodeObject(heap_, heap_object));
-  CHECK(IsMap(heap_object->map(cage_base())));
-  CHECK(heap_object->map(cage_base())->instance_type() ==
-        INSTRUCTION_STREAM_TYPE);
+  CHECK(IsMap(heap_object->map()));
+  CHECK_EQ(heap_object->map()->instance_type(), INSTRUCTION_STREAM_TYPE);
 }
 
 template <typename TSlot>
@@ -185,7 +184,7 @@ void VerifyPointersVisitor::VerifyPointers(Tagged<HeapObject> host,
   // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
   // this by moving that object to POINTER_VISITOR_ID_LIST.
   CHECK_EQ(ObjectFields::kMaybePointers,
-           Map::ObjectFieldsFrom(host->map(cage_base())->visitor_id()));
+           Map::ObjectFieldsFrom(host->map()->visitor_id()));
   VerifyPointersImpl(start, end);
 }
 
@@ -198,7 +197,7 @@ void VerifyPointersVisitor::VisitCodeTarget(Tagged<InstructionStream> host,
 
 void VerifyPointersVisitor::VisitEmbeddedPointer(Tagged<InstructionStream> host,
                                                  RelocInfo* rinfo) {
-  VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
+  VerifyHeapObjectImpl(rinfo->target_object());
 }
 
 class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
@@ -276,6 +275,9 @@ class HeapVerification final : public SpaceVerificationVisitor {
 
  private:
   void VerifySpace(BaseSpace* space);
+#ifdef V8_ENABLE_SANDBOX
+  void VerifyPointerTables();
+#endif
 
   void VerifyPage(const BasePage* chunk) final;
   void VerifyPageDone(const BasePage* chunk) final;
@@ -355,7 +357,8 @@ void HeapVerification::Verify() {
 #if V8_ENABLE_WEBASSEMBLY
   // wasm_canonical_rtts holds weak references to maps or (strong) undefined.
   Tagged<WeakFixedArray> canonical_rtts = heap()->wasm_canonical_rtts();
-  for (int i = 0, e = canonical_rtts->length(); i < e; ++i) {
+  const uint32_t canonical_rtts_len = canonical_rtts->ulength().value();
+  for (uint32_t i = 0, e = canonical_rtts_len; i < e; ++i) {
     Tagged<MaybeObject> maybe_rtt = canonical_rtts->get(i);
     if (maybe_rtt.IsCleared()) continue;
     CHECK(maybe_rtt.IsWeak());
@@ -391,10 +394,38 @@ void HeapVerification::Verify() {
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
+#ifdef V8_ENABLE_SANDBOX
+  VerifyPointerTables();
+#endif
+
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
 }
+
+#ifdef V8_ENABLE_SANDBOX
+void HeapVerification::VerifyPointerTables() {
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->young_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->old_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->read_only_external_pointer_space());
+  isolate()->cpp_heap_pointer_table().Verify(isolate(),
+                                             heap()->cpp_heap_pointer_space());
+  isolate()->trusted_pointer_table().Verify(isolate(),
+                                            heap()->trusted_pointer_space());
+  isolate()->trusted_pointer_table().Verify(
+      isolate(), heap()->read_only_trusted_pointer_space());
+  if (isolate()->has_shared_trusted_pointer_table()) {
+    isolate()->shared_trusted_pointer_table().Verify(
+        isolate(), isolate()->shared_trusted_pointer_space());
+  }
+
+  isolate()->js_dispatch_table().Verify(isolate(),
+                                        heap()->js_dispatch_table_space());
+}
+#endif
 
 void HeapVerification::VerifySpace(BaseSpace* space) {
   if (!space) return;
@@ -482,17 +513,17 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
-  MapWord map_word = object->map_word(cage_base_, kRelaxedLoad);
+  MapWord map_word = object->map_word(kRelaxedLoad);
   CHECK(!map_word.IsForwardingAddress());
   Tagged<Map> map = map_word.ToMap();
-  CHECK(IsMap(map, cage_base_));
+  CHECK(IsMap(map));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
 
   if (HeapLayout::InYoungGeneration(object)) {
     // The object should not be code or a map.
-    CHECK(!IsMap(object, cage_base_));
-    CHECK(!IsAbstractCode(object, cage_base_));
+    CHECK(!IsMap(object));
+    CHECK(!IsAbstractCode(object));
   } else if (current_space_identity() == RO_SPACE) {
     CHECK(!IsExternalString(object));
     CHECK(!IsJSArrayBuffer(object));
@@ -558,7 +589,7 @@ class SlotVerifyingVisitor : public HeapVisitor<SlotVerifyingVisitor> {
 
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    Tagged<Object> target = rinfo->target_object(cage_base());
+    Tagged<Object> target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
@@ -753,7 +784,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
   MutablePage* chunk = MutablePage::FromHeapObject(isolate(), object);
 
   Address start = object.address();
-  Address end = start + object->Size(cage_base_);
+  Address end = start + object->Size();
 
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
@@ -817,7 +848,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
 
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
   HeapVerification verifier(heap);
   verifier.Verify();
 }
@@ -851,8 +882,11 @@ void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(
 void HeapVerifier::SetPendingLayoutChangeObject(Heap* heap,
                                                 Tagged<HeapObject> object) {
   VerifyObjectLayoutChangeIsAllowed(heap, object);
-  CHECK(pending_layout_change_object.is_null());
-  pending_layout_change_object = object;
+  {
+    DisableGCMole no_gcmole;
+    CHECK(pending_layout_change_object.is_null());
+    pending_layout_change_object = object;
+  }
 }
 
 // static
@@ -869,15 +903,18 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
 
   PtrComprCageBase cage_base(heap->isolate());
 
-  // Check that Heap::NotifyObjectLayoutChange was called for object transitions
-  // that are not safe for concurrent marking.
-  // If you see this check triggering for a freshly allocated object,
-  // use object->set_map_after_allocation() to initialize its map.
-  if (pending_layout_change_object.is_null()) {
-    VerifySafeMapTransition(heap, object, new_map);
-  } else {
-    CHECK_EQ(pending_layout_change_object, object);
-    pending_layout_change_object = HeapObject();
+  {
+    DisableGCMole no_gcmole;
+    // Check that Heap::NotifyObjectLayoutChange was called for object
+    // transitions that are not safe for concurrent marking. If you see this
+    // check triggering for a freshly allocated object, use
+    // object->set_map_after_allocation() to initialize its map.
+    if (pending_layout_change_object.is_null()) {
+      VerifySafeMapTransition(heap, object, new_map);
+    } else {
+      CHECK_EQ(pending_layout_change_object, object);
+      pending_layout_change_object = {};
+    }
   }
 }
 
@@ -887,12 +924,12 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
                                            Tagged<Map> new_map) {
   PtrComprCageBase cage_base(heap->isolate());
 
-  if (IsJSObject(object, cage_base)) {
+  if (IsJSObject(object)) {
     // Without double unboxing all in-object fields of a JSObject are tagged.
     return;
   }
 
-  if (IsString(object, cage_base) &&
+  if (IsString(object) &&
       (new_map == ReadOnlyRoots(heap).thin_two_byte_string_map() ||
        new_map == ReadOnlyRoots(heap).thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
@@ -901,7 +938,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
     return;
   }
 
-  if (v8_flags.shared_string_table && IsString(object, cage_base) &&
+  if (v8_flags.shared_string_table && IsString(object) &&
       InstanceTypeChecker::IsInternalizedString(new_map->instance_type())) {
     // In-place internalization does not change a string's fields.
     //

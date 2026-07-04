@@ -1,0 +1,13 @@
+add_object_library(
+  address
+  HDRS
+    address.h
+  SRCS
+    address.cpp
+  DEPENDS
+    libc.hdr.types.in_addr_t
+    libc.src.__support.common
+    libc.src.__support.ctype_utils
+    libc.src.__support.CPP.optional
+    libc.src.__support.str_to_integer
+)

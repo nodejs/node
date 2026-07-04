@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
@@ -546,8 +547,9 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
     UsePosition* pos = positions_span_.first();
     UsePosition* other_pos = other->positions_span_.first();
     // To make the order total, handle the case where both positions are equal.
-    if (pos->pos() == other_pos->pos())
+    if (pos->pos() == other_pos->pos()) {
       return TopLevel()->vreg() < other->TopLevel()->vreg();
+    }
     return pos->pos() < other_pos->pos();
   }
   return start < other_start;
@@ -623,8 +625,9 @@ LifetimePosition LiveRange::NextStartAfter(LifetimePosition position) {
 
 LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
   if (IsEmpty() || other->IsEmpty() || other->Start() > End() ||
-      Start() > other->End())
+      Start() > other->End()) {
     return LifetimePosition::Invalid();
+  }
 
   LifetimePosition min_end = std::min(End(), other->End());
   UseIntervalVector::iterator b = other->intervals_.begin();
@@ -1619,8 +1622,9 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
   // Handle fixed temporaries.
   for (size_t i = 0; i < first->TempCount(); i++) {
     UnallocatedOperand* temp = UnallocatedOperand::cast(first->TempAt(i));
-    if (temp->HasFixedPolicy())
+    if (temp->HasFixedPolicy()) {
       AllocateFixed(temp, instr_index, false, false, false);
+    }
   }
   // Handle constant/fixed output operands.
   for (size_t i = 0; i < first->OutputCount(); i++) {
@@ -1729,7 +1733,6 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
     if (!output->IsUnallocated()) continue;
     UnallocatedOperand* second_output = UnallocatedOperand::cast(output);
     if (!second_output->HasSameAsInputPolicy()) continue;
-    DCHECK_EQ(0, i);  // Only valid for first output.
     UnallocatedOperand* cur_input =
         UnallocatedOperand::cast(second->InputAt(second_output->input_index()));
     int output_vreg = second_output->virtual_register();
@@ -2626,8 +2629,9 @@ void BundleBuilder::BuildBundles() {
       // a back-edge with an input for the phi that interferes with the phi's
       // value, because in case that input gets spilled it might introduce
       // a stack-to-stack move at the back-edge.
-      if (phi_interferes_with_backedge_input)
+      if (phi_interferes_with_backedge_input) {
         out_range->TopLevel()->set_spilling_at_loop_header_not_beneficial();
+      }
     }
     TRACE("Done block B%d\n", block_id);
   }
@@ -2637,8 +2641,9 @@ bool LiveRangeBundle::TryAddRange(TopLevelLiveRange* range) {
   DCHECK_NULL(range->get_bundle());
   // We may only add a new live range if its use intervals do not
   // overlap with existing intervals in the bundle.
-  if (AreUseIntervalsIntersecting(this->intervals_, range->intervals()))
+  if (AreUseIntervalsIntersecting(this->intervals_, range->intervals())) {
     return false;
+  }
   AddRange(range);
   return true;
 }
@@ -2875,8 +2880,9 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
     // at the define position that is not beneficial to spill.
     if (range->TopLevel()->Start() > loop_start ||
         (range->TopLevel()->Start() == loop_start &&
-         range->TopLevel()->SpillAtLoopHeaderNotBeneficial()))
+         range->TopLevel()->SpillAtLoopHeaderNotBeneficial())) {
       return pos;
+    }
 
     LiveRange* live_at_header = range->TopLevel()->GetChildCovers(loop_start);
 
@@ -2940,6 +2946,7 @@ const char* RegisterAllocator::RegisterName(int register_code) const {
     case RegisterKind::kSimd128:
       return i::RegisterName(Simd128Register::from_code(register_code));
   }
+  UNREACHABLE();
 }
 
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
@@ -3115,6 +3122,11 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
   if (new_end != range->End()) {
     TRACE("Found new end for %d:%d at %d\n", range->TopLevel()->vreg(),
           range->relative_id(), new_end.value());
+    // Shift the split position to the last gap position. This is to ensure that
+    // if a connecting move is needed, that move coincides with the start of the
+    // range that it defines.
+    new_end = new_end.IsGapPosition() ? new_end : new_end.FullStart().End();
+    DCHECK_GT(new_end, range->Start());
     LiveRange* tail = SplitRangeAt(range, new_end);
     AddToUnhandled(tail);
   }
@@ -3362,8 +3374,9 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
         MachineRepresentation rep = val.first->representation();
         if (check_aliasing && (rep == MachineRepresentation::kFloat32 ||
                                rep == MachineRepresentation::kSimd128 ||
-                               rep == MachineRepresentation::kSimd256))
+                               rep == MachineRepresentation::kSimd256)) {
           GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
+        }
         for (int idx = 0; idx < num_regs; idx++) {
           int uses = val.second.used_registers[idx];
           if (uses == 0) continue;
@@ -3745,8 +3758,9 @@ void LinearScanAllocator::AllocateRegisters() {
               // Filter out ranges that were split or had their register
               // stolen by backwards working spill heuristics. These have
               // been spilled after the fact, so ignore them.
-              if (range->End() < pred_end || !range->HasRegisterAssigned())
+              if (range->End() < pred_end || !range->HasRegisterAssigned()) {
                 continue;
+              }
               auto [_, inserted] = to_be_live.emplace(
                   range->TopLevel(), range->assigned_register());
               DCHECK(inserted);
@@ -3818,8 +3832,9 @@ void LinearScanAllocator::AllocateRegisters() {
     // Now we can erase current, as we are sure to process it.
     unhandled_live_ranges().erase(unhandled_live_ranges().begin());
 
-    if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel()))
+    if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel())) {
       continue;
+    }
 
     ForwardStateTo(position);
 
@@ -4500,8 +4515,9 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
   for (size_t i = 0; i < phi->operands().size(); i++) {
     int op = phi->operands()[i];
     TopLevelLiveRange* op_range = data()->GetLiveRangeFor(op);
-    if (!op_range->HasSpillRange() || op_range->get_bundle() != out_bundle)
+    if (!op_range->HasSpillRange() || op_range->get_bundle() != out_bundle) {
       continue;
+    }
     const InstructionBlock* pred =
         code()->InstructionBlockAt(block->predecessors()[i]);
     LifetimePosition pred_end =
@@ -5161,8 +5177,9 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
   for (const LiveRange* child = range; child != nullptr;
        child = child->next()) {
     for (const UsePosition* pos : child->positions()) {
-      if (pos->type() != UsePositionType::kRequiresSlot && !child->spilled())
+      if (pos->type() != UsePositionType::kRequiresSlot && !child->spilled()) {
         continue;
+      }
       range->AddBlockRequiringSpillOperand(
           code->GetInstructionBlock(pos->pos().ToInstructionIndex())
               ->rpo_number(),

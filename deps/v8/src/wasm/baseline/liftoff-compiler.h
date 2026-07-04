@@ -5,6 +5,7 @@
 #ifndef V8_WASM_BASELINE_LIFTOFF_COMPILER_H_
 #define V8_WASM_BASELINE_LIFTOFF_COMPILER_H_
 
+#include "src/wasm/baseline/liftoff-bailout-reasons.h"
 #include "src/wasm/function-compiler.h"
 
 namespace v8 {
@@ -19,41 +20,6 @@ struct CompilationEnv;
 class DebugSideTable;
 struct FunctionBody;
 class WasmDetectedFeatures;
-
-// Note: If this list changes, also the histogram "V8.LiftoffBailoutReasons"
-// on the chromium side needs to be updated.
-// Deprecating entries is always fine. Repurposing works if you don't care about
-// temporary mix-ups. Increasing the number of reasons {kNumBailoutReasons} is
-// more tricky, and might require introducing a new (updated) histogram.
-enum LiftoffBailoutReason : int8_t {
-  // Nothing actually failed.
-  kSuccess = 0,
-  // Compilation failed, but not because of Liftoff.
-  kDecodeError = 1,
-  // Liftoff is not implemented on that architecture.
-  kUnsupportedArchitecture = 2,
-  // More complex code would be needed because a CPU feature is not present.
-  kMissingCPUFeature = 3,
-  // Liftoff does not implement a complex (and rare) instruction.
-  kComplexOperation = 4,
-  // Unimplemented proposals:
-  kSimd = 5,
-  kRefTypes = 6,
-  kExceptionHandling = 7,
-  kMultiValue = 8,
-  kTailCall = 9,
-  kAtomics = 10,
-  kBulkMemory = 11,
-  kNonTrappingFloatToInt = 12,
-  kGC = 13,
-  kRelaxedSimd = 14,
-  kWasmfx = 15,
-  // A little gap, for forward compatibility.
-  // Any other reason (use rarely; introduce new reasons if this spikes).
-  kOtherReason = 20,
-  // Marker:
-  kNumBailoutReasons
-};
 
 // Further information about a location for a deopt: A call_ref can either be
 // just an inline call (that didn't cause a deopt) with a deopt happening within

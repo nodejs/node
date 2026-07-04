@@ -253,13 +253,6 @@ HWY_API Vec1<T> operator^(const Vec1<T> a, const Vec1<T> b) {
   return Xor(a, b);
 }
 
-// ------------------------------ Xor3
-
-template <typename T>
-HWY_API Vec1<T> Xor3(Vec1<T> x1, Vec1<T> x2, Vec1<T> x3) {
-  return Xor(x1, Xor(x2, x3));
-}
-
 // ------------------------------ Or3
 
 template <typename T>
@@ -1681,6 +1674,17 @@ HWY_API V InterleaveEvenBlocks(D, V a, V /*b*/) {
 // ------------------------------ InterleaveOddBlocks
 template <class D, class V = VFromD<D>>
 HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
+  return a;
+}
+
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveLowerBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveUpperBlocks(D, V a, V /*b*/) {
   return a;
 }
 

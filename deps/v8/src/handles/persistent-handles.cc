@@ -4,7 +4,8 @@
 
 #include "src/handles/persistent-handles.h"
 
-#include "src/api/api.h"
+#include "src/common/synchronization-point-support.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/utils/allocation.h"
@@ -105,25 +106,33 @@ void PersistentHandles::Iterate(RootVisitor* visitor) {
 
 void PersistentHandlesList::Add(PersistentHandles* persistent_handles) {
   base::MutexGuard guard(&persistent_handles_mutex_);
-  if (persistent_handles_head_)
+  if (persistent_handles_head_) {
     persistent_handles_head_->prev_ = persistent_handles;
+  }
   persistent_handles->prev_ = nullptr;
   persistent_handles->next_ = persistent_handles_head_;
   persistent_handles_head_ = persistent_handles;
 }
 
 void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
+  SYNCHRONIZATION_POINT("RemovePersistentHandles");
   base::MutexGuard guard(&persistent_handles_mutex_);
-  if (persistent_handles->next_)
+  if (persistent_handles->next_) {
     persistent_handles->next_->prev_ = persistent_handles->prev_;
-  if (persistent_handles->prev_)
+  }
+  if (persistent_handles->prev_) {
     persistent_handles->prev_->next_ = persistent_handles->next_;
-  else
+  } else {
     persistent_handles_head_ = persistent_handles->next_;
+  }
 }
 
 void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
   isolate->heap()->safepoint()->AssertActive();
+  SYNCHRONIZATION_POINT("IteratePersistentHandles");
+  // Use the lock here because PersistentHandles could be dropped from threads
+  // without a LocalHeap.
+  base::MutexGuard guard(&persistent_handles_mutex_);
   for (PersistentHandles* current = persistent_handles_head_; current;
        current = current->next_) {
     current->Iterate(visitor);
@@ -133,7 +142,8 @@ void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
 PersistentHandlesScope::PersistentHandlesScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginPersistentScope();
-  HandleScopeData* data = impl_->isolate()->handle_scope_data();
+  HandleScopeData* data =
+      Isolate::FromHandleScopeImplementer(impl_)->handle_scope_data();
   Address* new_next = impl_->GetSpareOrNewBlock();
   Address* new_limit = &new_next[kHandleBlockSize];
   impl_->blocks()->push_back(new_next);
@@ -151,13 +161,16 @@ PersistentHandlesScope::PersistentHandlesScope(Isolate* isolate)
 
 PersistentHandlesScope::~PersistentHandlesScope() {
   DCHECK(handles_detached_);
-  impl_->isolate()->handle_scope_data()->level--;
-  DCHECK_EQ(impl_->isolate()->handle_scope_data()->level, prev_level_);
+  Isolate::FromHandleScopeImplementer(impl_)->handle_scope_data()->level--;
+  DCHECK_EQ(
+      Isolate::FromHandleScopeImplementer(impl_)->handle_scope_data()->level,
+      prev_level_);
 }
 
 std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
   std::unique_ptr<PersistentHandles> ph = impl_->DetachPersistent(first_block_);
-  HandleScopeData* data = impl_->isolate()->handle_scope_data();
+  HandleScopeData* data =
+      Isolate::FromHandleScopeImplementer(impl_)->handle_scope_data();
   data->next = prev_next_;
   data->limit = prev_limit_;
 #ifdef DEBUG

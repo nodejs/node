@@ -54,6 +54,38 @@ function testLogError() {
   return {stackCalled, stackCalledOnBase, stackCalledOnProxy};
 }
 
+function testLogErrorBoundBuiltin() {
+  let stackCalledViaBoundCall = false;
+  {
+    const error = new Error();
+    Object.defineProperty(error, 'stack', {
+      configurable: true,
+      get: Function.prototype.call.bind(() => {
+        stackCalledViaBoundCall = true;
+        return 'value';
+      }),
+    });
+    console.log(error);
+  }
+
+  let stackCalledViaBoundApply = false;
+  {
+    const error = new Error();
+    Object.defineProperty(error, 'stack', {
+      configurable: true,
+      get: Reflect.apply.bind(null, () => {
+        stackCalledViaBoundApply = true;
+        return 'value';
+      }, undefined, []),
+    });
+    console.log(error);
+  }
+
+  console.clear();
+
+  return {stackCalledViaBoundCall, stackCalledViaBoundApply};
+}
+
 //# sourceURL=test.js
 `);
 
@@ -61,6 +93,12 @@ InspectorTest.runAsyncTestSuite([
   async function ErrorStack() {
     await Protocol.Runtime.enable();
     const result = await Protocol.Runtime.evaluate({expression: 'testLogError()', returnByValue: true});
+    InspectorTest.logObject(result.result.result.value);
+    await Protocol.Runtime.disable();
+  },
+  async function ErrorStackBoundBuiltin() {
+    await Protocol.Runtime.enable();
+    const result = await Protocol.Runtime.evaluate({expression: 'testLogErrorBoundBuiltin()', returnByValue: true});
     InspectorTest.logObject(result.result.result.value);
     await Protocol.Runtime.disable();
   }

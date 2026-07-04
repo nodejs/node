@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /* clang-format off
  * This assembler uses the following register assignment convention
@@ -89,7 +90,7 @@ RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate,
                                                      int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
-          isolate, CodeObjectRequired::kYes,
+          isolate, CodeObjectRequired{true},
           NewAssemblerBuffer(kInitialBufferSize))),
       no_root_array_scope_(masm_.get()),
       num_registers_(registers_to_save),
@@ -503,8 +504,8 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
-    Label* on_no_match) {
+    Handle<ByteArray> nibble_table_array, int advance_by,
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
     DCHECK(!nibble_table_array.is_null());
@@ -515,9 +516,9 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     // Fallback to scalar version if there are less than kCharsPerVector chars
     // left in the subject.
     // We subtract 1 because CheckPosition assumes we are reading 1 character
-    // plus cp_offset. So the -1 is the the character that is assumed to be
+    // plus cp_offset. So the -1 is the character that is assumed to be
     // read by default.
-    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
+    CheckPosition(bounds_check_offset + kCharsPerVector - 1, &scalar);
 
     __ VU.SetSimd128(E8);
 
@@ -583,7 +584,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     // The maximum lookahead for boyer moore is less than vector size, so we can
     // ignore advance_by in the vectorized version.
     AdvanceCurrentPosition(kCharsPerVector);
-    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
+    CheckPosition(bounds_check_offset + kCharsPerVector - 1, &scalar);
     __ Branch(&simd_repeat);
 
     Bind(&found);
@@ -605,7 +606,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
 
   Label scalar_repeat;
   Bind(&scalar_repeat);
-  CheckPosition(cp_offset, on_no_match);
+  CheckPosition(bounds_check_offset, on_no_match);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
 
   // We use `a1` as a temporary for the table lookup.
@@ -631,7 +632,7 @@ bool RegExpMacroAssemblerRISCV::SkipUntilBitInTableUseSimd(int advance_by) {
   // in each iteration. For higher values the scalar version performs better.
   // We only implemented SIMD instead of the scalar version for latin1 strings.
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
-         CpuFeatures::IsSupported(RISCV_SIMD);
+         CpuFeatures::IsSupported(RVV);
 }
 
 void RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
@@ -782,7 +783,7 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
   Label return_a0;
@@ -875,10 +876,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
     __ jmp(&return_a0);
 
     __ bind(&stack_limit_hit);
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
     CallCheckStackGuardState(a0, extra_space_for_variables);
     // If returned value is non-zero, we exit with the returned value as
     // result.
     __ Branch(&return_a0, ne, a0, Operand(zero_reg));
+    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     __ bind(&stack_ok);
   }
@@ -1126,8 +1129,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   if (v8_flags.print_regexp_code) {
     Print(*code);
   }
-  LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 
@@ -1322,7 +1324,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch,
   // [sp + 2] - C argument slot.
   // [sp + 1] - C argument slot.
   // [sp + 0] - C argument slot.
-  __ LoadWord(sp, MemOperand(sp, stack_alignment + kCArgsSlotsSize));
+  __ LoadWord(sp, MemOperand(sp, stack_alignment));
 
   __ li(code_pointer(), Operand(masm_->CodeObject()));
 }
@@ -1342,8 +1344,8 @@ int64_t RegExpMacroAssemblerRISCV::CheckStackGuardState(Address* return_address,
                                                         Address raw_code,
                                                         Address re_frame,
                                                         uintptr_t extra_space) {
-  Tagged<InstructionStream> re_code =
-      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
+  Tagged<InstructionStream> re_code = SbxCast<InstructionStream>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_code)));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndexOffset)),
@@ -1460,7 +1462,7 @@ void RegExpMacroAssemblerRISCV::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ li(a0, l);
   __ LoadWord(a0, MemOperand(a0, 0));
-  __ SubWord(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ SubWord(a0, a0, Operand(Stack::kStackLimitSlackSize));
   __ Branch(&no_stack_overflow, Ugreater, backtrack_stackpointer(),
             Operand(a0));
   __ DebugBreak();
@@ -1524,5 +1526,6 @@ void RegExpMacroAssemblerRISCV::CallCFunctionFromIrregexpCode(
 }
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

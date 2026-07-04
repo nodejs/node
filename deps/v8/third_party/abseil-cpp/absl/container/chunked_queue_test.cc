@@ -29,6 +29,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/strings/str_cat.h"
@@ -525,8 +526,8 @@ TEST(ChunkedQueue, IteratorDefaultConstructor) {
 TEST(ChunkedQueue, IteratorConversion) {
   using ConstIter = absl::chunked_queue<int64_t>::const_iterator;
   using Iter = absl::chunked_queue<int64_t>::iterator;
-  EXPECT_FALSE((std::is_convertible<ConstIter, Iter>::value));
-  EXPECT_TRUE((std::is_convertible<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_convertible_v<ConstIter, Iter>));
+  EXPECT_TRUE((std::is_convertible_v<Iter, ConstIter>));
   absl::chunked_queue<int64_t> q;
   ConstIter it1 = q.begin();
   ConstIter it2 = q.cbegin();
@@ -534,7 +535,7 @@ TEST(ChunkedQueue, IteratorConversion) {
   it1 = q.end();
   it2 = q.cend();
   it3 = q.end();
-  EXPECT_FALSE((std::is_assignable<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_assignable_v<Iter, ConstIter>));
 }
 
 struct TestEntry {
@@ -755,6 +756,7 @@ TEST(ChunkedQueue, Hardening) {
     GTEST_SKIP() << "Not a hardened build";
   }
 
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::chunked_queue<int> q;
   EXPECT_DEATH_IF_SUPPORTED(q.front(), "");
   EXPECT_DEATH_IF_SUPPORTED(q.back(), "");

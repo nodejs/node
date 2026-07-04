@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins.h"
 
-#include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
@@ -14,6 +14,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/code-events.h"  // For CodeCreateEvent.
@@ -41,8 +42,21 @@ struct BuiltinMetadata {
   Builtins::Kind kind;
 
   struct BytecodeAndScale {
-    interpreter::Bytecode bytecode : 8;
-    interpreter::OperandScale scale : 8;
+    using BytecodeField = base::BitField<interpreter::Bytecode, 0, 8, uint16_t>;
+    using ScaleField = BytecodeField::Next<interpreter::OperandScale, 8>;
+
+    constexpr BytecodeAndScale(interpreter::Bytecode bytecode,
+                               interpreter::OperandScale scale)
+        : data_(BytecodeField::encode(bytecode) | ScaleField::encode(scale)) {}
+
+    constexpr interpreter::Bytecode bytecode() const {
+      return BytecodeField::decode(data_);
+    }
+    constexpr interpreter::OperandScale scale() const {
+      return ScaleField::decode(data_);
+    }
+
+    uint16_t data_;
   };
 
   static_assert(sizeof(interpreter::Bytecode) == 1);
@@ -433,9 +447,9 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
     auto builtin_code = DirectHandle<Code>::FromSlot(&builtins[i]);
     DirectHandle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     interpreter::Bytecode bytecode =
-        builtin_metadata[i].data.bytecode_and_scale.bytecode;
+        builtin_metadata[i].data.bytecode_and_scale.bytecode();
     interpreter::OperandScale scale =
-        builtin_metadata[i].data.bytecode_and_scale.scale;
+        builtin_metadata[i].data.bytecode_and_scale.scale();
     PROFILE(isolate,
             CodeCreateEvent(
                 LogEventListener::CodeTag::kBytecodeHandler, code,
@@ -568,6 +582,7 @@ CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
     case ASM:
       return CallInterfaceDescriptorFor(builtin).sandboxing_mode();
   }
+  UNREACHABLE();
 }
 
 // static
@@ -652,6 +667,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
     case Builtin::kArrayForEachLoopEagerDeoptContinuation:
     case Builtin::kArrayForEachLoopLazyDeoptContinuation:
+    case Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation:
+    case Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation:
     case Builtin::kArrayMapPreLoopLazyDeoptContinuation:
     case Builtin::kArrayMapLoopEagerDeoptContinuation:
     case Builtin::kArrayMapLoopLazyDeoptContinuation:
@@ -665,6 +682,7 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArraySomeLoopLazyDeoptContinuation:
     case Builtin::kStringCreateLazyDeoptContinuation:
     case Builtin::kGenericLazyDeoptContinuation:
+    case Builtin::kGeneratorPrototypeNextLazyDeoptContinuation:
     case Builtin::kPromiseConstructorLazyDeoptContinuation:
       return JSBuiltinStateFlag::kDisabledJSBuiltin;
 
@@ -722,11 +740,9 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // These builtins with JS calling convention are not JS language builtins
     // but are allowed to be installed into JSFunctions.
     case Builtin::kJSToWasmWrapper:
-    case Builtin::kJSToJSWrapper:
-    case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
 #if V8_ENABLE_DRUMBRAKE
-    case Builtin::kGenericJSToWasmInterpreterWrapper:
+    case Builtin::kJSToWasmInterpreterWrapper:
 #endif
     case Builtin::kWasmStressSwitch:
       return JSBuiltinStateFlag::kJSTrampoline;
@@ -740,12 +756,19 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringCast:
     case Builtin::kWebAssemblyStringTest:
     case Builtin::kWebAssemblyStringFromWtf16Array:
+    case Builtin::kWebAssemblyStringFromWtf16ArrayShared:
     case Builtin::kWebAssemblyStringFromUtf8Array:
+    case Builtin::kWebAssemblyStringFromUtf8ArrayShared:
     case Builtin::kWebAssemblyStringIntoUtf8Array:
+    case Builtin::kWebAssemblyStringIntoUtf8ArrayShared:
     case Builtin::kWebAssemblyStringToUtf8Array:
+    case Builtin::kWebAssemblyStringToUtf8ArrayShared:
     case Builtin::kWebAssemblyStringToWtf16Array:
+    case Builtin::kWebAssemblyStringToWtf16ArrayShared:
     case Builtin::kWebAssemblyStringFromCharCode:
+    case Builtin::kWebAssemblyStringFromCharCodeShared:
     case Builtin::kWebAssemblyStringFromCodePoint:
+    case Builtin::kWebAssemblyStringFromCodePointShared:
     case Builtin::kWebAssemblyStringCodePointAt:
     case Builtin::kWebAssemblyStringCharCodeAt:
     case Builtin::kWebAssemblyStringLength:
@@ -781,12 +804,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
       //
       // Various feature-dependent builtins.
       //
-
-#if V8_ENABLE_WEBASSEMBLY
-    case Builtin::kWebAssemblyFunctionPrototypeBind:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          wasm::WasmEnabledFeatures::FromFlags().has_type_reflection());
-#endif  // V8_ENABLE_WEBASSEMBLY
 
     // --enable-experimental-regexp-engine
     case Builtin::kRegExpPrototypeLinearGetter:
@@ -882,6 +899,11 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
 
+    // --js-joint-iteration:
+    case Builtin::kIteratorZip:
+    case Builtin::kIteratorZipKeyed:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_joint_iteration);
+
     // --js-upsert
     case Builtin::kMapPrototypeGetOrInsert:
     case Builtin::kMapPrototypeGetOrInsertComputed:
@@ -898,6 +920,18 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // --js-sum-precise
     case Builtin::kMathSumPrecise:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_sum_precise);
+
+    // --enable-queue-microtask
+    case Builtin::kGlobalQueueMicrotask:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.enable_queue_microtask);
+
+    // --js-iterator-join
+    case Builtin::kIteratorPrototypeJoin:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_join);
+
+    // --js-iterator-includes
+    case Builtin::kIteratorPrototypeIncludes:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_includes);
 
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants

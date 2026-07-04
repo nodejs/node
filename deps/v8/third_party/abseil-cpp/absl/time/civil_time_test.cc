@@ -217,32 +217,25 @@ TEST(CivilTime, ImplicitCrossAlignment) {
   EXPECT_EQ(month, year);
 
   // Ensures unsafe conversions are not allowed.
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilMinute>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilHour>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilSecond, absl::CivilDay>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilMinute>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilHour>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilYear>));
 
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilHour>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilMinute, absl::CivilDay>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilHour>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilDay>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilMonth>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilMonth>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilDay, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilDay, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilMonth, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMonth, absl::CivilYear>));
 }
 
 TEST(CivilTime, ExplicitCrossAlignment) {

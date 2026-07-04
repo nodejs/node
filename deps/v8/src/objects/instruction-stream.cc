@@ -20,8 +20,8 @@ void InstructionStream::Relocate(WritableJitAllocation& jit_allocation,
   Tagged<Code> code;
   if (!TryGetCodeUnchecked(&code, kAcquireLoad)) return;
   // This is called during evacuation and code.instruction_stream() will point
-  // to the old object. So pass *this directly to the RelocIterator.
-  for (WritableRelocIterator it(jit_allocation, *this, constant_pool(),
+  // to the old object. So pass this directly to the RelocIterator.
+  for (WritableRelocIterator it(jit_allocation, this, constant_pool(),
                                 RelocInfo::kApplyMask);
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
@@ -35,11 +35,10 @@ void InstructionStream::Relocate(WritableJitAllocation& jit_allocation,
 InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     WritableJitAllocation& jit_allocation, Heap* heap, const CodeDesc& desc,
     Address constant_pool, const DisallowGarbageCollection& no_gc) {
-  WriteBarrierPromise write_barrier_promise(*this);
+  WriteBarrierPromise write_barrier_promise(this);
   Assembler* origin = desc.origin;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (WritableRelocIterator it(jit_allocation, *this, constant_pool,
-                                mode_mask);
+  for (WritableRelocIterator it(jit_allocation, this, constant_pool, mode_mask);
        !it.done(); it.next()) {
     // IMPORTANT:
     // this code needs be stay in sync with RelocateFromDescWriteBarriers below.
@@ -47,7 +46,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(*this, *p, SKIP_WRITE_BARRIER_SCOPE,
+      it.rinfo()->set_target_object(this, *p, SKIP_WRITE_BARRIER_SCOPE,
                                     SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
@@ -56,7 +55,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       Tagged<InstructionStream> target_istream =
           TrustedCast<Code>(*p)->instruction_stream();
-      it.rinfo()->set_target_address(*this, target_istream->instruction_start(),
+      it.rinfo()->set_target_address(this, target_istream->instruction_start(),
                                      SKIP_WRITE_BARRIER_SCOPE,
                                      SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
@@ -67,7 +66,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       // This won't trigger a write barrier, but setting mode to
       // UPDATE_WRITE_BARRIER to make it clear that we didn't forget about it
       // below.
-      it.rinfo()->set_target_address(*this, p, UPDATE_WRITE_BARRIER,
+      it.rinfo()->set_target_address(this, p, UPDATE_WRITE_BARRIER,
                                      SKIP_ICACHE_FLUSH);
       DCHECK_EQ(p, it.rinfo()->target_address());
     } else if (RelocInfo::IsWasmStubCall(mode)) {
@@ -103,13 +102,13 @@ void InstructionStream::RelocateFromDescWriteBarriers(
 
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
-      Tagged<HeapObject> p = it.rinfo()->target_object(heap->isolate());
-      WriteBarrier::ForRelocInfo(*this, it.rinfo(), p, UPDATE_WRITE_BARRIER);
+      Tagged<HeapObject> p = it.rinfo()->target_object();
+      WriteBarrier::ForRelocInfo(this, it.rinfo(), p, UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       Tagged<InstructionStream> target_istream =
           InstructionStream::FromTargetAddress(it.rinfo()->target_address());
-      WriteBarrier::ForRelocInfo(*this, it.rinfo(), target_istream,
+      WriteBarrier::ForRelocInfo(this, it.rinfo(), target_istream,
                                  UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     }

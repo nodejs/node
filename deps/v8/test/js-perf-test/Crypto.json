@@ -1,0 +1,20 @@
+{
+  "owners": ["victorgomes@chromium.org"],
+  "name": "Crypto",
+  "run_count": 5,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Crypto",
+      "path": ["Crypto"],
+      "main": "run.js",
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["am3.js"],
+      "tests": [
+        {"name": "Crypto-Am3-Multiply"}
+      ]
+    }
+  ]
+}

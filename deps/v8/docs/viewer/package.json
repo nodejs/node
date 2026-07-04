@@ -1,0 +1,16 @@
+{
+  "name": "v8-docs-viewer",
+  "version": "1.0.0",
+  "description": "V8 Docs Viewer with server-side rendering",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "generate": "node generator.js"
+  },
+  "dependencies": {
+    "@hpcc-js/wasm-graphviz": "*",
+    "express": "^4.18.0",
+    "marked": "^12.0.0"
+  }
+}

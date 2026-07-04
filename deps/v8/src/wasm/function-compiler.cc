@@ -31,37 +31,30 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
   const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
-  bool is_shared = env->module->type(func->sig_index).is_shared;
+  SharedFlag is_shared = env->module->type(func->sig_index).is_shared;
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end(), is_shared};
 
   base::ElapsedTimer compile_timer;
   if (base::TimeTicks::IsHighResolution()) compile_timer.Start();
 
-  // Before executing compilation, make sure that the function was validated.
-  // Both Liftoff and TurboFan compilation do not perform validation, so can
-  // only run on valid functions.
-  if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
-    // This code path can only be reached in
-    // - eager compilation mode,
-    // - with lazy validation,
-    // - with PGO (which compiles some functions eagerly), or
-    // - with compilation hints (which compiles some functions eagerly).
-    DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
-           v8_flags.experimental_wasm_pgo_from_file ||
-           v8_flags.experimental_wasm_compilation_hints);
+  if (v8_flags.trace_wasm_compiler) {
+    PrintF("Compiling wasm function %d with %s\n", func_index_,
+           ExecutionTierToString(tier_));
+  }
+
+  // When we compile functions while streaming a module, we let the compile
+  // task also take care of validation. See {DecodeWasmModule} for an overview.
+  // In the rare case when we create both a Liftoff and a Turbofan compilation
+  // task up front, we currently validate twice; this is not expected to occur
+  // in production.
+  if (validation_ == kMustValidate) {
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)
             .failed()) {
       return {};
     }
-    env->module->set_function_validated(func_index_);
-  }
-
-  if (v8_flags.trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d with %s\n", func_index_,
-           ExecutionTierToString(tier_));
   }
 
   WasmCompilationResult result;
@@ -78,8 +71,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // The --wasm-tier-mask-for-testing flag can force functions to be
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
+      // Tiering is not supported when we are generating compilation hints.
       bool try_liftoff = true;
-      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0)) {
+      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0 &&
+                      !v8_flags.wasm_generate_compilation_hints &&
+                      !v8_flags.trace_wasm_generate_compilation_hints)) {
         bool must_use_liftoff =
             v8_flags.liftoff_only ||
             for_debugging_ != ForDebugging::kNotForDebugging;
@@ -125,6 +121,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
+      data.validate_callees = validation_;
       result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
           env, data, detected, counter_updates);
       // In exceptional cases it can happen that compilation requests for
@@ -176,7 +173,8 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
                                               const WasmFunction* function,
                                               ExecutionTier tier) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  bool is_shared = native_module->module()->type(function->sig_index).is_shared;
+  SharedFlag is_shared =
+      native_module->module()->type(function->sig_index).is_shared;
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset(),
@@ -184,7 +182,8 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
-  WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging);
+  WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging,
+                           kAlreadyValidated);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::FlushDenormalsScope disable_denormals(
       tier == ExecutionTier::kTurbofan &&
@@ -202,13 +201,12 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param)
+    Isolate* isolate, const CanonicalSig* sig)
     : isolate_(isolate),
       sig_(sig),
-      receiver_is_first_param_(receiver_is_first_param),
-      job_(v8_flags.wasm_jitless ? nullptr
-                                 : compiler::NewJSToWasmCompilationJob(
-                                       isolate, sig, receiver_is_first_param)) {
+      job_(v8_flags.wasm_jitless
+               ? nullptr
+               : compiler::NewJSToWasmCompilationJob(isolate, sig)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
@@ -224,8 +222,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
 void JSToWasmWrapperCompilationUnit::Execute() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileJSToWasmWrapper");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.CompileJSToWasmWrapper");
   if (!v8_flags.wasm_jitless) {
     CompilationJob::Status status = job_->ExecuteJob(nullptr);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
@@ -236,7 +234,7 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate_->builtins()->code_handle(
-        Builtin::kGenericJSToWasmInterpreterWrapper);
+        Builtin::kJSToWasmInterpreterWrapper);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
@@ -253,8 +251,7 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
                                       Cast<AbstractCode>(code), name));
   }
   // Install the compiled wrapper in the cache now.
-  WasmExportWrapperCache::Put(isolate_, sig_->index(), receiver_is_first_param_,
-                              code);
+  WasmExportWrapperCache::Put(isolate_, sig_->index(), code);
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());
   counters->wasm_reloc_size()->Increment(code->relocation_size());
@@ -264,9 +261,9 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 DirectHandle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param) {
+    Isolate* isolate, const CanonicalSig* sig) {
   // Run the compilation unit synchronously.
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, receiver_is_first_param);
+  JSToWasmWrapperCompilationUnit unit(isolate, sig);
   unit.Execute();
   return unit.Finalize();
 }

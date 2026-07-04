@@ -17,6 +17,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::wasm {
 
@@ -75,11 +76,10 @@ class InliningTree : public ZoneObject {
   }
 
   double score() const {
-    // '0' can only happen for imported or invalid functions. Every valid
-    // declared function has to have size at least 2 (locals count, kExprEnd).
+    // '0' can only happen for imported functions. Every valid declared
+    // function has to have size at least 2 (locals count, kExprEnd).
     DCHECK_IMPLIES(wire_byte_size_ == 0,
-                   function_index_ < data_->module->num_imported_functions ||
-                       !data_->module->function_was_validated(function_index_));
+                   function_index_ < data_->module->num_imported_functions);
     return wire_byte_size_ == 0 ? 0.0 : relative_call_count_ / wire_byte_size_;
   }
 
@@ -269,7 +269,7 @@ void InliningTree::Inline() {
 
   // No feedback found. If the feature is enabled, populate
   // `function_calls_map_` based on compilation hints.
-  if (v8_flags.experimental_wasm_compilation_hints) {
+  if (v8_flags.wasm_compilation_hints) {
     auto instruction_frequencies_it =
         data_->module->instruction_frequencies.find(function_index_);
     if (instruction_frequencies_it ==
@@ -412,6 +412,11 @@ void InliningTree::Inline() {
             callee_index >= data_->module->functions.size()) {
           has_non_inlineable_targets = true;
         }
+        if (callee_index >= data_->module->functions.size()) {
+          // The hint is out-of-bounds.
+          function_calls[i] = nullptr;
+          continue;
+        }
         uint32_t code_length =
             callee_index < data_->module->functions.size()
                 ? data_->module->functions[callee_index].code.length()
@@ -469,15 +474,10 @@ void InliningTree::FullyExpand() {
       }
     }
     queue.pop();
+    DCHECK_LT(top->function_index_, data_->module->functions.size());
     if (top->function_index_ < data_->module->num_imported_functions) {
       if (v8_flags.trace_wasm_inlining && top != this) {
         PrintF("imported function]\n");
-      }
-      continue;
-    }
-    if (top->function_index_ >= data_->module->functions.size()) {
-      if (v8_flags.trace_wasm_inlining && top != this) {
-        PrintF("(hinted) function index out of bounds]\n");
       }
       continue;
     }
@@ -502,9 +502,8 @@ void InliningTree::FullyExpand() {
       }
     }
 
-    if (!top->SmallEnoughToInline(initial_wire_byte_size,
-                                  inlined_wire_byte_count)) {
-      DCHECK_NE(top, this);
+    if (top != this && !top->SmallEnoughToInline(initial_wire_byte_size,
+                                                 inlined_wire_byte_count)) {
       if (v8_flags.trace_wasm_inlining) {
         PrintF("not enough inlining budget]\n");
       }

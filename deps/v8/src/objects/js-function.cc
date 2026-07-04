@@ -16,9 +16,19 @@
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/object-predicates-inl.h"
+#include "src/objects/objects.h"
+#include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -94,8 +104,7 @@ void JSFunction::TraceOptimizationStatus(const char* format, ...) {
         PrintF(" .");
       } else {
         Tagged<Code> code =
-            Tagged<CodeWrapper>::cast(value.GetHeapObjectAssumeWeak())
-                ->code(isolate);
+            Cast<CodeWrapper>(value.GetHeapObjectAssumeWeak())->code(isolate);
         PrintF(" %i:", code->osr_offset().ToInt());
         if (code->kind() == CodeKind::MAGLEV) {
           PrintF("m");
@@ -266,14 +275,14 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     if (tiering_in_progress()) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
-        ShortPrint(*this);
+        ShortPrint(this);
         PrintF(" -- already in optimization queue.\n");
       }
       return;
     }
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Marking ");
-      ShortPrint(*this);
+      ShortPrint(this);
       PrintF(" for concurrent %s recompilation.\n",
              CodeKindToString(target_kind));
     }
@@ -318,7 +327,7 @@ void JSFunction::SetInterruptBudget(
     std::optional<CodeKind> override_active_tier) {
   int32_t current = raw_feedback_cell()->interrupt_budget();
   int32_t new_budget =
-      TieringManager::InterruptBudgetFor(isolate, *this, override_active_tier);
+      TieringManager::InterruptBudgetFor(isolate, this, override_active_tier);
   switch (kind) {
     case BudgetModification::kRaise:
       new_budget = std::max(current, new_budget);
@@ -447,16 +456,16 @@ MaybeHandle<String> JSBoundFunction::GetName(
 }
 
 // static
-Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
-                                      DirectHandle<JSBoundFunction> function) {
-  int nof_bound_arguments = function->bound_arguments()->length();
+Maybe<uint32_t> JSBoundFunction::GetLength(
+    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
+  uint32_t nof_bound_arguments = function->bound_arguments()->ulength().value();
   while (IsJSBoundFunction(function->bound_target_function())) {
     function = direct_handle(
         Cast<JSBoundFunction>(function->bound_target_function()), isolate);
     // Make sure we never overflow {nof_bound_arguments}, the number of
     // arguments of a function is strictly limited by the max length of an
     // JSAarray, Smi::kMaxValue is thus a reasonably good overestimate.
-    int length = function->bound_arguments()->length();
+    const uint32_t length = function->bound_arguments()->ulength().value();
     if (V8_LIKELY(Smi::kMaxValue - nof_bound_arguments > length)) {
       nof_bound_arguments += length;
     } else {
@@ -466,19 +475,25 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   if (IsJSWrappedFunction(function->bound_target_function())) {
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
-    int target_length = 0;
+    uint32_t target_length = 0;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
                                JSWrappedFunction::GetLength(isolate, target));
-    int length = std::max(0, target_length - nof_bound_arguments);
+    uint32_t length = 0;
+    if (target_length > nof_bound_arguments) {
+      length = target_length - nof_bound_arguments;
+    }
     return Just(length);
   }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
   DirectHandle<JSFunction> target(
       Cast<JSFunction>(function->bound_target_function()), isolate);
-  int target_length = target->length();
+  const uint32_t target_length = target->length();
 
-  int length = std::max(0, target_length - nof_bound_arguments);
+  uint32_t length = 0;
+  if (target_length > nof_bound_arguments) {
+    length = target_length - nof_bound_arguments;
+  }
   return Just(length);
 }
 
@@ -511,9 +526,9 @@ MaybeHandle<String> JSWrappedFunction::GetName(
 }
 
 // static
-Maybe<int> JSWrappedFunction::GetLength(
+Maybe<uint32_t> JSWrappedFunction::GetLength(
     Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
-  STACK_CHECK(isolate, Nothing<int>());
+  STACK_CHECK(isolate, Nothing<uint32_t>());
   DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetLength(
@@ -565,6 +580,9 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
     DCHECK(isolate->has_exception());
+    if (isolate->is_execution_terminating()) {
+      return {};
+    }
     DirectHandle<Object> exception(isolate->exception(), isolate);
     isolate->clear_exception();
 
@@ -680,8 +698,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
       function->closure_feedback_cell_array(), isolate);
   DirectHandle<FeedbackVector> feedback_vector = FeedbackVector::New(
       isolate, shared, closure_feedback_cell_array,
-      direct_handle(function->raw_feedback_cell(isolate), isolate),
-      compiled_scope);
+      direct_handle(function->raw_feedback_cell(), isolate), compiled_scope);
   USE(feedback_vector);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
@@ -729,9 +746,10 @@ void JSFunction::InitializeFeedbackCell(
   bool has_closure_feedback_cell_array =
       function->has_closure_feedback_cell_array();
   if (has_closure_feedback_cell_array) {
-    CHECK_EQ(
-        function->closure_feedback_cell_array()->length(),
-        function->shared()->feedback_metadata()->create_closure_slot_count());
+    CHECK_EQ(function->closure_feedback_cell_array()->ulength().value(),
+             static_cast<uint32_t>(function->shared()
+                                       ->feedback_metadata()
+                                       ->create_closure_slot_count()));
   }
 
   const bool needs_feedback_vector =
@@ -776,50 +794,36 @@ void JSFunction::InitializeFeedbackCell(
 
 namespace {
 
+// Trigger initial map change dependency and optionally create a new initial
+// map instead of the old one.
 void SetInstancePrototype(Isolate* isolate, DirectHandle<JSFunction> function,
-                          DirectHandle<JSReceiver> value) {
-  // Now some logic for the maps of the objects that are created by using this
-  // function as a constructor.
-  if (function->has_initial_map()) {
-    // If the function has allocated the initial map replace it with a
-    // copy containing the new prototype.  Also complete any in-object
-    // slack tracking that is in progress at this point because it is
-    // still tracking the old copy.
-    function->CompleteInobjectSlackTrackingIfActive(isolate);
+                          DirectHandle<Map> old_initial_map,
+                          DirectHandle<JSReceiver> prototype) {
+  // The function is already switched to a mode not containing initial map.
+  DCHECK(!function->has_initial_map());
 
-    DirectHandle<Map> initial_map(function->initial_map(), isolate);
-
-    if (!isolate->bootstrapper()->IsActive() &&
-        initial_map->instance_type() == JS_OBJECT_TYPE) {
-      // Put the value in the initial map field until an initial map is needed.
-      // At that point, a new initial map is created and the prototype is put
-      // into the initial map where it belongs.
-      function->set_prototype_or_initial_map(*value, kReleaseStore);
-      if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
-        // Optimize as prototype to detach it from its transition tree.
-        JSObject::OptimizeAsPrototype(Cast<JSObject>(value));
-      }
-    } else {
-      DirectHandle<Map> new_map =
-          Map::Copy(isolate, initial_map, "SetInstancePrototype");
-      JSFunction::SetInitialMap(isolate, function, new_map, value);
-      DCHECK_IMPLIES(!isolate->bootstrapper()->IsActive(),
-                     *function != function->native_context()->array_function());
-    }
-
-    // Deoptimize all code that embeds the previous initial map.
-    DependentCode::DeoptimizeDependencyGroups(
-        isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
-  } else {
-    // Put the value in the initial map field until an initial map is
-    // needed.  At that point, a new initial map is created and the
-    // prototype is put into the initial map where it belongs.
-    function->set_prototype_or_initial_map(*value, kReleaseStore);
-    if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
-      // Optimize as prototype to detach it from its transition tree.
-      JSObject::OptimizeAsPrototype(Cast<JSObject>(value));
-    }
+  // Complete any in-object slack tracking that is in progress at this point
+  // because it is still tracking the old copy.
+  if (old_initial_map->IsInobjectSlackTrackingInProgress()) {
+    MapUpdater::CompleteInobjectSlackTracking(isolate, *old_initial_map);
   }
+
+  // Make sure the initial map stays for essential JavaScript function objects
+  // (the bootstrapper active case) and for some less common cases like builtin
+  // function subclassing, while keeping lazy initial maps mode for regular
+  // functions.
+  if (isolate->bootstrapper()->IsActive() ||
+      old_initial_map->instance_type() != JS_OBJECT_TYPE) {
+    DirectHandle<Map> new_map =
+        Map::Copy(isolate, old_initial_map, "SetInstancePrototype");
+    JSFunction::SetInitialMap(isolate, function, new_map, prototype);
+    DCHECK_IMPLIES(!isolate->bootstrapper()->IsActive(),
+                   *function != function->native_context()->array_function());
+  }
+
+  // Deoptimize all code that embeds the previous initial map.
+  DependentCode::DeoptimizeDependencyGroups(
+      isolate, *old_initial_map, DependentCode::kInitialMapChangedGroup);
 }
 
 }  // anonymous namespace
@@ -829,68 +833,130 @@ void JSFunction::SetPrototype(Isolate* isolate,
                               DirectHandle<Object> value) {
   DCHECK(IsConstructor(*function) ||
          IsGeneratorFunction(function->shared()->kind()));
-  DirectHandle<JSReceiver> construct_prototype;
 
-  // If the value is not a JSReceiver, store the value in the map's
-  // constructor field so it can be accessed.  Also, set the prototype
-  // used for constructing objects to the original object prototype.
-  // See ECMA-262 13.2.2.
+  DirectHandle<Map> old_initial_map;
+  DirectHandle<JSReceiver> new_instance_prototype;
+
+  // If the value is not a JSReceiver, switch to a Tuple2 mode where the
+  // first field stores an initial map (if it exists) or an instance
+  // prototype (the prototype used for constructing objects) and the second
+  // field stores the non-instance prototype value. See
+  // https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor and
+  // https://tc39.es/ecma262/#sec-getprototypefromconstructor.
   if (!IsJSReceiver(*value)) {
-    // Copy the map so this does not affect unrelated functions.
-    // Remove map transitions because they point to maps with a
-    // different prototype.
-    DirectHandle<Map> new_map = Map::Copy(
-        isolate, direct_handle(function->map(), isolate), "SetPrototype");
+    {
+      DisallowGarbageCollection no_gc;
+      PrototypeOrInitialMapData pomd;
+      if (function->TryGetPrototypeOrInitialMap(&pomd)) {
+        if (pomd.has_non_instance_prototype) {
+          // The function is already in a non-instance prototype mode, changing
+          // the prototype value does not affect the state of initial map. Since
+          // we don't track constness of the non-instance prototype value, we
+          // just need to update the tuple.
+          pomd.non_instance_prototype_tuple->set_value2(*value, kRelaxedStore);
+          return;
+        }
+        if (pomd.has_initial_map) {
+          old_initial_map = direct_handle(pomd.initial_map, isolate);
+        }
+      }
+    }
+    // The function is currently in instance prototype mode or prototype is not
+    // initialized yet, switch it to non-instance prototype mode by allocating
+    // a Tuple2.
+    new_instance_prototype =
+        direct_handle(function->GetIntrinsicDefaultProto(), isolate);
+    // OptimizeAsPrototype machinery is not required because this object is
+    // already a prototype.
+    DCHECK(new_instance_prototype->map()->is_prototype_map());
 
-    // Create a new {constructor, non-instance_prototype} tuple and store it
-    // in Map::constructor field.
-    DirectHandle<Object> constructor(new_map->GetConstructor(), isolate);
-    DirectHandle<Tuple2> non_instance_prototype_constructor_tuple =
-        isolate->factory()->NewTuple2(constructor, value, AllocationType::kOld);
+    DirectHandle<HeapObject> new_prototype_or_initial_map;
+    if (!old_initial_map.is_null() &&
+        old_initial_map->prototype() == *new_instance_prototype) {
+      // We are setting the same prototype value, so initial map does not
+      // change.
+      new_prototype_or_initial_map = old_initial_map;
+      // Bypass invalidation of the old initial map.
+      old_initial_map = {};
+    } else {
+      new_prototype_or_initial_map = new_instance_prototype;
+    }
 
-    new_map->set_has_non_instance_prototype(true);
-    new_map->SetConstructor(*non_instance_prototype_constructor_tuple);
+    // Switch the function to non-instance prototype mode.
+    Factory* factory = isolate->factory();
+    auto tuple = factory->NewTuple2(new_prototype_or_initial_map, value,
+                                    kRelaxedStore, AllocationType::kYoung);
+    function->set_prototype_or_initial_map(*tuple, kReleaseStore);
 
-    JSObject::MigrateToMap(isolate, function, new_map);
-
-    FunctionKind kind = function->shared()->kind();
-    DirectHandle<Context> native_context(function->native_context(), isolate);
-
-    construct_prototype = direct_handle(
-        IsGeneratorFunction(kind)
-            ? IsAsyncFunction(kind)
-                  ? native_context->initial_async_generator_prototype()
-                  : native_context->initial_generator_prototype()
-            : native_context->initial_object_prototype(),
-        isolate);
   } else {
-    construct_prototype = Cast<JSReceiver>(value);
-    function->map()->set_has_non_instance_prototype(false);
+    // New prototype value is a JSReceiver, i.e. instance prototype.
+    new_instance_prototype = Cast<JSReceiver>(value);
+
+    if (Tagged<Map> raw_initial_map;
+        function->TryGetInitialMap(&raw_initial_map)) {
+      // Function has initial map.
+      if (raw_initial_map->prototype() == *new_instance_prototype) {
+        // We are setting the same prototype value, so initial map does not
+        // change. Just switch the function to instance prototype mode.
+        function->set_prototype_or_initial_map(raw_initial_map, kReleaseStore);
+        return;
+      }
+      // Old initial map can't be reused. Fall through to switch the function
+      // to instance prototype mode.
+      old_initial_map = direct_handle(raw_initial_map, isolate);
+    }
+
+    // Switch function to instance prototype mode and let the initial map
+    // be created lazily when needed.
+    function->set_prototype_or_initial_map(*new_instance_prototype,
+                                           kReleaseStore);
+    if (IsJSObjectThatCanBeTrackedAsPrototype(*new_instance_prototype)) {
+      // Optimize as prototype to detach it from its transition tree.
+      JSObject::OptimizeAsPrototype(Cast<JSObject>(new_instance_prototype));
+    }
   }
 
-  SetInstancePrototype(isolate, function, construct_prototype);
+  if (!old_initial_map.is_null()) {
+    // The function used to have initial map, notify the old initial map
+    // users about the function's prototype change.
+    SetInstancePrototype(isolate, function, old_initial_map,
+                         new_instance_prototype);
+  }
 }
 
 void JSFunction::SetInitialMap(Isolate* isolate,
                                DirectHandle<JSFunction> function,
-                               DirectHandle<Map> map,
+                               DirectHandle<Map> initial_map,
                                DirectHandle<JSPrototype> prototype) {
-  SetInitialMap(isolate, function, map, prototype, function);
+  SetInitialMap(isolate, function, initial_map, prototype, function);
 }
 
 void JSFunction::SetInitialMap(Isolate* isolate,
                                DirectHandle<JSFunction> function,
-                               DirectHandle<Map> map,
+                               DirectHandle<Map> initial_map,
                                DirectHandle<JSPrototype> prototype,
                                DirectHandle<JSFunction> constructor) {
-  if (map->prototype() != *prototype) {
-    Map::SetPrototype(isolate, map, prototype);
+  if (initial_map->prototype() != *prototype) {
+    Map::SetPrototype(isolate, initial_map, prototype);
   }
-  map->SetConstructor(*constructor);
-  function->set_prototype_or_initial_map(*map, kReleaseStore);
+  initial_map->SetConstructor(*constructor);
+
+  // Set initial map while keeping the instance/non-instance prototype mode
+  // intact.
+  {
+    DisallowGarbageCollection no_gc;
+    PrototypeOrInitialMapData pomd;
+    if (function->TryGetPrototypeOrInitialMap(&pomd) &&
+        pomd.has_non_instance_prototype) {
+      pomd.non_instance_prototype_tuple->set_value1(*initial_map,
+                                                    kRelaxedStore);
+    } else {
+      function->set_prototype_or_initial_map(*initial_map, kReleaseStore);
+    }
+  }
   if (v8_flags.log_maps) {
     LOG(isolate,
-        MapEvent("InitialMap", {}, map, "",
+        MapEvent("InitialMap", {}, initial_map, "",
                  SharedFunctionInfo::DebugName(
                      isolate, direct_handle(function->shared(), isolate))));
   }
@@ -924,7 +990,7 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
 
   int instance_size;
   int inobject_properties;
-  CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
+  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
   DirectHandle<NativeContext> creation_context(function->native_context(),
@@ -934,11 +1000,12 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
 
   // Fetch or allocate prototype.
-  DirectHandle<JSPrototype> prototype;
+  DirectHandle<JSReceiver> prototype;
   if (function->has_instance_prototype()) {
     prototype = direct_handle(function->instance_prototype(), isolate);
     map->set_prototype(*prototype);
   } else {
+    DCHECK(!function->has_non_instance_prototype());
     prototype = isolate->factory()->NewFunctionPrototype(function);
     Map::SetPrototype(isolate, map, prototype);
   }
@@ -968,6 +1035,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -1129,8 +1197,7 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       static_cast<int>(constructor->shared()->expected_nof_properties()),
       JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
-      instance_type, constructor_initial_map->has_prototype_slot(),
-      embedder_fields, expected_nof_properties, &instance_size,
+      instance_type, embedder_fields, expected_nof_properties, &instance_size,
       &in_object_properties);
 
   int pre_allocated = constructor_initial_map->GetInObjectProperties() -
@@ -1141,8 +1208,7 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
-  DirectHandle<JSPrototype> prototype(new_target->instance_prototype(),
-                                      isolate);
+  DirectHandle<JSReceiver> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(IsJSReceiver(new_target->instance_prototype()));
   map->set_construction_counter(Map::kNoSlackTracking);
@@ -1213,10 +1279,23 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
     DirectHandle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
-    int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
-                                    : Context::OBJECT_FUNCTION_INDEX;
-    DirectHandle<JSFunction> realm_constructor(
-        Cast<JSFunction>(native_context->GetNoCell(index)), isolate);
+    NativeContext::Field index = static_cast<NativeContext::Field>(
+        IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
+                            : Context::OBJECT_FUNCTION_INDEX);
+    DirectHandle<Object> maybe_realm_constructor(
+        native_context->GetNoCell(index), isolate);
+    if (IsUndefined(*maybe_realm_constructor)) {
+      // The constructor might belong to a lazily initialized part of the
+      // context. Try to initialize it.
+      isolate->bootstrapper()->InitializeLazyPartOfContext(native_context,
+                                                           index);
+      maybe_realm_constructor =
+          direct_handle(native_context->GetNoCell(index), isolate);
+    }
+    DirectHandle<JSFunction> realm_constructor;
+    if (!TryCast<JSFunction>(maybe_realm_constructor, &realm_constructor)) {
+      FATAL("Context does not have a constructor at index %d", index);
+    }
     prototype = direct_handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
@@ -1331,7 +1410,7 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Tagged<Map> map) {
   DCHECK(!map->is_dictionary_map());
   Tagged<HeapObject> value;
   ReadOnlyRoots roots(isolate);
-  auto descriptors = map->instance_descriptors(isolate);
+  auto descriptors = map->instance_descriptors();
   InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
   if (descriptors->GetKey(kNameIndex) != roots.name_string() ||
       !descriptors->GetValue(kNameIndex)
@@ -1344,7 +1423,8 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Tagged<Map> map) {
 }  // namespace
 
 DirectHandle<String> JSFunction::GetDebugName(
-    Isolate* isolate, DirectHandle<JSFunction> function) {
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    AllowAllocation allow_allocation) {
   // Below we use the same fast-path that we already established for
   // Function.prototype.bind(), where we avoid a slow "name" property
   // lookup if the DescriptorArray for the |function| still has the
@@ -1359,12 +1439,12 @@ DirectHandle<String> JSFunction::GetDebugName(
     // JSFunction where the "name" property is untouched, so we retain
     // that exact behavior and go with SharedFunctionInfo::DebugName()
     // in case of the fast-path.
-    DirectHandle<Object> name =
-        GetDataProperty(isolate, function, isolate->factory()->name_string());
+    DirectHandle<Object> name = JSReceiver::GetDataProperty(
+        isolate, function, isolate->factory()->name_string());
     if (IsString(*name)) return Cast<String>(name);
   }
   return SharedFunctionInfo::DebugName(
-      isolate, direct_handle(function->shared(), isolate));
+      isolate, direct_handle(function->shared(), isolate), allow_allocation);
 }
 
 bool JSFunction::SetName(Isolate* isolate, DirectHandle<JSFunction> function,
@@ -1510,14 +1590,13 @@ int JSFunction::CalculateExpectedNofProperties(
 
 // static
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
-                                             bool has_prototype_slot,
                                              int requested_embedder_fields,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
-  int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
+  int header_size = JSObject::GetHeaderSize(instance_type);
   requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
 
   int max_nof_fields =
@@ -1544,6 +1623,23 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
     if (vector->ClearAllSlotsForTesting(isolate)) {
       IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(),
                             "ClearAllTypeFeedbackInfoForTesting");
+    }
+  }
+  // Also zero any embedded-feedback bytes inside the BytecodeArray so tests
+  // that rely on %ClearFunctionFeedback observe a truly reset feedback state.
+  if (shared()->HasBytecodeArray()) {
+    Handle<BytecodeArray> bytecode_array(shared()->GetBytecodeArray(isolate),
+                                         isolate);
+    for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
+         it.Advance()) {
+      if (!interpreter::Bytecodes::IsEmbeddedFeedbackBytecode(
+              it.current_bytecode())) {
+        continue;
+      }
+      bytecode_array->set(
+          it.GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex) +
+              kHeapObjectTag - BytecodeArray::kHeaderSize,
+          kUninitializedEmbeddedFeedback);
     }
   }
 }

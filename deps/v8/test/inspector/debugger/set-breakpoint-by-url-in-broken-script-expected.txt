@@ -1,0 +1,21 @@
+Check that setBreakpointByUrl in a broken script doesn't trigger scriptFailedToParse
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        buildId : 
+        embedderName : foo.js
+        endColumn : 1
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 021fb596db81e6d02bf3d2586ee3981fe519f275c0ac9ca76bbcf2ebb4097d96
+        isModule : false
+        length : 1
+        scriptId : <scriptId>
+        scriptLanguage : JavaScript
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : foo.js
+    }
+}

@@ -54,10 +54,11 @@ Status ConvertToCBOR(StringView state, std::vector<uint8_t>* cbor) {
 std::unique_ptr<protocol::DictionaryValue> ParseState(StringView state) {
   std::vector<uint8_t> converted;
   span<uint8_t> cbor;
-  if (IsCBORMessage(state))
+  if (IsCBORMessage(state)) {
     cbor = span<uint8_t>(state.characters8(), state.length());
-  else if (ConvertToCBOR(state, &converted).ok())
+  } else if (ConvertToCBOR(state, &converted).ok()) {
     cbor = SpanFrom(converted);
+  }
   if (!cbor.empty()) {
     std::unique_ptr<protocol::Value> value =
         protocol::Value::parseBinary(cbor.data(), cbor.size());
@@ -94,17 +95,19 @@ V8InspectorSessionImpl* V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::ManagedChannel* channel, StringView state,
     V8Inspector::ClientTrustLevel clientTrustLevel,
-    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
-  return new V8InspectorSessionImpl(inspector, contextGroupId, sessionId,
-                                    channel, state, clientTrustLevel,
-                                    std::move(debuggerBarrier));
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier,
+    V8EmbedderState embedderState) {
+  return new V8InspectorSessionImpl(
+      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel,
+      std::move(debuggerBarrier), std::move(embedderState));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::ManagedChannel* channel, StringView savedState,
     V8Inspector::ClientTrustLevel clientTrustLevel,
-    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier,
+    V8EmbedderState embedderState)
     : m_contextGroupId(contextGroupId),
       m_sessionId(sessionId),
       m_inspector(inspector),
@@ -127,7 +130,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
 
   m_debuggerAgent.reset(new V8DebuggerAgentImpl(
-      this, this, agentState(protocol::Debugger::Metainfo::domainName)));
+      this, this, agentState(protocol::Debugger::Metainfo::domainName),
+      std::move(embedderState.urlBreakpoints)));
   protocol::Debugger::Dispatcher::wire(&m_dispatcher, m_debuggerAgent.get());
 
   m_consoleAgent.reset(new V8ConsoleAgentImpl(
@@ -200,13 +204,6 @@ void V8InspectorSessionImpl::SendProtocolNotification(
   m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::FallThrough(int callId,
-                                         const v8_crdtp::span<uint8_t> method,
-                                         v8_crdtp::span<uint8_t> message) {
-  // There's no other layer to handle the command.
-  UNREACHABLE();
-}
-
 void V8InspectorSessionImpl::FlushProtocolNotifications() {
   m_channel->flushProtocolNotifications();
 }
@@ -227,26 +224,33 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    int contextId, InjectedScript*& injectedScript) {
+    int contextId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
   injectedScript = nullptr;
-  InspectedContext* context =
+  std::shared_ptr<InspectedContext> context =
       m_inspector->getContext(m_contextGroupId, contextId);
-  if (!context)
+  if (!context) {
     return Response::ServerError("Cannot find context with specified id");
+  }
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
     injectedScript = context->createInjectedScript(m_sessionId);
-    if (m_customObjectFormatterEnabled)
+    if (m_customObjectFormatterEnabled) {
       injectedScript->setCustomObjectFormatterEnabled(true);
+    }
   }
+  if (inspectedContext) *inspectedContext = context;
   return Response::Success();
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
-  if (objectId->isolateId() != m_inspector->isolateId())
+    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
+  if (objectId->isolateId() != m_inspector->isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
-  return findInjectedScript(objectId->contextId(), injectedScript);
+  }
+  return findInjectedScript(objectId->contextId(), injectedScript,
+                            inspectedContext);
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(StringView objectGroup) {
@@ -276,8 +280,9 @@ bool V8InspectorSessionImpl::unwrapObject(
     }
     return false;
   }
-  if (objectGroup)
+  if (objectGroup) {
     *objectGroup = StringBufferFrom(std::move(objectGroupString));
+  }
   return true;
 }
 
@@ -289,7 +294,8 @@ Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
   Response response = RemoteObjectId::parse(objectId, &remoteId);
   if (!response.IsSuccess()) return response;
   InjectedScript* injectedScript = nullptr;
-  response = findInjectedScript(remoteId.get(), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  response = findInjectedScript(remoteId.get(), injectedScript, &inspectedContext);
   if (!response.IsSuccess()) return response;
   response = injectedScript->findObject(*remoteId, object);
   if (!response.IsSuccess()) return response;
@@ -311,7 +317,9 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    const String16& groupName,
                                    bool generatePreview) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
   injectedScript->wrapObject(value, groupName,
@@ -326,7 +334,9 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Object> table,
                                   v8::MaybeLocal<v8::Array> columns) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   return injectedScript->wrapTable(table, columns);
 }
@@ -337,8 +347,9 @@ void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_inspector->forEachContext(
       m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
         InjectedScript* injectedScript = context->getInjectedScript(sessionId);
-        if (injectedScript)
+        if (injectedScript) {
           injectedScript->setCustomObjectFormatterEnabled(enabled);
+        }
       });
 }
 
@@ -349,7 +360,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
                               });
 }
 
-void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
+void V8InspectorSessionImpl::dispatchProtocolMessage(
+    StringView message, StringView associated_data) {
   KeepSessionAliveScope keepAlive(*this);
 
   using v8_crdtp::span;
@@ -372,7 +384,18 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
     }
     cbor = SpanFrom(converted_cbor);
   }
-  v8_crdtp::Dispatchable dispatchable(cbor);
+  std::string associated_data_copy;
+  std::string_view associated_data_view;
+  if (associated_data.is8Bit()) {
+    associated_data_view = std::string_view(
+        reinterpret_cast<const char*>(associated_data.characters8()),
+        associated_data.length());
+  } else {
+    associated_data_copy = toString16(associated_data).utf8();
+    associated_data_view = associated_data_copy;
+  }
+  v8_crdtp::Dispatchable dispatchable(cbor, associated_data_view,
+                                      v8_crdtp::FallthroughCallback());
   if (!dispatchable.ok()) {
     if (!dispatchable.HasCallId()) {
       m_channel->sendNotification(serializeForFrontend(
@@ -385,7 +408,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
     }
     return;
   }
-  m_dispatcher.Dispatch(dispatchable).Run();
+  m_dispatcher.Dispatch(dispatchable);
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
@@ -397,8 +420,9 @@ V8InspectorSessionImpl::supportedDomains() {
   std::vector<std::unique_ptr<protocol::Schema::Domain>> domains =
       supportedDomainsImpl();
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> result;
-  for (size_t i = 0; i < domains.size(); ++i)
+  for (size_t i = 0; i < domains.size(); ++i) {
     result.push_back(std::move(domains[i]));
+  }
   return result;
 }
 
@@ -431,8 +455,9 @@ V8InspectorSessionImpl::supportedDomainsImpl() {
 void V8InspectorSessionImpl::addInspectedObject(
     std::unique_ptr<V8InspectorSession::Inspectable> inspectable) {
   m_inspectedObjects.insert(m_inspectedObjects.begin(), std::move(inspectable));
-  if (m_inspectedObjects.size() > kInspectedObjectBufferSize)
+  if (m_inspectedObjects.size() > kInspectedObjectBufferSize) {
     m_inspectedObjects.resize(kInspectedObjectBufferSize);
+  }
 }
 
 V8InspectorSession::Inspectable* V8InspectorSessionImpl::inspectedObject(
@@ -483,8 +508,9 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
       searchInTextByLinesImpl(m_inspector, toString16(text), toString16(query),
                               caseSensitive, isRegex);
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>> result;
-  for (size_t i = 0; i < matches.size(); ++i)
+  for (size_t i = 0; i < matches.size(); ++i) {
     result.push_back(std::move(matches[i]));
+  }
   return result;
 }
 

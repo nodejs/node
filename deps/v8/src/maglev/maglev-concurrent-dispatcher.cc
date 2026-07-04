@@ -6,6 +6,7 @@
 
 #include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
@@ -89,9 +90,8 @@ MaglevPipelineStatistics* CreatePipelineStatistics(
     Isolate* isolate, MaglevCompilationInfo* compilation_info,
     compiler::ZoneStats* zone_stats) {
   MaglevPipelineStatistics* pipeline_stats = nullptr;
-  bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.maglev"),
-                                     &tracing_enabled);
+  bool tracing_enabled =
+      TRACE_EVENT_CATEGORY_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.maglev"));
   if (tracing_enabled || v8_flags.maglev_stats || v8_flags.maglev_stats_nvp) {
     pipeline_stats = new MaglevPipelineStatistics(
         compilation_info, isolate->GetMaglevStatistics(), zone_stats);
@@ -120,6 +120,12 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
         isolate,
         info()->toplevel_compilation_unit()->shared_function_info().object());
   }
+  if (info()->is_tracing_enabled() || info()->trace_json_enabled()) {
+    // Warm up the CodeTracer on the main thread to avoid a data race if it is
+    // initialized on the background thread.
+    isolate->GetCodeTracer();
+  }
+  SYNCHRONIZATION_POINT("MaglevPrepareJob");
   EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
@@ -128,6 +134,7 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   BeginPhaseKind("V8.MaglevExecuteJob");
+  SYNCHRONIZATION_POINT("MaglevExecuteJob");
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();
@@ -266,7 +273,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     if (incoming_queue()->IsEmpty() && destruction_queue()->IsEmpty()) {
       return;
     }
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
     base::FlushDenormalsScope flush_denormals_scope(
         isolate()->flush_denormals());
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
@@ -277,10 +284,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       std::unique_ptr<MaglevCompilationJob> job;
       if (incoming_queue()->Dequeue(&job)) {
         DCHECK_NOT_NULL(job);
-        TRACE_EVENT_WITH_FLOW0(
-            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
-            job->trace_id(),
-            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+        TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                    "V8.MaglevBackground",
+                    perfetto::Flow::ProcessScoped(job->trace_id()));
         RCS_SCOPE(&local_isolate,
                   RuntimeCallCounterId::kOptimizeBackgroundMaglev);
         CompilationJob::Status status =
@@ -296,9 +302,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
         // Maglev jobs aren't cheap to destruct, so destroy them here in the
         // background thread rather than on the main thread.
         DCHECK_NOT_NULL(job);
-        TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                               "V8.MaglevDestructBackground", job->trace_id(),
-                               TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                    "V8.MaglevDestructBackground",
+                    perfetto::TerminatingFlow::ProcessScoped(job->trace_id()));
         UnparkedScope unparked_scope(&local_isolate);
         job.reset();
       } else {
@@ -331,7 +337,8 @@ MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
   bool enable = v8_flags.concurrent_recompilation && maglev::IsMaglevEnabled();
   if (enable) {
     if (FlagsMightEnableMaglevTracing()) {
-      PrintF("Concurrent maglev has been disabled for tracing.\n");
+      base::OS::PrintError(
+          "Concurrent maglev has been disabled for tracing.\n");
       enable = false;
     }
   }
@@ -367,9 +374,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
-    TRACE_EVENT_WITH_FLOW0(
-        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevConcurrentFinalize",
-        job->trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                "V8.MaglevConcurrentFinalize",
+                perfetto::Flow::ProcessScoped(job->trace_id()));
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
@@ -380,9 +387,8 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
       destruction_queue_.Enqueue(std::move(job));
       job_handle_->NotifyConcurrencyIncrease();
     } else {
-      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                             "V8.MaglevDestruct", job->trace_id(),
-                             TRACE_EVENT_FLAG_FLOW_IN);
+      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevDestruct",
+                  perfetto::TerminatingFlow::ProcessScoped(job->trace_id()));
       job.reset();
     }
   }

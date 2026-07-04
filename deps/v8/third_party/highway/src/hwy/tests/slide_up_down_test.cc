@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string.h>  // memset
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/slide_up_down_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep

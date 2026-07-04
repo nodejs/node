@@ -5,20 +5,23 @@
 // Flags: --sandbox-testing --expose-gc --allow-natives-syntax
 
 const kSeqStringType = Sandbox.getInstanceTypeIdFor("SEQ_ONE_BYTE_STRING_TYPE");
-const kStringLengthOffset = Sandbox.getFieldOffset(kSeqStringType, "length");
 
 // Helper function that spawns a worker thread that corrupts memory in the
 // background, constantly flipping the given address between valueA and valueB.
-function corruptInBackground(address, valueA, valueB) {
-  function workerTemplate(address, valueA, valueB) {
-    let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
+function corruptInBackground(obj_address, field_name, valueA, valueB) {
+  function workerTemplate(obj_address, field_name, valueA, valueB) {
+    const obj = Sandbox.getObjectAt(obj_address);
+    const instance_type = Sandbox.getInstanceTypeIdOf(obj);
+    const offset = Sandbox.getFieldOffset(instance_type, field_name);
+    const target_address = obj_address + offset;
+    const memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
     while (true) {
-      memory.setUint32(address, valueA, true);
-      memory.setUint32(address, valueB, true);
+      memory.setUint32(target_address, valueA, true);
+      memory.setUint32(target_address, valueB, true);
     }
   }
-  const workerCode = new Function(
-      `(${workerTemplate})(${address}, ${valueA}, ${valueB})`);
+  const workerCode = new Function(`(${workerTemplate})(${obj_address}, "${
+      field_name}", ${valueA}, ${valueB})`);
   return new Worker(workerCode, {type: 'function'});
 }
 
@@ -32,10 +35,10 @@ gc();
 gc();
 
 // Start the worker thread to corrupt the string in the background.
-let address = Sandbox.getAddressOf(string) + kStringLengthOffset;
+let obj_address = Sandbox.getAddressOf(string);
 let valueA = 0x1;
 let valueB = 0x100;
-let worker = corruptInBackground(address, valueA, valueB);
+let worker = corruptInBackground(obj_address, 'length', valueA, valueB);
 
 // Perform string Utf8 encoding in the foreground.
 for (let i = 0; i < 1000; i++) {

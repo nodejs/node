@@ -9,6 +9,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/objects/bigint.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/property-details.h"
@@ -81,6 +82,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSCollecton::table() field.
   static FieldAccess ForJSCollectionTable();
 
+  // Provides access to JSWeakCollection::table() field
+  // (an EphemeronHashTable for JSWeakMap/JSWeakSet).
+  static FieldAccess ForJSWeakCollectionTable();
+
   // Provides access to JSCollectionIterator::table() field.
   static FieldAccess ForJSCollectionIteratorTable();
 
@@ -98,6 +103,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
+
+  // Provides access to JSProxy::target() field.
+  static FieldAccess ForJSProxyTarget();
+
+  // Provides access to JSProxy::handler() field.
+  static FieldAccess ForJSProxyHandler();
 
   // Provides access to JSFunction::context() field.
   static FieldAccess ForJSFunctionContext();
@@ -158,6 +169,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
+  static FieldAccess ForJSArrayLength();
 
   // Provides access to JSArrayBuffer::bit_field() field.
   static FieldAccess ForJSArrayBufferBitField();
@@ -218,11 +230,18 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSRegExp::last_index() field.
   static FieldAccess ForJSRegExpLastIndex();
 
-  // Provides access to JSRegExp::source() field.
-  static FieldAccess ForJSRegExpSource();
-
   // Provides access to FixedArray::length() field.
+  // TODO(dmercadier): get rid of ForFixedArrayLengthLegacy once we get rid of
+  // Turbofan. It's currently only used to make Turbofan's escape analysis
+  // happy.
+  static FieldAccess ForFixedArrayLengthLegacy();
   static FieldAccess ForFixedArrayLength();
+#if TAGGED_SIZE_8_BYTES
+  static FieldAccess ForFixedArrayLengthPadding();
+#endif
+
+  // Provides access to Context::length() field.
+  static FieldAccess ForContextLength();
 
   // Provides access to WeakFixedArray::length() field.
   static FieldAccess ForWeakFixedArrayLength();

@@ -315,6 +315,14 @@ uint64_t MaxUintFromFormat(VectorFormat vform) {
   return UINT64_MAX >> (64 - LaneSizeInBitsFromFormat(vform));
 }
 
+bool AreSameLaneSize(const ZRegister& reg1, const ZRegister& reg2,
+                     const ZRegister& reg3) {
+  bool match = true;
+  match &= (reg2.LaneSizeInBits() == reg1.LaneSizeInBits());
+  match &= (reg3.LaneSizeInBits() == reg1.LaneSizeInBits());
+  return match;
+}
+
 }  // namespace internal
 }  // namespace v8
 

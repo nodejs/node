@@ -8,6 +8,7 @@ include_rules = [
   "+src/baseline/bytecode-offset-iterator.h",
   "-src/bigint",
   "+src/bigint/bigint.h",
+  "+src/bigint/bigint-inl.h",
   "-src/compiler",
   "+src/compiler/code-assembler.h",
   "+src/compiler/turbofan.h",
@@ -98,13 +99,19 @@ specific_include_rules = {
     "+include/libplatform/libplatform.h",
     "+include/libplatform/v8-tracing.h",
     "+perfetto/tracing/track_event.h",
-    "+perfetto/tracing/track_event_legacy.h"
+    "+perfetto/tracing/track_event_legacy.h",
+    "+third_party/partition_alloc/src/partition_alloc/partition_root.h",
+    "+third_party/partition_alloc/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
   ],
   "d8-platforms\.cc": [
     "+include/libplatform/libplatform.h",
+    "+third_party/partition_alloc/src/partition_alloc/partition_address_space.h"
   ],
   "builtins-trace\.cc": [
     "+protos/perfetto",
+  ],
+  "default-platform\.cc": [
+    "+third_party/partition_alloc/src/partition_alloc/partition_address_space.h"
   ],
   "etw-jit-win\.cc": [
     "+src/libplatform/tracing/recorder.h",
@@ -114,6 +121,9 @@ specific_include_rules = {
   ],
   "external-pointer-table\.cc": [
     "+src/heap/read-only-spaces.h",
+  ],
+  "isolate-group\.cc": [
+    "+third_party/partition_alloc/src/partition_alloc/partition_alloc.h"
   ],
   # keep the includes to a minimum since this header will be included via write barriers.
   "memory-chunk-header\.h": [
@@ -140,5 +150,9 @@ specific_include_rules = {
   ],
   "hash-seed\.cc": [
     "+third_party/rapidhash-v8/secret.h",
+  ],
+  "heap-snapshot-generator\.cc": [
+    "+src/heap/cppgc-js/cpp-heap.h",
+    "+src/heap/cppgc-js/cpp-snapshot.h",
   ],
 }

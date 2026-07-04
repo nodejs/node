@@ -5,18 +5,20 @@
 #ifndef V8_INIT_ICU_UTIL_H_
 #define V8_INIT_ICU_UTIL_H_
 
+#include "src/common/globals.h"
+
 namespace v8 {
 
 namespace internal {
 
 // Call this function to load ICU's data tables for the current process.  This
 // function should be called before ICU is used.
-bool InitializeICU(const char* icu_data_file);
+V8_WARN_UNUSED_RESULT bool InitializeICU(const char* icu_data_file);
 
 // Like above, but using the default icudt[lb].dat location if icu_data_file is
 // not specified.
-bool InitializeICUDefaultLocation(const char* exec_path,
-                                  const char* icu_data_file);
+V8_WARN_UNUSED_RESULT bool InitializeICUDefaultLocation(
+    const char* exec_path, const char* icu_data_file);
 
 }  // namespace internal
 }  // namespace v8

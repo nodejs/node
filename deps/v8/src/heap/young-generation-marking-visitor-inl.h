@@ -221,7 +221,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
-    Tagged<Map> map = heap_object->map(isolate_);
+    Tagged<Map> map = heap_object->map();
     const size_t visited_size = Base::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
@@ -248,9 +248,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
     Address map_address = map_slot.load_map().ptr();
     if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
         map_address == StaticReadOnlyRoot::kThinTwoByteStringMap) {
-      DCHECK_EQ((*heap_object)
-                    ->map(ObjectVisitorWithCageBases::cage_base())
-                    ->visitor_id(),
+      DCHECK_EQ((*heap_object)->map()->visitor_id(),
                 VisitorId::kVisitThinString);
       *heap_object = Cast<ThinString>(*heap_object)->actual();
       // ThinStrings always refer to internalized strings, which are always
@@ -261,10 +259,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
     } else if (map_address == StaticReadOnlyRoot::kConsOneByteStringMap ||
                map_address == StaticReadOnlyRoot::kConsTwoByteStringMap) {
       // Not all ConsString are short cut candidates.
-      const VisitorId visitor_id =
-          (*heap_object)
-              ->map(ObjectVisitorWithCageBases::cage_base())
-              ->visitor_id();
+      const VisitorId visitor_id = (*heap_object)->map()->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
         Tagged<ConsString> string = Cast<ConsString>(*heap_object);
         if (static_cast<Tagged_t>(string->second().ptr()) ==

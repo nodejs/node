@@ -50,6 +50,8 @@ namespace compiler {
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(RiscvAdd64)                                      \
   V(RiscvSub64)                                      \
+  V(RiscvAdd128)                                     \
+  V(RiscvSub128)                                     \
   V(RiscvMulHigh64)                                  \
   V(RiscvMulHighU64)                                 \
   V(RiscvMul64)                                      \
@@ -79,7 +81,6 @@ namespace compiler {
   V(RiscvCvtSUl)                                     \
   V(RiscvCvtDL)                                      \
   V(RiscvCvtDUl)                                     \
-  V(RiscvUsd)                                        \
   V(RiscvBitcastDL)                                  \
   V(RiscvBitcastLD)                                  \
   V(RiscvByteSwap64)                                 \
@@ -94,7 +95,7 @@ namespace compiler {
   V(RiscvStoreIndirectPointer)                       \
   V(RiscvAtomicLoadDecompressTaggedSigned)           \
   V(RiscvAtomicLoadDecompressTagged)                 \
-  V(RiscvLoadDecompressProtected)                    \
+  V(RiscvLoadDecompressTrapping)                     \
   V(RiscvAtomicStoreCompressTagged)                  \
   V(RiscvWord64AtomicCompareExchangeUint64)          \
   V(RiscvCmp32)                                      \
@@ -204,16 +205,6 @@ namespace compiler {
   V(RiscvCvtSW)                           \
   V(RiscvCvtSUw)                          \
   V(RiscvCvtDUw)                          \
-  V(RiscvUlh)                             \
-  V(RiscvUlhu)                            \
-  V(RiscvUsh)                             \
-  V(RiscvUld)                             \
-  V(RiscvUlw)                             \
-  V(RiscvUsw)                             \
-  V(RiscvUStoreFloat)                     \
-  V(RiscvULoadFloat)                      \
-  V(RiscvULoadDouble)                     \
-  V(RiscvUStoreDouble)                    \
   V(RiscvEnableDebugTrace)                \
   V(RiscvDisableDebugTrace)               \
   V(RiscvBitcastInt32ToFloat32)           \
@@ -253,12 +244,12 @@ namespace compiler {
   V(RiscvI32x4Shl)                        \
   V(RiscvI32x4ShrS)                       \
   V(RiscvI32x4ShrU)                       \
-  V(RiscvFEq)                             \
-  V(RiscvFNe)                             \
-  V(RiscvFLt)                             \
-  V(RiscvFLe)                             \
-  V(RiscvFMin)                            \
-  V(RiscvFMax)                            \
+  V(RiscvVFEq)                            \
+  V(RiscvVFNe)                            \
+  V(RiscvVFLt)                            \
+  V(RiscvVFLe)                            \
+  V(RiscvVFMin)                           \
+  V(RiscvVFMax)                           \
   V(RiscvF64x2Sqrt)                       \
   V(RiscvF64x2ConvertLowI32x4S)           \
   V(RiscvF64x2ConvertLowI32x4U)           \
@@ -267,10 +258,10 @@ namespace compiler {
   V(RiscvF64x2ReplaceLane)                \
   V(RiscvF64x2Pmin)                       \
   V(RiscvF64x2Pmax)                       \
-  V(RiscvF64x2Ceil)                       \
-  V(RiscvF64x2Floor)                      \
-  V(RiscvF64x2Trunc)                      \
-  V(RiscvF64x2NearestInt)                 \
+  V(RiscvVFCeil)                          \
+  V(RiscvVFFloor)                         \
+  V(RiscvVFTrunc)                         \
+  V(RiscvVFNearestInt)                    \
   V(RiscvI64x2SplatI32Pair)               \
   V(RiscvI64x2ExtractLane)                \
   V(RiscvI64x2ReplaceLane)                \
@@ -284,13 +275,16 @@ namespace compiler {
   V(RiscvF32x4Qfms)                       \
   V(RiscvF64x2Qfma)                       \
   V(RiscvF64x2Qfms)                       \
+  V(RiscvF16x8Splat)                      \
+  V(RiscvF16x8ExtractLane)                \
+  V(RiscvF16x8ReplaceLane)                \
+  V(RiscvF16x8Abs)                        \
+  V(RiscvF16x8Sqrt)                       \
+  V(RiscvF16x8Pmin)                       \
+  V(RiscvF16x8Pmax)                       \
   V(RiscvF32x4Pmin)                       \
   V(RiscvF32x4Pmax)                       \
   V(RiscvF32x4DemoteF64x2Zero)            \
-  V(RiscvF32x4Ceil)                       \
-  V(RiscvF32x4Floor)                      \
-  V(RiscvF32x4Trunc)                      \
-  V(RiscvF32x4NearestInt)                 \
   V(RiscvI32x4SConvertI16x8Low)           \
   V(RiscvI32x4UConvertI16x8Low)           \
   V(RiscvI16x8SConvertI8x16High)          \

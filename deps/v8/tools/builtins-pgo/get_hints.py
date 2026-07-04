@@ -77,6 +77,7 @@ def parse_log_file(log_file):
   branches = []
   builtin_hashes = {}
   max_execution_count = 0
+  raw_block_counts = {}
   try:
     with open(log_file, "r") as f:
       for line in f.readlines():
@@ -85,13 +86,16 @@ def parse_log_file(log_file):
           builtin_name = fields[1]
           block_id = int(fields[2])
           count = float(fields[3])
+          raw_count = int(fields[3])
           if block_id == 0 and count > max_execution_count:
             max_execution_count = count
           if builtin_name not in block_counts:
             block_counts[builtin_name] = []
+            raw_block_counts[builtin_name] = {}
           while len(block_counts[builtin_name]) <= block_id:
             block_counts[builtin_name].append(0)
           block_counts[builtin_name][block_id] += count
+          raw_block_counts[builtin_name][block_id] = raw_count
         elif fields[0] == BUILTIN_HASH_MARKER:
           builtin_name = fields[1]
           builtin_hash = int(fields[2])
@@ -110,7 +114,10 @@ def parse_log_file(log_file):
   except IOError as e:
     print(f"Cannot read from {log_file}. {e.strerror}.")
     sys.exit(1)
-  return [block_counts, branches, builtin_hashes, max_execution_count]
+  return [
+      block_counts, branches, builtin_hashes, max_execution_count,
+      raw_block_counts
+  ]
 
 
 def get_branch_hints(block_counts, branches, min_count, threshold_ratio):
@@ -149,7 +156,7 @@ def normalize_count(block_counts, max_count):
 
 
 def write_hints_to_output(output_file, branch_hints, builtin_hashes,
-                          block_counts):
+                          block_counts, raw_block_counts):
   try:
     with open(output_file, "w") as f:
       for key in branch_hints:
@@ -172,20 +179,26 @@ def write_hints_to_output(output_file, branch_hints, builtin_hashes,
                                          builtin_name, block_id,
                                          block_counts[builtin_name][block_id]))
 
+      for builtin_name in raw_block_counts:
+        for block_id in raw_block_counts[builtin_name]:
+          f.write("{},{},{},{}\n".format(
+              BLOCK_COUNT_MARKER, builtin_name, block_id,
+              raw_block_counts[builtin_name][block_id]))
+
       for builtin_name in builtin_hashes:
         f.write("{},{},{}\n".format(BUILTIN_HASH_MARKER, builtin_name,
                                     builtin_hashes[builtin_name]))
+
   except IOError as e:
     print(f"Cannot read from {output_file}. {e.strerror}.")
     sys.exit(1)
 
 
-[block_counts, branches, builtin_hashes,
- max_count] = parse_log_file(ARGS['log_file'])
+[block_counts, branches, builtin_hashes, max_count,
+ raw_block_counts] = parse_log_file(ARGS['log_file'])
 branch_hints = get_branch_hints(block_counts, branches, ARGS['min'],
                                 ARGS['ratio'])
-
 block_counts = normalize_count(block_counts, max_count)
 
 write_hints_to_output(ARGS['output_file'], branch_hints, builtin_hashes,
-                      block_counts)
+                      block_counts, raw_block_counts)

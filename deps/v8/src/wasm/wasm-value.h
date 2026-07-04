@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/common/simd128.h"
 #include "src/handles/handles.h"
@@ -90,8 +91,6 @@ class WasmValue {
 
   CanonicalValueType type() const { return type_; }
 
-  const WasmModule* module() const { return module_; }
-
   // Checks equality of type and bit pattern (also for float and double values).
   bool operator==(const WasmValue& other) const {
     return type_ == other.type_ &&
@@ -107,7 +106,7 @@ class WasmValue {
     memcpy(to, bit_pattern_, type_.value_kind_size());
   }
 
-  // If {packed_type.is_packed()}, create a new value of {packed_type()}.
+  // If {packed_type.is_packed()}, create a new value of {packed_type}.
   // Otherwise, return this object.
   WasmValue Packed(ValueType packed_type) const {
     if (packed_type == kWasmI8) {
@@ -171,6 +170,7 @@ class WasmValue {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   bool zero_byte_representation() {
@@ -183,7 +183,6 @@ class WasmValue {
  private:
   CanonicalValueType type_;
   uint8_t bit_pattern_[16];
-  const WasmModule* module_ = nullptr;
 };
 
 #define DECLARE_CAST(name, localtype, ctype, ...) \

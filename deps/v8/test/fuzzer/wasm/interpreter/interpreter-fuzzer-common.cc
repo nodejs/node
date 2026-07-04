@@ -14,6 +14,7 @@
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/utils/ostreams.h"
@@ -93,7 +94,8 @@ WasmInterpretationResult FastInterpretWasmModule(
     std::vector<WasmValue>& rets) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
-  const WasmFunction* func = &instance->module()->functions[function_index];
+  const WasmFunction* func =
+      &instance->trusted_data(isolate)->module()->functions[function_index];
 
   CHECK(func->exported);
   // This would normally be handled by export wrappers.
@@ -113,16 +115,16 @@ WasmInterpretationResult FastInterpretWasmModule(
           instance);
 
   // Assume an instance can run in only one thread.
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   for (const WasmValue& arg : args) {
     if (arg.type().is_ref()) {
       // We should pass WasmNull as null argument, not a JS null value.
-      CHECK(!IsNull(*arg.to_ref(), isolate));
+      CHECK(!IsNull(*arg.to_ref()));
     }
   }
-  bool success = handle->wasm::InterpreterHandle::Execute(
+  bool success = handle->ptr()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.
@@ -172,8 +174,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  const WasmTable& table =
-      module_object->native_module()->module()->tables[table_index];
+  Managed<NativeModule>::Ptr native_module = module_object->native_module();
+  const WasmTable& table = native_module->module()->tables[table_index];
 
   uint32_t table_initial = 10;
   uint32_t table_maximum = 30;
@@ -216,27 +218,28 @@ Handle<JSObject> CreateImportObjectInternal(
   Handle<JSObject> ffi_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
   for (size_t index = 0;
        index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    const WasmImport& import =
-        module_object->native_module()->module()->import_table[index];
+    Managed<NativeModule>::Ptr native_module = module_object->native_module();
+    const WasmImport& import = native_module->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
-        isolate, wire_bytes, import.module_name);
+        isolate, module_object->native_module()->wire_bytes(),
+        import.module_name);
 
     Handle<String> field_name = ExtractUtf8StringFromModuleBytes(
-        isolate, wire_bytes, import.field_name);
+        isolate, module_object->native_module()->wire_bytes(),
+        import.field_name);
 
     Handle<JSObject> module_namespace =
         GetOrCreateModuleNamespaceObject(isolate, ffi_object, module_name);
 
     switch (import.kind) {
       case kExternalFunction: {
-        // TODO: Support other types of external functions such as wasm?
-        // It currently supports only external JS function.
+        // TODO(paolosev@microsoft.com): Support other types of external
+        // functions such as wasm? It currently supports only external JS
+        // function.
         Handle<JSFunction> fn_obj = GenerateJSFunction(isolate);
         JSObject::DefinePropertyOrElementIgnoreAttributes(module_namespace,
                                                           field_name, fn_obj)
@@ -256,7 +259,7 @@ Handle<JSObject> CreateImportObjectInternal(
       }
       case kExternalMemory: {
         // Memory
-        SharedFlag shared = SharedFlag::kNotShared;
+        SharedFlag shared = SharedFlag{false};
         int memory_initial = 1;
         int memory_maximum = 32;
         DirectHandle<WasmMemoryObject> memory_obj;
@@ -273,16 +276,16 @@ Handle<JSObject> CreateImportObjectInternal(
         // Global
         const uint32_t offset = 0;
         const WasmGlobal& global =
-            module_object->native_module()->module()->globals[import.index];
+            native_module->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(isolate, module_object,
-                                         module_object->shared_native_module(),
-                                         false);
+            WasmTrustedInstanceData::New(
+                isolate, module_object,
+                module_object->native_module().as_shared_ptr(),
+                SharedFlag{false});
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
-                                  MaybeHandle<JSArrayBuffer>(),
-                                  MaybeHandle<FixedArray>(), global.type,
-                                  offset, global.mutability);
+                                  MaybeHandle<WasmGlobalObject::BufferType>(),
+                                  global.type, offset, global.mutability);
         DirectHandle<WasmGlobalObject> global_obj;
         if (maybe_global_obj.ToHandle(&global_obj)) {
           JSObject::DefinePropertyOrElementIgnoreAttributes(
@@ -415,16 +418,17 @@ void RunInstance(Isolate* isolate, std::mt19937_64 rand_generator,
                  DirectHandle<WasmInstanceObject> instance) {
   wasm::WasmInterpreterThread* thread =
       wasm::WasmInterpreterThread::GetCurrentInterpreterThread(isolate);
-  size_t num_exports = instance->module()->export_table.size();
+  const WasmModule* wasm_module = instance->trusted_data(isolate)->module();
+  size_t num_exports = wasm_module->export_table.size();
   Address prev_fp = reinterpret_cast<Address>(__builtin_frame_address(0));
   for (size_t i = 0; i < num_exports; ++i) {
-    WasmExport exp = instance->module()->export_table[i];
+    WasmExport exp = wasm_module->export_table[i];
 
     if (exp.kind != kExternalFunction) continue;
-    WasmFunction wfn = instance->module()->functions[exp.index];
+    WasmFunction wfn = wasm_module->functions[exp.index];
 
     std::vector<WasmValue> arguments = FastMakeDefaultInterpreterArguments(
-        isolate, instance->module(), wfn.sig, rand_generator);
+        isolate, wasm_module, wfn.sig, rand_generator);
     std::vector<WasmValue> retvals(wfn.sig->return_count());
 
     // Allocate space on stack for the synthetic frame
@@ -486,9 +490,6 @@ int FastInterpretAndExecuteModules(
     return -1;
   }
 
-  base::Vector<const uint8_t> other_wire_bytes =
-      other_module_object->native_module()->wire_bytes();
-
   Handle<JSObject> imports_obj =
       CreateImportObjectInternal(isolate, module_object);
 
@@ -500,8 +501,8 @@ int FastInterpretAndExecuteModules(
 
     if (exp.kind != kExternalFunction) continue;
 
-    Handle<String> field_name =
-        ExtractUtf8StringFromModuleBytes(isolate, other_wire_bytes, exp.name);
+    Handle<String> field_name = ExtractUtf8StringFromModuleBytes(
+        isolate, other_module_object->native_module()->wire_bytes(), exp.name);
     std::unique_ptr<char[]> name = field_name->ToCString();
 
     MaybeDirectHandle<WasmExportedFunction> maybe_export =

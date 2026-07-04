@@ -42,49 +42,49 @@ TEST(NonnullTest, NonnullReturn) {
 }
 
 TEST(PassThroughTest, PassesThroughRawPointerToInt) {
-  EXPECT_TRUE((std::is_same<int* absl_nonnull, int*>::value));
-  EXPECT_TRUE((std::is_same<int* absl_nullable, int*>::value));
-  EXPECT_TRUE((std::is_same<int* absl_nullability_unknown, int*>::value));
+  EXPECT_TRUE((std::is_same_v<int* absl_nonnull, int*>));
+  EXPECT_TRUE((std::is_same_v<int* absl_nullable, int*>));
+  EXPECT_TRUE((std::is_same_v<int* absl_nullability_unknown, int*>));
 }
 
 TEST(PassThroughTest, PassesThroughRawPointerToVoid) {
-  EXPECT_TRUE((std::is_same<void* absl_nonnull, void*>::value));
-  EXPECT_TRUE((std::is_same<void* absl_nullable, void*>::value));
-  EXPECT_TRUE((std::is_same<void* absl_nullability_unknown, void*>::value));
+  EXPECT_TRUE((std::is_same_v<void* absl_nonnull, void*>));
+  EXPECT_TRUE((std::is_same_v<void* absl_nullable, void*>));
+  EXPECT_TRUE((std::is_same_v<void* absl_nullability_unknown, void*>));
 }
 
 TEST(PassThroughTest, PassesThroughUniquePointerToInt) {
   using T = std::unique_ptr<int>;
-  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+  EXPECT_TRUE((std::is_same_v<absl_nonnull T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullable T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullability_unknown T, T>));
 }
 
 TEST(PassThroughTest, PassesThroughSharedPointerToInt) {
   using T = std::shared_ptr<int>;
-  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+  EXPECT_TRUE((std::is_same_v<absl_nonnull T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullable T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullability_unknown T, T>));
 }
 
 TEST(PassThroughTest, PassesThroughSharedPointerToVoid) {
   using T = std::shared_ptr<void>;
-  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+  EXPECT_TRUE((std::is_same_v<absl_nonnull T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullable T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullability_unknown T, T>));
 }
 
 TEST(PassThroughTest, PassesThroughPointerToMemberObject) {
   using T = decltype(&std::pair<int, int>::first);
-  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+  EXPECT_TRUE((std::is_same_v<absl_nonnull T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullable T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullability_unknown T, T>));
 }
 
 TEST(PassThroughTest, PassesThroughPointerToMemberFunction) {
   using T = decltype(&std::unique_ptr<int>::reset);
-  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
-  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+  EXPECT_TRUE((std::is_same_v<absl_nonnull T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullable T, T>));
+  EXPECT_TRUE((std::is_same_v<absl_nullability_unknown T, T>));
 }
 }  // namespace

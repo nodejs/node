@@ -11,9 +11,11 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
@@ -21,6 +23,15 @@
 
 namespace v8 {
 namespace internal {
+
+int HeapAllocator::MaxRegularHeapObjectSize(AllocationType allocation) const {
+  if (allocation == AllocationType::kCode) {
+    DCHECK_EQ(MemoryChunkLayout::MaxRegularCodeObjectSize(),
+              max_regular_code_object_size_);
+    return max_regular_code_object_size_;
+  }
+  return kMaxRegularHeapObjectSize;
+}
 
 PagedSpace* HeapAllocator::code_space() const {
   return static_cast<PagedSpace*>(spaces_[CODE_SPACE]);
@@ -66,6 +77,20 @@ OldLargeObjectSpace* HeapAllocator::shared_trusted_lo_space() const {
   return shared_trusted_lo_space_;
 }
 
+Address HeapAllocator::new_space_pending_large_object() const {
+  return new_space_pending_large_object_.load(std::memory_order_acquire);
+}
+
+Address HeapAllocator::pending_large_object() const {
+  return pending_large_object_.load(std::memory_order_acquire);
+}
+
+void HeapAllocator::ResetPendingLargeObject() {
+  pending_large_object_.store(kNullAddress, std::memory_order_release);
+  new_space_pending_large_object_.store(kNullAddress,
+                                        std::memory_order_release);
+}
+
 bool HeapAllocator::CanAllocateInReadOnlySpace() const {
   return read_only_space()->writable();
 }
@@ -80,7 +105,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
   CHECK(AllowHeapAllocationInRelease::IsAllowed());
   DCHECK(local_heap_->IsRunning());
   // We need to have entered the isolate before allocating.
-  DCHECK_EQ(heap_->isolate(), Isolate::TryGetCurrent());
+  DCHECK_EQ(Isolate::FromHeap(heap_), Isolate::TryGetCurrent());
 #if DEBUG
   local_heap_->VerifyCurrent();
 #endif  // DEBUG
@@ -108,7 +133,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     local_heap_->Safepoint();
   }
 
-  const size_t large_object_threshold = heap_->MaxRegularHeapObjectSize(type);
+  const size_t large_object_threshold = MaxRegularHeapObjectSize(type);
   const bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
@@ -119,15 +144,19 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     allocation =
         AllocateRawLargeInternal(size_in_bytes, type, origin, alignment, hint);
   } else {
+    // After checking against the large object threshold, we know that this is a
+    // regular object size.
+    const SafeHeapObjectSize regular_size_in_bytes =
+        SafeHeapObjectSize(size_in_bytes);
     switch (type) {
       case AllocationType::kYoung:
-        allocation = new_space_allocator_->AllocateRaw(size_in_bytes, alignment,
-                                                       origin, hint);
+        allocation = new_space_allocator_->AllocateRaw(regular_size_in_bytes,
+                                                       alignment, origin, hint);
         break;
       case AllocationType::kMap:
       case AllocationType::kOld:
-        allocation = old_space_allocator_->AllocateRaw(size_in_bytes, alignment,
-                                                       origin, hint);
+        allocation = old_space_allocator_->AllocateRaw(regular_size_in_bytes,
+                                                       alignment, origin, hint);
         DCHECK_IMPLIES(v8_flags.sticky_mark_bits && !allocation.IsFailure(),
                        heap_->marking_state()->IsMarked(allocation.ToObject()));
         break;
@@ -135,7 +164,8 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
         DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
         DCHECK(AllowCodeAllocation::IsAllowed());
         allocation = code_space_allocator_->AllocateRaw(
-            size_in_bytes, AllocationAlignment::kTaggedAligned, origin, hint);
+            regular_size_in_bytes, AllocationAlignment::kTaggedAligned, origin,
+            hint);
         break;
       }
       case AllocationType::kReadOnly:
@@ -146,15 +176,15 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
       case AllocationType::kSharedMap:
       case AllocationType::kSharedOld:
         allocation = shared_space_allocator_->AllocateRaw(
-            size_in_bytes, alignment, origin, hint);
+            regular_size_in_bytes, alignment, origin, hint);
         break;
       case AllocationType::kTrusted:
         allocation = trusted_space_allocator_->AllocateRaw(
-            size_in_bytes, alignment, origin, hint);
+            regular_size_in_bytes, alignment, origin, hint);
         break;
       case AllocationType::kSharedTrusted:
         allocation = shared_trusted_space_allocator_->AllocateRaw(
-            size_in_bytes, alignment, origin, hint);
+            regular_size_in_bytes, alignment, origin, hint);
         break;
     }
   }
@@ -173,6 +203,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     }
 
     if (local_heap_->is_main_thread()) {
+      DisallowGarbageCollection no_gc;
       for (auto& tracker : heap_->allocation_trackers_) {
         tracker->AllocationEvent(object.address(), size_in_bytes);
       }

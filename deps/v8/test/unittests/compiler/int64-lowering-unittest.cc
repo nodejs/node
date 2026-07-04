@@ -27,6 +27,8 @@ using testing::AllOf;
 using testing::Capture;
 using testing::CaptureEq;
 
+#include "src/compiler/backend/instruction-selector.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -36,7 +38,7 @@ class Int64LoweringTest : public GraphTest {
   Int64LoweringTest()
       : GraphTest(),
         machine_(zone(), MachineRepresentation::kWord32,
-                 MachineOperatorBuilder::Flag::kAllOptionalOps),
+                 InstructionSelector::SupportedMachineOperatorFlags()),
         simplified_(zone()) {
     value_[0] = 0x1234567890ABCDEF;
     value_[1] = 0x1EDCBA098765432F;
@@ -536,6 +538,7 @@ TEST_F(Int64LoweringTest, I64Clz) {
 }
 
 TEST_F(Int64LoweringTest, I64Ctz) {
+  if (!machine()->Word32Ctz().IsSupported()) return;
   LowerGraph(graph()->NewNode(machine()->Word64CtzLowerable().placeholder(),
                               Int64Constant(value(0)), graph()->start()),
              MachineRepresentation::kWord64);
@@ -563,8 +566,12 @@ TEST_F(Int64LoweringTest, I64Ror) {
                        Parameter(0), graph()->start()),
       MachineRepresentation::kWord64, MachineRepresentation::kWord64, 1);
 
-  Matcher<Node*> branch_lt32_matcher =
-      IsBranch(IsInt32LessThan(IsParameter(0), IsInt32Constant(32)), start());
+  Matcher<Node*> branch_lt32_matcher = IsBranch(
+      IsInt32LessThan(machine()->Word32ShiftIsSafe()
+                          ? IsWord32And(IsParameter(0), IsInt32Constant(0x3F))
+                          : Matcher<Node*>(IsParameter(0)),
+                      IsInt32Constant(32)),
+      start());
 
   Matcher<Node*> low_input_matcher = IsPhi(
       MachineRepresentation::kWord32, IsInt32Constant(low_word_value(0)),
@@ -577,7 +584,9 @@ TEST_F(Int64LoweringTest, I64Ror) {
       IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
 
   Matcher<Node*> shift_matcher =
-      IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
+      machine()->Word32ShiftIsSafe()
+          ? Matcher<Node*>(IsParameter(0))
+          : IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
 
   Matcher<Node*> bit_mask_matcher = IsWord32Xor(
       IsWord32Shr(IsInt32Constant(-1), shift_matcher), IsInt32Constant(-1));
@@ -905,6 +914,7 @@ TEST_F(Int64LoweringTest, Dfs) {
 }
 
 TEST_F(Int64LoweringTest, I64Popcnt) {
+  if (!machine()->Word32Popcnt().IsSupported()) return;
   LowerGraph(graph()->NewNode(machine()->Word64Popcnt().placeholder(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);

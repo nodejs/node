@@ -10,6 +10,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8::internal {
 
@@ -25,13 +26,14 @@ CppHeapObjectWrapper CppHeapObjectWrapper::From(
 }
 
 CppHeapObjectWrapper::CppHeapObjectWrapper(Tagged<CppHeapExternalObject> object)
-    : object_(object), offset_(CppHeapExternalObject::kCppHeapWrappableOffset) {
+    : object_(object),
+      offset_(offsetof(CppHeapExternalObject, cpp_heap_wrappable_)) {
   DCHECK(IsCppHeapPointerWrapperObject(object));
 }
 
 CppHeapObjectWrapper::CppHeapObjectWrapper(Tagged<JSObject> object)
     : object_(object),
-      offset_(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset) {
+      offset_(offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_)) {
   DCHECK(IsCppHeapPointerWrapperObject(object));
   DCHECK(IsJSApiWrapperObject(object));
   DCHECK(IsJSAPIObjectWithEmbedderSlots(object_) || IsJSSpecialObject(object_));

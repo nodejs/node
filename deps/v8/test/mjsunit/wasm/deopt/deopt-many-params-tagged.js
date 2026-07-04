@@ -14,7 +14,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let create = (function() {
     let builder = new WasmModuleBuilder();
     let struct = builder.addStruct([makeField(kWasmI32, false)]);
-    let array = builder.addArray(kWasmI32, true);
+    let array = builder.addArray(kWasmI32);
     builder.addFunction("struct", makeSig([kWasmI32], [wasmRefType(struct)]))
       .addBody([
         kExprLocalGet, 0,
@@ -31,7 +31,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let paramCount = 30;
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, false)]);
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   let types = [
     {type: kWasmI32, toI32: [], fromI32: (v) => v},

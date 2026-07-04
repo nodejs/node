@@ -141,7 +141,7 @@ try {
 }
 assertTrue(caught);
 
-// See ES#sec-web-compat-evaldeclarationinstantiation. Sloppy block functions
+// See https://tc39.es/ecma262/#sec-web-compat-evaldeclarationinstantiation. Sloppy block functions
 // inside of blocks in eval behave similar to regular sloppy block function
 // hoisting: the var declaration on the function level is only created if
 // it would not cause a syntax error. A masking let would cause a conflicting

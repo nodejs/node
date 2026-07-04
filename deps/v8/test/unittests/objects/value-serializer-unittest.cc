@@ -67,14 +67,14 @@ class ValueSerializerTest : public TestWithIsolate {
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.HolderV2()->GetInternalField(0).As<v8::Value>());
+              info.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetNativeDataProperty(
         StringFromUtf8("value2"),
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.HolderV2()->GetInternalField(1).As<v8::Value>());
+              info.Holder()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context, deserialization_context}) {
@@ -138,10 +138,11 @@ class ValueSerializerTest : public TestWithIsolate {
     }
     std::pair<uint8_t*, size_t> buffer = serializer.Release();
     std::vector<uint8_t> result(buffer.first, buffer.first + buffer.second);
-    if (auto* delegate = GetSerializerDelegate())
+    if (auto* delegate = GetSerializerDelegate()) {
       delegate->FreeBufferMemory(buffer.first);
-    else
+    } else {
       free(buffer.first);
+    }
     return Just(std::move(result));
   }
 
@@ -2642,7 +2643,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
       auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
       auto backing_store = i::BackingStore::AllocateWasmMemory(
           i_isolate, pages, pages, i::WasmMemoryFlag::kWasmMemory32,
-          i::SharedFlag::kShared);
+          i::SharedFlag{true});
       memcpy(backing_store->buffer_start(), data, byte_length);
       i::DirectHandle<i::JSArrayBuffer> buffer =
           i_isolate->factory()->NewJSSharedArrayBuffer(
@@ -3433,9 +3434,9 @@ TEST_F(ValueSerializerTestWithWasm, DefaultSerializationDelegate) {
   Local<Message> message = InvalidEncodeTest(MakeWasm());
   uint32_t msg_len = message->Get()->Length();
   std::unique_ptr<char[]> buff(new char[msg_len + 1]);
-  message->Get()->WriteOneByteV2(isolate(), 0, msg_len,
-                                 reinterpret_cast<uint8_t*>(buff.get()),
-                                 String::WriteFlags::kNullTerminate);
+  message->Get()->WriteOneByte(isolate(), 0, msg_len,
+                               reinterpret_cast<uint8_t*>(buff.get()),
+                               String::WriteFlags::kNullTerminate);
   // the message ends with the custom error string
   size_t custom_msg_len = strlen(kUnsupportedSerialization);
   ASSERT_GE(msg_len, custom_msg_len);
@@ -3584,10 +3585,9 @@ TEST_F(ValueSerializerTest, RoundTripError) {
 
   {
     Context::Scope scope(deserialization_context());
-    EXPECT_EQ(error->GetPrototypeV2(),
-              Exception::Error(String::Empty(isolate()))
-                  .As<Object>()
-                  ->GetPrototypeV2());
+    EXPECT_EQ(error->GetPrototype(), Exception::Error(String::Empty(isolate()))
+                                         .As<Object>()
+                                         ->GetPrototype());
   }
   ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("name"))
                   .ToLocal(&name));

@@ -11,6 +11,23 @@ namespace compiler {
 
 bool InstructionScheduler::SchedulerSupported() { return true; }
 
+ResourceAllocation InstructionScheduler::GetResourceTable() {
+  std::array units = std::to_array<ResourceAllocation::TableEntry>({
+      {ArchInstResource::kFetch, 1},
+      {ArchInstResource::kIntSingle, 1},
+      {ArchInstResource::kIntMulti, 1},
+      {ArchInstResource::kFP, 1},
+      {ArchInstResource::kLoad, 1},
+      {ArchInstResource::kStore, 1},
+  });
+  return ResourceAllocation(units);
+}
+
+ArchInstResource InstructionScheduler::GetInstructionResource(
+    const Instruction* instr) {
+  return ArchInstResource::kIntSingle;
+}
+
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
@@ -49,6 +66,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64MulHighU:
     case kMips64Dadd:
     case kMips64DaddOvf:
+    case kMips64Add128:
     case kMips64Dclz:
     case kMips64Dctz:
     case kMips64Ddiv:
@@ -63,6 +81,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Dmod:
     case kMips64DmodU:
     case kMips64Dmul:
+    case kMips64DmulWide:
+    case kMips64DmuluWide:
     case kMips64Dpopcnt:
     case kMips64Dror:
     case kMips64Dsar:
@@ -70,6 +90,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Dshr:
     case kMips64Dsub:
     case kMips64DsubOvf:
+    case kMips64Sub128:
     case kMips64Ext:
     case kMips64F64x2Abs:
     case kMips64F64x2Neg:

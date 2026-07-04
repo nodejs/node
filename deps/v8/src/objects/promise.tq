@@ -36,8 +36,8 @@ extern class PromiseReaction extends Struct {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
   continuation_preserved_embedder_data: Object|Undefined;
   next: PromiseReaction|Zero;
-  reject_handler: Callable|Undefined;
-  fulfill_handler: Callable|Undefined;
+  reject_handler: Callable|JSGeneratorObject|Undefined;
+  fulfill_handler: Callable|JSGeneratorObject|Undefined;
   // Either a JSPromise (in case of native promises), a PromiseCapability
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
@@ -61,7 +61,7 @@ const kPromiseReactionJobTaskContinuationPreservedEmbedderDataOffset:
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
-  handler: Callable|Undefined;
+  handler: Callable|JSGeneratorObject|Undefined;
   // Either a JSPromise (in case of native promises), a PromiseCapability
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;

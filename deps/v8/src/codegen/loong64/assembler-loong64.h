@@ -24,6 +24,10 @@ namespace internal {
 
 class SafepointTableBuilder;
 
+namespace regexp {
+class RegExpMacroAssemblerLOONG64;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1609,9 +1613,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void set_pc_for_safepoint() { pc_for_safepoint_ = pc_; }
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
   static constexpr int kBufferCheckInterval = 1 * KB / 2;
@@ -1810,7 +1811,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerLOONG64;
+  friend class regexp::RegExpMacroAssemblerLOONG64;
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;

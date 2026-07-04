@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSArrayBuffer')
 bitfield struct JSArrayBufferFlags extends uint32 {
   is_external: bool: 1 bit;
   is_detachable: bool: 1 bit;
@@ -15,6 +16,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
 const kNoView: Smi = 0;
 const kManyViews: Smi = 1;
 
+@cppObjectLayoutDefinition
 extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
   views_or_detach_key: Weak<JSArrayBufferView>|Smi|Cell;
   // A BoundedSize if the sandbox is enabled
@@ -25,9 +27,8 @@ extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
   backing_store: RawPtr;
   extension: ExternalPointer;
   bit_field: JSArrayBufferFlags;
-  // Pads header size to be a multiple of kTaggedSize.
+  // Pads header size to be a multiple of kTaggedSize on 64-bit targets.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 extern operator '.byte_length' macro LoadJSArrayBufferByteLength(JSArrayBuffer):
@@ -64,12 +65,14 @@ macro IsImmutableArrayBuffer(buffer: JSArrayBuffer): bool {
 // 2) Non-length tracking backed by RAB (can go oob once constructed)
 // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
 // 4) Length-tracking backed by GSAB (BackingStore stores the length)
+@cppScope('JSArrayBufferView')
 bitfield struct JSArrayBufferViewFlags extends uint32 {
   is_length_tracking: bool: 1 bit;
   is_backed_by_rab: bool: 1 bit;
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSArrayBufferView extends JSAPIObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
   bit_field: JSArrayBufferViewFlags;  // 32bit
@@ -115,6 +118,7 @@ macro LoadJSArrayBufferViewByteLength(
   return view.byte_length;
 }
 
+@cppObjectLayoutDefinition
 extern class JSTypedArray extends JSArrayBufferView {
   // A BoundedSize if the sandbox is enabled
   raw_length: uintptr;
@@ -126,6 +130,7 @@ extern class JSTypedArray extends JSArrayBufferView {
 // A typed array where the ArrayBuffer is guaranteed to be detached. Note, the
 // inverse does not hold! A normal JSTypedArray can still have a detached
 // buffer.
+@cppObjectLayoutDefinition
 extern class JSDetachedTypedArray extends JSTypedArray {}
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
@@ -137,52 +142,55 @@ macro IsOnHeapTypedArray(array: JSTypedArray): bool {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSDataViewOrRabGsabDataView extends JSArrayBufferView {
   // A SandboxedPtr if the sandbox is enabled
   data_pointer: RawPtr;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDataView extends JSDataViewOrRabGsabDataView {}
 
+@cppObjectLayoutDefinition
 extern class JSRabGsabDataView extends JSDataViewOrRabGsabDataView {}
 
 @abstract
 @doNotGenerateCast
-extern class TypedArrayConstructor extends JSFunction
-    generates 'TNode<JSFunction>';
+extern class TypedArrayConstructor extends JSFunctionWithPrototype
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint8TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int8TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint8ClampedTypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Biguint64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Bigint64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';

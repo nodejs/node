@@ -5,6 +5,8 @@
 #ifndef V8_BASE_IEEE754_H_
 #define V8_BASE_IEEE754_H_
 
+#include <cmath>
+
 #include "src/base/base-export.h"
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)

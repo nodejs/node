@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/pointer-with-payload.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/parsing/import-attributes.h"
@@ -160,8 +161,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(
       IsolateT* isolate, ParseInfo* info,
       MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-      Scope::DeserializationMode mode =
-          Scope::DeserializationMode::kScopesOnly);
+      Scope::DeserializationMode mode = Scope::DeserializationMode::kScopesOnly,
+      DirectHandle<Script> script = DirectHandle<Script>());
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);
@@ -232,7 +233,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int initializer_end_pos, const AstRawString* class_name);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info,
+                                  int eval_from_position);
 
   // Parse with the script as if the source is implicitly wrapped in a function.
   // We manually construct the AST and scopes for a top-level function and the
@@ -814,10 +816,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return proxy;
   }
 
-  V8_INLINE VariableProxy* ExpressionFromIdentifier(
-      const AstRawString* name, int start_position,
-      InferName infer = InferName::kYes) {
-    if (infer == InferName::kYes) {
+  V8_INLINE VariableProxy* ExpressionFromIdentifier(const AstRawString* name,
+                                                    int start_position,
+                                                    InferName infer = InferName{
+                                                        true}) {
+    if (infer) {
       fni_.PushVariableName(name);
     }
     return expression_scope()->NewVariable(name, start_position);
@@ -886,8 +889,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
-  void ReindexArrowFunctionFormalParameters(ParserFormalParameters* parameters);
-  void ReindexComputedMemberName(Expression* computed_name);
+  void ReindexArrowFunctionFormalParameters(ParserFormalParameters* parameters,
+                                            const AllowReindexScope& scope);
+  void ReindexComputedMemberName(Expression* computed_name,
+                                 const AllowReindexScope& scope);
   void DeclareArrowFunctionFormalParameters(
       ParserFormalParameters* parameters, Expression* params,
       const Scanner::Location& params_loc);

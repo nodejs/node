@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -290,6 +291,98 @@ TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidRange) {
                             "Invalid exception handler range");
 }
 
+TEST_F(BytecodeVerifierTest, HandlerTableEntryWithHandlerBeforeEnd) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  const int kLdaZeroOffset = 0;
+  const int kReturnOffset = 1;
+  const int kBytecodeSize = static_cast<int>(kRawBytes.size());
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(
+      HandlerTable::LengthForRange(1), AllocationType::kTrusted);
+  {
+    HandlerTable table(*handler_table);
+    table.SetRangeStart(0, kLdaZeroOffset);
+    table.SetRangeEnd(0, kBytecodeSize);
+    table.SetRangeHandler(0, kReturnOffset,
+                          HandlerTable::CAUGHT);  // handler < end
+    table.SetRangeData(0, 0);
+  }
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
+                            "Exception handler must be after the try-range");
+}
+
+TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidData) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  const int kLdaZeroOffset = 0;
+  const int kReturnOffset = 1;
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(
+      HandlerTable::LengthForRange(1), AllocationType::kTrusted);
+  {
+    HandlerTable table(*handler_table);
+    table.SetRangeStart(0, kLdaZeroOffset);
+    table.SetRangeEnd(0, kReturnOffset);
+    table.SetRangeHandler(0, kReturnOffset, HandlerTable::CAUGHT);
+    table.SetRangeData(0, 1000);  // Invalid data (register 1000)
+  }
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
+                            "Invalid exception handler data");
+}
+
+TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidValueData) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  const int kLdaZeroOffset = 0;
+  const int kReturnOffset = 1;
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(
+      HandlerTable::LengthForRange(1), AllocationType::kTrusted);
+  {
+    HandlerTable table(*handler_table);
+    table.SetRangeStart(0, kLdaZeroOffset);
+    table.SetRangeEnd(0, kReturnOffset);
+    table.SetRangeHandler(0, kReturnOffset, HandlerTable::CAUGHT);
+    table.SetRangeData(0, interpreter::Register::invalid_value().index());
+  }
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
+                            "Invalid exception handler data");
+}
+
 TEST_F(BytecodeVerifierTest, HandlerTableEntryWithNegativeRange) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
@@ -425,7 +518,7 @@ TEST_F(BytecodeVerifierTest, ParameterLoadOutOfBounds) {
       static_cast<uint8_t>(interpreter::Bytecode::kLdar), param_operand,
       static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
   constexpr int32_t kFrameSize = 32;
-  constexpr int32_t kParameterCount = 0;
+  constexpr int32_t kParameterCount = kJSArgcReceiverSlots;
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
@@ -435,27 +528,38 @@ TEST_F(BytecodeVerifierTest, ParameterLoadOutOfBounds) {
                             "Parameter index out of bounds");
 }
 
-TEST_F(BytecodeVerifierTest, ParameterLoadOutOfBoundsNegative) {
+TEST_F(BytecodeVerifierTest, ParameterLoadSpecialRegister) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
   Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
 
-  // Register(-1) (and some others) are special registers referring to e.g. the
-  // current context. Here we test that those are validated correctly.
-  uint8_t param_operand =
-      static_cast<uint8_t>(interpreter::Register(-1).ToOperand());
+  // 1. Reading current_context should succeed.
+  {
+    uint8_t reg_operand = static_cast<uint8_t>(
+        interpreter::Register::current_context().ToOperand());
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kLdar), reg_operand,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+    VerifyFull(isolate, bc);
+  }
 
-  std::vector<uint8_t> kRawBytes = {
-      static_cast<uint8_t>(interpreter::Bytecode::kPushContext), param_operand,
-      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
-
-  Handle<BytecodeArray> bc =
-      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
-
-  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
-                            "Parameter index out of bounds");
+  // 2. Reading an arbitrary negative register (that is not context/closure)
+  // should fail. We use Register(-1) (feedback_vector).
+  {
+    uint8_t reg_operand = static_cast<uint8_t>(
+        interpreter::Register::feedback_vector().ToOperand());
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kLdar), reg_operand,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Parameter index out of bounds");
+  }
 }
 
 TEST_F(BytecodeVerifierTest, InvalidWideBytecode) {
@@ -557,12 +661,12 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
   Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
   Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
 
-  uint8_t closure_reg_operand = static_cast<uint8_t>(
-      interpreter::Register::function_closure().ToOperand());
-
+  // Test writing to a special register (context).
+  uint8_t reg_operand = static_cast<uint8_t>(
+      interpreter::Register::current_context().ToOperand());
   std::vector<uint8_t> kRawBytes = {
       static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
-      static_cast<uint8_t>(interpreter::Bytecode::kStar), closure_reg_operand,
+      static_cast<uint8_t>(interpreter::Bytecode::kStar), reg_operand,
       static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
 
   Handle<BytecodeArray> bc =
@@ -570,6 +674,196 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
 
   ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
                             "Invalid write to special register");
+}
+
+class BytecodeVerifierForbiddenRuntimeFunctionTest
+    : public BytecodeVerifierTest,
+      public ::testing::WithParamInterface<Runtime::FunctionId> {};
+
+TEST_P(BytecodeVerifierForbiddenRuntimeFunctionTest, Basic) {
+  i::FlagScope<bool> f(&v8_flags.fuzzing, true);
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  // Test that disallowed runtime functions are blocked by the verifier.
+  Runtime::FunctionId runtime_id = GetParam();
+  const Runtime::Function* function = Runtime::FunctionForId(runtime_id);
+  int8_t nargs = function->nargs;
+  if (nargs < 0) nargs = 0;
+
+  uint16_t runtime_id_val = static_cast<uint16_t>(runtime_id);
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id_val & 0xFF),
+      static_cast<uint8_t>((runtime_id_val >> 8) & 0xFF),
+      static_cast<uint8_t>(interpreter::Register(0).ToOperand()),
+      static_cast<uint8_t>(nargs),
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Disallowed runtime function");
+}
+
+INSTANTIATE_TEST_SUITE_P(BytecodeVerifierTest,
+                         BytecodeVerifierForbiddenRuntimeFunctionTest,
+                         ::testing::Values(
+#if V8_ENABLE_WEBASSEMBLY
+                             Runtime::kTrapHandlerThrowWasmError,
+                             Runtime::kWasmAllocateFeedbackVector,
+#endif
+                             Runtime::kLoadLookupSlotForCall_Baseline));
+
+TEST_F(BytecodeVerifierTest, ExtraWideJumpLoopToOverflowedOffset) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  // JumpLoop takes an unsigned operand, however, it can overflow when using the
+  // ExtraWide prefix and casting the value to int, resulting in a forward jump:
+  // -0xFFFFFFF3 becomes -(-13) and offset 13 is within the bytecode bounds.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kExtraWide),
+      static_cast<uint8_t>(interpreter::Bytecode::kJumpLoop),
+      0xf3,
+      0xff,
+      0xff,
+      0xff,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc), "Invalid jump offset");
+}
+
+TEST_F(BytecodeVerifierTest, ExtraWideCallRuntimeRegCountOverflow) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint16_t runtime_id = static_cast<uint16_t>(Runtime::kIsSmi);
+
+  // CallRuntime bytecode with RegCount overflowing signed int range.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kExtraWide),
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id & 0xFF),
+      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      0x00,
+      0x00,
+      0x00,
+      0x40,  // RegList operand (0x40000000)
+      0x00,
+      0x00,
+      0x00,
+      0x80,  // RegCount operand (0x80000000)
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Parameter index out of bounds");
+}
+
+TEST_F(BytecodeVerifierTest, ExtraWideCallRuntimeRegCountRangeEndOverflow) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint16_t runtime_id = static_cast<uint16_t>(Runtime::kIsSmi);
+  int32_t reg_operand = interpreter::Register(0).ToOperand();
+
+  // CallRuntime bytecode with RegCount range end overflowing signed int range.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kExtraWide),
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id & 0xFF),
+      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      static_cast<uint8_t>(reg_operand & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 8) & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 16) & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 24) & 0xFF),
+      0x01,
+      0x00,
+      0x00,
+      0x80,  // RegCount operand (0x80000001)
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Register range end overflows");
+}
+
+// The incoming new.target or generator register should not be a special
+// register like the current context or the function closure, nor should it
+// be an out-of-bounds parameter. Since these registers are written to during
+// graph building, allowing them would result in out-of-bounds writes in the
+// compiler environment's values vector.
+TEST_F(BytecodeVerifierTest, InvalidIncomingNewTargetRegister) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  // 1. Test special register (context).
+  {
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/1);
+    bc->set_incoming_new_target_or_generator_register(
+        interpreter::Register::current_context());
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Invalid write to special register");
+  }
+
+  // 2. Test out-of-bounds parameter.
+  {
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/1);
+    bc->set_incoming_new_target_or_generator_register(
+        interpreter::Register::FromParameterIndex(1));
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Parameter index out of bounds");
+  }
+}
+
+TEST_F(BytecodeVerifierTest, SpecialRegistersAreNegative) {
+  // All special registers must have negative indices so they are treated
+  // as parameters by the verifier and thus subject to boundary checks.
+  EXPECT_LT(interpreter::Register::current_context().index(), 0);
+  EXPECT_LT(interpreter::Register::function_closure().index(), 0);
+  EXPECT_LT(interpreter::Register::bytecode_array().index(), 0);
+  EXPECT_LT(interpreter::Register::bytecode_offset().index(), 0);
+  EXPECT_LT(interpreter::Register::feedback_vector().index(), 0);
+  EXPECT_LT(interpreter::Register::virtual_accumulator().index(), 0);
+  EXPECT_LT(interpreter::Register::argument_count().index(), 0);
 }
 
 }  // namespace internal

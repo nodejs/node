@@ -154,6 +154,13 @@ class PropertyCallbackArguments final : public Relocatable {
   inline DirectHandle<JSObjectOrUndefined> CallIndexedEnumerator(
       Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
 
+  // Pending exception handling should be done by the caller.
+  inline uint32_t CallIndexedIndexOf(Isolate* isolate,
+                                     DirectHandle<InterceptorInfo> interceptor,
+                                     DirectHandle<Object> value,
+                                     uint32_t start_index, uint32_t end_index,
+                                     uint32_t* in_out_length);
+
   // Accept potential JavaScript side effects that might occur during life
   // time of this object.
   inline void AcceptSideEffects() {

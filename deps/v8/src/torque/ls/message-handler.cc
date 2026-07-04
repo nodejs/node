@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
 #include "src/torque/ls/message-handler.h"
 
+#include <algorithm>
+
+#include "src/base/logging.h"
 #include "src/torque/ls/globals.h"
 #include "src/torque/ls/json-parser.h"
 #include "src/torque/ls/message-pipe.h"
@@ -132,6 +134,7 @@ class DiagnosticCollector {
         if (suppress_lint_messages_) return false;
         return true;
     }
+    UNREACHABLE();
   }
 
   void PopulateRangeFromSourcePosition(Range range,
@@ -149,6 +152,7 @@ class DiagnosticCollector {
       case TorqueMessage::Kind::kLint:
         return Diagnostic::kWarning;
     }
+    UNREACHABLE();
   }
 
   std::map<SourceId, PublishDiagnosticsNotification> notifications_;

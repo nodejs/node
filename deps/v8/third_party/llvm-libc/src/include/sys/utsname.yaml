@@ -1,0 +1,12 @@
+header: sys/utsname.h
+standards:
+  - posix
+types:
+  - type_name: struct_utsname
+functions:
+  - name: uname
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: struct utsname *

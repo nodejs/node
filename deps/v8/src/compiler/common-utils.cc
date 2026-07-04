@@ -4,6 +4,7 @@
 
 #include "src/compiler/common-utils.h"
 
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/heap/local-heap.h"
 #include "src/objects/string-inl.h"
@@ -19,6 +20,7 @@ namespace v8::internal::compiler::utils {
 MaybeHandle<String> ConcatenateStrings(Handle<String> left,
                                        Handle<String> right,
                                        JSHeapBroker* broker) {
+  SYNCHRONIZATION_POINT("ConcurrentConcatenateStrings");
   if (left->length() == 0) return right;
   if (right->length() == 0) return left;
 
@@ -38,6 +40,11 @@ MaybeHandle<String> ConcatenateStrings(Handle<String> left,
 
   int32_t length = left->length() + right->length();
   if (length > kConstantStringFlattenMaxSize) {
+    // It's also important that we don't call NewConsString on a background
+    // thread with a total string length shorter than ConsString::kMinLength, as
+    // that code path won't handle ThinStrings. If we're on a background thread,
+    // we cannot prevent the main thread from turning our strings thin.
+    static_assert(ConsString::kMinLength <= kConstantStringFlattenMaxSize);
     return broker->local_isolate_or_isolate()
         ->factory()
         ->NewConsString(left, right, AllocationType::kOld)

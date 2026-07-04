@@ -8,7 +8,6 @@
 #include "src/heap/read-only-heap.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/execution/isolate-utils-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
@@ -22,7 +21,7 @@ EarlyReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(
   if (shared_ro_heap && shared_ro_heap->roots_init_complete()) {
     return EarlyReadOnlyRoots(ReadOnlyRoots(shared_ro_heap->read_only_roots_));
   }
-  return EarlyReadOnlyRoots(ReadOnlyRoots(Isolate::Current()->heap()));
+  return EarlyReadOnlyRoots(ReadOnlyRoots(Isolate::Current()));
 }
 
 }  // namespace internal

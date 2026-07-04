@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/base/fpu.h"
 #include "src/execution/microtask-queue.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/sandboxable-thread.h"
@@ -26,11 +27,10 @@ namespace test_wasm_shared_engine {
 // multiple Isolates with implicit reference counting.
 using SharedModule = std::shared_ptr<NativeModule>;
 
-// Helper class representing an Isolate that uses the process-wide (shared) wasm
-// engine.
-class SharedEngineIsolate {
+// Create a new Isolate and a context and enter both.
+class NewIsolateScope {
  public:
-  SharedEngineIsolate() : isolate_(v8::Isolate::Allocate()) {
+  NewIsolateScope() : isolate_(v8::Isolate::Allocate()) {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate::Initialize(isolate_, create_params);
@@ -39,9 +39,9 @@ class SharedEngineIsolate {
     v8::Context::New(v8_isolate())->Enter();
     zone_.reset(new Zone(isolate()->allocator(), ZONE_NAME));
   }
-  ~SharedEngineIsolate() {
-    v8_isolate()->Exit();
+  ~NewIsolateScope() {
     zone_.reset();
+    v8_isolate()->Exit();
     isolate_->Dispose();
   }
 
@@ -59,7 +59,9 @@ class SharedEngineIsolate {
 
   DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     DirectHandle<WasmModuleObject> module_object =
-        GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
+        GetWasmEngine()
+            ->ImportNativeModule(isolate(), shared_module, {})
+            .ToHandleChecked();
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeDirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()->SyncInstantiate(isolate(), &thrower, module_object, {},
@@ -68,7 +70,7 @@ class SharedEngineIsolate {
   }
 
   SharedModule ExportInstance(DirectHandle<WasmInstanceObject> instance) {
-    return instance->module_object()->shared_native_module();
+    return instance->module_object()->native_module().as_shared_ptr();
   }
 
   int32_t Run(DirectHandle<WasmInstanceObject> instance) {
@@ -80,21 +82,20 @@ class SharedEngineIsolate {
   std::unique_ptr<Zone> zone_;
 };
 
-// Helper class representing a Thread running its own instance of an Isolate
-// with a shared WebAssembly engine available at construction time.
-class SharedEngineThread : public v8::internal::SandboxableThread {
+// A thread that executes a callback in a new isolate and context.
+class ThreadWithNewIsolate : public v8::internal::SandboxableThread {
  public:
-  explicit SharedEngineThread(
-      std::function<void(SharedEngineIsolate*)> callback)
-      : SandboxableThread(Options("SharedEngineThread")), callback_(callback) {}
+  explicit ThreadWithNewIsolate(std::function<void(NewIsolateScope*)> callback)
+      : SandboxableThread(Options("ThreadWithNewIsolate")),
+        callback_(callback) {}
 
   void Run() override {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     callback_(&isolate);
   }
 
  private:
-  std::function<void(SharedEngineIsolate*)> callback_;
+  std::function<void(NewIsolateScope*)> callback_;
 };
 
 namespace {
@@ -128,7 +129,7 @@ class MockInstantiationResolver : public InstantiationResultResolver {
 
 class MockCompilationResolver : public CompilationResultResolver {
  public:
-  MockCompilationResolver(SharedEngineIsolate* isolate,
+  MockCompilationResolver(NewIsolateScope* isolate,
                           IndirectHandle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
   void OnCompilationSucceeded(DirectHandle<WasmModuleObject> result) override {
@@ -141,11 +142,11 @@ class MockCompilationResolver : public CompilationResultResolver {
   }
 
  private:
-  SharedEngineIsolate* isolate_;
+  NewIsolateScope* isolate_;
   IndirectHandle<Object>* out_instance_;
 };
 
-void PumpMessageLoop(SharedEngineIsolate* isolate) {
+void PumpMessageLoop(NewIsolateScope* isolate) {
   v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                 isolate->v8_isolate(),
                                 platform::MessageLoopBehavior::kWaitForWork);
@@ -154,7 +155,7 @@ void PumpMessageLoop(SharedEngineIsolate* isolate) {
 }
 
 DirectHandle<WasmInstanceObject> CompileAndInstantiateAsync(
-    SharedEngineIsolate* isolate, ZoneBuffer* buffer) {
+    NewIsolateScope* isolate, ZoneBuffer* buffer) {
   IndirectHandle<Object> maybe_instance(Smi::zero(), isolate->isolate());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate->isolate());
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
@@ -170,9 +171,9 @@ DirectHandle<WasmInstanceObject> CompileAndInstantiateAsync(
 
 }  // namespace
 
-TEST(SharedEngineRunSeparated) {
+TEST(RunSeparated) {
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
@@ -180,7 +181,7 @@ TEST(SharedEngineRunSeparated) {
     CHECK_EQ(23, isolate.Run(instance));
   }
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 42);
     DirectHandle<WasmInstanceObject> instance =
@@ -189,10 +190,10 @@ TEST(SharedEngineRunSeparated) {
   }
 }
 
-TEST(SharedEngineRunImported) {
+TEST(RunImported) {
   SharedModule module;
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
@@ -201,22 +202,22 @@ TEST(SharedEngineRunImported) {
     CHECK_EQ(23, isolate.Run(instance));
   }
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     DirectHandle<WasmInstanceObject> instance = isolate.ImportInstance(module);
     CHECK_EQ(23, isolate.Run(instance));
   }
 }
 
-TEST(SharedEngineRunThreadedBuildingSync) {
-  SharedEngineThread thread1([](SharedEngineIsolate* isolate) {
+TEST(RunThreadedBuildingSync) {
+  ThreadWithNewIsolate thread1([](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate->zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
         isolate->CompileAndInstantiate(buffer);
     CHECK_EQ(23, isolate->Run(instance));
   });
-  SharedEngineThread thread2([](SharedEngineIsolate* isolate) {
+  ThreadWithNewIsolate thread2([](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate->zone(), 42);
     DirectHandle<WasmInstanceObject> instance =
@@ -229,15 +230,15 @@ TEST(SharedEngineRunThreadedBuildingSync) {
   thread2.Join();
 }
 
-TEST(SharedEngineRunThreadedBuildingAsync) {
-  SharedEngineThread thread1([](SharedEngineIsolate* isolate) {
+TEST(RunThreadedBuildingAsync) {
+  ThreadWithNewIsolate thread1([](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate->zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateAsync(isolate, buffer);
     CHECK_EQ(23, isolate->Run(instance));
   });
-  SharedEngineThread thread2([](SharedEngineIsolate* isolate) {
+  ThreadWithNewIsolate thread2([](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate->zone(), 42);
     DirectHandle<WasmInstanceObject> instance =
@@ -250,22 +251,22 @@ TEST(SharedEngineRunThreadedBuildingAsync) {
   thread2.Join();
 }
 
-TEST(SharedEngineRunThreadedExecution) {
+TEST(RunThreadedExecution) {
   SharedModule module;
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
         isolate.CompileAndInstantiate(buffer);
     module = isolate.ExportInstance(instance);
   }
-  SharedEngineThread thread1([module](SharedEngineIsolate* isolate) {
+  ThreadWithNewIsolate thread1([module](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     DirectHandle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     CHECK_EQ(23, isolate->Run(instance));
   });
-  SharedEngineThread thread2([module](SharedEngineIsolate* isolate) {
+  ThreadWithNewIsolate thread2([module](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     DirectHandle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     CHECK_EQ(23, isolate->Run(instance));
@@ -276,10 +277,10 @@ TEST(SharedEngineRunThreadedExecution) {
   thread2.Join();
 }
 
-TEST(SharedEngineRunThreadedTierUp) {
+TEST(RunThreadedTierUp) {
   SharedModule module;
   {
-    SharedEngineIsolate isolate;
+    NewIsolateScope isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
     DirectHandle<WasmInstanceObject> instance =
@@ -287,9 +288,9 @@ TEST(SharedEngineRunThreadedTierUp) {
     module = isolate.ExportInstance(instance);
   }
   constexpr int kNumberOfThreads = 5;
-  std::list<SharedEngineThread> threads;
+  std::list<ThreadWithNewIsolate> threads;
   for (int i = 0; i < kNumberOfThreads; ++i) {
-    threads.emplace_back([module](SharedEngineIsolate* isolate) {
+    threads.emplace_back([module](NewIsolateScope* isolate) {
       constexpr int kNumberOfIterations = 100;
       HandleScope scope(isolate->isolate());
       DirectHandle<WasmInstanceObject> instance =
@@ -299,7 +300,7 @@ TEST(SharedEngineRunThreadedTierUp) {
       }
     });
   }
-  threads.emplace_back([module](SharedEngineIsolate* isolate) {
+  threads.emplace_back([module](NewIsolateScope* isolate) {
     HandleScope scope(isolate->isolate());
     DirectHandle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     WasmDetectedFeatures detected;
@@ -310,6 +311,68 @@ TEST(SharedEngineRunThreadedTierUp) {
   });
   for (auto& thread : threads) CHECK(thread.Start());
   for (auto& thread : threads) thread.Join();
+}
+
+TEST(RunImportedWithDenormalsMismatchAndSourceUrl) {
+  SharedModule module;
+  bool default_flush = base::FPU::GetFlushDenormals();
+  constexpr char kSourceUrl[] = "wasm://test/source_url";
+  {
+    NewIsolateScope isolate;
+    HandleScope scope(isolate.isolate());
+    ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
+    DirectHandle<WasmInstanceObject> instance =
+        isolate.CompileAndInstantiate(buffer);
+    module = isolate.ExportInstance(instance);
+    CHECK_EQ(23, isolate.Run(instance));
+  }
+  std::shared_ptr<NativeModule> recompiled_native_module;
+  {
+    base::FlushDenormalsScope flush_denormals_scope(!default_flush);
+    NewIsolateScope isolate;
+    HandleScope scope(isolate.isolate());
+
+    // Call ImportNativeModule directly with a source URL
+    DirectHandle<WasmModuleObject> module_object =
+        GetWasmEngine()
+            ->ImportNativeModule(isolate.isolate(), module,
+                                 base::CStrVector(kSourceUrl))
+            .ToHandleChecked();
+
+    // Verify that the import succeeded and we have a WasmModuleObject
+    CHECK(!module_object.is_null());
+
+    recompiled_native_module = module_object->native_module().as_shared_ptr();
+    // Verify that it's not the same module as the original one.
+    CHECK_NE(module.get(), recompiled_native_module.get());
+
+    // Verify that the source URL is preserved
+    Tagged<Script> script = module_object->script();
+    DirectHandle<String> script_name(Cast<String>(script->name()),
+                                     isolate.isolate());
+    size_t length;
+    std::unique_ptr<char[]> cstring = script_name->ToCString(&length);
+    CHECK_EQ(0, strcmp(cstring.get(), kSourceUrl));
+
+    // Verify that the imported module has the new flags in its NativeModule.
+    CHECK_EQ(!default_flush,
+             module_object->native_module()->compile_imports().contains(
+                 CompileTimeImport::kDisableDenormalFloats));
+  }
+  {
+    base::FlushDenormalsScope flush_denormals_scope(!default_flush);
+    NewIsolateScope isolate3;
+    HandleScope scope(isolate3.isolate());
+    DirectHandle<WasmModuleObject> module_object3 =
+        GetWasmEngine()
+            ->ImportNativeModule(isolate3.isolate(), module,
+                                 base::CStrVector(kSourceUrl))
+            .ToHandleChecked();
+
+    // Verify that it reused the NativeModule created by isolate2!
+    CHECK_EQ(recompiled_native_module.get(),
+             module_object3->native_module().raw());
+  }
 }
 
 }  // namespace test_wasm_shared_engine

@@ -6,6 +6,7 @@
 #include <functional>
 #include <limits>
 
+#include "src/api/api.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/numerics/safe_conversions.h"

@@ -13,8 +13,8 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/macros.h"
 #include "src/base/logging.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/marker.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -213,6 +213,7 @@ class ChunkedStream {
     // Cloned ChunkedStreams have a null source, and therefore can't fetch any
     // new data.
     DCHECK_NOT_NULL(source_);
+    CHECK_LE(position, static_cast<size_t>(v8::String::kMaxLength));
 
     const uint8_t* data = nullptr;
     size_t length;
@@ -220,6 +221,9 @@ class ChunkedStream {
       RCS_SCOPE(stats, RuntimeCallCounterId::kGetMoreDataCallback);
       length = source_->GetMoreData(&data);
     }
+    // We can't handle more data than the max string length.
+    CHECK_LE(length / sizeof(Char),
+             static_cast<size_t>(v8::String::kMaxLength) - position);
     ProcessChunk(data, position, length);
   }
 
@@ -746,9 +750,13 @@ bool Utf8ExternalStreamingStream::FetchChunk() {
   // Utf8ExternalStreamingStreams that have been cloned are not allowed to fetch
   // any more.
   DCHECK_EQ(chunks_.use_count(), 1);
+  CHECK_LE(current_.pos.bytes, static_cast<size_t>(v8::String::kMaxLength));
 
   const uint8_t* chunk = nullptr;
   size_t length = source_stream_->GetMoreData(&chunk);
+  // We can't handle more data than the max string length.
+  CHECK_LE(length,
+           static_cast<size_t>(v8::String::kMaxLength) - current_.pos.bytes);
   chunks_->emplace_back(chunk, length, current_.pos);
   return length > 0;
 }
@@ -792,6 +800,7 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
     //  so avoid the expensive SkipToPosition.)
     bool ascii_only_chunk =
         GetChunk(chunk_no).start.incomplete_char == 0 &&
+        GetChunk(chunk_no).start.state == unibrow::Utf8::State::kAccept &&
         (GetChunk(chunk_no + 1).start.bytes - GetChunk(chunk_no).start.bytes) ==
             (GetChunk(chunk_no + 1).start.chars -
              GetChunk(chunk_no).start.chars);
@@ -914,7 +923,7 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
   if (data == nullptr) {
     DCHECK_EQ(length, 0);
 
-    // We don't want to pass in a null pointer into the the character stream,
+    // We don't want to pass in a null pointer into the character stream,
     // because then the one-past-the-end pointer is undefined, so instead pass
     // through this static array.
     static const char non_null_empty_string[1] = {0};
@@ -931,7 +940,7 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
   if (data == nullptr) {
     DCHECK_EQ(length, 0);
 
-    // We don't want to pass in a null pointer into the the character stream,
+    // We don't want to pass in a null pointer into the character stream,
     // because then the one-past-the-end pointer is undefined, so instead pass
     // through this static array.
     static const uint16_t non_null_empty_uint16_t_string[1] = {0};

@@ -10,6 +10,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 #define REGEXP_ERROR_MESSAGES(T)                                          \
   T(None, "")                                                             \
@@ -48,20 +49,21 @@ namespace internal {
     "Negated character class may contain strings")                        \
   T(UnsupportedBytecode, "Unsupported Bytecode")
 
-enum class RegExpError : uint32_t {
+enum class Error : uint32_t {
 #define TEMPLATE(NAME, STRING) k##NAME,
   REGEXP_ERROR_MESSAGES(TEMPLATE)
 #undef TEMPLATE
       NumErrors
 };
 
-V8_EXPORT_PRIVATE const char* RegExpErrorString(RegExpError error);
+V8_EXPORT_PRIVATE const char* ErrorString(Error error);
 
-inline constexpr bool RegExpErrorIsStackOverflow(RegExpError error) {
-  return error == RegExpError::kStackOverflow ||
-         error == RegExpError::kAnalysisStackOverflow;
+inline constexpr bool ErrorIsStackOverflow(Error error) {
+  return error == Error::kStackOverflow ||
+         error == Error::kAnalysisStackOverflow || error == Error::kTooLarge;
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

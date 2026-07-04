@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -421,6 +422,7 @@ class LiftoffAssembler : public MacroAssembler {
 
   // Pop a VarState from the stack, updating the register use count accordingly.
   V8_INLINE VarState PopVarState() {
+    DCHECK(!cache_state_.frozen);
     DCHECK(!cache_state_.stack_state.empty());
     VarState slot = cache_state_.stack_state.back();
     cache_state_.stack_state.pop_back();
@@ -467,6 +469,7 @@ class LiftoffAssembler : public MacroAssembler {
   }
 
   void DropValues(int count) {
+    DCHECK(!cache_state_.frozen);
     DCHECK_GE(cache_state_.stack_state.size(), count);
     for (VarState& slot :
          base::VectorOf(cache_state_.stack_state.end() - count, count)) {
@@ -552,10 +555,15 @@ class LiftoffAssembler : public MacroAssembler {
     return SpillOneRegister(candidates);
   }
 
-  // Performs operations on locals and the top {arity} value stack entries
-  // that would (very likely) have to be done by branches. Doing this up front
-  // avoids making each subsequent (conditional) branch repeat this work.
-  void PrepareForBranch(uint32_t arity, LiftoffRegList pinned);
+  // Performs operations on the top {arity} value stack entries and optionally
+  // on locals that would (very likely) have to be done by branches. Doing this
+  // up front avoids making each subsequent (conditional) branch repeat this
+  // work.
+  // Locals can be ignored when branching to the end of the function to the
+  // implicit return.
+  enum IgnoreLocals : bool { kIncludeLocals = false, kIgnoreLocals = true };
+  void PrepareForBranch(uint32_t arity, LiftoffRegList pinned,
+                        IgnoreLocals ignore_locals);
 
   // These methods handle control-flow merges. {MergeIntoNewState} is used to
   // generate a new {CacheState} for a merge point, and also emits code to
@@ -563,7 +571,8 @@ class LiftoffAssembler : public MacroAssembler {
   // {MergeFullStackWith} and {MergeStackWith} then later generate the code for
   // more merges into an existing state.
   V8_NODISCARD CacheState MergeIntoNewState(uint32_t num_locals, uint32_t arity,
-                                            uint32_t stack_depth);
+                                            uint32_t stack_depth,
+                                            IgnoreLocals ignore_locals);
   void MergeFullStackWith(CacheState& target);
   enum JumpDirection { kForwardJump, kBackwardJump };
   void MergeStackWith(CacheState& target, uint32_t arity, JumpDirection);
@@ -586,14 +595,8 @@ class LiftoffAssembler : public MacroAssembler {
   void SpillRegisters(Regs... regs) {
     for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
       if (cache_state_.is_free(r)) continue;
-      if (r.is_gp() && cache_state_.cached_instance_data == r.gp()) {
-        cache_state_.ClearCachedInstanceRegister();
-      } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
-        V8_ASSUME(cache_state_.cached_mem_index >= 0);
-        cache_state_.ClearCachedMemStartRegister();
-      } else {
-        SpillRegister(r);
-      }
+      SpillRegister(r);
+      DCHECK(cache_state_.is_free(r));
     }
   }
 
@@ -661,9 +664,6 @@ class LiftoffAssembler : public MacroAssembler {
   bool ValidateCacheState() const;
 #endif
 
-  inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
-                                          LiftoffRegList pinned);
-
   inline void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
                              int32_t offset);
 
@@ -695,125 +695,138 @@ class LiftoffAssembler : public MacroAssembler {
   inline void CheckStackShrink();
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceDataFromFrame(Register dst);
+  inline void LoadMemoryStart(Register dst, Register instance_data,
+                              int mem_index);
+  inline void RestoreCachedRegisters(Register instance_data,
+                                     bool reload_instance_data,
+                                     Register mem_start, bool reload_mem_start,
+                                     int mem_index);
   inline void LoadTrustedPointer(Register dst, Register src_addr, int offset,
                                  IndirectPointerTag tag);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
                                int size);
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
-  inline void SpillInstanceData(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
-                                uint32_t* protected_load_pc = nullptr,
+                                uint32_t* trapping_load_pc = nullptr,
                                 bool offset_reg_needs_shift = false);
   inline void AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                       Register offset_reg, int32_t offset_imm,
                                       AtomicMemoryOrder memory_order,
-                                      uint32_t* protected_load_pc = nullptr,
+                                      uint32_t* trapping_load_pc = nullptr,
                                       bool offset_reg_needs_shift = false);
   inline void LoadProtectedPointer(Register dst, Register src_addr,
-                                   int32_t offset);
+                                   int32_t field_offset);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
-  inline void LoadCodePointer(Register dst, Register src_addr, int32_t offset);
-#ifdef V8_ENABLE_SANDBOX
-  inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
-                                               int offset_imm);
-#endif
-  enum SkipWriteBarrier : bool {
-    kSkipWriteBarrier = true,
-    kNoSkipWriteBarrier = false
-  };
+  inline void LoadCodePointer(Register dst, Register src_addr,
+                              int32_t field_offset);
+
   enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,
                                Register stored_value, LiftoffRegList pinned);
-  inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
-                                 int32_t offset_imm, Register src,
-                                 LiftoffRegList pinned,
-                                 uint32_t* protected_store_pc = nullptr,
-                                 SkipWriteBarrier = kNoSkipWriteBarrier);
+  inline void StoreTaggedPointer(
+      Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+      LiftoffRegList pinned, uint32_t* trapping_store_pc = nullptr,
+      compiler::WriteBarrierKind = compiler::kFullWriteBarrier);
   inline void AtomicStoreTaggedPointer(Register dst_addr, Register offset_reg,
                                        int32_t offset_imm, Register src,
                                        LiftoffRegList pinned,
                                        AtomicMemoryOrder memory_order,
-                                       uint32_t* protected_store_pc = nullptr);
+                                       uint32_t* trapping_store_pc = nullptr);
   // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);
+#if V8_TARGET_ARCH_64_BIT
+  static_assert(!kNeedI64RegPair);
+  // Use `ValueKind` to differentiate between 32 and 64-bit values in
+  // `Register`.
+  using MaxStepsVariant = std::variant<int32_t, std::pair<Register, ValueKind>>;
+#else
+  static_assert(kNeedI64RegPair);
+  // 64-bit values are passed in a register pair, encoded as `LiftoffRegister`.
+  using MaxStepsVariant = std::variant<int32_t, LiftoffRegister>;
+#endif
+
+  inline void DecrementMaxSteps(int32_t* max_steps_ptr, MaxStepsVariant steps,
+                                Label* trap_label, LiftoffRegList pinned);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type,
-                   uint32_t* protected_load_pc = nullptr,
+                   uint32_t* trapping_load_pc = nullptr,
                    bool is_load_mem = false, bool i64_offset = false,
                    bool needs_shift = false);
   inline void Store(Register dst_addr, Register offset_reg,
                     uintptr_t offset_imm, LiftoffRegister src, StoreType type,
                     LiftoffRegList pinned,
-                    uint32_t* protected_store_pc = nullptr,
+                    uint32_t* trapping_store_pc = nullptr,
                     bool is_store_mem = false, bool i64_offset = false);
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
-                         LoadType type, uint32_t* protected_load_pc,
+                         LoadType type, uint32_t* trapping_load_pc,
                          AtomicMemoryOrder memory_order, LiftoffRegList pinned,
                          bool i64_offset, Endianness endianness = kLittle);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
-                          StoreType type, uint32_t* protected_store_pc,
+                          StoreType type, uint32_t* trapping_store_pc,
                           AtomicMemoryOrder memory_order, LiftoffRegList pinned,
                           bool i64_offset, Endianness endianness = kLittle);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicSub(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicAnd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicOr(Register dst_addr, Register offset_reg,
                        uintptr_t offset_imm, LiftoffRegister value,
                        LiftoffRegister result, StoreType type,
-                       uint32_t* protected_load_pc, bool i64_offset,
+                       uint32_t* trapping_load_pc, bool i64_offset,
                        Endianness endianness = kLittle);
 
   inline void AtomicXor(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicExchange(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister value,
                              LiftoffRegister result, StoreType type,
-                             uint32_t* protected_load_pc, bool i64_offset,
+                             uint32_t* trapping_load_pc, bool i64_offset,
                              Endianness endianness = kLittle);
   inline void AtomicExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-      LiftoffRegister value, LiftoffRegister result,
-      uint32_t* protected_load_pc, LiftoffRegList pinned);
+      LiftoffRegister value, LiftoffRegister result, uint32_t* trapping_load_pc,
+      LiftoffRegList pinned);
 
-  inline void AtomicCompareExchange(
-      Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-      LiftoffRegister expected, LiftoffRegister new_value,
-      LiftoffRegister result, StoreType type, uint32_t* protected_load_pc,
-      bool i64_offset, Endianness endianness = kLittle);
+  inline void AtomicCompareExchange(Register dst_addr, Register offset_reg,
+                                    uintptr_t offset_imm,
+                                    LiftoffRegister expected,
+                                    LiftoffRegister new_value,
+                                    LiftoffRegister result, StoreType type,
+                                    uint32_t* trapping_load_pc, bool i64_offset,
+                                    Endianness endianness = kLittle);
 
   inline void AtomicCompareExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
       LiftoffRegister expected, LiftoffRegister new_value,
-      LiftoffRegister result, uint32_t* protected_load_pc,
+      LiftoffRegister result, uint32_t* trapping_load_pc,
       LiftoffRegList pinned);
 
-  inline void AtomicFence();
+  inline void AtomicFence(AtomicMemoryOrder order);
   inline void Pause();
 
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
@@ -824,8 +837,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueKind);
 
-  inline void Move(Register dst, Register src, ValueKind);
-  inline void Move(DoubleRegister dst, DoubleRegister src, ValueKind);
+  template <typename T>
+  inline void Move(T dst, T src, ValueKind);
 
   inline void Spill(int offset, LiftoffRegister, ValueKind);
   inline void Spill(int offset, WasmValue);
@@ -834,6 +847,15 @@ class LiftoffAssembler : public MacroAssembler {
   // 4 bytes on the stack holding half of a 64-bit value.
   inline void FillI64Half(Register, int offset, RegPairHalf);
   inline void FillStackSlotsWithZero(int start, int size);
+
+  // Some architectures need certain fixed registers to be available for
+  // division instructions. We need the ability to spill them before freezing
+  // the cache state.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  inline void SpillDivRegisters();
+#else
+  inline void SpillDivRegisters() {}
+#endif
 
   inline void emit_trace_instruction(uint32_t markid);
 
@@ -880,6 +902,10 @@ class LiftoffAssembler : public MacroAssembler {
                            LiftoffRegister rhs);
   inline void emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                             int64_t imm);
+  inline void emit_i64_add128(Register dst_low, Register dst_high, Register al,
+                              Register ah, Register bl, Register bh);
+  inline void emit_i64_sub128(Register dst_low, Register dst_high, Register al,
+                              Register ah, Register bl, Register bh);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -920,10 +946,26 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
                             int32_t amount);
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || \
+    V8_TARGET_ARCH_MIPS64
+  inline void emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
+                           Register amount);
+  inline void emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
+                            int32_t amount);
+  inline void emit_i64_ror(LiftoffRegister dst, LiftoffRegister src,
+                           Register amount);
+  inline void emit_i64_rori(LiftoffRegister dst, LiftoffRegister src,
+                            int32_t amount);
+#endif
+
   // i64 unops.
   inline void emit_i64_clz(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_i64_popcnt(LiftoffRegister dst, LiftoffRegister src);
+
+  // i64 wide ops
+  inline void emit_i64_mul_wide_s();
+  inline void emit_i64_mul_wide_u();
 
   inline void emit_u32_to_uintptr(Register dst, Register src);
   // For security hardening: unconditionally clear {dst}'s high word.
@@ -1034,14 +1076,14 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LoadTransformationKind transform,
-                            uint32_t* protected_load_pc, bool i64_offset);
+                            uint32_t* trapping_load_pc, bool i64_offset);
   inline void LoadLane(LiftoffRegister dst, LiftoffRegister src, Register addr,
                        Register offset_reg, uintptr_t offset_imm, LoadType type,
-                       uint8_t lane, uint32_t* protected_load_pc,
+                       uint8_t lane, uint32_t* trapping_load_pc,
                        bool i64_offset);
   inline void StoreLane(Register dst, Register offset, uintptr_t offset_imm,
                         LiftoffRegister src, StoreType type, uint8_t lane,
-                        uint32_t* protected_store_pc, bool i64_offset);
+                        uint32_t* trapping_store_pc, bool i64_offset);
   inline void emit_i8x16_shuffle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs, const uint8_t shuffle[16],
                                  bool is_swizzle);
@@ -1597,8 +1639,11 @@ class LiftoffAssembler : public MacroAssembler {
   inline void AllocateStackSlot(Register addr, uint32_t size);
   inline void DeallocateStackSlot(uint32_t size);
 
+#if V8_TARGET_ARCH_X64
   // Instrumentation for shadow-stack-compatible OSR on x64.
   inline void MaybeOSR();
+  inline void AssertOSREmpty();
+#endif
 
   inline bool supports_f16_mem_access();
 
@@ -1630,7 +1675,7 @@ class LiftoffAssembler : public MacroAssembler {
   CacheState* cache_state() { return &cache_state_; }
   const CacheState* cache_state() const { return &cache_state_; }
 
-  bool did_bailout() { return bailout_reason_ != kSuccess; }
+  bool did_bailout() { return bailout_reason_ != kNoReason; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
   const char* bailout_detail() const { return bailout_detail_; }
 
@@ -1659,7 +1704,7 @@ class LiftoffAssembler : public MacroAssembler {
   int max_used_spill_offset_ = StaticStackFrameSize();
   // The amount of memory needed for register spills in OOL code.
   int ool_spill_space_size_ = 0;
-  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  LiftoffBailoutReason bailout_reason_ = kNoReason;
   const char* bailout_detail_ = nullptr;
 };
 
@@ -1674,6 +1719,34 @@ inline FreezeCacheState::FreezeCacheState(FreezeCacheState&& other) V8_NOEXCEPT
 }
 inline FreezeCacheState::~FreezeCacheState() { assm_.UnfreezeCacheState(); }
 #endif
+
+// This is subtle. In situations where control flow in the compiled function
+// does not return, it is safe to modify a frozen cache state, so long as it
+// is restored to its previous state afterwards.
+class SaveAndUnfreezeCacheState {
+ public:
+  SaveAndUnfreezeCacheState(LiftoffAssembler::CacheState* original, Zone* zone)
+      : original_(original), saved_state_(zone) {
+    saved_state_.Split(*original);
+#if DEBUG
+    saved_frozenness_ = original->frozen;
+    original->frozen = 0;
+#endif
+  }
+  ~SaveAndUnfreezeCacheState() {
+    original_->Steal(saved_state_);
+#if DEBUG
+    original_->frozen = saved_frozenness_;
+#endif
+  }
+
+ private:
+  LiftoffAssembler::CacheState* original_;
+  LiftoffAssembler::CacheState saved_state_;
+#if DEBUG
+  uint32_t saved_frozenness_;
+#endif
+};
 
 class LiftoffStackSlots {
  public:

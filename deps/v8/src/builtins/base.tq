@@ -12,6 +12,7 @@
 #include 'src/objects/call-site-info.h'
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
+#include 'src/objects/hash-seed-wrapper.h'
 #include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
@@ -34,17 +35,16 @@ type never;
 
 type IntegerLiteral constexpr 'IntegerLiteral';
 
-type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
+type Tagged generates 'MaybeObject' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'Object';
-type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+    generates 'Object' constexpr 'Object';
+type Smi extends StrongTagged generates 'Smi' constexpr 'Smi';
 type TaggedIndex extends StrongTagged
-    generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
+    generates 'TaggedIndex' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged
-    generates 'TNode<MaybeWeak<HeapObject>>'
-    constexpr 'MaybeWeak<HeapObject>';
+    generates 'Weak<HeapObject>' constexpr 'Weak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;
@@ -109,36 +109,40 @@ type JSAnyNotNumberOrUndefined = String|Symbol|Boolean|Null|JSReceiver|BigInt;
 // This is the intersection of JSAny and HeapObject.
 type JSAnyNotSmi = JSAnyNotNumber|HeapNumber;
 
-type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
-type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
+// Object prototypes are either JSReceivers or null -- they are not allowed to
+// be any other primitive value.
+type JSPrototype = JSReceiver|Null;
+
+type int32 generates 'Int32T' constexpr 'int32_t';
+type uint32 generates 'Uint32T' constexpr 'uint32_t';
 type int31 extends int32
-    generates 'TNode<Int32T>' constexpr 'int31_t';
+    generates 'Int32T' constexpr 'int31_t';
 type uint31 extends uint32
-    generates 'TNode<Uint32T>' constexpr 'uint32_t';
+    generates 'Uint32T' constexpr 'uint32_t';
 type int16 extends int31
-    generates 'TNode<Int16T>' constexpr 'int16_t';
+    generates 'Int16T' constexpr 'int16_t';
 type uint16 extends uint31
-    generates 'TNode<Uint16T>' constexpr 'uint16_t';
-type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
+    generates 'Uint16T' constexpr 'uint16_t';
+type int8 extends int16 generates 'Int8T' constexpr 'int8_t';
 type uint8 extends uint16
-    generates 'TNode<Uint8T>' constexpr 'uint8_t';
+    generates 'Uint8T' constexpr 'uint8_t';
 type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
-type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
-type uint64 generates 'TNode<Uint64T>' constexpr 'uint64_t';
-type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
-type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
+type int64 generates 'Int64T' constexpr 'int64_t';
+type uint64 generates 'Uint64T' constexpr 'uint64_t';
+type intptr generates 'IntPtrT' constexpr 'intptr_t';
+type uintptr generates 'UintPtrT' constexpr 'uintptr_t';
 type float16_raw_bits
-    generates 'TNode<Float16RawBitsT>' constexpr 'uint16_t';
-type float32 generates 'TNode<Float32T>' constexpr 'float';
-type float64 generates 'TNode<Float64T>' constexpr 'double';
-type bool generates 'TNode<BoolT>' constexpr 'bool';
-type bint generates 'TNode<BInt>' constexpr 'BInt';
+    generates 'Float16RawBitsT' constexpr 'uint16_t';
+type float32 generates 'Float32T' constexpr 'float';
+type float64 generates 'Float64T' constexpr 'double';
+type bool generates 'BoolT' constexpr 'bool';
+type bint generates 'BInt' constexpr 'BInt';
 type string constexpr 'const char*';
-type DispatchHandle generates 'TNode<JSDispatchHandleT>';
+type DispatchHandle generates 'JSDispatchHandleT';
 
-type Simd128 generates 'TNode<Simd128T>';
-type I8X16 extends Simd128 generates 'TNode<I8x16T>';
+type Simd128 generates 'Simd128T';
+type I8X16 extends Simd128 generates 'I8x16T';
 
 // Represents a std::function which produces the generated TNode type of T.
 // Useful for passing values to and from CSA code that uses LazyNode<T>, which
@@ -227,43 +231,43 @@ struct float64_or_undefined_or_hole {
 @doNotGenerateCast
 @abstract
 extern class JSInternalPrototypeBase extends JSObject
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSObjectPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSRegExpPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSPromisePrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSTypedArrayPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSSetPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSArrayIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSMapIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
 @doNotGenerateCast
-extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
+extern class HashTable extends FixedArray generates 'FixedArray';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
 extern class OrderedNameDictionary extends HashTable;
@@ -275,32 +279,30 @@ extern class SimpleNameDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
-    generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
+    generates 'ObjectHashTable' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 extern class DoubleStringCache extends HeapObject;
+extern class HashSeedWrapper extends HeapObject;
 
-type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
+type RawPtr generates 'RawPtrT' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
-    generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+    generates 'ExternalPointerT' constexpr 'ExternalPointer_t';
 type CppHeapPointer
-    generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
+    generates 'CppHeapPointerT' constexpr 'CppHeapPointer_t';
 type TrustedPointer
-    generates 'TNode<TrustedPointerT>' constexpr 'TrustedPointer_t';
+    generates 'TrustedPointerT' constexpr 'TrustedPointer_t';
 type TrustedPointer<To : type extends ExposedTrustedObject> extends
     TrustedPointer;
 type ProtectedPointer extends Tagged;
 type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;
-type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
+type BuiltinPtr extends Smi generates 'BuiltinPtr';
 
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
 
 extern class TransitionArray extends WeakFixedArray;
-
-extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
-    WeakFixedArray): intptr;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
 
@@ -322,7 +324,7 @@ type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
     CallableApiObject;
 
 type WriteBarrierMode
-    generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
+    generates 'Int32T' constexpr 'WriteBarrierMode';
 
 extern enum UpdateFeedbackMode {
   kOptionalFeedback,
@@ -424,8 +426,7 @@ extern enum ExtractFixedArrayFlag
   ...
 }
 
-const kBigIntMaxLengthBits:
-    constexpr uintptr generates 'BigInt::kMaxLengthBits';
+const kBigIntMaxBits: constexpr uintptr generates 'BigInt::kMaxBits';
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 const kBigIntDigitSize: constexpr intptr generates 'kSystemPointerSize';
 const kBitsPerByte: constexpr intptr generates 'kBitsPerByte';
@@ -516,6 +517,8 @@ extern enum MessageTemplate {
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
   kWasmTrapResume,
+  kWasmTrapSuspend,
+  kWasmTrapSwitch,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,
@@ -524,6 +527,7 @@ extern enum MessageTemplate {
   kObjectSetterCallable,
   kPropertyDescObject,
   kMustBePositive,
+  kArgumentIsNotUndefinedOrInteger,
   kIteratorReduceNoInitial,
   kSizeIsNaN,
   kArgumentIsNonObject,
@@ -535,6 +539,8 @@ extern enum MessageTemplate {
   kStrictReadOnlyProperty,
   kInvalidUsingInForInLoop,
   kIllegalInvocation,
+  kInvalidIteratorZipMode,
+  kIteratorZipStrictMismatch,
   ...
 }
 
@@ -595,8 +601,7 @@ const kSwissNameDictionaryInitialCapacity:
 const kWasmArrayHeaderSize:
     constexpr int32 generates 'WasmArray::kHeaderSize';
 
-const kHeapObjectHeaderSize:
-    constexpr int32 generates 'HeapObject::kHeaderSize';
+const kHeapObjectHeaderSize: constexpr int32 generates 'sizeof(HeapObject)';
 
 type Exception extends Oddball;
 type EmptyString extends String;
@@ -685,7 +690,7 @@ const UNSAFE_SKIP_WRITE_BARRIER:
 extern transitioning macro AllocateJSIteratorResult(
     implicit context: Context)(JSAny, Boolean): JSObject;
 
-extern class Filler extends HeapObject generates 'TNode<HeapObject>';
+extern class Filler extends HeapObject generates 'HeapObject';
 
 // Various logical subclasses of JSObject, which have their own instance types
 // but not their own class definitions:
@@ -694,7 +699,7 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
 extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
 // range.
@@ -702,15 +707,15 @@ extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
 @doNotGenerateCast
 @highestInstanceTypeWithinParentClassRange
 extern class JSLastDummyApiObject extends JSApiObject
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // Like JSApiObject, but requires access checks and/or has interceptors.
 @apiExposedInstanceTypeValue(0x410)
 extern class JSSpecialApiObject extends JSSpecialObject
-    generates 'TNode<JSSpecialObject>';
+    generates 'JSSpecialObject';
 extern class JSContextExtensionObject extends JSObject
-    generates 'TNode<JSObject>';
-extern class JSError extends JSObject generates 'TNode<JSObject>';
+    generates 'JSObject';
+extern class JSError extends JSObject generates 'JSObject';
 
 extern macro Is64(): constexpr bool;
 
@@ -934,6 +939,8 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro ArrayListElements(ArrayList): FixedArray;
 
 extern macro LoadObjectField(HeapObject, constexpr int32): Object;
+extern macro LoadTrustedPointerFromObject(
+    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
@@ -948,6 +955,7 @@ extern builtin StringLessThan(String, String): Boolean;
 extern builtin StringCompare(String, String): Smi;
 extern macro StringCharCodeAt(String, uintptr): char16;
 extern macro StringFromSingleCharCode(char8): String;
+extern macro StringFromSingleCharCode(uint8): String;
 extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
@@ -970,6 +978,7 @@ extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 
 extern runtime ReThrowWithMessage(
     Context, JSAny, TheHole|JSMessageObject): never;
+extern runtime ReThrow(implicit context: Context)(JSAny): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
@@ -1314,11 +1323,11 @@ operator '.length_uintptr' macro LoadStringLengthAsUintPtr(s: String): uintptr {
 extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
-extern builtin StringAdd_CheckNone(
+extern builtin StringAdd_NoMapCheck(
     implicit context: Context)(String, String): String;
 operator '+' macro StringAdd(
     implicit context: Context)(a: String, b: String): String {
-  return StringAdd_CheckNone(a, b);
+  return StringAdd_NoMapCheck(a, b);
 }
 
 operator '==' macro PromiseStateEquals(
@@ -1343,6 +1352,7 @@ extern macro AllocateSharedHeapNumberWithValue(float64): HeapNumber;
 extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
+extern macro ChangeUint64ToFloat64(uint64): float64;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
 extern macro ChangeUintPtrToTagged(uintptr): Number;
 extern macro Unsigned(int64): uint64;
@@ -1691,6 +1701,25 @@ macro SameValue(
   BranchIfSameValue(a, b) otherwise return true, return false;
 }
 
+// https://tc39.es/ecma262/#sec-samevaluezero
+// https://tc39.es/ecma262/#sec-numeric-types-number-sameValueZero
+macro SameValueZero(a: JSAny, b: JSAny): bool {
+  // According to the spec, SameValueZero(x, y) differs from StrictEqual(x, y)
+  // and SameValue(x, y) only in how it handles NaN and zeroes. All three agree
+  // in all other cases:
+  //
+  // |               | NaN vs NaN | +0 vs -0 |
+  // | :---          | :---       | :---     |
+  // | StrictEqual   | false      | true     |
+  // | SameValue     | true       | false    |
+  // | SameValueZero | true       | true     |
+  //
+  // By taking the disjunction of StrictEqual and SameValue, we catch all cases
+  // where SameValueZero should return true. SameValue only catches the NaN vs
+  // NaN case.
+  return (StrictEqual(a, b) == True) || SameValue(a, b);
+}
+
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
 // friendly way where index1 and index2 are in [0, kMaxSafeInteger] range.
 macro CheckIntegerIndexAdditionOverflow(
@@ -1801,7 +1830,7 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
       otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
 
-// https://tc39.github.io/ecma262/#sec-toindex
+// https://tc39.es/ecma262/#sec-toindex
 // Unlike ToIndex from the spec this implementation triggers IfRangeError if
 // the result is bigger than min(kMaxUIntPtr, kMaxSafeInteger).
 // We can do this because all callers do a range checks against uintptr length
@@ -2068,6 +2097,9 @@ extern transitioning runtime CreateDataProperty(
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): void;
 
+extern transitioning runtime GetOwnPropertyKeys(
+    implicit context: Context)(JSReceiver, Smi): JSArray;
+
 namespace runtime {
 extern runtime GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
@@ -2250,3 +2282,20 @@ extern macro I8x16Eq(I8X16, I8X16): I8X16;
 extern macro I8x16Splat(int32): I8X16;
 
 extern enum TypedArrayAccessMode extends int31 { kRead, kWrite }
+
+// ES #sec-getoptionsobject
+transitioning macro GetOptionsObject(
+    implicit context: NativeContext)(options: JSAny): JSReceiver {
+  // 1. If options is undefined, then
+  if (options == Undefined) {
+    // a. Return OrdinaryObjectCreate(null).
+    const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(context);
+    const properties = AllocateNameDictionary(Convert<intptr>(0));
+    return AllocateJSObjectFromMap(nullProtoMap, properties);
+  }
+  // 2. If options is an Object, then
+  //    a. Return options.
+  // 3. Throw a TypeError exception.
+  return Cast<JSReceiver>(options)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'options');
+}

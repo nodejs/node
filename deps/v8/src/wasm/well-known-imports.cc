@@ -102,38 +102,55 @@ const char* WellKnownImportName(WellKnownImport wki) {
 
       // JS String Builtins:
     case WellKnownImport::kStringCast:
+    case WellKnownImport::kStringCastShared:
       return "js-string:cast";
     case WellKnownImport::kStringCharCodeAt:
+    case WellKnownImport::kStringCharCodeAtShared:
       return "js-string:charCodeAt";
     case WellKnownImport::kStringCodePointAt:
+    case WellKnownImport::kStringCodePointAtShared:
       return "js-string:codePointAt";
     case WellKnownImport::kStringCompare:
+    case WellKnownImport::kStringCompareShared:
       return "js-string:compare";
     case WellKnownImport::kStringConcat:
+    case WellKnownImport::kStringConcatShared:
       return "js-string:concat";
     case WellKnownImport::kStringEquals:
+    case WellKnownImport::kStringEqualsShared:
       return "js-string:equals";
     case WellKnownImport::kStringFromCharCode:
+    case WellKnownImport::kStringFromCharCodeShared:
       return "js-string:fromCharCode";
     case WellKnownImport::kStringFromCodePoint:
+    case WellKnownImport::kStringFromCodePointShared:
       return "js-string:fromCodePoint";
     case WellKnownImport::kStringFromUtf8Array:
+    case WellKnownImport::kStringFromUtf8ArrayShared:
       return "text-decoder:decodeStringFromUTF8Array";
     case WellKnownImport::kStringFromWtf16Array:
+    case WellKnownImport::kStringFromWtf16ArrayShared:
       return "js-string:fromCharCodeArray";
     case WellKnownImport::kStringIntoUtf8Array:
+    case WellKnownImport::kStringIntoUtf8ArrayShared:
       return "text-encoder:encodeStringIntoUTF8Array";
     case WellKnownImport::kStringToUtf8Array:
+    case WellKnownImport::kStringToUtf8ArrayShared:
       return "text-encoder:encodeStringToUTF8Array";
     case WellKnownImport::kStringLength:
+    case WellKnownImport::kStringLengthShared:
       return "js-string:length";
     case WellKnownImport::kStringMeasureUtf8:
+    case WellKnownImport::kStringMeasureUtf8Shared:
       return "text-encoder:measureStringAsUTF8";
     case WellKnownImport::kStringSubstring:
+    case WellKnownImport::kStringSubstringShared:
       return "js-string:substring";
     case WellKnownImport::kStringTest:
+    case WellKnownImport::kStringTestShared:
       return "js-string:test";
     case WellKnownImport::kStringToWtf16Array:
+    case WellKnownImport::kStringToWtf16ArrayShared:
       return "js-string:intoCharCodeArray";
 
       // Custom Descriptors
@@ -144,6 +161,7 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kFastAPICall:
       return "fast API call";
   }
+  UNREACHABLE();
 }
 
 WellKnownImportsList::UpdateResult WellKnownImportsList::Update(
@@ -166,13 +184,21 @@ WellKnownImportsList::UpdateResult WellKnownImportsList::Update(
       // against pathological cases seems more important than being lenient
       // towards almost-well-behaved modules.
       for (size_t j = 0; j < entries.size(); j++) {
+        if (IsCompileTimeImport(statuses_[j].load(std::memory_order_relaxed))) {
+          // Since compile-time imports take precedence over provided imports,
+          // they cannot cause an invalidation of a well-known import and
+          // we can keep their status; and that is load-bearing so that
+          // instantiation knows which imports to provide "magically".
+          DCHECK_NE(i, j);
+          continue;
+        }
         statuses_[j].store(WellKnownImport::kGeneric,
                            std::memory_order_relaxed);
       }
-      return UpdateResult::kFoundIncompatibility;
+      return kFoundIncompatibility;
     }
   }
-  return UpdateResult::kOK;
+  return kOK;
 }
 
 void WellKnownImportsList::Initialize(

@@ -263,7 +263,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
   Tagged<HeapObject> heap_object;
   CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
-  CHECK(IsFeedbackCell(heap_object, isolate));
+  CHECK(IsFeedbackCell(heap_object));
   // Ensure this is the feedback cell for the closure returned by
   // foo_maker.
   CHECK_EQ(heap_object, a_foo->raw_feedback_cell());
@@ -561,10 +561,11 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   bool number_map_found = false;
   bool o_map_found = false;
   for (DirectHandle<Map> current : maps) {
-    if (*current == number_map)
+    if (*current == number_map) {
       number_map_found = true;
-    else if (*current == o->map())
+    } else if (*current == o->map()) {
       o_map_found = true;
+    }
   }
   CHECK(number_map_found && o_map_found);
 
@@ -705,17 +706,17 @@ TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
     DirectHandle<JSFunction> f = GetFunction("testcompound");
 
     // There should be 1 LOAD_GLOBAL_IC for load of a and 2 LOAD_ICs, for load
-    // of x.old and x.young.
+    // of x.old and x.young. The `+` in `x.old + x.young` carries embedded
+    // feedback in the BytecodeArray, so no FeedbackVector slot is allocated.
     Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
-    CHECK_EQ(7, helper.slot_count());
+    CHECK_EQ(6, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetNamedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kSetNamedStrict);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kSetNamedStrict);
-    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kBinaryOp);
+    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
-    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kLoadProperty);
   }
 }
 

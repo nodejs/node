@@ -27,8 +27,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
                                            TranslatedState::iterator frame_it,
                                            Isolate* isolate) {
   int parameter_count =
-      frame_it->shared_info()
-          ->internal_formal_parameter_count_without_receiver();
+      frame_it->bytecode_array()->parameter_count_without_receiver();
   TranslatedFrame::iterator stack_it = frame_it->begin();
 
   // Get the function. Note that this might materialize the function.

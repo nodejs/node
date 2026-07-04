@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -21,6 +22,7 @@ constexpr Builtin Builtins::RecordWrite(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kRecordWriteSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -31,6 +33,7 @@ constexpr Builtin Builtins::IndirectPointerBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kIndirectPointerBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -41,6 +44,7 @@ constexpr Builtin Builtins::EphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kEphemeronKeyBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -133,7 +137,7 @@ constexpr Builtin Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 constexpr Builtin Builtins::StringAdd(StringAddFlags flags) {
   switch (flags) {
     case STRING_ADD_CHECK_NONE:
-      return Builtin::kStringAdd_CheckNone;
+      return Builtin::kStringAdd_NoMapCheck;
     case STRING_ADD_CONVERT_LEFT:
       return Builtin::kStringAddConvertLeft;
     case STRING_ADD_CONVERT_RIGHT:
@@ -317,11 +321,9 @@ bool Builtins::IsJSTrampoline(Builtin builtin) {
     case Builtin::kDebugBreakTrampoline:
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Builtin::kJSToWasmWrapper:
-    case Builtin::kJSToJSWrapper:
-    case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
 #if V8_ENABLE_DRUMBRAKE
-    case Builtin::kGenericJSToWasmInterpreterWrapper:
+    case Builtin::kJSToWasmInterpreterWrapper:
 #endif
     case Builtin::kWasmStressSwitch:
 #endif

@@ -22,6 +22,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/enum-set.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -43,7 +44,9 @@
 #include "src/heap/sweeper.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/fixed-array-base.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -51,7 +54,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -141,13 +143,19 @@ class TrustedRange;
 class TrustedSpace;
 class WeakObjectRetainer;
 
-enum class ClearRecordedSlots { kYes, kNo };
+using ClearRecordedSlots =
+    base::StrongAlias<struct ClearRecordedSlotsTag, bool>;
 
-enum class InvalidateRecordedSlots { kYes, kNo };
+enum class SlotClearingMode { kCheckSweeping, kUnconditional };
 
-enum class InvalidateExternalPointerSlots { kYes, kNo };
+using InvalidateRecordedSlots =
+    base::StrongAlias<struct InvalidateRecordedSlotsTag, bool>;
 
-enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
+using InvalidateExternalPointerSlots =
+    base::StrongAlias<struct InvalidateExternalPointerSlotsTag, bool>;
+
+using ClearFreedMemoryMode =
+    base::StrongAlias<struct ClearFreedMemoryModeTag, bool>;
 
 enum class SkipRoot {
   kExternalStringTable,
@@ -259,6 +267,7 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
     case CompleteSweepingReason::kReadOnly:
       return "read only";
   }
+  UNREACHABLE();
 }
 
 static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
@@ -266,7 +275,7 @@ static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
 
 class Heap final {
  public:
-  enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
+  using HeapGrowingMode = HeapGrowingMode;
 
   enum HeapState {
     NOT_IN_GC,
@@ -276,6 +285,12 @@ class Heap final {
     TEAR_DOWN
   };
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  int increment_dispatch_table_allocations() {
+    return ++dispatch_table_allocations_;
+  }
+#endif
+
   // Emits GC events for DevTools timeline.
   class V8_NODISCARD DevToolsTraceEventScope {
    public:
@@ -284,7 +299,7 @@ class Heap final {
     ~DevToolsTraceEventScope();
 
    private:
-    Heap* heap_;
+    [[maybe_unused]] Heap* heap_;
     const char* event_name_;
   };
 
@@ -300,6 +315,21 @@ class Heap final {
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
+  static constexpr size_t kDefaultMinHeapSize = 256u * MB;
+#ifdef V8_HOST_ARCH_64_BIT
+  static constexpr size_t kDefaultMaxHeapSize = static_cast<uint64_t>(4u) * GB;
+#else
+  static constexpr size_t kDefaultMaxHeapSize = static_cast<uint64_t>(1u) * GB;
+#endif
+
+  // Limit on the max old generation size imposed by the underlying allocator.
+#ifdef V8_COMPRESS_POINTERS
+  static constexpr size_t kAllocatorLimitOnMaxOldGenerationSize =
+      kPtrComprCageReservationSize;
+#else
+  static constexpr size_t kAllocatorLimitOnMaxOldGenerationSize =
+      std::numeric_limits<size_t>::max();
+#endif
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -320,9 +350,6 @@ class Heap final {
       uint64_t physical_memory);
 
   static size_t HeapSizeToSemiSpaceRatio(uint64_t physical_memory);
-
-  V8_EXPORT_PRIVATE static size_t DefaultMinHeapSize(uint64_t physical_memory);
-  V8_EXPORT_PRIVATE static size_t DefaultMaxHeapSize(uint64_t physical_memory);
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -453,8 +480,7 @@ class Heap final {
   // are recorded in this free memory.
   V8_EXPORT_PRIVATE void CreateFillerObjectAt(
       Address addr, int size,
-      ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory,
+      ClearFreedMemoryMode clear_memory_mode = ClearFreedMemoryMode{false},
       std::optional<AllocationType> allocation_type = {});
 
   // Initialize a filler object at a specific address. Unlike
@@ -469,7 +495,7 @@ class Heap final {
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(
-      Tagged<FixedArrayBase> obj, int elements_to_trim);
+      Tagged<FixedArrayBase> obj, uint32_t elements_to_trim);
 
 #define RIGHT_TRIMMABLE_ARRAY_LIST(V) \
   V(ArrayList)                        \
@@ -654,7 +680,7 @@ class Heap final {
   V8_INLINE uint64_t external_memory() const;
   V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
-  uint64_t UpdateExternalMemory(int64_t delta);
+  V8_EXPORT_PRIVATE uint64_t UpdateExternalMemory(int64_t delta);
 
   uint64_t backing_store_bytes() const;
 
@@ -699,7 +725,7 @@ class Heap final {
   // ===========================================================================
 
   void ConfigureHeap(const v8::ResourceConstraints& constraints,
-                     v8::CppHeap* cpp_heap);
+                     v8::CppHeap& cpp_heap);
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.
@@ -806,7 +832,9 @@ class Heap final {
     return &trusted_pointer_space_;
   }
 
-  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+  TrustedPointerTable::Space* read_only_trusted_pointer_space() {
+    return &read_only_trusted_pointer_space_;
+  }
 
 #endif  // V8_ENABLE_SANDBOX
 
@@ -888,6 +916,8 @@ class Heap final {
       Tagged<Object> bytecode);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
+  V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
@@ -955,16 +985,16 @@ class Heap final {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
       PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes,
+          PerformHeapLimitCheck{true},
       PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
-          PerformIneffectiveMarkCompactCheck::kYes);
+          PerformIneffectiveMarkCompactCheck{true});
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
-      PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes);
+      PerformHeapLimitCheck check_heap_limit_reached = PerformHeapLimitCheck{
+          true});
 
   // Last hope garbage collection. Will try to free as much memory as possible
   // with multiple rounds of garbage collection.
@@ -990,13 +1020,8 @@ class Heap final {
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
   V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GCFlags gc_flags,
-      GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
-
-  // Reports and external memory pressure event, either performs a major GC or
-  // completes incremental marking in order to free external resources.
-  void HandleExternalMemoryInterrupt();
+      LocalHeap* local_heap, AllocationSpace space,
+      GarbageCollectionReason gc_reason);
 
   using GetExternallyAllocatedMemoryInBytesCallback =
       v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback;
@@ -1034,7 +1059,6 @@ class Heap final {
   void IterateSmiRoots(RootVisitor* v);
   // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
-  void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
 
   void IterateStackRoots(RootVisitor* v);
@@ -1055,7 +1079,9 @@ class Heap final {
   uint8_t* IsMarkingFlagAddress();
   uint8_t* IsMinorMarkingFlagAddress();
 
-  void ClearRecordedSlotRange(Address start, Address end);
+  void ClearRecordedSlotRange(
+      Address start, Address end,
+      SlotClearingMode mode = SlotClearingMode::kCheckSweeping);
   static int InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                              size_t slot_offset);
 
@@ -1120,7 +1146,7 @@ class Heap final {
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // By default recorded slots in the object are invalidated. Pass
-  // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
+  // InvalidateRecordedSlots{false} if this is not necessary or to perform this
   // manually.
   // If the object contains external pointer slots, then these need to be
   // invalidated as well if a GC marker may have observed them previously. To
@@ -1281,10 +1307,6 @@ class Heap final {
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   V8_EXPORT_PRIVATE size_t MaxOldGenerationSize();
 
-  // Limit on the max old generation size imposed by the underlying allocator.
-  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
-      uint64_t physical_memory);
-
   V8_EXPORT_PRIVATE static size_t OldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
@@ -1300,8 +1322,6 @@ class Heap final {
       size_t young_generation_size);
   V8_EXPORT_PRIVATE static size_t MinYoungGenerationSize();
   V8_EXPORT_PRIVATE static size_t MinOldGenerationSize();
-  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSizeFromPhysicalMemory(
-      uint64_t physical_memory);
 
   uint64_t physical_memory() const {
     // Prevent access before its initialization in ConfigureHeap().
@@ -1329,13 +1349,6 @@ class Heap final {
 
   // Returns the amount of physical memory currently committed for the heap.
   size_t CommittedPhysicalMemory();
-
-  // Returns the maximum amount of memory ever committed for the heap.
-  size_t MaximumCommittedMemory() { return maximum_committed_; }
-
-  // Updates the maximum committed memory for the heap. Should be called
-  // whenever a space grows.
-  void UpdateMaximumCommitted();
 
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
@@ -1381,7 +1394,7 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
-  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter() const;
+  V8_EXPORT_PRIVATE uint64_t NewSpaceAllocationCounter() const;
 
   void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
     new_space_allocation_counter_ = new_value;
@@ -1392,12 +1405,13 @@ class Heap final {
         OldGenerationAllocationCounter();
   }
 
-  size_t OldGenerationAllocationCounter() {
+  uint64_t OldGenerationAllocationCounter() {
     return old_generation_allocation_counter_at_last_gc_ +
            PromotedSinceLastGC();
   }
 
-  size_t EmbedderAllocationCounter() const;
+  uint64_t EmbedderAllocationCounter() const;
+  uint64_t ExternalAllocationCounter() const;
 
   // This should be used only for testing.
   void set_old_generation_allocation_counter_at_last_gc(size_t new_value) {
@@ -1444,7 +1458,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
+  V8_EXPORT_PRIVATE uint64_t GlobalSizeOfObjects() const;
 
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;
@@ -1469,10 +1483,7 @@ class Heap final {
       const uint64_t overshoot_margin) const;
 
   // Return the maximum size objects can be before having to allocate them as
-  // large objects. This takes into account allocating in the code space for
-  // which the size of the allocatable space per V8 page may depend on the OS
-  // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
-  // instead if you know the allocation isn't in the code spaces.
+  // large objects.
   inline V8_EXPORT_PRIVATE int MaxRegularHeapObjectSize(
       AllocationType allocation);
 
@@ -1833,7 +1844,8 @@ class Heap final {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();
 
-  enum class VerifyNoSlotsRecorded { kYes, kNo };
+  using VerifyNoSlotsRecorded =
+      base::StrongAlias<struct VerifyNoSlotsRecordedTag, bool>;
 
   // Creates a filler object in the specified memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.
@@ -1888,7 +1900,6 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
   void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
@@ -1937,17 +1948,6 @@ class Heap final {
   // ===========================================================================
   // GC statistics. ============================================================
   // ===========================================================================
-
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
-    uint64_t bytes = OldGenerationConsumedBytes();
-    if (!v8_flags.external_memory_accounted_in_global_limit) {
-      // TODO(chromium:42203776): When not accounting external memory properly
-      // in the global limit, just add allocated external bytes towards the
-      // regular old gen bytes. This is historic behavior.
-      bytes += AllocatedExternalMemorySinceMarkCompact();
-    }
-    return bytes;
-  }
 
   V8_EXPORT_PRIVATE size_t OldGenerationSpaceAvailable();
   V8_EXPORT_PRIVATE size_t GlobalSpaceAvailable();
@@ -2078,8 +2078,8 @@ class Heap final {
   void FinalizePartialMap(Tagged<Map> map);
 
   void set_force_oom(bool value) { force_oom_ = value; }
-  void set_force_gc_on_next_allocation() {
-    force_gc_on_next_allocation_ = true;
+  void set_force_gc_on_next_allocation(bool value) {
+    force_gc_on_next_allocation_ = value;
   }
 
   // Helper for IsPendingAllocation.
@@ -2130,7 +2130,6 @@ class Heap final {
   // different behavior in NotifyContextDisposed().
   bool preconfigured_old_generation_size_ = false;
 
-  size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
 
   // For keeping track of how much data has survived
@@ -2191,9 +2190,8 @@ class Heap final {
 #ifdef V8_ENABLE_SANDBOX
   // Likewise, but for the trusted pointer table.
   TrustedPointerTable::Space trusted_pointer_space_;
+  TrustedPointerTable::Space read_only_trusted_pointer_space_;
 
-  // The space in the process-wide code pointer table managed by this heap.
-  CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   // The spaces in the JSDispatchTable containing entries owned by objects
@@ -2321,6 +2319,8 @@ class Heap final {
   StackState embedder_stack_state_ = StackState::kMayContainHeapPointers;
   std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
+  const void* stack_start_marker_ = nullptr;
+
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
 
@@ -2331,12 +2331,17 @@ class Heap final {
   // This counter is increased before each GC and never reset.
   // To account for the bytes allocated since the last GC, use the
   // NewSpaceAllocationCounter() function.
-  size_t new_space_allocation_counter_ = 0;
+  uint64_t new_space_allocation_counter_ = 0;
 
   // This counter is increased before each GC and never reset. To
   // account for the bytes allocated since the last GC, use the
   // OldGenerationAllocationCounter() function.
-  size_t old_generation_allocation_counter_at_last_gc_ = 0;
+  uint64_t old_generation_allocation_counter_at_last_gc_ = 0;
+
+  // This counter is increased before each GC and never reset. To account for
+  // the bytes allocated since the last GC, use the ExternalAllocationCounter()
+  // function.
+  uint64_t external_allocation_counter_at_last_gc_ = 0;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
 
@@ -2376,8 +2381,6 @@ class Heap final {
 
   bool deserialization_complete_ = false;
 
-  int max_regular_code_object_size_ = 0;
-
   bool inline_allocation_enabled_ = true;
 
   int pause_allocation_observers_depth_ = 0;
@@ -2386,6 +2389,10 @@ class Heap final {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  int dispatch_table_allocations_ = 0;
+#endif
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
@@ -2521,6 +2528,7 @@ class Heap final {
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
+  FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
   friend class HeapInternalsBase;
 };
 
@@ -2531,6 +2539,7 @@ constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
     case Heap::SweepingForcedFinalizationMode::kUnifiedHeap:
       return "unified heap";
   }
+  UNREACHABLE();
 }
 
 constexpr const char* ToString(Heap::HeapGrowingMode mode) {
@@ -2544,6 +2553,7 @@ constexpr const char* ToString(Heap::HeapGrowingMode mode) {
     case Heap::HeapGrowingMode::kDefault:
       return "default";
   }
+  UNREACHABLE();
 }
 
 #define DECL_RIGHT_TRIM(T)                                         \
@@ -2553,8 +2563,7 @@ constexpr const char* ToString(Heap::HeapGrowingMode mode) {
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
-struct HexAddressTag;
-using HexAddress = base::StrongAlias<HexAddressTag, Address>;
+using HexAddress = base::StrongAlias<struct HexAddressTag, Address>;
 
 using ByteSize = ::heap::base::ByteSize;
 

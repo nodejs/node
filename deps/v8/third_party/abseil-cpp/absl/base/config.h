@@ -493,34 +493,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
-// macOS < 10.13 and iOS < 12 don't support <any>, <optional>, or <variant>
-// because the libc++ shared library shipped on the system doesn't have the
-// requisite exported symbols.  See
-// https://github.com/abseil/abseil-cpp/issues/207 and
-// https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
-//
-// libc++ spells out the availability requirements in the file
-// llvm-project/libcxx/include/__config via the #define
-// _LIBCPP_AVAILABILITY_BAD_OPTIONAL_ACCESS. The set of versions has been
-// modified a few times, via
-// https://github.com/llvm/llvm-project/commit/7fb40e1569dd66292b647f4501b85517e9247953
-// and
-// https://github.com/llvm/llvm-project/commit/0bc451e7e137c4ccadcd3377250874f641ca514a
-// The second has the actually correct versions, thus, is what we copy here.
-#if defined(__APPLE__) &&                                         \
-    ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&   \
-      __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101300) ||  \
-     (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) &&  \
-      __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 120000) || \
-     (defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) &&   \
-      __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ < 50000) ||   \
-     (defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) &&      \
-      __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ < 120000))
-#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 1
-#else
-#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
-#endif
-
 // Deprecated macros for polyfill detection.
 #define ABSL_HAVE_STD_ANY 1
 #define ABSL_USES_STD_ANY 1
@@ -530,6 +502,42 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_USES_STD_STRING_VIEW 1
 #define ABSL_HAVE_STD_VARIANT 1
 #define ABSL_USES_STD_VARIANT 1
+
+// ABSL_HAVE_STD_SOURCE_LOCATION
+//
+// Checks whether C++20 std::source_location is available.
+#ifdef ABSL_HAVE_STD_SOURCE_LOCATION
+#error "ABSL_HAVE_STD_SOURCE_LOCATION cannot be directly set."
+#elif (defined(__cpp_lib_source_location) &&    \
+       __cpp_lib_source_location >= 201907L) || \
+    (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&   \
+     ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
+#ifdef __has_include
+#if __has_include(<source_location>)
+#define ABSL_HAVE_STD_SOURCE_LOCATION 1
+#endif
+#else
+// No __has_include support, so just assume C++ language version is correct.
+#define ABSL_HAVE_STD_SOURCE_LOCATION 1
+#endif
+#endif
+
+// ABSL_USES_STD_SOURCE_LOCATION
+//
+// Indicates whether absl::SourceLocation is an alias for std::source_location.
+#if !defined(ABSL_OPTION_USE_STD_SOURCE_LOCATION)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_SOURCE_LOCATION == 0 || \
+    (ABSL_OPTION_USE_STD_SOURCE_LOCATION == 2 &&  \
+     !defined(ABSL_HAVE_STD_SOURCE_LOCATION))
+#undef ABSL_USES_STD_SOURCE_LOCATION
+#elif ABSL_OPTION_USE_STD_SOURCE_LOCATION == 1 || \
+    (ABSL_OPTION_USE_STD_SOURCE_LOCATION == 2 &&  \
+     defined(ABSL_HAVE_STD_SOURCE_LOCATION))
+#define ABSL_USES_STD_SOURCE_LOCATION 1
+#else
+#error options.h is misconfigured.
+#endif
 
 // ABSL_HAVE_STD_ORDERING
 //
@@ -696,7 +704,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Clang standalone LeakSanitizer (-fsanitize=leak)
 #elif ABSL_HAVE_FEATURE(leak_sanitizer)
 #define ABSL_HAVE_LEAK_SANITIZER 1
-#elif defined(ABSL_HAVE_ADDRESS_SANITIZER)
+#elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(_WIN32)
 // GCC or Clang using the LeakSanitizer integrated into AddressSanitizer.
 #define ABSL_HAVE_LEAK_SANITIZER 1
 #endif
@@ -799,6 +807,14 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_HAVE_ARM_NEON 1
 #endif
 
+#if ABSL_HAVE_BUILTIN(__builtin_LINE) && ABSL_HAVE_BUILTIN(__builtin_FILE)
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#elif defined(__GNUC__) && !defined(__clang__) && 5 <= __GNUC__ && __GNUC__ < 10
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1926
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#endif
+
 // ABSL_HAVE_CONSTANT_EVALUATED is used for compile-time detection of
 // constant evaluation support through `absl::is_constant_evaluated`.
 #ifdef ABSL_HAVE_CONSTANT_EVALUATED
@@ -810,27 +826,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
 #endif
 
-// ABSL_INTERNAL_CONSTEXPR_SINCE_CXXYY is used to conditionally define constexpr
-// for different C++ versions.
-//
-// These macros are an implementation detail and will be unconditionally removed
-// once the minimum supported C++ version catches up to a given version.
-//
-// For this reason, this symbol is considered INTERNAL and code outside of
-// Abseil must not use it.
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 constexpr
-#else
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-#endif
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 constexpr
-#else
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
-#endif
-
 // ABSL_INTERNAL_EMSCRIPTEN_VERSION combines Emscripten's three version macros
 // into an integer that can be compared against.
 #ifdef ABSL_INTERNAL_EMSCRIPTEN_VERSION
@@ -838,16 +833,16 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 #ifdef __EMSCRIPTEN__
 #include <emscripten/version.h>
-#ifdef __EMSCRIPTEN_major__
-#if __EMSCRIPTEN_minor__ >= 1000
-#error __EMSCRIPTEN_minor__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#ifdef __EMSCRIPTEN_MAJOR__
+#if __EMSCRIPTEN_MINOR__ >= 1000
+#error __EMSCRIPTEN_MINOR__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
 #endif
-#if __EMSCRIPTEN_tiny__ >= 1000
-#error __EMSCRIPTEN_tiny__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#if __EMSCRIPTEN_TINY__ >= 1000
+#error __EMSCRIPTEN_TINY__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
 #endif
 #define ABSL_INTERNAL_EMSCRIPTEN_VERSION                              \
-  ((__EMSCRIPTEN_major__) * 1000000 + (__EMSCRIPTEN_minor__) * 1000 + \
-   (__EMSCRIPTEN_tiny__))
+  ((__EMSCRIPTEN_MAJOR__) * 1000000 + (__EMSCRIPTEN_MINOR__) * 1000 + \
+   (__EMSCRIPTEN_TINY__))
 #endif
 #endif
 

@@ -138,6 +138,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rs,
               Operand rt) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
                    AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
@@ -417,6 +420,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPush(RegList regs);
   void MultiPushFPU(DoubleRegList regs);
   void MultiPushMSA(DoubleRegList regs);
+  void MultiPushFPUWideStride(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -458,6 +462,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Daddu(sp, sp, 3 * kPointerSize);
   }
 
+  // Pop four registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3, Register src4) {
+    Ld(src4, MemOperand(sp, 0 * kPointerSize));
+    Ld(src3, MemOperand(sp, 1 * kPointerSize));
+    Ld(src2, MemOperand(sp, 2 * kPointerSize));
+    Ld(src1, MemOperand(sp, 3 * kPointerSize));
+    Daddu(sp, sp, 4 * kPointerSize);
+  }
+
   void Pop(uint32_t count = 1) { Daddu(sp, sp, Operand(count * kPointerSize)); }
 
   // Pops multiple values from the stack and load them in the
@@ -465,6 +478,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPop(RegList regs);
   void MultiPopFPU(DoubleRegList regs);
   void MultiPopMSA(DoubleRegList regs);
+  void MultiPopFPUWideStride(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \
@@ -859,6 +873,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
+
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
@@ -1243,9 +1261,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register scratch2);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   template <typename Field>
   void DecodeField(Register dst, Register src) {

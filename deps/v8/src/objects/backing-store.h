@@ -22,17 +22,26 @@ class WasmMemoryObject;
 // Whether this is Wasm memory, and if 32 or 64 bit.
 enum class WasmMemoryFlag : uint8_t { kNotWasm, kWasmMemory32, kWasmMemory64 };
 
-// Whether the backing store is shared or not.
-enum class SharedFlag : uint8_t { kNotShared, kShared };
+// To indicate whether the backing store is shared or not, we reuse the global
+// SharedFlag enum.
 
 // Whether the backing store is resizable or not.
-enum class ResizableFlag : uint8_t { kNotResizable, kResizable };
+using ResizableFlag = base::StrongAlias<struct ResizableFlagTag, bool>;
 
 // Whether the backing store is mutable or not.
-enum class ImmutableFlag : uint8_t { kMutable, kImmutable };
+using ImmutableFlag = base::StrongAlias<struct ImmutableFlagTag, bool>;
 
 // Whether the backing store memory is initialied to zero or not.
-enum class InitializedFlag : uint8_t { kUninitialized, kZeroInitialized };
+using InitializedFlag = base::StrongAlias<struct InitializedFlagTag, bool>;
+
+// Whether the backing store has guard regions or not.
+using HasGuardRegions = base::StrongAlias<struct HasGuardRegionsTag, bool>;
+
+// Whether the backing store has a custom deleter.
+using CustomDeleter = base::StrongAlias<struct CustomDeleterTag, bool>;
+
+// Whether the backing store has an empty deleter.
+using EmptyDeleter = base::StrongAlias<struct EmptyDeleterTag, bool>;
 
 // Internal information for shared wasm memories. E.g. contains
 // a list of all memory objects (across all isolates) that share this
@@ -74,7 +83,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       Isolate* isolate, size_t byte_length, size_t max_byte_length,
       size_t page_size, size_t initial_pages, size_t maximum_pages,
       WasmMemoryFlag wasm_memory, SharedFlag shared,
-      bool has_guard_regions = false);
+      HasGuardRegions has_guard_regions = HasGuardRegions{false});
 
   // Create a backing store that wraps existing allocated memory.
   static std::unique_ptr<BackingStore> WrapAllocation(
@@ -104,7 +113,14 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool is_immutable() const { return has_flag(kIsImmutable); }
   bool is_wasm_memory() const { return has_flag(kIsWasmMemory); }
   bool is_wasm_memory64() const { return has_flag(kIsWasmMemory64); }
-  bool has_guard_regions() const { return has_flag(kHasGuardRegions); }
+  WasmMemoryFlag wasm_memory_flag() const {
+    if (is_wasm_memory64()) return WasmMemoryFlag::kWasmMemory64;
+    if (is_wasm_memory()) return WasmMemoryFlag::kWasmMemory32;
+    return WasmMemoryFlag::kNotWasm;
+  }
+  HasGuardRegions has_guard_regions() const {
+    return HasGuardRegions{has_flag(kHasGuardRegions)};
+  }
 
   void set_is_immutable(bool immutable) {
     if (immutable) {
@@ -203,9 +219,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   uint32_t id() const { return id_; }
 
   // Return the size of the reservation needed for a wasm backing store.
-  static size_t GetWasmReservationSize(bool has_guard_regions,
+  static size_t GetWasmReservationSize(HasGuardRegions has_guard_regions,
                                        size_t byte_capacity,
-                                       bool is_wasm_memory64);
+                                       WasmMemoryFlag wasm_memory);
 
  private:
   friend class GlobalBackingStoreRegistry;
@@ -225,9 +241,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               ImmutableFlag immutable, bool is_wasm_memory,
-               bool is_wasm_memory64, bool has_guard_regions,
-               bool custom_deleter, bool empty_deleter);
+               ImmutableFlag immutable, WasmMemoryFlag wasm_memory,
+               HasGuardRegions has_guard_regions, CustomDeleter custom_deleter,
+               EmptyDeleter empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);

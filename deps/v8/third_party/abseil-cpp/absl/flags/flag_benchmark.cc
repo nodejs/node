@@ -15,6 +15,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,6 @@
 #include "absl/flags/reflection.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 #include "benchmark/benchmark.h"
 
 namespace {
@@ -32,10 +32,10 @@ using String = std::string;
 using VectorOfStrings = std::vector<std::string>;
 using AbslDuration = absl::Duration;
 
-// We do not want to take over marshalling for the types absl::optional<int>,
-// absl::optional<std::string> which we do not own. Instead we introduce unique
+// We do not want to take over marshalling for the types std::optional<int>,
+// std::optional<std::string> which we do not own. Instead we introduce unique
 // "aliases" to these types, which we do.
-using AbslOptionalInt = absl::optional<int>;
+using AbslOptionalInt = std::optional<int>;
 struct OptionalInt : AbslOptionalInt {
   using AbslOptionalInt::AbslOptionalInt;
 };
@@ -54,7 +54,7 @@ std::string AbslUnparseFlag(const OptionalInt& flag) {
   return !flag ? "" : absl::UnparseFlag(*flag);
 }
 
-using AbslOptionalString = absl::optional<std::string>;
+using AbslOptionalString = std::optional<std::string>;
 struct OptionalString : AbslOptionalString {
   using AbslOptionalString::AbslOptionalString;
 };

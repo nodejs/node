@@ -47,7 +47,6 @@
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
-#include "absl/debugging/internal/borrowed_fixup_buffer.h"
 #include "absl/debugging/internal/stacktrace_config.h"
 
 #if defined(ABSL_STACKTRACE_INL_HEADER)
@@ -92,19 +91,6 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
   }
 #endif
 
-  // Some implementations of FixUpStack may need to be passed frame
-  // information from Unwind, even if the caller doesn't need that
-  // information. We allocate the necessary buffers for such implementations
-  // here.
-  const internal_stacktrace::BorrowedFixupBuffer fixup_buffer(
-      unwind_with_fixup ? max_depth : 0);
-  if (frames == nullptr) {
-    frames = fixup_buffer.frames();
-  }
-  if (sizes == nullptr) {
-    sizes = fixup_buffer.sizes();
-  }
-
   Unwinder g = custom.load(std::memory_order_acquire);
   size_t size;
   // Add 1 to skip count for the unwinder function itself
@@ -117,14 +103,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
       std::fill(frames, frames + size, uintptr_t());
     }
   } else {
-    size = static_cast<size_t>(
-        unwind_with_fixup
-            ? UnwindImpl<true, IS_WITH_CONTEXT>(
-                  result, frames, sizes, static_cast<int>(max_depth),
-                  skip_count, uc, min_dropped_frames)
-            : UnwindImpl<IS_STACK_FRAMES, IS_WITH_CONTEXT>(
-                  result, frames, sizes, static_cast<int>(max_depth),
-                  skip_count, uc, min_dropped_frames));
+    size = static_cast<size_t>(UnwindImpl<IS_STACK_FRAMES, IS_WITH_CONTEXT>(
+        result, frames, sizes, static_cast<int>(max_depth), skip_count, uc,
+        min_dropped_frames));
   }
   if (unwind_with_fixup) {
     internal_stacktrace::FixUpStack(result, frames, sizes, max_depth, size);
@@ -136,22 +117,11 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
 
 }  // anonymous namespace
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
-internal_stacktrace::GetStackFrames(void** result, uintptr_t* frames,
-                                    int* sizes, int max_depth, int skip_count) {
-  return Unwind<true, false>(result, frames, sizes,
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackFrames(
+    void** result, int* sizes, int max_depth, int skip_count) {
+  return Unwind<true, false>(result, nullptr, sizes,
                              static_cast<size_t>(max_depth), skip_count,
                              nullptr, nullptr);
-}
-
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
-internal_stacktrace::GetStackFramesWithContext(void** result, uintptr_t* frames,
-                                               int* sizes, int max_depth,
-                                               int skip_count, const void* uc,
-                                               int* min_dropped_frames) {
-  return Unwind<true, true>(result, frames, sizes,
-                            static_cast<size_t>(max_depth), skip_count, uc,
-                            min_dropped_frames);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
@@ -160,6 +130,15 @@ internal_stacktrace::GetStackTraceNoFixup(void** result, int max_depth,
   return Unwind<false, false>(result, nullptr, nullptr,
                               static_cast<size_t>(max_depth), skip_count,
                               nullptr, nullptr, /*unwind_with_fixup=*/false);
+}
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+GetStackFramesWithContext(void** result, int* sizes, int max_depth,
+                          int skip_count, const void* uc,
+                          int* min_dropped_frames) {
+  return Unwind<true, true>(result, nullptr, sizes,
+                            static_cast<size_t>(max_depth), skip_count, uc,
+                            min_dropped_frames);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(
@@ -181,9 +160,8 @@ void SetStackUnwinder(Unwinder w) {
   custom.store(w, std::memory_order_release);
 }
 
-ABSL_ATTRIBUTE_ALWAYS_INLINE static inline int DefaultStackUnwinderImpl(
-    void** pcs, uintptr_t* frames, int* sizes, int depth, int skip,
-    const void* uc, int* min_dropped_frames) {
+int DefaultStackUnwinder(void** pcs, int* sizes, int depth, int skip,
+                         const void* uc, int* min_dropped_frames) {
   skip++;  // For this function
   decltype(&UnwindImpl<false, false>) f;
   if (sizes == nullptr) {
@@ -199,25 +177,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE static inline int DefaultStackUnwinderImpl(
       f = &UnwindImpl<true, true>;
     }
   }
-  return (*f)(pcs, frames, sizes, depth, skip, uc, min_dropped_frames);
-}
-
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
-internal_stacktrace::DefaultStackUnwinder(void** pcs, uintptr_t* frames,
-                                          int* sizes, int depth, int skip,
-                                          const void* uc,
-                                          int* min_dropped_frames) {
-  int n = DefaultStackUnwinderImpl(pcs, frames, sizes, depth, skip, uc,
-                                   min_dropped_frames);
-  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
-  return n;
-}
-
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int DefaultStackUnwinder(
-    void** pcs, int* sizes, int depth, int skip, const void* uc,
-    int* min_dropped_frames) {
-  int n = DefaultStackUnwinderImpl(pcs, nullptr, sizes, depth, skip, uc,
-                                   min_dropped_frames);
+  int n = (*f)(pcs, nullptr, sizes, depth, skip, uc, min_dropped_frames);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return n;
 }

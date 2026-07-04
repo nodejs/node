@@ -122,7 +122,7 @@ void BaselineAssembler::LoadFixedArrayElement(Register output, Register array,
 
 void BaselineAssembler::LoadPrototype(Register prototype, Register object) {
   __ LoadMap(prototype, object);
-  LoadTaggedField(prototype, prototype, Map::kPrototypeOffset);
+  LoadTaggedField(prototype, prototype, offsetof(Map, prototype_));
 }
 void BaselineAssembler::LoadContext(Register output) {
   LoadRegister(output, interpreter::Register::current_context());

@@ -26,6 +26,9 @@ v8_target_cpu = rule(
     implementation = _host_target_cpu_impl,
     build_setting = config.string(flag = True),
     doc = "CPU that V8 will generate code for.",
+    attrs = {
+        "scope": attr.string(),
+    },
 )
 
 def v8_configure_target_cpu(name, matching_configs):

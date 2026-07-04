@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // TODOC: Document what this class is used for.
+@cppObjectLayoutDefinition
 extern class PropertyCell extends HeapObject {
   name: AnyName;
   property_details_raw: Smi;

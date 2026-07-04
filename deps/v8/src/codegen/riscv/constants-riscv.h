@@ -13,6 +13,7 @@
 #include "src/codegen/riscv/constant-riscv-i.h"
 #include "src/codegen/riscv/constant-riscv-m.h"
 #include "src/codegen/riscv/constant-riscv-v.h"
+#include "src/codegen/riscv/constant-riscv-zfa.h"
 #include "src/codegen/riscv/constant-riscv-zfh.h"
 #include "src/codegen/riscv/constant-riscv-zicsr.h"
 #include "src/codegen/riscv/constant-riscv-zifencei.h"
@@ -30,6 +31,11 @@ constexpr int64_t kSQuietNanMask = 0x1LL << kSQuietNanBit;
 #ifdef USE_SIMULATOR
 const int kInitialShadowStackSize = 1024;
 #endif  // USE_SIMULATOR
+
+constexpr uint64_t kFP64DefaultNaN = 0x7FF8000000000000UL;
+constexpr uint32_t kFP32DefaultNaN = 0x7FC00000;
+constexpr uint32_t kFP32FltMin = 0x00800000;
+constexpr uint64_t kFP64DblMin = 0x0010000000000000ULL;
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANTS_RISCV_H_

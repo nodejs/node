@@ -1,0 +1,92 @@
+header: limits.h
+standards:
+  - stdc
+macros:
+  - macro_name: CHAR_BIT
+    macro_header: limits-macros.h
+  - macro_name: MB_LEN_MAX
+    macro_header: limits-macros.h
+  - macro_name: CHAR_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: SCHAR_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: UCHAR_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: SHRT_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: USHRT_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: INT_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: UINT_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: LONG_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: ULONG_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: LLONG_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: ULLONG_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: BOOL_WIDTH
+    macro_header: limits-macros.h
+  - macro_name: SCHAR_MAX
+    macro_header: limits-macros.h
+  - macro_name: UCHAR_MAX
+    macro_header: limits-macros.h
+  - macro_name: CHAR_MAX
+    macro_header: limits-macros.h
+  - macro_name: SHRT_MAX
+    macro_header: limits-macros.h
+  - macro_name: USHRT_MAX
+    macro_header: limits-macros.h
+  - macro_name: INT_MAX
+    macro_header: limits-macros.h
+  - macro_name: UINT_MAX
+    macro_header: limits-macros.h
+  - macro_name: LONG_MAX
+    macro_header: limits-macros.h
+  - macro_name: ULONG_MAX
+    macro_header: limits-macros.h
+  - macro_name: LLONG_MAX
+    macro_header: limits-macros.h
+  - macro_name: ULLONG_MAX
+    macro_header: limits-macros.h
+  - macro_name: SCHAR_MIN
+    macro_header: limits-macros.h
+  - macro_name: UCHAR_MIN
+    macro_header: limits-macros.h
+  - macro_name: CHAR_MIN
+    macro_header: limits-macros.h
+  - macro_name: SHRT_MIN
+    macro_header: limits-macros.h
+  - macro_name: USHRT_MIN
+    macro_header: limits-macros.h
+  - macro_name: INT_MIN
+    macro_header: limits-macros.h
+  - macro_name: UINT_MIN
+    macro_header: limits-macros.h
+  - macro_name: LONG_MIN
+    macro_header: limits-macros.h
+  - macro_name: ULONG_MIN
+    macro_header: limits-macros.h
+  - macro_name: LLONG_MIN
+    macro_header: limits-macros.h
+  - macro_name: ULLONG_MIN
+    macro_header: limits-macros.h
+  - macro_name: _POSIX_NAME_MAX
+    macro_header: limits-macros.h
+  - macro_name: _POSIX_PATH_MAX
+    macro_header: limits-macros.h
+  - macro_name: PATH_MAX
+    macro_header: limits-macros.h
+  - macro_name: _POSIX_THREAD_DESTRUCTOR_ITERATIONS
+    macro_header: limits-macros.h
+  - macro_name: PTHREAD_DESTRUCTOR_ITERATIONS
+    macro_header: limits-macros.h
+  - macro_name: SSIZE_MAX
+    macro_header: limits-macros.h
+types: []
+enums: []
+objects: []
+functions: []

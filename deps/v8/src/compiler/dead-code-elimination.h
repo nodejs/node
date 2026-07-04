@@ -22,9 +22,8 @@ class CommonOperatorBuilder;
 // {Type::None()} with {DeadValue}. A pure node (other than a phi) using
 // {DeadValue} is replaced by {DeadValue}. When {DeadValue} hits the effect
 // chain, a crashing {Unreachable} node is inserted and the rest of the effect
-// chain is collapsed. We wait for the {EffectControlLinearizer} to connect
-// {Unreachable} nodes to the graph end, since this is much easier if there is
-// no floating control.
+// chain is collapsed. We wait for Turboshaft to prune graphs after
+// {Unreachable}, since this is much easier if there is no floating control.
 // {DeadValue} has an input, which has to have {Type::None()}. This input is
 // important to maintain the dependency on the cause of the unreachable code.
 // {Unreachable} has a value output and {Type::None()} so it can be used by

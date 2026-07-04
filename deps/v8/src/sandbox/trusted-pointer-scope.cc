@@ -5,6 +5,7 @@
 #include "src/sandbox/trusted-pointer-scope.h"
 
 #include "src/objects/heap-object-inl.h"
+#include "src/sandbox/trusted-pointer-table-inl.h"
 
 #ifdef V8_ENABLE_SANDBOX
 

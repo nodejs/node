@@ -95,7 +95,7 @@
 // // describes is preferred, unless inconsistent with surrounding code.
 // absl_nonnull std::unique_ptr<Employee> employee;
 //
-// // Invalid annotation usage – this attempts to declare a pointer to a
+// // Invalid annotation usage - this attempts to declare a pointer to a
 // // nullable `Employee`, which is meaningless.
 // absl_nullable Employee* e;
 //
@@ -130,7 +130,7 @@
 //
 // // CompleteTransaction() guarantees the returned pointer to an `Account` to
 // // be non-null.
-// Account* absl_nonnull balance CompleteTransaction(double fee) {
+// Account* absl_nonnull CompleteTransaction(double fee) {
 // ...
 // }
 //
@@ -180,6 +180,7 @@
 // `absl_nonnull` is *not guaranteed* to be non-null, and the compiler won't
 // alert or prevent assignment of a `T* absl_nullable` to a `T* absl_nonnull`.
 // ===========================================================================
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
 #ifndef ABSL_BASE_NULLABILITY_H_
 #define ABSL_BASE_NULLABILITY_H_
 
@@ -203,7 +204,7 @@
 //     T* absl_nullable GetNullablePtr();           // explicitly nullable
 //     T* absl_nullability_unknown GetUnknownPtr();  // explicitly unknown
 //
-// The macro can be safely used in header files – it will not affect any files
+// The macro can be safely used in header files - it will not affect any files
 // that include it.
 //
 // In files with the macro, plain `T*` syntax means `T* absl_nonnull`, and the

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -22,7 +23,7 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
   // few parts; if heap storage is used at all then all parts are copied there.
   uint32_t num_stack_parts = accumulator->stack_parts_used_;
   if (num_stack_parts == 1) return;
-  const std::vector<digit_t>& heap_parts = accumulator->heap_parts_;
+  const GrowableDigitsVector& heap_parts = accumulator->heap_parts_;
   uint32_t num_heap_parts = static_cast<uint32_t>(heap_parts.size());
   // All multipliers are the same, except possibly for the last.
   const digit_t max_multiplier = accumulator->max_multiplier_;
@@ -66,9 +67,9 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 //   Parts and multipliers both grow in each iteration, and get fewer, so we
 //   use the space of two adjacent old chunks for one new chunk.
 //   Since the {heap_parts_} vector has the right size, we can use that memory.
-//   {Z} is also big enough, but in-sandbox, so to guard against concurrent
-//   modifications we don't use it for temporary values, only for the final
-//   result. So we need to allocate two scratch vectors.
+//   {Z} is also big enough, but it's convenient to let only the last round
+//   write into it, so the result always ends up in the right place without
+//   needing another copy. So we need to allocate two scratch vectors.
 // - We don't have to keep track of the positions and sizes of the chunks,
 //   because we can deduce their precise placement from the iteration index.
 //
@@ -90,13 +91,9 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
                                     FromStringAccumulator* accumulator) {
   uint32_t num_parts = static_cast<uint32_t>(accumulator->heap_parts_.size());
   DCHECK(num_parts >= 2);
-  // This is a release-mode check to guard against concurrent in-sandbox
-  // corruption. Due to the rotating-buffer scheme described above, if Z
-  // was too short, the algorithm would get confused and eventually perform
-  // OOB writes into {multipliers_storage} (allocated below).
-  CHECK(Z.len() >= num_parts);
+  DCHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
-  Storage temp_storage(num_parts * 2);
+  Storage temp_storage(num_parts * 2, platform());
   RWDigits multipliers(temp_storage.get(), num_parts);
   RWDigits temp(temp_storage.get() + num_parts, num_parts);
   // Unrolled and specialized first iteration: part_len == 1, so instead of
@@ -244,10 +241,9 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
   const uint32_t num_parts = accumulator->ResultLength();
   DCHECK(num_parts >= 1);
   DCHECK(Z.len() >= num_parts);
-  Digits parts(accumulator->heap_parts_.empty()
-                   ? accumulator->stack_parts_
-                   : accumulator->heap_parts_.data(),
-               num_parts);
+  const digit_t* parts = accumulator->heap_parts_.empty()
+                             ? accumulator->stack_parts_
+                             : accumulator->heap_parts_.data();
   uint8_t radix = accumulator->radix_;
   DCHECK(radix == 2 || radix == 4 || radix == 8 || radix == 16 || radix == 32);
   const int char_bits = BitLength(radix - 1);
@@ -316,7 +312,7 @@ void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
     for (uint32_t i = 0; i < Z.len(); i++) Z[i] = 0;
   } else if (IsPowerOfTwo(accumulator->radix_)) {
     FromStringBasePowerOfTwo(Z, accumulator);
-  } else if (accumulator->ResultLength() < kFromStringLargeThreshold) {
+  } else if (accumulator->ResultLength() < config::kFromStringLargeThreshold) {
     FromStringClassic(Z, accumulator);
   } else {
     FromStringLarge(Z, accumulator);

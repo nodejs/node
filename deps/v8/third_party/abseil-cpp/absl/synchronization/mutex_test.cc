@@ -56,7 +56,7 @@ static constexpr bool kExtendedTest = false;
 
 std::unique_ptr<absl::synchronization_internal::ThreadPool> CreatePool(
     int threads) {
-  return absl::make_unique<absl::synchronization_internal::ThreadPool>(threads);
+  return std::make_unique<absl::synchronization_internal::ThreadPool>(threads);
 }
 
 std::unique_ptr<absl::synchronization_internal::ThreadPool>
@@ -868,7 +868,7 @@ TEST(Mutex, LockedMutexDestructionBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
   for (int i = 0; i != 10; i++) {
     // Create, lock and destroy 10 locks.
     const int kNumLocks = 10;
-    auto mu = absl::make_unique<absl::Mutex[]>(kNumLocks);
+    auto mu = std::make_unique<absl::Mutex[]>(kNumLocks);
     for (int j = 0; j != kNumLocks; j++) {
       if ((j % 2) == 0) {
         mu[j].lock();
@@ -925,11 +925,11 @@ TEST(Mutex, FunctionPointerCondition) {
   EXPECT_FALSE(absl::Condition(TemplateEquals43, &const_x).Eval());
 
   // Parameter non-const, argument const is not well-formed.
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(Equals42),
-                                      decltype(&const_x)>::value));
+  EXPECT_FALSE((std::is_constructible_v<absl::Condition, decltype(Equals42),
+                                        decltype(&const_x)>));
   // Validate use of is_constructible by contrasting to a well-formed case.
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(ConstEquals42),
-                                     decltype(&const_x)>::value));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(ConstEquals42),
+                                       decltype(&const_x)>));
 }
 
 // Example base and derived class for use in predicates and test below. Not a
@@ -973,15 +973,15 @@ TEST(Mutex, FunctionPointerConditionWithDerivedToBaseConversion) {
 
   // Parameter derived, argument base is not well-formed.
   bool (*derived_pred)(const Derived *) = [](const Derived *) { return true; };
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                      Base *>::value));
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                      const Base *>::value));
+  EXPECT_FALSE((
+      std::is_constructible_v<absl::Condition, decltype(derived_pred), Base*>));
+  EXPECT_FALSE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                        const Base*>));
   // Validate use of is_constructible by contrasting to well-formed cases.
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                     Derived *>::value));
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                     const Derived *>::value));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                       Derived*>));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                       const Derived*>));
 }
 
 struct Constable {
@@ -992,6 +992,20 @@ TEST(Mutex, FunctionPointerConditionWithConstMethod) {
   const Constable chapman;
   EXPECT_TRUE(absl::Condition(&chapman, &Constable::WotsAllThisThen).Eval());
 }
+
+#ifdef __cpp_explicit_this_parameter
+struct TrueViaDeducingThis {
+  template <class This, class... Args>
+  bool operator()(this const This&, Args...) {
+    return true;
+  }
+};
+
+TEST(Mutex, FunctorConditionDeducingThis) {
+  TrueViaDeducingThis f;
+  EXPECT_TRUE(absl::Condition(&f).Eval());
+}
+#endif
 
 struct True {
   template <class... Args>
@@ -1292,7 +1306,7 @@ TEST(Mutex, DeadlockDetectorStressTest) ABSL_NO_THREAD_SAFETY_ANALYSIS {
   // If a deadlock detector keeps a full graph of lock acquisition order,
   // it will likely be too slow for this test to pass.
   const int n_locks = 1 << 17;
-  auto array_of_locks = absl::make_unique<absl::Mutex[]>(n_locks);
+  auto array_of_locks = std::make_unique<absl::Mutex[]>(n_locks);
   for (int i = 0; i < n_locks; i++) {
     int end = std::min(n_locks, i + 5);
     // acquire and then release locks i, i+1, ..., i+4

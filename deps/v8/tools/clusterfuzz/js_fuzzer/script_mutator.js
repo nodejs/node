@@ -31,6 +31,7 @@ const { CrossOverMutator } = require('./mutators/crossover_mutator.js');
 const { ExpressionMutator } = require('./mutators/expression_mutator.js');
 const { FunctionCallMutator } = require('./mutators/function_call_mutator.js');
 const { IdentifierNormalizer } = require('./mutators/normalizer.js');
+const { MemoryCorruptionMutator } = require('./mutators/memory_corruption_mutator.js');
 const { MutationContext } = require('./mutators/mutator.js');
 const { NumberMutator } = require('./mutators/number_mutator.js');
 const { ObjectMutator } = require('./mutators/object_mutator.js');
@@ -47,6 +48,8 @@ const MAX_EXTRA_MUTATIONS = 5;
 function defaultSettings() {
   return {
     ADD_VAR_OR_OBJ_MUTATIONS: 0.1,
+    CORRUPT_MEMORY: 0.1,
+    CORRUPT_MEMORY_VIA_WATCHPOINTS: 0.01,
     DIFF_FUZZ_BLOCK_PRINT: 0.1,
     DIFF_FUZZ_EXTRA_PRINT: 0.2,
     DIFF_FUZZ_TRACK_CAUGHT: 0.5,
@@ -71,6 +74,10 @@ function defaultSettings() {
     // appear often appear in test input and subsequent mutations are more
     // likely without these closures.
     TRANSFORM_CLOSURES: 0.2,
+    // Sandbox fuzzing is enabled automatically when the memory-corruption
+    // api is available.
+    is_sandbox_fuzzing: false,
+    is_x64_linux: false,
   };
 }
 
@@ -91,6 +98,12 @@ class Result {
   }
 }
 
+function loadJSONFromBuild(name) {
+  assert(process.env.APP_DIR);
+  const fullPath = path.join(path.resolve(process.env.APP_DIR), name);
+  return JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+}
+
 class ScriptMutator {
   constructor(settings, db_path=undefined) {
     // Use process.cwd() to bypass pkg's snapshot filesystem.
@@ -108,6 +121,7 @@ class ScriptMutator {
     ];
     this.timeout = new AllocationTimeoutMutator(settings);
     this.closures = new ClosureRemover(settings);
+    this.memory = new MemoryCorruptionMutator(settings);
     this.trycatch = new AddTryCatchMutator(settings);
     this.unicode = new StringUnicodeMutator(settings);
     this.settings = settings;
@@ -224,6 +238,11 @@ class ScriptMutator {
     // Try-catch wrapping should follow after error-prone mutations.
     mutators.push(this.trycatch);
 
+    // Add memory corruptions if the API is available.
+    if (this.settings.is_sandbox_fuzzing) {
+      mutators.push(this.memory);
+    }
+
     // Non-error-prone mutations that should not get further arbitrarily mutated.
     // It is ok to unicode escape, as we do next.
     mutators.push(this.timeout);
@@ -314,6 +333,10 @@ class ScriptMutator {
     // functions from earlier dependencies that cause early bailouts.
     dependencies.push(sourceHelpers.loadResource('fuzz_library.js'));
 
+    if (this.settings.is_sandbox_fuzzing) {
+      dependencies.push(sourceHelpers.loadResource('sandbox_fuzz_library.js'));
+    }
+
     return dependencies;
   }
 
@@ -360,10 +383,20 @@ class ScriptMutator {
     const dependencies = this.resolveDependencies(inputs);
     const combinedSource = this.mutateInputs(inputs, dependencies);
     const code = sourceHelpers.generateCode(combinedSource, dependencies);
+
+    const requiredFlags = [];
+    if (this.memory.usedWatchpoints) {
+      requiredFlags.push('--memory-corruption-via-watchpoints');
+    }
+
     const allFlags = common.concatFlags(dependencies.concat([combinedSource]));
     const filteredFlags = exceptions.resolveContradictoryFlags(
         exceptions.filterFlags(allFlags));
-    return new Result(code, filteredFlags);
+
+    const finalFlags = requiredFlags.concat(
+        filteredFlags.filter(f => !requiredFlags.includes(f)));
+
+    return new Result(code, finalFlags);
   }
 }
 
@@ -401,6 +434,7 @@ class WasmScriptMutator extends ScriptMutator {
 module.exports = {
   analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
+  loadJSONFromBuild: loadJSONFromBuild,
   ScriptMutator: ScriptMutator,
   WasmScriptMutator: WasmScriptMutator,
 };

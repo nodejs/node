@@ -604,7 +604,9 @@ void SharedMacroAssemblerBase::I16x8ExtMulHighS(XMMRegister dst,
     vpsraw(dst, dst, 8);
     vpmullw(dst, dst, scratch);
   } else {
-    if (dst != src1) {
+    if (dst == src2 && src1 != src2) {
+      std::swap(src1, src2);
+    } else if (dst != src1) {
       movaps(dst, src1);
     }
     movaps(scratch, src2);
@@ -646,7 +648,7 @@ void SharedMacroAssemblerBase::I16x8ExtMulHighU(XMMRegister dst,
         movaps(dst, src1);
       }
       punpckhbw(dst, scratch);
-      pmullw(dst, scratch);
+      pmullw(dst, dst);
     } else {
       // When dst == src1, nothing special needs to be done.
       // When dst == src2, swap src1 and src2, since we overwrite dst.

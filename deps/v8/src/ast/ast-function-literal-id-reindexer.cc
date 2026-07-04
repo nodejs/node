@@ -15,7 +15,8 @@ AstFunctionLiteralIdReindexer::AstFunctionLiteralIdReindexer(size_t stack_limit,
 
 AstFunctionLiteralIdReindexer::~AstFunctionLiteralIdReindexer() = default;
 
-void AstFunctionLiteralIdReindexer::Reindex(Expression* pattern) {
+void AstFunctionLiteralIdReindexer::Reindex(Expression* pattern,
+                                            const AllowReindexScope& scope) {
 #ifdef DEBUG
   visited_.clear();
 #endif

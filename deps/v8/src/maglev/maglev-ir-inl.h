@@ -109,14 +109,22 @@ CallKnownJSFunction::CallKnownJSFunction(
   set_input(kNewTargetIndex, new_target);
 }
 
-void NodeBase::UnwrapDeoptFrames() {
-  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
-  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
-    eager_deopt_info()->Unwrap();
-  }
-  if (properties().can_lazy_deopt()) {
-    lazy_deopt_info()->Unwrap();
-  }
+CallKnownBuiltin::CallKnownBuiltin(
+    uint64_t bitfield, Builtin builtin_id, JSDispatchHandle dispatch_handle,
+    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target,
+    const compiler::FeedbackSource& feedback_source)
+    : Base(bitfield),
+      builtin_id_(builtin_id),
+      shared_function_info_(shared_function_info),
+      expected_parameter_count_(
+          Isolate::Current()->js_dispatch_table().GetParameterCount(
+              dispatch_handle)),
+      feedback_source_(feedback_source) {
+  set_input(kTargetIndex, closure);
+  set_input(kContextIndex, context);
+  set_input(kReceiverIndex, receiver);
+  set_input(kNewTargetIndex, new_target);
 }
 
 void NodeBase::ClearInputs() {
@@ -162,11 +170,6 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
   ClearInputs();
-  // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes. But we can remove uses from Identity and
-  // ReturnedValue nodes.
-  UnwrapDeoptFrames();
-
   set_opcode(Opcode::kIdentity);
   set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
   bitfield_ = InputCountField::update(bitfield_, 1);
@@ -185,11 +188,6 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
   ClearInputs();
-  // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes. But we can remove uses from Identity and
-  // ReturnedValue nodes.
-  UnwrapDeoptFrames();
-
   RegisterSnapshot registers = register_snapshot();
   set_opcode(Opcode::kReturnedValue);
   set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));

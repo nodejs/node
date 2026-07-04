@@ -389,12 +389,6 @@ HWY_API Vec256<T> Not(const Vec256<T> v) {
                                                         BitCast(du, v).raw)});
 }
 
-// ------------------------------ Xor3
-template <typename T>
-HWY_API Vec256<T> Xor3(Vec256<T> x1, Vec256<T> x2, Vec256<T> x3) {
-  return Xor(x1, Xor(x2, x3));
-}
-
 // ------------------------------ Or3
 template <typename T>
 HWY_API Vec256<T> Or3(Vec256<T> o1, Vec256<T> o2, Vec256<T> o3) {
@@ -2479,7 +2473,7 @@ HWY_API Vec256<T> TableLookupLanes(Vec256<T> v, Indices256<T> idx) {
   // Replicate 64-bit index into upper 32 bits
   const Vec256<TI> dup{__lasx_xvpackev_w(idx.raw, idx.raw)};
   // For each idx64 i, idx32 are 2*i and 2*i+1.
-  const Vec256<TI> idx32 = dup + dup + Set(di64, int64_t(1) << 32);
+  const Vec256<TI> idx32 = dup + dup + Set(di64, int64_t{1} << 32);
   return BitCast(
       d, TableLookupLanes(BitCast(di32, v), Indices256<int32_t>{idx32.raw}));
 }
@@ -2530,6 +2524,17 @@ HWY_API V InterleaveEvenBlocks(D d, V a, V b) {
 template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
 HWY_API V InterleaveOddBlocks(D d, V a, V b) {
   return ConcatUpperUpper(d, b, a);
+}
+
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveLowerBlocks(D d, V a, V b) {
+  return InterleaveEvenBlocks(d, a, b);
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_D(D, 32)>
+HWY_API V InterleaveUpperBlocks(D d, V a, V b) {
+  return InterleaveOddBlocks(d, a, b);
 }
 
 // ------------------------------ Reverse (RotateRight)

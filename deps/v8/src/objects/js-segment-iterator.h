@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -20,26 +21,18 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace U_ICU_NAMESPACE {
-class BreakIterator;
-class UnicodeString;
-}  // namespace U_ICU_NAMESPACE
-
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segment-iterator-tq.inc"
-
-class JSSegmentIterator
-    : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
+V8_OBJECT class JSSegmentIterator : public JSObject {
  public:
-  // ecma402 #sec-CreateSegmentIterator
+  // https://tc39.es/ecma402/#sec-CreateSegmentIterator
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
       Isolate* isolate, DirectHandle<String> input_string,
-      DirectHandle<Managed<icu::BreakIterator>> incoming_break_iterator,
+      const icu::BreakIterator& incoming_break_iterator,
       JSSegmenter::Granularity granularity);
 
-  // ecma402 #sec-segment-iterator-prototype-next
+  // https://tc39.es/ecma402/#sec-segment-iterator-prototype-next
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> Next(
       Isolate* isolate,
       DirectHandle<JSSegmentIterator> segment_iterator_holder);
@@ -47,39 +40,86 @@ class JSSegmentIterator
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
-  DECL_ACCESSORS(raw_string, Tagged<String>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
+  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+      const;
+  inline void set_icu_iterator_with_text(
+      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> raw_string() const;
+  inline void set_raw_string(Tagged<String> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   DECL_PRINTER(JSSegmentIterator)
+  DECL_VERIFIER(JSSegmentIterator)
 
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_SEGMENT_ITERATOR_FLAGS()
+  using GranularityBits =
+      base::BitField<JSSegmenter::Granularity, 0, 2, uint32_t>;
 
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::GRAPHEME));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentIterator)
-};
+  static const int kHeaderSize;
 
-class JSSegmentDataObject
-    : public TorqueGeneratedJSSegmentDataObject<JSSegmentDataObject, JSObject> {
  public:
- private:
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObject)
-};
+  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<String> raw_string_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
 
-class JSSegmentDataObjectWithIsWordLike
-    : public TorqueGeneratedJSSegmentDataObjectWithIsWordLike<
-          JSSegmentDataObjectWithIsWordLike, JSSegmentDataObject> {
+inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);
+
+V8_OBJECT class JSSegmentDataObject : public JSObject {
  public:
- private:
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObjectWithIsWordLike)
-};
+  inline Tagged<String> segment() const;
+  inline void set_segment(Tagged<String> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> index() const;
+  inline void set_index(Tagged<Number> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> input() const;
+  inline void set_input(Tagged<String> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_VERIFIER(JSSegmentDataObject)
+
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<String> segment_;
+  TaggedMember<Number> index_;
+  TaggedMember<String> input_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSegmentDataObject::kHeaderSize =
+    sizeof(JSSegmentDataObject);
+
+V8_OBJECT class JSSegmentDataObjectWithIsWordLike : public JSSegmentDataObject {
+ public:
+  inline Tagged<Boolean> is_word_like() const;
+  inline void set_is_word_like(Tagged<Boolean> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_VERIFIER(JSSegmentDataObjectWithIsWordLike)
+
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Boolean> is_word_like_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSegmentDataObjectWithIsWordLike::kHeaderSize =
+    sizeof(JSSegmentDataObjectWithIsWordLike);
 
 }  // namespace internal
 }  // namespace v8

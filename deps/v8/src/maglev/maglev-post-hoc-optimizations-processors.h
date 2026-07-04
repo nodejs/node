@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/numbers/conversions.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::maglev {
@@ -39,7 +40,9 @@ class RecomputePhiUseHintsProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_phi()) return BlockProcessResult::kContinue;
     Phi::List& phis = *block->phis();
@@ -87,6 +90,12 @@ class RecomputePhiUseHintsProcessor {
   }
 
   ProcessResult Process(CheckSmi* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  template <typename Derived>
+  ProcessResult Process(AssumeTypeT<Derived>* node,
+                        const ProcessingState& state) {
     return ProcessResult::kContinue;
   }
 
@@ -165,7 +174,9 @@ class LoopOptimizationProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
@@ -309,8 +320,14 @@ constexpr bool CanBeStoreToNonEscapedObject() {
 
 class AnyUseMarkingProcessor {
  public:
+  // TODO(victorgomes): extract the escape analysis to a separate processor.
+  explicit AnyUseMarkingProcessor(bool run_maglev_escape_analysis = true)
+      : run_maglev_escape_analysis_(run_maglev_escape_analysis) {}
+
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -346,12 +363,16 @@ class AnyUseMarkingProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {
-    RunEscapeAnalysis(graph);
-    DropUseOfValueInStoresToCapturedAllocations();
+    if (run_maglev_escape_analysis_) {
+      RunEscapeAnalysis(graph);
+      DropUseOfValueInStoresToCapturedAllocations();
+      DCHECK(drop_uses_stack_.empty());
+    }
   }
 
  private:
   std::vector<Node*> stores_to_allocations_;
+  base::SmallVector<ValueNode*, 8> drop_uses_stack_;
 
   void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
                         Graph::SmallAllocationVector& deps) {
@@ -382,7 +403,7 @@ class AnyUseMarkingProcessor {
       auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
-      if (alloc->IsEscaping()) {
+      if (alloc->HasEscapingUses()) {
         // Escape this allocation and all its dependencies.
         EscapeAllocation(graph, alloc, it.second);
       } else {
@@ -410,25 +431,46 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input input) {
+  void RemoveUseAndPushIfUnused(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
-        !input_node->Is<ArgumentsElements>())
+        !input_node->Is<ArgumentsElements>()) {
       return;
+    }
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
-      DropInputUses(input_node);
+      input_node->mark_unused_inputs_visited();
+      drop_uses_stack_.push_back(input_node);
     }
   }
 
-  void DropInputUses(ValueNode* node) {
-    for (Input input : node->inputs()) {
-      DropInputUses(input);
+  void DrainDropUsesStack() {
+    while (!drop_uses_stack_.empty()) {
+      ValueNode* current = drop_uses_stack_.back();
+      drop_uses_stack_.pop_back();
+      DCHECK(!current->properties().can_eager_deopt());
+      DCHECK(!current->properties().can_lazy_deopt());
+      for (Input input : current->inputs()) {
+        RemoveUseAndPushIfUnused(input);
+      }
     }
-    DCHECK(!node->properties().can_eager_deopt());
-    DCHECK(!node->properties().can_lazy_deopt());
-    node->mark_unused_inputs_visited();
   }
+
+  void DropInputUses(Input input) {
+    DCHECK(drop_uses_stack_.empty());
+    RemoveUseAndPushIfUnused(input);
+    DrainDropUsesStack();
+  }
+
+  void DropInputUses(ValueNode* node) {
+    DCHECK(drop_uses_stack_.empty());
+    DCHECK(!node->unused_inputs_were_visited());
+    drop_uses_stack_.push_back(node);
+    node->mark_unused_inputs_visited();
+    DrainDropUsesStack();
+  }
+
+  bool run_maglev_escape_analysis_;
 };
 
 class DeadNodeSweepingProcessor {
@@ -439,7 +481,9 @@ class DeadNodeSweepingProcessor {
     }
   }
   void PostProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -477,33 +521,282 @@ class DeadNodeSweepingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  (!NodeT::kProperties.is_required_when_unused() ||
-                   std::is_same_v<ArgumentsElements, NodeT>)) {
-      if (!node->is_used()) {
-        return ProcessResult::kRemove;
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (V8_UNLIKELY(v8_flags.trace_maglev_escape_analysis) &&
+          IsSweepableDeadNode(node)) {
+        InlinedAllocation* object =
+            node->input(0).node()->template Cast<InlinedAllocation>();
+        std::cout << "* Removing store node " << PrintNodeLabel(node)
+                  << " to allocation " << PrintNodeLabel(object) << std::endl;
       }
-      return ProcessResult::kContinue;
     }
+
+    if (IsSweepableDeadNode(node)) return ProcessResult::kRemove;
+
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  static bool IsSweepableDeadNode(NodeT* node) {
+    if (IsDead(node)) return true;
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node " << PrintNodeLabel(node)
-                      << " to allocation " << PrintNodeLabel(object)
-                      << std::endl;
-          }
-          return ProcessResult::kRemove;
-        }
+        if (!object->HasBeenAnalysed()) return false;
+        if (!object->HasEscaped()) return true;
+      }
+    }
+
+    return false;
+  }
+
+ private:
+  MaglevGraphLabeller* labeller_ = nullptr;
+};
+
+// Tracks which exception handlers are reachable by collecting catch blocks
+// from throwing nodes. Unreachable exception handlers (and their successors)
+// are aborted and marked dead.
+class ReachableExceptionHandlerTracker {
+ public:
+  explicit ReachableExceptionHandlerTracker(Graph* graph)
+      : graph_(graph), reachable_exception_handlers_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+
+  void MarkReachable(BasicBlock* block) {
+    reachable_exception_handlers_.insert(block);
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // TODO(victorgomes): Support removing the unreachable blocks instead of
+    // just skipping it.
+    if (V8_UNLIKELY(block->IsUnreachable())) {
+      return AbortBlock(block);
+    }
+
+    if (block->is_exception_handler_block()) {
+      if (!IsReachable(block)) {
+        return AbortBlock(block);
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      if (node->exception_handler_info()->HasExceptionHandler() &&
+          !node->exception_handler_info()->ShouldLazyDeopt()) {
+        MarkReachable(node->exception_handler_info()->catch_block());
       }
     }
     return ProcessResult::kContinue;
   }
 
  private:
-  MaglevGraphLabeller* labeller_ = nullptr;
+  BlockProcessResult AbortBlock(BasicBlock* block) {
+    ControlNode* control = block->reset_control_node();
+    block->RemovePredecessorFollowing(control);
+    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
+    block->set_deferred(true);
+    block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
+  }
+
+  bool IsReachable(BasicBlock* block) const {
+    return reachable_exception_handlers_.contains(block);
+  }
+
+  Graph* graph_;
+  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
+};
+
+class BoundsCheckEliminationProcessor {
+ public:
+  explicit BoundsCheckEliminationProcessor(Graph* graph)
+      : graph_(graph), current_block_bounds_checks_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostPhiProcessing() {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    current_block_ = block;
+    current_block_bounds_checks_.clear();
+    scanned_current_block_ = false;
+    return BlockProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckTypedArrayBounds* node,
+                        const ProcessingState& state) {
+    if (TryElide(node, state)) {
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckInt32Condition* node,
+                        const ProcessingState& state) {
+    if (TryElide(node, state)) {
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  struct BoundsCheckInfo {
+    int32_t max_index;
+    bool emitted = false;
+  };
+
+  bool TryElide(Node* node, const ProcessingState& state) {
+    int32_t index = 0;
+    ValueNode* length = nullptr;
+    if (!TryGetConstantBoundsCheck(node, &index, &length)) {
+      return false;
+    }
+
+    if (!scanned_current_block_) {
+      FindMaxConstantIndicesInBlock(state.node_index(), index, length);
+    }
+
+    auto it = current_block_bounds_checks_.find(length);
+    if (it == current_block_bounds_checks_.end()) {
+      return false;
+    }
+
+    auto& [max_index, emitted] = it->second;
+    if (!emitted) {
+      // Rewrite the very first bounds check in the block to check the maximum
+      // index.
+      if (index < max_index) {
+        node->change_input(0, graph_->GetInt32Constant(max_index));
+      }
+      emitted = true;
+      return false;
+    } else if (index > max_index) {
+      // This bounds check did not exist when FindMaxConstantIndicesInBlock was
+      // called. Its index is larger than the maximum we found then, so we have
+      // to emit a bounds check.
+
+      // Future bounds checks can be elided if their index is less than the
+      // index of this bounds check.
+      max_index = index;
+      return false;
+    }
+    // Any subsequent constant bounds checks on this length are redundant.
+    return true;
+  }
+
+  bool TryGetConstantBoundsCheck(Node* node, int32_t* index_val,
+                                 ValueNode** length) {
+    ValueNode* index = nullptr;
+    if (auto* typed_bounds_check = node->TryCast<CheckTypedArrayBounds>()) {
+      index = typed_bounds_check->IndexInput().node();
+      *length = typed_bounds_check->LengthInput().node();
+    } else if (auto* int_bounds_check = node->TryCast<CheckInt32Condition>()) {
+      if (int_bounds_check->condition() == AssertCondition::kUnsignedLessThan) {
+        index = int_bounds_check->input_node(0);
+        *length = int_bounds_check->input_node(1);
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+    if (std::optional<int32_t> const_index = TryGetInt32Constant(index)) {
+      if (*const_index >= 0) {
+        *index_val = *const_index;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // TODO(ahaas): This is a copy of MaglevReducer::TryGetInt32Constant. We
+  // should share this logic.
+  std::optional<int32_t> TryGetInt32Constant(ValueNode* value) {
+    switch (value->opcode()) {
+      case Opcode::kHeapConstant: {
+        compiler::ObjectRef object = value->Cast<HeapConstant>()->object();
+        if (object.IsHeapNumber() &&
+            IsInt32Double(object.AsHeapNumber().value())) {
+          return static_cast<int32_t>(object.AsHeapNumber().value());
+        }
+        return {};
+      }
+      case Opcode::kInt32Constant:
+        return value->Cast<Int32Constant>()->value();
+      case Opcode::kUint32Constant: {
+        uint32_t uint32_value = value->Cast<Uint32Constant>()->value();
+        if (uint32_value <= INT32_MAX) {
+          return static_cast<int32_t>(uint32_value);
+        }
+        return {};
+      }
+      case Opcode::kSmiConstant:
+        return value->Cast<SmiConstant>()->value().value();
+      case Opcode::kFloat64Constant: {
+        double double_value =
+            value->Cast<Float64Constant>()->value().get_scalar();
+        if (!IsInt32Double(double_value)) return {};
+        return FastD2I(double_value);
+      }
+      default:
+        break;
+    }
+    return {};
+  }
+
+  void FindMaxConstantIndicesInBlock(int start_index, int32_t initial_index_val,
+                                     ValueNode* initial_length) {
+    scanned_current_block_ = true;
+    // This function gets called when the first bounds check in the block with a
+    // constant index is encountered. We can insert it directly into the map. We
+    // then have to scan the rest of the block for other bounds checks with
+    // constant indices.
+    current_block_bounds_checks_.insert(
+        {initial_length,
+         BoundsCheckInfo{initial_index_val, /*emitted=*/false}});
+    const auto& nodes = current_block_->nodes();
+    for (size_t i = start_index + 1; i < nodes.size(); ++i) {
+      Node* node = nodes[i];
+      if (node == nullptr) continue;
+      int32_t index = 0;
+      ValueNode* length = nullptr;
+      if (TryGetConstantBoundsCheck(node, &index, &length)) {
+        auto it = current_block_bounds_checks_.find(length);
+        if (it != current_block_bounds_checks_.end()) {
+          it->second.max_index = std::max(it->second.max_index, index);
+        } else {
+          current_block_bounds_checks_.insert(
+              {length, BoundsCheckInfo{index, /*emitted=*/false}});
+        }
+      }
+    }
+  }
+
+  Graph* graph_;
+  BasicBlock* current_block_ = nullptr;
+  ZoneMap<ValueNode*, BoundsCheckInfo> current_block_bounds_checks_;
+  bool scanned_current_block_ = false;
 };
 
 }  // namespace v8::internal::maglev

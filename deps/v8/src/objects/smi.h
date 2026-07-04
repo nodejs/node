@@ -24,6 +24,9 @@ namespace internal {
 // Smi stands for small integer.
 class Smi : public AllStatic {
  public:
+  static constexpr int kMinValue = kSmiMinValue;
+  static constexpr int kMaxValue = kSmiMaxValue;
+
   static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
     if (smi.value() <= 0) return Smi::FromInt(0);
     return Smi::FromInt(static_cast<uint32_t>(smi.value()));
@@ -41,13 +44,30 @@ class Smi : public AllStatic {
     return static_cast<uint32_t>(value);
   }
 
+  // Returns whether value can be represented in a Smi.
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_signed_v<T>)
+  {
+    DCHECK_EQ(Internals::IsValidSmi(value),
+              value >= kMinValue && value <= kMaxValue);
+    return Internals::IsValidSmi(value);
+  }
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+  {
+    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
+    return Internals::IsValidSmi(value);
+  }
+
   // Convert a value to a Smi object.
   static inline constexpr Tagged<Smi> FromInt(int value) {
     DCHECK(Smi::IsValid(value));
     return Tagged<Smi>(Internals::IntegralToSmi(value));
   }
 
-  // Convert a value from [0, kMaxSmiValue] range to a Smi object.
+  // Convert a value from [0, kSmiMaxValue] range to a Smi object.
   static inline constexpr Tagged<Smi> FromUInt(uint32_t value) {
     DCHECK(Smi::IsValid(value));
     return Tagged<Smi>(Internals::IntegralToSmi(value));
@@ -67,29 +87,18 @@ class Smi : public AllStatic {
                         (32 - kSmiValueSize));
   }
 
+  // Inverse of From31BitPattern: recovers the original value in [0, 2^31-1] by
+  // masking off the MSB that From31BitPattern may have changed.
+  static inline constexpr uint32_t To31BitPattern(const Tagged<Object> object) {
+    return static_cast<uint32_t>(ToInt(object)) & 0x7FFFFFFFu;
+  }
+
   template <typename E>
   static inline constexpr Tagged<Smi> FromEnum(E value)
     requires std::is_enum_v<E>
   {
     static_assert(sizeof(E) <= sizeof(int));
     return FromInt(static_cast<int>(value));
-  }
-
-  // Returns whether value can be represented in a Smi.
-  template <typename T>
-  static inline bool constexpr IsValid(T value)
-    requires(std::is_integral_v<T> && std::is_signed_v<T>)
-  {
-    DCHECK_EQ(Internals::IsValidSmi(value),
-              value >= kMinValue && value <= kMaxValue);
-    return Internals::IsValidSmi(value);
-  }
-  template <typename T>
-  static inline bool constexpr IsValid(T value)
-    requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
-  {
-    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
-    return Internals::IsValidSmi(value);
   }
 
   // Compare two Smis x, y as if they were converted to strings and then
@@ -110,8 +119,6 @@ class Smi : public AllStatic {
   // Since this is a constexpr, "calling" it is just as efficient
   // as reading a constant.
   static inline constexpr Tagged<Smi> zero() { return Smi::FromInt(0); }
-  static constexpr int kMinValue = kSmiMinValue;
-  static constexpr int kMaxValue = kSmiMaxValue;
 
   // Smi value for filling in not-yet initialized tagged field values with a
   // valid tagged pointer. A field value equal to this doesn't necessarily

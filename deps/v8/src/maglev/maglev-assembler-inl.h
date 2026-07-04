@@ -852,7 +852,7 @@ inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadTaggedRoot(scratch, map);
-  StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, scratch);
+  StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_), scratch);
 }
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
@@ -1163,6 +1163,40 @@ inline void SaveRegisterStateForCall::DefineSafepointWithLazyDeopt(
   DefineSafepoint();
   masm->MaybeEmitPlaceHolderForDeopt();
 }
+
+#ifdef DEBUG
+inline void MaglevAssembler::AssertFloat64IsSmi(DoubleRegister value) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Label ok, fail;
+  TryTruncateDoubleToInt32(scratch, value, &fail);
+  if (!SmiValuesAre32Bits()) {
+    CheckInt32IsSmi(scratch, &fail, scratch);
+  }
+  Jump(&ok);
+  bind(&fail);
+  Abort(AbortReason::kInputDoesNotFitSmi);
+  bind(&ok);
+}
+
+inline void MaglevAssembler::AssertHoleyFloat64IsSmi(DoubleRegister value) {
+  Label ok;
+  ZoneLabelRef fail(this);
+  {
+    TemporaryRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    JumpIfHoleNan(value, scratch, *fail);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    JumpIfUndefinedNan(value, scratch, *fail);
+#endif
+  }
+  AssertFloat64IsSmi(value);
+  Jump(&ok);
+  bind(*fail);
+  Abort(AbortReason::kInputDoesNotFitSmi);
+  bind(&ok);
+}
+#endif
 
 inline void MaglevAssembler::AssertElidedWriteBarrier(
     Register object, Register value, RegisterSnapshot snapshot) {

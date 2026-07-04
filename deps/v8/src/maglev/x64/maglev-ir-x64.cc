@@ -14,9 +14,11 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function.h"
+#include "src/objects/swiss-name-dictionary.h"
 
 namespace v8 {
 namespace internal {
@@ -82,7 +84,7 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
   __ LoadBoundedSizeFromObject(result_register, object,
-                               JSTypedArray::kRawByteLengthOffset);
+                               offsetof(JSArrayBufferView, raw_byte_length_));
   int shift_size = ElementsKindToShiftSize(elements_kind_);
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
@@ -111,7 +113,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ subq(byte_length, Immediate(element_size - 1));
     __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ cmpl(index, byte_length);
+  __ SignExtend32To64Bits(index, index);
+  __ cmpq(index, byte_length);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -128,8 +131,8 @@ void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register input_reg = ToRegister(ValueInput());
 
-  // Copy input(32 bit) to scratch. Is input equal(64 bit) to scratch?
-  __ movl(kScratchRegister, input_reg);
+  // Copy input(32 bit signed) to scratch. Is input equal(64 bit) to scratch?
+  __ movsxlq(kScratchRegister, input_reg);
   __ cmpq(kScratchRegister, input_reg);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
 }
@@ -174,8 +177,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
@@ -448,7 +451,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Otherwise, use the same algorithm as in EffectControlLinearizer:
+  // Otherwise, use the same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
@@ -561,8 +564,8 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ cdq();
 
   // Pre-check for overflow, since idiv throws a division exception on overflow
-  // rather than setting the overflow flag. Logic copied from
-  // effect-control-linearizer.cc
+  // rather than setting the overflow flag. Logic is identical to
+  // REDUCE(WordBinopDeoptOnOverflow) in machine-lowering-reducer-inl.h
 
   // Check if {right} is positive (and not zero).
   __ cmpl(right, Immediate(0));
@@ -862,6 +865,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ Abspd(out, out, kScratchRegister);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ cvtsd2ss(result, input);
+  __ cvtss2sd(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -888,6 +899,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ Roundsd(out, in, kRoundDown);
   } else if (kind_ == Kind::kCeil) {
     __ Roundsd(out, in, kRoundUp);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Roundsd(out, in, kRoundToZero);
   }
 }
 
@@ -949,6 +962,11 @@ void Float64Min::SetValueLocationConstraints() {
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -967,6 +985,11 @@ void Float64Max::SetValueLocationConstraints() {
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -1133,8 +1156,9 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ subl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(amount));
+  __ subl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(amount));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(less, HandleInterruptsAndTiering, done, node, type);
   __ bind(*done);
@@ -1203,6 +1227,79 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(actual_params_size, r9);
   __ Ret();
+}
+
+void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(ObjectInput());
+  Register result_reg = ToRegister(result());
+
+  ZoneLabelRef done(masm);
+
+  Label* deferred_fallback = __ MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, LoadDictionaryField* node,
+         Register object, Register result_reg) {
+        {
+          // Save live registers so the fast path remains register-allocation
+          // friendly.
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          snapshot.live_tagged_registers.clear(result_reg);
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+
+          __ CallBuiltin<Builtin::kLoadIC>(
+              node->ContextInput(), object, node->name().object(),
+              TaggedIndex::FromIntptr(node->feedback().index()),
+              node->feedback().vector);
+          masm->DefineExceptionHandlerPoint(node);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+          __ Move(result_reg, kReturnRegister0);
+        }
+        __ Jump(*done);
+      },
+      done, this, object, result_reg);
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register properties = temps.Acquire();
+
+  __ LoadTaggedField(properties, object,
+                     offsetof(JSReceiver, properties_or_hash_));
+
+  if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    int entry_index = NameDictionary::kElementsStartIndex +
+                      dictionary_index() * NameDictionary::kEntrySize;
+    int max_index = entry_index + NameDictionary::kEntrySize - 1;
+
+    Register length = temps.Acquire();
+    __ movl(length, FieldOperand(properties, FixedArrayBase::kLengthOffset));
+    __ cmpl(length, Immediate(max_index));
+    __ j(below_equal, deferred_fallback);
+
+    Register scratch = length;
+    int key_offset = NameDictionary::OffsetOfElementAt(
+        entry_index + NameDictionary::kEntryKeyIndex);
+    __ LoadTaggedField(scratch, properties, key_offset);
+    __ CompareTaggedAndJumpIf(scratch, name().object(), kNotEqual,
+                              deferred_fallback);
+
+    __ LoadTaggedField(scratch, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryDetailsIndex));
+    __ SmiUntag(scratch);
+    __ andl(scratch, Immediate(PropertyDetails::KindField::kMask));
+    __ cmpl(scratch,
+            Immediate(PropertyDetails::KindField::encode(PropertyKind::kData)));
+    __ j(not_equal, deferred_fallback);
+
+    __ LoadTaggedField(result_reg, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryValueIndex));
+  } else {
+    UNREACHABLE();
+  }
+
+  __ bind(*done);
 }
 
 }  // namespace maglev

@@ -122,6 +122,7 @@ class RelocInfo {
     WASM_STUB_CALL,
     WASM_CODE_POINTER_TABLE_ENTRY,
     WASM_CANONICAL_SIG_ID,
+    WASM_CODE_POINTER,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -219,6 +220,9 @@ class RelocInfo {
   static constexpr bool IsWasmCanonicalSigId(Mode mode) {
     return mode == WASM_CANONICAL_SIG_ID;
   }
+  static constexpr bool IsWasmCodePointer(Mode mode) {
+    return mode == WASM_CODE_POINTER;
+  }
   static constexpr bool IsWasmCodePointerTableEntry(Mode mode) {
     return mode == WASM_CODE_POINTER_TABLE_ENTRY;
   }
@@ -299,6 +303,7 @@ class RelocInfo {
   Address wasm_stub_call_address() const;
   V8_EXPORT_PRIVATE uint32_t wasm_canonical_sig_id() const;
   V8_INLINE WasmCodePointer wasm_code_pointer_table_entry() const;
+  V8_INLINE Address wasm_code_pointer() const;
 
   uint32_t wasm_call_tag() const;
 
@@ -310,7 +315,7 @@ class RelocInfo {
   // can only be called if IsCodeTarget(rmode_)
   V8_INLINE Address target_address();
   // Cage base value is used for decompressing compressed embedded references.
-  V8_INLINE Tagged<HeapObject> target_object(PtrComprCageBase cage_base);
+  V8_INLINE Tagged<HeapObject> target_object();
 
   V8_INLINE DirectHandle<HeapObject> target_object_handle(Assembler* origin);
 
@@ -440,6 +445,7 @@ class WritableRelocInfo : public RelocInfo {
   V8_INLINE void set_wasm_code_pointer_table_entry(
       WasmCodePointer,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  V8_INLINE void set_wasm_code_pointer(Address);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,

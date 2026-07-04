@@ -1,0 +1,102 @@
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_ARCHITECTURE})
+  return()
+endif()
+
+add_subdirectory(${LIBC_TARGET_ARCHITECTURE})
+add_subdirectory(syscall_wrappers)
+add_subdirectory(stat)
+
+add_object_library(
+  linux_util
+  SRCS
+    exit.cpp
+    fcntl.cpp
+  HDRS
+    io.h
+    syscall.h
+  DEPENDS
+    .${LIBC_TARGET_ARCHITECTURE}.linux_${LIBC_TARGET_ARCHITECTURE}_util
+    libc.src.__support.common
+    libc.src.__support.CPP.string_view
+    libc.src.__support.error_or
+    libc.hdr.fcntl_macros
+    libc.hdr.types.struct_flock
+    libc.hdr.types.struct_flock64
+    libc.hdr.types.struct_f_owner_ex
+    libc.hdr.types.off_t
+    libc.include.sys_syscall
+)
+
+add_header_library(
+  auxv
+  HDRS
+    auxv.h
+  DEPENDS
+    libc.hdr.fcntl_macros
+    libc.hdr.sys_auxv_macros
+    libc.hdr.sys_mman_macros
+    libc.src.__support.OSUtil.linux.syscall_wrappers.mmap
+    libc.src.__support.OSUtil.linux.syscall_wrappers.munmap
+    libc.src.__support.OSUtil.linux.syscall_wrappers.open
+    libc.src.__support.OSUtil.osutil
+    libc.src.__support.common
+    libc.src.__support.CPP.optional
+    libc.src.__support.threads.callonce
+)
+
+add_header_library(
+  path
+  HDRS
+    path.h
+  DEPENDS
+    libc.src.__support.common
+    libc.src.__support.CPP.string_view
+)
+
+add_header_library(
+  sysinfo
+  HDRS
+    sysinfo.h
+  DEPENDS
+    libc.hdr.errno_macros
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.bit
+    libc.src.__support.CPP.optional
+    libc.src.__support.ctype_utils
+    libc.src.__support.macros.config
+    libc.src.__support.OSUtil.linux.syscall_wrappers.close
+    libc.src.__support.OSUtil.linux.syscall_wrappers.open
+    libc.src.__support.OSUtil.linux.syscall_wrappers.read
+    libc.src.__support.OSUtil.linux.syscall_wrappers.sched_getaffinity
+)
+
+add_header_library(
+  vdso_sym
+  HDRS
+    vdso_sym.h
+  DEPENDS
+    libc.src.__support.common
+)
+
+add_object_library(
+  vdso
+  HDRS
+    vdso.h
+  SRCS
+    vdso.cpp
+  DEPENDS
+    .${LIBC_TARGET_ARCHITECTURE}.vdso
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.optional
+    libc.src.__support.CPP.string_view
+    libc.src.__support.threads.callonce
+    libc.src.__support.threads.linux.futex_word_type
+    libc.src.__support.OSUtil.linux.auxv
+    libc.hdr.elf_proxy
+    libc.hdr.link_macros
+    libc.hdr.sys_auxv_macros
+    libc.hdr.types.clockid_t
+    libc.hdr.types.struct_timespec
+    libc.hdr.types.struct_timeval
+    libc.hdr.types.time_t
+)

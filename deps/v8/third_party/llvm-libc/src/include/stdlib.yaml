@@ -1,0 +1,406 @@
+header: stdlib.h
+standards:
+  - stdc
+merge_yaml_files:
+  - stdlib-malloc.yaml
+macros:
+  - macro_name: "NULL"
+    macro_header: null-macro.h
+  - macro_name: EXIT_SUCCESS
+    macro_header: stdlib-macros.h
+  - macro_name: EXIT_FAILURE
+    macro_header: stdlib-macros.h
+types:
+  - type_name: __atexithandler_t
+  - type_name: __qsortcompare_t
+  - type_name: __qsortrcompare_t
+  - type_name: __search_compare_t
+  - type_name: constraint_handler_t
+  - type_name: div_t
+  - type_name: ldiv_t
+  - type_name: lldiv_t
+  - type_name: locale_t
+  - type_name: rsize_t
+  - type_name: size_t
+  - type_name: wchar_t
+  - type_name: errno_t
+enums: []
+objects: []
+functions:
+  - name: _Exit
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: int
+  - name: a64l
+    standards:
+      - posix
+    return_type: long
+    arguments:
+      - type: const char *
+  - name: abort
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: void
+  - name: abs
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: at_quick_exit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: __atexithandler_t
+  - name: atexit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: __atexithandler_t
+  - name: atof
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: const char *__restrict
+  - name: atoi
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: atol
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: const char *
+  - name: atoll
+    standards:
+      - stdc
+    return_type: long long
+    arguments:
+      - type: const char *
+  - name: bsearch
+    standards:
+      - stdc
+    return_type: void *
+    arguments:
+      - type: const void *
+      - type: const void *
+      - type: size_t
+      - type: size_t
+      - type: __search_compare_t
+  - name: div
+    standards:
+      - stdc
+    return_type: div_t
+    arguments:
+      - type: int
+      - type: int
+  - name: exit
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: int
+  - name: getenv
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const char *
+  - name: labs
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: long
+  - name: ldiv
+    standards:
+      - stdc
+    return_type: ldiv_t
+    arguments:
+      - type: long
+      - type: long
+  - name: llabs
+    standards:
+      - stdc
+    return_type: long long
+    arguments:
+      - type: long long
+  - name: lldiv
+    standards:
+      - stdc
+    return_type: lldiv_t
+    arguments:
+      - type: long long
+      - type: long long
+  - name: mbstowcs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const char *__restrict
+      - type: size_t
+  - name: mbtowc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const char *__restrict
+      - type: size_t
+  - name: mblen
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: size_t
+  - name: memalignment
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const void *
+  - name: mkstemp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: char *
+  - name: posix_memalign
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void **
+      - type: size_t
+      - type: size_t
+  - name: qsort
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: size_t
+      - type: __qsortcompare_t
+  - name: qsort_r
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: size_t
+      - type: __qsortrcompare_t
+      - type: void *
+  - name: quick_exit
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: int
+  - name: rand
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: void
+  - name: realpath
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *__restrict
+      - type: char *__restrict
+  - name: srand
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: unsigned int
+  - name: setenv
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: int
+  - name: strfromd
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: double
+  - name: strfromf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: float
+  - name: strfroml
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: long double
+  - name: strtod
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+  - name: strtof
+    standards:
+      - stdc
+    return_type: float
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+  - name: strtol
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+  - name: strtold
+    standards:
+      - stdc
+    return_type: long double
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+  - name: strtoll
+    standards:
+      - stdc
+    return_type: long long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+  - name: strtoul
+    standards:
+      - stdc
+    return_type: unsigned long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+  - name: strtoull
+    standards:
+      - stdc
+    return_type: unsigned long long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+  - name: strtod_l
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: locale_t
+  - name: strtof_l
+    standards:
+      - stdc
+    return_type: float
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: locale_t
+  - name: strtol_l
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+      - type: locale_t
+  - name: strtold_l
+    standards:
+      - stdc
+    return_type: long double
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: locale_t
+  - name: strtoll_l
+    standards:
+      - stdc
+    return_type: long long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+      - type: locale_t
+  - name: strtoul_l
+    standards:
+      - stdc
+    return_type: unsigned long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+      - type: locale_t
+  - name: strtoull_l
+    standards:
+      - stdc
+    return_type: unsigned long long
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+      - type: int
+      - type: locale_t
+  - name: system
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: unsetenv
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: wctomb
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *
+      - type: wchar_t
+  - name: wcstombs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t

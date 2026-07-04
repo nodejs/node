@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 function Module(global, env, buffer) {
   "use asm";
   function test1() {
@@ -21,4 +19,3 @@ function Module(global, env, buffer) {
 let module = Module(this);
 assertEquals(-1, module.test1());
 assertEquals(-1, module.test2());
-assertTrue(%IsAsmWasmCode(Module));

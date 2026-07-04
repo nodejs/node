@@ -80,6 +80,16 @@ class AsanUnpoisonScope final {
 
 #endif  // !V8_USE_ADDRESS_SANITIZER
 
+// Probes memory exactly at given address by disabling ASan instrumentation.
+// It's used to ensure that V8 Sandbox's CrashFilter observes SEGFAULT at
+// this address instead of a SEGFAULT at a corresponding shadow memory address,
+// which helps CrashFilter to classify crashes due to Code entrypoint tag
+// mismatch as harmless when testing/fuzzing V8 Sandbox with ASan.
+static inline DISABLE_ASAN void NoSanitizeProbeMemory(uintptr_t address) {
+  uint8_t v = *reinterpret_cast<volatile uint8_t*>(address);
+  USE(v);
+}
+
 #ifdef V8_USE_HWADDRESS_SANITIZER
 
 #define DISABLE_HWASAN __attribute__((no_sanitize("hwaddress")))

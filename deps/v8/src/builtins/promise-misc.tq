@@ -39,8 +39,6 @@ namespace promise {
 const kInvalidAsyncTaskId:
     constexpr uint32 generates 'JSPromise::kInvalidAsyncTaskId';
 
-extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
-
 @export
 macro PromiseHasHandler(promise: JSPromise): bool {
   return promise.HasHandler();
@@ -51,6 +49,7 @@ macro PromiseInit(promise: JSPromise): void {
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
+    is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
     async_task_id: kInvalidAsyncTaskId
@@ -60,7 +59,7 @@ macro PromiseInit(promise: JSPromise): void {
 
 macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
-  dcheck(IsFunctionWithPrototypeSlotMap(promiseFun.map));
+  dcheck(Is<JSFunctionWithPrototype>(promiseFun));
   const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
   const promiseHeapObject = promise_internal::AllocateJSPromise(context);
   *UnsafeConstCast(&promiseHeapObject.map) = promiseMap;
@@ -70,6 +69,7 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
+    is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
     async_task_id: kInvalidAsyncTaskId
@@ -79,7 +79,7 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
 
 macro NewPromiseFulfillReactionJobTask(
     implicit context: Context)(handlerContext: Context, argument: Object,
-    handler: Callable|Undefined,
+    handler: Callable|JSGeneratorObject|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseFulfillReactionJobTask {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
@@ -107,7 +107,7 @@ macro NewPromiseFulfillReactionJobTask(
 
 macro NewPromiseRejectReactionJobTask(
     implicit context: Context)(handlerContext: Context, argument: Object,
-    handler: Callable|Undefined,
+    handler: Callable|JSGeneratorObject|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseRejectReactionJobTask {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
@@ -269,8 +269,8 @@ transitioning macro RunAnyPromiseHookInit(
 // This uses the given parent as the parent promise for the promise
 // init hook.
 @export
-transitioning macro NewJSPromise(implicit context: Context)(
-                                 parent: Object): JSPromise {
+transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
+    JSPromise {
   const instance = InnerNewJSPromise();
   PromiseInit(instance);
   RunAnyPromiseHookInit(instance, parent);
@@ -486,10 +486,19 @@ transitioning javascript builtin SetContinuationPreservedEmbedderData(
 // property, making them guaranteed non-thenables. This could potentially be
 // extended to handle non-primitive non-thenables as well in the future.
 transitioning builtin AsyncAwaitNonThenableFastPath(
-    implicit context: Context)(value: JSAny, onResolve: JSFunction,
+    implicit context: Context)(value: JSAny,
+    onResolve: JSFunction|JSGeneratorObject,
     throwaway: JSPromise|Undefined): Undefined {
-  // Extract the handler context from the resolve closure.
-  const handlerContext: Context = onResolve.context;
+  // Extract the handler context from the resolve closure/generator.
+  let handlerContext: Context;
+  typeswitch (onResolve) {
+    case (f: JSFunction): {
+      handlerContext = f.context;
+    }
+    case (g: JSGeneratorObject): {
+      handlerContext = g.context;
+    }
+  }
 
   // Create a PromiseFulfillReactionJobTask directly with the non-thenable
   // value as the argument. The handler will be called with this value when

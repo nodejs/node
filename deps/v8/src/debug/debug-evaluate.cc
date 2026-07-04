@@ -148,8 +148,8 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
 
   // Materialize receiver.
   DirectHandle<Object> this_value(it.frame()->receiver(), isolate);
-  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
-  if (!IsTheHole(*this_value, isolate)) {
+  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value));
+  if (!IsTheHole(*this_value)) {
     DirectHandle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)
@@ -291,7 +291,8 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
                                   ENUMERABLE_STRINGS)
               .ToHandleChecked();
 
-      for (int i = 0; i < keys->length(); i++) {
+      uint32_t keys_len = keys->ulength().value();
+      for (uint32_t i = 0; i < keys_len; i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
         DirectHandle<Object> value = JSReceiver::GetDataProperty(
@@ -443,6 +444,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
     case Bytecode::kGetIterator:
+    case Bytecode::kArrayDestructure:
     // Arithmetics.
     case Bytecode::kAdd:
     case Bytecode::kAddSmi:
@@ -1411,8 +1413,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayReduceLoopContinuation:
     case Builtin::kArrayReduceRightLoopContinuation:
     case Builtin::kArraySomeLoopContinuation:
-    case Builtin::kArrayTimSort:
-    case Builtin::kArrayTimSortIntoCopy:
+    case Builtin::kArrayPowerSort:
+    case Builtin::kArrayPowerSortIntoCopy:
     case Builtin::kCall_ReceiverIsAny:
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:
@@ -1458,7 +1460,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kRecordWriteSaveFP:
     case Builtin::kRecordWriteIgnoreFP:
     case Builtin::kSetOrSetIteratorToList:
-    case Builtin::kStringAdd_CheckNone:
+    case Builtin::kStringAdd_NoMapCheck:
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
     case Builtin::kStringRepeat:

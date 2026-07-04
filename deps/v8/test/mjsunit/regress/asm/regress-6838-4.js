@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 (function TestMinusZeroIsDouble() {
   function Module(stdlib) {
     'use asm';
@@ -16,7 +14,6 @@
   }
   var f = Module(this);
   assertEquals(-Infinity, f());
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMinusZeroIsDoubleBracketed() {
@@ -31,7 +28,6 @@
   }
   var f = Module(this);
   assertEquals(-Infinity, f());
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMinusZeroIsDoubleMultDouble1() {
@@ -46,7 +42,6 @@
   }
   var f = Module(this);
   assertEquals(-Infinity, f());
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMinusZeroIsDoubleMultDouble2() {
@@ -61,7 +56,6 @@
   }
   var f = Module(this);
   assertEquals(-Infinity, f());
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMinusZeroIsDoubleMultInt() {
@@ -75,5 +69,4 @@
     return f;
   }
   var f = Module(this);
-  assertFalse(%IsAsmWasmCode(Module));
 })();

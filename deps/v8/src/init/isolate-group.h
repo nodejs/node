@@ -5,10 +5,12 @@
 #ifndef V8_INIT_ISOLATE_GROUP_H_
 #define V8_INIT_ISOLATE_GROUP_H_
 
+#include <atomic>
 #include <memory>
+#include <span>
 
 #include "absl/container/flat_hash_set.h"
-#include "include/v8-memory-span.h"
+#include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
@@ -18,10 +20,8 @@
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/check.h"
-#include "src/sandbox/code-pointer-table.h"
-#include "src/utils/allocation.h"
-
 #include "src/sandbox/js-dispatch-table.h"
+#include "src/utils/allocation.h"
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
@@ -47,6 +47,8 @@ class SandboxedArrayBufferAllocatorBase {
  public:
   virtual void* Allocate(size_t length) = 0;
   virtual void* AllocateUninitialized(size_t length) = 0;
+  // On allocation failure, triggers an OOM crash instead of returning nullptr.
+  virtual void* AllocateUninitializedOrCrash(size_t length) = 0;
   virtual void Free(void* ptr) = 0;
 };
 
@@ -71,6 +73,7 @@ class SandboxedArrayBufferAllocator final
 
   void* Allocate(size_t length) override;
   void* AllocateUninitialized(size_t length) override;
+  void* AllocateUninitializedOrCrash(size_t length) override;
   void Free(void* data) override;
 
   void TearDown();
@@ -107,6 +110,7 @@ class PABackedSandboxedArrayBufferAllocator
 
   void* Allocate(size_t length) override;
   void* AllocateUninitialized(size_t length) override;
+  void* AllocateUninitializedOrCrash(size_t length) override;
   void Free(void* data) override;
 
   void TearDown();
@@ -120,6 +124,7 @@ class PABackedSandboxedArrayBufferAllocator
 #endif  // V8_ENABLE_SANDBOX
 
 class CodeRange;
+class GlobalSafepoint;
 class Isolate;
 class OptimizingCompileTaskExecutor;
 class ReadOnlyHeap;
@@ -253,7 +258,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current() { return GetDefault(); }
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-  MemorySpan<Address> external_ref_table() { return external_ref_table_; }
+  std::span<Address> external_ref_table() { return external_ref_table_; }
 
   bool has_shared_space_isolate() const {
     return shared_space_isolate_ != nullptr;
@@ -267,6 +272,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     DCHECK(!has_shared_space_isolate());
     shared_space_isolate_ = isolate;
   }
+
+  GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
   OptimizingCompileTaskExecutor* optimizing_compile_task_executor();
 
@@ -291,8 +298,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::weak_ptr<PageAllocator> GetBackingStorePageAllocator();
 
   Sandbox* sandbox() { return sandbox_; }
-
-  CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
 
   BasePageTableEntry* metadata_pointer_table() {
     return metadata_pointer_table_;
@@ -404,6 +409,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;
+  // Used to track and safepoint all isolates in this isolate group.
+  std::unique_ptr<GlobalSafepoint> global_safepoint_;
   std::unique_ptr<OptimizingCompileTaskExecutor>
       optimizing_compile_task_executor_;
 
@@ -417,7 +424,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;
-  CodePointerTable code_pointer_table_;
   BasePageTableEntry metadata_pointer_table_
       [MemoryChunkConstants::kMetadataPointerTableSize]{};
 #ifdef V8_ENABLE_PARTITION_ALLOC

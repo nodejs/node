@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/loop-unrolling-reducer.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
@@ -76,6 +77,7 @@ std::ostream& operator<<(std::ostream& os, const Cmp& cmp) {
     case Cmp::kWord32Equal:
       return os << "!=";
   }
+  UNREACHABLE();
 }
 
 bool IsGreaterThan(Cmp cmp) {
@@ -147,6 +149,7 @@ std::ostream& operator<<(std::ostream& os, const Binop& binop) {
     case Binop::kInt32MulCheckOverflow:
       return os << "*ᵒ";
   }
+  UNREACHABLE();
 }
 
 V<Word32> EmitCmp(TestInstance& test_instance, Cmp cmp, ConstOrV<Word32> left,
@@ -179,6 +182,7 @@ V<Word32> EmitBinop(TestInstance& test_instance, Binop binop,
     OVERFLOW_CHECKED_BINOP_LIST(CASE_OVERFLOW)
 #undef CASE_OVERFLOW
   }
+  UNREACHABLE();
 }
 
 struct BoundedLoop {

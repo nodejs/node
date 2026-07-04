@@ -229,7 +229,7 @@ void PropertyCallbackArguments::Initialize(Isolate* isolate,
   }
   values_[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
   values_[T::kHolderIndex] = holder.ptr();
-  DCHECK(!IsJSGlobalObject(*holder));
+  DCHECK(!IsJSGlobalObject(holder));
 
   // Make sure the Isolate slot is safe to visit by GC (Isolate pointer
   // is guaranteed to be page aligned).
@@ -273,7 +273,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
 
   if (ignore_return_value) return Just(InterceptorResult::kTrue);
 
-  bool result = IsTrue(*GetReturnValue<Boolean>(), isolate);
+  bool result = IsTrue(*GetReturnValue<Boolean>());
   return Just(result ? InterceptorResult::kTrue : InterceptorResult::kFalse);
 }
 
@@ -561,6 +561,26 @@ PropertyCallbackArguments::CallPropertyEnumerator(
   return Cast<JSObjectOrUndefined>(result);
 }
 
+uint32_t PropertyCallbackArguments::CallIndexedIndexOf(
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Object> value, uint32_t start_index, uint32_t end_index,
+    uint32_t* in_out_length) {
+  DCHECK(!is_setter_definer_deleter_);
+  // The actual property key is not relevant for this callback.
+  set_property_key(0);
+  slot_at(kCallbackInfoIndex).store(*interceptor);
+  // IndexOf callback doesn't use return value.
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
+
+  IndexedPropertyIndexOfCallback f =
+      reinterpret_cast<IndexedPropertyIndexOfCallback>(
+          interceptor->indexed_index_of(isolate));
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, interceptor,
+                                    ExceptionContext::kUnknown);
+  return f(v8::Utils::ToLocal(value), start_index, end_index, in_out_length,
+           callback_info);
+}
+
 // -------------------------------------------------------------------------
 // Accessors
 
@@ -604,12 +624,11 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // Here we handle both cases using the AccessorNameSetterCallback signature
   // and checking whether the returned result is set to default value
   // (the undefined value).
-  // TODO(ishell, 348660658): update V8 Api to allow setter callbacks provide
-  // the result of [[Set]] operation according to JavaScript semantics.
-  AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
-      accessor_info->setter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info, holder(),
-                                 ACCESSOR_SETTER,
+  AccessorNameSetterCallbackV2 f =
+      reinterpret_cast<AccessorNameSetterCallbackV2>(
+          accessor_info->setter(isolate));
+  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Boolean, accessor_info,
+                                 holder(), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
   // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
@@ -625,7 +644,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
   DirectHandle<Boolean> result = GetReturnValue<Boolean>();
-  return IsTrue(*result, isolate);
+  return IsTrue(*result);
 }
 
 #undef PREPARE_CALLBACK_INFO_ACCESSOR

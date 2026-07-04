@@ -61,7 +61,9 @@ bool TracedHandles::IsCppGCHostOld(CppHeap& cpp_heap, Address host) const {
   // TracedReference may be created on stack, in which case assume it's young
   // and doesn't need to be remembered, since it'll anyway be scanned.
   if (!page) return false;
-  return !page->ObjectHeaderFromInnerAddress(host_ptr).IsYoung();
+  return !page->ObjectHeaderFromInnerAddress<
+                  cppgc::internal::AccessMode::kAtomic>(host_ptr)
+              .IsYoung();
 }
 
 bool TracedHandles::NeedsToBeRemembered(
