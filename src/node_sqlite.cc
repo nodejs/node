@@ -2658,6 +2658,15 @@ inline bool StatementSync::IsFinalized() {
 void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  stmt->Close();
+}
+
+void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   stmt->Close();
 }
 
@@ -3694,7 +3703,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
         isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
-    SetProtoDispose(isolate, tmpl, StatementSync::Close);
+    SetProtoMethod(isolate, tmpl, "close", StatementSync::Close);
+    SetProtoDispose(isolate, tmpl, StatementSync::Dispose);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;

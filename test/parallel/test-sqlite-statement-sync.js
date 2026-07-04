@@ -67,6 +67,18 @@ suite('StatementSync.prototype.get()', () => {
       __proto__: null, key: 'key1', val: 'val1',
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.get();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.all()', () => {
@@ -119,6 +131,18 @@ suite('StatementSync.prototype.all()', () => {
     t.assert.deepStrictEqual(stmt.all(), [
       { __proto__: null, key: 'key1', val: 'val1' },
     ]);
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.all();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
   });
 });
 
@@ -286,6 +310,18 @@ suite('StatementSync.prototype.iterate()', () => {
     stmt2.get();
     it.next();
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.iterate();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.run()', () => {
@@ -385,6 +421,18 @@ suite('StatementSync.prototype.run()', () => {
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?2)');
     t.assert.deepStrictEqual(stmt.run(1, 2), { changes: 1, lastInsertRowid: 1 });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.run();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.sourceSQL', () => {
@@ -398,6 +446,16 @@ suite('StatementSync.prototype.sourceSQL', () => {
     const sql = 'INSERT INTO types (key, val) VALUES ($k, $v)';
     const stmt = db.prepare(sql);
     t.assert.strictEqual(stmt.sourceSQL, sql);
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => stmt.sourceSQL, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
   });
 });
 
@@ -417,6 +475,16 @@ suite('StatementSync.prototype.expandedSQL', () => {
       { changes: 1, lastInsertRowid: 33 },
     );
     t.assert.strictEqual(stmt.expandedSQL, expanded);
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => stmt.expandedSQL, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
   });
 });
 
@@ -487,6 +555,18 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setReadBigInts(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.setReturnArrays()', () => {
@@ -503,6 +583,18 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "returnArrays" argument must be a boolean/,
+    });
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setReturnArrays(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
     });
   });
 });
@@ -721,6 +813,18 @@ suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "allowBareNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setAllowBareNamedParameters(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
     });
   });
 });
@@ -970,6 +1074,31 @@ suite('options.allowBareNamedParameters', () => {
   });
 });
 
+
+suite('StatementSync.prototype.close()', () => {
+  test('finalizes an open statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    const stmt = db.prepare('SELECT * FROM storage');
+    t.assert.strictEqual(stmt.close(), undefined);
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.close();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
 
 suite('StatementSync.prototype[Symbol.dispose]()', () => {
   test('finalizes an open statement', (t) => {
