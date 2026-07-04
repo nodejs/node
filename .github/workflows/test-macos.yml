@@ -65,8 +65,6 @@ jobs:
         uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
         with:
           version: v0.16.0
-      - name: Environment Information
-        run: npx envinfo@7.21.0
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
       # now so that we don't have to wait 2 hours for the Build step to pass
       # first before that failure happens. (And if there's something about

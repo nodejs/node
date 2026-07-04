@@ -79,8 +79,6 @@ jobs:
         uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
         with:
           version: v0.16.0
-      - name: Environment Information
-        run: npx envinfo@7.21.0
       # This is needed due to https://github.com/nodejs/build/issues/3878
       - name: Cleanup
         if: runner.os == 'macOS'
