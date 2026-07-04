@@ -28,12 +28,12 @@ TEST_F(TaskRunnerTest, EscapeShell) {
       {"test words", "'test words'"},
       {"$1", "'$1'"},
       {"\"$1\"", "'\"$1\"'"},
-      {"'$1'", "'\\'$1\\''"},
+      {"'$1'", "\"'\"'$1'\"'\"''"},
       {"\\$1", "'\\$1'"},
       {"--arg=\"$1\"", "'--arg=\"$1\"'"},
       {"--arg=node exec -c \"$1\"", "'--arg=node exec -c \"$1\"'"},
-      {"--arg=node exec -c '$1'", "'--arg=node exec -c \\'$1\\''"},
-      {"'--arg=node exec -c \"$1\"'", "'\\'--arg=node exec -c \"$1\"\\''"}
+      {"--arg=node exec -c '$1'", "'--arg=node exec -c '\"'\"'$1'\"'\"''"},
+      {"'--arg=node exec -c \"$1\"'", "\"'\"'--arg=node exec -c \"$1\"'\"'\"''"}
 #endif
   };
 
