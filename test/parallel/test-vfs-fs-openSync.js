@@ -30,6 +30,19 @@ myVfs.mount(mountPoint);
   fs.closeSync(fd);
 }
 
+// readSync with position null uses and advances the current file position
+{
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  const b1 = Buffer.alloc(5);
+  const b2 = Buffer.alloc(6);
+
+  assert.strictEqual(fs.readSync(fd, b1, 0, 5, null), 5);
+  assert.strictEqual(fs.readSync(fd, b2, 0, 6, null), 6);
+  assert.strictEqual(b1.toString(), 'hello');
+  assert.strictEqual(b2.toString(), ' world');
+  fs.closeSync(fd);
+}
+
 // openSync + writeSync (buffer) + closeSync
 {
   const fd = fs.openSync(path.join(mountPoint, 'src/wfd.txt'), 'w');
