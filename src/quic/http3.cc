@@ -936,7 +936,8 @@ class Http3ApplicationImpl final : public Session::Application {
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
-          "HTTP/3 application received a request to reset stream for stream %" PRIi64,
+          "HTTP/3 application received a request to reset stream for stream "
+          "%" PRIi64,
           id);
     stream->DoStreamReset(app_error_code);
   }
