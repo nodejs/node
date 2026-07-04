@@ -31,8 +31,6 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Environment Information
-        run: npx envinfo
       - name: Build
         run: NODE=$(command -v node) make doc-only
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
