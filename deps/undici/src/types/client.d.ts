@@ -57,7 +57,7 @@ export declare namespace Client {
     keepAliveTimeoutThreshold?: number;
     /** An IPC endpoint, either a Unix domain socket or Windows named pipe. Default: `null`. */
     socketPath?: string;
-    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
+    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Only enable values greater than `1` when the remote server is trusted. Default: `1`. */
     pipelining?: number;
     /** @deprecated use the connect option instead */
     tls?: never;

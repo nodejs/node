@@ -225,7 +225,7 @@ class Request {
     this.protocol = getProtocolFromUrlString(origin)
 
     this.idempotent = idempotent == null
-      ? method === 'HEAD' || method === 'GET'
+      ? method === 'HEAD' || method === 'GET' || method === 'QUERY'
       : idempotent
 
     this.blocking = blocking ?? this.method !== 'HEAD'

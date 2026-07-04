@@ -10,6 +10,7 @@
   * [Building for externally shared node builtins](#external-builds)
   *  [Benchmarks](#benchmarks)
   *  [Documentation](#documentation)
+  *  [Reproduction](#reproduction)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
   * [Moderation Policy](#moderation-policy)
 
@@ -58,7 +59,7 @@ npm i
 > This requires [docker](https://www.docker.com/) installed on your machine.
 
 ```bash
-npm run build-wasm
+npm run build:wasm
 ```
 
 #### Copy the sources to `undici`
@@ -197,6 +198,157 @@ cd docs && npm i && npm run serve
 ```
 
 The documentation will be available at `http://localhost:3000`.
+
+<a id="reproduction"></a>
+### Reproduction
+
+When reporting a bug, a high-quality reproduction helps maintainers diagnose and fix the issue quickly. Follow the guidelines below to create a minimal, standalone reproduction script.
+
+#### What Makes a Good Reproduction
+
+- **Standalone**: The script must be self-contained and run without external dependencies beyond `undici` and Node.js built-in modules.
+- **Minimal**: Strip everything unrelated to the bug — no production configs, no frameworks, no unnecessary middleware.
+- **Reproducible**: Run the script and confirm the bug occurs before submitting.
+- **Specific**: Include the exact `undici` API call that triggers the issue (e.g., `Client`, `Pool`, `Agent`, `fetch`, `request`, `stream`, `pipeline`).
+- **Run with Node's test runner**: Use `node --test` (Node 20+) or `node test/your-repro.js`.
+
+#### Standalone Server Pattern
+
+Use `createServer` from `node:http` (or `node:https` for TLS-related bugs) to run a local server inside the same script. This avoids external service dependencies and keeps the reproduction fully self-contained.
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { Client } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('short description of the bug', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  // 1. Start a local HTTP server that reproduces the scenario
+  const server = createServer({ joinDuplicateHeaders: true }, async (req, res) => {
+    // Simulate the bug-triggering response
+    res.statusCode = 200
+    res.setHeader('content-length', 100)
+    res.end('hello'.repeat(20))
+  })
+  t.after(() => { server.closeAllConnections?.(); server.close() })
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  // 2. Create the undici client pointing to the local server
+  const client = new Client(`http://localhost:${server.address().port}`)
+  t.after(() => client.close())
+
+  // 3. Perform the request that triggers the bug
+  const { body } = await client.request({ path: '/', method: 'GET' })
+
+  let responseBody = ''
+  for await (const chunk of body) {
+    responseBody += chunk
+  }
+
+  t.assert.strictEqual(responseBody, 'hello'.repeat(20))
+})
+```
+
+Save the script as `test/repro-XXXX.js` and run it:
+
+```bash
+node --test test/repro-XXXX.js
+```
+
+#### Fetch-Based Reproduction
+
+For bugs involving `fetch`, use the same standalone server pattern:
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { fetch, Agent } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('short description of the fetch bug', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  const server = createServer({ joinDuplicateHeaders: true }, async (req, res) => {
+    res.statusCode = 200
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify({ ok: true }))
+  })
+  t.after(() => server.close())
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  const agent = new Agent({ keepAliveTimeout: 1 })
+  t.after(() => agent.close())
+
+  const response = await fetch(`http://localhost:${server.address().port}/`, {
+    dispatcher: agent
+  })
+
+  await response.body.cancel()
+
+  t.assert.strictEqual(response.status, 200)
+})
+```
+
+#### Using Pool or Agent
+
+For bugs involving connection pooling or agent behavior:
+
+```javascript
+'use strict'
+
+const { test } = require('node:test')
+const { createServer } = require('node:http')
+const { once } = require('node:events')
+const { Pool } = require('undici')
+
+// https://github.com/nodejs/undici/issues/XXXX
+
+test('Pool bug reproduction', { timeout: 60000 }, async (t) => {
+  t.plan(1)
+
+  const server = createServer({ joinDuplicateHeaders: true }, (req, res) => {
+    res.end('ok')
+  })
+  t.after(() => server.close())
+
+  server.listen(0)
+  await once(server, 'listening')
+
+  const pool = new Pool(`http://localhost:${server.address().port}`)
+  t.after(() => pool.close())
+
+  const data = await pool.request({ path: '/', method: 'GET' })
+  await data.body.dump()
+
+  t.assert.strictEqual(data.statusCode, 200)
+})
+```
+
+#### Adding the Reproduction to the Repository
+
+If you are submitting a bug fix via a pull request, include a test file `test/issue-XXXX.js` that reproduces the bug and passes with the fix.
+
+#### Checklist for Submitting a Bug Report
+
+1. [ ] Write a standalone reproduction script.
+2. [ ] Run it locally to confirm the bug is reproducible.
+3. [ ] Attach the script (or a gist link) in the bug report.
+4. [ ] Include the exact undici version and Node.js version.
+5. [ ] Describe the expected vs. actual behavior.
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1

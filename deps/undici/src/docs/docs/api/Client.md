@@ -1,103 +1,168 @@
-# Class: Client
+# Client
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v1.0.0-->
 
-A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
+<!--type=module-->
 
-Requests are not guaranteed to be dispatched in order of invocation.
+<!-- source_link=lib/dispatcher/client.js -->
 
-## `new Client(url[, options])`
+> Stability: 2 - Stable
 
-Arguments:
+A basic HTTP/1.1 client mapped on top of a single TCP/TLS connection. When the
+server supports HTTP/2 and selects it during ALPN negotiation, the same
+connection is used for HTTP/2. Pipelining is disabled by default.
 
-* **url** `URL | string` - Should only include the **protocol, hostname, and port**.
-* **options** `ClientOptions` (optional)
+`Client` extends [`Dispatcher`][] and is the lowest-level dispatcher in undici:
+it manages exactly one origin over one connection. For pooling across multiple
+connections use [`Pool`][], and for routing across multiple origins use
+[`Agent`][]. Requests are not guaranteed to be dispatched in the order in which
+they are invoked.
 
-Returns: `Client`
+```mjs
+import { Client } from 'undici'
 
-### Parameter: `ClientOptions`
+const client = new Client('http://localhost:3000')
+const { statusCode, body } = await client.request({ path: '/', method: 'GET' })
+```
 
-* **bodyTimeout** `number | null` (optional) - Default: `300e3` - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 300 seconds. Please note the `timeout` will be reset if you keep writing data to the socket everytime.
-* **headersTimeout** `number | null` (optional) - Default: `300e3` - The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 300 seconds.
-* **keepAliveMaxTimeout** `number | null` (optional) - Default: `600e3` - The maximum allowed `keepAliveTimeout`, in milliseconds, when overridden by *keep-alive* hints from the server. Defaults to 10 minutes.
-* **keepAliveTimeout** `number | null` (optional) - Default: `4e3` - The timeout, in milliseconds, after which a socket without active requests will time out. Monitors time between activity on a connected socket. This value may be overridden by *keep-alive* hints from the server. See [MDN: HTTP - Headers - Keep-Alive directives](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive#directives) for more details. Defaults to 4 seconds.
-* **keepAliveTimeoutThreshold** `number | null` (optional) - Default: `2e3` - A number of milliseconds subtracted from server *keep-alive* hints when overriding `keepAliveTimeout` to account for timing inaccuracies caused by e.g. transport latency. Defaults to 2 seconds.
-* **maxHeaderSize** `number | null` (optional) - Default: `--max-http-header-size` or `16384` - The maximum length of request headers in bytes. Defaults to Node.js' --max-http-header-size or 16KiB.
-* **maxResponseSize** `number | null` (optional) - Default: `-1` - The maximum length of response body in bytes. Set to `-1` to disable.
-* **webSocket** `WebSocketOptions` (optional) - WebSocket-specific configuration options.
-  * **maxFragments** `number` (optional) - Default: `131072` - Maximum number of fragments in a message. Set to 0 to disable the limit.
-  * **maxPayloadSize** `number` (optional) - Default: `134217728` (128 MB) - Maximum allowed payload size in bytes for WebSocket messages. Applied to uncompressed messages, compressed frame payloads, and decompressed (permessage-deflate) messages. Set to 0 to disable the limit.
-* **pipelining** `number | null` (optional) - Default: `1` - The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Carefully consider your workload and environment before enabling concurrent requests as pipelining may reduce performance if used incorrectly. Pipelining is sensitive to network stack settings as well as head of line blocking caused by e.g. long running requests. Set to `0` to disable keep-alive connections. This option has no effect once HTTP/2 is negotiated — see `maxConcurrentStreams` for the h2 dispatch ceiling.
-* **connect** `ConnectOptions | Function | null` (optional) - Default: `null` - Configures how undici establishes TCP/TLS connections. Accepts two forms:
-  * **Object (`ConnectOptions`)**: Options passed directly to the internal [`buildConnector()`](/docs/docs/api/Connector.md). This is the simplest way to customize TLS or socket behavior (e.g., setting `rejectUnauthorized`, `ca`, `socketPath`). See [`ConnectOptions`](#parameter-connectoptions) for available fields.
-  * **Function**: A custom connector with the signature `(options, callback)`, where `options` contains `{ hostname, host, protocol, port, servername, localAddress, httpSocket }` and `callback` follows `(error, socket)`. Useful when you need full control over socket creation, such as adding custom validation or proxy logic. When a function is provided, undici wraps it to automatically inject `socketPath` and `allowH2` into the `options` argument if those values are set on the client.
-* **strictContentLength** `Boolean` (optional) - Default: `true` - Whether to treat request content length mismatches as errors. If true, an error is thrown when the request content-length header doesn't match the length of the request body. **Security Warning:** Disabling this option can expose your application to HTTP Request Smuggling attacks, where mismatched content-length headers cause servers and proxies to interpret request boundaries differently. This can lead to cache poisoning, credential hijacking, and bypassing security controls. Only disable this in controlled environments where you fully trust the request source.
-* **autoSelectFamily**: `boolean` (optional) - Default: depends on local Node version, on Node 18.13.0 and above is `false`. Enables a family autodetection algorithm that loosely implements section 5 of [RFC 8305](https://tools.ietf.org/html/rfc8305#section-5). See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details. This option is ignored if not supported by the current Node version.
-* **autoSelectFamilyAttemptTimeout**: `number` - Default: depends on local Node version, on Node 18.13.0 and above is `250`. The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details.
-* **allowH2**: `boolean` - Default: `true`. Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
-* **useH2c**: `boolean` - Default: `false`. Enforces h2c for non-https connections.
-* **maxConcurrentStreams**: `number` - Default: `100`. The maximum number of concurrent HTTP/2 streams per session. When `allowH2` negotiates h2, this — not `pipelining` (which is HTTP/1.1 only, per [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2)) — is the ceiling the Client uses to dispatch in-flight requests on a shared session. The same value is advertised to the server as `peerMaxConcurrentStreams`, capping how many streams the server may push back. The initial value is replaced by the server's `SETTINGS_MAX_CONCURRENT_STREAMS` whenever the server sends one, so a user-supplied value acts as a pre-`SETTINGS` default rather than a hard cap.
-* **initialWindowSize**: `number` (optional) - Default: `262144` (256KB). Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE). Must be a positive integer greater than 0. This default is higher than Node.js core's default (65535 bytes) to improve throughput, Node's choice is very conservative for current high-bandwith networks. See [RFC 7540 Section 6.9.2](https://datatracker.ietf.org/doc/html/rfc7540#section-6.9.2) for more details.
-* **connectionWindowSize**: `number` (optional) - Default `524288` (512KB). Sets the HTTP/2 connection-level flow-control window size using `ClientHttp2Session.setLocalWindowSize()`. Must be a positive integer greater than 0. This provides better flow control for the entire connection across multiple streams. See [Node.js HTTP/2 documentation](https://nodejs.org/api/http2.html#clienthttp2sessionsetlocalwindowsize) for more details.
-* **pingInterval**: `number` - Default: `60e3`. The time interval in milliseconds between PING frames sent to the server. Set to `0` to disable PING frames. This is only applicable for HTTP/2 connections. This will emit a `ping` event on the client with the duration of the ping in milliseconds.
+## Class: `Client`
 
-> **Notes about HTTP/2**
-> - It only works under TLS connections. h2c is not supported.
-> - The server must support HTTP/2 and choose it as the protocol during the ALPN negotiation.
->   - The server must not have a bigger priority for HTTP/1.1 than HTTP/2.
-> - Pseudo headers are automatically attached to the request. If you try to set them, they will be overwritten.
->   - The `:path` header is automatically set to the request path.
->   - The `:method` header is automatically set to the request method.
->   - The `:scheme` header is automatically set to the request scheme.
->   - The `:authority` header is automatically set to the request `host[:port]`.
-> - `PUSH` frames are yet not supported.
+<!-- YAML
+added: v1.0.0
+-->
 
-#### Parameter: `ConnectOptions`
+* Extends: {Dispatcher}
 
-Every Tls option, see [here](https://nodejs.org/api/tls.html#tls_tls_connect_options_callback).
-Furthermore, the following options can be passed:
+### `new Client(url[, options])`
 
-* **socketPath** `string | null` (optional) - Default: `null` - An IPC endpoint, either Unix domain socket or Windows named pipe.
-* **maxCachedSessions** `number | null` (optional) - Default: `100` - Maximum number of TLS cached sessions. Use 0 to disable TLS session caching. Default: 100.
-* **timeout** `number | null` (optional) -  In milliseconds, Default `10e3`.
-* **servername** `string | null` (optional)
-* **keepAlive** `boolean | null` (optional) - Default: `true` - TCP keep-alive enabled
-* **keepAliveInitialDelay** `number | null` (optional) - Default: `60000` - TCP keep-alive interval for the socket in milliseconds
+<!-- YAML
+added: v1.0.0
+-->
 
-### Example - Basic Client instantiation
+* `url` {URL|string} The origin to connect to. Only the protocol, hostname, and
+  port are used.
+* `options` {Object} (optional)
+  * `bodyTimeout` {number|null} The timeout, in milliseconds, after which a
+    request times out while receiving body data. Monitors the time between
+    consecutive body chunks. Use `0` to disable it entirely. **Default:**
+    `300e3`.
+  * `headersTimeout` {number|null} The timeout, in milliseconds, the parser
+    waits to receive the complete HTTP headers before the request times out. Use
+    `0` to disable it entirely. **Default:** `300e3`.
+  * `connectTimeout` {number|null} The timeout, in milliseconds, for
+    establishing a socket connection. Use `0` to disable it entirely.
+    **Default:** `10e3`.
+  * `keepAliveTimeout` {number|null} The timeout, in milliseconds, after which a
+    socket with no active requests times out. Monitors the time between activity
+    on a connected socket. This value may be overridden by *keep-alive* hints
+    from the server. **Default:** `4e3`.
+  * `keepAliveMaxTimeout` {number|null} The maximum allowed `keepAliveTimeout`,
+    in milliseconds, when overridden by *keep-alive* hints from the server.
+    **Default:** `600e3`.
+  * `keepAliveTimeoutThreshold` {number|null} A number of milliseconds
+    subtracted from server *keep-alive* hints when overriding `keepAliveTimeout`,
+    to account for timing inaccuracies caused by e.g. transport latency.
+    **Default:** `2e3`.
+  * `maxHeaderSize` {number|null} The maximum length of request headers, in
+    bytes. **Default:** the value of Node.js' `--max-http-header-size` or
+    `16384` (16 KiB).
+  * `maxResponseSize` {number|null} The maximum length of a response body, in
+    bytes. Set to `-1` to disable it. **Default:** `-1`.
+  * `maxRequestsPerClient` {number|null} The maximum number of requests to send
+    over a single connection before the socket is reset. Use `0` to disable this
+    limit. **Default:** `null`.
+  * `localAddress` {string|null} The local IP address the socket should connect
+    from. **Default:** `null`.
+  * `pipelining` {number|null} The number of concurrent requests sent over the
+    single connection, per [RFC 7230, section 6.3.2][]. Only enable values
+    greater than `1` when the remote server is trusted. Set to `0` to disable
+    keep-alive connections. Has no effect once HTTP/2 is negotiated; see
+    `maxConcurrentStreams` for the HTTP/2 dispatch ceiling. **Default:** `1`.
+  * `connect` {Object|Function|null} Configures how connections are established.
+    Either a `ConnectOptions` object passed to the built-in
+    [`buildConnector`][] (every [`tls.connect()`][] option is accepted, plus the
+    fields below), or a custom connector function with the signature
+    `(options, callback)`. **Default:** `null`.
+    * `socketPath` {string|null} An IPC endpoint, either a Unix domain socket or
+      a Windows named pipe. **Default:** `null`.
+    * `maxCachedSessions` {number|null} The maximum number of cached TLS
+      sessions. Use `0` to disable TLS session caching. **Default:** `100`.
+    * `timeout` {number|null} The connection timeout, in milliseconds.
+      **Default:** `10e3`.
+    * `servername` {string|null} The TLS server name used for SNI.
+    * `keepAlive` {boolean|null} Whether TCP keep-alive is enabled on the socket.
+      **Default:** `true`.
+    * `keepAliveInitialDelay` {number|null} The TCP keep-alive interval for the
+      socket, in milliseconds. **Default:** `60000`.
+  * `strictContentLength` {boolean} Whether to throw when the request
+    `content-length` header does not match the length of the request body.
+    Disabling this exposes the application to HTTP request smuggling; only do so
+    in controlled environments where the request source is fully trusted.
+    **Default:** `true`.
+  * `autoSelectFamily` {boolean} Enables a family autodetection algorithm that
+    loosely implements section 5 of [RFC 8305][]. Ignored if unsupported by the
+    current Node.js version. **Default:** `false`.
+  * `autoSelectFamilyAttemptTimeout` {number} The time, in milliseconds, to wait
+    for a connection attempt to finish before trying the next address when
+    `autoSelectFamily` is enabled. **Default:** `250`.
+  * `allowH2` {boolean} Enables HTTP/2 support when the server assigns it a
+    higher priority through ALPN negotiation. **Default:** `true`.
+  * `useH2c` {boolean} Enforces h2c (HTTP/2 cleartext) for non-HTTPS
+    connections. **Default:** `false`.
+  * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
+    streams for a single session. Once h2 is negotiated this — not `pipelining`,
+    which is HTTP/1.1 only — is the ceiling used to dispatch in-flight requests.
+    It may be overridden by the server's `SETTINGS_MAX_CONCURRENT_STREAMS`
+    frame. **Default:** `100`.
+  * `initialWindowSize` {number} The HTTP/2 stream-level flow-control window
+    size (`SETTINGS_INITIAL_WINDOW_SIZE`). Must be a positive integer.
+    **Default:** `262144`.
+  * `connectionWindowSize` {number} The HTTP/2 connection-level flow-control
+    window size set via `ClientHttp2Session.setLocalWindowSize()`. Must be a
+    positive integer. **Default:** `524288`.
+  * `pingInterval` {number} The time interval, in milliseconds, between HTTP/2
+    PING frames. Set to `0` to disable PING frames. Applies only to HTTP/2
+    connections and emits a `ping` event on the client. **Default:** `60e3`.
+  * `webSocket` {Object} (optional) WebSocket-specific configuration.
+    * `maxFragments` {number} The maximum number of fragments in a message. Set
+      to `0` to disable the limit. **Default:** `131072`.
+    * `maxPayloadSize` {number} The maximum allowed payload size, in bytes, for
+      WebSocket messages. Applied to uncompressed messages, compressed frame
+      payloads, and decompressed (`permessage-deflate`) messages. Set to `0` to
+      disable the limit. **Default:** `134217728`.
+* Returns: {Client}
 
-This will instantiate the undici Client, but it will not connect to the origin until something is queued. Consider using `client.connect` to prematurely connect to the origin, or just call `client.request`.
+Instantiating a `Client` does not open a connection; the connection is
+established lazily once a request is queued. Call `client.connect()` to connect
+eagerly.
 
-```js
-'use strict'
+> Notes about HTTP/2:
+>
+> * Pseudo headers (`:path`, `:method`, `:scheme`, `:authority`) are attached
+>   automatically and overwrite any user-provided values.
+> * The server must support HTTP/2 and select it during ALPN negotiation, and
+>   must not give HTTP/1.1 a higher priority than HTTP/2.
+> * `PUSH` frames are not supported.
+
+```mjs displayName="Basic instantiation"
 import { Client } from 'undici'
 
 const client = new Client('http://localhost:3000')
 ```
 
-### Example - Connect with TLS options (object form)
-
-Pass a `ConnectOptions` object to customize the TLS connection. The options are forwarded to the internal `buildConnector()`.
-
-```js
-'use strict'
+```mjs displayName="TLS options (object connector)"
 import { Client } from 'undici'
-import fs from 'node:fs'
+import { readFileSync } from 'node:fs'
 
 const client = new Client('https://localhost:3000', {
   connect: {
     rejectUnauthorized: false,
-    ca: fs.readFileSync('./ca-cert.pem')
+    ca: readFileSync('./ca-cert.pem')
   }
 })
 ```
 
-### Example - Connect via Unix domain socket
-
-Use the `socketPath` option to connect through an IPC endpoint instead of a TCP connection.
-
-```js
-'use strict'
+```mjs displayName="Unix domain socket"
 import { Client } from 'undici'
 
 const client = new Client('http://localhost:3000', {
@@ -107,14 +172,20 @@ const client = new Client('http://localhost:3000', {
 })
 ```
 
-### Example - Custom connector (function form)
+```mjs displayName="Custom DNS lookup"
+import { Client } from 'undici'
+import dns from 'node:dns'
 
-Pass a function for full control over socket creation. This allows you to perform additional checks on the socket, use a proxy, or implement custom connection logic.
+const client = new Client('https://example.com', {
+  connect: {
+    lookup (hostname, options, callback) {
+      dns.lookup(hostname, { ...options, family: 4 }, callback)
+    }
+  }
+})
+```
 
-> **Note:** When a function is provided, undici wraps it to automatically inject `socketPath` and `allowH2` into the first argument (`options`) when those values are set on the client.
-
-```js
-'use strict'
+```mjs displayName="Custom connector (function)"
 import { Client, buildConnector } from 'undici'
 
 const connector = buildConnector({ rejectUnauthorized: false })
@@ -123,9 +194,6 @@ const client = new Client('https://localhost:3000', {
     connector(opts, (err, socket) => {
       if (err) {
         cb(err)
-      } else if (/* assertion */) {
-        socket.destroy()
-        cb(new Error('kaboom'))
       } else {
         cb(null, socket)
       }
@@ -134,83 +202,180 @@ const client = new Client('https://localhost:3000', {
 })
 ```
 
-For more details on building custom connectors, see [Connector](/docs/docs/api/Connector.md).
+When a connector function is provided, undici wraps it to automatically inject
+`socketPath` and `allowH2` into the `options` argument when those values are set
+on the client. See [`Connector`][] for details on building custom connectors.
 
-## Instance Methods
+### `client.close([callback])`
 
-### `Client.close([callback])`
+<!-- YAML
+added: v1.0.0
+-->
 
-Implements [`Dispatcher.close([callback])`](/docs/docs/api/Dispatcher.md#dispatcherclosecallback-promise).
+Implements [`dispatcher.close([callback])`][]. Closes the client gracefully,
+waiting for enqueued requests to complete before resolving.
 
-### `Client.destroy([error, callback])`
+### `client.destroy([error[, callback]])`
 
-Implements [`Dispatcher.destroy([error, callback])`](/docs/docs/api/Dispatcher.md#dispatcherdestroyerror-callback-promise).
+<!-- YAML
+added: v1.0.0
+-->
 
-Waits until socket is closed before invoking the callback (or returning a promise if no callback is provided).
+Implements [`dispatcher.destroy([error[, callback]])`][]. Destroys the client
+abruptly, aborting all pending and running requests, and waits until the socket
+is closed before invoking `callback` (or resolving the returned promise).
 
-### `Client.connect(options[, callback])`
+### `client.connect(options[, callback])`
 
-See [`Dispatcher.connect(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback).
+<!-- YAML
+added: v1.0.0
+-->
 
-### `Client.dispatch(options, handlers)`
+* `options` {Object} The connect options, identical to
+  [`dispatcher.connect()`][] except that `origin` is omitted because the client
+  is bound to a single origin.
+* `callback` {Function} (optional)
+* Returns: {Promise|void} A promise when `callback` is not provided.
 
-Implements [`Dispatcher.dispatch(options, handlers)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler).
+Starts a connection to the client's origin and tunnels a connection through it,
+as defined by [`dispatcher.connect()`][].
 
-### `Client.pipeline(options, handler)`
+### `client.dispatch(options, handlers)`
 
-See [`Dispatcher.pipeline(options, handler)`](/docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler).
+<!-- YAML
+added: v1.0.0
+-->
 
-### `Client.request(options[, callback])`
+Implements [`dispatcher.dispatch(options, handler)`][]. This is the lowest-level
+API used by all other request methods; prefer `client.request()` for most use
+cases.
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+### `client.pipeline(options, handler)`
 
-### `Client.stream(options, factory[, callback])`
+<!-- YAML
+added: v1.0.0
+-->
 
-See [`Dispatcher.stream(options, factory[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback).
+See [`dispatcher.pipeline(options, handler)`][]. Sends a request and returns a
+{Duplex} stream that the request body is written to and the response body is
+read from.
 
-### `Client.upgrade(options[, callback])`
+### `client.request(options[, callback])`
 
-See [`Dispatcher.upgrade(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback).
+<!-- YAML
+added: v1.0.0
+-->
 
-## Instance Properties
+* `options` {Object}
+* `callback` {Function} (optional)
+* Returns: {Promise|void} A promise resolving to the response data when
+  `callback` is not provided.
 
-### `Client.closed`
+See [`dispatcher.request(options[, callback])`][]. Performs an HTTP request and
+returns its status code, headers, trailers, and a readable body stream.
 
-* `boolean`
+```mjs
+import { Client } from 'undici'
+
+const client = new Client('http://localhost:3000')
+const { statusCode, headers, body } = await client.request({
+  path: '/',
+  method: 'GET'
+})
+
+console.log(statusCode)
+for await (const chunk of body) {
+  console.log(chunk.toString())
+}
+```
+
+### `client.stream(options, factory[, callback])`
+
+<!-- YAML
+added: v1.0.0
+-->
+
+* `options` {Object}
+* `factory` {Function} Returns a {Writable} the response body is piped into.
+* `callback` {Function} (optional)
+* Returns: {Promise|void} A promise when `callback` is not provided.
+
+See [`dispatcher.stream(options, factory[, callback])`][]. A faster alternative
+to `client.request()` when the destination of the response body is known in
+advance.
+
+### `client.upgrade(options[, callback])`
+
+<!-- YAML
+added: v1.0.0
+-->
+
+* `options` {Object}
+* `callback` {Function} (optional)
+* Returns: {Promise|void} A promise when `callback` is not provided.
+
+See [`dispatcher.upgrade(options[, callback])`][]. Upgrades a connection to a
+different protocol, such as for WebSocket or HTTP `CONNECT`.
+
+### `client.closed`
+
+<!-- YAML
+added: v1.0.0
+-->
+
+* Type: {boolean}
 
 `true` after `client.close()` has been called.
 
-### `Client.destroyed`
+### `client.destroyed`
 
-* `boolean`
+<!-- YAML
+added: v1.0.0
+-->
 
-`true` after `client.destroyed()` has been called or `client.close()` has been called and the client shutdown has completed.
+* Type: {boolean}
 
-### `Client.pipelining`
+`true` after `client.destroy()` has been called, or after `client.close()` has
+been called and the client shutdown has completed.
 
-* `number`
+### `client.pipelining`
 
-Property to get and set the pipelining factor.
+<!-- YAML
+added: v1.0.0
+-->
 
-## Instance Events
+* Type: {number}
+
+The pipelining factor. This property can be read and written to adjust the
+number of concurrent requests sent over the connection. Only enable pipelining
+with trusted remote servers.
+
+### `client.stats`
+
+<!-- YAML
+added: v7.9.0
+-->
+
+* Type: {ClientStats}
+
+Aggregate statistics for the client. See [`ClientStats`][].
 
 ### Event: `'connect'`
 
-See [Dispatcher Event: `'connect'`](/docs/docs/api/Dispatcher.md#event-connect).
+<!-- YAML
+added: v1.0.0
+-->
 
-Parameters:
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
 
-* **origin** `URL`
-* **targets** `Array<Dispatcher>`
+Emitted when a socket has been created and connected. The client connects once
+`client.size > 0`. See [`Dispatcher` Event: `'connect'`][].
 
-Emitted when a socket has been created and connected. The client will connect once `client.size > 0`.
-
-#### Example - Client connect event
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end('Hello, World!')
@@ -221,43 +386,40 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 client.on('connect', (origin) => {
-  console.log(`Connected to ${origin}`) // should print before the request body statement
+  console.log(`Connected to ${origin}`)
 })
 
-try {
-  const { body } = await client.request({
-    path: '/',
-    method: 'GET'
-  })
-  body.setEncoding('utf-8')
-  body.on('data', console.log)
-  client.close()
-  server.close()
-} catch (error) {
-  console.error(error)
-  client.close()
-  server.close()
-}
+const { body } = await client.request({ path: '/', method: 'GET' })
+body.setEncoding('utf8')
+body.on('data', console.log)
+
+client.close()
+server.close()
 ```
 
 ### Event: `'disconnect'`
 
-See [Dispatcher Event: `'disconnect'`](/docs/docs/api/Dispatcher.md#event-disconnect).
+<!-- YAML
+added: v1.0.0
+changes:
+  - version: v4.0.0
+    pr-url: https://github.com/nodejs/undici/pull/771
+    description: The event is only emitted if the client had previously
+                 connected.
+-->
 
-Parameters:
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
+* `error` {Error}
 
-* **origin** `URL`
-* **targets** `Array<Dispatcher>`
-* **error** `Error`
+Emitted when a socket has disconnected. The `error` argument is the error that
+caused the disconnection. The client reconnects if or once `client.size > 0`.
+See [`Dispatcher` Event: `'disconnect'`][].
 
-Emitted when socket has disconnected. The error argument of the event is the error which caused the socket to disconnect. The client will reconnect if or once `client.size > 0`.
-
-#### Example - Client disconnect event
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.destroy()
@@ -272,12 +434,10 @@ client.on('disconnect', (origin) => {
 })
 
 try {
-  await client.request({
-    path: '/',
-    method: 'GET'
-  })
+  await client.request({ path: '/', method: 'GET' })
 } catch (error) {
   console.error(error.message)
+} finally {
   client.close()
   server.close()
 }
@@ -285,16 +445,19 @@ try {
 
 ### Event: `'drain'`
 
-Emitted when pipeline is no longer busy.
+<!-- YAML
+added: v1.0.0
+-->
 
-See [Dispatcher Event: `'drain'`](/docs/docs/api/Dispatcher.md#event-drain).
+* `origin` {URL}
 
-#### Example - Client drain event
+Emitted when the pipeline is no longer busy. See
+[`Dispatcher` Event: `'drain'`][].
 
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end('Hello, World!')
@@ -310,17 +473,40 @@ client.on('drain', () => {
   server.close()
 })
 
-const requests = [
+await Promise.all([
   client.request({ path: '/', method: 'GET' }),
   client.request({ path: '/', method: 'GET' }),
   client.request({ path: '/', method: 'GET' })
-]
-
-await Promise.all(requests)
-
-console.log('requests completed')
+])
 ```
 
 ### Event: `'error'`
 
-Invoked for user errors such as throwing in the `onResponseError` handler.
+<!-- YAML
+added: v1.0.0
+-->
+
+* `error` {Error}
+
+Emitted for user errors, such as throwing inside an `onResponseError` handler.
+
+[RFC 7230, section 6.3.2]: https://tools.ietf.org/html/rfc7230#section-6.3.2
+[RFC 8305]: https://tools.ietf.org/html/rfc8305#section-5
+[`Agent`]: Agent.md#class-agent
+[`ClientStats`]: ClientStats.md
+[`Connector`]: Connector.md
+[`Dispatcher` Event: `'connect'`]: Dispatcher.md#event-connect
+[`Dispatcher` Event: `'disconnect'`]: Dispatcher.md#event-disconnect
+[`Dispatcher` Event: `'drain'`]: Dispatcher.md#event-drain
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`Pool`]: Pool.md#class-pool
+[`buildConnector`]: Connector.md
+[`dispatcher.close([callback])`]: Dispatcher.md#dispatcherclosecallback
+[`dispatcher.connect()`]: Dispatcher.md#dispatcherconnectoptions-callback
+[`dispatcher.destroy([error[, callback]])`]: Dispatcher.md#dispatcherdestroyerror-callback
+[`dispatcher.dispatch(options, handler)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`dispatcher.pipeline(options, handler)`]: Dispatcher.md#dispatcherpipelineoptions-handler
+[`dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`dispatcher.stream(options, factory[, callback])`]: Dispatcher.md#dispatcherstreamoptions-factory-callback
+[`dispatcher.upgrade(options[, callback])`]: Dispatcher.md#dispatcherupgradeoptions-callback
+[`tls.connect()`]: https://nodejs.org/api/tls.html#tlsconnectoptions-callback

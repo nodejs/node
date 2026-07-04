@@ -105,7 +105,7 @@ function validateCookiePath (path) {
 
     if (
       code < 0x20 || // exclude CTLs (0-31)
-      code === 0x7F || // DEL
+      code > 0x7E || // exclude non-ascii and DEL
       code === 0x3B // ;
     ) {
       throw new Error('Invalid cookie path')

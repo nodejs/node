@@ -1,5 +1,7 @@
 # Undici Module vs. Node.js Built-in Fetch
 
+<!--type=misc-->
+
 Node.js has shipped a built-in `fetch()` implementation powered by undici since
 Node.js v18. This guide explains the relationship between the `undici` npm
 package and the built-in `fetch`, and when you should install one versus relying
@@ -57,7 +59,7 @@ await fetch('https://example.com', {
 ### `undici.install()` globals
 
 If you want the installed `undici` package to provide the globals, call
-[`install()`](/docs/api/GlobalInstallation.md):
+[`install()`](../api/GlobalInstallation.md):
 
 ```js
 import { install } from 'undici'
@@ -207,7 +209,7 @@ You can always check the exact bundled version at runtime with
 
 Installing undici from npm does not replace the built-in globals. If you want
 your installed version to replace the global `fetch` and related classes, use
-[`install()`](/docs/api/GlobalInstallation.md). Otherwise, import `fetch`
+[`install()`](../api/GlobalInstallation.md). Otherwise, import `fetch`
 directly from `'undici'`:
 
 ```js
@@ -216,9 +218,9 @@ import { fetch } from 'undici' // uses your installed version, not the built-in
 
 ## Further reading
 
-- [API Reference: Fetch](/docs/api/Fetch.md)
-- [API Reference: Client](/docs/api/Client.md)
-- [API Reference: Pool](/docs/api/Pool.md)
-- [API Reference: ProxyAgent](/docs/api/ProxyAgent.md)
-- [API Reference: MockAgent](/docs/api/MockAgent.md)
-- [API Reference: Global Installation](/docs/api/GlobalInstallation.md)
+- [API Reference: Fetch](../api/Fetch.md)
+- [API Reference: Client](../api/Client.md)
+- [API Reference: Pool](../api/Pool.md)
+- [API Reference: ProxyAgent](../api/ProxyAgent.md)
+- [API Reference: MockAgent](../api/MockAgent.md)
+- [API Reference: Global Installation](../api/GlobalInstallation.md)

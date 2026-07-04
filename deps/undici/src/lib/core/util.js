@@ -919,11 +919,32 @@ function onConnectTimeout (socket, opts) {
   destroy(socket, new ConnectTimeoutError(message))
 }
 
+let lastUrlString = null
+let lastProtocol = null
+
 /**
  * @param {string} urlString
  * @returns {string}
  */
 function getProtocolFromUrlString (urlString) {
+  // Requests are typically dispatched against the same origin over and over,
+  // so cache the last (urlString, protocol) pair to skip re-parsing.
+  if (urlString === lastUrlString) {
+    return lastProtocol
+  }
+
+  const protocol = getProtocolFromUrlStringSlow(urlString)
+  lastUrlString = urlString
+  lastProtocol = protocol
+
+  return protocol
+}
+
+/**
+ * @param {string} urlString
+ * @returns {string}
+ */
+function getProtocolFromUrlStringSlow (urlString) {
   if (
     urlString[0] === 'h' &&
     urlString[1] === 't' &&
@@ -960,7 +981,9 @@ const normalizedMethodRecordsBase = {
   post: 'POST',
   POST: 'POST',
   put: 'PUT',
-  PUT: 'PUT'
+  PUT: 'PUT',
+  query: 'QUERY',
+  QUERY: 'QUERY'
 }
 
 const normalizedMethodRecords = {

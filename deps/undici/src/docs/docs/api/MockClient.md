@@ -1,73 +1,183 @@
-# Class: MockClient
+# MockClient
 
-Extends: `undici.Client`
+<!--introduced_in=v4.0.0-->
+<!--type=module-->
+<!-- source_link=lib/mock/mock-client.js -->
 
-A mock client class that implements the same api as [MockPool](/docs/docs/api/MockPool.md).
+> Stability: 2 - Stable
 
-## `new MockClient(origin, [options])`
+A `MockClient` is a [`Client`][] that intercepts requests matching registered
+routes and replies with mocked responses instead of contacting the network.
+It is created by a [`MockAgent`][] when the agent is configured with a single
+connection, and it exposes the same interception API as [`MockPool`][].
 
-Arguments:
+A `MockClient` is not constructed directly in most cases; instead it is obtained
+through [`mockAgent.get(origin)`][] once the agent has `connections` set to `1`.
 
-* **origin** `string` - It should only include the **protocol, hostname, and port**.
-* **options** `MockClientOptions` - It extends the `Client` options.
-
-Returns: `MockClient`
-
-### Parameter: `MockClientOptions`
-
-Extends: `ClientOptions`
-
-* **agent** `Agent` - the agent to associate this MockClient with.
-
-### Example - Basic MockClient instantiation
-
-We can use MockAgent to instantiate a MockClient ready to be used to intercept specified requests. It will not do anything until registered as the agent to use and any mock request are registered.
-
-```js
+```mjs
 import { MockAgent } from 'undici'
 
-// Connections must be set to 1 to return a MockClient instance
+// `connections: 1` makes the agent hand out `MockClient` instances.
 const mockAgent = new MockAgent({ connections: 1 })
-
 const mockClient = mockAgent.get('http://localhost:3000')
 ```
 
-## Instance Methods
+```cjs
+const { MockAgent } = require('undici')
 
-### `MockClient.intercept(options)`
+const mockAgent = new MockAgent({ connections: 1 })
+const mockClient = mockAgent.get('http://localhost:3000')
+```
 
-Implements: [`MockPool.intercept(options)`](/docs/docs/api/MockPool.md#mockpoolinterceptoptions)
+## Class: `MockClient`
 
-### `MockClient.cleanMocks()`
+<!-- YAML
+added: v4.0.0
+-->
 
-Implements: [`MockPool.cleanMocks()`](/docs/docs/api/MockPool.md#mockpoolcleanmocks)
+* Extends: {Client}
 
-### `MockClient.close()`
+Extends [`Client`][] and implements the `Interceptable` interface, allowing
+requests made through it to be matched against registered mocks.
 
-Implements: [`MockPool.close()`](/docs/docs/api/MockPool.md#mockpoolclose)
+### `new MockClient(origin[, options])`
 
-### `MockClient.dispatch(options, handlers)`
+<!-- YAML
+added: v4.0.0
+-->
 
-Implements [`Dispatcher.dispatch(options, handlers)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler).
+* `origin` {string} The origin to associate this mock client with. It should
+  only include the protocol, hostname, and port.
+* `options` {MockClientOptions} Extends the [`Client`][] options.
+* Returns: {MockClient}
 
-### `MockClient.request(options[, callback])`
+The `agent` option is required and must implement the `Agent` interface;
+otherwise an `InvalidArgumentError` is thrown.
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+#### Parameter: `MockClientOptions`
 
-#### Example - MockClient request
+Extends: `ClientOptions`
 
-```js
+* `agent` {MockAgent} The agent to associate this mock client with.
+* `ignoreTrailingSlash` {boolean} Whether trailing slashes should be ignored
+  when matching the path of intercepted requests. **Default:** `false`.
+
+### `mockClient.intercept(options)`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* `options` {MockInterceptor.Options} The matching criteria for the requests to
+  intercept.
+  * `path` {string|RegExp|Function} The path to match against. A function
+    receives the request path as a `string` and returns a `boolean`.
+  * `method` {string|RegExp|Function} The method to match against. A function
+    receives the request method as a `string` and returns a `boolean`.
+    **Default:** `'GET'`.
+  * `body` {string|RegExp|Function} The body to match against. A function
+    receives the request body as a `string` and returns a `boolean`.
+  * `headers` {Object|Function} The headers to match against, as a map of header
+    name to a `string`, `RegExp`, or matching function, or a single function
+    that receives all headers and returns a `boolean`.
+  * `query` {Object} The query parameters to match against.
+  * `ignoreTrailingSlash` {boolean} Whether a trailing slash on `path` is
+    ignored when matching. Inherited from the mock client's
+    `ignoreTrailingSlash` option when not set.
+* Returns: {MockInterceptor} The interceptor used to define the mocked reply.
+
+Registers a route on the mock client and returns a [`MockInterceptor`][] for any
+matching request that uses the same origin as this mock client. The interceptor
+is then used to define the reply, for example with `reply()` or
+`replyWithError()`.
+
+```mjs
 import { MockAgent } from 'undici'
 
 const mockAgent = new MockAgent({ connections: 1 })
+const mockClient = mockAgent.get('http://localhost:3000')
 
+mockClient.intercept({ path: '/foo', method: 'GET' }).reply(200, 'foo')
+```
+
+### `mockClient.cleanMocks()`
+
+<!-- YAML
+added: v7.11.0
+-->
+
+Removes all registered interceptors from the mock client. Pending mocks defined
+before this call no longer match incoming requests.
+
+```mjs
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent({ connections: 1 })
+const mockClient = mockAgent.get('http://localhost:3000')
+
+mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
+mockClient.cleanMocks()
+```
+
+### `mockClient.close()`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Returns: {Promise} Fulfills with `undefined` once the mock client is closed.
+
+Closes the mock client, gracefully waiting for any enqueued requests to
+complete, and removes it from the associated [`MockAgent`][].
+
+```mjs
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent({ connections: 1 })
+const mockClient = mockAgent.get('http://localhost:3000')
+
+await mockClient.close()
+```
+
+### `mockClient.dispatch(options, handlers)`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* `options` {DispatchOptions} The request options.
+* `handlers` {DispatchHandler} The handlers invoked over the request lifecycle.
+* Returns: {boolean} `false` if the dispatcher is busy and the caller should
+  wait before dispatching further requests, otherwise `true`.
+
+Dispatches a request, matching it against the registered mocks. This override of
+[`dispatcher.dispatch(options, handlers)`][] is what drives the mocking
+behaviour for every higher-level method such as `request`.
+
+### `mockClient.request(options[, callback])`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* `options` {DispatchOptions}
+* `callback` {Function} (optional) Invoked with the response when no `Promise`
+  is requested.
+* Returns: {Promise} Fulfills with the mocked response when no `callback` is
+  provided.
+
+Performs a request and resolves it against the registered mocks. Inherited from
+[`Client`][]; see [`dispatcher.request(options[, callback])`][] for the full
+parameter and return value documentation.
+
+```mjs
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent({ connections: 1 })
 const mockClient = mockAgent.get('http://localhost:3000')
 mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await mockClient.request({
+const { statusCode, body } = await mockClient.request({
   origin: 'http://localhost:3000',
   path: '/foo',
   method: 'GET'
@@ -79,3 +189,11 @@ for await (const data of body) {
   console.log('data', data.toString('utf8')) // data foo
 }
 ```
+
+[`Client`]: Client.md#class-client
+[`MockAgent`]: MockAgent.md#class-mockagent
+[`MockInterceptor`]: MockPool.md#return-mockinterceptor
+[`MockPool`]: MockPool.md#class-mockpool
+[`dispatcher.dispatch(options, handlers)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`mockAgent.get(origin)`]: MockAgent.md#mockagentgetorigin

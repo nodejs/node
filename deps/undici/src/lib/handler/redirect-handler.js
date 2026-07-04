@@ -55,6 +55,7 @@ class RedirectHandler {
     // https://tools.ietf.org/html/rfc7231#section-6.4.2
     // https://fetch.spec.whatwg.org/#http-redirect-fetch
     // In case of HTTP 301 or 302 with POST, change the method to GET
+    // QUERY is safe (RFC 10008) and should not change method like GET.
     if ((statusCode === 301 || statusCode === 302) && this.opts.method === 'POST') {
       this.opts.method = 'GET'
       if (util.isStream(this.opts.body)) {

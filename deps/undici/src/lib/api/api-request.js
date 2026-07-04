@@ -66,7 +66,13 @@ class RequestHandler extends AsyncResource {
       this.removeAbortListener = util.addAbortListener(signal, () => {
         this.reason = signal.reason ?? new RequestAbortedError()
         if (this.res) {
-          util.destroy(this.res.on('error', noop), this.reason)
+          // Null the reference before destroying, mirroring onResponseError, so
+          // that chunks flushed after the abort (e.g. an async decompressor
+          // flush) are dropped by the `!this.res` guard in onResponseData
+          // instead of being pushed into the torn-down stream.
+          const res = this.res
+          this.res = null
+          util.destroy(res.on('error', noop), this.reason)
         } else if (this.abort) {
           this.abort(this.reason)
         }
