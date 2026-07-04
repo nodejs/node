@@ -487,15 +487,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&unused);
     }
 
-    stream->EndReadable();
-
-    if (!stream->is_pending()) {
-      // If the stream is a local unidirectional there's nothing to do here.
-      if (stream->is_local_unidirectional()) return;
-      stream->NotifyReadableEnded(code);
-    } else {
-      stream->pending_close_read_code_ = code;
-    }
+    stream->SendStopSending(code);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any
@@ -512,21 +504,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&lossless);
     }
 
-    if (stream->state()->reset == 1) return;
-
-    stream->EndWritable();
-    // We can release our outbound here now. Since the stream is being reset
-    // on the ngtcp2 side, we do not need to keep any of the data around
-    // waiting for acknowledgement that will never come.
-    stream->outbound_.reset();
-    stream->state()->reset = 1;
-
-    if (!stream->is_pending()) {
-      if (stream->is_remote_unidirectional()) return;
-      stream->NotifyWritableEnded(code);
-    } else {
-      stream->pending_close_write_code_ = code;
-    }
+    stream->DoStreamReset(code);
   }
 
   JS_METHOD(SetPriority) {
@@ -1821,6 +1799,36 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
   state()->reset_code = error.code();
   EndReadable(final_size);
   EmitReset(error);
+}
+
+void Stream::DoStreamReset(error_code code) {
+  if (state()->reset == 1) return;
+
+  EndWritable();
+  // We can release our outbound here now. Since the stream is being reset
+  // on the ngtcp2 side, we do not need to keep any of the data around
+  // waiting for acknowledgement that will never come.
+  outbound_.reset();
+  state()->reset = 1;
+
+  if (!is_pending()) {
+    if (is_remote_unidirectional()) return;
+    NotifyWritableEnded(code);
+  } else {
+    pending_close_write_code_ = code;
+  }
+}
+
+void Stream::SendStopSending(error_code code) {
+  EndReadable();
+
+  if (!is_pending()) {
+    // If the stream is a local unidirectional there's nothing to do here.
+    if (is_local_unidirectional()) return;
+      NotifyReadableEnded(code);
+  } else {
+    pending_close_read_code_ = code;
+  }
 }
 
 // ============================================================================

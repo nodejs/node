@@ -921,24 +921,24 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->ReceiveData(nullptr, 0, flags);
   }
 
-  void OnStopSending(stream_id id, error_code app_error_code) {
+  void OnSendStopSending(stream_id id, error_code app_error_code) {
     auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
-          "HTTP/3 application received stop sending for stream %" PRIi64,
+          "HTTP/3 application should send stop sending for stream %" PRIi64,
           id);
-    stream->ReceiveStopSending(QuicError::ForApplication(app_error_code));
+    stream->SendStopSending(app_error_code);
   }
 
-  void OnResetStream(stream_id id, error_code app_error_code) {
+  void OnDoResetStream(stream_id id, error_code app_error_code) {
     auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
-          "HTTP/3 application received reset stream for stream %" PRIi64,
+          "HTTP/3 application received a request to reset stream for stream %" PRIi64,
           id);
-    stream->ReceiveStreamReset(0, QuicError::ForApplication(app_error_code));
+    stream->DoStreamReset(app_error_code);
   }
 
   void OnShutdown(stream_id id) {
@@ -1318,29 +1318,31 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGTCP2_SUCCESS;
   }
 
-  static int on_stop_sending(nghttp3_conn* conn,
+  static int on_send_stop_sending(nghttp3_conn* conn,
                              stream_id id,
                              error_code app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
+    // this callback asks the app side to send a stop sending
     NGHTTP3_CALLBACK_SCOPE(app);
     if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnStopSending(id, app_error_code);
+    app.OnSendStopSending(id, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
-  static int on_reset_stream(nghttp3_conn* conn,
+  static int on_do_reset_stream(nghttp3_conn* conn,
                              stream_id id,
                              error_code app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
+    // this callback ask the app side to do a reset stream
     NGHTTP3_CALLBACK_SCOPE(app);
     if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnResetStream(id, app_error_code);
+    app.OnDoResetStream(id, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
@@ -1394,9 +1396,9 @@ class Http3ApplicationImpl final : public Session::Application {
       on_begin_trailers,
       on_receive_trailer,
       on_end_trailers,
-      on_stop_sending,
+      on_send_stop_sending,
       on_end_stream,
-      on_reset_stream,
+      on_do_reset_stream,
       on_shutdown,
       nullptr,  // recv_settings (deprecated)
       on_receive_origin,
