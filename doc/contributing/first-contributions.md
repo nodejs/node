@@ -168,9 +168,11 @@ before approving the CI runs. Similar to the review process, be patient and resp
 the volunteers' time when you are asking for help to trigger the CI runs, this helps build
 trust to make future contributions smoother.
 
-Since read access to the Jenkins CI is also restricted, one of the collaborators also will need to
-let you know about any failures unless you are a member of one of the platform teams in the Node.js
-organisation.  If after a day or so from a collaborator triggering a Jenkins CI your PR shows a
+### Q: The Jenkins CI failed, but when I clicked the CI link, it shows "Access Denied". What should I do?
+
+Read access to the Jenkins CI is restricted to a few teams in the Node.js organization. You will
+need to ask a member of these teams (for example, any of the collaborators) to show you the details
+of the failures. If after a day or so from a collaborator triggering a Jenkins CI your PR shows a
 failure in either the `node-test-pull-request` or `node-test-commit-*` checks it's worth adding a
 comment to the PR asking what tests are failed, as the collaborator may not realise that you cannot
 see the results directly.
