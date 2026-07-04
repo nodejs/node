@@ -151,6 +151,25 @@ async function testMergeSignalMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testMergeSignalDuringPendingMultiSourceRead() {
+  const ac = new AbortController();
+
+  async function* pending() {
+    await new Promise(() => {});
+    yield [];
+  }
+
+  const iter = merge(pending(), pending(), {
+    __proto__: null,
+    signal: ac.signal,
+  })[Symbol.asyncIterator]();
+
+  const next = iter.next();
+  ac.abort();
+
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
 // merge() accepts string sources (normalized via from())
 async function testMergeStringSources() {
   const batches = [];
@@ -286,6 +305,7 @@ Promise.all([
   testMergeSourceError(),
   testMergeConsumerBreak(),
   testMergeSignalMidIteration(),
+  testMergeSignalDuringPendingMultiSourceRead(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
   testMergeCleanupErrorOnly(),
