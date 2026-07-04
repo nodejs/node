@@ -2609,11 +2609,9 @@ void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
-  v8::TryCatch try_catch(args.GetIsolate());
-  Close(args);
-  if (try_catch.HasCaught()) {
-    CHECK(try_catch.CanContinue());
-  }
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  stmt->Close();
 }
 
 inline int StatementSync::ResetStatement() {
