@@ -14,6 +14,7 @@ const {
   arrayBufferSync,
   array,
   arraySync,
+  toAsyncStreamable,
 } = require('stream/iter');
 
 // =============================================================================
@@ -51,6 +52,55 @@ async function testBytesAsyncAbort() {
     () => bytes(from('data'), { signal: ac.signal }),
     { name: 'AbortError' },
   );
+}
+
+async function testAsyncConsumersAbortPendingNext() {
+  const consumers = [
+    ['bytes', bytes],
+    ['text', text],
+    ['arrayBuffer', arrayBuffer],
+    ['array', array],
+  ];
+
+  for (const [name, consumer] of consumers) {
+    const ac = new AbortController();
+    const reason = new Error(`${name} boom`);
+
+    async function* never() {
+      await new Promise(() => {});
+      yield [];
+    }
+
+    const promise = consumer(never(), { __proto__: null, signal: ac.signal });
+    ac.abort(reason);
+
+    await assert.rejects(promise, reason);
+  }
+}
+
+async function testAsyncConsumersAbortPendingNormalization() {
+  const consumers = [
+    ['bytes', bytes],
+    ['text', text],
+    ['arrayBuffer', arrayBuffer],
+    ['array', array],
+  ];
+
+  for (const [name, consumer] of consumers) {
+    const ac = new AbortController();
+    const reason = new Error(`${name} normalization boom`);
+    const source = {
+      __proto__: null,
+      [toAsyncStreamable]() {
+        return new Promise(() => {});
+      },
+    };
+
+    const promise = consumer(source, { __proto__: null, signal: ac.signal });
+    ac.abort(reason);
+
+    await assert.rejects(promise, reason);
+  }
 }
 
 async function testBytesEmpty() {
@@ -205,6 +255,8 @@ Promise.all([
   testBytesAsync(),
   testBytesAsyncLimit(),
   testBytesAsyncAbort(),
+  testAsyncConsumersAbortPendingNext(),
+  testAsyncConsumersAbortPendingNormalization(),
   testBytesEmpty(),
   testArrayBufferSyncBasic(),
   testArrayBufferAsync(),
