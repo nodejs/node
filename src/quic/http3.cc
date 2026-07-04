@@ -1320,10 +1320,10 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_send_stop_sending(nghttp3_conn* conn,
-                             stream_id id,
-                             error_code app_error_code,
-                             void* conn_user_data,
-                             void* stream_user_data) {
+                                  stream_id id,
+                                  error_code app_error_code,
+                                  void* conn_user_data,
+                                  void* stream_user_data) {
     // this callback asks the app side to send a stop sending
     NGHTTP3_CALLBACK_SCOPE(app);
     if (app.is_control_stream(id)) [[unlikely]] {
@@ -1334,10 +1334,10 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_do_reset_stream(nghttp3_conn* conn,
-                             stream_id id,
-                             error_code app_error_code,
-                             void* conn_user_data,
-                             void* stream_user_data) {
+                                stream_id id,
+                                error_code app_error_code,
+                                void* conn_user_data,
+                                void* stream_user_data) {
     // this callback ask the app side to do a reset stream
     NGHTTP3_CALLBACK_SCOPE(app);
     if (app.is_control_stream(id)) [[unlikely]] {

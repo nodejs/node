@@ -352,7 +352,6 @@ class Stream final : public AsyncWrap,
   // that has already been received is still readable.
   void SendStopSending(error_code code);
 
-
   // Currently, only HTTP/3 streams support headers. These methods are here
   // to support that. They are not used when using any other QUIC application.
 

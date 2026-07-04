@@ -1825,7 +1825,7 @@ void Stream::SendStopSending(error_code code) {
   if (!is_pending()) {
     // If the stream is a local unidirectional there's nothing to do here.
     if (is_local_unidirectional()) return;
-      NotifyReadableEnded(code);
+    NotifyReadableEnded(code);
   } else {
     pending_close_read_code_ = code;
   }

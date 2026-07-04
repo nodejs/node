@@ -2797,8 +2797,8 @@ void Session::RemoveStream(stream_id id) {
   // then we can proceed to finishing the close now. Note that the
   // expectation is that the session will be destroyed once FinishClose
   // returns.
-  if (impl_->state()->closing && impl_->state()->graceful_close
-      && impl_->streams_.size() == 0) {
+  if (impl_->state()->closing && impl_->state()->graceful_close &&
+      impl_->streams_.size() == 0) {
     FinishClose();
     CHECK(is_destroyed());
   }
