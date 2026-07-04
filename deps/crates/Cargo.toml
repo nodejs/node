@@ -25,8 +25,8 @@ default-features = false
 [dependencies.temporal_rs]
 version = "=0.1.2" # Should be in sync with the version defined in deps/v8/DEPS:deps[third_party/rust]
 default-features = false
-# This is necessary to enable a spec-compliance quirk when upgrading to v0.1.2
-# features = ["float64_representable_durations"]
+# This is necessary to enable a spec-compliance quirk
+features = ["float64_representable_durations"]
 
 # Disable `icu_calendar_data` and `icu_locale_data` crates with disabling
 # `compiled_data` features. However these datasets are still enabled until
