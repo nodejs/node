@@ -16,6 +16,8 @@ class Environment;
 #define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
 #define DEFAULT_MAX_HEADER_LENGTH 8192
 
+constexpr size_t kMaxInternalizedHeaderNameLength = 64;
+
 #define HTTP_SPECIAL_HEADERS(V)                                               \
   V(STATUS, ":status")                                                        \
   V(METHOD, ":method")                                                        \
@@ -432,7 +434,7 @@ class NgRcBufPointer : public MemoryRetainer {
         return v8::String::Empty(env->isolate());
       }
 
-      if (ptr.IsInternalizable() && len < 64) {
+      if (ptr.IsInternalizable() && len < kMaxInternalizedHeaderNameLength) {
         v8::MaybeLocal<v8::String> ret = GetInternalizedString(env, ptr);
         ptr.reset();
         return ret;

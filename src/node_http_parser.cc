@@ -28,6 +28,7 @@
 #include "llhttp.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
+#include "node_http_common.h"
 #include "stream_base-inl.h"
 #include "v8.h"
 
@@ -235,14 +236,15 @@ struct StringPtr {
   }
 
   Local<String> ToInternalizedString(Environment* env) const {
-    if (size_ != 0) {
+    // Only internalize short names to avoid pressuring the string table.
+    if (size_ != 0 && size_ < kMaxInternalizedHeaderNameLength) {
       return String::NewFromOneByte(env->isolate(),
                                     reinterpret_cast<const uint8_t*>(str_),
                                     NewStringType::kInternalized,
                                     size_)
           .ToLocalChecked();
     }
-    return String::Empty(env->isolate());
+    return ToString(env);
   }
 
   // Strip trailing OWS (SPC or HTAB) from string.
