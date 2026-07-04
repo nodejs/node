@@ -997,6 +997,15 @@ objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`.
 
+### `statement.close()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. An exception is thrown if the statement is
+already finalized. This method is a wrapper around [`sqlite3_finalize()`][].
+
 ### `statement.columns()`
 
 <!-- YAML
@@ -1691,6 +1700,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_finalize()`]: https://www.sqlite.org/c3ref/finalize.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
