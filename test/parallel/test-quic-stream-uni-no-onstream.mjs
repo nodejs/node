@@ -4,7 +4,6 @@
 // Verify that this causes no crash.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import { createPrivateKey } from 'node:crypto';
 import * as fixtures from '../common/fixtures.mjs';
 
 const { readKey } = fixtures;
@@ -13,6 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
+const { createPrivateKey } = await import('node:crypto');
 const { listen, connect } = await import('../common/quic.mjs');
 
 const serverKey = createPrivateKey(readKey('agent1-key.pem'));
