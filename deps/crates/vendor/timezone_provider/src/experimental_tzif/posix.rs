@@ -74,9 +74,9 @@ impl From<&PosixTransition> for ZeroPosixTransition {
 #[cfg_attr(feature = "datagen", databake(path = timezone_provider::experimental_tzif::posix))]
 pub struct ZeroTransitionDateTime {
     /// The date at which a transition should occur.
-    date: ZeroTransitionDate,
+    pub date: ZeroTransitionDate,
     /// The time of day in seconds.
-    time: i64,
+    pub time: i64,
 }
 
 #[cfg(feature = "datagen")]
@@ -97,9 +97,9 @@ impl From<&PosixDateTime> for ZeroTransitionDateTime {
 )]
 #[cfg_attr(feature = "datagen", databake(path = timezone_provider::experimental_tzif::posix))]
 pub struct ZeroTransitionDate {
-    kind: DateKind,
-    day: Option<u16>,
-    mwd: Option<(u8, u8, u8)>,
+    pub kind: DateKind,
+    pub day: Option<u16>,
+    pub mwd: Option<(u8, u8, u8)>,
 }
 
 #[cfg(feature = "datagen")]

@@ -23,7 +23,7 @@ pub fn parse_locale(t: &[u8]) -> Result<Locale, ParseError> {
     Ok(Locale { id, extensions })
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 pub const fn parse_locale_with_single_variant_single_keyword_unicode_keyword_extension(
     t: &[u8],
     mode: ParserMode,

@@ -2,12 +2,12 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! Options for building and reading from a ZeroTrie.
+//! Options for building and reading from a [`ZeroTrie`](crate::ZeroTrie).
 //!
 //! These options are internal to the crate. A small selection of options
 //! are exported by way of the different public types on this crate.
 
-/// Whether to use the perfect hash function in the ZeroTrie.
+/// Whether to use the perfect hash function in the [`ZeroTrie`](crate::ZeroTrie).
 #[derive(Copy, Clone)]
 pub(crate) enum PhfMode {
     /// Use binary search for all branch nodes.
@@ -26,7 +26,7 @@ impl PhfMode {
     }
 }
 
-/// Whether to support non-ASCII data in the ZeroTrie.
+/// Whether to support non-ASCII data in the [`ZeroTrie`](crate::ZeroTrie).
 #[derive(Copy, Clone)]
 pub(crate) enum AsciiMode {
     /// Support only ASCII, returning an error if non-ASCII is found.
@@ -45,7 +45,7 @@ impl AsciiMode {
     }
 }
 
-/// Whether to enforce a limit to the capacity of the ZeroTrie.
+/// Whether to enforce a limit to the capacity of the [`ZeroTrie`](crate::ZeroTrie).
 #[derive(Copy, Clone)]
 pub(crate) enum CapacityMode {
     /// Return an error if the trie requires a branch of more than 2^32 bytes.

@@ -5,6 +5,7 @@ use crate::punctuated::{self, Punctuated};
 use crate::restriction::{FieldMutability, Visibility};
 use crate::token;
 use crate::ty::Type;
+use alloc::vec::Vec;
 
 ast_struct! {
     /// An enum variant.

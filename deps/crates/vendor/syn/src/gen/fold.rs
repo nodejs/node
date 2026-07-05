@@ -7,6 +7,10 @@
     clippy::needless_match,
     clippy::needless_pass_by_ref_mut,
 )]
+#[cfg(any(feature = "derive", feature = "full"))]
+use alloc::boxed::Box;
+#[cfg(any(feature = "derive", feature = "full"))]
+use alloc::vec::Vec;
 #[cfg(feature = "full")]
 macro_rules! full {
     ($e:expr) => {

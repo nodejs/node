@@ -3,6 +3,7 @@ use std::string::String;
 use std::{eprintln, format};
 
 use super::{HInt, MinInt, i256, u256};
+use crate::support::{Int as _, NarrowingDiv};
 
 const LOHI_SPLIT: u128 = 0xaaaaaaaaaaaaaaaaffffffffffffffff;
 
@@ -36,7 +37,7 @@ fn widen_i128() {
         (LOHI_SPLIT as i128).widen(),
         i256 {
             lo: LOHI_SPLIT,
-            hi: u128::MAX
+            hi: -1,
         }
     );
     assert_eq!((-1i128).zero_widen().unsigned(), (u128::MAX).widen());
@@ -274,4 +275,90 @@ fn shr_u256_overflow() {
     assert_eq!(u256::MAX >> 256, u256::ZERO);
     assert_eq!(u256::MAX >> 257, u256::ZERO);
     assert_eq!(u256::MAX >> u32::MAX, u256::ZERO);
+}
+
+#[test]
+fn u256_ord() {
+    let _1 = u256::ONE;
+    let _2 = _1 + _1;
+    for x in u8::MIN..u8::MAX {
+        let y = x + 1;
+        let wx = (x as u128).widen_hi();
+        let wy = (y as u128).widen_hi();
+        assert!([wx, wx + _1, wx + _2, wy, wy + _1, wy + _2].is_sorted());
+    }
+}
+#[test]
+fn i256_ord() {
+    let _1 = i256::ONE;
+    let _2 = _1 + _1;
+    for x in i8::MIN..i8::MAX {
+        let y = x + 1;
+        let wx = (x as i128).widen_hi();
+        let wy = (y as i128).widen_hi();
+        assert!([wx, wx + _1, wx + _2, wy - _2, wy - _1, wy].is_sorted());
+    }
+}
+
+#[test]
+fn u256_shifts() {
+    let _1 = u256::ONE;
+    for k in 0..255 {
+        let x = _1 << k;
+        let x2 = _1 << (k + 1);
+        assert!(x < x2);
+        assert_eq!(x << 1, x2);
+        assert_eq!(x + x, x2);
+        assert_eq!(x >> k, _1);
+        assert_eq!(x2 >> (k + 1), _1);
+    }
+}
+#[test]
+fn i256_shifts() {
+    let _1 = i256::ONE;
+    for k in 0..254 {
+        let x = _1 << k;
+        let x2 = _1 << (k + 1);
+        assert!(x < x2);
+        assert_eq!(x << 1, x2);
+        assert_eq!(x + x, x2);
+        assert_eq!(x >> k, _1);
+        assert_eq!(x2 >> (k + 1), _1);
+    }
+
+    let min = _1 << 255;
+    assert_eq!(min, i256::MIN);
+    let mut x = min;
+    for k in 0..255 {
+        assert_eq!(x, min >> k);
+        let y = x >> 1;
+        assert_eq!(y + y, x);
+        assert!(x < y);
+        x = y;
+    }
+}
+#[test]
+fn div_u256_by_u128() {
+    for j in i8::MIN..=i8::MAX {
+        let y: u128 = (j as i128).rotate_right(4).unsigned();
+        if y == 0 {
+            continue;
+        }
+        for i in i8::MIN..=i8::MAX {
+            let x: u128 = (i as i128).rotate_right(4).unsigned();
+            let xy = x.widen_mul(y);
+            assert_eq!(xy.checked_narrowing_div_rem(y), Some((x, 0)));
+            if y != 1 {
+                assert_eq!((xy + u256::ONE).checked_narrowing_div_rem(y), Some((x, 1)));
+            }
+            if x != 0 {
+                assert_eq!(
+                    (xy - u256::ONE).checked_narrowing_div_rem(y),
+                    Some((x - 1, y - 1))
+                );
+            }
+            let r = ((y as f64) * 0.12345) as u128;
+            assert_eq!((xy + r.widen()).checked_narrowing_div_rem(y), Some((x, r)));
+        }
+    }
 }

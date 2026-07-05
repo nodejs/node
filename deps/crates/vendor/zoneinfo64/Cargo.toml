@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "zoneinfo64"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -39,11 +39,11 @@ categories = ["internationalization"]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
 
-[package.metadata.docs.rs]
-all-features = true
-
 [package.metadata.workspaces]
 independent = true
+
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
 chrono = ["dep:chrono"]
@@ -53,7 +53,7 @@ name = "zoneinfo64"
 path = "src/lib.rs"
 
 [dependencies.calendrical_calculations]
-version = "0.2.2"
+version = "0.2.3"
 default-features = false
 
 [dependencies.chrono]
@@ -61,7 +61,7 @@ version = "0.4"
 optional = true
 
 [dependencies.icu_locale_core]
-version = "2.0.0"
+version = "2.1.0"
 default-features = false
 
 [dependencies.potential_utf]
@@ -73,7 +73,7 @@ version = "0.1.0"
 default-features = false
 
 [dependencies.serde]
-version = "1.0.110"
+version = "1.0.220"
 features = ["derive"]
 default-features = false
 

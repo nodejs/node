@@ -43,7 +43,7 @@ impl<'ast> Visit<'ast> for TypeVisitor<'_> {
 }
 
 /// Checks if a type has type or lifetime parameters, given the local context of
-/// named type parameters. Returns (has_type_params, has_lifetime_params)
+/// named type parameters. Returns `(has_type_params, has_lifetime_params)`
 pub fn check_type_for_parameters(
     ty: &Type,
     typarams: &HashMap<Ident, Option<Ident>>,

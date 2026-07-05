@@ -1,8 +1,8 @@
-use std::iter;
-use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
-use std::option;
-use std::slice;
+use core::iter;
+use core::mem::ManuallyDrop;
+use core::ops::{Deref, DerefMut};
+use core::option;
+use core::slice;
 
 #[repr(transparent)]
 pub(crate) struct NoDrop<T: ?Sized>(ManuallyDrop<T>);
@@ -39,7 +39,7 @@ impl<T> TrivialDrop for option::IntoIter<&mut T> {}
 
 #[test]
 fn test_needs_drop() {
-    use std::mem::needs_drop;
+    use core::mem::needs_drop;
 
     struct NeedsDrop;
 

@@ -6,11 +6,12 @@ use core::str::FromStr;
 
 use crate::{AsCalendar, Calendar, Date, Iso, RangeError};
 use icu_locale_core::preferences::extensions::unicode::keywords::CalendarAlgorithm;
-use ixdtf::parsers::records::IxdtfParseRecord;
+use ixdtf::encoding::Utf8;
 use ixdtf::parsers::IxdtfParser;
+use ixdtf::records::IxdtfParseRecord;
 use ixdtf::ParseError as Rfc9557Error;
 
-/// An error returned from parsing an RFC 9557 string to an `icu_calendar` type.
+/// An error returned from parsing an RFC 9557 string to an `icu::calendar` type.
 #[derive(Debug, displaydoc::Display)]
 #[non_exhaustive]
 pub enum ParseError {
@@ -68,10 +69,7 @@ impl<A: AsCalendar> Date<A> {
     ///     Date::try_from_str("2024-07-17[u-ca=hebrew]", Gregorian).unwrap_err();
     ///
     /// assert_eq!(date.era_year().year, 2024);
-    /// assert_eq!(
-    ///     date.month().standard_code,
-    ///     icu::calendar::types::MonthCode(tinystr::tinystr!(4, "M07"))
-    /// );
+    /// assert_eq!(date.month().standard_code.0, "M07");
     /// assert_eq!(date.day_of_month().0, 17);
     /// ```
     pub fn try_from_str(rfc_9557_str: &str, calendar: A) -> Result<Self, ParseError> {
@@ -93,7 +91,7 @@ impl<A: AsCalendar> Date<A> {
 
     #[doc(hidden)]
     pub fn try_from_ixdtf_record(
-        ixdtf_record: &IxdtfParseRecord,
+        ixdtf_record: &IxdtfParseRecord<'_, Utf8>,
         calendar: A,
     ) -> Result<Self, ParseError> {
         let date_record = ixdtf_record.date.ok_or(ParseError::MissingFields)?;

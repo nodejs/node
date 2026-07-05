@@ -306,7 +306,7 @@ pub use error::TemporalError;
 
 #[cfg(feature = "sys")]
 #[doc(inline)]
-pub use sys::Temporal;
+pub use sys::{DefaultHostSystem, Temporal};
 
 pub mod partial {
     //! Partial date and time component records

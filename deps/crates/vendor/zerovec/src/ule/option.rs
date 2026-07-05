@@ -5,7 +5,7 @@
 use super::*;
 use core::cmp::Ordering;
 use core::marker::PhantomData;
-use core::mem::{self, MaybeUninit};
+use core::mem::MaybeUninit;
 
 /// This type is the [`ULE`] type for `Option<U>` where `U` is a [`ULE`] type
 ///
@@ -54,8 +54,8 @@ impl<U: Copy> OptionULE<U> {
     }
 }
 
-impl<U: Copy + core::fmt::Debug> core::fmt::Debug for OptionULE<U> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl<U: Copy + fmt::Debug> fmt::Debug for OptionULE<U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.get().fmt(f)
     }
 }
@@ -74,7 +74,7 @@ impl<U: Copy + core::fmt::Debug> core::fmt::Debug for OptionULE<U> {
 //     invariant on the subfields
 unsafe impl<U: ULE> ULE for OptionULE<U> {
     fn validate_bytes(bytes: &[u8]) -> Result<(), UleError> {
-        let size = mem::size_of::<Self>();
+        let size = size_of::<Self>();
         if bytes.len() % size != 0 {
             return Err(UleError::length::<Self>(bytes.len()));
         }
@@ -158,8 +158,8 @@ impl<U: VarULE + ?Sized> OptionVarULE<U> {
     }
 }
 
-impl<U: VarULE + ?Sized + core::fmt::Debug> core::fmt::Debug for OptionVarULE<U> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl<U: VarULE + ?Sized + fmt::Debug> fmt::Debug for OptionVarULE<U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_ref().fmt(f)
     }
 }

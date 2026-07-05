@@ -279,15 +279,15 @@ impl PlainDate {
             resolved.smallest_unit == Unit::Day && resolved.increment.get() == 1;
         // 12. If roundingGranularityIsNoop is false, then
         if !rounding_granularity_is_noop {
+            let iso_date_time = IsoDateTime::new_unchecked(self.iso, IsoTime::default());
+            let origin_epoch_ns = iso_date_time.as_nanoseconds();
             // a. Let destEpochNs be GetUTCEpochNanoseconds(other.[[ISOYear]], other.[[ISOMonth]], other.[[ISODay]], 0, 0, 0, 0, 0, 0).
             let dest_epoch_ns = other.iso.as_nanoseconds();
             // b. Let dateTime be ISO Date-Time Record { [[Year]]: temporalDate.[[ISOYear]], [[Month]]: temporalDate.[[ISOMonth]], [[Day]]: temporalDate.[[ISODay]], [[Hour]]: 0, [[Minute]]: 0, [[Second]]: 0, [[Millisecond]]: 0, [[Microsecond]]: 0, [[Nanosecond]]: 0 }.
-            let dt = PlainDateTime::new_unchecked(
-                IsoDateTime::new_unchecked(self.iso, IsoTime::default()),
-                self.calendar.clone(),
-            );
+            let dt = PlainDateTime::new_unchecked(iso_date_time, self.calendar.clone());
             // c. Set duration to ? RoundRelativeDuration(duration, destEpochNs, dateTime, calendarRec, unset, settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
             duration = duration.round_relative_duration(
+                origin_epoch_ns,
                 dest_epoch_ns.0,
                 &dt,
                 Option::<(&TimeZone, &NeverProvider)>::None,
@@ -446,7 +446,7 @@ impl PlainDate {
         // 10. Return ? CalendarDateFromFields(calendarRec, fields, resolvedOptions).
         let overflow = overflow.unwrap_or(Overflow::Constrain);
         self.calendar.date_from_fields(
-            fields.with_fallback_date(self, self.calendar.kind(), overflow)?,
+            fields.with_fallback_date(self, self.calendar.kind())?,
             overflow,
         )
     }
@@ -633,7 +633,7 @@ impl PlainDate {
     pub fn to_plain_month_day(&self) -> TemporalResult<PlainMonthDay> {
         let overflow = Overflow::Constrain;
         self.calendar().month_day_from_fields(
-            CalendarFields::default().with_fallback_date(self, self.calendar.kind(), overflow)?,
+            CalendarFields::default().with_fallback_date(self, self.calendar.kind())?,
             overflow,
         )
     }
@@ -660,7 +660,7 @@ impl PlainDate {
         &self,
         time_zone: TimeZone,
         plain_time: Option<PlainTime>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<ZonedDateTime> {
         // NOTE (nekevss): Steps 1-4 are engine specific
         let epoch_ns = if let Some(time) = plain_time {

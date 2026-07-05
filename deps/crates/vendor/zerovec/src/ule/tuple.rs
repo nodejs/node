@@ -4,7 +4,7 @@
 
 //! ULE impls for tuples.
 //!
-//! Rust does not guarantee the layout of tuples, so ZeroVec defines its own tuple ULE types.
+//! Rust does not guarantee the layout of tuples, so [`ZeroVec`](crate::ZeroVec) defines its own tuple ULE types.
 //!
 //! Impls are defined for tuples of up to 6 elements. For longer tuples, use a custom struct
 //! with [`#[make_ule]`](crate::make_ule).
@@ -25,7 +25,6 @@
 
 use super::*;
 use core::fmt;
-use core::mem;
 
 macro_rules! tuple_ule {
     ($name:ident, $len:literal, [ $($t:ident $i:tt),+ ]) => {
@@ -46,8 +45,8 @@ macro_rules! tuple_ule {
         //     invariant on the subfields
         unsafe impl<$($t: ULE),+> ULE for $name<$($t),+> {
             fn validate_bytes(bytes: &[u8]) -> Result<(), UleError> {
-                // expands to: 0size + mem::size_of::<A>() + mem::size_of::<B>();
-                let ule_bytes = 0usize $(+ mem::size_of::<$t>())+;
+                // expands to: 0size + size_of::<A>() + size_of::<B>();
+                let ule_bytes = 0usize $(+ size_of::<$t>())+;
                 if bytes.len() % ule_bytes != 0 {
                     return Err(UleError::length::<Self>(bytes.len()));
                 }
@@ -55,7 +54,7 @@ macro_rules! tuple_ule {
                     let mut i = 0;
                     $(
                         let j = i;
-                        i += mem::size_of::<$t>();
+                        i += size_of::<$t>();
                         #[expect(clippy::indexing_slicing)] // length checked
                         <$t>::validate_bytes(&chunk[j..i])?;
                     )+

@@ -39,7 +39,7 @@ where
         };
 
         // Keep pulling ranges
-        #[allow(clippy::while_let_on_iterator)]
+        #[expect(clippy::while_let_on_iterator)]
         // can't move the iterator, also we want it to be explicit that we're not draining the iterator
         while let Some(next) = self.iter.next() {
             if *next.range.start() == ret.range.end() + 1 && next.value == ret.value {

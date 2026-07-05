@@ -228,7 +228,7 @@ pub enum AttributeContext<'a, 'b> {
     Type(TypeDef<'a>),
     Trait(&'a TraitDef),
     EnumVariant(&'a EnumVariant),
-    Method(&'a Method, TypeId, &'b mut SpecialMethodPresence),
+    Method(&'a Method, Option<TypeId>, &'b mut SpecialMethodPresence),
     Function(&'a Method),
     Module,
     Param,
@@ -547,7 +547,7 @@ impl Attrs {
                         }
 
                         if let SuccessType::OutType(t) = &output {
-                            if t.id() != Some(self_id) {
+                            if t.id() != self_id || self_id.is_none() {
                                 errors.push(LoweringError::Other(
                                     "Constructors must return Self!".to_string(),
                                 ));
