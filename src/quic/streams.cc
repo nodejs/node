@@ -507,17 +507,15 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args.Length() > 0);
-    CHECK(args[0]->IsObject());
     uint32_t wt_error_code = 0;
-    if (args.Length() > 1) {
-      CHECK(args[1]->IsUint32());
+    if (args.Length() > 0) {
+      CHECK(args[0]->IsUint32());
       wt_error_code = FromV8Value<uint32_t>(args[0]);
-    }
     uint8_t * msg = nullptr;
     size_t msglen = 0;
-    if (args.Length() > 2) {
-      CHECK(args[2]->IsString());
-      Local<String> msgstr = args[2].As<String>();
+    if (args.Length() > 1) {
+      CHECK(args[1]->IsString());
+      Local<String> msgstr = args[1].As<String>();
       const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
       msg = new  uint8_t[length];
       msgstr->WriteUtf8V2(
