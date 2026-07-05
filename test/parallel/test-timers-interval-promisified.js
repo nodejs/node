@@ -30,7 +30,7 @@ const { setInterval } = timerPromises;
   const iterator = iterable[Symbol.asyncIterator]();
   const promise = iterator.next();
   promise.then((result) => {
-    assert.ok(!result.done, 'iterator was wronly marked as done');
+    assert.ok(!result.done, 'iterator was wrongly marked as done');
     assert.strictEqual(result.value, 'foobar');
     return iterator.return();
   }).then(common.mustCall());
@@ -42,7 +42,7 @@ const { setInterval } = timerPromises;
   const promise = iterator.next();
   promise
     .then((result) => {
-      assert.ok(!result.done, 'iterator was wronly marked as done');
+      assert.ok(!result.done, 'iterator was wrongly marked as done');
       assert.strictEqual(result.value, 'foobar');
       return iterator.next();
     })

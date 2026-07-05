@@ -38,7 +38,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   alpn: ['quic-test'],
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagram: mustCall(function(data, early) {
-    // We whould only receive datagrams 1 and 2
+    // We should only receive datagrams 1 and 2
     strictEqual(data.length, 1);
     ok(data[0] === 0 || data[0] === 1);
     ok(!early);

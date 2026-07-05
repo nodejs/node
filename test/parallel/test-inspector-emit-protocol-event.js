@@ -194,7 +194,7 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     }
   }
 
-  // Check tht no events are emitted after disabling the domain.
+  // Check that no events are emitted after disabling the domain.
   await session.post('Network.disable');
   session.on('Network.requestWillBeSent', common.mustNotCall());
   inspector.Network.requestWillBeSent({});
