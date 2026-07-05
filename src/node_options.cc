@@ -266,8 +266,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (test_runner_force_exit) {
       errors->push_back("either --watch or --test-force-exit "
                         "can be used, not both");
-    } else if (!test_runner && watch_mode_paths.empty() && argv->size() < 1) {
-      errors->push_back("--watch requires specifying a file");
     }
 
 #ifndef ALLOW_ATTACHING_DEBUGGER_IN_WATCH_MODE

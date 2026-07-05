@@ -993,6 +993,13 @@ static ExitCode InitializeNodeWithArgsInternal(
     exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
+
+    auto env_opts = per_process::cli_options->per_isolate->per_env;
+    if (env_opts->watch_mode && !env_opts->test_runner &&
+        env_opts->watch_mode_paths.empty() && argv->size() < 2) {
+      errors->push_back("--watch requires specifying a file");
+      return ExitCode::kInvalidCommandLineArgument;
+    }
   }
 
   // Set the process.title immediately after processing argv if --title is set.
