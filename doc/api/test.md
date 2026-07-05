@@ -3440,6 +3440,10 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64309
+    description: Added `entryFile` to events forwarded from child processes
+                 when tests run with process isolation.
   - version: v26.3.0
     pr-url: https://github.com/nodejs/node/pull/63435
     description: Added `parentId` to test events that carry a `testId`.
@@ -3524,6 +3528,10 @@ Emitted when code coverage is enabled and all tests have completed.
       * `cause` {Error} The actual error thrown by the test.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3553,6 +3561,10 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3579,6 +3591,10 @@ defined. The corresponding declaration ordered event is `'test:start'`.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3600,6 +3616,10 @@ defined.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3632,6 +3652,10 @@ Emitted when a test is enqueued for execution.
       this is a suite.
     * `attempt` {number|undefined} The attempt number of the test run,
       present only when using the [`--test-rerun-failures`][] flag.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3697,6 +3721,10 @@ since the parent runner only knows about file-level tests. When using
       present only when using the [`--test-rerun-failures`][] flag.
     * `passed_on_attempt` {number|undefined} The attempt number the test passed on,
       present only when using the [`--test-rerun-failures`][] flag.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3726,6 +3754,10 @@ The corresponding execution ordered event is `'test:complete'`.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3742,6 +3774,10 @@ defined.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3766,6 +3802,9 @@ The corresponding execution ordered event is `'test:dequeue'`.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation.
   * `file` {string} The path of the test file.
   * `message` {string} The message written to `stderr`.
 
@@ -3777,6 +3816,9 @@ defined.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation.
   * `file` {string} The path of the test file.
   * `message` {string} The message written to `stdout`.
 
