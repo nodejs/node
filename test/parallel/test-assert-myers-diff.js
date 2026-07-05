@@ -56,7 +56,7 @@ const { myersDiff } = require('internal/assert/myers_diff');
 
   assert.strictEqual(inserts.length, 1);
   assert.strictEqual(inserts[0].value, 'EXTRA_100');
-  assert.strictEqual(deletes.length, 0, 'should produce no phantom DELETEs');
+  assert.strictEqual(deletes.length, 0, new Error('should produce no phantom DELETEs'));
   assert.strictEqual(nops.length, 600);
 }
 
@@ -83,7 +83,7 @@ const { myersDiff } = require('internal/assert/myers_diff');
   assert.strictEqual(inserts.length, 2);
   assert.strictEqual(inserts[0].value, 'EXTRA_A');
   assert.strictEqual(inserts[1].value, 'EXTRA_B');
-  assert.strictEqual(deletes.length, 0, 'should produce no phantom DELETEs');
+  assert.strictEqual(deletes.length, 0, new Error('should produce no phantom DELETEs'));
 }
 
 // Test: large identical inputs produce all NOPs
@@ -146,6 +146,27 @@ const { myersDiff } = require('internal/assert/myers_diff');
   assert.ok(nops.length >= 146, `expected at least 146 NOPs, got ${nops.length}`);
   assert.strictEqual(nops.length + inserts.length, actual.length);
   assert.strictEqual(nops.length + deletes.length, expected.length);
+}
+
+// Test: asymmetric input sizes must keep every chunk bounded on both sides.
+// Boundaries derived from the actual side only used to leave the entire
+// oversized side in a single chunk, and Myers memory is O((N + M) * D),
+// which caused OOM when one side was large and mostly dissimilar.
+{
+  const small = ['alpha', 'beta', 'gamma'];
+  const huge = [];
+  for (let i = 0; i < 500000; i++) huge.push('unique_line_' + i);
+
+  for (const { actual, expected } of [
+    { actual: small, expected: huge },
+    { actual: huge, expected: small },
+  ]) {
+    const ops = diffToForwardOps(myersDiff(actual, expected));
+
+    const { rebuiltActual, rebuiltExpected } = rebuildFromOps(ops);
+    assert.deepStrictEqual(rebuiltActual, actual);
+    assert.deepStrictEqual(rebuiltExpected, expected);
+  }
 }
 
 // Test: no matching anchor available (all unique lines)

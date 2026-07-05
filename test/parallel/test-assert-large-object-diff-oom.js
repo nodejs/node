@@ -32,6 +32,49 @@ if (totalMemMB < 1024) {
   );
 }
 
+// Test: asymmetric comparison (huge object vs tiny object) should not OOM.
+// The truncated inspect output of the huge side is still ~100k lines, and
+// diffing it against a few lines must not exhaust memory either.
+{
+  const { doc1 } = createTestObjects();
+
+  for (const args of [[doc1, { a: 1 }], [{ a: 1 }, doc1]]) {
+    assert.throws(
+      () => assert.deepStrictEqual(args[0], args[1]),
+      (err) => {
+        assert.ok(err instanceof assert.AssertionError);
+        assert.ok(err.message.length < 5 * 1024 * 1024);
+        return true;
+      }
+    );
+  }
+}
+
+// Test: when both inspect outputs are truncated to identical prefixes, the
+// error must say the output was truncated instead of claiming the values
+// have the same structure.
+{
+  const actual = {};
+  const expected = {};
+  for (let i = 0; i < 200000; i++) {
+    actual['prop_' + i] = i;
+    expected['prop_' + i] = i;
+  }
+  // Sorts last in the inspect output, beyond the truncation limit.
+  actual.zzzz = 'actual';
+  expected.zzzz = 'expected';
+
+  assert.throws(
+    () => assert.deepStrictEqual(actual, expected),
+    (err) => {
+      assert.ok(err instanceof assert.AssertionError);
+      assert.match(err.message, /truncated/);
+      assert.doesNotMatch(err.message, /same structure/);
+      return true;
+    }
+  );
+}
+
 // Creates objects where many paths converge on shared objects, causing
 // exponential growth in util.inspect output at high depths.
 function createTestObjects() {
