@@ -2,17 +2,21 @@
 use crate::buffer::Cursor;
 use crate::ext::{PunctExt as _, TokenStreamExt as _};
 use crate::thread::ThreadBound;
+#[cfg(feature = "parsing")]
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::fmt::{self, Debug, Display};
+use core::slice;
 use proc_macro2::{
     Delimiter, Group, Ident, LexError, Literal, Punct, Spacing, Span, TokenStream, TokenTree,
 };
 #[cfg(feature = "printing")]
 use quote::ToTokens;
-use std::fmt::{self, Debug, Display};
-use std::slice;
-use std::vec;
 
 /// The result of a Syn parser.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// Error returned when a Syn parser cannot parse the input tokens.
 ///
@@ -23,7 +27,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// [`compile_error!`] in the generated code. This produces a better diagnostic
 /// message than simply panicking the macro.
 ///
-/// [`compile_error!`]: std::compile_error!
+/// [`compile_error!`]: core::compile_error!
 ///
 /// When parsing macro input, the [`parse_macro_input!`] macro handles the
 /// conversion to `compile_error!` automatically.
@@ -112,7 +116,7 @@ struct ErrorMessage {
     message: String,
 }
 
-// Cannot use std::ops::Range<Span> because that does not implement Copy,
+// Cannot use core::ops::Range<Span> because that does not implement Copy,
 // whereas ThreadBound<T> requires a Copy impl as a way to ensure no Drop impls
 // are involved.
 struct SpanRange {
@@ -221,7 +225,7 @@ impl Error {
     /// The [`parse_macro_input!`] macro provides a convenient way to invoke
     /// this method correctly in a procedural macro.
     ///
-    /// [`compile_error!`]: std::compile_error!
+    /// [`compile_error!`]: core::compile_error!
     /// [`parse_macro_input!`]: crate::parse_macro_input!
     pub fn to_compile_error(&self) -> TokenStream {
         let mut tokens = TokenStream::new();
@@ -233,7 +237,7 @@ impl Error {
 
     /// Render the error as an invocation of [`compile_error!`].
     ///
-    /// [`compile_error!`]: std::compile_error!
+    /// [`compile_error!`]: core::compile_error!
     ///
     /// # Example
     ///
@@ -401,6 +405,7 @@ impl Clone for SpanRange {
 
 impl Copy for SpanRange {}
 
+// TODO: impl core::error::Error (requires Rust 1.81+)
 impl std::error::Error for Error {}
 
 impl From<LexError> for Error {

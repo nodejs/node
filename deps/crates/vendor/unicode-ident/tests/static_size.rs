@@ -13,7 +13,7 @@ fn test_size() {
         + size_of_val(&tables::TRIE_START)
         + size_of_val(&tables::TRIE_CONTINUE)
         + size_of_val(&tables::LEAF);
-    assert_eq!(10248, size);
+    assert_eq!(10056, size);
 }
 
 #[test]

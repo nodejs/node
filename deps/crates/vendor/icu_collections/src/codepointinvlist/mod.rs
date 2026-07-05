@@ -53,8 +53,6 @@
 
 #![warn(missing_docs)]
 
-extern crate alloc;
-
 #[cfg(feature = "alloc")]
 #[macro_use]
 mod builder;

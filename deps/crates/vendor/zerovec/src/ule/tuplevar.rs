@@ -15,7 +15,6 @@ use super::*;
 use crate::varzerovec::{Index16, VarZeroVecFormat};
 use core::fmt;
 use core::marker::PhantomData;
-use core::mem;
 use zerofrom::ZeroFrom;
 
 macro_rules! tuple_varule {
@@ -89,7 +88,7 @@ macro_rules! tuple_varule {
 
                 // This type is repr(transparent) over MultiFieldsULE<$len>, so its slices can be transmuted
                 // Field invariant upheld here: validate_bytes above validates every field for being the right type
-                mem::transmute::<&MultiFieldsULE<$len, Format>, &Self>(multi)
+                &*(multi as *const MultiFieldsULE<$len, Format> as *const $name<$($T,)+ Format>)
             }
         }
 
@@ -266,7 +265,7 @@ mod tests {
         #[cfg(feature = "serde")]
         for val in zerovec.iter() {
             // Can't use inference due to https://github.com/rust-lang/rust/issues/130180
-            crate::ule::test_utils::assert_serde_roundtrips::<Tuple2VarULE<str, [u8]>>(val);
+            test_utils::assert_serde_roundtrips::<Tuple2VarULE<str, [u8]>>(val);
         }
     }
     fn test_tripleule_validate_inner<Format: VarZeroVecFormat>() {
@@ -292,9 +291,9 @@ mod tests {
         #[cfg(feature = "serde")]
         for val in zerovec.iter() {
             // Can't use inference due to https://github.com/rust-lang/rust/issues/130180
-            crate::ule::test_utils::assert_serde_roundtrips::<
-                Tuple3VarULE<str, [u8], VarZeroSlice<str>, Format>,
-            >(val);
+            test_utils::assert_serde_roundtrips::<Tuple3VarULE<str, [u8], VarZeroSlice<str>, Format>>(
+                val,
+            );
         }
     }
 

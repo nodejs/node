@@ -2,185 +2,55 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! This module contains types and implementations for the ISO calendar.
-//!
-//! ```rust
-//! use icu::calendar::Date;
-//!
-//! let date_iso = Date::try_new_iso(1970, 1, 2)
-//!     .expect("Failed to initialize ISO Date instance.");
-//!
-//! assert_eq!(date_iso.era_year().year, 1970);
-//! assert_eq!(date_iso.month().ordinal, 1);
-//! assert_eq!(date_iso.day_of_month().0, 2);
-//! ```
-
-use crate::calendar_arithmetic::{ArithmeticDate, CalendarArithmetic};
-use crate::error::DateError;
-use crate::{types, Calendar, Date, DateDuration, DateDurationUnit, RangeError};
-use calendrical_calculations::helpers::I32CastError;
-use calendrical_calculations::rata_die::RataDie;
+use crate::cal::abstract_gregorian::{impl_with_abstract_gregorian, GregorianYears};
+use crate::calendar_arithmetic::ArithmeticDate;
+use crate::error::UnknownEraError;
+use crate::{types, Date, DateError, RangeError};
 use tinystr::tinystr;
 
 /// The [ISO-8601 Calendar](https://en.wikipedia.org/wiki/ISO_8601#Dates)
 ///
-/// The ISO-8601 Calendar is a standardized solar calendar with twelve months.
-/// It is identical to the [`Gregorian`](super::Gregorian) calendar, except it uses
-/// negative years for years before 1 CE, and may have differing formatting data for a given locale.
+/// This calendar is identical to the [`Gregorian`](super::Gregorian) calendar,
+/// except that it uses a single `default` era instead of `bce` and `ce`.
 ///
-/// This type can be used with [`Date`] to represent dates in this calendar.
+/// This corresponds to the `"iso8601"` [CLDR calendar](https://unicode.org/reports/tr35/#UnicodeCalendarIdentifier).
 ///
 /// # Era codes
 ///
 /// This calendar uses a single era: `default`
-
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(clippy::exhaustive_structs)] // this type is stable
 pub struct Iso;
 
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
-/// The inner date type used for representing [`Date`]s of [`Iso`]. See [`Date`] and [`Iso`] for more details.
-pub struct IsoDateInner(pub(crate) ArithmeticDate<Iso>);
+impl_with_abstract_gregorian!(crate::cal::Iso, IsoDateInner, IsoEra, _x, IsoEra);
 
-impl CalendarArithmetic for Iso {
-    type YearInfo = i32;
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct IsoEra;
 
-    fn days_in_provided_month(year: i32, month: u8) -> u8 {
-        match month {
-            4 | 6 | 9 | 11 => 30,
-            2 if Self::provided_year_is_leap(year) => 29,
-            2 => 28,
-            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-            _ => 0,
-        }
-    }
-
-    fn months_in_provided_year(_: i32) -> u8 {
-        12
-    }
-
-    fn provided_year_is_leap(year: i32) -> bool {
-        calendrical_calculations::iso::is_leap_year(year)
-    }
-
-    fn last_month_day_in_provided_year(_year: i32) -> (u8, u8) {
-        (12, 31)
-    }
-
-    fn days_in_provided_year(year: i32) -> u16 {
-        if Self::provided_year_is_leap(year) {
-            366
-        } else {
-            365
-        }
-    }
-}
-
-impl crate::cal::scaffold::UnstableSealed for Iso {}
-impl Calendar for Iso {
-    type DateInner = IsoDateInner;
-    type Year = types::EraYear;
-    /// Construct a date from era/month codes and fields
-    fn from_codes(
+impl GregorianYears for IsoEra {
+    fn extended_from_era_year(
         &self,
-        era: Option<&str>,
+        era: Option<&[u8]>,
         year: i32,
-        month_code: types::MonthCode,
-        day: u8,
-    ) -> Result<Self::DateInner, DateError> {
-        let year = match era {
-            Some("default") | None => year,
-            Some(_) => return Err(DateError::UnknownEra),
-        };
-
-        ArithmeticDate::new_from_codes(self, year, month_code, day).map(IsoDateInner)
+    ) -> Result<i32, UnknownEraError> {
+        match era {
+            Some(b"default") | None => Ok(year),
+            Some(_) => Err(UnknownEraError),
+        }
     }
 
-    fn from_rata_die(&self, date: RataDie) -> IsoDateInner {
-        IsoDateInner(match calendrical_calculations::iso::iso_from_fixed(date) {
-            Err(I32CastError::BelowMin) => ArithmeticDate::min_date(),
-            Err(I32CastError::AboveMax) => ArithmeticDate::max_date(),
-            Ok((year, month, day)) => ArithmeticDate::new_unchecked(year, month, day),
-        })
-    }
-
-    fn to_rata_die(&self, date: &IsoDateInner) -> RataDie {
-        calendrical_calculations::iso::fixed_from_iso(date.0.year, date.0.month, date.0.day)
-    }
-
-    fn from_iso(&self, iso: IsoDateInner) -> IsoDateInner {
-        iso
-    }
-
-    fn to_iso(&self, date: &Self::DateInner) -> IsoDateInner {
-        *date
-    }
-
-    fn months_in_year(&self, date: &Self::DateInner) -> u8 {
-        date.0.months_in_year()
-    }
-
-    fn days_in_year(&self, date: &Self::DateInner) -> u16 {
-        date.0.days_in_year()
-    }
-
-    fn days_in_month(&self, date: &Self::DateInner) -> u8 {
-        date.0.days_in_month()
-    }
-
-    fn offset_date(&self, date: &mut Self::DateInner, offset: DateDuration<Self>) {
-        date.0.offset_date(offset, &());
-    }
-
-    #[allow(clippy::field_reassign_with_default)]
-    fn until(
-        &self,
-        date1: &Self::DateInner,
-        date2: &Self::DateInner,
-        _calendar2: &Self,
-        _largest_unit: DateDurationUnit,
-        _smallest_unit: DateDurationUnit,
-    ) -> DateDuration<Self> {
-        date1.0.until(date2.0, _largest_unit, _smallest_unit)
-    }
-
-    fn year_info(&self, date: &Self::DateInner) -> Self::Year {
+    fn era_year_from_extended(&self, extended_year: i32, _month: u8, _day: u8) -> types::EraYear {
         types::EraYear {
             era_index: Some(0),
             era: tinystr!(16, "default"),
-            year: self.extended_year(date),
+            year: extended_year,
+            extended_year,
             ambiguity: types::YearAmbiguity::Unambiguous,
         }
     }
 
-    fn extended_year(&self, date: &Self::DateInner) -> i32 {
-        date.0.extended_year()
-    }
-
-    fn is_in_leap_year(&self, date: &Self::DateInner) -> bool {
-        Self::provided_year_is_leap(date.0.year)
-    }
-
-    /// The calendar-specific month represented by `date`
-    fn month(&self, date: &Self::DateInner) -> types::MonthInfo {
-        date.0.month()
-    }
-
-    /// The calendar-specific day-of-month represented by `date`
-    fn day_of_month(&self, date: &Self::DateInner) -> types::DayOfMonth {
-        date.0.day_of_month()
-    }
-
-    fn day_of_year(&self, date: &Self::DateInner) -> types::DayOfYear {
-        date.0.day_of_year()
-    }
-
     fn debug_name(&self) -> &'static str {
         "ISO"
-    }
-
-    fn calendar_algorithm(&self) -> Option<crate::preferences::CalendarAlgorithm> {
-        None
     }
 }
 
@@ -198,9 +68,9 @@ impl Date<Iso> {
     /// assert_eq!(date_iso.day_of_month().0, 2);
     /// ```
     pub fn try_new_iso(year: i32, month: u8, day: u8) -> Result<Date<Iso>, RangeError> {
-        ArithmeticDate::new_from_ordinals(year, month, day)
+        ArithmeticDate::new_gregorian::<IsoEra>(year, month, day)
             .map(IsoDateInner)
-            .map(|inner| Date::from_raw(inner, Iso))
+            .map(|i| Date::from_raw(i, Iso))
     }
 }
 
@@ -209,46 +79,13 @@ impl Iso {
     pub fn new() -> Self {
         Self
     }
-
-    pub(crate) fn iso_from_year_day(year: i32, year_day: u16) -> IsoDateInner {
-        let mut month = 1;
-        let mut day = year_day as i32;
-        while month <= 12 {
-            let month_days = Self::days_in_provided_month(year, month) as i32;
-            if day <= month_days {
-                break;
-            } else {
-                debug_assert!(month < 12); // don't try going to month 13
-                day -= month_days;
-                month += 1;
-            }
-        }
-        let day = day as u8; // day <= month_days < u8::MAX
-
-        // month in 1..=12, day <= month_days
-        IsoDateInner(ArithmeticDate::new_unchecked(year, month, day))
-    }
-
-    pub(crate) fn day_of_year(date: IsoDateInner) -> u16 {
-        // Cumulatively how much are dates in each month
-        // offset from "30 days in each month" (in non leap years)
-        let month_offset = [0, 1, -1, 0, 0, 1, 1, 2, 3, 3, 4, 4];
-        #[allow(clippy::indexing_slicing)] // date.0.month in 1..=12
-        let mut offset = month_offset[date.0.month as usize - 1];
-        if Self::provided_year_is_leap(date.0.year) && date.0.month > 2 {
-            // Months after February in a leap year are offset by one less
-            offset += 1;
-        }
-        let prev_month_days = (30 * (date.0.month as i32 - 1) + offset) as u16;
-
-        prev_month_days + date.0.day as u16
-    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::Weekday;
+    use crate::types::{DateDuration, RataDie, Weekday};
+    use crate::Calendar;
 
     #[test]
     fn iso_overflow() {
@@ -435,31 +272,20 @@ mod test {
         assert_eq!(Date::try_new_iso(1983, 2, 2).unwrap().day_of_year().0, 33,);
     }
 
-    fn simple_subtract(a: &Date<Iso>, b: &Date<Iso>) -> DateDuration<Iso> {
-        let a = a.inner();
-        let b = b.inner();
-        DateDuration::new(
-            a.0.year - b.0.year,
-            a.0.month as i32 - b.0.month as i32,
-            0,
-            a.0.day as i32 - b.0.day as i32,
-        )
-    }
-
     #[test]
     fn test_offset() {
         let today = Date::try_new_iso(2021, 6, 23).unwrap();
         let today_plus_5000 = Date::try_new_iso(2035, 3, 2).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 5000));
-        assert_eq!(offset, today_plus_5000);
-        let offset = today.added(simple_subtract(&today_plus_5000, &today));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(5000), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_5000);
 
         let today = Date::try_new_iso(2021, 6, 23).unwrap();
         let today_minus_5000 = Date::try_new_iso(2007, 10, 15).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, -5000));
-        assert_eq!(offset, today_minus_5000);
-        let offset = today.added(simple_subtract(&today_minus_5000, &today));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(-5000), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_5000);
     }
 
@@ -467,32 +293,44 @@ mod test {
     fn test_offset_at_month_boundary() {
         let today = Date::try_new_iso(2020, 2, 28).unwrap();
         let today_plus_2 = Date::try_new_iso(2020, 3, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 2));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(2), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_2);
 
         let today = Date::try_new_iso(2020, 2, 28).unwrap();
         let today_plus_3 = Date::try_new_iso(2020, 3, 2).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 3));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(3), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_3);
 
         let today = Date::try_new_iso(2020, 2, 28).unwrap();
         let today_plus_1 = Date::try_new_iso(2020, 2, 29).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 1));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(1), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_1);
 
         let today = Date::try_new_iso(2019, 2, 28).unwrap();
         let today_plus_2 = Date::try_new_iso(2019, 3, 2).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 2));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(2), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_2);
 
         let today = Date::try_new_iso(2019, 2, 28).unwrap();
         let today_plus_1 = Date::try_new_iso(2019, 3, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, 1));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(1), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_1);
 
         let today = Date::try_new_iso(2020, 3, 1).unwrap();
         let today_minus_1 = Date::try_new_iso(2020, 2, 29).unwrap();
-        let offset = today.added(DateDuration::new(0, 0, 0, -1));
+        let offset = today
+            .try_added_with_options(DateDuration::for_days(-1), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_1);
     }
 
@@ -500,37 +338,57 @@ mod test {
     fn test_offset_handles_negative_month_offset() {
         let today = Date::try_new_iso(2020, 3, 1).unwrap();
         let today_minus_2_months = Date::try_new_iso(2020, 1, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, -2, 0, 0));
+        let offset = today
+            .try_added_with_options(DateDuration::for_months(-2), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_2_months);
 
         let today = Date::try_new_iso(2020, 3, 1).unwrap();
         let today_minus_4_months = Date::try_new_iso(2019, 11, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, -4, 0, 0));
+        let offset = today
+            .try_added_with_options(DateDuration::for_months(-4), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_4_months);
 
         let today = Date::try_new_iso(2020, 3, 1).unwrap();
         let today_minus_24_months = Date::try_new_iso(2018, 3, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, -24, 0, 0));
+        let offset = today
+            .try_added_with_options(DateDuration::for_months(-24), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_24_months);
 
         let today = Date::try_new_iso(2020, 3, 1).unwrap();
         let today_minus_27_months = Date::try_new_iso(2017, 12, 1).unwrap();
-        let offset = today.added(DateDuration::new(0, -27, 0, 0));
+        let offset = today
+            .try_added_with_options(DateDuration::for_months(-27), Default::default())
+            .unwrap();
         assert_eq!(offset, today_minus_27_months);
     }
 
     #[test]
     fn test_offset_handles_out_of_bound_month_offset() {
         let today = Date::try_new_iso(2021, 1, 31).unwrap();
-        // since 2021/02/31 isn't a valid date, `offset_date` auto-adjusts by adding 3 days to 2021/02/28
-        let today_plus_1_month = Date::try_new_iso(2021, 3, 3).unwrap();
-        let offset = today.added(DateDuration::new(0, 1, 0, 0));
+        // since 2021/02/31 isn't a valid date, `offset_date` auto-adjusts by constraining to the last day in February
+        let today_plus_1_month = Date::try_new_iso(2021, 2, 28).unwrap();
+        let offset = today
+            .try_added_with_options(DateDuration::for_months(1), Default::default())
+            .unwrap();
         assert_eq!(offset, today_plus_1_month);
 
         let today = Date::try_new_iso(2021, 1, 31).unwrap();
-        // since 2021/02/31 isn't a valid date, `offset_date` auto-adjusts by adding 3 days to 2021/02/28
-        let today_plus_1_month_1_day = Date::try_new_iso(2021, 3, 4).unwrap();
-        let offset = today.added(DateDuration::new(0, 1, 0, 1));
+        // since 2021/02/31 isn't a valid date, `offset_date` auto-adjusts by constraining to the last day in February
+        // and then adding the days
+        let today_plus_1_month_1_day = Date::try_new_iso(2021, 3, 1).unwrap();
+        let offset = today
+            .try_added_with_options(
+                DateDuration {
+                    months: 1,
+                    days: 1,
+                    ..Default::default()
+                },
+                Default::default(),
+            )
+            .unwrap();
         assert_eq!(offset, today_plus_1_month_1_day);
     }
 

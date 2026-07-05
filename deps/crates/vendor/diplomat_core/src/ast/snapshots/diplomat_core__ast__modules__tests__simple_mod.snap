@@ -35,6 +35,11 @@ declared_types:
             - []
           abi_name: NonOpaqueStruct_new
           self_param: ~
+          self_type:
+            path:
+              elements:
+                - NonOpaqueStruct
+            lifetimes: []
           params:
             - name: x
               ty:
@@ -63,6 +68,11 @@ declared_types:
                   - NonOpaqueStruct
               lifetimes: []
             attrs: {}
+          self_type:
+            path:
+              elements:
+                - NonOpaqueStruct
+            lifetimes: []
           params:
             - name: new_a
               ty:
@@ -87,6 +97,11 @@ declared_types:
             - []
           abi_name: OpaqueStruct_new
           self_param: ~
+          self_type:
+            path:
+              elements:
+                - OpaqueStruct
+            lifetimes: []
           params: []
           return_type:
             Box:
@@ -112,6 +127,11 @@ declared_types:
                   - OpaqueStruct
               lifetimes: []
             attrs: {}
+          self_type:
+            path:
+              elements:
+                - OpaqueStruct
+            lifetimes: []
           params: []
           return_type:
             Named:

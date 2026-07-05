@@ -1,3 +1,41 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## What's Changed in v0.1.2
+* Publish 0.1.2 by @Manishearth in [#625](https://github.com/boa-dev/temporal/pull/625)
+* Ignore timezones mentioned in zone.tab when constructing the canonicalization table by @Manishearth in [#624](https://github.com/boa-dev/temporal/pull/624)
+* Add logic to Duration::total to handle loss of precision by @nekevss in [#622](https://github.com/boa-dev/temporal/pull/622)
+* Add feature to force float64-representable durations by @Manishearth in [#621](https://github.com/boa-dev/temporal/pull/621)
+* Updates for ZonedDateTime since / until issue by @Manishearth in [#619](https://github.com/boa-dev/temporal/pull/619)
+* Fix returned duration sign for non-ISO date arithmetic by @Manishearth in [#618](https://github.com/boa-dev/temporal/pull/618)
+* Constrain durations into a range that will produce valid Temporal dates before passing to ICU4X by @Manishearth in [#615](https://github.com/boa-dev/temporal/pull/615)
+* Add smart pointer implementations for TimeZone traits by @jedel1043 in [#614](https://github.com/boa-dev/temporal/pull/614)
+* Fix serialization of durations with zero seconds and nonzero subseconds by @ptomato in [#610](https://github.com/boa-dev/temporal/pull/610)
+* Remove support for unqualified `islamic` calendar by @Manishearth in [#609](https://github.com/boa-dev/temporal/pull/609)
+* Make ISO the default AnyCalendarKind over FFI by @Manishearth in [#608](https://github.com/boa-dev/temporal/pull/608)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.1.1...v0.1.2
+
+## What's Changed in v0.1.1
+* Publish 0.1.1 by @Manishearth in [#605](https://github.com/boa-dev/temporal/pull/605)
+* fix: allow passing `&dyn TimeZoneProvider` in arguments by @jedel1043 in [#599](https://github.com/boa-dev/temporal/pull/599)
+* Update ICU4X to 2.1 by @Manishearth in [#604](https://github.com/boa-dev/temporal/pull/604)
+* Update Diplomat to 0.14.0 by @Manishearth in [#603](https://github.com/boa-dev/temporal/pull/603)
+* Update ICU4X by @Manishearth in [#601](https://github.com/boa-dev/temporal/pull/601)
+* Move to new ICU4X arithmetic code by @Manishearth in [#595](https://github.com/boa-dev/temporal/pull/595)
+* Update to ICU4X main by @Manishearth in [#596](https://github.com/boa-dev/temporal/pull/596)
+* Remove HijriSimulatedMecca / islamic-rgsa by @Manishearth in [#597](https://github.com/boa-dev/temporal/pull/597)
+* Fix a small typo in errors by @reillysiemens in [#594](https://github.com/boa-dev/temporal/pull/594)
+* Update to ICU4X's new Calendar::from_fields by @Manishearth in [#582](https://github.com/boa-dev/temporal/pull/582)
+* re-export DefaultHostSystem by @Sharktheone in [#590](https://github.com/boa-dev/temporal/pull/590)
+
+## New Contributors
+* @reillysiemens made their first contribution in [#594](https://github.com/boa-dev/temporal/pull/594)
+* @Sharktheone made their first contribution in [#590](https://github.com/boa-dev/temporal/pull/590)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.1.0...v0.1.1
+
 ## What's Changed in v0.1.0
 * Update Diplomat to 0.13.0 by @Manishearth in [#588](https://github.com/boa-dev/temporal/pull/588)
 * Add TryFrom for PartialDuration to Duration by @nekevss in [#585](https://github.com/boa-dev/temporal/pull/585)
@@ -28,10 +66,6 @@
 * @ptomato made their first contribution in [#580](https://github.com/boa-dev/temporal/pull/580)
 
 **Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.0.16...v0.1.0
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
 
 ## What's Changed in v0.0.16
 * Bump versions to 0.0.16

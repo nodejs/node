@@ -3,9 +3,11 @@ use crate::error::{self, Error};
 use crate::sealed::lookahead::Sealed;
 use crate::span::IntoSpans;
 use crate::token::{CustomToken, Token};
+use alloc::format;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use core::fmt::{self, Display};
 use proc_macro2::{Delimiter, Span};
-use std::cell::RefCell;
-use std::fmt::{self, Display};
 
 /// Support for checking the next token in a stream to decide how to parse.
 ///

@@ -4,7 +4,7 @@ use super::exp;
 const K: i32 = 2043;
 
 /* expf(x)/2 for x >= log(FLT_MAX), slightly better than 0.5f*expf(x/2)*expf(x/2) */
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub(crate) fn k_expo2(x: f64) -> f64 {
     let k_ln2 = f64::from_bits(0x40962066151add8b);
     /* note that k is odd and scale*scale overflows */

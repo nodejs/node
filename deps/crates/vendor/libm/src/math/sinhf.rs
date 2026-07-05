@@ -1,7 +1,7 @@
 use super::{expm1f, k_expo2f};
 
 /// The hyperbolic sine of `x` (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn sinhf(x: f32) -> f32 {
     let mut h = 0.5f32;
     let mut ix = x.to_bits();

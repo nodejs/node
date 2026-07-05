@@ -10,8 +10,6 @@
  * ====================================================
  */
 
-use core::f64;
-
 const O_THRESHOLD: f64 = 7.09782712893383973096e+02; /* 0x40862E42, 0xFEFA39EF */
 const LN2_HI: f64 = 6.93147180369123816490e-01; /* 0x3fe62e42, 0xfee00000 */
 const LN2_LO: f64 = 1.90821492927058770002e-10; /* 0x3dea39ef, 0x35793c76 */
@@ -30,7 +28,7 @@ const Q5: f64 = -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
 /// system of logarithms, approximately 2.71828).
 /// The result is accurate even for small values of `x`,
 /// where using `exp(x)-1` would lose many significant digits.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn expm1(mut x: f64) -> f64 {
     let hi: f64;
     let lo: f64;

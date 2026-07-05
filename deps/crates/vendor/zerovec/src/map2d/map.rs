@@ -4,7 +4,7 @@
 
 use crate::ule::AsULE;
 use crate::ZeroVec;
-use alloc::borrow::Borrow;
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::convert::TryFrom;
 use core::fmt;
@@ -200,7 +200,7 @@ where
     ///
     /// # Example
     ///
-    /// Loop over all elements of a ZeroMap2d:
+    /// Loop over all elements of a [`ZeroMap2d`]:
     ///
     /// ```
     /// use zerovec::ZeroMap2d;
@@ -234,13 +234,13 @@ where
         ZeroMap2dCursor::from_cow(self, key0_index).get_range()
     }
 
-    /// Removes key0_index from the keys0 array and the joiner array
+    /// Removes `key0_index` from the keys0 array and the joiner array
     fn remove_key0_index(&mut self, key0_index: usize) {
         self.keys0.zvl_remove(key0_index);
         self.joiner.with_mut(|v| v.remove(key0_index));
     }
 
-    /// Shifts all joiner ranges from key0_index onward one index up
+    /// Shifts all joiner ranges from `key0_index` onward one index up
     fn joiner_expand(&mut self, key0_index: usize) {
         #[expect(clippy::expect_used)] // slice overflow
         self.joiner
@@ -257,7 +257,7 @@ where
             })
     }
 
-    /// Shifts all joiner ranges from key0_index onward one index down
+    /// Shifts all joiner ranges from `key0_index` onward one index down
     fn joiner_shrink(&mut self, key0_index: usize) {
         self.joiner
             .to_mut_slice()
