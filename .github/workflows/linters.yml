@@ -161,7 +161,7 @@ jobs:
             exit "$EXIT_CODE"
           fi
 
-  lint-rust:
+  lint-crates:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
     steps:
