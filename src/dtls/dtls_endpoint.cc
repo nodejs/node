@@ -19,6 +19,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include <cstddef>
 #include <cstring>
 
 namespace node {
@@ -44,6 +45,22 @@ struct SendReq {
   std::vector<uint8_t> data;
 };
 }  // namespace
+
+// The endpoint state "indices" are byte offsets into DTLSEndpointStateData,
+// accessed from JS via a DataView. Pin them to the actual struct layout so a
+// mismatch (as once existed for `busy`, which follows a uint32) can't recur.
+static_assert(IDX_ENDPOINT_STATE_BOUND ==
+              offsetof(DTLSEndpointStateData, bound));
+static_assert(IDX_ENDPOINT_STATE_LISTENING ==
+              offsetof(DTLSEndpointStateData, listening));
+static_assert(IDX_ENDPOINT_STATE_CLOSING ==
+              offsetof(DTLSEndpointStateData, closing));
+static_assert(IDX_ENDPOINT_STATE_DESTROYED ==
+              offsetof(DTLSEndpointStateData, destroyed));
+static_assert(IDX_ENDPOINT_STATE_SESSION_COUNT ==
+              offsetof(DTLSEndpointStateData, session_count));
+static_assert(IDX_ENDPOINT_STATE_BUSY ==
+              offsetof(DTLSEndpointStateData, busy));
 
 DTLSEndpoint::DTLSEndpoint(Environment* env, Local<Object> wrap)
     : HandleWrap(env,
@@ -268,6 +285,11 @@ void DTLSEndpoint::CloseGracefully() {
 
   server_context_.reset();
 
+  // Keep ourselves alive until OnClose() runs, so a garbage collection while
+  // uv_close() is in flight cannot collect the wrapper before the close is
+  // reported. Released in OnClose().
+  self_ref_ = BaseObjectPtr<DTLSEndpoint>(this);
+
   // HandleWrap::Close() calls uv_close and manages the lifecycle.
   HandleWrap::Close();
 }
@@ -292,6 +314,9 @@ void DTLSEndpoint::Destroy() {
     listening_ = false;
     state_->listening = 0;
   }
+
+  // Keep ourselves alive until OnClose() (see CloseGracefully()).
+  self_ref_ = BaseObjectPtr<DTLSEndpoint>(this);
 
   HandleWrap::Close();
 }
@@ -401,6 +426,17 @@ void DTLSEndpoint::OnClose() {
   state_->closing = 0;
   state_->destroyed = 1;
   DTLS_STAT_RECORD_TIMESTAMP(DTLSEndpointStats, destroyed_at);
+
+  // Release the strong self-reference taken when the close was initiated.
+  // HandleWrap::OnClose still holds its own reference for the duration of this
+  // call, so this does not free us here.
+  self_ref_.reset();
+
+  // A close initiated outside CloseGracefully()/Destroy() (e.g. an endpoint
+  // abandoned mid-construction and closed at environment teardown) takes no
+  // self-reference, so its wrapper may already be collected. There is no JS
+  // side to notify in that case; skip it rather than touch a freed wrapper.
+  if (persistent().IsEmpty()) return;
 
   Local<Function> cb = GetCallback(DTLS_CB_ENDPOINT_CLOSE);
   if (!cb.IsEmpty()) {

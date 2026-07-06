@@ -156,6 +156,11 @@ class DTLSEndpoint final : public HandleWrap {
   AliasedStruct<DTLSEndpointStateData> state_;
   AliasedStruct<DTLSEndpointStats> stats_;
 
+  // Strong self-reference held while a graceful close/destroy is in flight, so
+  // the wrapper is not garbage-collected before OnClose() runs and reports the
+  // close. Cleared in OnClose().
+  BaseObjectPtr<DTLSEndpoint> self_ref_;
+
   bool listening_ = false;
   uint32_t mtu_ = 1200;  // Conservative default MTU for data payload
 };
