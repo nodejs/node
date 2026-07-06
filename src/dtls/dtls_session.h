@@ -127,7 +127,6 @@ class DTLSSession final : public AsyncWrap {
   static void ExportKeyingMaterial(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSRTPProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:

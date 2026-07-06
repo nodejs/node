@@ -117,7 +117,6 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getALPNProtocol", GetALPNProtocol);
     SetProtoMethod(isolate, tmpl, "exportKeyingMaterial", ExportKeyingMaterial);
     SetProtoMethod(isolate, tmpl, "getSRTPProfile", GetSRTPProfile);
-    SetProtoMethod(isolate, tmpl, "setServername", SetServername);
     SetProtoMethod(isolate, tmpl, "getServername", GetServername);
 
     env->set_dtls_session_constructor_template(tmpl);
@@ -147,7 +146,6 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(GetALPNProtocol);
   registry->Register(ExportKeyingMaterial);
   registry->Register(GetSRTPProfile);
-  registry->Register(SetServername);
   registry->Register(GetServername);
 }
 
@@ -695,15 +693,6 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
         String::NewFromUtf8(session->env()->isolate(), profile->name)
             .ToLocalChecked());
   }
-}
-
-void DTLSSession::SetServername(const FunctionCallbackInfo<Value>& args) {
-  DTLSSession* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-
-  CHECK(args[0]->IsString());
-  Utf8Value servername(session->env()->isolate(), args[0]);
-  SSL_set_tlsext_host_name(session->ssl_.get(), *servername);
 }
 
 void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
