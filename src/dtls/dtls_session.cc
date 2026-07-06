@@ -55,6 +55,10 @@ DTLSSession::DTLSSession(Environment* env,
       retransmit_timer_(env,
                         [this] {
                           if (destroyed_) return;
+                          // Keep ourselves alive across the callback: emitting
+                          // an error or running Cycle() below can synchronously
+                          // destroy this session, and this timer lives on it.
+                          BaseObjectPtr<DTLSSession> strong_ref{this};
                           DTLS_STAT_INCREMENT(DTLSSessionStats,
                                               retransmit_count);
                           int ret = DTLSv1_handle_timeout(ssl_.get());
@@ -282,6 +286,12 @@ void DTLSSession::Receive(const uint8_t* data, size_t len) {
 void DTLSSession::Cycle() {
   if (destroyed_) return;
 
+  // Pin a strong reference to ourselves for the duration of the pump. A JS
+  // callback dispatched below (message/handshake/error) can synchronously
+  // destroy this session, which removes the endpoint's only strong reference
+  // and would otherwise free `this` while we are still using ssl_/state_.
+  BaseObjectPtr<DTLSSession> strong_ref{this};
+
   // Prevent infinite recursion.
   if (++cycle_depth_ > 1) {
     cycle_depth_--;
@@ -352,6 +362,9 @@ void DTLSSession::ClearOut() {
             .ToLocalChecked(),
     };
     EmitCallback(DTLS_CB_SESSION_MESSAGE, 1, argv);
+    // The message handler may have destroyed the session synchronously; stop
+    // reading if so (Cycle()'s strong reference keeps `this` itself alive).
+    if (destroyed_) return;
   }
 
   int err = SSL_get_error(ssl_.get(), read);
