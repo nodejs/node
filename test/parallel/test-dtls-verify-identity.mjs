@@ -65,9 +65,6 @@ const ca = readKey('ca1-cert.pem').toString();
     // The client aborts after verifying the certificate, so the server-side
     // handshake never completes.
     session.onhandshake = mustNotCall();
-    // The server session's `opened` is never awaited here; ensure it can't
-    // surface as an unhandled rejection if the stalled handshake later errors.
-    session.opened.catch(() => {});
   }), { cert, key, port: 0, host: '127.0.0.1' });
 
   const { port } = server.address;

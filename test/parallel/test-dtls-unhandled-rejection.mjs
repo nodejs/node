@@ -42,8 +42,9 @@ session.onerror = mustCall(() => errored.resolve());
 
 await errored.promise;
 
-// Give the rejected (but internally handled) opened promise a chance to be
-// reported as unhandled, if it were, before the process exits.
-await new Promise((resolve) => setImmediate(resolve));
+// The failed session tears itself down; awaiting its closed promise is a real
+// boundary that also gives any (incorrectly) unhandled opened rejection a turn
+// to surface before the process exits.
+await session.closed;
 
 await server.close();

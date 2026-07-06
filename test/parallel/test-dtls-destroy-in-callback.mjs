@@ -72,11 +72,6 @@ const ca = readKey('ca1-cert.pem').toString();
     rejectUnauthorized: false,
   });
 
-  // The server tears its session down the moment its handshake completes. The
-  // client's own handshake normally resolves, but guard against it rejecting
-  // (racing the teardown) so it can't surface as an unhandled rejection.
-  client.opened.catch(() => {});
-
   await destroyed.promise;
 
   await client.close();

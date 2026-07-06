@@ -25,11 +25,9 @@ const cert = readKey('agent1-cert.pem').toString();
 const key = readKey('agent1-key.pem').toString();
 const ca = readKey('ca1-cert.pem').toString();
 
-const server = listen(mustCall((session) => {
-  // The client rejects the certificate mid-handshake, so this server session
-  // never opens; ignore its unsettled promise.
-  session.opened.catch(() => {});
-}), { cert, key, port: 0, host: '127.0.0.1' });
+// The client rejects the certificate mid-handshake, so this server session
+// never opens; its opened rejection is handled internally by the library.
+const server = listen(mustCall(), { cert, key, port: 0, host: '127.0.0.1' });
 
 // A servername that does not match the certificate, under rejectUnauthorized,
 // makes the client's handshake fail during verification.

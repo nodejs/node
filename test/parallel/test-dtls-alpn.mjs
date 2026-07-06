@@ -26,7 +26,6 @@ const ca = readKey('ca1-cert.pem');
 const serverAlpnChecked = Promise.withResolvers();
 
 const endpoint = listen(mustCall(async (session) => {
-  session.onmessage = () => {};
   await session.opened;
   // Server should see the negotiated ALPN protocol.
   strictEqual(session.alpnProtocol, 'coap');

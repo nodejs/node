@@ -70,11 +70,7 @@ const ca = readKey('ca1-cert.pem').toString();
 
   strictEqual(server.state.sessionCount, 1);
   await client.close();   // Sends close_notify to the server
-  await session.closed;   // Server processes it and emits its close
-  // The session is dropped from the table immediately after its close callback
-  // runs (which can execute synchronously during the close emit's microtask
-  // drain); yield to the event loop so teardown settles before reading count.
-  await new Promise((resolve) => setImmediate(resolve));
+  await session.closed;   // Server processes it, detaches, and emits its close
   strictEqual(server.state.sessionCount, 0);
 
   await server.close();

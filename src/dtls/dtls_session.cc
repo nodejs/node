@@ -391,11 +391,12 @@ void DTLSSession::ClearOut() {
         // Send our close_notify back.
         SSL_shutdown(ssl_.get());
         EncOut();
+        // Detach from the endpoint's session table before notifying JS so an
+        // observer of the close sees a consistent session count. Cycle() holds
+        // a strong reference for the duration of the pump.
+        if (auto ep = endpoint_.get()) ep->RemoveSession(remote_address_);
         Local<Value> argv[] = {};
         EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
-        // Drop ourselves from the endpoint's session table now that the peer
-        // has closed. Safe here: Cycle() holds a strong reference for the
-        // duration of the pump.
         Destroy();
       }
       break;
@@ -490,16 +491,20 @@ void DTLSSession::Close() {
 
   state_->open = 0;
 
+  // Detach from the endpoint's session table before notifying JS, so an
+  // observer of the close (e.g. one awaiting `closed`) sees a consistent
+  // session count. We stay alive via strong_ref, and endpoint_ remains valid
+  // for the callback below; the Destroy() that follows clears it.
+  if (auto ep = endpoint_.get()) ep->RemoveSession(remote_address_);
+
   // Notify JS.
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Local<Value> argv[] = {};
   EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
 
-  // Remove ourselves from the endpoint's session table and release resources.
-  // Without this, a gracefully-closed session would linger in the table for
-  // the life of the endpoint, leaking memory and blocking reuse of its
-  // address.
+  // Release the remaining resources. RemoveSession above already detached us,
+  // so the one inside Destroy() is a no-op.
   Destroy();
 }
 
