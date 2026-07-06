@@ -22,8 +22,8 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-// agent1's certificate has CN=agent1 and no subjectAltName, so OpenSSL matches
-// the identity "agent1" (via the subject CN) and rejects any other name.
+// The agent1 certificate has CN=agent1 and no subjectAltName, so OpenSSL
+// matches the identity "agent1" (via the subject CN) and rejects other names.
 const cert = readKey('agent1-cert.pem').toString();
 const key = readKey('agent1-key.pem').toString();
 const ca = readKey('ca1-cert.pem').toString();

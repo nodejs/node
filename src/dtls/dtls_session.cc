@@ -385,6 +385,10 @@ void DTLSSession::ClearOut() {
         EncOut();
         Local<Value> argv[] = {};
         EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
+        // Drop ourselves from the endpoint's session table now that the peer
+        // has closed. Safe here: Cycle() holds a strong reference for the
+        // duration of the pump.
+        Destroy();
       }
       break;
 
@@ -453,6 +457,12 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
 void DTLSSession::Close() {
   if (destroyed_ || closed_) return;
 
+  // Emitting the close below can synchronously free this session (a client
+  // session that owns its endpoint tears the endpoint -- and thus itself --
+  // down from the close callback), and we call Destroy() afterwards. Pin a
+  // strong reference so `this` survives until we return.
+  BaseObjectPtr<DTLSSession> strong_ref{this};
+
   closed_ = true;
   state_->closing = 1;
   DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, closing_at);
@@ -474,6 +484,12 @@ void DTLSSession::Close() {
   Context::Scope context_scope(env()->context());
   Local<Value> argv[] = {};
   EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
+
+  // Remove ourselves from the endpoint's session table and release resources.
+  // Without this, a gracefully-closed session would linger in the table for
+  // the life of the endpoint, leaking memory and blocking reuse of its
+  // address.
+  Destroy();
 }
 
 void DTLSSession::Destroy() {
