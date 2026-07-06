@@ -36,7 +36,7 @@ env:
   PYTHON_VERSION: '3.14'
   XCODE_VERSION: '16.4'
   CLANG_VERSION: '19'
-  RUSTC_VERSION: '1.82'
+  RUSTC_VERSION: '1.83'
 
 permissions:
   contents: read
