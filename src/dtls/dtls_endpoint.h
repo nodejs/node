@@ -59,9 +59,15 @@ class DTLSEndpoint final : public HandleWrap {
   int Listen(DTLSContext* context);
 
   // Initiate a client connection to the given address.
+  // |servername|/|verify_host|/|verify_is_ip| configure SNI and peer identity
+  // verification on the client SSL before the handshake begins; see
+  // DTLSSession::Create.
   // Returns the created DTLSSession.
   BaseObjectPtr<DTLSSession> Connect(DTLSContext* context,
-                                     const SocketAddress& remote);
+                                     const SocketAddress& remote,
+                                     const char* servername = nullptr,
+                                     const char* verify_host = nullptr,
+                                     bool verify_is_ip = false);
 
   // Send a raw UDP datagram to the given address.
   // Called by DTLSSession to send encrypted packets.

@@ -155,7 +155,10 @@ int DTLSEndpoint::Listen(DTLSContext* context) {
 }
 
 BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
-                                                 const SocketAddress& remote) {
+                                                 const SocketAddress& remote,
+                                                 const char* servername,
+                                                 const char* verify_host,
+                                                 bool verify_is_ip) {
   if (IsHandleClosing()) {
     THROW_ERR_INVALID_STATE(env(), "Endpoint is closing");
     return {};
@@ -168,8 +171,14 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
     return {};
   }
 
-  auto session = DTLSSession::Create(
-      env(), this, context->ssl_ctx(), remote, false /* is_server */);
+  auto session = DTLSSession::Create(env(),
+                                     this,
+                                     context->ssl_ctx(),
+                                     remote,
+                                     false /* is_server */,
+                                     servername,
+                                     verify_host,
+                                     verify_is_ip);
 
   if (!session) return {};
 
@@ -576,7 +585,17 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kNet, remote.ToString());
 
-  auto session = endpoint->Connect(context, remote);
+  // Optional: servername (SNI), verifyHost (expected peer identity), and
+  // whether verifyHost is an IP literal. These are resolved in JS and applied
+  // to the client SSL before the handshake starts.
+  Utf8Value servername(env->isolate(), args[3]);
+  Utf8Value verify_host(env->isolate(), args[4]);
+  const char* servername_ptr = args[3]->IsString() ? *servername : nullptr;
+  const char* verify_host_ptr = args[4]->IsString() ? *verify_host : nullptr;
+  bool verify_is_ip = args[5]->IsTrue();
+
+  auto session = endpoint->Connect(
+      context, remote, servername_ptr, verify_host_ptr, verify_is_ip);
   if (session) {
     args.GetReturnValue().Set(session->object());
   }

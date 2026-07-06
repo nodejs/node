@@ -18,6 +18,8 @@
 #include <openssl/err.h>
 #include <openssl/srtp.h>
 #include <openssl/ssl.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/x509v3.h>
 
 #include <cstring>
 
@@ -153,7 +155,10 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                                DTLSEndpoint* endpoint,
                                                SSL_CTX* ssl_ctx,
                                                const SocketAddress& remote,
-                                               bool is_server) {
+                                               bool is_server,
+                                               const char* servername,
+                                               const char* verify_host,
+                                               bool verify_is_ip) {
   // Create the SSL object.
   SSL* ssl_raw = SSL_new(ssl_ctx);
   if (ssl_raw == nullptr) {
@@ -188,6 +193,39 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     SSL_set_accept_state(ssl.get());
   } else {
     SSL_set_connect_state(ssl.get());
+
+    // Configure SNI and peer identity verification BEFORE the handshake
+    // starts. The caller (DTLSEndpoint::Connect) runs Cycle() immediately
+    // after Create() returns, which emits the ClientHello, so anything that
+    // must appear in that flight (SNI) has to be set here rather than via a
+    // post-construction setter.
+    if (servername != nullptr && servername[0] != '\0') {
+      SSL_set_tlsext_host_name(ssl.get(), servername);
+    }
+
+    // When identity verification is requested, bind the expected peer name
+    // (or IP) into the verification parameters. Combined with the context's
+    // SSL_VERIFY_PEER mode this makes a name mismatch fail the handshake,
+    // rather than accepting any certificate that merely chains to a trusted
+    // CA. A failure to configure it is fatal: proceeding would silently skip
+    // the identity check.
+    if (verify_host != nullptr && verify_host[0] != '\0') {
+      if (verify_is_ip) {
+        if (!X509_VERIFY_PARAM_set1_ip_asc(SSL_get0_param(ssl.get()),
+                                           verify_host)) {
+          THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "Failed to set peer IP address for verification");
+          return {};
+        }
+      } else {
+        SSL_set_hostflags(ssl.get(), X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+        if (!SSL_set1_host(ssl.get(), verify_host)) {
+          THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "Failed to set peer hostname for verification");
+          return {};
+        }
+      }
+    }
   }
 
   // Create the JS wrapper object.
