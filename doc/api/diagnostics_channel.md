@@ -948,7 +948,7 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.5.0
     pr-url: https://github.com/nodejs/node/pull/62407
     description: Non-native-Promise thenables are now returned as-is,
                  preserving their original type and methods.

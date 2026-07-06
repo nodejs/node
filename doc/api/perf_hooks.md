@@ -1707,7 +1707,7 @@ are not guaranteed to reflect any correct state of the event loop.
 <!-- YAML
 added: v11.10.0
 changes:
-  - version: REPLACEME
+  - version: v26.5.0
     pr-url: https://github.com/nodejs/node/pull/62935
     description: Added the `samplePerIteration` option.
 -->

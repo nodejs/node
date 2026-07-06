@@ -1040,7 +1040,7 @@ added:
   - v23.6.0
   - v22.20.0
 changes:
-  - version: REPLACEME
+  - version: v26.5.0
     pr-url: https://github.com/nodejs/node/pull/64221
     description: This is enabled by default.
 -->
@@ -1263,7 +1263,7 @@ Previously gated the entire `import.meta.resolve` feature.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v26.5.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1350,7 +1350,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.5.0
     pr-url: https://github.com/nodejs/node/pull/64154
     description: Print the top-level awaits without evaluating the modules.
 -->

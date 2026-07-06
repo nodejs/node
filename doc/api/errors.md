@@ -2805,7 +2805,7 @@ A QUIC session failed because version negotiation is required.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.5.0
     pr-url: https://github.com/nodejs/node/pull/64260
     description: Added the `requireStack` and `topLevelAwaitLocations` properties.
 -->
