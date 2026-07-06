@@ -1656,7 +1656,11 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stateless_reset,
       on_get_new_cid,
       on_cid_status,
-      ngtcp2_crypto_get_path_challenge_data2_cb};
+      ngtcp2_crypto_get_path_challenge_data2_cb,
+#ifdef NGTCP2_CALLBACKS_V4
+      nullptr,
+#endif
+  };
 
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
@@ -1703,7 +1707,11 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stateless_reset,
       on_get_new_cid,
       on_cid_status,
-      ngtcp2_crypto_get_path_challenge_data2_cb};
+      ngtcp2_crypto_get_path_challenge_data2_cb,
+#ifdef NGTCP2_CALLBACKS_V4
+      nullptr,
+#endif
+  };
 };
 
 #undef NGTCP2_CALLBACK_SCOPE
