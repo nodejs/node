@@ -541,6 +541,9 @@ void DTLSEndpoint::DoBind(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid address");
   }
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, addr.ToString());
+
   int err = endpoint->Bind(addr);
   if (err != 0) {
     return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
