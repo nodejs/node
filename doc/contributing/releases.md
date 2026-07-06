@@ -42,14 +42,16 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 Individuals who are Members of the
 [backporters team](https://github.com/orgs/nodejs/teams/backporters) can
 land things on the staging branches and prepare releases. This is a
-prerequisite to being able to prepare releases which is the first step
+prerequisite to being able to prepare a release which is the first step
 to becoming a releaser.
 
 Release authorization is given by the Node.js TSC. This is required to
 promote a release after it has been prepared. If you are working on
-preparing a release for the first time you can do that and have someone else
-who is already onboarded promote the release on your behalf. Once
-authorized by the TSC, an individual will be require the following:
+preparing a release for the first time you can do most of the steps to
+prepare the proposal branch as a member of the backporters team and have
+someone else who is already onboarded promote the release on your behalf.
+Once authorized by the TSC, an individual will require the following to
+complete releases themselves:
 
 ### 1. Jenkins release access
 
@@ -139,7 +141,8 @@ gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
 ```
 
 and check it by switching the server name in the `--recv-keys` operation
-list above to the Ubuntu keyserver.
+list above to the Ubuntu keyserver. For more information take a look at the
+[Ubuntu GPG howto wiki page](https://help.ubuntu.com/community/GnuPrivacyGuardHowto).
 
 Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
@@ -550,7 +553,7 @@ grep REPLACEME doc/api/*.md
 ```
 
 The above command will check for the presence of the tags and show you which
-files need to be updated.  You can then perform the replacements with one of
+files need to be updated. You can then perform the replacements with one of
 the following commands using either `sed` or `perl`.  In these examples
 `$VERSION` must be prefixed with a `v`:
 
