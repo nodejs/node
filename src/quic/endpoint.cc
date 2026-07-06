@@ -1802,6 +1802,24 @@ void Endpoint::Receive(const uint8_t* data,
       // successfully decoded. Send a Version Negotiation response
       // per RFC 9000 Section 6. The VN packet's DCID is the client's
       // SCID and vice versa (mirrored back to the client).
+      //
+      // ngtcp2_pkt_decode_version_cid() only enforces the
+      // NGTCP2_MAX_CIDLEN limit for *supported* versions; for an
+      // unsupported version it returns the raw connection ID lengths
+      // taken from the single-byte length fields on the wire, which can
+      // be up to 255. Constructing a CID -- backed by a fixed
+      // NGTCP2_MAX_CIDLEN-byte buffer -- from such a length writes past
+      // the buffer (an assertion abort in release builds). A single
+      // unauthenticated UDP datagram could therefore crash the endpoint
+      // before any handshake. Drop these packets, mirroring the
+      // CID-length policy applied below for supported versions.
+      if (pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
+          pversion_cid.scidlen > NGTCP2_MAX_CIDLEN) {
+        Debug(this,
+              "Version negotiation packet had incorrectly sized CIDs, "
+              "ignoring");
+        return;
+      }
       Debug(this,
             "Packet version %d is not supported, sending version negotiation",
             pversion_cid.version);
