@@ -178,8 +178,9 @@ function parseUnparsedAttributes (unparsedAttributes, cookieAttributeList = {}) 
 
     // 2. If the attribute-value failed to parse as a cookie date, ignore
     //    the cookie-av.
-
-    cookieAttributeList.expires = expiryTime
+    if (!Number.isNaN(expiryTime.getTime())) {
+      cookieAttributeList.expires = expiryTime
+    }
   } else if (attributeNameLowercase === 'max-age') {
     // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis#section-5.4.2
     // If the attribute-name case-insensitively matches the string "Max-

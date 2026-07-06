@@ -1,116 +1,200 @@
-# Class: RetryHandler
+# RetryHandler
 
-Extends: `undici.DispatcherHandlers`
+<!--introduced_in=v5.28.0-->
+<!--type=module-->
+<!-- source_link=lib/handler/retry-handler.js -->
 
-A handler class that implements the retry logic for a request.
+> Stability: 2 - Stable
 
-## `new RetryHandler(opts, { dispatch, handler })`
+A [`Dispatcher`][] handler that automatically retries a request when it fails
+with a recoverable network error or an eligible HTTP status code. It wraps an
+inner handler and re-dispatches the request, applying an exponential backoff and
+honouring the `Retry-After` response header. When a response is partially
+consumed before the failure, the handler resumes the download with a `Range`
+request guarded by the original `ETag`.
 
-Arguments:
+The handler is most often used indirectly through [`RetryAgent`][], but it can
+also be supplied directly to [`dispatcher.dispatch()`][] for fine-grained
+control over the retry behaviour.
 
-- **opts** `Dispatch.DispatchOptions & { retryOptions?: RetryOptions }` (required) - An intersection of `Dispatcher.DispatchOptions` and an optional `RetryOptions` object.
-- **{ dispatch, handler }** `RetryHandlers` (required) - Object containing the `dispatch` to be used on every retry, and `handler` for handling the `dispatch` lifecycle.
+```mjs
+import { RetryHandler } from 'undici'
+```
 
-Returns: `retryHandler`
+## Class: `RetryHandler`
 
-### Parameter: `Dispatch.DispatchOptions & RetryOptions`
+<!-- YAML
+added: v5.28.0
+-->
 
-Extends: [`Dispatch.DispatchOptions`](/docs/docs/api/Dispatcher.md#parameter-dispatchoptions).
+* Extends: {DispatchHandler}
+
+Implements the [`DispatchHandler`][] interface. An instance is consumed by a
+single dispatch call and forwards the dispatch lifecycle to the inner `handler`,
+re-issuing the request through the supplied `dispatch` function whenever a retry
+is warranted.
+
+> **Note:** The `RetryHandler` does not retry over stateful bodies (for example
+> streams or `AsyncIterable`), because once consumed they cannot be replayed. In
+> these situations the body is identified as stateful and the request is rejected
+> with the `UND_ERR_REQ_RETRY` error instead of being retried.
+
+### `new RetryHandler(options, retryHandlers)`
+
+<!-- YAML
+added: v5.28.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/undici/pull/3883
+    description: Reimplemented on top of the new dispatch lifecycle hooks.
+-->
+
+* `options` {DispatchOptions} The dispatch options for the request, extended with
+  an optional `retryOptions` field. Type is
+  `DispatchOptions & { retryOptions?: RetryOptions }`.
+  * `retryOptions` {RetryOptions} (optional) Configuration controlling when and
+    how the request is retried. See [`RetryOptions`](#retryoptions).
+* `retryHandlers` {RetryHandlers} The handlers used to drive the retry loop. See
+  [`RetryHandlers`](#parameter-retryhandlers).
+* Returns: {RetryHandler}
 
 #### `RetryOptions`
 
-- **throwOnError** `boolean` (optional) - Disable to prevent throwing error on last retry attept, useful if you need the body on errors from server or if you have custom error handler.
-- **retry** `(err: Error, context: RetryContext, callback: (err?: Error | null) => void) => void` (optional) - Function to be called after every retry. It should pass error if no more retries should be performed.
-- **maxRetries** `number` (optional) - Maximum number of retries. Default: `5`
-- **maxTimeout** `number` (optional) - Maximum number of milliseconds to wait before retrying. Default: `30000` (30 seconds)
-- **minTimeout** `number` (optional) - Minimum number of milliseconds to wait before retrying. Default: `500` (half a second)
-- **timeoutFactor** `number` (optional) - Factor to multiply the timeout by for each retry attempt. Default: `2`
-- **retryAfter** `boolean` (optional) - It enables automatic retry after the `Retry-After` header is received. Default: `true`
-- **methods** `string[]` (optional) - Array of HTTP methods to retry. Default: `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE']`
-- **statusCodes** `number[]` (optional) - Array of HTTP status codes to retry. Default: `[429, 500, 502, 503, 504]`
-- **errorCodes** `string[]` (optional) - Array of Error codes to retry. Default: `['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'ENETDOWN', 'ENETUNREACH', 'EHOSTDOWN', 'EHOSTUNREACH', 'EPIPE', 'UND_ERR_SOCKET']`
+* `throwOnError` {boolean} When `true`, an error is thrown on the last retry
+  attempt and propagated to the inner handler; when `false`, the failing response
+  is passed through instead, which is useful when the error body is needed or a
+  custom error handler is in place. **Default:** `true`.
+* `retry` {Function} Callback invoked on every retry iteration to decide whether
+  another attempt should be made. It receives the error, the retry context, and a
+  callback. Call the callback with an `Error` to stop retrying, or with `null` to
+  schedule another attempt. **Default:** the built-in retry strategy described
+  below.
+  * `err` {Error} The error that triggered the retry.
+  * `context` {RetryContext} The current retry context. See
+    [`RetryContext`](#retrycontext).
+  * `callback` {Function} Signals the outcome of this iteration.
+    * `result` {Error|null} (optional) An `Error` to abort retrying, or `null` to
+      retry.
+* `maxRetries` {number} Maximum number of retries allowed. **Default:** `5`.
+* `maxTimeout` {number} Maximum number of milliseconds to wait between retries.
+  **Default:** `30000` (30 seconds).
+* `minTimeout` {number} Initial number of milliseconds to wait before the first
+  retry. **Default:** `500` (half a second).
+* `timeoutFactor` {number} Multiplier applied to the timeout between successive
+  retries to produce an exponential backoff. **Default:** `2`.
+* `retryAfter` {boolean} When `true`, the delay before the next retry is inferred
+  from the `Retry-After` response header when present. **Default:** `true`.
+* `methods` {string[]} HTTP methods that are eligible for retrying. **Default:**
+  `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE']`.
+* `statusCodes` {number[]} HTTP status codes that trigger a retry. **Default:**
+  `[500, 502, 503, 504, 429]`.
+* `errorCodes` {string[]} Network error codes that trigger a retry. **Default:**
+  `['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'ENETDOWN', 'ENETUNREACH', 'EHOSTDOWN', 'EHOSTUNREACH', 'EPIPE', 'UND_ERR_SOCKET']`.
 
-**`RetryContext`**
+The default `retry` strategy computes the delay before the next attempt as
+`minTimeout * timeoutFactor ** (counter - 1)`, capped at `maxTimeout`. When a
+`Retry-After` header is present it takes precedence (interpreted as seconds, or as
+an HTTP date), still capped at `maxTimeout`. The default strategy stops retrying
+once `counter` exceeds `maxRetries`, when the error code is not in `errorCodes`,
+when the method is not in `methods`, or when the response status code is not in
+`statusCodes`.
 
-- `state`: `RetryState` - Current retry state. It can be mutated.
-- `opts`: `Dispatch.DispatchOptions & RetryOptions` - Options passed to the retry handler.
+#### `RetryContext`
 
-**`RetryState`**
+* `state` {RetryState} The current retry state. See [`RetryState`](#retrystate).
+* `opts` {DispatchOptions} The dispatch options passed to the handler, including
+  the resolved `retryOptions`. Type is
+  `DispatchOptions & { retryOptions?: RetryOptions }`.
 
-It represents the retry state for a given request.
+The context object passed as the second argument to the `retry` callback.
 
-- `counter`: `number` - Current retry attempt.
+#### `RetryState`
 
-### Parameter `RetryHandlers`
+* `counter` {number} The current retry attempt, starting at `1` for the first
+  retry.
 
-- **dispatch** `(options: Dispatch.DispatchOptions, handlers: Dispatch.DispatchHandler) => Promise<Dispatch.DispatchResponse>` (required) - Dispatch function to be called after every retry.
-- **handler** Extends [`Dispatch.DispatchHandler`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler) (required) - Handler function to be called after the request is successful or the retries are exhausted.
+Represents the retry state for a given request.
 
->__Note__: The `RetryHandler` does not retry over stateful bodies (e.g. streams, AsyncIterable) as those, once consumed, are left in a state that cannot be reutilized. For these situations the `RetryHandler` will identify
->the body as stateful and will not retry the request rejecting with the error `UND_ERR_REQ_RETRY`.
+#### Parameter: `RetryHandlers`
 
-Examples:
+* `dispatch` {Function} The dispatch function called to (re-)issue the request on
+  every attempt. Type is `(options, handler) => boolean`.
+* `handler` {DispatchHandler} The inner handler invoked once the request succeeds
+  or the retries are exhausted.
 
-```js
-const client = new Client(`http://localhost:${server.address().port}`);
-const chunks = [];
+### Examples
+
+```mjs
+import { Client, RetryHandler } from 'undici'
+
+const client = new Client(`http://localhost:${server.address().port}`)
+const chunks = []
+
 const handler = new RetryHandler(
   {
     ...dispatchOptions,
     retryOptions: {
-      // custom retry function
-      retry: function (err, state, callback) {
-        counter++;
-
-        if (err.code && err.code === "UND_ERR_DESTROYED") {
-          callback(err);
-          return;
+      // Custom retry decision function.
+      retry (err, { state, opts }, callback) {
+        if (err.code === 'UND_ERR_DESTROYED') {
+          callback(err)
+          return
         }
 
         if (err.statusCode === 206) {
-          callback(err);
-          return;
+          callback(err)
+          return
         }
 
-        setTimeout(() => callback(null), 1000);
-      },
-    },
+        setTimeout(() => callback(null), 1000)
+      }
+    }
   },
   {
-    dispatch: (...args) => {
-      return client.dispatch(...args);
+    dispatch (...args) {
+      return client.dispatch(...args)
     },
     handler: {
-      onRequestStart() {},
-      onBodySent(chunk) {},
-      onResponseStart(_controller, status, headers) {
-        // do something with headers
+      onRequestStart () {},
+      onResponseStart (controller, status, headers) {
+        // Do something with the response headers.
       },
-      onResponseData(_controller, chunk) {
-        chunks.push(chunk);
+      onResponseData (controller, chunk) {
+        chunks.push(chunk)
       },
-      onResponseEnd() {},
-      onResponseError(_controller, err) {
-        // handle error properly
-      },
-    },
+      onResponseEnd () {},
+      onResponseError (controller, err) {
+        // Handle the error.
+      }
+    }
   }
-);
+)
+
+client.dispatch(dispatchOptions, handler)
 ```
 
-#### Example - Basic RetryHandler with defaults
+A minimal handler that relies entirely on the default retry options:
 
-```js
-const client = new Client(`http://localhost:${server.address().port}`);
+```mjs
+import { Client, RetryHandler } from 'undici'
+
+const client = new Client(`http://localhost:${server.address().port}`)
+
 const handler = new RetryHandler(dispatchOptions, {
   dispatch: client.dispatch.bind(client),
   handler: {
-    onRequestStart() {},
-    onBodySent(chunk) {},
-    onResponseStart(_controller, status, headers) {},
-    onResponseData(_controller, chunk) {},
-    onResponseEnd() {},
-    onResponseError(_controller, err) {},
-  },
-});
+    onRequestStart () {},
+    onResponseStart (controller, status, headers) {},
+    onResponseData (controller, chunk) {},
+    onResponseEnd () {},
+    onResponseError (controller, err) {}
+  }
+})
+
+client.dispatch(dispatchOptions, handler)
 ```
+
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`DispatchHandler`]: Dispatcher.md#parameter-dispatchhandler
+[`RetryAgent`]: RetryAgent.md#class-retryagent
+[`dispatcher.dispatch()`]: Dispatcher.md#dispatcherdispatchoptions-handler

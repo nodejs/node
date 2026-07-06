@@ -153,6 +153,18 @@ lead to a loss of confidentiality, integrity, or availability.
   calling `body.formData()` on untrusted responses is considered an application
   responsibility, not a vulnerability in undici.
 
+#### HTTP/1.1 keep-alive with untrusted servers
+
+* HTTP/1.1 responses on a reused connection are ordered, but they do not carry a
+  request identifier. Once a request has been written on a reused connection,
+  a well-formed response sent by the server is the response to that next request
+  from the client's point of view. Undici avoids immediate reuse of
+  non-pipelined HTTP/1.1 connections when callers are already waiting to send
+  more work, but applications that require per-request connection isolation for
+  untrusted or user-controlled servers should disable reuse by using
+  `pipelining: 0` or `maxRequestsPerClient: 1`, or use a protocol with response
+  correlation such as HTTP/2.
+
 #### Application Misconfiguration
 
 * Issues arising from incorrect or insecure use of undici APIs (such as
