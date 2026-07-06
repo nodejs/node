@@ -558,7 +558,7 @@ grep REPLACEME doc/api/*.md
 
 The above command will check for the presence of the tags and show you which
 files need to be updated. You can then perform the replacements with one of
-the following commands using either `sed` or `perl`.  In these examples
+the following commands using either `sed` or `perl`. In these examples
 `$VERSION` must be prefixed with a `v`:
 
 ```bash
