@@ -540,6 +540,13 @@ specific details of how to do this are included in the new collaborator
 test run for you as approvals for the pull request come in.
 If not, you can ask a collaborator or triager to start a CI run.
 
+CI access is only available to collaborators and members of the platform
+teams.  If you are not yet in one of those teams then you will need someone
+to relay the results to you.  If a CI has been completed and failed and a
+day or so has passed, it will be worth commenting in the issue to say you
+cannot see what failed and to politely request in the PR that someone gives
+you that information.
+
 Ideally, the code change will pass ("be green") on all platform configurations
 supported by Node.js. This means that all tests pass and there are no linting
 errors. In reality, however, it is not uncommon for the CI infrastructure itself
