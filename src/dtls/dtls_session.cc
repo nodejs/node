@@ -202,7 +202,11 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     // must appear in that flight (SNI) has to be set here rather than via a
     // post-construction setter.
     if (servername != nullptr && servername[0] != '\0') {
-      SSL_set_tlsext_host_name(ssl.get(), servername);
+      if (!SSL_set_tlsext_host_name(ssl.get(), servername)) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to set servername (SNI)");
+        return {};
+      }
     }
 
     // When identity verification is requested, bind the expected peer name
@@ -310,6 +314,9 @@ void DTLSSession::Cycle() {
         unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
         char err_buf[256];
         ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+        // Flush any fatal alert OpenSSL queued for the peer before emitting the
+        // error, which tears the session down and detaches the endpoint.
+        EncOut();
         Local<Value> argv[] = {
             String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
         };
@@ -397,6 +404,9 @@ void DTLSSession::ClearOut() {
       unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
       char err_buf[256];
       ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+      // Flush any fatal alert OpenSSL queued for the peer before emitting the
+      // error, which tears the session down and detaches the endpoint.
+      EncOut();
       Local<Value> argv[] = {
           String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
       };
