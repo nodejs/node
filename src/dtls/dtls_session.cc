@@ -356,8 +356,9 @@ void DTLSSession::Cycle() {
 void DTLSSession::ClearOut() {
   if (destroyed_) return;
 
-  // Try to read decrypted application data from OpenSSL.
-  uint8_t buf[65536];
+  // Try to read decrypted application data from OpenSSL. A DTLS record's
+  // plaintext is at most 2^14 bytes, so one SSL_read yields at most that much.
+  uint8_t buf[16384];
   int read;
 
   while ((read = SSL_read(ssl_.get(), buf, sizeof(buf))) > 0) {

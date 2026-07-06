@@ -14,6 +14,7 @@
 #include <openssl/ssl.h>
 
 #include <unordered_map>
+#include <vector>
 
 #include "dtls.h"
 #include "dtls_context.h"
@@ -134,6 +135,11 @@ class DTLSEndpoint final : public HandleWrap {
                         const SocketAddress& remote);
 
   uv_udp_t handle_;
+
+  // Reusable receive buffer for uv_udp_recv (see OnAlloc). libuv delivers one
+  // datagram at a time and OnRecv consumes each before the next OnAlloc, so a
+  // single buffer per endpoint avoids a heap allocation on every packet.
+  std::vector<char> recv_buf_;
 
   // Session table: maps remote address -> session.
   std::unordered_map<SocketAddress,

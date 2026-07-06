@@ -340,8 +340,16 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
 void DTLSEndpoint::OnAlloc(uv_handle_t* handle,
                            size_t suggested_size,
                            uv_buf_t* buf) {
-  buf->base = new char[65536];
-  buf->len = 65536;
+  DTLSEndpoint* endpoint = static_cast<DTLSEndpoint*>(handle->data);
+  // Reuse a single receive buffer. libuv delivers datagrams one at a time on
+  // this thread, and OnRecv fully consumes each datagram (copying it into the
+  // session's BIO) before the next OnAlloc, so a per-endpoint buffer suffices
+  // and avoids a heap allocation on every packet.
+  if (endpoint->recv_buf_.empty()) {
+    endpoint->recv_buf_.resize(65536);
+  }
+  buf->base = endpoint->recv_buf_.data();
+  buf->len = endpoint->recv_buf_.size();
 }
 
 void DTLSEndpoint::OnRecv(uv_udp_t* handle,
@@ -351,13 +359,12 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
                           unsigned int flags) {
   DTLSEndpoint* endpoint = static_cast<DTLSEndpoint*>(handle->data);
 
+  // buf->base is the endpoint's reusable recv_buf_; it is not freed here.
   if (nread == 0 && addr == nullptr) {
-    delete[] buf->base;
     return;
   }
 
   if (nread < 0) {
-    delete[] buf->base;
     HandleScope handle_scope(endpoint->env()->isolate());
     Context::Scope context_scope(endpoint->env()->context());
     Local<Value> argv[] = {
@@ -372,7 +379,6 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   }
 
   if (addr == nullptr) {
-    delete[] buf->base;
     return;
   }
 
@@ -384,8 +390,6 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   SocketAddress remote(addr);
   endpoint->ProcessDatagram(
       reinterpret_cast<const uint8_t*>(buf->base), nread, remote);
-
-  delete[] buf->base;
 }
 
 void DTLSEndpoint::OnSend(uv_udp_send_t* req, int status) {
@@ -663,6 +667,7 @@ void DTLSEndpoint::DoSetCallbacks(const FunctionCallbackInfo<Value>& args) {
 
 void DTLSEndpoint::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sessions", sessions_.size());
+  tracker->TrackFieldWithSize("recv_buf", recv_buf_.size());
 }
 
 }  // namespace dtls
