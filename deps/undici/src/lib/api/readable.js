@@ -15,6 +15,7 @@ const kContentType = Symbol('kContentType')
 const kContentLength = Symbol('kContentLength')
 const kUsed = Symbol('kUsed')
 const kBytesRead = Symbol('kBytesRead')
+const kPreservedBuffer = Symbol('kPreservedBuffer')
 
 const noop = () => {}
 
@@ -325,7 +326,37 @@ class BodyReadable extends Readable {
    */
   setEncoding (encoding) {
     if (Buffer.isEncoding(encoding)) {
-      this._readableState.encoding = encoding
+      // Preserve raw Buffer chunks for the consume path (body.text(),
+      // body.json(), etc.) before super.setEncoding() replaces them
+      // with decoded strings. Without this, the consume path would
+      // lose access to the original bytes — some of which may be held
+      // by the decoder for incomplete multi-byte sequences, and the
+      // rest converted to strings that can't be safely concatenated
+      // byte-wise.
+      const state = this._readableState
+      const buffer = state.buffer
+      if (buffer && state.length > 0) {
+        const bufferIndex = state.bufferIndex ?? 0
+        const preserved = []
+        const source = typeof buffer.slice === 'function'
+          ? buffer.slice(bufferIndex)
+          : buffer
+        for (const data of source) {
+          if (Buffer.isBuffer(data)) {
+            preserved.push(data)
+          }
+        }
+        if (preserved.length > 0) {
+          this[kPreservedBuffer] = (this[kPreservedBuffer] || []).concat(preserved)
+        }
+      }
+
+      // Delegate to Node.js Readable.setEncoding() which initializes a
+      // StringDecoder and re-encodes already-buffered chunks. This properly
+      // handles multi-byte sequences split at chunk boundaries for the
+      // for-await / on('data') paths. Without this, Node.js uses
+      // buf.toString(encoding) on each chunk, producing U+FFFD for split chars.
+      super.setEncoding(encoding)
     }
     return this
   }
@@ -433,7 +464,17 @@ function consumeStart (consume) {
 
   const { _readableState: state } = consume.stream
 
-  if (state.bufferIndex) {
+  // If setEncoding() was called, state.buffer may contain decoded strings
+  // (which would break Buffer.concat in chunksDecode). Use the preserved
+  // raw Buffers (saved before super.setEncoding() in setEncoding()) for
+  // byte-level accurate consumption. Otherwise read from state.buffer.
+  const preserved = consume.stream[kPreservedBuffer]
+  if (preserved && preserved.length > 0) {
+    for (const chunk of preserved) {
+      consumePush(consume, chunk)
+    }
+    consume.stream[kPreservedBuffer] = null
+  } else if (state.bufferIndex) {
     const start = state.bufferIndex
     const end = state.buffer.length
     for (let n = start; n < end; n++) {
@@ -546,6 +587,10 @@ function consumeEnd (consume, encoding) {
  * @returns {void}
  */
 function consumePush (consume, chunk) {
+  if (consume.body === null) {
+    return
+  }
+
   consume.length += chunk.length
   consume.body.push(chunk)
 }

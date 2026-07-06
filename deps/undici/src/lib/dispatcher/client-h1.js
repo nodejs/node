@@ -377,6 +377,29 @@ class Parser {
 
     const { llhttp } = this
 
+    // The peer closed the connection. If the body parser was paused by
+    // backpressure we must finish parsing before signalling EOF, otherwise
+    // llhttp_finish() would crash (it used to assert !paused) or report a
+    // half-parsed message. Backpressure is advisory here: onData keeps buffering
+    // delivered bytes into the response stream, so resume across pauses and
+    // drain whatever is still buffered on the socket. A Content-Length/chunked
+    // body reaches on_message_complete during execute(); an EOF-delimited body
+    // stays paused (its length is unknown) and is completed by llhttp_finish().
+    if (this.paused) {
+      let data
+      do {
+        llhttp.llhttp_resume(this.ptr)
+        this.paused = false
+        data = this.socket.read() || EMPTY_BUF
+        this.execute(data)
+      } while (this.paused && data.length > 0)
+
+      if (this.paused) {
+        llhttp.llhttp_resume(this.ptr)
+        this.paused = false
+      }
+    }
+
     let ret
 
     try {

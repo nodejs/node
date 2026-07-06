@@ -154,6 +154,16 @@ declare namespace Errors {
     code: 'UND_ERR_PRX_TLS'
   }
 
+  export class ProxyConnectionError extends UndiciError {
+    constructor (
+      cause?: Error,
+      message?: string,
+      options?: Record<any, any>
+    )
+    name: 'ProxyConnectionError'
+    code: 'UND_ERR_PRX_CONN'
+  }
+
   export class MaxOriginsReachedError extends UndiciError {
     name: 'MaxOriginsReachedError'
     code: 'UND_ERR_MAX_ORIGINS_REACHED'
