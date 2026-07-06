@@ -44,3 +44,17 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.existsSync('/d/a.txt'), false);
   assert.strictEqual(myVfs.existsSync('/d/b.txt'), true);
 }
+
+// Renaming a directory into its own descendant throws EINVAL
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/a/b', { recursive: true });
+  myVfs.writeFileSync('/a/file.txt', 'data');
+
+  assert.throws(() => myVfs.renameSync('/a', '/a/b/c'), { code: 'EINVAL' });
+  assert.deepStrictEqual(myVfs.readdirSync('/'), ['a']);
+  assert.strictEqual(myVfs.existsSync('/a'), true);
+  assert.strictEqual(myVfs.existsSync('/a/b'), true);
+  assert.strictEqual(myVfs.existsSync('/a/b/c'), false);
+  assert.strictEqual(myVfs.readFileSync('/a/file.txt', 'utf8'), 'data');
+}
