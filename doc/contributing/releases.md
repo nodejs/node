@@ -39,19 +39,23 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 
 ## Who can make a release?
 
-Individuals who are Members of the
-[backporters team](https://github.com/orgs/nodejs/teams/backporters) can
-land things on the staging branches and prepare releases. This is a
-prerequisite to being able to prepare a release which is the first step
-to becoming a releaser.
+There is a distinction between individuals who can "prepare" a release by
+adding the commits to the branches in github and those who can "publish" the
+releases to nodejs.org.
 
-Release authorization is given by the Node.js TSC. This is required to
-promote a release after it has been prepared. If you are working on
-preparing a release for the first time you can do most of the steps to
-prepare the proposal branch as a member of the backporters team and have
-someone else who is already onboarded promote the release on your behalf.
-Once authorized by the TSC, an individual will require the following to
-complete releases themselves:
+Individuals who are Members of the
+[backporters team](https://github.com/orgs/nodejs/teams/backporters)
+(restricted link) can land things on the staging branches and prepare
+releases including creating the proposal branches which will be discussed
+later in this document.
+
+Authorization to publish releases is given by the Node.js TSC. This is
+required to publish a release after it has been prepared. If you are working
+on preparing a release for the first time you will be able to do most of the
+steps as a member of the backporters team abd have someone else who is
+already onboarded promote the release on your behalf. Once authorized by the
+TSC as a releaser, an individual will require the following to complete releases
+themselves:
 
 ### 1. Jenkins release access
 
@@ -98,7 +102,7 @@ _dist_ user.
 
 Release builds require manual promotion by an individual with SSH access to the
 server as the _dist_ user. The
-[Node.js build team](https://github.com/nodejs/build) is able to provide this
+[Node.js build team](lhttps://github.com/nodejs/build) is able to provide this
 access to individuals authorized by the TSC.
 
 ### 3. A publicly-listed GPG key
