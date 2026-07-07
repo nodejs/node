@@ -5,6 +5,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { finished } from 'node:stream/promises';
 import { DefaultSerializer } from 'node:v8';
+import { resolve } from 'node:path';
 import serializer from 'internal/test_runner/reporter/v8-serializer';
 import runner from 'internal/test_runner/runner';
 
@@ -14,9 +15,14 @@ async function toArray(chunks) {
   return arr;
 }
 
+const entryFile = resolve('filetest');
 const diagnosticEvent = {
   type: 'test:diagnostic',
   data: { nesting: 0, details: {}, message: 'diagnostic' },
+};
+const reportedDiagnosticEvent = {
+  type: 'test:diagnostic',
+  data: { ...diagnosticEvent.data, entryFile },
 };
 const chunks = await toArray(serializer([diagnosticEvent]));
 const defaultSerializer = new DefaultSerializer();
@@ -67,28 +73,28 @@ describe('v8 deserializer', common.mustCall(() => {
   it('should deserialize a chunk with no serialization', async () => {
     const reported = await collectReported([Buffer.from('unknown')]);
     assert.deepStrictEqual(reported, [
-      { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
+      { data: { __proto__: null, entryFile, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
     ]);
   });
 
   it('should deserialize a serialized chunk', async () => {
     const reported = await collectReported(chunks);
-    assert.deepStrictEqual(reported, [diagnosticEvent]);
+    assert.deepStrictEqual(reported, [reportedDiagnosticEvent]);
   });
 
   it('should deserialize a serialized chunk after non-serialized chunk', async () => {
     const reported = await collectReported([Buffer.concat([Buffer.from('unknown'), ...chunks])]);
     assert.deepStrictEqual(reported, [
-      { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
-      diagnosticEvent,
+      { data: { __proto__: null, entryFile, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
+      reportedDiagnosticEvent,
     ]);
   });
 
   it('should deserialize a serialized chunk before non-serialized output', async () => {
     const reported = await collectReported([Buffer.concat([ ...chunks, Buffer.from('unknown')])]);
     assert.deepStrictEqual(reported, [
-      diagnosticEvent,
-      { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
+      reportedDiagnosticEvent,
+      { data: { __proto__: null, entryFile, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
     ]);
   });
 
@@ -131,7 +137,7 @@ describe('v8 deserializer', common.mustCall(() => {
       oversizedLengthHeader,
       ...chunks,
     ]);
-    assert.deepStrictEqual(reported.at(-1), diagnosticEvent);
+    assert.deepStrictEqual(reported.at(-1), reportedDiagnosticEvent);
     assert.strictEqual(reported.filter((event) => event.type === 'test:diagnostic').length, 1);
     assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
   });
@@ -152,7 +158,7 @@ describe('v8 deserializer', common.mustCall(() => {
       const data = chunks[0];
       const reported = await collectReported([data.subarray(0, i), data.subarray(i)]);
       assert.deepStrictEqual(reported, [
-        diagnosticEvent,
+        reportedDiagnosticEvent,
       ]);
     });
 
@@ -163,9 +169,9 @@ describe('v8 deserializer', common.mustCall(() => {
         Buffer.concat([data.subarray(i), Buffer.from('unknown')]),
       ]);
       assert.deepStrictEqual(reported, [
-        { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
-        diagnosticEvent,
-        { data: { __proto__: null, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
+        { data: { __proto__: null, entryFile, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
+        reportedDiagnosticEvent,
+        { data: { __proto__: null, entryFile, file: 'filetest', message: 'unknown' }, type: 'test:stdout' },
       ]);
     }
     );
