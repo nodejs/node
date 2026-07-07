@@ -2865,12 +2865,16 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   int r;
-  int num_cols = sqlite3_column_count(stmt);
+  int num_cols = 0;
   LocalVector<Value> rows(isolate);
   LocalVector<Value> row_values(isolate);
   LocalVector<Name> row_keys(isolate);
 
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if (num_cols == 0) {
+      num_cols = sqlite3_column_count(stmt);
+    }
+
     if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
             .IsNothing()) {
       return MaybeLocal<Value>();
