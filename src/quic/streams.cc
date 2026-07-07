@@ -511,6 +511,7 @@ struct Stream::Impl {
     if (args.Length() > 0) {
       CHECK(args[0]->IsUint32());
       wt_error_code = FromV8Value<uint32_t>(args[0]);
+    }
     uint8_t * msg = nullptr;
     size_t msglen = 0;
     if (args.Length() > 1) {
