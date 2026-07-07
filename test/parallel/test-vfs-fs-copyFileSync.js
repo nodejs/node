@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-const mountPoint = myVfs.mount('/copyFileSync');
+const mountPoint = myVfs.mount();
 
 fs.copyFileSync(
   path.join(mountPoint, 'src/hello.txt'),

@@ -13,7 +13,7 @@ const myVfs = vfs.create();
 myVfs.mkdirSync('/src/subdir', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
 myVfs.writeFileSync('/src/data.json', '{}');
-const mountPoint = myVfs.mount('/opendirSync');
+const mountPoint = myVfs.mount();
 
 const dir = fs.opendirSync(path.join(mountPoint, 'src'));
 const names = [];

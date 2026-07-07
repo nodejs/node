@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-const mountPoint = myVfs.mount('/truncate-cb');
+const mountPoint = myVfs.mount();
 
 fs.truncate(path.join(mountPoint, 'src/hello.txt'), 5,
             common.mustSucceed(() => {

@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
-const mountPoint = myVfs.mount('/existsSync');
+const mountPoint = myVfs.mount();
 
 assert.strictEqual(fs.existsSync(path.join(mountPoint, 'src/hello.txt')), true);
 assert.strictEqual(fs.existsSync(path.join(mountPoint, 'src')), true);

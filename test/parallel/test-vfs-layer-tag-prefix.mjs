@@ -1,7 +1,7 @@
 // Flags: --experimental-vfs
 
 // Layer identity is carried by the mount-point path itself
-// (`${os.devNull}/vfs/layer-<id>/...`), so unmounting one layer must
+// (`${os.devNull}/vfs/<id>`), so unmounting one layer must
 // purge exactly that layer's ESM cache entries - layers whose ids
 // share a decimal prefix (1 vs 10) must be unaffected.
 
@@ -31,21 +31,21 @@ assert.strictEqual(layerTen.layerId, 10);
 assert.ok(String(layerTen.layerId).startsWith(String(layerOne.layerId)),
           'test scaffolding: 10 must have 1 as a string prefix');
 
-layerOne.writeFileSync('/m.mjs', 'export const tag = "layer-one";');
-const mountOne = layerOne.mount('/mnt-tag');
+layerOne.writeFileSync('/m.mjs', 'export const tag = "one";');
+const mountOne = layerOne.mount();
 
-layerTen.writeFileSync('/m.mjs', 'export const tag = "layer-ten";');
-const mountTen = layerTen.mount('/mnt-tag');
+layerTen.writeFileSync('/m.mjs', 'export const tag = "ten";');
+const mountTen = layerTen.mount();
 
 // Warm both ESM cache entries.
 const oneA = await import(vfsImport(`${mountOne}/m.mjs`));
 const tenA = await import(vfsImport(`${mountTen}/m.mjs`));
-assert.strictEqual(oneA.tag, 'layer-one');
-assert.strictEqual(tenA.tag, 'layer-ten');
+assert.strictEqual(oneA.tag, 'one');
+assert.strictEqual(tenA.tag, 'ten');
 
 // Unmount layer 1. Layer 10's cache entry must survive: its mount
-// point is `.../layer-10/mnt-tag`, which is not under
-// `.../layer-1/mnt-tag` even though "1" is a decimal prefix of "10".
+// point is `.../10`, which is not under `.../1` even though "1" is a
+// decimal prefix of "10".
 layerOne.unmount();
 
 // Layer 10 is still mounted; importing again must resolve to the same

@@ -35,7 +35,7 @@ function mountLayers(count) {
   const handles = [];
   for (let i = 0; i < count; i++) {
     const v = vfs.create();
-    v.mount('/bench');
+    v.mount();
     handles.push(v);
   }
   return handles;

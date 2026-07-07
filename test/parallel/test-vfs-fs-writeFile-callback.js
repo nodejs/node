@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 function mounted() {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
-  const mountPoint = myVfs.mount('/m');
+  const mountPoint = myVfs.mount();
   return { myVfs, mountPoint };
 }
 

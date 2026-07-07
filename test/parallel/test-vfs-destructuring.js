@@ -24,9 +24,9 @@ myVfs.writeFileSync('/file.txt', 'hello from vfs');
 myVfs.writeFileSync('/sub/nested.txt', 'nested content');
 
 // mount() returns the actual mount point (under os.devNull/vfs/...);
-// '/vfs_destr' is just a logical label. The returned path is already in the
-// platform's native form, so assertion targets are built from it directly.
-const MOUNT = myVfs.mount('/vfs_destr');
+// the returned path is already in the platform's native form, so assertion
+// targets are built from it directly.
+const MOUNT = myVfs.mount();
 const FILE = path.join(MOUNT, 'file.txt');
 
 {

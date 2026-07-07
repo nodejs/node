@@ -16,7 +16,7 @@ const vfs = require('node:vfs');
     main: './index.js',
     exports: { '.': './index.js' },
   }));
-  const mountPoint = myVfs.mount('/mnt/read-test');
+  const mountPoint = myVfs.mount();
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const result = packageJsonReader.read(
@@ -51,7 +51,7 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/app/src/lib/deep/module.js', '');
-  const mountPoint = myVfs.mount('/mnt/parent-test');
+  const mountPoint = myVfs.mount();
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const result = packageJsonReader.getNearestParentPackageJSON(
@@ -80,7 +80,7 @@ const vfs = require('node:vfs');
     exports: { '.': './main.js' },
   }));
   myVfs.writeFileSync('/project/src/index.js', '');
-  const mountPoint = myVfs.mount('/mnt/scope-test');
+  const mountPoint = myVfs.mount();
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const { pathToFileURL } = require('url');
@@ -101,7 +101,7 @@ const vfs = require('node:vfs');
   const myVfs2 = vfs.create();
   myVfs2.mkdirSync('/empty/src', { recursive: true });
   myVfs2.writeFileSync('/empty/src/file.js', '');
-  const mountPoint2 = myVfs2.mount('/mnt/scope-empty');
+  const mountPoint2 = myVfs2.mount();
 
   const emptyUrl = pathToFileURL(
     path.join(mountPoint2, 'empty', 'src', 'file.js'),
@@ -121,7 +121,7 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/esm-app/index.js', '');
-  const mountPoint = myVfs.mount('/mnt/type-test');
+  const mountPoint = myVfs.mount();
 
   const packageJsonReader = require('internal/modules/package_json_reader');
   const { pathToFileURL } = require('url');
@@ -135,7 +135,7 @@ const vfs = require('node:vfs');
   const myVfs2 = vfs.create();
   myVfs2.mkdirSync('/bare', { recursive: true });
   myVfs2.writeFileSync('/bare/file.js', '');
-  const mountPoint2 = myVfs2.mount('/mnt/type-empty');
+  const mountPoint2 = myVfs2.mount();
 
   const noneUrl = pathToFileURL(
     path.join(mountPoint2, 'bare', 'file.js'),
@@ -157,7 +157,7 @@ const vfs = require('node:vfs');
   }));
   myVfs.writeFileSync('/cjs-app/main.js',
                       'module.exports = { format: "cjs", ok: true };');
-  const mountPoint = myVfs.mount('/mnt/e2e-cjs');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/cjs-app/main.js`);
   assert.strictEqual(result.format, 'cjs');
@@ -174,7 +174,7 @@ const vfs = require('node:vfs');
     type: 'module',
   }));
   myVfs.writeFileSync('/esm/mod.mjs', 'export const x = 42;');
-  const mountPoint = myVfs.mount('/mnt/e2e-esm');
+  const mountPoint = myVfs.mount();
 
   // Use .mjs to ensure ESM treatment regardless of package type
   const mod = require(`${mountPoint}/esm/mod.mjs`);

@@ -63,7 +63,7 @@ shape of the [`node:fs`][] API. All paths are POSIX-style and absolute
 
 By default, the file tree is private to the VFS instance. To expose
 it through the global `node:fs` module, `require()`, and `import`,
-call [`vfs.mount(prefix)`][]; call [`vfs.unmount()`][] (or rely on a
+call [`vfs.mount()`][]; call [`vfs.unmount()`][] (or rely on a
 `using` declaration) to detach again.
 
 ## `vfs.create([provider][, options])`
@@ -112,15 +112,12 @@ added: v26.4.0
   * `emitExperimentalWarning` {boolean} Whether to emit the experimental
     warning. **Default:** `true`.
 
-### `vfs.mount([prefix])`
+### `vfs.mount()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `prefix` {string} A logical name for the mount inside the reserved
-  VFS namespace. Interpreted as a relative path; leading separators
-  are ignored. **Default:** `'/'`.
 * Returns: {string} The absolute mount point.
 
 Mounts the virtual file system and returns the resulting mount point.
@@ -129,15 +126,12 @@ After mounting, files in the VFS can be accessed through the
 using paths under the returned mount point.
 
 Mount points always live inside a reserved namespace,
-`${os.devNull}/vfs/layer-<layerId>/`. Because [`os.devNull`][] is a
+`${os.devNull}/vfs/<layerId>`. Because [`os.devNull`][] is a
 character device (POSIX) or a device-namespace path (Windows) that
 cannot have child file system entries, no real file-system path can
 exist under this namespace: virtual paths never conflate with (or
 shadow) real paths, and the layer that owns a path is visible in the
-path itself. The `prefix` argument is a purely logical name inside
-the namespace. It is never resolved against the working directory,
-and a prefix that attempts to escape the namespace (for example with
-`..` segments) throws `ERR_INVALID_ARG_VALUE`.
+path itself.
 
 ```cjs
 const vfs = require('node:vfs');
@@ -145,8 +139,8 @@ const fs = require('node:fs');
 
 const myVfs = vfs.create();
 myVfs.writeFileSync('/data.txt', 'Hello');
-const mountPoint = myVfs.mount('/virtual');
-// e.g. '/dev/null/vfs/layer-0/virtual'
+const mountPoint = myVfs.mount();
+// e.g. '/dev/null/vfs/0'
 
 fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 ```
@@ -154,8 +148,8 @@ fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 Each `VirtualFileSystem` instance may be mounted at most once at a
 time. Attempting to mount an already-mounted instance throws
 `ERR_INVALID_STATE`. Because each instance mounts inside its own
-`layer-<layerId>` namespace, mounts from different instances can
-never overlap, even when they use the same `prefix`.
+per-layer namespace, mounts from different instances can never
+overlap.
 
 The VFS supports the [Explicit Resource Management][] proposal. Use
 a `using` declaration to unmount automatically when leaving scope:
@@ -168,7 +162,7 @@ let mountPoint;
 {
   using myVfs = vfs.create();
   myVfs.writeFileSync('/data.txt', 'Hello');
-  mountPoint = myVfs.mount('/virtual');
+  mountPoint = myVfs.mount();
 
   fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 } // VFS is automatically unmounted here
@@ -184,8 +178,7 @@ added: REPLACEME
 
 Unmounts the virtual file system. After unmounting, virtual files
 are no longer reachable through `node:fs`, `require()`, or `import`.
-The same instance may be mounted again, at the same or a different
-prefix, by calling `mount()`.
+The same instance may be mounted again by calling `mount()`.
 
 This method is idempotent: calling `unmount()` on a VFS that is not
 currently mounted has no effect.
@@ -209,7 +202,7 @@ added: REPLACEME
 * {string | null}
 
 The current mount point as an absolute string (the value returned by
-the last [`vfs.mount(prefix)`][] call), or `null` when the VFS is not
+the last [`vfs.mount()`][] call), or `null` when the VFS is not
 mounted.
 
 ### `vfs.layerId`
@@ -225,7 +218,7 @@ construction. The id is stable across `mount()` / `unmount()` cycles
 for the lifetime of the instance, and is independent of the order in
 which VFS layers are mounted.
 
-The layer id forms the `layer-<id>` segment of the reserved mount
+The layer id forms the `<id>` segment of the reserved mount
 namespace, so every path served by this instance carries the id, and
 it appears in the `NODE_DEBUG=vfs` output for `register` and
 `deregister` events.
@@ -346,7 +339,7 @@ myVfs.mkdirSync('/lib');
 myVfs.writeFileSync('/lib/greet.js', 'module.exports = () => "hi";');
 myVfs.writeFileSync(
   '/lib/package.json', '{"main": "./greet.js"}');
-const mountPoint = myVfs.mount('/virtual');
+const mountPoint = myVfs.mount();
 
 const greet = require(`${mountPoint}/lib`);
 console.log(greet()); // 'hi'
@@ -364,7 +357,7 @@ import vfs from 'node:vfs';
 
 const myVfs = vfs.create();
 myVfs.writeFileSync('/mod.mjs', 'export const value = 42;');
-const mountPoint = myVfs.mount('/virtual');
+const mountPoint = myVfs.mount();
 
 const { value } = await import(
   pathToFileURL(`${mountPoint}/mod.mjs`).href,
@@ -524,5 +517,5 @@ fields use synthetic but stable values:
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md
 [`os.devNull`]: os.md#osdevnull
-[`vfs.mount(prefix)`]: #vfsmountprefix
+[`vfs.mount()`]: #vfsmount
 [`vfs.unmount()`]: #vfsunmount

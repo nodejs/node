@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-const mountPoint = myVfs.mount('/readFileSync');
+const mountPoint = myVfs.mount();
 
 // Default (buffer) result
 {
@@ -52,7 +52,7 @@ myVfs.unmount();
 
   const realVfs = vfs.create(new vfs.RealFSProvider(root),
                              { emitExperimentalWarning: false });
-  const realMountPoint = realVfs.mount('/real');
+  const realMountPoint = realVfs.mount();
   try {
     fs.writeFileSync(path.join(root, 'a.txt'), 'still readable');
     const fd = fs.openSync(path.join(realMountPoint, 'a.txt'), 'r');
