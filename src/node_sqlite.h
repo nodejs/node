@@ -137,8 +137,7 @@ class BackupJob;
 class StatementExecutionHelper {
  public:
   static v8::MaybeLocal<v8::Value> All(Environment* env,
-                                       DatabaseSync* db,
-                                       sqlite3_stmt* stmt,
+                                       StatementSync* stmt,
                                        bool return_arrays,
                                        bool use_big_ints);
   static v8::MaybeLocal<v8::Object> Run(Environment* env,
@@ -155,8 +154,7 @@ class StatementExecutionHelper {
                                                    sqlite3_stmt* stmt,
                                                    const int column);
   static v8::MaybeLocal<v8::Value> Get(Environment* env,
-                                       DatabaseSync* db,
-                                       sqlite3_stmt* stmt,
+                                       StatementSync* stmt,
                                        bool return_arrays,
                                        bool use_big_ints);
 };
