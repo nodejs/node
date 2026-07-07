@@ -558,6 +558,24 @@ TEST_F(ZipReaderTest, EncryptedFile_RightPassword) {
   EXPECT_TRUE(reader.ok());
 }
 
+// An entry whose local file header has the "encrypted" general-purpose flag
+// bit set while the central directory does not should be rejected.
+TEST_F(ZipReaderTest, MismatchedEncryptionFlag) {
+  ZipReader reader;
+  ASSERT_TRUE(reader.Open(data_dir_.AppendASCII("enc_flag_mismatch.zip")));
+
+  const ZipReader::Entry* entry = reader.Next();
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(base::FilePath::FromASCII("A"), entry->path);
+  EXPECT_FALSE(entry->is_directory);
+  std::string contents = "dummy";
+  EXPECT_FALSE(reader.ExtractCurrentEntryToString(&contents));
+  EXPECT_EQ("", contents);
+
+  EXPECT_FALSE(reader.Next());
+  EXPECT_TRUE(reader.ok());
+}
+
 // Verifies that the ZipReader class can extract a file from a zip archive
 // stored in memory. This test opens a zip archive in a std::string object,
 // extracts its content, and verifies the content is the same as the expected
