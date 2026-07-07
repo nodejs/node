@@ -7,7 +7,10 @@
 
 import '../common/index.mjs';
 import assert from 'node:assert';
+import { pathToFileURL } from 'node:url';
 import vfs from 'node:vfs';
+
+const vfsImport = (path) => pathToFileURL(path).href;
 
 // nextLayerId starts at 0 in a fresh process and increments per
 // VirtualFileSystem construction. Burn through constructions until we
@@ -35,8 +38,8 @@ layerTen.writeFileSync('/m.mjs', 'export const tag = "layer-ten";');
 const mountTen = layerTen.mount('/mnt-tag');
 
 // Warm both ESM cache entries.
-const oneA = await import(`${mountOne}/m.mjs`);
-const tenA = await import(`${mountTen}/m.mjs`);
+const oneA = await import(vfsImport(`${mountOne}/m.mjs`));
+const tenA = await import(vfsImport(`${mountTen}/m.mjs`));
 assert.strictEqual(oneA.tag, 'layer-one');
 assert.strictEqual(tenA.tag, 'layer-ten');
 
@@ -49,7 +52,7 @@ layerOne.unmount();
 // already-evaluated module namespace. A cache miss would cause the
 // loader to create a new module job and re-evaluate, producing a
 // different namespace object.
-const tenB = await import(`${mountTen}/m.mjs`);
+const tenB = await import(vfsImport(`${mountTen}/m.mjs`));
 assert.strictEqual(tenA, tenB);
 
 layerTen.unmount();
