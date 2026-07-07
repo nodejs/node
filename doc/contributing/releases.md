@@ -40,7 +40,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 ## Who can make a release?
 
 There is a distinction between individuals who can "prepare" a release by
-adding the commits to the branches in github and those who can "publish" the
+adding the commits to the branches in GitHub and those who can "publish" the
 releases to nodejs.org.
 
 Individuals who are Members of the
