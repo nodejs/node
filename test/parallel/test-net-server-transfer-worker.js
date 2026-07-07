@@ -1,8 +1,8 @@
 'use strict';
 
 // This test verifies that a listening net.Server can be transferred to a worker
-// thread via worker_threads postMessage()'s transferList. The main thread binds
-// and listens, then hands the server off; the worker accepts connections and
+// thread via worker_threads postMessage()'s transferList. The parent thread
+// binds and listens, then hands the server off; the worker accepts connections and
 // responds, proving the listening socket (and its accept queue) moved loops.
 
 const common = require('../common');
@@ -16,12 +16,12 @@ const assert = require('assert');
 const net = require('net');
 const {
   Worker,
-  isMainThread,
   parentPort,
   threadId,
+  workerData,
 } = require('worker_threads');
 
-if (!isMainThread) {
+if (workerData?.role === 'server') {
   parentPort.on('message', common.mustCall(({ server }) => {
     assert.ok(server instanceof net.Server);
     server.on('connection', (socket) => {
@@ -31,7 +31,7 @@ if (!isMainThread) {
   return;
 }
 
-const worker = new Worker(__filename);
+const worker = new Worker(__filename, { workerData: { role: 'server' } });
 
 const server = net.createServer();
 

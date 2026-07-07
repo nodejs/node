@@ -2,7 +2,7 @@
 
 // This test verifies that an accepted net.Socket connection can be transferred
 // to a worker thread via worker_threads postMessage()'s transferList, and that
-// the worker can read from and write to it. The main thread accepts the
+// the worker can read from and write to it. The parent thread accepts the
 // connection and hands it off; the worker echoes data back.
 
 const common = require('../common');
@@ -16,11 +16,11 @@ const assert = require('assert');
 const net = require('net');
 const {
   Worker,
-  isMainThread,
   parentPort,
+  workerData,
 } = require('worker_threads');
 
-if (!isMainThread) {
+if (workerData?.role === 'socket') {
   // Worker side: receive the transferred connection and echo everything back.
   parentPort.on('message', common.mustCall(({ socket }) => {
     assert.ok(socket instanceof net.Socket);
@@ -32,7 +32,7 @@ if (!isMainThread) {
   return;
 }
 
-const worker = new Worker(__filename);
+const worker = new Worker(__filename, { workerData: { role: 'socket' } });
 
 const server = net.createServer(common.mustCall((socket) => {
   // Hand the freshly accepted connection off to the worker. It must not be

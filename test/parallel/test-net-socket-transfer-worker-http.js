@@ -1,8 +1,8 @@
 'use strict';
 
 // This test verifies HTTP load balancing on top of transferred TCP sockets:
-// the main thread accepts connections and distributes each one round-robin to a
-// pool of worker threads, where an http.Server handles the request. It exercises
+// the parent thread accepts connections and distributes each one round-robin to
+// a pool of worker threads, where an http.Server handles the request. It exercises
 // the intended use case for transferring net.Socket handles across threads.
 
 const common = require('../common');
@@ -17,17 +17,17 @@ const net = require('net');
 const http = require('http');
 const {
   Worker,
-  isMainThread,
   parentPort,
   threadId,
+  workerData,
 } = require('worker_threads');
 
 const POOL = 4;
 const REQ_PER_WORKER = 5;
 const TOTAL = POOL * REQ_PER_WORKER;
 
-if (!isMainThread) {
-  // Each worker serves HTTP over connections transferred from the main thread.
+if (workerData?.role === 'http-server') {
+  // Each worker serves HTTP over connections transferred from the parent thread.
   const server = http.createServer((req, res) => {
     res.end(`thread:${threadId}`);
   });
@@ -40,7 +40,7 @@ if (!isMainThread) {
 
 const workers = [];
 for (let i = 0; i < POOL; i++)
-  workers.push(new Worker(__filename));
+  workers.push(new Worker(__filename, { workerData: { role: 'http-server' } }));
 
 let next = 0;
 const front = net.createServer((socket) => {
