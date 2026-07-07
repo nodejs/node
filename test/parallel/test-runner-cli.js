@@ -24,6 +24,43 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
+    // A file that is not found should warn even when other patterns match,
+    // and the matching tests should still run.
+    const args = [
+      '--test',
+      `--test-isolation=${isolation}`,
+      'a-random-file-that-does-not-exist.js',
+      join(testFixtures, 'default-behavior/test/random.cjs'),
+    ];
+    const child = spawnSync(process.execPath, args);
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.match(child.stderr.toString(),
+                 /Warning: Could not find 'a-random-file-that-does-not-exist\.js'/);
+    assert.match(child.stdout.toString(), /this should pass/);
+  }
+
+  {
+    // Options after positional arguments are treated as patterns and should
+    // warn instead of being silently dropped.
+    const args = [
+      '--test',
+      `--test-isolation=${isolation}`,
+      join(testFixtures, 'default-behavior/test/random.cjs'),
+      '--test-reporter',
+      'tap',
+    ];
+    const child = spawnSync(process.execPath, args);
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.match(child.stderr.toString(),
+                 /Warning: Could not find '--test-reporter, tap'/);
+    assert.match(child.stdout.toString(), /this should pass/);
+  }
+
+  {
     // Default behavior. node_modules is ignored. Files that don't match the
     // pattern are ignored except in test/ directories.
     const args = ['--test', '--test-reporter=tap',
