@@ -335,7 +335,7 @@ class DefaultApplication final : public Session::Application {
     return true;
   }
 
-  int GetStreamData(StreamData* stream_data) override {
+  int GetStreamData(Session::StreamData* stream_data) override {
     // Reset the state of stream_data before proceeding...
     stream_data->id = -1;
     stream_data->count = 0;
@@ -422,7 +422,7 @@ class DefaultApplication final : public Session::Application {
     stream->Schedule(&stream_queue_);
   }
 
-  bool StreamCommit(StreamData* stream_data, size_t datalen) override {
+  bool StreamCommit(Session::StreamData* stream_data, size_t datalen) override {
     DCHECK_NOT_NULL(stream_data);
     CHECK(stream_data->stream);
     stream_data->stream->Commit(datalen, stream_data->fin);

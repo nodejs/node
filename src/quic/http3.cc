@@ -241,9 +241,9 @@ class Http3ApplicationImpl final : public Session::Application {
 
     Debug(&session(), "Creating and binding HTTP/3 control streams");
     bool ret =
-        session().OpenUni(&control_stream_id_) &&
-        session().OpenUni(&qpack_enc_stream_id_) &&
-        session().OpenUni(&qpack_dec_stream_id_) &&
+        session().OpenUnidirectionalStream(&control_stream_id_) &&
+        session().OpenUnidirectionalStream(&qpack_enc_stream_id_) &&
+        session().OpenUnidirectionalStream(&qpack_dec_stream_id_) &&
         nghttp3_conn_bind_control_stream(*this, control_stream_id_) == 0 &&
         nghttp3_conn_bind_qpack_streams(
             *this, qpack_enc_stream_id_, qpack_dec_stream_id_) == 0;
@@ -669,7 +669,7 @@ class Http3ApplicationImpl final : public Session::Application {
     return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
   }
 
-  int GetStreamData(StreamData* data) override {
+  int GetStreamData(Session::StreamData* data) override {
     static_assert(
         sizeof(ngtcp2_vec) == sizeof(nghttp3_vec) &&
             alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
@@ -702,7 +702,7 @@ class Http3ApplicationImpl final : public Session::Application {
     return 0;
   }
 
-  bool StreamCommit(StreamData* data, size_t datalen) override {
+  bool StreamCommit(Session::StreamData* data, size_t datalen) override {
     Debug(&session(),
           "HTTP/3 application committing stream %" PRIi64 " data %zu",
           data->id,

@@ -1736,7 +1736,7 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
 
 // ============================================================================
 
-std::string StreamData::ToString() const {
+std::string Session::StreamData::ToString() const {
   DebugIndentScope indent;
 
   size_t total_bytes = 0;
@@ -3403,7 +3403,7 @@ uint64_t Session::max_data_left() const {
   return ngtcp2_conn_get_max_data_left(*this);
 }
 
-bool Session::OpenUni(stream_id* id) {
+bool Session::OpenUnidirectionalStream(stream_id* id) {
   return ngtcp2_conn_open_uni_stream(*this, id, nullptr) == 0;
 }
 

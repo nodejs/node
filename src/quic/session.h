@@ -27,25 +27,6 @@ namespace node::quic {
 
 class Endpoint;
 
-// A block of pending outbound stream data, passed between the application
-// layer (which fills it via GetStreamData) and the send pump (which hands
-// it to ngtcp2_conn_writev_stream and commits the accepted length).
-struct StreamData final {
-  // The actual number of vectors in the struct, up to kMaxVectorCount.
-  size_t count = 0;
-  // The stream identifier. If this is a negative value then no stream is
-  // identified.
-  stream_id id = -1;
-  int fin = 0;
-  ngtcp2_vec data[kMaxVectorCount]{};
-  BaseObjectPtr<Stream> stream;
-
-  inline operator const ngtcp2_vec*() const { return data; }
-  inline operator ngtcp2_vec*() { return data; }
-
-  std::string ToString() const;
-};
-
 // A Session represents one half of a persistent connection between two QUIC
 // peers. Every Session is established first by performing a TLS handshake in
 // which the client sends an initial packet to the server containing a TLS
@@ -122,6 +103,25 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // An Application implements the ALPN-protocol specific semantics on behalf
   // of a QUIC Session.
   class Application;
+
+  // A block of pending outbound stream data, passed between the application
+  // layer (which fills it via GetStreamData) and the send pump (which hands
+  // it to ngtcp2_conn_writev_stream and commits the accepted length).
+  struct StreamData final {
+    // The actual number of vectors in the struct, up to kMaxVectorCount.
+    size_t count = 0;
+    // The stream identifier. If this is a negative value then no stream is
+    // identified.
+    stream_id id = -1;
+    int fin = 0;
+    ngtcp2_vec data[kMaxVectorCount]{};
+    BaseObjectPtr<Stream> stream;
+
+    inline operator const ngtcp2_vec*() const { return data; }
+    inline operator ngtcp2_vec*() { return data; }
+
+    std::string ToString() const;
+  };
 
   // Decode the first ALPN protocol name from wire format (length-prefixed).
   static std::string_view DecodeAlpn(std::string_view wire);
@@ -446,8 +446,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   Packet::Ptr CreateStreamDataPacket();
 
   // Tries to pack a pending datagram into the current packet buffer.
-  // If < 0 is returned, either NGTCP2_ERR_WRITE_MORE or a fatal error is
-  // returned; the caller must check. If > 0 is returned, the packet is done
+  // If a negative value is returned, it is either NGTCP2_ERR_WRITE_MORE or
+  // fatal error; the caller must check. If > 0 is returned, the packet is done
   // and the value is the size of the finalized packet. If 0 is returned,
   // the datagram is either congestion limited or was abandoned.
   ssize_t TryWritePendingDatagram(PathStorage* path,
@@ -539,11 +539,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // the session, encapsulating ngtcp2 transport details here.
 
   // Open a unidirectional stream, setting *id on success, or returning false
-  bool OpenUni(stream_id* id);
+  bool OpenUnidirectionalStream(stream_id* id);
 
   void ExtendMaxStreams(Direction direction, uint64_t max);
 
-  // Signal that we've consumed $len bytes on stream $id to update flow control
+  // Signal that we've consumed `len` bytes on stream `id` to update flow
+  // control
   void Consume(stream_id id, size_t len);
 
   // Record an application-level error on the connection without closing it.
