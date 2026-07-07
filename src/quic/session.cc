@@ -860,11 +860,11 @@ struct Session::Impl final : public MemoryRetainer {
       }
     }
 
-    endpoint->RemoveSession(config_.scid, remote_address_);
-
     auto& binding = BindingData::Get(env());
     if (stats_slot_) GetSessionStatsArena(binding).ReleaseSlot(stats_slot_);
     if (state_slot_) GetSessionStateArena(binding).ReleaseSlot(state_slot_);
+
+    endpoint->RemoveSession(config_.scid, remote_address_);
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
