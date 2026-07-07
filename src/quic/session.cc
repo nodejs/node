@@ -2593,6 +2593,7 @@ datagram_id Session::SendDatagram(Store&& data) {
       return did;
     }
   }
+  Session::SendPendingDataScope send_scope(this);
 
   // Queue the datagram. It will be serialized into packets by
   // SendPendingData alongside stream data.

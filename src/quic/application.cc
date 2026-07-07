@@ -540,7 +540,8 @@ void Session::Application::SendPendingData() {
     // We call Application::ResumeStream directly (not Session::ResumeStream)
     // to avoid creating a SendPendingDataScope — we're already inside
     // SendPendingData and re-entering would just hit nwrite=0 again.
-    if (nwrite == 0) {
+    if (nwrite == 0 &&
+        (stream_data.id >= 0 || !session_->HasPendingDatagrams())) {
       Debug(session_, "Congestion or not our turn to send");
       if (stream_data.id >= 0 && (stream_data.count > 0 || stream_data.fin)) {
         ResumeStream(stream_data.id);
