@@ -191,6 +191,8 @@ static std::string GetErrorSource(Isolate* isolate,
 
 static std::atomic<bool> is_in_oom{false};
 static thread_local std::atomic<bool> is_retrieving_js_stacktrace{false};
+// This is thread-local because it only guards re-entrancy within the current
+// thread's uncaught-exception path; no cross-thread synchronization is needed.
 static thread_local bool is_in_uncaught_exception = false;
 MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
   if (isolate == nullptr) {
