@@ -16,6 +16,11 @@ const { vfsState } = require('internal/fs/utils');
 const baseMountPoint = path.resolve('/tmp/vfs-mount-errors-' + process.pid);
 let mountCounter = 0;
 const nextMount = () => baseMountPoint + '-' + (mountCounter++);
+function assertUnmounted(instance, mountPoint) {
+  assert.strictEqual(instance.mounted, false);
+  assert.strictEqual(instance.mountPoint, null);
+  assert.strictEqual(instance.shouldHandle(mountPoint), false);
+}
 
 // EXDEV: rename across two different VFS instances
 {
@@ -130,6 +135,7 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
   const b = vfs.create();
   a.mount(parent);
   assert.throws(() => b.mount(child), { code: 'ERR_INVALID_STATE' });
+  assertUnmounted(b, child);
   a.unmount();
 
   // Reverse direction: child first, then parent rejected
@@ -137,6 +143,7 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
   const d = vfs.create();
   c.mount(child);
   assert.throws(() => d.mount(parent), { code: 'ERR_INVALID_STATE' });
+  assertUnmounted(d, parent);
   c.unmount();
 }
 
@@ -147,6 +154,7 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
   const b = vfs.create();
   a.mount(m);
   assert.throws(() => b.mount(m), { code: 'ERR_INVALID_STATE' });
+  assertUnmounted(b, m);
   a.unmount();
 }
 
