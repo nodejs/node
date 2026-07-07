@@ -59,8 +59,7 @@ static_assert(IDX_ENDPOINT_STATE_DESTROYED ==
               offsetof(DTLSEndpointStateData, destroyed));
 static_assert(IDX_ENDPOINT_STATE_SESSION_COUNT ==
               offsetof(DTLSEndpointStateData, session_count));
-static_assert(IDX_ENDPOINT_STATE_BUSY ==
-              offsetof(DTLSEndpointStateData, busy));
+static_assert(IDX_ENDPOINT_STATE_BUSY == offsetof(DTLSEndpointStateData, busy));
 
 DTLSEndpoint::DTLSEndpoint(Environment* env, Local<Object> wrap)
     : HandleWrap(env,
