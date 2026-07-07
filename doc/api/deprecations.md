@@ -4662,52 +4662,64 @@ cancellation from the outside, and timeouts.
 
 ```js
 // Deprecated
-const ac = new AbortController();
-const server = http.createServer(handler);
-server.listen({ port: 3000, signal: ac.signal });
+async function example() {
+  const ac = new AbortController();
+  const server = http.createServer(handler);
+  server.listen({ port: 3000, signal: ac.signal });
 
-await doWork();
-ac.abort();
+  await doWork();
+  ac.abort();
+}
 ```
 
 ```js
 // Use this instead
-await using server = http.createServer(handler);
-server.listen(3000);
+async function example() {
+  await using server = http.createServer(handler);
+  server.listen(3000);
 
-await doWork();
+  await doWork();
+}
 ```
 
 ```js
 // Deprecated
-const ac = new AbortController();
-const stream = addAbortSignal(ac.signal, fs.createReadStream(file));
+async function example() {
+  const ac = new AbortController();
+  const stream = addAbortSignal(ac.signal, fs.createReadStream(file));
 
-await consume(stream);
-ac.abort();
+  await consume(stream);
+  ac.abort();
+}
 ```
 
 ```js
 // Use this instead
-await using stream = fs.createReadStream(file);
+async function example() {
+  await using stream = fs.createReadStream(file);
 
-await consume(stream);
+  await consume(stream);
+}
 ```
 
 ```js
 // Deprecated
-const ac = new AbortController();
-const child = spawn(command, args, { signal: ac.signal });
+async function example() {
+  const ac = new AbortController();
+  const child = spawn(command, args, { signal: ac.signal });
 
-await doWork();
-ac.abort();
+  await doWork();
+  ac.abort();
+}
 ```
 
 ```js
 // Use this instead
-using child = spawn(command, args);
+async function example() {
+  using child = spawn(command, args);
 
-await doWork();
+  await doWork();
+}
 ```
 
 [DEP0142]: #dep0142-repl_builtinlibs
