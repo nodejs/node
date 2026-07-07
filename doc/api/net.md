@@ -588,6 +588,10 @@ Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
 
+> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
+> server resources is documentation-only deprecated. See
+> [DEP0208](deprecations.md#dep0208-using-abortsignal-to-dispose-of-resources).
+
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
 `exclusive` is `true`, the handle is not shared, and attempted port sharing
