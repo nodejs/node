@@ -7,7 +7,10 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { pathToFileURL } = require('node:url');
 const vfs = require('node:vfs');
+
+const vfsImport = (path) => pathToFileURL(path).href;
 
 // 1) After a full deregister, a fresh register re-installs hooks cleanly:
 //    the second mount must be visible to require().
@@ -102,7 +105,7 @@ const vfs = require('node:vfs');
   v.writeFileSync('/app/entry.mjs', "import 'badpkg';");
   const mountPoint = v.mount('/mnt-legacy-err');
   await assert.rejects(
-    () => import(`${mountPoint}/app/entry.mjs`),
+    () => import(vfsImport(`${mountPoint}/app/entry.mjs`)),
     (err) => {
       assert.strictEqual(err.code, 'ERR_MODULE_NOT_FOUND');
       assert.match(err.message, /nope\.js/);

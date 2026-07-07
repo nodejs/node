@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import vfs from 'node:vfs';
 
 const require = createRequire(import.meta.url);
+const vfsImport = (path) => pathToFileURL(path).href;
 
 // NOTE: mount() takes a purely logical prefix and returns the actual mount
 // point (a reserved path under os.devNull). Each test captures the
@@ -77,7 +78,7 @@ const require = createRequire(import.meta.url);
   const mountPoint = myVfs.mount('/mh2');
 
   // ESM import should get the 'import' condition
-  const esmResult = await import(`${mountPoint}/app/esm-entry.mjs`);
+  const esmResult = await import(vfsImport(`${mountPoint}/app/esm-entry.mjs`));
   assert.strictEqual(esmResult.source, 'esm');
 
   // CJS require should get the 'require' condition
@@ -118,7 +119,7 @@ const require = createRequire(import.meta.url);
   );
   const mountPoint = myVfs.mount('/mh3');
 
-  const result = await import(`${mountPoint}/app/entry.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/entry.mjs`));
   assert.strictEqual(result.main, true);
   assert.strictEqual(result.feature, true);
 
@@ -154,7 +155,7 @@ const require = createRequire(import.meta.url);
   );
   const mountPoint = myVfs.mount('/mh4');
 
-  const result = await import(`${mountPoint}/app/entry2.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/entry2.mjs`));
   assert.strictEqual(result.fromSubCond, 'esm');
 
   myVfs.unmount();
@@ -194,7 +195,7 @@ const require = createRequire(import.meta.url);
   );
   const mountPoint = myVfs.mount('/mh5');
 
-  const result = await import(`${mountPoint}/app/entry3.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/entry3.mjs`));
   assert.strictEqual(result.nested, 'node-esm');
 
   myVfs.unmount();
@@ -315,7 +316,7 @@ const require = createRequire(import.meta.url);
   );
   const mountPoint = myVfs.mount('/mh11');
 
-  const result = await import(`${mountPoint}/app/scoped-entry.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/scoped-entry.mjs`));
   assert.strictEqual(result.scoped, true);
 
   myVfs.unmount();
@@ -351,7 +352,7 @@ const require = createRequire(import.meta.url);
   );
   const mountPoint = myVfs.mount('/mh12');
 
-  const result = await import(`${mountPoint}/app/scoped-sub-entry.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/scoped-sub-entry.mjs`));
   assert.strictEqual(result.helpers, true);
 
   myVfs.unmount();
@@ -366,7 +367,7 @@ const require = createRequire(import.meta.url);
   myVfs.writeFileSync('/mod.js', 'export const fromModule = true;');
   const mountPoint = myVfs.mount('/mh13');
 
-  const result = await import(`${mountPoint}/mod.js`);
+  const result = await import(vfsImport(`${mountPoint}/mod.js`));
   assert.strictEqual(result.fromModule, true);
 
   myVfs.unmount();
@@ -392,7 +393,7 @@ const require = createRequire(import.meta.url);
     `,
   );
 
-  const result = await import(`${mountPoint}/use-cjs.js`);
+  const result = await import(vfsImport(`${mountPoint}/use-cjs.js`));
   assert.strictEqual(result.cjsAlways, true);
 
   myVfs.unmount();
@@ -406,7 +407,7 @@ const require = createRequire(import.meta.url);
   myVfs.writeFileSync('/fileurl.mjs', 'export const fromFileUrl = true;');
   const mountPoint = myVfs.mount('/mh15');
 
-  const result = await import(pathToFileURL(`${mountPoint}/fileurl.mjs`).href);
+  const result = await import(vfsImport(`${mountPoint}/fileurl.mjs`));
   assert.strictEqual(result.fromFileUrl, true);
 
   myVfs.unmount();
@@ -568,7 +569,7 @@ const require = createRequire(import.meta.url);
   const mountPoint = myVfs.mount('/mh23');
 
   // 'browser' condition not active in Node, 'default' should match
-  const result = await import(`${mountPoint}/app/entry-default.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/app/entry-default.mjs`));
   assert.strictEqual(result.fromDefault, true);
 
   myVfs.unmount();
@@ -698,7 +699,7 @@ const require = createRequire(import.meta.url);
   `);
   const mountPoint = myVfs.mount('/mh31');
 
-  const result = await import(`${mountPoint}/use-builtin.mjs`);
+  const result = await import(vfsImport(`${mountPoint}/use-builtin.mjs`));
   assert.strictEqual(typeof result.sep, 'string');
 
   myVfs.unmount();
@@ -712,7 +713,7 @@ const require = createRequire(import.meta.url);
   myVfs.writeFileSync('/data.json', JSON.stringify({ preformat: true }));
   const mountPoint = myVfs.mount('/mh32');
 
-  const result = await import(`${mountPoint}/data.json`, { with: { type: 'json' } });
+  const result = await import(vfsImport(`${mountPoint}/data.json`), { with: { type: 'json' } });
   assert.strictEqual(result.default.preformat, true);
 
   myVfs.unmount();

@@ -5,7 +5,10 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('node:url');
 const vfs = require('node:vfs');
+
+const vfsImport = (path) => pathToFileURL(path).href;
 
 // Test requiring a simple virtual module
 // VFS internal path: /hello.js
@@ -342,7 +345,7 @@ const vfs = require('node:vfs');
                       'export { value } from "esm-legacy-main";');
   const mountPoint = myVfs.mount('/virtual20b');
 
-  import(`${mountPoint}/app/main.mjs`).then(common.mustCall((mod) => {
+  import(vfsImport(`${mountPoint}/app/main.mjs`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-legacy-main');
     myVfs.unmount();
   }));
@@ -362,7 +365,7 @@ const vfs = require('node:vfs');
                       'export { value } from "esm-nomain";');
   const mountPoint = myVfs.mount('/virtual21b');
 
-  import(`${mountPoint}/app2/main.mjs`).then(common.mustCall((mod) => {
+  import(vfsImport(`${mountPoint}/app2/main.mjs`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-index-fallback');
     myVfs.unmount();
   }));
@@ -380,7 +383,7 @@ const vfs = require('node:vfs');
   const mountPoint = myVfs.mount('/virtual22');
 
   // Use import() to trigger ESM loader path for extensionless file detection
-  import(`${mountPoint}/esm-pkg/entry`).then(common.mustCall((mod) => {
+  import(vfsImport(`${mountPoint}/esm-pkg/entry`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.x, 123);
     myVfs.unmount();
   }));
@@ -397,10 +400,21 @@ const vfs = require('node:vfs');
 
   myVfs.unmount();
 
-  // After unmounting, the file should not be found
+  // After unmounting, the VFS hooks should not serve the file. On Windows,
+  // the native loader may surface the NUL-backed former mount path as an
+  // invalid package config while probing for package.json.
   assert.throws(() => {
     // Clear require cache first — the cache key is the resolved mounted path
     delete require.cache[path.join(mountPoint, 'unmount-test.js')];
     require(`${mountPoint}/unmount-test.js`);
-  }, { code: 'MODULE_NOT_FOUND' });
+  }, (err) => {
+    if (common.isWindows) {
+      assert.ok(
+        ['ERR_INVALID_PACKAGE_CONFIG', 'MODULE_NOT_FOUND'].includes(err.code),
+      );
+    } else {
+      assert.strictEqual(err.code, 'MODULE_NOT_FOUND');
+    }
+    return true;
+  });
 }

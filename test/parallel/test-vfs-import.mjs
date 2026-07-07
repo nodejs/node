@@ -1,7 +1,10 @@
 // Flags: --experimental-vfs
 import '../common/index.mjs';
 import assert from 'assert';
+import { pathToFileURL } from 'node:url';
 import vfs from 'node:vfs';
+
+const vfsImport = (path) => pathToFileURL(path).href;
 
 // NOTE: ESM imports are cached by URL and unmounting does not clear the V8
 // module cache. Each vfs.create() gets its own layer id, so every mount
@@ -13,7 +16,7 @@ import vfs from 'node:vfs';
   myVfs.writeFileSync('/hello.mjs', 'export const message = "hello from vfs";');
   const mountPoint = myVfs.mount('/esm-named');
 
-  const { message } = await import(`${mountPoint}/hello.mjs`);
+  const { message } = await import(vfsImport(`${mountPoint}/hello.mjs`));
   assert.strictEqual(message, 'hello from vfs');
 
   myVfs.unmount();
@@ -25,7 +28,7 @@ import vfs from 'node:vfs';
   myVfs.writeFileSync('/default.mjs', 'export default { name: "test", value: 42 };');
   const mountPoint = myVfs.mount('/esm-default');
 
-  const mod = await import(`${mountPoint}/default.mjs`);
+  const mod = await import(vfsImport(`${mountPoint}/default.mjs`));
   assert.strictEqual(mod.default.name, 'test');
   assert.strictEqual(mod.default.value, 42);
 
@@ -40,11 +43,11 @@ import vfs from 'node:vfs';
   myVfs.writeFileSync(`${mountPoint}/utils.mjs`,
                       'export function add(a, b) { return a + b; }');
   myVfs.writeFileSync(`${mountPoint}/main.mjs`, `
-    import { add } from ${JSON.stringify(`${mountPoint}/utils.mjs`)};
+    import { add } from ${JSON.stringify(vfsImport(`${mountPoint}/utils.mjs`))};
     export const result = add(10, 20);
   `);
 
-  const { result } = await import(`${mountPoint}/main.mjs`);
+  const { result } = await import(vfsImport(`${mountPoint}/main.mjs`));
   assert.strictEqual(result, 30);
 
   myVfs.unmount();
@@ -61,7 +64,7 @@ import vfs from 'node:vfs';
   `);
   const mountPoint = myVfs.mount('/esm-relative');
 
-  const { output } = await import(`${mountPoint}/lib/index.mjs`);
+  const { output } = await import(vfsImport(`${mountPoint}/lib/index.mjs`));
   assert.strictEqual(output, 'helped');
 
   myVfs.unmount();
@@ -73,7 +76,7 @@ import vfs from 'node:vfs';
   myVfs.writeFileSync('/data.json', JSON.stringify({ items: [1, 2, 3], enabled: true }));
   const mountPoint = myVfs.mount('/esm-json');
 
-  const data = await import(`${mountPoint}/data.json`, { with: { type: 'json' } });
+  const data = await import(vfsImport(`${mountPoint}/data.json`), { with: { type: 'json' } });
   assert.deepStrictEqual(data.default.items, [1, 2, 3]);
   assert.strictEqual(data.default.enabled, true);
 
@@ -100,7 +103,7 @@ import vfs from 'node:vfs';
   myVfs.writeFileSync('/cjs-module.js', 'module.exports = { cjsValue: "cjs" };');
   const mountPoint = myVfs.mount('/esm-mixed');
 
-  const { esmValue } = await import(`${mountPoint}/esm-module.mjs`);
+  const { esmValue } = await import(vfsImport(`${mountPoint}/esm-module.mjs`));
   assert.strictEqual(esmValue, 'esm');
 
   // CJS require should also work (via createRequire)
@@ -137,7 +140,7 @@ import vfs from 'node:vfs';
   );
   const mountPoint = myVfs.mount('/esm-bare');
 
-  const { fromVfs } = await import(`${mountPoint}/app/entry.mjs`);
+  const { fromVfs } = await import(vfsImport(`${mountPoint}/app/entry.mjs`));
   assert.strictEqual(fromVfs, true);
 
   myVfs.unmount();

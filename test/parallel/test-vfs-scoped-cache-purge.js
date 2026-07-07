@@ -11,6 +11,8 @@ const assert = require('assert');
 const { pathToFileURL } = require('node:url');
 const vfs = require('node:vfs');
 
+const vfsImport = (path) => pathToFileURL(path).href;
+
 // 1) Multi-mount: deregister of one VFS keeps the other's CJS module
 //    cache warm. The test relies on the require.cache being preserved.
 {
@@ -52,7 +54,7 @@ const vfs = require('node:vfs');
                   'export const resolved = import.meta.resolve("./m.mjs");');
   const mountPoint = v.mount('/mnt-url');
 
-  const ns = await import(`${mountPoint}/m.mjs`);
+  const ns = await import(vfsImport(`${mountPoint}/m.mjs`));
   assert.strictEqual(ns.url, pathToFileURL(`${mountPoint}/m.mjs`).href);
 
   // Stable identity: importing the URL the module sees for itself
