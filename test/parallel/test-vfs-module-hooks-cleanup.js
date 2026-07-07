@@ -17,13 +17,13 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const a = vfs.create();
   a.writeFileSync('/m1.js', 'module.exports = "first"');
-  const mountA = a.mount('/mnt-cycle-1');
+  const mountA = a.mount();
   assert.strictEqual(require(`${mountA}/m1.js`), 'first');
   a.unmount();
 
   const b = vfs.create();
   b.writeFileSync('/m2.js', 'module.exports = "second"');
-  const mountB = b.mount('/mnt-cycle-2');
+  const mountB = b.mount();
   assert.strictEqual(require(`${mountB}/m2.js`), 'second');
   b.unmount();
 }
@@ -33,7 +33,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const v = vfs.create();
   v.writeFileSync('/x.js', 'module.exports = 1');
-  const mountPoint = v.mount('/mnt-cleanup');
+  const mountPoint = v.mount();
   require(`${mountPoint}/x.js`);
   v.unmount();
   const fs = require('fs');
@@ -48,7 +48,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   v.mkdirSync('/pkg');
   v.writeFileSync('/pkg/package.json', 'null');
   v.writeFileSync('/pkg/index.js', 'module.exports = 1');
-  const mountPoint = v.mount('/mnt-null-pjson');
+  const mountPoint = v.mount();
   assert.throws(
     () => require(`${mountPoint}/pkg`),
     { code: 'ERR_INVALID_PACKAGE_CONFIG' },
@@ -64,7 +64,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   v.mkdirSync('/pkg');
   v.writeFileSync('/pkg/package.json', '{"main": 42}');
   v.writeFileSync('/pkg/index.js', 'module.exports = "via-index"');
-  const mountPoint = v.mount('/mnt-lax-main');
+  const mountPoint = v.mount();
   assert.strictEqual(require(`${mountPoint}/pkg`), 'via-index');
   v.unmount();
 }
@@ -75,10 +75,10 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const a = vfs.create();
   a.writeFileSync('/a.js', 'module.exports = "a"');
-  const mountA = a.mount('/mnt-multi-a');
+  const mountA = a.mount();
   const b = vfs.create();
   b.writeFileSync('/b.js', 'module.exports = "b"');
-  const mountB = b.mount('/mnt-multi-b');
+  const mountB = b.mount();
 
   assert.strictEqual(require(`${mountA}/a.js`), 'a');
   assert.strictEqual(require(`${mountB}/b.js`), 'b');
@@ -103,7 +103,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   v.writeFileSync(
     '/app/node_modules/badpkg/package.json', '{"main": "./nope.js"}');
   v.writeFileSync('/app/entry.mjs', "import 'badpkg';");
-  const mountPoint = v.mount('/mnt-legacy-err');
+  const mountPoint = v.mount();
   await assert.rejects(
     () => import(vfsImport(`${mountPoint}/app/entry.mjs`)),
     (err) => {
@@ -127,12 +127,12 @@ const vfsImport = (path) => pathToFileURL(path).href;
   v.mkdirSync('/real', { recursive: true });
   v.writeFileSync('/real/mod.js', 'module.exports = "one"');
   v.symlinkSync('/real/mod.js', '/link.js');
-  const mountPoint = v.mount('/mnt-symlink');
+  const mountPoint = v.mount();
   assert.strictEqual(require(`${mountPoint}/link.js`), 'one');
   v.unmount();
 
   v.writeFileSync('/real/mod.js', 'module.exports = "two"');
-  const mountPoint2 = v.mount('/mnt-symlink');
+  const mountPoint2 = v.mount();
   assert.strictEqual(mountPoint2, mountPoint);
   assert.strictEqual(require(`${mountPoint2}/link.js`), 'two');
   v.unmount();

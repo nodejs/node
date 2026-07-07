@@ -15,7 +15,7 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  const mountPoint = myVfs.mount('/promises');
+  const mountPoint = myVfs.mount();
   const p = (s) => path.join(mountPoint, s);
 
   // Path-based reads

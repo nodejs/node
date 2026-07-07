@@ -20,7 +20,7 @@ const vfs = require('node:vfs');
   assert.ok(c.layerId > b.layerId);
   // Stable across mount/unmount.
   const idBefore = a.layerId;
-  a.mount('/mnt-layer-stable');
+  a.mount();
   assert.strictEqual(a.layerId, idBefore);
   a.unmount();
   assert.strictEqual(a.layerId, idBefore);
@@ -30,9 +30,9 @@ const vfs = require('node:vfs');
 // of any VFS path is visible in the path itself.
 {
   const v = vfs.create();
-  const mountPoint = v.mount('/data');
+  const mountPoint = v.mount();
   assert.strictEqual(
     mountPoint,
-    path.join(os.devNull, 'vfs', `layer-${v.layerId}`, 'data'));
+    path.join(os.devNull, 'vfs', String(v.layerId)));
   v.unmount();
 }

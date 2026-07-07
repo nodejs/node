@@ -21,8 +21,8 @@ b.writeFileSync('/file.txt', 'from-b');
 b.mkdirSync('/dir', { recursive: true });
 b.writeFileSync('/dir/inside.txt', 'b-inside');
 
-const baseA = a.mount('/multi');
-const baseB = b.mount('/multi');
+const baseA = a.mount();
+const baseB = b.mount();
 
 // Each mount sees its own content
 assert.strictEqual(fs.readFileSync(path.join(baseA, 'file.txt'), 'utf8'),

@@ -14,7 +14,7 @@ const myVfs = vfs.create();
 myVfs.mkdirSync('/src/subdir', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
 myVfs.writeFileSync('/src/data.json', '{}');
-const mountPoint = myVfs.mount('/readdirSync');
+const mountPoint = myVfs.mount();
 
 // Default (utf8 string array)
 {

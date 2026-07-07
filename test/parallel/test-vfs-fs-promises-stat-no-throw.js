@@ -14,7 +14,7 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello');
-  const mountPoint = myVfs.mount('/stat-no-throw');
+  const mountPoint = myVfs.mount();
 
   // Missing file -> undefined
   const missing = await fsp.stat(path.join(mountPoint, 'src/nope'),

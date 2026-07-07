@@ -13,7 +13,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
-const mountPoint = myVfs.mount('/chmodSync');
+const mountPoint = myVfs.mount();
 
 const target = path.join(mountPoint, 'src/hello.txt');
 const uid = process.getuid?.() ?? 0;

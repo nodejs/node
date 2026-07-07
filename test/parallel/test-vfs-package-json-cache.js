@@ -12,7 +12,7 @@ const myVfs = vfs.create();
 myVfs.mkdirSync('/pkg');
 myVfs.writeFileSync('/pkg/package.json', '{"name":"test","type":"module"}');
 myVfs.writeFileSync('/pkg/index.js', 'module.exports = 42');
-const mountPoint = myVfs.mount('/mnt_pjcache');
+const mountPoint = myVfs.mount();
 
 // Access the file so caches are populated
 assert.ok(fs.existsSync(`${mountPoint}/pkg/package.json`));

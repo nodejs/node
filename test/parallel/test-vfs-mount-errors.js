@@ -20,8 +20,8 @@ const { vfsState } = require('internal/fs/utils');
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  const mountA = a.mount('/a');
-  const mountB = b.mount('/b');
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.renameSync(path.join(mountA, 'file.txt'),
@@ -38,8 +38,8 @@ const { vfsState } = require('internal/fs/utils');
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  const mountA = a.mount('/a');
-  const mountB = b.mount('/b');
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.copyFileSync(path.join(mountA, 'file.txt'),
@@ -56,8 +56,8 @@ const { vfsState } = require('internal/fs/utils');
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  const mountA = a.mount('/a');
-  const mountB = b.mount('/b');
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.linkSync(path.join(mountA, 'file.txt'),
@@ -72,7 +72,7 @@ const { vfsState } = require('internal/fs/utils');
 {
   const a = vfs.create();
   a.writeFileSync('/file.txt', 'a');
-  const mountA = a.mount('/a');
+  const mountA = a.mount();
 
   const tmpReal = '/tmp/vfs-mount-real-' + process.pid + '.txt';
   assert.throws(
@@ -86,14 +86,14 @@ const { vfsState } = require('internal/fs/utils');
 {
   assert.strictEqual(vfsState.handlers, null);
   const x = vfs.create();
-  x.mount('/x');
+  x.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   x.unmount();
   assert.strictEqual(vfsState.handlers, null);
 
   // And it re-installs on a subsequent mount
   const y = vfs.create();
-  y.mount('/y');
+  y.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   y.unmount();
   assert.strictEqual(vfsState.handlers, null);
@@ -103,8 +103,8 @@ const { vfsState } = require('internal/fs/utils');
 {
   const a = vfs.create();
   const b = vfs.create();
-  a.mount('/a');
-  b.mount('/b');
+  a.mount();
+  b.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   a.unmount();
   assert.notStrictEqual(vfsState.handlers, null);
@@ -119,14 +119,15 @@ const { vfsState } = require('internal/fs/utils');
   const b = vfs.create();
   a.writeFileSync('/f.txt', 'a');
   b.writeFileSync('/f.txt', 'b');
-  const mountA = a.mount('/same');
-  const mountB = b.mount('/same');
+  const mountA = a.mount();
+  const mountB = b.mount();
+  assert.notStrictEqual(mountA, mountB);
   b.unmount();
   // B's namespace is dead even though A is still mounted.
   assert.strictEqual(fs.existsSync(path.join(mountB, 'f.txt')), false);
   assert.strictEqual(fs.readFileSync(path.join(mountA, 'f.txt'), 'utf8'), 'a');
-  // A malformed layer path under the VFS root is not served either.
-  const bogus = path.join(os.devNull, 'vfs', 'not-a-layer', 'f.txt');
+  // A malformed layer segment under the VFS root is not served either.
+  const bogus = path.join(os.devNull, 'vfs', 'not-a-number', 'f.txt');
   assert.strictEqual(fs.existsSync(bogus), false);
   a.unmount();
 }
@@ -134,7 +135,7 @@ const { vfsState } = require('internal/fs/utils');
 // Double-mount of same instance rejected
 {
   const a = vfs.create();
-  a.mount('/first');
-  assert.throws(() => a.mount('/second'), { code: 'ERR_INVALID_STATE' });
+  a.mount();
+  assert.throws(() => a.mount(), { code: 'ERR_INVALID_STATE' });
   a.unmount();
 }

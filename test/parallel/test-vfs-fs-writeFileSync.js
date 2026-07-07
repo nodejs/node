@@ -11,7 +11,7 @@ const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
-const mountPoint = myVfs.mount('/writeFileSync');
+const mountPoint = myVfs.mount();
 
 const target = path.join(mountPoint, 'src/new.txt');
 
@@ -62,7 +62,7 @@ myVfs.unmount();
 
   const realVfs = vfs.create(
     new vfs.RealFSProvider(root), { emitExperimentalWarning: false });
-  const realMountPoint = realVfs.mount('/real-writeFileSync');
+  const realMountPoint = realVfs.mount();
   try {
     const mountedFile = path.join(realMountPoint, 'a.txt');
     fs.writeFileSync(path.join(root, 'a.txt'), 'old');

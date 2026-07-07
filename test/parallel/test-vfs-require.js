@@ -17,7 +17,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.js', 'module.exports = "hello from vfs";');
-  const mountPoint = myVfs.mount('/virtual');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/hello.js`);
   assert.strictEqual(result, 'hello from vfs');
@@ -35,7 +35,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
       getValue: function() { return 42; }
     };
   `);
-  const mountPoint = myVfs.mount('/virtual2');
+  const mountPoint = myVfs.mount();
 
   const config = require(`${mountPoint}/config.js`);
   assert.strictEqual(config.name, 'test-config');
@@ -49,7 +49,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 // Mount first so the embedded absolute specifier can use the mount point.
 {
   const myVfs = vfs.create();
-  const mountPoint = myVfs.mount('/virtual3');
+  const mountPoint = myVfs.mount();
   myVfs.writeFileSync(`${mountPoint}/utils.js`, `
     module.exports = {
       add: function(a, b) { return a + b; }
@@ -75,7 +75,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     items: [1, 2, 3],
     enabled: true,
   }));
-  const mountPoint = myVfs.mount('/virtual4');
+  const mountPoint = myVfs.mount();
 
   const data = require(`${mountPoint}/data.json`);
   assert.deepStrictEqual(data.items, [1, 2, 3]);
@@ -95,7 +95,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/my-package/index.js', `
     module.exports = { loaded: true };
   `);
-  const mountPoint = myVfs.mount('/virtual5');
+  const mountPoint = myVfs.mount();
 
   const pkg = require(`${mountPoint}/my-package`);
   assert.strictEqual(pkg.loaded, true);
@@ -107,7 +107,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/test.js', 'module.exports = 1;');
-  myVfs.mount('/virtual6');
+  myVfs.mount();
 
   // require('assert') should still work (builtin)
   assert.strictEqual(typeof assert.strictEqual, 'function');
@@ -130,7 +130,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     const helper = require('./helper.js');
     module.exports = helper.help();
   `);
-  const mountPoint = myVfs.mount('/virtual8');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/lib/index.js`);
   assert.strictEqual(result, 'helped');
@@ -142,7 +142,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'virtual content');
-  const mountPoint = myVfs.mount('/virtual9');
+  const mountPoint = myVfs.mount();
 
   const content = fs.readFileSync(`${mountPoint}/file.txt`, 'utf8');
   assert.strictEqual(content, 'virtual content');
@@ -154,7 +154,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/esm.mjs', 'export const msg = "hello from esm";');
-  const mountPoint = myVfs.mount('/virtual11');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/esm.mjs`);
   assert.strictEqual(mod.msg, 'hello from esm');
@@ -166,7 +166,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/esm-default.mjs', 'export default function() { return 42; }');
-  const mountPoint = myVfs.mount('/virtual12');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/esm-default.mjs`);
   assert.strictEqual(mod.default(), 42);
@@ -185,7 +185,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/app/lib.js',
                       'export const value = 42;' +
                       ' export function hello() { return "hi"; }');
-  const mountPoint = myVfs.mount('/virtual13');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/app/lib.js`);
   assert.strictEqual(mod.value, 42);
@@ -205,7 +205,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/project/src/utils/math.js',
                       'export const add = (a, b) => a + b;' +
                       ' export default 99;');
-  const mountPoint = myVfs.mount('/virtual14');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/project/src/utils/math.js`);
   assert.strictEqual(mod.add(3, 4), 7);
@@ -223,7 +223,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   }));
   myVfs.writeFileSync('/cjs-app/index.js',
                       'module.exports = { cjs: true };');
-  const mountPoint = myVfs.mount('/virtual15');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/cjs-app/index.js`);
   assert.strictEqual(mod.cjs, true);
@@ -242,7 +242,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/multi/src/main.js',
                       'import { X } from "./dep.js";' +
                       ' export const result = X + 1;');
-  const mountPoint = myVfs.mount('/virtual16');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/multi/src/main.js`);
   assert.strictEqual(mod.result, 101);
@@ -255,7 +255,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   const myVfs = vfs.create();
   myVfs.writeFileSync('/no-pkg.mjs',
                       'export const x = 1; export default "hello";');
-  const mountPoint = myVfs.mount('/virtual17');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/no-pkg.mjs`);
   assert.strictEqual(mod.x, 1);
@@ -271,7 +271,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/app/package.json',
                       JSON.stringify({ name: 'no-type' }));
   myVfs.writeFileSync('/app/lib.mjs', 'export const val = 42;');
-  const mountPoint = myVfs.mount('/virtual18');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/app/lib.mjs`);
   assert.strictEqual(mod.val, 42);
@@ -288,7 +288,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     type: 'commonjs',
   }));
   myVfs.writeFileSync('/cjs-pkg/esm.mjs', 'export const z = 99;');
-  const mountPoint = myVfs.mount('/virtual19');
+  const mountPoint = myVfs.mount();
 
   const mod = require(`${mountPoint}/cjs-pkg/esm.mjs`);
   assert.strictEqual(mod.z, 99);
@@ -305,7 +305,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     main: './lib/entry',
   }));
   myVfs.writeFileSync('/pkg/lib/entry.js', 'module.exports = "legacy-main";');
-  const mountPoint = myVfs.mount('/virtual20');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/pkg`);
   assert.strictEqual(result, 'legacy-main');
@@ -321,7 +321,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     name: 'no-main-pkg',
   }));
   myVfs.writeFileSync('/pkg2/index.js', 'module.exports = "index-fallback";');
-  const mountPoint = myVfs.mount('/virtual21');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/pkg2`);
   assert.strictEqual(result, 'index-fallback');
@@ -343,7 +343,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
                       'export const value = "esm-legacy-main";');
   myVfs.writeFileSync('/app/main.mjs',
                       'export { value } from "esm-legacy-main";');
-  const mountPoint = myVfs.mount('/virtual20b');
+  const mountPoint = myVfs.mount();
 
   import(vfsImport(`${mountPoint}/app/main.mjs`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-legacy-main');
@@ -363,7 +363,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
                       'export const value = "esm-index-fallback";');
   myVfs.writeFileSync('/app2/main.mjs',
                       'export { value } from "esm-nomain";');
-  const mountPoint = myVfs.mount('/virtual21b');
+  const mountPoint = myVfs.mount();
 
   import(vfsImport(`${mountPoint}/app2/main.mjs`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.value, 'esm-index-fallback');
@@ -380,7 +380,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     type: 'module',
   }));
   myVfs.writeFileSync('/esm-pkg/entry', 'export const x = 123;');
-  const mountPoint = myVfs.mount('/virtual22');
+  const mountPoint = myVfs.mount();
 
   // Use import() to trigger ESM loader path for extensionless file detection
   import(vfsImport(`${mountPoint}/esm-pkg/entry`)).then(common.mustCall((mod) => {
@@ -393,7 +393,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/unmount-test.js', 'module.exports = "before unmount";');
-  const mountPoint = myVfs.mount('/virtual10');
+  const mountPoint = myVfs.mount();
 
   const result = require(`${mountPoint}/unmount-test.js`);
   assert.strictEqual(result, 'before unmount');

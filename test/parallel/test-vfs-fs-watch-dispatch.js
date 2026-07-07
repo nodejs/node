@@ -13,7 +13,7 @@ const vfs = require('node:vfs');
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
-const mountPoint = myVfs.mount('/watch-dispatch');
+const mountPoint = myVfs.mount();
 
 const watcher = fs.watch(path.join(mountPoint, 'src/hello.txt'));
 assert.ok(watcher);

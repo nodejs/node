@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
-const mountPoint = myVfs.mount('/mkdtempSync');
+const mountPoint = myVfs.mount();
 
 const prefix = path.join(mountPoint, 'src/tmp-');
 

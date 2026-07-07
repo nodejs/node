@@ -14,7 +14,7 @@ myVfs.mkdirSync('/src/subdir', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
 myVfs.writeFileSync('/src/subdir/inside.txt', 'inside');
 myVfs.mkdirSync('/empty');
-const mountPoint = myVfs.mount('/rmSync');
+const mountPoint = myVfs.mount();
 
 // rmdirSync on an empty directory
 fs.rmdirSync(path.join(mountPoint, 'empty'));

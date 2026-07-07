@@ -13,7 +13,7 @@ function mounted() {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello');
-  const mountPoint = myVfs.mount('/m');
+  const mountPoint = myVfs.mount();
   return { myVfs, mountPoint };
 }
 

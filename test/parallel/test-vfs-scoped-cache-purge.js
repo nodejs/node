@@ -18,11 +18,11 @@ const vfsImport = (path) => pathToFileURL(path).href;
 {
   const a = vfs.create();
   a.writeFileSync('/value.js', 'module.exports = "a-cached"');
-  const mountA = a.mount('/mnt-purge');
+  const mountA = a.mount();
 
   const b = vfs.create();
   b.writeFileSync('/value.js', 'module.exports = "b-cached"');
-  const mountB = b.mount('/mnt-purge');
+  const mountB = b.mount();
 
   // Warm both caches.
   assert.strictEqual(require(`${mountA}/value.js`), 'a-cached');
@@ -52,7 +52,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   v.writeFileSync('/m.mjs',
                   'export const url = import.meta.url;\n' +
                   'export const resolved = import.meta.resolve("./m.mjs");');
-  const mountPoint = v.mount('/mnt-url');
+  const mountPoint = v.mount();
 
   const ns = await import(vfsImport(`${mountPoint}/m.mjs`));
   assert.strictEqual(ns.url, pathToFileURL(`${mountPoint}/m.mjs`).href);
