@@ -54,8 +54,8 @@ required to publish a release after it has been prepared. If you are working
 on preparing a release for the first time you will be able to do most of the
 steps as a member of the backporters team and have someone else who is
 already onboarded promote the release on your behalf. Once authorized by the
-TSC as a releaser, an individual will require the following to complete releases
-themselves:
+TSC as a releaser, an individual will require the following to publish
+releases themselves:
 
 ### 1. Jenkins release access
 
