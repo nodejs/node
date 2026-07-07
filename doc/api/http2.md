@@ -1114,6 +1114,15 @@ For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
 creates and returns an `Http2Stream` instance that can be used to send an
 HTTP/2 request to the connected server.
 
+When sending a request, header values must not contain characters outside the
+`latin1` encoding. The `:path` pseudo-header must not contain unescaped
+characters.
+
+This strict validation can be relaxed via the `httpValidation` option of
+[`http2.connect()`](#http2connectauthority-options-listener). The `'relaxed'`
+mode allows control characters permitted by the Fetch specification, and the
+`'insecure'` mode skips header value validation.
+
 When a `ClientHttp2Session` is first created, the socket may not yet be
 connected. If `clienthttp2session.request()` is called during this time, the
 actual request will be deferred until the socket is ready to go.
@@ -3374,6 +3383,17 @@ changes:
     and trailing whitespace validation for HTTP/2 header field names and values
     as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
     **Default:** `true`.
+  * `httpValidation` {string} Controls HTTP header value validation strictness
+    for outgoing HTTP/2 requests. Accepted values are:
+    * `'strict'`: Rejects non-`latin1` characters and disallowed control
+      characters in header values (default).
+    * `'relaxed'`: Allows control characters permitted by the
+      [Fetch specification][].
+    * `'insecure'`: Skips header value validation (equivalent to
+      `insecureHTTPParser` in HTTP/1).
+      When set to `'relaxed'` or `'insecure'`, `strictSingleValueFields` is
+      automatically disabled.
+      **Default:** `'strict'`.
 * `listener` {Function} Will be registered as a one-time listener of the
   [`'connect'`][] event.
 * Returns: {ClientHttp2Session}
@@ -5071,6 +5091,7 @@ you need to implement any fall-back behavior yourself.
 [ALPN negotiation]: #alpn-negotiation
 [Compatibility API]: #compatibility-api
 [DEP0202]: deprecations.md#dep0202-http1incomingmessage-and-http1serverresponse-options-of-http2-servers
+[Fetch specification]: https://fetch.spec.whatwg.org/
 [HTTP/1]: http.md
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/2 Headers Object]: #headers-object

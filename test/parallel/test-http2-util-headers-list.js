@@ -376,6 +376,44 @@ buildNgHeaderString(
   true
 );
 
+assert.throws(() => buildNgHeaderString(
+  { ':path': 'bad\u0100path' },
+  assertValidPseudoHeader,
+  true,
+  'strict'
+), {
+  code: 'ERR_UNESCAPED_CHARACTERS',
+  name: 'TypeError',
+  message: 'Request path contains unescaped characters'
+});
+
+assert.throws(() => buildNgHeaderString(
+  { 'x-bad-char': 'oʊmɪɡə' },
+  assertValidPseudoHeader,
+  true,
+  'strict'
+), {
+  code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+  name: 'TypeError',
+  message: 'Invalid value "oʊmɪɡə" for header "x-bad-char"'
+});
+
+// Relaxed header validation permits Fetch-compatible control characters.
+buildNgHeaderString(
+  { 'x-control': 'bad\u0001value' },
+  assertValidPseudoHeader,
+  true,
+  'relaxed'
+);
+
+// Insecure header validation skips header value validation.
+buildNgHeaderString(
+  { 'x-newline': 'bad\nvalue' },
+  assertValidPseudoHeader,
+  true,
+  'insecure'
+);
+
 // If both are present, the latter has priority
 assert.strictEqual(getAuthority({
   [HTTP2_HEADER_AUTHORITY]: 'abc',
