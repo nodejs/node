@@ -267,6 +267,9 @@ class Stream final : public AsyncWrap,
   // to be created.
   bool is_pending() const;
 
+  // True if the stream is already destroyed.
+  bool is_destroyed() const;
+
   // True if we've completely sent all outbound data for this stream.
   // Importantly, this does not necessarily mean that we are completely
   // done with the outbound data. We may still be waiting on outbound
