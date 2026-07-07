@@ -625,7 +625,7 @@ class Http3ApplicationImpl final : public Session::Application {
               sessionid);
     // we only need to do this, if we can send data
     if (stream.is_remote_unidirectional())
-      return true; // so bail out for remote unidirectional streams
+      return true;  // so bail out for remote unidirectional streams
     return nghttp3_conn_open_wt_data_stream(*this,
                                      sessionid,
                                      stream.id(),
@@ -641,9 +641,8 @@ class Http3ApplicationImpl final : public Session::Application {
   bool CloseWebtransportSessionStream(
       const Stream& stream,
       uint32_t wt_error_code,
-      const uint8_t *msg,
-      size_t msglen
-    ) override {
+      const uint8_t* msg,
+      size_t msglen) override {
     Session::SendPendingDataScope send_scope(&session());
     Debug(&session(),
           "Close webtransport session stream %" PRIu64,
@@ -918,7 +917,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void NotifyWTSessionClose(Stream& stream,
                                     uint32_t wt_error_code,
-                                    const uint8_t *msg,
+                                    const uint8_t* msg,
                                     size_t msglen) {
     EmitWTSessionClose(stream, wt_error_code, msg, msglen);
   }
@@ -971,19 +970,20 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void EmitWTSessionClose(Stream& stream,
                           uint32_t wt_error_code,
-                          const uint8_t *msg,
+                          const uint8_t* msg,
                           size_t msglen) {
-    auto* state = GetStreamState(stream);  
+    auto* state = GetStreamState(stream);
     if (!env()->can_call_into_js()  || !state->wants_wtsessionclose) return;
     CallbackScope<Stream> cb_scope(&stream);
     auto& binding = BindingData::Get(env());
     Local<Value> argv[] = {
         Integer::NewFromUnsigned(env()->isolate(),
                                  wt_error_code),
-        String::NewFromUtf8(env()->isolate(), reinterpret_cast<const char *>(msg), 
+        String::NewFromUtf8(env()->isolate(),
+            reinterpret_cast<const char *>(msg),
             v8::NewStringType::kNormal, msglen).ToLocalChecked()
     };
-    stream.MakeCallback(binding.stream_wtsessionclose_callback(), 
+    stream.MakeCallback(binding.stream_wtsessionclose_callback(),
       arraysize(argv), argv);
 }
 
@@ -1536,13 +1536,13 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
-  static int on_recv_wt_close_session(nghttp3_conn *conn,
+  static int on_recv_wt_close_session(nghttp3_conn* conn,
                                       int64_t session_id,
                                       uint32_t wt_error_code,
-                                      const uint8_t *msg,
+                                      const uint8_t* msg,
                                       size_t msglen,
-                                      void *conn_user_data,
-                                      void *stream_user_data) {
+                                      void* conn_user_data,
+                                      void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     if (auto stream = app.FindOrCreateStream(session_id)) [[likely]] {
       app.NotifyWTSessionClose(*stream.get(), wt_error_code, msg, msglen);

@@ -405,15 +405,17 @@ JS_METHOD_IMPL(BindingData::CloseWebtransportSessionStream) {
     const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
     msg = new  uint8_t[length];
     msgstr->WriteUtf8V2(
-      args.GetIsolate(), reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
+      args.GetIsolate(), reinterpret_cast<char*>(msg),
+      length,
+      String::WriteFlags::kNone);
     msglen = std::min<size_t>(length, 1024);
   }
-  args.GetReturnValue().Set(stream->session().application().CloseWebtransportSessionStream(
+  args.GetReturnValue().Set(stream->session().application()
+    .CloseWebtransportSessionStream(
     *stream,
     wt_error_code,
     msg,
-    msglen
-  ));
+    msglen));
   if (msg) {
     delete[] msg;
   }
