@@ -125,7 +125,7 @@ added: REPLACEME
 
 Mounts the virtual file system and returns the resulting mount point.
 After mounting, files in the VFS can be accessed through the
-`node:fs` module — and resolved through `require()` and `import` —
+`node:fs` module and resolved through `require()` and `import`
 using paths under the returned mount point.
 
 Mount points always live inside a reserved namespace,
@@ -135,7 +135,7 @@ cannot have child file system entries, no real file-system path can
 exist under this namespace: virtual paths never conflate with (or
 shadow) real paths, and the layer that owns a path is visible in the
 path itself. The `prefix` argument is a purely logical name inside
-the namespace — it is never resolved against the working directory,
+the namespace. It is never resolved against the working directory,
 and a prefix that attempts to escape the namespace (for example with
 `..` segments) throws `ERR_INVALID_ARG_VALUE`.
 
@@ -377,8 +377,8 @@ myVfs.unmount();
 Module identity follows the path: `__filename` and `module.filename`
 are the plain absolute path of the module under the mount point, and
 `import.meta.url` is the corresponding `file:` URL, with no synthetic
-decorations. Importing the same virtual path repeatedly — including
-through `import.meta.resolve()` — yields the same module instance,
+decorations. Importing the same virtual path repeatedly, including
+through `import.meta.resolve()`, yields the same module instance,
 exactly as for real files.
 
 Calling [`vfs.unmount()`][] invalidates the modules that were loaded
