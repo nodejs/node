@@ -113,7 +113,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // The stream identifier. If this is a negative value then no stream is
     // identified.
     stream_id id = -1;
-    int fin = 0;
+    bool fin = false;
     ngtcp2_vec data[kMaxVectorCount]{};
     BaseObjectPtr<Stream> stream;
 

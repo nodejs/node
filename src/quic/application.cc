@@ -339,7 +339,7 @@ class DefaultApplication final : public Session::Application {
     // Reset the state of stream_data before proceeding...
     stream_data->id = -1;
     stream_data->count = 0;
-    stream_data->fin = 0;
+    stream_data->fin = false;
     stream_data->stream.reset();
     Debug(&session(), "Default application getting stream data");
     DCHECK_NOT_NULL(stream_data);
@@ -362,7 +362,7 @@ class DefaultApplication final : public Session::Application {
             case bob::Status::STATUS_WAIT:
               return;
             case bob::Status::STATUS_EOS:
-              stream_data->fin = 1;
+              stream_data->fin = true;
           }
 
           // It is possible that the data pointers returned are not actually
@@ -393,10 +393,10 @@ class DefaultApplication final : public Session::Application {
                              arraysize(stream_data->data),
                              kMaxVectorCount);
       if (ret == bob::Status::STATUS_EOS) {
-        stream_data->fin = 1;
+        stream_data->fin = true;
       }
     } else {
-      stream_data->fin = 1;
+      stream_data->fin = true;
     }
 
     return 0;

@@ -680,16 +680,19 @@ class Http3ApplicationImpl final : public Session::Application {
     ssize_t ret = 0;
     Debug(&session(), "HTTP/3 application getting stream data");
     if (conn_ && session().max_data_left()) {
+      // nghttp3 reports fin through an int out-param; bridge it to the bool.
+      int fin = 0;
       ret =
           nghttp3_conn_writev_stream(*this,
                                      &data->id,
-                                     &data->fin,
+                                     &fin,
                                      reinterpret_cast<nghttp3_vec*>(data->data),
                                      data->count);
       // A negative return value indicates an error.
       if (ret < 0) {
         return static_cast<int>(ret);
       }
+      data->fin = fin != 0;
 
       data->count = static_cast<size_t>(ret);
       if (data->id >= 0 && data->id != control_stream_id_ &&
