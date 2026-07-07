@@ -73,6 +73,19 @@ class Audit extends ArboristWorkspaceCmd {
     await arb.audit({ fix })
     if (fix) {
       await reifyFinish(this.npm, arb)
+      // Report any fix that a `min-release-age`/`before` window blocked from
+      // installing, and exit non-zero so a blocked fix is not missed.
+      const report = arb.auditReport
+      const blocked = report instanceof Map
+        ? [...report.values()].filter(v => v.fixBlockedByReleaseAge).map(v => v.name)
+        : []
+      if (blocked.length) {
+        log.warn('audit', `${blocked.length} package(s) left at a vulnerable version because ` +
+          `a fix is newer than the release-age cutoff: ${blocked.join(', ')}.\n` +
+          'Add the package to min-release-age-exclude, or relax min-release-age or before, ' +
+          'to install the fix.')
+        process.exitCode = 1
+      }
     } else {
       // will throw if there's an error, because this is an audit command
       auditError(this.npm, arb.auditReport)

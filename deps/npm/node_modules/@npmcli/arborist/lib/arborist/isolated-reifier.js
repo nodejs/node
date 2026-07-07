@@ -266,7 +266,9 @@ module.exports = cls => class IsolatedReifier extends cls {
     }
 
     // local `file:` deps (non-workspace fsChildren) should be treated as local dependencies, not external, so they get symlinked directly instead of being extracted into the store.
-    const isLocal = (n) => n.isWorkspace || node.fsChildren?.has(n)
+    // A file: dep surfaces as a Link edge whose resolved spec starts with file:; detect it from the edge so the target is treated as local even when it is absent from idealTree.fsChildren (a workspace consumer, or a target outside the repo root via npm link).
+    const fileLinkTargets = new Set(edges.filter(e => e.to?.isLink && e.to.resolved?.startsWith('file:')).map(e => e.to.target))
+    const isLocal = (n) => n.isWorkspace || node.fsChildren?.has(n) || fileLinkTargets.has(n)
     const optionalDeps = edges.filter(edge => edge.optional).map(edge => edge.to.target)
 
     // Optional peers declared only in peerDependenciesMeta (e.g. `@types/react`) have no edge, so the materialization above misses them.

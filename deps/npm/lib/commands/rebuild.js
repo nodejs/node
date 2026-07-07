@@ -75,13 +75,13 @@ class Rebuild extends ArboristWorkspaceCmd {
     if (unreviewed.length > 0) {
       const count = unreviewed.length
       const noun = count === 1 ? 'package has' : 'packages have'
-      // `npm approve-scripts` writes to a project package.json, which doesn't
+      // `npm install-scripts` writes to a project package.json, which doesn't
       // exist for global rebuilds. Point global users at `npm config set`,
       // which writes the `allow-scripts` setting to their user .npmrc.
       const names = unreviewed.map(({ node }) => trustedDisplay(node).name)
       const remediation = this.npm.global
         ? `Run \`${configSetAllowScripts(names)}\` to allow their scripts.`
-        : 'Run `npm approve-scripts --allow-scripts-pending` to review.'
+        : 'Run `npm install-scripts ls` to review.'
       log.warn(
         'rebuild',
         `${count} ${noun} install scripts not yet covered by allowScripts. ` +

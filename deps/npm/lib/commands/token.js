@@ -73,17 +73,22 @@ class Token extends BaseCommand {
     const parseable = this.npm.config.get('parseable')
     log.info('token', 'getting list')
     const tokens = await paginate('/-/npm/v1/tokens', this.npm.flatOptions)
+
+    this.generateTokenIds(tokens, 6)
+
     if (json) {
       output.buffer(tokens)
       return
     }
     if (parseable) {
-      output.standard(['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
+      output.standard(['key', 'token', 'id', 'name', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
       tokens.forEach(token => {
         output.standard(
           [
             token.key,
             token.token,
+            token.id,
+            token.name,
             token.created,
             token.readonly ? 'true' : 'false',
             token.cidr_whitelist ? token.cidr_whitelist.join(',') : '',
@@ -92,11 +97,10 @@ class Token extends BaseCommand {
       })
       return
     }
-    this.generateTokenIds(tokens, 6)
     const chalk = this.npm.chalk
     for (const token of tokens) {
       const created = String(token.created).slice(0, 10)
-      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
+      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} name ${chalk.magenta(token.name)} created ${created}`)
       if (token.cidr_whitelist) {
         output.standard(`with IP whitelist: ${chalk.green(token.cidr_whitelist.join(','))}`)
       }

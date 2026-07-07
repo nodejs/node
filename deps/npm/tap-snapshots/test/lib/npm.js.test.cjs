@@ -35,12 +35,13 @@ All commands:
     completion, config, dedupe, deny-scripts, deprecate, diff,
     dist-tag, docs, doctor, edit, exec, explain, explore,
     find-dupes, fund, get, help, help-search, init, install,
-    install-ci-test, install-test, link, ll, login, logout, ls,
-    org, outdated, owner, pack, ping, pkg, prefix, profile,
-    prune, publish, query, rebuild, repo, restart, root, run,
-    sbom, search, set, shrinkwrap, stage, star, stars, start,
-    stop, team, test, token, trust, undeprecate, uninstall,
-    unpublish, unstar, update, version, view, whoami
+    install-ci-test, install-scripts, install-test, link, ll,
+    login, logout, ls, org, outdated, owner, pack, ping, pkg,
+    prefix, profile, prune, publish, query, rebuild, repo,
+    restart, root, run, sbom, search, set, shrinkwrap, stage,
+    star, stars, start, stop, team, test, token, trust,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -81,6 +82,7 @@ All commands:
     help-search, init,
     install,
     install-ci-test,
+    install-scripts,
     install-test, link, ll,
     login, logout, ls, org,
     outdated, owner, pack,
@@ -136,6 +138,7 @@ All commands:
     help-search, init,
     install,
     install-ci-test,
+    install-scripts,
     install-test, link, ll,
     login, logout, ls, org,
     outdated, owner, pack,
@@ -182,12 +185,13 @@ All commands:
     completion, config, dedupe, deny-scripts, deprecate, diff,
     dist-tag, docs, doctor, edit, exec, explain, explore,
     find-dupes, fund, get, help, help-search, init, install,
-    install-ci-test, install-test, link, ll, login, logout, ls,
-    org, outdated, owner, pack, ping, pkg, prefix, profile,
-    prune, publish, query, rebuild, repo, restart, root, run,
-    sbom, search, set, shrinkwrap, stage, star, stars, start,
-    stop, team, test, token, trust, undeprecate, uninstall,
-    unpublish, unstar, update, version, view, whoami
+    install-ci-test, install-scripts, install-test, link, ll,
+    login, logout, ls, org, outdated, owner, pack, ping, pkg,
+    prefix, profile, prune, publish, query, rebuild, repo,
+    restart, root, run, sbom, search, set, shrinkwrap, stage,
+    star, stars, start, stop, team, test, token, trust,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -228,6 +232,7 @@ All commands:
     help-search, init,
     install,
     install-ci-test,
+    install-scripts,
     install-test, link, ll,
     login, logout, ls, org,
     outdated, owner, pack,
@@ -283,6 +288,7 @@ All commands:
     help-search, init,
     install,
     install-ci-test,
+    install-scripts,
     install-test, link, ll,
     login, logout, ls, org,
     outdated, owner, pack,
@@ -337,6 +343,7 @@ All commands:
     fund, get, help,
     help-search, init,
     install, install-ci-test,
+    install-scripts,
     install-test, link, ll,
     login, logout, ls, org,
     outdated, owner, pack,
@@ -383,12 +390,13 @@ All commands:
     completion, config, dedupe, deny-scripts, deprecate, diff,
     dist-tag, docs, doctor, edit, exec, explain, explore,
     find-dupes, fund, get, help, help-search, init, install,
-    install-ci-test, install-test, link, ll, login, logout, ls,
-    org, outdated, owner, pack, ping, pkg, prefix, profile,
-    prune, publish, query, rebuild, repo, restart, root, run,
-    sbom, search, set, shrinkwrap, stage, star, stars, start,
-    stop, team, test, token, trust, undeprecate, uninstall,
-    unpublish, unstar, update, version, view, whoami
+    install-ci-test, install-scripts, install-test, link, ll,
+    login, logout, ls, org, outdated, owner, pack, ping, pkg,
+    prefix, profile, prune, publish, query, rebuild, repo,
+    restart, root, run, sbom, search, set, shrinkwrap, stage,
+    star, stars, start, stop, team, test, token, trust,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -420,12 +428,13 @@ All commands:
     completion, config, dedupe, deny-scripts, deprecate, diff,
     dist-tag, docs, doctor, edit, exec, explain, explore,
     find-dupes, fund, get, help, help-search, init, install,
-    install-ci-test, install-test, link, ll, login, logout, ls,
-    org, outdated, owner, pack, ping, pkg, prefix, profile,
-    prune, publish, query, rebuild, repo, restart, root, run,
-    sbom, search, set, shrinkwrap, stage, star, stars, start,
-    stop, team, test, token, trust, undeprecate, uninstall,
-    unpublish, unstar, update, version, view, whoami
+    install-ci-test, install-scripts, install-test, link, ll,
+    login, logout, ls, org, outdated, owner, pack, ping, pkg,
+    prefix, profile, prune, publish, query, rebuild, repo,
+    restart, root, run, sbom, search, set, shrinkwrap, stage,
+    star, stars, start, stop, team, test, token, trust,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -457,12 +466,13 @@ All commands:
     completion, config, dedupe, deny-scripts, deprecate, diff,
     dist-tag, docs, doctor, edit, exec, explain, explore,
     find-dupes, fund, get, help, help-search, init, install,
-    install-ci-test, install-test, link, ll, login, logout, ls,
-    org, outdated, owner, pack, ping, pkg, prefix, profile,
-    prune, publish, query, rebuild, repo, restart, root, run,
-    sbom, search, set, shrinkwrap, stage, star, stars, start,
-    stop, team, test, token, trust, undeprecate, uninstall,
-    unpublish, unstar, update, version, view, whoami
+    install-ci-test, install-scripts, install-test, link, ll,
+    login, logout, ls, org, outdated, owner, pack, ping, pkg,
+    prefix, profile, prune, publish, query, rebuild, repo,
+    restart, root, run, sbom, search, set, shrinkwrap, stage,
+    star, stars, start, stop, team, test, token, trust,
+    undeprecate, uninstall, unpublish, unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}

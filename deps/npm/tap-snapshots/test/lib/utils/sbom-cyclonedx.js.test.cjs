@@ -417,7 +417,7 @@ exports[`test/lib/utils/sbom-cyclonedx.js TAP single node - from git url > must 
       "version": "1.0.0",
       "scope": "required",
       "author": "Author",
-      "purl": "pkg:npm/root@1.0.0?vcs_url=https://github.com/foo/bar#1234",
+      "purl": "pkg:npm/root@1.0.0?vcs_url=https%3A%2F%2Fgithub.com%2Ffoo%2Fbar%231234",
       "properties": [],
       "externalReferences": [
         {
