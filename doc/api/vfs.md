@@ -354,12 +354,32 @@ console.log(greet()); // 'hi'
 myVfs.unmount();
 ```
 
-Module identity follows the path: `__filename`, `module.filename`,
-and `import.meta.url` are the plain absolute path (or `file:` URL) of
-the module under the mount point, with no synthetic decorations.
-Importing the same virtual path repeatedly — including through
-`import.meta.resolve()` — yields the same module instance, exactly as
-for real files.
+For ECMAScript modules, convert mounted paths to `file:` URLs before
+passing them to dynamic `import()`. This keeps VFS imports portable on
+Windows, where mounted paths use Windows path syntax.
+
+```mjs
+import { pathToFileURL } from 'node:url';
+import vfs from 'node:vfs';
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/mod.mjs', 'export const value = 42;');
+const mountPoint = myVfs.mount('/virtual');
+
+const { value } = await import(
+  pathToFileURL(`${mountPoint}/mod.mjs`).href,
+);
+console.log(value); // 42
+
+myVfs.unmount();
+```
+
+Module identity follows the path: `__filename` and `module.filename`
+are the plain absolute path of the module under the mount point, and
+`import.meta.url` is the corresponding `file:` URL, with no synthetic
+decorations. Importing the same virtual path repeatedly — including
+through `import.meta.resolve()` — yields the same module instance,
+exactly as for real files.
 
 Calling [`vfs.unmount()`][] invalidates the modules that were loaded
 from the mount point: a subsequent `require()` or `import` of a path
