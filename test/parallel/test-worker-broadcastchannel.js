@@ -147,7 +147,7 @@ assert.throws(() => new BroadcastChannel(), {
   const bc1 = new BroadcastChannel('channel4');
   const bc2 = new BroadcastChannel('channel4');
   bc1.postMessage('some data');
-  assert.strictEqual(receiveMessageOnPort(bc2).message, 'some data');
+  assert.strictEqual(receiveMessageOnPort(bc2).message.value, 'some data');
   assert.strictEqual(receiveMessageOnPort(bc2), undefined);
   bc1.close();
   bc2.close();
@@ -182,4 +182,33 @@ assert.throws(() => new BroadcastChannel(), {
     inspect(bc.ref()),
     "BroadcastChannel { name: 'channel5', active: false }"
   );
+}
+
+{
+  const bc = new BroadcastChannel('worker-source');
+
+  new Worker(`
+    const assert = require('assert');
+    const { BroadcastChannel, threadId } = require('worker_threads');
+
+    const bc = new BroadcastChannel('worker-source');
+
+    bc.onmessage = (evt) => {
+      assert.strictEqual(evt.data, 'from-main');
+      assert.strictEqual(evt.source, 0);
+
+      bc.close();
+    };
+
+    bc.postMessage('from-worker');
+  `, { eval: true });
+
+  bc.onmessage = common.mustCall((evt) => {
+    assert.strictEqual(evt.data, 'from-worker');
+
+    assert.ok(evt.source > 0);
+
+    bc.postMessage('from-main');
+    bc.close();
+  });
 }
