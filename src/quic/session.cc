@@ -1818,6 +1818,14 @@ ssize_t Session::TryWritePendingDatagram(PathStorage* path,
     Debug(this, "Datagram %" PRIu64 " not accepted into packet", dg.id);
   }
 
+  // ngtcp2 can return a positive number if the packet was nearly full, and so
+  // it finalized without waiting for more. This isn't an error, and can happen
+  // with or without `accepted` being true (if false, it stays queued).
+  if (dg_nwrite > 0) {
+    if (!accepted) dg.send_attempts++;
+    return dg_nwrite;
+  }
+
   switch (dg_nwrite) {
     case 0: {
       // If dg_nwrite is 0, we are either congestion controlled or
