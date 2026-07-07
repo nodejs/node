@@ -1325,6 +1325,10 @@ bool Stream::is_pending() const {
   return state()->pending;
 }
 
+bool Stream::is_destroyed() const {
+  return stats()->destroyed_at != 0;
+}
+
 stream_id Stream::id() const {
   return state()->id;
 }
