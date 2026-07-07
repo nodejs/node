@@ -1911,12 +1911,9 @@ void Session::SendPendingData() {
     s->UpdateDataStats();
   });
 
-  // The maximum size of packet to create.
-  const size_t max_pktlen = max_packet_size();
-
   // The maximum number of packets to send in this call to SendPendingData.
-  const size_t max_packet_count =
-      std::min(kMaxPackets, ngtcp2_conn_get_send_quantum(*this) / max_pktlen);
+  const size_t max_packet_count = std::min(
+      kMaxPackets, ngtcp2_conn_get_send_quantum(*this) / max_packet_size());
   if (max_packet_count == 0) return;
 
   // The number of packets that have been prepared in this call.
@@ -2158,7 +2155,7 @@ ssize_t Session::WriteVStream(PathStorage* path,
                               PacketInfo* pi,
                               uint8_t* dest,
                               ssize_t* ndatalen,
-                              size_t max_pktlen,
+                              size_t max_packet_size,
                               const StreamData& stream_data,
                               uint64_t ts) {
   DCHECK_LE(stream_data.count, kMaxVectorCount);
@@ -2171,7 +2168,7 @@ ssize_t Session::WriteVStream(PathStorage* path,
                                    &path->path,
                                    *pi,
                                    dest,
-                                   max_pktlen,
+                                   max_packet_size,
                                    ndatalen,
                                    flags,
                                    stream_data.id,
