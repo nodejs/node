@@ -102,7 +102,7 @@ _dist_ user.
 
 Release builds require manual promotion by an individual with SSH access to the
 server as the _dist_ user. The
-[Node.js build team](lhttps://github.com/nodejs/build) is able to provide this
+[Node.js build team](https://github.com/nodejs/build) is able to provide this
 access to individuals authorized by the TSC.
 
 ### 3. A publicly-listed GPG key
