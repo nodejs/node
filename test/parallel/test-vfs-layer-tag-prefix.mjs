@@ -1,7 +1,7 @@
 // Flags: --experimental-vfs
 
 // Layer identity is carried by the mount-point path itself
-// (`${execPath}/vfs/layer-<id>/...`), so unmounting one layer must
+// (`${os.devNull}/vfs/layer-<id>/...`), so unmounting one layer must
 // purge exactly that layer's ESM cache entries - layers whose ids
 // share a decimal prefix (1 vs 10) must be unaffected.
 
