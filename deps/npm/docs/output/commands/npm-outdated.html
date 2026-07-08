@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-outdated----11170">
+<h1 id="----npm-outdated----11180">
     <span>npm-outdated</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Check for outdated packages</span>
 </header>
@@ -334,6 +334,8 @@ wins (an explicit absolute date overrides a relative window). Across
 sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
 global), so a higher-priority source can always relax or override a
 lower-priority one.</p>
+<p>As with <code>min-release-age</code>, when this cutoff blocks a fix that <code>npm audit fix</code> would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.</p>
 <p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
 filter.</p>
 <h4 id="min-release-age"><code>min-release-age</code></h4>
@@ -351,6 +353,11 @@ your <code>.npmrc</code> is preserved when npm internally spawns a sub-process w
 <code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
 apply, <code>before</code> wins within a single source and across sources the standard
 precedence rules apply.</p>
+<p>When this window stops <code>npm audit fix</code> from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+<code>min-release-age-exclude</code>, or relax <code>min-release-age</code> or <code>before</code>.</p>
 <p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
 filter.</p>
 <p>This value is not exported to the environment for child processes.</p>
