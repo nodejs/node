@@ -27,6 +27,8 @@
  */
 #include "ares_private.h"
 
+#include <limits.h>
+
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
@@ -234,7 +236,10 @@ static ares_status_t parse_nameserver_uri(ares_buf_t     *buf,
   sconfig->tcp_port = sconfig->udp_port;
   port              = ares_uri_get_query_key(uri, "tcpport");
   if (port != NULL) {
-    sconfig->tcp_port = (unsigned short)atoi(port);
+    if (!ares_parse_port(port, &sconfig->tcp_port, ARES_TRUE)) {
+      status = ARES_EBADSTR;
+      goto done;
+    }
   }
 
 done:
@@ -352,7 +357,9 @@ static ares_status_t parse_nameserver(ares_buf_t *buf, ares_sconfig_t *sconfig)
       return status;
     }
 
-    sconfig->udp_port = (unsigned short)atoi(portstr);
+    if (!ares_parse_port(portstr, &sconfig->udp_port, ARES_TRUE)) {
+      return ARES_EBADSTR;
+    }
     sconfig->tcp_port = sconfig->udp_port;
   }
 
@@ -398,7 +405,13 @@ static ares_status_t ares_sconfig_linklocal(const ares_channel_t *channel,
 
   if (ares_str_isnum(ll_iface)) {
     char ifname[IF_NAMESIZE] = "";
-    ll_scope                 = (unsigned int)atoi(ll_iface);
+
+    /* The interface identifier is all digits but may not fit in an
+     * unsigned int; parse with the range-checked helper rather than atoi(),
+     * whose behavior on overflow is undefined. */
+    if (!ares_str_parse_uint(ll_iface, UINT_MAX, &ll_scope)) {
+      return ARES_ENOTFOUND;
+    }
     if (channel->sock_funcs.aif_indextoname == NULL ||
         channel->sock_funcs.aif_indextoname(ll_scope, ifname, sizeof(ifname),
                                             channel->sock_func_cb_data) ==
@@ -967,7 +980,8 @@ ares_status_t ares_in_addr_to_sconfig_llist(const struct in_addr *servers,
            sizeof(sconfig->addr.addr.addr4));
 
     if (ares_llist_insert_last(s, sconfig) == NULL) {
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      ares_free(sconfig); /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;          /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
