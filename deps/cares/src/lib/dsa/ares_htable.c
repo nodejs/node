@@ -150,6 +150,10 @@ const void **ares_htable_all_buckets(const ares_htable_t *htable, size_t *num)
 
   *num = 0;
 
+  if (htable->num_keys == 0) {
+    return NULL;
+  }
+
   out = ares_malloc_zero(sizeof(*out) * htable->num_keys);
   if (out == NULL) {
     return NULL; /* LCOV_EXCL_LINE */
@@ -172,7 +176,7 @@ const void **ares_htable_all_buckets(const ares_htable_t *htable, size_t *num)
  *  We are doing "hash & (size - 1)" since we are guaranteeing a power of
  *  2 for size. This is equivalent to "hash % size", but should be more
  * efficient */
-#define HASH_IDX(h, key) h->hash(key, h->seed) & (h->size - 1)
+#define HASH_IDX(h, key) ((h)->hash((key), (h)->seed) & ((h)->size - 1))
 
 static ares_llist_node_t *ares_htable_find(const ares_htable_t *htable,
                                            unsigned int idx, const void *key)

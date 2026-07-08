@@ -28,6 +28,9 @@
 #include "ares_private.h"
 #include "ares_str.h"
 
+#include <errno.h>
+#include <limits.h>
+
 #ifdef HAVE_STDINT_H
 #  include <stdint.h>
 #endif
@@ -122,6 +125,57 @@ ares_bool_t ares_str_isnum(const char *str)
       return ARES_FALSE;
     }
   }
+  return ARES_TRUE;
+}
+
+ares_bool_t ares_str_parse_uint(const char *str, unsigned long max,
+                                unsigned int *out)
+{
+  char         *end = NULL;
+  unsigned long val;
+
+  /* Require a leading digit so strtoul()'s tolerance of a sign or leading
+   * whitespace (e.g. "-1" wrapping to UINT_MAX) can't slip through here. This
+   * also rejects NULL and empty strings. */
+  if (str == NULL || out == NULL || !ares_isdigit(*str)) {
+    return ARES_FALSE;
+  }
+
+  /* out is unsigned int, so a max above UINT_MAX would let strtoul's result
+   * truncate silently on assignment.  Cap it. */
+  if (max > UINT_MAX) {
+    max = UINT_MAX;
+  }
+
+  errno = 0;
+  val   = strtoul(str, &end, 10);
+  if (errno == ERANGE || *end != '\0' || val > max) {
+    return ARES_FALSE;
+  }
+
+  *out = (unsigned int)val;
+  return ARES_TRUE;
+}
+
+ares_bool_t ares_parse_port(const char *str, unsigned short *port,
+                            ares_bool_t allow_zero)
+{
+  unsigned int val;
+
+  if (port == NULL) {
+    return ARES_FALSE;
+  }
+
+  if (!ares_str_parse_uint(str, 65535UL, &val)) {
+    return ARES_FALSE;
+  }
+
+  if (!allow_zero && val == 0) {
+    return ARES_FALSE;
+  }
+
+  *port = (unsigned short)val;
+
   return ARES_TRUE;
 }
 
