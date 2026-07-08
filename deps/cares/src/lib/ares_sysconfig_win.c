@@ -114,56 +114,69 @@ static ares_bool_t get_REG_SZ(HKEY hKey, const WCHAR *leafKeyName, char **outptr
   /* Convert to UTF8 */
   len = WideCharToMultiByte(CP_UTF8, 0, val, -1, NULL, 0, NULL, NULL);
   if (len == 0) {
+    ares_free(val);
     return ARES_FALSE;
   }
   *outptr = ares_malloc_zero((size_t)len + 1);
+  if (*outptr == NULL) {
+    ares_free(val);
+    return ARES_FALSE;
+  }
   if (WideCharToMultiByte(CP_UTF8, 0, val, -1, *outptr, len, NULL, NULL)
     == 0) {
     ares_free(*outptr);
     *outptr = NULL;
+    ares_free(val);
     return ARES_FALSE;
   }
 
+  ares_free(val);
   return ARES_TRUE;
 }
 
-static void commanjoin(char **dst, const char * const src, const size_t len)
+static ares_status_t sysconfig_commajoin(ares_buf_t *buf, const char *src,
+                                         ares_bool_t asciionly)
 {
-  char  *newbuf;
-  size_t newsize;
+  ares_status_t status;
 
-  /* 1 for terminating 0 and 2 for , and terminating 0 */
-  newsize = len + (*dst ? (ares_strlen(*dst) + 2) : 1);
-  newbuf  = ares_realloc(*dst, newsize);
-  if (!newbuf) {
-    return;
+  if (buf == NULL) {
+    return ARES_ENOMEM;
   }
-  if (*dst == NULL) {
-    *newbuf = '\0';
+
+  if (src == NULL || *src == '\0') {
+    return ARES_SUCCESS;
   }
-  *dst = newbuf;
-  if (ares_strlen(*dst) != 0) {
-    strcat(*dst, ",");
+
+  if (asciionly && !ares_str_isprint(src, ares_strlen(src))) {
+    return ARES_SUCCESS;
   }
-  strncat(*dst, src, len);
+
+  if (ares_buf_len(buf) > 0) {
+    status = ares_buf_append_byte(buf, ',');
+    if (status != ARES_SUCCESS) {
+      return status;
+    }
+  }
+
+  return ares_buf_append_str(buf, src);
 }
 
-/*
- * commajoin()
- *
- * RTF code.
- */
-static void commajoin(char **dst, const char *src)
+/* Read a REG_SZ value and comma-append it (ASCII-only) to *buf.
+ * On allocation failure, destroys *buf and sets it to NULL. */
+static void reg_commajoin(ares_buf_t **buf, HKEY key, const WCHAR *leaf)
 {
-  commanjoin(dst, src, ares_strlen(src));
-}
+  char *p = NULL;
 
-static void commajoin_asciionly(char **dst, const char *src)
-{
-  if (!ares_str_isprint(src, ares_strlen(src))) {
+  if (*buf == NULL || !get_REG_SZ(key, leaf, &p)) {
     return;
   }
-  commanjoin(dst, src, ares_strlen(src));
+
+  if (sysconfig_commajoin(*buf, p, ARES_TRUE) != ARES_SUCCESS) {
+    ares_buf_destroy(*buf);
+    *buf = NULL;
+  }
+
+  ares_free(p);
 }
 
 /* A structure to hold the string form of IPv4 and IPv6 addresses so we can
@@ -494,8 +507,10 @@ static ares_bool_t get_DNS_Windows(char **outptr)
 
   /* Join them all into a single string, removing duplicates. */
   {
-    size_t i;
-    for (i = 0; i < addressesIndex; ++i) {
+    size_t      i;
+    ares_buf_t *buf = ares_buf_create();
+
+    for (i = 0; buf != NULL && i < addressesIndex; ++i) {
       size_t j;
       /* Look for this address text appearing previously in the results. */
       for (j = 0; j < i; ++j) {
@@ -505,10 +520,22 @@ static ares_bool_t get_DNS_Windows(char **outptr)
       }
       /* Iff we didn't emit this address already, emit it now. */
       if (j == i) {
-        /* Add that to outptr (if we can). */
-        commajoin(outptr, addresses[i].text);
+        /* Add that to buf (if we can). */
+        if (sysconfig_commajoin(buf, addresses[i].text, ARES_FALSE) !=
+            ARES_SUCCESS) {
+          ares_buf_destroy(buf);
+          buf = NULL;
+          break;
+        }
       }
     }
+
+    if (buf != NULL && ares_buf_len(buf) == 0) {
+      ares_buf_destroy(buf);
+      buf = NULL;
+    }
+
+    *outptr = ares_buf_finish_str(buf, NULL);
   }
 
 done:
@@ -540,51 +567,46 @@ done:
  */
 static ares_bool_t get_SuffixList_Windows(char **outptr)
 {
-  HKEY  hKey;
-  HKEY  hKeyEnum;
-  char  keyName[256];
-  DWORD keyNameBuffSize;
-  DWORD keyIdx = 0;
-  char *p      = NULL;
+  HKEY        hKey;
+  HKEY        hKeyEnum;
+  char        keyName[256];
+  DWORD       keyNameBuffSize;
+  DWORD       keyIdx = 0;
+  ares_buf_t *buf    = ares_buf_create();
 
   *outptr = NULL;
+
+  if (buf == NULL) {
+    return ARES_FALSE;
+  }
 
   /* 1. Global DNS Suffix Search List */
   if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ, &hKey) ==
       ERROR_SUCCESS) {
-    get_REG_SZ(hKey, SEARCHLIST_KEY, outptr);
-    if (get_REG_SZ(hKey, DOMAIN_KEY, &p)) {
-      commajoin_asciionly(outptr, p);
-      ares_free(p);
-      p = NULL;
-    }
+    reg_commajoin(&buf, hKey, SEARCHLIST_KEY);
+    reg_commajoin(&buf, hKey, DOMAIN_KEY);
     RegCloseKey(hKey);
   }
 
-  if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NT_DNSCLIENT, 0, KEY_READ, &hKey) ==
-      ERROR_SUCCESS) {
-    if (get_REG_SZ(hKey, SEARCHLIST_KEY, &p)) {
-      commajoin_asciionly(outptr, p);
-      ares_free(p);
-      p = NULL;
-    }
+  if (buf != NULL &&
+      RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NT_DNSCLIENT, 0, KEY_READ, &hKey) ==
+        ERROR_SUCCESS) {
+    reg_commajoin(&buf, hKey, SEARCHLIST_KEY);
     RegCloseKey(hKey);
   }
 
   /* 2. Connection Specific Search List composed of:
    *  a. Primary DNS Suffix */
-  if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_DNSCLIENT, 0, KEY_READ, &hKey) ==
-      ERROR_SUCCESS) {
-    if (get_REG_SZ(hKey, PRIMARYDNSSUFFIX_KEY, &p)) {
-      commajoin_asciionly(outptr, p);
-      ares_free(p);
-      p = NULL;
-    }
+  if (buf != NULL &&
+      RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_DNSCLIENT, 0, KEY_READ, &hKey) ==
+        ERROR_SUCCESS) {
+    reg_commajoin(&buf, hKey, PRIMARYDNSSUFFIX_KEY);
     RegCloseKey(hKey);
   }
 
   /*  b. Interface SearchList, Domain, DhcpDomain */
-  if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY "\\" INTERFACES_KEY, 0,
+  if (buf != NULL &&
+      RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY "\\" INTERFACES_KEY, 0,
                     KEY_READ, &hKey) == ERROR_SUCCESS) {
     for (;;) {
       keyNameBuffSize = sizeof(keyName);
@@ -596,26 +618,25 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
           ERROR_SUCCESS) {
         continue;
       }
-      /* p can be comma separated (SearchList) */
-      if (get_REG_SZ(hKeyEnum, SEARCHLIST_KEY, &p)) {
-        commajoin_asciionly(outptr, p);
-        ares_free(p);
-        p = NULL;
-      }
-      if (get_REG_SZ(hKeyEnum, DOMAIN_KEY, &p)) {
-        commajoin_asciionly(outptr, p);
-        ares_free(p);
-        p = NULL;
-      }
-      if (get_REG_SZ(hKeyEnum, DHCPDOMAIN_KEY, &p)) {
-        commajoin_asciionly(outptr, p);
-        ares_free(p);
-        p = NULL;
-      }
+      /* SearchList can be comma separated */
+      reg_commajoin(&buf, hKeyEnum, SEARCHLIST_KEY);
+      reg_commajoin(&buf, hKeyEnum, DOMAIN_KEY);
+      reg_commajoin(&buf, hKeyEnum, DHCPDOMAIN_KEY);
       RegCloseKey(hKeyEnum);
+
+      if (buf == NULL) {
+        break;
+      }
     }
     RegCloseKey(hKey);
   }
+
+  if (ares_buf_len(buf) == 0) {
+    ares_buf_destroy(buf);
+    buf = NULL;
+  }
+
+  *outptr = ares_buf_finish_str(buf, NULL);
 
   return *outptr != NULL ? ARES_TRUE : ARES_FALSE;
 }
