@@ -170,6 +170,32 @@ async function testMergeSignalDuringPendingMultiSourceRead() {
   await assert.rejects(next, { name: 'AbortError' });
 }
 
+async function testMergeDoesNotDrainSourcesWhileIdle() {
+  function source(n) {
+    return {
+      __proto__: null,
+      pulls: 0,
+      async *[Symbol.asyncIterator]() {
+        while (this.pulls < n) {
+          yield [Buffer.from(`${++this.pulls}`)];
+        }
+      },
+    };
+  }
+
+  const a = source(5);
+  const b = source(5);
+  const iterator = merge(a, b)[Symbol.asyncIterator]();
+
+  await iterator.next();
+  await new Promise(setImmediate);
+
+  assert.strictEqual(a.pulls, 1);
+  assert.strictEqual(b.pulls, 1);
+
+  await iterator.return?.();
+}
+
 // merge() accepts string sources (normalized via from())
 async function testMergeStringSources() {
   const batches = [];
@@ -306,6 +332,7 @@ Promise.all([
   testMergeConsumerBreak(),
   testMergeSignalMidIteration(),
   testMergeSignalDuringPendingMultiSourceRead(),
+  testMergeDoesNotDrainSourcesWhileIdle(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
   testMergeCleanupErrorOnly(),
