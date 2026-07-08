@@ -1424,11 +1424,12 @@ what this endpoint advertises to the peer as its own maximum.
 added: REPLACEME
 -->
 
-* Type: {string|undefined}
+* Type: {string|boolean|null}
 
-The SNI (Server Name Indication) host name associated with the session, or
-`undefined` if none was set. On a client this is the `servername` requested via
-[`quic.connect()`][]. On a server it is the name sent by the peer.
+The SNI (Server Name Indication) host name associated with the session. This is
+`null` before the client hello is processed. Once the hello has been
+processed, this is either the host name string or `false` if the handshake
+had no SNI.
 
 ### `session.alpnProtocol`
 
@@ -1436,11 +1437,12 @@ The SNI (Server Name Indication) host name associated with the session, or
 added: REPLACEME
 -->
 
-* Type: {string|undefined}
+* Type: {string|null}
 
-The negotiated ALPN protocol. On a server this is available synchronously as
-soon as the session is surfaced to the `onsession` callback; on a client it is
-`undefined` until the handshake completes.
+The negotiated ALPN protocol. This is `null` before the client hello is
+processed. Once ALPN has been negotiated, this is the protocol string. ALPN
+is mandatory in QUIC so this is never `false` on successful connections,
+unlike `node:tls` where this is optional.
 
 ### `session.certificate`
 

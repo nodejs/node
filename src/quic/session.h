@@ -538,6 +538,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void set_hello_processed() { hello_processed_ = true; }
 
+  // True once the negotiated TLS parameters (SNI, ALPN) are final.
+  bool tls_info_ready() const;
+
   // It's a terrible name but "wrapped" here means that the Session has been
   // passed out to JavaScript and should be "wrapped" by whatever handler is
   // defined there to manage it.

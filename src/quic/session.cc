@@ -1005,30 +1005,35 @@ struct Session::Impl final : public MemoryRetainer {
     session->Destroy();
   }
 
-  // The SNI servername from the TLS handshake; empty (-> undefined) only if
-  // none was sent.
+  // The SNI servername: null until the TLS parameters are final, then the
+  // host name string, or false if the handshake produced no SNI.
   JS_METHOD(GetServername) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-    if (session->is_destroyed()) return;
+    if (session->is_destroyed() || !session->tls_info_ready()) {
+      return args.GetReturnValue().SetNull();
+    }
     auto sn = session->tls_session().servername();
-    if (sn.empty()) return;
+    if (sn.empty()) return args.GetReturnValue().Set(false);
     Local<Value> ret;
     if (ToV8Value(env->context(), sn).ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
     }
   }
 
-  // The negotiated ALPN protocol. Undefined only for clients before the
-  // handshake is completed, as ALPN is mandatory for QUIC.
+  // The negotiated ALPN protocol: null until the TLS parameters are final,
+  // then the protocol string.
   JS_METHOD(GetAlpnProtocol) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-    if (session->is_destroyed()) return;
+    if (session->is_destroyed() || !session->tls_info_ready()) {
+      return args.GetReturnValue().SetNull();
+    }
     auto proto = session->tls_session().protocol();
-    if (proto.empty()) return;
+    // QUIC requires ALPN
+    DCHECK(!proto.empty());
     Local<Value> ret;
     if (ToV8Value(env->context(), proto).ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
@@ -3031,6 +3036,12 @@ bool Session::must_defer_emits() const {
   // emitted before then has no JS wrapper to receive it and must be held
   // for replay.
   return is_server() && !impl_->state()->wrapped;
+}
+
+bool Session::tls_info_ready() const {
+  // hello_processed_ is set server-side, handshake_completed covers
+  // the client. Together they mark the point when SNI/ALPN are final.
+  return hello_processed_ || impl_->state()->handshake_completed;
 }
 
 void Session::QueueDeferredEmit(std::function<void()> fn) {
