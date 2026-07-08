@@ -130,11 +130,14 @@ const portsExpected = [
   '4.4.4.4',
   '2001:4860:4860::8888',
   '103.238.225.181:666',
-  '[fe80::483a:5aff:fee6:1f04]:666',
-  'fe80::483a:5aff:fee6:1f04',
 ];
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
+
+// Link-local IPv6 addresses require a zone index (scope id) to be usable;
+// c-ares drops link-local servers configured without one.
+dns.setServers(['[fe80::483a:5aff:fee6:1f04]%eth0']);
+assert.deepStrictEqual(dns.getServers(), []);
 
 dns.setServers([]);
 assert.deepStrictEqual(dns.getServers(), []);
