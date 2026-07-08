@@ -1,6 +1,9 @@
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { basename, join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { finished } from 'node:stream/promises';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import consumers from 'node:stream/consumers';
@@ -590,6 +593,12 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
     });
 
+    it('should only allow boolean in options,handleSignals', () => {
+      [Symbol(), {}, [], () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([])]
+      .forEach((handleSignals) => assert.throws(() => run({ handleSignals }), {
+        code: 'ERR_INVALID_ARG_TYPE',
+      }));
+    });
   });
 
   describe('randomization', () => {
@@ -818,6 +827,74 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     ) {
       assert.strictEqual(diagnostics.includes(entry), true);
     }
+  });
+
+  async function runHandleSignalsFixture(mode) {
+    if (common.isWindows) {
+      common.printSkipMessage('signals are not supported on Windows');
+      return null;
+    }
+
+    let stdout = '';
+    let sentSignal = false;
+
+    const child = spawn(process.execPath, [
+      fixtures.path('test-runner', 'run-handle-signals.mjs'),
+      mode,
+      fixtures.path('test-runner', 'never_ending_async.js'),
+    ]);
+
+    const timeout = setTimeout(() => {
+      child.kill('SIGINT');
+    }, common.platformTimeout(5000));
+
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+
+      if (!sentSignal && stdout.includes('READY')) {
+        sentSignal = true;
+        child.kill('SIGINT');
+      }
+    });
+
+    const [code, signal] = await once(child, 'exit');
+    clearTimeout(timeout);
+    await finished(child.stdout);
+
+    return { code, signal, stdout };
+  }
+
+  describe('handleSignals', () => {
+    it('should handle SIGINT when handleSignals is true', async () => {
+      const result = await runHandleSignalsFixture('handle-signals');
+      if (result === null) return;
+
+      assert.strictEqual(result.signal, null);
+      assert.strictEqual(result.code, 1);
+      assert.match(result.stdout, /Interrupted while running:/);
+      assert.match(result.stdout, /never_ending_async\.js/);
+    });
+
+    it('should not handle SIGINT by default in run() API', async () => {
+      const result = await runHandleSignalsFixture('default');
+      if (result === null) return;
+
+      assert.strictEqual(result.signal, null);
+      assert.strictEqual(result.code, 0);
+      assert.match(result.stdout, /user SIGINT handler/);
+      assert.doesNotMatch(result.stdout, /Interrupted while running/);
+    });
+
+    it('should not handle SIGINT when handleSignals is false', async () => {
+      const result = await runHandleSignalsFixture('no-handle-signals');
+      if (result === null) return;
+
+      assert.strictEqual(result.signal, null);
+      assert.strictEqual(result.code, 0);
+      assert.match(result.stdout, /user SIGINT handler/);
+      assert.doesNotMatch(result.stdout, /Interrupted while running/);
+    });
   });
 });
 

@@ -1795,6 +1795,11 @@ changes:
     This option is not compatible with `isolation='none'`. These variables will override
     those from the main process, and are not merged with `process.env`.
     **Default:** `process.env`.
+  * `handleSignals` {boolean} Configures the test runner to handle
+    `SIGINT`
+    and `SIGTERM` signals, reporting interrupted tests before exiting.
+    **Default:** `false` for the programmatic `run()` API. The built-in
+    command-line test runner handles theses signals by default.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
