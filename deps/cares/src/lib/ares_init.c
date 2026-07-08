@@ -102,6 +102,20 @@ static int server_sort_cb(const void *data1, const void *data2)
   if (s1->consec_failures > s2->consec_failures) {
     return 1;
   }
+
+  /* Among servers with the same failure count, prefer the one that failed
+   * least recently so that a server that went down long ago (and may have
+   * since recovered) is tried before one that just failed.  This also keeps
+   * retries rotating across servers once the failure counts saturate at
+   * SERVER_CONSEC_FAILURES_CAP.  Healthy servers all have a zeroed retry
+   * time and fall through to configuration order. */
+  if (s1->next_retry_time.sec != s2->next_retry_time.sec) {
+    return s1->next_retry_time.sec < s2->next_retry_time.sec ? -1 : 1;
+  }
+  if (s1->next_retry_time.usec != s2->next_retry_time.usec) {
+    return s1->next_retry_time.usec < s2->next_retry_time.usec ? -1 : 1;
+  }
+
   if (s1->idx < s2->idx) {
     return -1;
   }
