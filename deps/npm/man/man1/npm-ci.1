@@ -1,4 +1,4 @@
-.TH "NPM-CI" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-CI" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-ci\fR - Clean install a project
 .SS "Synopsis"
@@ -75,7 +75,9 @@ Type: "hoisted", "nested", "shallow", or "linked"
 .RE 0
 
 .P
-Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (experimental) install in node_modules/.store, link in place, unhoisted.
+Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: install in node_modules/.store, link in place, unhoisted.
+.P
+We recommend that package authors use \fB--install-strategy=linked\fR during development to catch undeclared ("phantom") dependencies before publishing: the isolated layout only exposes a package's declared dependencies, so an \fBimport\fR of a package that was never added to \fBpackage.json\fR can fail instead of resolving by accident and shipping broken. See \fBCatching undeclared ("phantom") dependencies\fR \fI\(la/using-npm/developers#catching-undeclared-phantom-dependencies\(ra\fR.
 .SS "\fBlegacy-bundling\fR"
 .RS 0
 .IP \(bu 4
@@ -242,6 +244,8 @@ Type: Boolean
 If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
 .P
 Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.P
+Optional dependencies that cannot be installed on the current platform or engine (a non-matching \fBos\fR, \fBcpu\fR, or \fBlibc\fR) are not flagged, because their install scripts never run.
 .SS "\fBdangerously-allow-all-scripts\fR"
 .RS 0
 .IP \(bu 4

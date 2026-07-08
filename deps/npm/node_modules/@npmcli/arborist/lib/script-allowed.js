@@ -43,7 +43,9 @@ const isScriptAllowed = (node, policy) => {
   let anyDeny = false
 
   for (const [key, value] of Object.entries(policy)) {
-    if (!matches(node, key)) {
+    // Pass deny intent so matchRegistry can fail closed on an unverifiable
+    // version: a deny still blocks, an allow stays refused.
+    if (!matches(node, key, value === false)) {
       continue
     }
     if (value === false) {
@@ -66,7 +68,7 @@ const isScriptAllowed = (node, policy) => {
   return null
 }
 
-const matches = (node, key) => {
+const matches = (node, key, failClosed) => {
   let parsed
   try {
     parsed = npa(key)
@@ -78,7 +80,7 @@ const matches = (node, key) => {
     case 'tag':
     case 'range':
     case 'version':
-      return matchRegistry(node, parsed)
+      return matchRegistry(node, parsed, failClosed)
     case 'git':
       return matchGit(node, parsed)
     case 'file':
@@ -132,7 +134,7 @@ const resolvedSourceSpecs = (node) => {
   return specs
 }
 
-const matchRegistry = (node, parsed) => {
+const matchRegistry = (node, parsed, failClosed) => {
   // If this node is not a registry dep, refuse the match. A registry-style
   // key (`pkg`, `pkg@1`, `pkg@1 || 2`) must not match a tarball or git node
   // even if their names happen to coincide.
@@ -168,8 +170,13 @@ const matchRegistry = (node, parsed) => {
     if (parsed.fetchSpec === '*' || parsed.rawSpec === '' || parsed.rawSpec === '*') {
       return true
     }
-    if (!trusted.version || !isExactVersionDisjunction(parsed.fetchSpec)) {
+    if (!isExactVersionDisjunction(parsed.fetchSpec)) {
       return false
+    }
+    // Unverifiable version (omit-lockfile-registry-resolved): a deny blocks,
+    // an allow is refused.
+    if (!trusted.version) {
+      return failClosed
     }
     return semver.satisfies(trusted.version, parsed.fetchSpec, { loose: true })
   }
@@ -178,6 +185,10 @@ const matchRegistry = (node, parsed) => {
   /* istanbul ignore else: parsed.type at this point is always 'version';
      the istanbul-ignored fallback below handles the impossible case. */
   if (parsed.type === 'version') {
+    // Unverifiable version: a deny blocks, an allow is refused.
+    if (!trusted.version) {
+      return failClosed
+    }
     return trusted.version === parsed.fetchSpec
   }
 
@@ -366,6 +377,7 @@ const trustedDisplay = (node) => {
 
 module.exports = isScriptAllowed
 module.exports.isScriptAllowed = isScriptAllowed
+module.exports.matches = matches
 module.exports.isExactVersionDisjunction = isExactVersionDisjunction
 module.exports.getTrustedRegistryIdentity = getTrustedRegistryIdentity
 module.exports.resolvedSourceSpecs = resolvedSourceSpecs

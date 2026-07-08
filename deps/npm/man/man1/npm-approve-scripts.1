@@ -1,4 +1,4 @@
-.TH "NPM-APPROVE-SCRIPTS" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-APPROVE-SCRIPTS" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-approve-scripts\fR - Approve install scripts for specific dependencies
 .SS "Synopsis"
@@ -37,6 +37,8 @@ npm approve-scripts --allow-scripts-pending
 \fB--allow-scripts-pending\fR is read-only: it lists every package whose install scripts are not yet covered by \fBallowScripts\fR, without modifying \fBpackage.json\fR.
 .P
 \fBapprove-scripts\fR honours the asymmetric pin rule: if you re-approve a package whose installed version has changed, the existing pin is rewritten to track the new installed version. Multi-version statements (\fBpkg@1 || 2\fR) are left alone, since they likely capture intent that the command cannot infer. Existing \fBfalse\fR entries always win; \fBapprove-scripts\fR will not silently re-allow a package you previously denied.
+.P
+If a registry dependency has no \fBresolved\fR URL in your \fBpackage-lock.json\fR (for example, an older lockfile or one written with \fBomit-lockfile-registry-resolved\fR), npm cannot verify a trusted version for it and cannot pin it: a \fBpkg@1.2.3\fR entry never matches, so the package keeps appearing under \fB--allow-scripts-pending\fR. \fBapprove-scripts\fR approves these by name (\fBpkg: true\fR) and warns when it does. To restore pinning, refresh the lockfile with \fBnpm install\fR.
 .SS "Examples"
 .P
 .RS 2

@@ -66,7 +66,8 @@ const reifyOutput = (npm, arb, extras = {}) => {
             if (showDiff) {
               output.standard(`${chalk.green('add')} ${d.ideal.name} ${d.ideal.package.version}`)
             }
-            if (actualTree.inventory.has(d.ideal)) {
+            // Linked store packages live under .store, absent from the logical actualTree, so identity lookup misses them; count each store package node (non-link).
+            if (actualTree.inventory.has(d.ideal) || (d.ideal.isInStore && !d.ideal.isLink)) {
               summary.added++
               summary.add.push({
                 name: d.ideal.name,
@@ -268,7 +269,7 @@ const unreviewedScriptsMessage = (npm, unreviewedScripts) => {
   )
 }
 
-// `npm approve-scripts` writes to a project package.json, which doesn't
+// `npm install-scripts` writes to a project package.json, which doesn't
 // exist for global installs (it throws EGLOBAL). For those, point users at
 // the mechanism that does work globally: the `--allow-scripts` flag for a
 // one-off, or `npm config set allow-scripts` to persist it.
@@ -282,8 +283,8 @@ const remediationLines = (npm, names) => {
     ]
   }
   return [
-    'Run `npm approve-scripts --allow-scripts-pending` to review, ' +
-    'or `npm approve-scripts <pkg>` to allow.',
+    'Run `npm install-scripts ls` to review, ' +
+    'or `npm install-scripts approve <pkg>` to allow.',
   ]
 }
 

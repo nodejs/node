@@ -80,7 +80,10 @@ t.test('deny-scripts --pending is rejected', async t => {
     prefixDir: setupProject({ withScripts: ['core-js'] }),
     config: { 'allow-scripts-pending': true },
   })
-  await t.rejects(npm.exec('deny-scripts', []), { code: 'EUSAGE' })
+  await t.rejects(npm.exec('deny-scripts', []), {
+    code: 'EUSAGE',
+    message: /`npm deny-scripts --allow-scripts-pending` is not supported; run `npm install-scripts ls` to list unreviewed packages/,
+  })
 })
 
 t.test('deny-scripts --all denies every unreviewed package', async t => {

@@ -19,8 +19,6 @@ const runScript = require('./run-script.js')
 const isWindows = require('./is-windows.js')
 const withLock = require('./with-lock.js')
 
-const binPaths = []
-
 // when checking the local tree we look up manifests, cache those results by
 // spec.raw so we don't have to fetch again when we check npxCache
 const manifests = new Map()
@@ -113,6 +111,8 @@ const exec = async (opts) => {
     ...flatOptions
   } = opts
 
+  const binPaths = []
+
   let pkgPaths = opts.pkgPath
   if (typeof pkgPaths === 'string') {
     pkgPaths = [pkgPaths]
@@ -196,7 +196,11 @@ const exec = async (opts) => {
   let commandManifest
   await Promise.all(packages.map(async (pkg, i) => {
     const spec = npa(pkg, path)
-    const { manifest, node } = await missingFromTree({ spec, tree: localTree, flatOptions })
+    const { manifest, node } = await missingFromTree({
+      spec,
+      tree: localTree,
+      flatOptions,
+    })
     if (manifest) {
       // Package does not exist in the local tree
       needInstall.push({ spec, manifest })
