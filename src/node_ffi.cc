@@ -1215,6 +1215,17 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
   return tmpl;
 }
 
+void GetCurrentEventLoop(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
+      isolate,
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(env->event_loop()))));
+}
+
 // Module initialization.
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
@@ -1230,6 +1241,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "toArrayBuffer", ToArrayBuffer);
   SetMethod(context, target, "exportBytes", ExportBytes);
   SetMethod(context, target, "getRawPointer", GetRawPointer);
+  SetMethod(context, target, "getCurrentEventLoop", GetCurrentEventLoop);
 
   SetMethod(context, target, "getInt8", GetInt8);
   SetMethod(context, target, "getUint8", GetUint8);
