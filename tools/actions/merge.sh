@@ -56,6 +56,11 @@ git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divi
     echo "Refuse to squash and merge a PR landing in more than one commit"
     exit 1
   }
+git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
+  grep -q "^Reviewed-By: " || {
+    echo "No Reviewed-By: lines in the commit message"
+    exit 1
+  }
 
 commit_title=$(git log -1 --pretty='format:%s')
 commit_body=$(git log -1 --pretty='format:%b')
