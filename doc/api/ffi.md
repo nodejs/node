@@ -715,6 +715,25 @@ This is unsafe and dangerous. The returned pointer can become invalid if the
 underlying memory is detached, resized, transferred, or otherwise invalidated.
 Using stale pointers can cause memory corruption or process crashes.
 
+## `ffi.getCurrentEventLoop()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {bigint}
+
+Returns the address of the current thread's `uv_loop_t` as a `bigint`.
+
+The returned address is for the current Node.js environment. In the main thread,
+this is the main thread event loop. In a worker thread, this is that worker's
+event loop.
+
+This is unsafe and dangerous. The returned pointer is only valid for the lifetime
+of the current environment. Using it after the environment exits, or from native
+code that assumes a different thread or lifetime, can crash the process or
+corrupt memory.
+
 ## Safety notes
 
 The `node:ffi` module does not track pointer validity, memory ownership, or
