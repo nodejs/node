@@ -102,6 +102,10 @@ void ares_gethostbyname(ares_channel_t *channel, const char *name, int family,
   struct ares_addrinfo_hints hints;
   struct host_query         *ghbn_arg;
 
+  if (channel == NULL) {
+    return;
+  }
+
   if (!callback) {
     return;
   }
