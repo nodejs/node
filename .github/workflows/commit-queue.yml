@@ -30,30 +30,128 @@ jobs:
     outputs:
       numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
     steps:
-      - name: Get Pull Requests
-        id: get_mergeable_prs
+      - name: Get Pull Request Candidates
+        id: get_candidate_prs
         run: |
-          prs=$(gh pr list \
+          list_prs() {
+            gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
                   --base "$GITHUB_REF_NAME" \
                   --label 'commit-queue' \
+                  "$@" \
                   --json 'number' \
-                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked" \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
-          fast_track_prs=$(gh pr list \
-                  --repo "$GITHUB_REPOSITORY" \
-                  --base "$GITHUB_REF_NAME" \
-                  --label 'commit-queue' \
+                  --limit 100
+          }
+          aged_prs=$(list_prs \
+                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked")
+          fast_track_prs=$(list_prs \
                   --label 'fast-track' \
-                  --search "-label:blocked" \
-                  --json 'number' \
-                  -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
-          numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
-          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+                  --search "-label:blocked")
+          queued_prs=$(list_prs \
+                  --search "-label:blocked")
+          candidates=$(printf '%s %s %s\n' "$aged_prs" "$fast_track_prs" "$queued_prs" |
+                  jq -r -s 'reduce .[] as $pr ([]; if index($pr) then . else . + [$pr] end) | join(" ")')
+          echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Node.js
+        if: steps.get_candidate_prs.outputs.candidates != ''
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install @node-core/utils
+        if: steps.get_candidate_prs.outputs.candidates != ''
+        run: npm install -g @node-core/utils
+
+      - name: Filter Pull Requests
+        if: steps.get_candidate_prs.outputs.candidates != ''
+        id: get_mergeable_prs
+        run: |
+          fail_selector() {
+            echo "$1"
+            exit 1
+          }
+
+          repository="${GITHUB_REPOSITORY#*/}"
+          readme="${RUNNER_TEMP}/README.md"
+          readme_base64="${RUNNER_TEMP}/README.md.base64"
+
+          ncu-config set branch "${GITHUB_REF_NAME}"
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GITHUB_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set repo "$repository"
+          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
+
+          if ! gh api "repos/${GITHUB_REPOSITORY}/contents/README.md?ref=${GITHUB_REF_NAME}" \
+                  --jq '.content' > "$readme_base64"; then
+            fail_selector "failed to download README.md"
+          fi
+
+          if ! base64 -d < "$readme_base64" > "$readme"; then
+            fail_selector "failed to decode README.md"
+          fi
+
+          numbers=
+          # shellcheck disable=SC2086
+          for pr in $CANDIDATES; do
+            metadata="${RUNNER_TEMP}/metadata-${pr}.json"
+            output="${RUNNER_TEMP}/metadata-${pr}.txt"
+            if git node metadata "$pr" \
+                    --owner "$GITHUB_REPOSITORY_OWNER" \
+                    --repo "$repository" \
+                    --readme "$readme" \
+                    --json > "$metadata" 2> "$output"; then
+              metadata_status=0
+            else
+              metadata_status=$?
+            fi
+
+            if [ -s "$output" ]; then
+              cat "$output"
+            fi
+
+            case "$metadata_status" in
+              0|2[0-9]|4[0-9]) ;;
+              *)
+                fail_selector "git node metadata failed for pr ${pr} with exit code ${metadata_status}"
+                ;;
+            esac
+
+            metadata_exit_code=$(jq -r '.exitCode' "$metadata") ||
+              fail_selector "failed to parse metadata JSON for pr ${pr}"
+            if [ "$metadata_exit_code" != "$metadata_status" ]; then
+              fail_selector "metadata JSON exitCode mismatch for pr ${pr}"
+            fi
+            metadata_reason_codes=$(jq -r '.reasonCodes | join(", ")' "$metadata") ||
+              fail_selector "failed to parse metadata reason codes for pr ${pr}"
+
+            if [ "$metadata_status" -eq 0 ]; then
+              echo "pr ${pr} is ready for the commit queue"
+              numbers="$numbers $pr"
+              continue
+            fi
+
+            if [ "$metadata_status" -ge 20 ] && [ "$metadata_status" -le 29 ]; then
+              echo "pr ${pr} skipped, not ready to land"
+              echo "reason codes: ${metadata_reason_codes}"
+              continue
+            fi
+
+            echo "pr ${pr} will be handled by the commit queue"
+            echo "reason codes: ${metadata_reason_codes}"
+            numbers="$numbers $pr"
+          done
+
+          numbers=$(echo "$numbers" | xargs)
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+        env:
+          CANDIDATES: ${{ steps.get_candidate_prs.outputs.candidates }}
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
   commitQueue:
     needs: get_mergeable_prs
     if: needs.get_mergeable_prs.outputs.numbers != ''
