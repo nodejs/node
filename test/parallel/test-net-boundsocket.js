@@ -178,6 +178,42 @@ if (!common.isWindows && process.getuid() !== 0) {
   client.destroy();
 }
 
+// Adopted BoundSocket: connect(2) is synchronous, so localAddress/localPort
+// resolve to the concrete source in-tick, before the 'connect' event.
+{
+  const server = net.createServer();
+  server.listen(0, '127.0.0.1', common.mustCall(() => {
+    const serverPort = server.address().port;
+    const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
+    const localPort = bound.address().port;
+    const client = new net.Socket({ handle: bound });
+
+    client.connect({ host: '127.0.0.1', port: serverPort });
+
+    assert.strictEqual(client.localAddress, '127.0.0.1');
+    assert.strictEqual(client.localPort, localPort);
+
+    client.on('connect', common.mustCall(() => {
+      assert.strictEqual(client.localAddress, '127.0.0.1');
+      assert.strictEqual(client.localPort, localPort);
+      client.destroy();
+      server.close();
+    }));
+  }));
+}
+
+// A synchronous connect(2) failure throws in-tick, without an 'error' event.
+// An IPv4-bound handle connecting to an IPv6 literal fails on family mismatch.
+{
+  const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
+  const client = new net.Socket({ handle: bound });
+  client.on('error', common.mustNotCall());
+  assert.throws(() => {
+    client.connect({ host: '::1', port: 1 });
+  }, { syscall: 'connect' });
+  assert.strictEqual(client.destroyed, true);
+}
+
 // reusePort: SO_REUSEPORT permits multiple listeners on the same port. Support
 // is platform-dependent, so probe first.
 {
