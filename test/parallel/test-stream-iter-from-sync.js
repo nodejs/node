@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { fromSync } = require('stream/iter');
+const { fromSync, textSync } = require('stream/iter');
 
 function testFromSyncString() {
   // String input should be UTF-8 encoded
@@ -186,6 +186,30 @@ function testFromSyncRejectsAsyncIterable() {
   assert.throws(() => fromSync(gen()), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+function testFromSyncPrefersIteratorForDualIterable() {
+  const input = {
+    *[Symbol.iterator]() {
+      yield new TextEncoder().encode('sync');
+    },
+    async *[Symbol.asyncIterator]() {
+      yield new TextEncoder().encode('async');
+    },
+  };
+
+  assert.strictEqual(textSync(fromSync(input)), 'sync');
+}
+
+function testFromSyncPrefersIteratorForThenableIterable() {
+  const input = {
+    then() {},
+    *[Symbol.iterator]() {
+      yield new TextEncoder().encode('sync');
+    },
+  };
+
+  assert.strictEqual(textSync(fromSync(input)), 'sync');
+}
+
 // Promise rejected
 function testFromSyncRejectsPromise() {
   assert.throws(() => fromSync(Promise.resolve('hello')),
@@ -232,6 +256,8 @@ Promise.all([
   testFromSyncTopLevelProtocolOverIterator(),
   testFromSyncIgnoresAsyncStreamable(),
   testFromSyncRejectsAsyncIterable(),
+  testFromSyncPrefersIteratorForDualIterable(),
+  testFromSyncPrefersIteratorForThenableIterable(),
   testFromSyncRejectsPromise(),
   testFromSyncDataView(),
 ]).then(common.mustCall());
