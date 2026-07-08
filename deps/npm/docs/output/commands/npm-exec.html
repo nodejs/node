@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-exec----11170">
+<h1 id="----npm-exec----11180">
     <span>npm-exec</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Run a command from a local or remote npm package</span>
 </header>
@@ -336,6 +336,9 @@ the install instead of running with a notice.</p>
 silently skipped; this setting only affects unreviewed entries.
 <code>--ignore-scripts</code> and <code>--dangerously-allow-all-scripts</code> both override this
 setting.</p>
+<p>Optional dependencies that cannot be installed on the current platform or
+engine (a non-matching <code>os</code>, <code>cpu</code>, or <code>libc</code>) are not flagged, because
+their install scripts never run.</p>
 <h4 id="dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></h4>
 <ul>
 <li>Default: false</li>

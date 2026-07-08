@@ -41,6 +41,7 @@ class Vuln {
     this.effects = new Set()
     this.topNodes = new Set()
     this.nodes = new Set()
+    this.fixBlockedByReleaseAge = false
     this.addAdvisory(advisory)
     this.packument = advisory.packument
     this.versions = advisory.versions
@@ -126,6 +127,9 @@ class Vuln {
       range: this.simpleRange,
       nodes: [...this.nodes].map(n => n.location).sort(localeCompare),
       fixAvailable: this.#fixAvailable,
+      ...(this.fixBlockedByReleaseAge
+        ? { fixBlockedByReleaseAge: this.fixBlockedByReleaseAge }
+        : {}),
     }
   }
 

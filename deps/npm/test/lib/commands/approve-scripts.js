@@ -7,7 +7,7 @@ const mockNpm = async (t, opts = {}) => {
   return _mockNpm(t, opts)
 }
 
-const setupProject = ({ allowScripts, withScripts = ['canvas'] } = {}) => {
+const setupProject = ({ allowScripts, withScripts = ['canvas'], noResolved = [] } = {}) => {
   const pkg = {
     name: 'host',
     version: '1.0.0',
@@ -28,11 +28,16 @@ const setupProject = ({ allowScripts, withScripts = ['canvas'] } = {}) => {
         scripts: { install: 'echo install' },
       }),
     }
-    lockPackages[`node_modules/${name}`] = {
+    const lockEntry = {
       version: '1.0.0',
-      resolved: tarUrl,
       hasInstallScript: true,
     }
+    // Some lockfiles omit `resolved` for registry deps. Those nodes have no
+    // trustable version, so they can only be approved by name.
+    if (!noResolved.includes(name)) {
+      lockEntry.resolved = tarUrl
+    }
+    lockPackages[`node_modules/${name}`] = lockEntry
   }
 
   return {
@@ -117,6 +122,51 @@ t.test('approve-scripts --all approves every unreviewed package', async t => {
     'canvas@1.0.0': true,
     'sharp@1.0.0': true,
   })
+})
+
+t.test('approve-scripts --all approves a dep without a resolved URL by name', async t => {
+  // Regression for npm/cli#9558: a dep with no `resolved` URL can't be
+  // pinned, but must still be approved by name, not silently skipped.
+  const { npm, prefix, logs } = await mockNpm(t, {
+    prefixDir: setupProject({ withScripts: ['canvas'], noResolved: ['canvas'] }),
+    config: { all: true },
+  })
+  await npm.exec('approve-scripts', [])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { canvas: true }, 'approved by name, not skipped')
+  t.match(
+    logs.warn.byTitle('approve-scripts').join('\n'),
+    /no "resolved" URL/,
+    'warns that a version pin could not be written'
+  )
+})
+
+t.test('approve-scripts <pkg> approves a dep without a resolved URL by name', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({ withScripts: ['canvas'], noResolved: ['canvas'] }),
+  })
+  await npm.exec('approve-scripts', ['canvas'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { canvas: true })
+})
+
+t.test('approve-scripts --pending is empty after a no-resolved dep is approved by name', async t => {
+  const { npm, joinedOutput } = await mockNpm(t, {
+    prefixDir: setupProject({
+      allowScripts: { canvas: true },
+      withScripts: ['canvas'],
+      noResolved: ['canvas'],
+    }),
+    config: { 'allow-scripts-pending': true },
+  })
+  await npm.exec('approve-scripts', [])
+  t.match(
+    joinedOutput(),
+    /No packages with unreviewed install scripts/,
+    'name-only entry covers the dep even without a resolved URL'
+  )
 })
 
 t.test('approve-scripts errors on unknown package', async t => {
