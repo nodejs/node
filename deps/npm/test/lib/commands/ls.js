@@ -5332,6 +5332,25 @@ t.test('ls --install-strategy=linked', async t => {
         node_modules: {
           'workspace-a': t.fixture('symlink', '../packages/workspace-a'),
           // workspace-b intentionally NOT linked (undeclared in dependencies)
+          // The hidden lockfile a real linked install writes records only the
+          // declared workspace as linked into root node_modules, so loadActual
+          // resolves workspace-b's root edge as missing (the undeclared-workspace case).
+          '.package-lock.json': JSON.stringify({
+            lockfileVersion: 3,
+            requires: true,
+            packages: {
+              'node_modules/workspace-a': {
+                resolved: 'packages/workspace-a',
+                link: true,
+              },
+              'packages/workspace-a': {
+                version: '1.0.0',
+              },
+              'packages/workspace-b': {
+                version: '1.0.0',
+              },
+            },
+          }),
         },
       },
     })
@@ -5339,6 +5358,7 @@ t.test('ls --install-strategy=linked', async t => {
     const output = cleanCwd(result())
     t.notMatch(output, /UNMET DEPENDENCY/, 'should not report undeclared workspace as UNMET DEPENDENCY')
     t.match(output, /workspace-a/, 'should list declared workspace')
+    t.match(output, /workspace-b/, 'should list undeclared workspace (npm/cli#9618)')
   })
 
   t.test('should not report devDeps of store packages as UNMET DEPENDENCY', async t => {
@@ -5397,7 +5417,20 @@ t.test('ls --install-strategy=linked', async t => {
           },
         },
         node_modules: {
-          // workspace-a is declared but its symlink is missing
+          // workspace-a is declared but its symlink is missing.
+          // The hidden lockfile records the workspace target without a root
+          // node_modules link, so loadActual resolves the declared workspace's
+          // root edge as missing (the declared-but-missing case), which must
+          // still be reported as UNMET DEPENDENCY.
+          '.package-lock.json': JSON.stringify({
+            lockfileVersion: 3,
+            requires: true,
+            packages: {
+              'packages/workspace-a': {
+                version: '1.0.0',
+              },
+            },
+          }),
         },
       },
     })

@@ -927,7 +927,8 @@ class Node {
       isTop: srcTop,
       path: srcPath,
     } = sourceReference || {}
-    const thisDev = isTop && !globalTop && path
+    // A package in the linked strategy's .store is a transitive dependency that is structurally a tree top, but its devDependencies are never installed or required, so they must not be loaded.
+    const thisDev = isTop && !globalTop && path && !this.isInStore
     const srcDev = !sourceReference || srcTop && !srcGlobalTop && srcPath
     if (thisDev && srcDev) {
       this.#loadDepType(this.package.devDependencies, 'dev', ad)

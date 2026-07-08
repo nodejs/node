@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-link----11170">
+<h1 id="----npm-link----11180">
     <span>npm-link</span>
-    <span class="version">@11.17.0</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Symlink a package folder</span>
 </header>
@@ -288,8 +288,15 @@ of the current working directory.</li>
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.</p>
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.</p>
+<p>We recommend that package authors use <code>--install-strategy=linked</code> during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+<code>import</code> of a package that was never added to <code>package.json</code> can fail
+instead of resolving by accident and shipping broken. See <a href="../using-npm/developers#catching-undeclared-phantom-dependencies.html">Catching
+undeclared ("phantom")
+dependencies</a>.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
