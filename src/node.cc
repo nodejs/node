@@ -50,6 +50,11 @@
 #if HAVE_OPENSSL
 #include "ncrypto.h"
 #include "node_crypto.h"
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
+// OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
+// non-deprecated OPENSSL_INIT settings API still accepts the flag value.
+#define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
+#endif
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
