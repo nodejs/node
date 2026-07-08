@@ -3677,6 +3677,58 @@ All attempts at serializing an uncaught exception from a worker thread failed.
 
 The requested functionality is not supported in worker threads.
 
+<a id="ERR_ZIP_ARCHIVE_TOO_LARGE"></a>
+
+### `ERR_ZIP_ARCHIVE_TOO_LARGE`
+
+An archive-level structure exceeds a limit: the archive comment exceeds the
+65,535-byte encoded length that the ZIP format allows, or the archive's
+central directory is too large to buffer in memory.
+
+<a id="ERR_ZIP_ENTRY_CORRUPT"></a>
+
+### `ERR_ZIP_ENTRY_CORRUPT`
+
+A ZIP archive entry failed CRC-32 verification, or produced more or fewer
+bytes than its declared uncompressed size, while being read.
+
+<a id="ERR_ZIP_ENTRY_NOT_FOUND"></a>
+
+### `ERR_ZIP_ENTRY_NOT_FOUND`
+
+A named entry was requested from a [`ZipFile`][] or [`ZipBuffer`][] that does
+not contain an entry with that name.
+
+<a id="ERR_ZIP_ENTRY_TOO_LARGE"></a>
+
+### `ERR_ZIP_ENTRY_TOO_LARGE`
+
+A ZIP archive entry's declared size exceeds the configured limit, or a
+provided entry name or comment exceeds the 65,535-byte encoded length that
+the ZIP format allows.
+
+<a id="ERR_ZIP_INVALID_ARCHIVE"></a>
+
+### `ERR_ZIP_INVALID_ARCHIVE`
+
+Data that was expected to be a ZIP archive, or a structure within one, is
+missing, out of bounds, or otherwise inconsistent with the ZIP format.
+
+<a id="ERR_ZIP_NOT_WRITABLE"></a>
+
+### `ERR_ZIP_NOT_WRITABLE`
+
+A mutating method (such as `zipFile.addEntry()` or `zipFile.delete()`) was
+called on a [`ZipFile`][] that was not opened with `{ writable: true }`.
+
+<a id="ERR_ZIP_UNSUPPORTED_FEATURE"></a>
+
+### `ERR_ZIP_UNSUPPORTED_FEATURE`
+
+A ZIP archive uses a feature outside of what this implementation supports,
+such as entry encryption, an unsupported compression method, or a multi-disk
+archive.
+
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 
 ### `ERR_ZLIB_INITIALIZATION_FAILED`
@@ -4620,6 +4672,8 @@ An error occurred trying to allocate memory. This should never happen.
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 [`Writable`]: stream.md#class-streamwritable
+[`ZipBuffer`]: zlib.md#class-zlibzipbuffer
+[`ZipFile`]: zlib.md#class-zlibzipfile
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
 [`crypto.getDiffieHellman()`]: crypto.md#cryptogetdiffiehellmangroupname

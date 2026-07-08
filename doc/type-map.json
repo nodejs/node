@@ -126,6 +126,9 @@
   "WritableStreamDefaultController": "webstreams.html#class-writablestreamdefaultcontroller",
   "WritableStreamDefaultWriter": "webstreams.html#class-writablestreamdefaultwriter",
   "X509Certificate": "crypto.html#class-x509certificate",
+  "ZipBuffer": "zlib.html#class-zlibzipbuffer",
+  "ZipEntry": "zlib.html#class-zlibzipentry",
+  "ZipFile": "zlib.html#class-zlibzipfile",
   "zlib options": "zlib.html#class-options",
   "zstd options": "zlib.html#class-zstdoptions"
 }
