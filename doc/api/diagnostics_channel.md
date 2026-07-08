@@ -72,13 +72,6 @@ if (channel.hasSubscribers) {
 
 // Unsubscribe from the channel
 diagnostics_channel.unsubscribe('my-channel', onMessage);
-
-// Use bypass() to skip opted-in subscribers during internal calls
-const kMyTool = Symbol('my-tool');
-diagnostics_channel.channel('my-channel').subscribe(onMessage, { bypassId: kMyTool });
-diagnostics_channel.bypass(kMyTool, () => {
-  // onMessage will NOT be called for publishes inside here
-});
 ```
 
 ```cjs
@@ -104,13 +97,6 @@ if (channel.hasSubscribers) {
 
 // Unsubscribe from the channel
 diagnostics_channel.unsubscribe('my-channel', onMessage);
-
-// Use bypass() to skip opted-in subscribers during internal calls
-const kMyTool = Symbol('my-tool');
-diagnostics_channel.channel('my-channel').subscribe(onMessage, { bypassId: kMyTool });
-diagnostics_channel.bypass(kMyTool, () => {
-  // onMessage will NOT be called for publishes inside here
-});
 ```
 
 #### `diagnostics_channel.hasSubscribers(name)`
@@ -251,21 +237,20 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 added: REPLACEME
 -->
 
-* `key` {symbol|Object} The bypass identity token. Must match the
-  `bypassId` used when subscribing.
+> Stability: 1.1 - Active development
+
+* `key` {symbol|Object} The bypass identity token. Subscribers and
+  stores registered with the same `bypassId` value will be skipped
+  while this function executes.
 * `fn` {Function} The function to run with bypass active.
 * `thisArg` {any} The receiver to use for the function call.
 * `...args` {any} Optional arguments to pass to the function.
 * Returns: {any} The return value of `fn`.
 
-Runs `fn` with the given `key` active in the current async context.
-Any channel subscribers or bound stores that were registered with
-`{ bypassId: key }` will be skipped for the duration of `fn` and
-any async continuations (Promises, timers, microtasks) within it.
-
-This is designed for observability tooling (APM agents, tracers)
-that need to prevent recursive instrumentation when their own
-internal code calls into an instrumented library.
+Calls `fn` and skips any channel subscribers or bound stores that
+were registered with a matching `bypassId` key. The skip behavior
+also applies to any async continuations (Promises, timers,
+microtasks) within `fn`.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -277,7 +262,7 @@ const { channel, bypass } = diagnostics_channel;
 const kMyTracer = Symbol('my-tracer');
 
 // Subscribe to HTTP requests, but opt into bypass
-channel('http.client.request').subscribe((message) => {
+channel('http.client.request.start').subscribe((message) => {
   console.log('HTTP request:', message.url);
 }, { bypassId: kMyTracer });
 
@@ -304,7 +289,7 @@ const { channel, bypass } = diagnostics_channel;
 const kMyTracer = Symbol('my-tracer');
 
 // Subscribe to HTTP requests, but opt into bypass
-channel('http.client.request').subscribe((message) => {
+channel('http.client.request.start').subscribe((message) => {
   console.log('HTTP request:', message.url);
 }, { bypassId: kMyTracer });
 
@@ -331,14 +316,14 @@ The bypass context propagates across async boundaries:
 // bypass() works across Promise boundaries
 await bypass(kMyTracer, async () => {
   await someAsyncOperation(); // still bypassed
-  channel('http.client.request').publish({}); // subscriber skipped
+  channel('http.client.request.start').publish({}); // subscriber skipped
 });
 
 // And across timers
 bypass(kMyTracer, () => {
   setImmediate(() => {
     // Still bypassed here
-    channel('http.client.request').publish({});
+    channel('http.client.request.start').publish({});
   });
 });
 ```
@@ -347,11 +332,11 @@ bypass(kMyTracer, () => {
 (async () => {
   await bypass(kMyTracer, async () => {
     await someAsyncOperation();
-    channel('http.client.request').publish({});
+    channel('http.client.request.start').publish({});
   });
   bypass(kMyTracer, () => {
     setImmediate(() => {
-      channel('http.client.request').publish({});
+      channel('http.client.request.start').publish({});
     });
   });
 })();
@@ -364,12 +349,12 @@ interfering with each other:
 const kToolA = Symbol('tool-a');
 const kToolB = Symbol('tool-b');
 
-channel('http.client.request').subscribe(handlerA, { bypassId: kToolA });
-channel('http.client.request').subscribe(handlerB, { bypassId: kToolB });
+channel('http.client.request.start').subscribe(handlerA, { bypassId: kToolA });
+channel('http.client.request.start').subscribe(handlerB, { bypassId: kToolB });
 
 // Only handlerA is skipped, handlerB still fires
 bypass(kToolA, () => {
-  channel('http.client.request').publish({});
+  channel('http.client.request.start').publish({});
 });
 ```
 
@@ -381,12 +366,12 @@ const { channel, bypass } = diagnostics_channel;
 const kToolA = Symbol('tool-a');
 const kToolB = Symbol('tool-b');
 
-channel('http.client.request').subscribe(handlerA, { bypassId: kToolA });
-channel('http.client.request').subscribe(handlerB, { bypassId: kToolB });
+channel('http.client.request.start').subscribe(handlerA, { bypassId: kToolA });
+channel('http.client.request.start').subscribe(handlerB, { bypassId: kToolB });
 
 // Only handlerA is skipped, handlerB still fires
 bypass(kToolA, () => {
-  channel('http.client.request').publish({});
+  channel('http.client.request.start').publish({});
 });
 ```
 
@@ -627,33 +612,7 @@ channel.subscribe((message, name) => {
 });
 ```
 
-To opt this subscriber into bypass behavior:
-
-```mjs
-import diagnostics_channel from 'node:diagnostics_channel';
-
-const { channel, bypass } = diagnostics_channel;
-const kMyTool = Symbol('my-tool');
-const ch = channel('http.client.request');
-
-// This handler will be skipped when bypass(kMyTool, fn) is active
-ch.subscribe((message) => {
-  // handle message
-}, { bypassId: kMyTool });
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-
-const { channel, bypass } = diagnostics_channel;
-const kMyTool = Symbol('my-tool');
-const ch = channel('http.client.request');
-
-// This handler will be skipped when bypass(kMyTool, fn) is active
-ch.subscribe((message) => {
-  // handle message
-}, { bypassId: kMyTool });
-```
+See [`diagnostics_channel.bypass()`][] for usage with `bypassId`.
 
 #### `channel.unsubscribe(onMessage)`
 
@@ -767,37 +726,7 @@ channel.bindStore(store, (data) => {
 });
 ```
 
-To opt this bound store into bypass behavior:
-
-```mjs
-import diagnostics_channel from 'node:diagnostics_channel';
-import { AsyncLocalStorage } from 'node:async_hooks';
-
-const { channel, bypass } = diagnostics_channel;
-const kMyTool = Symbol('my-tool');
-const ch = channel('http.client.request');
-const store = new AsyncLocalStorage();
-
-// This store will NOT be entered when bypass(kMyTool, fn) is active
-ch.bindStore(store, (data) => ({ requestId: data.id }), {
-  bypassId: kMyTool,
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
-
-const { channel, bypass } = diagnostics_channel;
-const kMyTool = Symbol('my-tool');
-const ch = channel('http.client.request');
-const store = new AsyncLocalStorage();
-
-// This store will NOT be entered when bypass(kMyTool, fn) is active
-ch.bindStore(store, (data) => ({ requestId: data.id }), {
-  bypassId: kMyTool,
-});
-```
+See [`diagnostics_channel.bypass()`][] for usage with `bypassId`.
 
 #### `channel.unbindStore(store)`
 
@@ -996,10 +925,6 @@ dynamically.
 added:
  - v19.9.0
  - v18.19.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63651
-    description: Added `options.bypassId` parameter.
 -->
 
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
