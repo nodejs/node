@@ -103,7 +103,10 @@ static void ares_llist_attach_at(ares_llist_t            *list,
     case ARES__LLIST_INSERT_BEFORE:
       node->next = at;
       node->prev = at->prev;
-      at->prev   = node;
+      if (at->prev) {
+        at->prev->next = node;
+      }
+      at->prev = node;
       break;
   }
   if (list->tail == NULL) {
