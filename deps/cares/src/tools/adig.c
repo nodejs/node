@@ -1162,12 +1162,12 @@ static ares_bool_t read_cmdline(int argc, const char * const *argv,
       /* skip prefix */
       if (dig_options[opt].prefix != 0) {
         nameptr++;
-      }
-
-      /* Negated option if it has a 'no' prefix */
-      if (ares_streq_max(nameptr, "no", 2)) {
-        is_true  = ARES_FALSE;
-        nameptr += 2;
+        /* Negated option if it has a 'no' prefix */
+        if (dig_options[opt].prefix == '+' &&
+            ares_streq_max(nameptr, "no", 2)) {
+          is_true  = ARES_FALSE;
+          nameptr += 2;
+        }
       }
 
       if (dig_options[opt].separator != 0) {

@@ -563,8 +563,7 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
 
   if (timeout_ms >= 0) {
     ares_tvnow(&tout);
-    tout.sec  += (ares_int64_t)(timeout_ms / 1000);
-    tout.usec += (unsigned int)(timeout_ms % 1000) * 1000;
+    ares_timeval_add(&tout, (size_t)timeout_ms);
   }
 
   ares_thread_mutex_lock(channel->lock);

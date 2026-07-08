@@ -188,6 +188,8 @@ ares_conn_err_t ares_socket_recvfrom(ares_channel_t *channel, ares_socket_t s,
 {
   ares_ssize_t rv;
 
+  *read_bytes = 0;
+
   rv = channel->sock_funcs.arecvfrom(s, data, data_len, flags, from, from_len,
                                      channel->sock_func_cb_data);
 

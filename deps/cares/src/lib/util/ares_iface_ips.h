@@ -28,6 +28,7 @@
 
 /*! Flags for interface ip addresses. */
 typedef enum {
+  ARES_IFACE_IP_NONE      = 0,             /*!< No flags set / unspecified */
   ARES_IFACE_IP_V4 = 1 << 0,        /*!< IPv4 address. During enumeration if
                                      *   this flag is set ARES_IFACE_IP_V6
                                      *   is not, will only enumerate v4
