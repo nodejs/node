@@ -40,9 +40,9 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <unordered_set>
 
 #ifndef T_TLSA
 #define T_TLSA 52 /* TLSA certificate association */
@@ -207,10 +207,9 @@ std::vector<std::pair<std::string, int>> ParseServersCsv(const char* csv) {
   size_t pos = 0;
   while (pos <= all.size()) {
     size_t comma = all.find(',', pos);
-    std::string_view entry =
-        all.substr(pos,
-                   comma == std::string_view::npos ? std::string_view::npos
-                                                    : comma - pos);
+    std::string_view entry = all.substr(
+        pos,
+        comma == std::string_view::npos ? std::string_view::npos : comma - pos);
     pos = comma == std::string_view::npos ? all.size() + 1 : comma + 1;
 
     // Drop a URI scheme prefix (only present when udp/tcp ports differ),
@@ -231,8 +230,7 @@ std::vector<std::pair<std::string, int>> ParseServersCsv(const char* csv) {
       if (close == std::string_view::npos) continue;
       host = std::string(entry.substr(1, close - 1));
       size_t colon = entry.find(':', close);
-      if (colon != std::string_view::npos)
-        port_str = entry.substr(colon + 1);
+      if (colon != std::string_view::npos) port_str = entry.substr(colon + 1);
     } else {
       size_t colon = entry.rfind(':');
       if (colon != std::string_view::npos) {
@@ -770,18 +768,14 @@ Maybe<int> ParseNaptrReply(Environment* env,
         ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
     if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_NAPTR) continue;
 
-    values[0] =
-        OneByteString(env->isolate(),
-                      ares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS));
-    values[1] =
-        OneByteString(env->isolate(),
-                      ares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES));
-    values[2] =
-        OneByteString(env->isolate(),
-                      ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP));
-    values[3] =
-        OneByteString(env->isolate(),
-                      ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT));
+    values[0] = OneByteString(env->isolate(),
+                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS));
+    values[1] = OneByteString(env->isolate(),
+                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES));
+    values[2] = OneByteString(env->isolate(),
+                              ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP));
+    values[3] = OneByteString(
+        env->isolate(), ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT));
     values[4] = Integer::New(env->isolate(),
                              ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER));
     values[5] = Integer::New(env->isolate(),
@@ -1829,8 +1823,8 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
       env->isolate(), ares_dns_rr_get_u32(soa, ARES_RR_SOA_SERIAL));
   values[3] = Integer::New(env->isolate(),
                            ares_dns_rr_get_u32(soa, ARES_RR_SOA_REFRESH));
-  values[4] = Integer::New(env->isolate(),
-                           ares_dns_rr_get_u32(soa, ARES_RR_SOA_RETRY));
+  values[4] =
+      Integer::New(env->isolate(), ares_dns_rr_get_u32(soa, ARES_RR_SOA_RETRY));
   values[5] = Integer::New(env->isolate(),
                            ares_dns_rr_get_u32(soa, ARES_RR_SOA_EXPIRE));
   values[6] = Integer::NewFromUnsigned(
@@ -2207,9 +2201,8 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
 
   for (uint32_t i = 0; i < servers.size(); i++) {
     Local<Value> ret[] = {
-      OneByteString(env->isolate(), servers[i].first.c_str()),
-      Integer::New(env->isolate(), servers[i].second)
-    };
+        OneByteString(env->isolate(), servers[i].first.c_str()),
+        Integer::New(env->isolate(), servers[i].second)};
 
     if (server_array->Set(env->context(), i,
                           Array::New(env->isolate(), ret, arraysize(ret)))
