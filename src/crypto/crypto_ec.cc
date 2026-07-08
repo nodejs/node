@@ -187,14 +187,15 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  int field_size = EC_GROUP_get_degree(ecdh->group_);
-  size_t out_len = (field_size + 7) / 8;
-  auto bs = ArrayBuffer::NewBackingStore(
-      env->isolate(), out_len, BackingStoreInitializationMode::kUninitialized);
-
-  if (!ECDH_compute_key(
-          bs->Data(), bs->ByteLength(), pub, ecdh->key_.get(), nullptr))
+  auto secret = ecdh->key_.computeSecret(pub);
+  if (!secret)
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to compute ECDH key");
+
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      secret.size(),
+      BackingStoreInitializationMode::kUninitialized);
+  memcpy(bs->Data(), secret.get(), secret.size());
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
   Local<Value> buffer;
@@ -469,11 +470,14 @@ bool ExportJWKEcKey(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
-  const EC_KEY* ec = m_pkey;
-  CHECK_NOT_NULL(ec);
+  ECKeyPointer ec(m_pkey);
+  if (!ec) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return false;
+  }
 
-  const auto pub = ECKeyPointer::GetPublicKey(ec);
-  const auto group = ECKeyPointer::GetGroup(ec);
+  const auto pub = ec.getPublicKey();
+  const auto group = ec.getGroup();
 
   int degree_bits = EC_GROUP_get_degree(group);
   int degree_bytes =
@@ -538,7 +542,7 @@ bool ExportJWKEcKey(Environment* env,
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
-    auto pvt = ECKeyPointer::GetPrivateKey(ec);
+    auto pvt = ec.getPrivateKey();
     return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes)
         .IsJust();
   }
@@ -751,11 +755,12 @@ bool GetEcKeyDetail(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
-  const EC_KEY* ec = m_pkey;
-  CHECK_NOT_NULL(ec);
+  ECKeyPointer ec(m_pkey);
+  if (!ec) return true;
 
-  const auto group = ECKeyPointer::GetGroup(ec);
+  const auto group = ec.getGroup();
   int nid = EC_GROUP_get_curve_name(group);
+  if (nid == NID_undef) return true;
 
   return target
       ->Set(env->context(),
@@ -770,11 +775,12 @@ bool GetEcKeyDetail(Environment* env,
 // https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/ecdsa.cc
 
 size_t GroupOrderSize(const EVPKeyPointer& key) {
-  const EC_KEY* ec = key;
-  CHECK_NOT_NULL(ec);
+  ECKeyPointer ec(key);
+  if (!ec) return 0;
   auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(ECKeyPointer::GetGroup(ec), order.get(), nullptr));
+  if (!order || !EC_GROUP_get_order(ec.getGroup(), order.get(), nullptr)) {
+    return 0;
+  }
   return order.byteLength();
 }
 }  // namespace crypto

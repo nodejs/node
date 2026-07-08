@@ -12,10 +12,6 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
-
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -544,7 +540,11 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();

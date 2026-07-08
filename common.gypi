@@ -24,6 +24,7 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'openssl_is_boringssl%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
