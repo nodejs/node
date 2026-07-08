@@ -178,6 +178,7 @@ void ToBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ExportBytes(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetRawPointer(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetCurrentEventLoop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node::ffi
 
