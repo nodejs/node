@@ -1093,7 +1093,7 @@ BIOPointer X509View::getSubject() const {
 }
 
 BIOPointer X509View::getSubjectAltName() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn markPopErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -1119,7 +1119,7 @@ BIOPointer X509View::getIssuer() const {
 }
 
 BIOPointer X509View::getInfoAccess() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn markPopErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
