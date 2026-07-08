@@ -1652,8 +1652,12 @@ See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
 .
 .It Fl -use-env-proxy
 When enabled, Node.js parses the \fBHTTP_PROXY\fR, \fBHTTPS_PROXY\fR and \fBNO_PROXY\fR
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See Built-in Proxy Support.
 This is equivalent to setting the \fBNODE_USE_ENV_PROXY=1\fR environment variable.
 When both are set, \fB--use-env-proxy\fR takes precedence.
 .
@@ -2316,8 +2320,12 @@ variable is strongly discouraged.
 .It Ev NODE_USE_ENV_PROXY Ar 1
 
 When enabled, Node.js parses the \fBHTTP_PROXY\fR, \fBHTTPS_PROXY\fR and \fBNO_PROXY\fR
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See Built-in Proxy Support.
 This can also be enabled using the \fB--use-env-proxy\fR command-line flag.
 When both are set, \fB--use-env-proxy\fR takes precedence.
 .
