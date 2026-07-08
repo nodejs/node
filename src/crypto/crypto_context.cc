@@ -18,9 +18,6 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
 #ifdef __APPLE__
 #include <Security/Security.h>
 #endif
@@ -34,7 +31,6 @@
 
 namespace node {
 
-using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
@@ -549,7 +545,7 @@ static bool IsCertificateExpired(X509* cert) {
   // -1 if the time is in the past (expired)
   //  0 if there was an error
   //  1 if the time is in the future (not yet expired)
-  ASN1_TIME* not_after = X509_get_notAfter(cert);
+  const ASN1_TIME* not_after = X509_get0_notAfter(cert);
   if (not_after == nullptr) {
     return false;
   }
@@ -1677,7 +1673,12 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  SSL_CTX_set_tlsext_ticket_key_evp_cb(sc->ctx_.get(),
+                                       TicketCompatibilityCallback);
+#else
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
+#endif
 }
 
 SSLPointer SecureContext::CreateSSL() {
@@ -2021,17 +2022,22 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     if (!bio)
       return;
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
+    if (params && params.id() == EVP_PKEY_DH) dh.reset(params.release());
+#else
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
+#endif
   }
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   // TODO(tniessen): don't silently discard invalid dhparam.
+  // TODO(panva): In a semver-major, reject non-DH parameter PEMs instead of
+  // silently treating them as absent.
   if (!dh)
     return;
 
-  const BIGNUM* p;
-  DH_get0_pqg(dh.get(), &p, nullptr, nullptr);
-  const int size = BignumPointer::GetBitCount(p);
+  const int size = dh.getPrimeBits();
   if (size < 1024) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env, "DH parameter is less than 1024 bits");
@@ -2040,10 +2046,18 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  EVPKeyPointer dh_pkey(dh.release());
+  if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
+#else
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
+#endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  dh_pkey.release();
+#endif
 }
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
@@ -2404,7 +2418,7 @@ void SecureContext::SetClientCertEngine(
   }
 
   // Note that this takes another reference to `engine`.
-  if (!SSL_CTX_set_client_cert_engine(sc->ctx_.get(), engine.get()))
+  if (!engine.setClientCertEngine(sc->ctx_.get()))
     return ThrowCryptoError(env, ERR_get_error());
   sc->client_cert_engine_provided_ = true;
 }
@@ -2449,14 +2463,43 @@ void SecureContext::EnableTicketKeyCallback(
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
+#else
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
+#endif
 }
+
+namespace {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+bool InitTicketHmac(EVP_MAC_CTX* hctx,
+                    const unsigned char* key,
+                    size_t key_len) {
+  const char* md_name = EVP_MD_get0_name(Digest::SHA256);
+  if (md_name == nullptr) return false;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(
+          OSSL_MAC_PARAM_DIGEST, const_cast<char*>(md_name), 0),
+      OSSL_PARAM_construct_end(),
+  };
+  return EVP_MAC_init(hctx, key, key_len, params) == 1;
+}
+#else
+bool InitTicketHmac(HMAC_CTX* hctx, const unsigned char* key, size_t key_len) {
+  return HMAC_Init_ex(hctx, key, key_len, Digest::SHA256, nullptr) == 1;
+}
+#endif
+}  // namespace
 
 int SecureContext::TicketKeyCallback(SSL* ssl,
                                      unsigned char* name,
                                      unsigned char* iv,
                                      EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                     EVP_MAC_CTX* hctx,
+#else
                                      HMAC_CTX* hctx,
+#endif
                                      int enc) {
   static const int kTicketPartSize = 16;
 
@@ -2529,8 +2572,9 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   }
 
   ArrayBufferViewContents<unsigned char> hmac_buf(hmac);
-  HMAC_Init_ex(
-      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr);
+  if (!InitTicketHmac(hctx, hmac_buf.data(), hmac_buf.length())) {
+    return -1;
+  }
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
@@ -2546,7 +2590,11 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
                                                EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                               EVP_MAC_CTX* hctx,
+#else
                                                HMAC_CTX* hctx,
+#endif
                                                int enc) {
   SecureContext* sc = static_cast<SecureContext*>(
       SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
@@ -2556,11 +2604,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
             ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
-        HMAC_Init_ex(hctx,
-                     sc->ticket_key_hmac_,
-                     sizeof(sc->ticket_key_hmac_),
-                     Digest::SHA256,
-                     nullptr) <= 0) {
+        !InitTicketHmac(
+            hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
       return -1;
     }
     return 1;
@@ -2573,11 +2618,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (EVP_DecryptInit_ex(
           ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
-      HMAC_Init_ex(hctx,
-                   sc->ticket_key_hmac_,
-                   sizeof(sc->ticket_key_hmac_),
-                   Digest::SHA256,
-                   nullptr) <= 0) {
+      !InitTicketHmac(
+          hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
     return -1;
   }
   return 1;
