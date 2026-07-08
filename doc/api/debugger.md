@@ -331,8 +331,6 @@ $ node inspect --probe app.js:10 --expr "user"
                --json --preview -- --no-warnings app.js --arg-for-app=foo
 ```
 
-<!-- TODO(joyeecheung): add more examples for different options -->
-
 ### Probe output format
 
 When the probe session ends, the probing process prints a final report of all the probe hits and results.
@@ -580,6 +578,37 @@ that only matches the intended file:
 ```console
 $ node inspect --probe src/utils.js:10 --expr 'x' main.js   # matches only src/utils.js
 ```
+
+### Probe examples
+
+#### Probing a variable conditionally
+
+```js
+// app.js
+let total = 0;
+for (let i = 0; i < 10; i++) {
+  total += i;  // line 4
+}
+```
+
+```console
+$ out/Release/node inspect --probe app.js:4 --expr 'total' \
+                           --cond 'i % 3 === 0' app.js
+```
+
+```text
+Hit 1 at file:///path/to/app.js:3:3
+  total = 0
+Hit 2 at file:///path/to/app.js:3:3
+  total = 3
+Hit 3 at file:///path/to/app.js:3:3
+  total = 15
+Hit 4 at file:///path/to/app.js:3:3
+  total = 36
+Completed
+```
+
+<!-- TODO(joyeecheung): add more examples for different options -->
 
 ## Advanced usage
 
