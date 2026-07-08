@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.6" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.8" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "21:5:19")
+SET (CARES_LIB_VERSIONINFO "21:7:19")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -43,6 +43,7 @@ OPTION (CARES_BUILD_TOOLS   "Build tools"                                       
 OPTION (CARES_SYMBOL_HIDING "Hide private symbols in shared libraries"                              OFF)
 OPTION (CARES_THREADS       "Build with thread-safety support"                                      ON)
 OPTION (CARES_COVERAGE      "Build for code coverage"                                               OFF)
+OPTION (CARES_WERROR        "Treat compiler warnings on the c-ares library as errors"               OFF)
 SET    (CARES_RANDOM_FILE "/dev/urandom" CACHE STRING "Suitable File / Device Path for entropy, such as /dev/urandom")
 
 # Tests require static to be enabled on Windows to be able to access otherwise hidden symbols
@@ -53,6 +54,30 @@ IF ((CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS) AND (NOT CARES_STATIC) AN
 ENDIF ()
 
 INCLUDE (EnableWarnings)
+
+# Optionally treat warnings as errors for the c-ares library itself.  This is
+# applied per-target (see cares_set_werror() usage) rather than globally so it
+# does not affect the test/fuzz harnesses (which carry their own warnings) or
+# CMake's own compiler feature checks.  Enabled in CI only on toolchains known
+# to be free of spurious warnings at our high warning levels.
+FUNCTION (cares_set_werror target)
+	IF (NOT CARES_WERROR)
+		RETURN ()
+	ENDIF ()
+	IF (MSVC)
+		TARGET_COMPILE_OPTIONS (${target} PRIVATE /WX)
+	ELSE ()
+		TARGET_COMPILE_OPTIONS (${target} PRIVATE -Werror)
+		# Modern libc headers (e.g. glibc <string.h>) use the C11 _Generic
+		# keyword for const-correctness of strchr()/memchr()/etc.  Clang flags
+		# that as a C11 extension under our C90 + -Wpedantic build even though it
+		# originates in a system header at our call sites.  It is not something
+		# we can fix in our own code, so warn but do not fail on it.
+		IF (CMAKE_C_COMPILER_ID MATCHES "Clang")
+			TARGET_COMPILE_OPTIONS (${target} PRIVATE -Wno-error=c11-extensions)
+		ENDIF ()
+	ENDIF ()
+ENDFUNCTION ()
 
 IF (MSVC)
 	# allow linking against the static runtime library in msvc

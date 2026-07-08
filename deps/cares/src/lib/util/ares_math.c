@@ -42,7 +42,7 @@ static unsigned int ares_round_up_pow2_u32(unsigned int n)
   return n;
 }
 
-static ares_int64_t ares_round_up_pow2_u64(ares_int64_t n)
+static ares_uint64_t ares_round_up_pow2_u64(ares_uint64_t n)
 {
   /* NOTE: if already a power of 2, will return itself, not the next */
   n--;
@@ -73,7 +73,7 @@ ares_bool_t ares_is_64bit(void)
 size_t ares_round_up_pow2(size_t n)
 {
   if (ares_is_64bit()) {
-    return (size_t)ares_round_up_pow2_u64((ares_int64_t)n);
+    return (size_t)ares_round_up_pow2_u64((ares_uint64_t)n);
   }
 
   return (size_t)ares_round_up_pow2_u32((unsigned int)n);
@@ -155,4 +155,13 @@ unsigned char ares_count_bits_u8(unsigned char x)
 #define B6(n) B4(n), B4(n + 1), B4(n + 1), B4(n + 2)
   static const unsigned char lookup[256] = { B6(0), B6(1), B6(1), B6(2) };
   return lookup[x];
+}
+
+ares_bool_t ares_size_t_mul_overflow(size_t a, size_t b, size_t *res)
+{
+  if (a > 0 && b > SIZE_MAX / a) {
+    return ARES_TRUE;
+  }
+  *res = a * b;
+  return ARES_FALSE;
 }
