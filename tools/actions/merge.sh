@@ -48,7 +48,7 @@ fi
 
 git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
   grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || {
-    echo "Invalid PR-URL trailer"
+    echo "Invalid PR-URL trailer - have you run 'git node land' to add it?"
     exit 1
   }
 git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
@@ -58,7 +58,7 @@ git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divi
   }
 git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
   grep -q "^Reviewed-By: " || {
-    echo "No Reviewed-By: lines in the commit message"
+    echo "No Reviewed-By: lines in the commit message - have you run 'git node land' to add them?"
     exit 1
   }
 
