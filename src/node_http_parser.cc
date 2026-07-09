@@ -1360,16 +1360,6 @@ static bool ValueContainsTokenCI(const char* value,
   return false;
 }
 
-static void AppendNumber(std::string* out, uint64_t n) {
-  char buf[32];
-  size_t i = sizeof(buf);
-  do {
-    buf[--i] = static_cast<char>('0' + (n % 10));
-    n /= 10;
-  } while (n > 0);
-  out->append(buf + i, sizeof(buf) - i);
-}
-
 // Build a complete HTTP/1.1 message (header block, optionally plus body) in a
 // single contiguous Buffer. Mirrors _storeHeader() keep-alive / length logic
 // so the JS fast path can skip intermediate string concatenation.
@@ -1589,88 +1579,108 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   // statusCode is not passed in; 204/304 + chunked is handled by JS before
   // or after calling this builder (see tryNativeStoreHeader).
 
-  // Build into a std::string then copy once into a Buffer. Header blocks are
-  // small; the extra copy is cheaper than getting the size estimate wrong.
-  std::string msg;
-  msg.reserve(256 + body_len);
-
   // body arg: null/undefined => headers-only (_storeHeader); string/buffer
   // (possibly empty) => complete message. Headers-only must not append the
   // chunked terminator - JS end() still does that.
   const bool headers_only = args[2]->IsNullOrUndefined();
 
-  // HTTP headers are latin1 on the wire. Prefer WriteOneByteV2; for two-byte
-  // strings write the low byte of each code unit (matches Buffer latin1).
+  // Size estimate (upper bound) so we can write into a single malloc and
+  // hand it to Buffer without a second copy.
+  size_t est = static_cast<size_t>(first_line_v->Length()) + 128 + body_len;
+  for (const auto& pair : header_pairs) {
+    est += static_cast<size_t>(pair.first->Length()) +
+           static_cast<size_t>(pair.second->Length()) + 4;  // ": \r\n"
+  }
+  if (chunked) est += 32;  // chunk framing
+
+  char* raw = UncheckedMalloc(est);
+  if (raw == nullptr) {
+    return;
+  }
+  size_t off = 0;
+
+  auto append_raw = [&](const char* p, size_t n) {
+    CHECK_LE(off + n, est);
+    if (n > 0) {
+      std::memcpy(raw + off, p, n);
+      off += n;
+    }
+  };
+  auto append_lit = [&](const char* lit) { append_raw(lit, std::strlen(lit)); };
   auto append_v8_latin1 = [&](Local<String> s) {
     const int n = s->Length();
-    const size_t at = msg.size();
-    msg.resize(at + static_cast<size_t>(n));
+    CHECK_LE(off + static_cast<size_t>(n), est);
     if (s->IsOneByte()) {
-      s->WriteOneByteV2(isolate, 0, n, reinterpret_cast<uint8_t*>(&msg[at]));
+      s->WriteOneByteV2(isolate, 0, n, reinterpret_cast<uint8_t*>(raw + off));
     } else {
-      // Two-byte string: extract low bytes (latin1 semantics).
       std::vector<uint16_t> tmp(static_cast<size_t>(n));
       s->WriteV2(isolate, 0, n, tmp.data());
       for (int i = 0; i < n; i++) {
-        msg[at + static_cast<size_t>(i)] =
+        raw[off + static_cast<size_t>(i)] =
             static_cast<char>(tmp[static_cast<size_t>(i)] & 0xff);
       }
     }
+    off += static_cast<size_t>(n);
+  };
+  auto append_number = [&](uint64_t n) {
+    char buf[32];
+    size_t i = sizeof(buf);
+    do {
+      buf[--i] = static_cast<char>('0' + (n % 10));
+      n /= 10;
+    } while (n > 0);
+    append_raw(buf + i, sizeof(buf) - i);
   };
 
   append_v8_latin1(first_line_v);
 
   for (const auto& pair : header_pairs) {
     append_v8_latin1(pair.first);
-    msg.append(": ");
+    append_lit(": ");
     append_v8_latin1(pair.second);
-    msg.append("\r\n");
+    append_lit("\r\n");
   }
 
   if (send_date && !saw_date && args[5]->IsString()) {
-    msg.append("Date: ");
+    append_lit("Date: ");
     append_v8_latin1(args[5].As<String>());
-    msg.append("\r\n");
+    append_lit("\r\n");
   }
 
   if (emit_connection_keep_alive) {
-    msg.append("Connection: keep-alive\r\n");
-    // Match matchHeader('keep-alive'): a user-supplied Keep-Alive header
-    // disables the default timeout emission.
+    append_lit("Connection: keep-alive\r\n");
     uint32_t ka = 0;
     if (args[6]->IsNumber()) {
       ka = args[6]->Uint32Value(env->context()).FromMaybe(0);
     }
     if (default_keep_alive && !saw_keep_alive && ka > 0) {
-      msg.append("Keep-Alive: timeout=");
-      AppendNumber(&msg, ka);
+      append_lit("Keep-Alive: timeout=");
+      append_number(ka);
       int32_t max_req = 0;
       if (args[7]->IsNumber()) {
         max_req = args[7]->Int32Value(env->context()).FromMaybe(0);
       }
       if (max_req > 0) {
-        msg.append(", max=");
-        AppendNumber(&msg, static_cast<uint64_t>(max_req));
+        append_lit(", max=");
+        append_number(static_cast<uint64_t>(max_req));
       }
-      msg.append("\r\n");
+      append_lit("\r\n");
     }
   } else if (emit_connection_close) {
-    msg.append("Connection: close\r\n");
+    append_lit("Connection: close\r\n");
   }
 
   if (need_auto_cont_len && content_length >= 0) {
-    msg.append("Content-Length: ");
-    AppendNumber(&msg, static_cast<uint64_t>(content_length));
-    msg.append("\r\n");
+    append_lit("Content-Length: ");
+    append_number(static_cast<uint64_t>(content_length));
+    append_lit("\r\n");
   }
   if (need_auto_te) {
-    msg.append("Transfer-Encoding: chunked\r\n");
+    append_lit("Transfer-Encoding: chunked\r\n");
   }
 
-  msg.append("\r\n");
+  append_lit("\r\n");
 
-  // Body section only for complete messages. Headers-only builds leave
-  // chunked framing to the existing JS end()/write path.
   if (!headers_only && has_body && (body_is_buffer || body_is_string)) {
     if (chunked && body_len > 0) {
       char hex[16];
@@ -1679,38 +1689,43 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
                         sizeof(hex),
                         "%llx",
                         static_cast<unsigned long long>(body_len));  // NOLINT
-      msg.append(hex, static_cast<size_t>(n));
-      msg.append("\r\n");
+      append_raw(hex, static_cast<size_t>(n));
+      append_lit("\r\n");
     }
     if (body_is_buffer && body_len > 0) {
-      msg.append(body_buf_data, body_len);
+      append_raw(body_buf_data, body_len);
     } else if (body_is_string && body_len > 0) {
-      const size_t at = msg.size();
+      CHECK_LE(off + body_len + 1, est);
       if (body_encoding == 1) {
-        msg.resize(at + body_len);
         body_str->WriteOneByteV2(isolate,
                                  0,
                                  body_str->Length(),
-                                 reinterpret_cast<uint8_t*>(&msg[at]));
+                                 reinterpret_cast<uint8_t*>(raw + off));
+        off += body_len;
       } else {
-        // +1 capacity so WriteUtf8V2 can null-terminate; we drop the NUL.
-        msg.resize(at + body_len + 1);
         const size_t written = body_str->WriteUtf8V2(
-            isolate, &msg[at], body_len + 1, String::WriteFlags::kNone);
-        // written includes the trailing NUL when it fits.
+            isolate, raw + off, body_len + 1, String::WriteFlags::kNone);
         size_t payload = written;
-        if (payload > 0 && msg[at + payload - 1] == '\0') payload--;
-        msg.resize(at + payload);
+        if (payload > 0 && raw[off + payload - 1] == '\0') payload--;
+        off += payload;
       }
     }
     if (chunked) {
-      if (body_len > 0) msg.append("\r\n");
-      msg.append("0\r\n\r\n");
+      if (body_len > 0) append_lit("\r\n");
+      append_lit("0\r\n\r\n");
     }
   }
 
   Local<Object> buf_obj;
-  if (!Buffer::Copy(env, msg.data(), msg.size()).ToLocal(&buf_obj)) {
+  // Transfer ownership of `raw` to the Buffer; free callback releases it.
+  if (!Buffer::New(
+           isolate,
+           raw,
+           off,
+           [](char* data, void* /*hint*/) { free(data); },
+           nullptr)
+           .ToLocal(&buf_obj)) {
+    free(raw);
     return;
   }
 
