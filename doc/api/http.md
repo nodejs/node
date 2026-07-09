@@ -3045,13 +3045,20 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 added:
  - v26.1.0
  - v24.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64392
+    description: The signal is no longer aborted after the message
+                 completes normally.
 -->
 
 * Type: {AbortSignal}
 
-An {AbortSignal} that is aborted when the underlying socket closes or the
-request is destroyed. The signal is created lazily on first access — no
-{AbortController} is allocated for requests that never use this property.
+An {AbortSignal} that is aborted when the message is destroyed before
+completion or when its underlying socket closes before request handling or
+response reading completes.
+The signal is created lazily on first access — no {AbortController} is allocated
+for requests that never use this property.
 
 This is useful for cancelling downstream asynchronous work such as database
 queries or `fetch` calls when a client disconnects mid-request.
