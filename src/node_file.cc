@@ -47,6 +47,8 @@
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 #include <io.h>
@@ -89,6 +91,50 @@ using v8::Value;
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#endif
+
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode)&S_IFMT) == S_IFREG)
+#endif
+
+#ifndef S_ISLNK
+#ifdef S_IFLNK
+#define S_ISLNK(mode) (((mode)&S_IFMT) == S_IFLNK)
+#else
+#define S_ISLNK(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISFIFO
+#ifdef S_IFIFO
+#define S_ISFIFO(mode) (((mode)&S_IFMT) == S_IFIFO)
+#else
+#define S_ISFIFO(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISSOCK
+#ifdef S_IFSOCK
+#define S_ISSOCK(mode) (((mode)&S_IFMT) == S_IFSOCK)
+#else
+#define S_ISSOCK(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISCHR
+#ifdef S_IFCHR
+#define S_ISCHR(mode) (((mode)&S_IFMT) == S_IFCHR)
+#else
+#define S_ISCHR(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISBLK
+#ifdef S_IFBLK
+#define S_ISBLK(mode) (((mode)&S_IFMT) == S_IFBLK)
+#else
+#define S_ISBLK(mode) (false)
+#endif
 #endif
 
 #ifdef __POSIX__
@@ -2946,6 +2992,361 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(val);
 }
 
+// Fast C++ path for fs.readFileSync(path) / fs.readFileSync(path, null)
+// returning a Buffer — avoids open/fstat/read/close JS round-trips.
+static void ReadFileBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  uv_file file;
+  uv_fs_t req;
+
+  bool is_fd = args[0]->IsInt32();
+
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(isolate, args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FS_SYNC_TRACE_BEGIN(open);
+    file = uv_fs_open(nullptr, &req, *path, flags, 0666, nullptr);
+    FS_SYNC_TRACE_END(open);
+    if (req.result < 0) {
+      uv_fs_req_cleanup(&req);
+      return env->ThrowUVException(
+          static_cast<int>(req.result), "open", nullptr, path.out());
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  auto defer_close = OnScopeLeave([file, is_fd, &req]() {
+    if (!is_fd) {
+      FS_SYNC_TRACE_BEGIN(close);
+      CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+      FS_SYNC_TRACE_END(close);
+    }
+    uv_fs_req_cleanup(&req);
+  });
+
+  // Prefer a single allocation when fstat reports a regular file size.
+  // Match JS tryCreateBuffer: refuse files larger than 2 GiB - 1.
+  constexpr int64_t kIoMaxLength = (static_cast<int64_t>(1) << 31) - 1;
+  int64_t size = -1;
+  {
+    FS_SYNC_TRACE_BEGIN(fstat);
+    int r = uv_fs_fstat(nullptr, &req, file, nullptr);
+    FS_SYNC_TRACE_END(fstat);
+    if (r == 0) {
+      const uv_stat_t* s = static_cast<const uv_stat_t*>(req.ptr);
+      if (S_ISREG(s->st_mode) && s->st_size >= 0) {
+        if (s->st_size > kIoMaxLength) {
+          uv_fs_req_cleanup(&req);
+          std::string msg = "File size (" +
+                            std::to_string(static_cast<int64_t>(s->st_size)) +
+                            ") is greater than 2 GiB";
+          return THROW_ERR_FS_FILE_TOO_LARGE(env, msg.c_str());
+        }
+        size = static_cast<int64_t>(s->st_size);
+      }
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  if (size > 0) {
+    Local<Object> buf_obj;
+    if (!Buffer::New(isolate, static_cast<size_t>(size)).ToLocal(&buf_obj)) {
+      return;
+    }
+    char* data = Buffer::Data(buf_obj);
+    size_t remaining = static_cast<size_t>(size);
+    size_t offset = 0;
+
+    FS_SYNC_TRACE_BEGIN(read);
+    while (remaining > 0) {
+      uv_buf_t buf = uv_buf_init(data + offset, remaining);
+      auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+      if (req.result < 0) {
+        FS_SYNC_TRACE_END(read);
+        return env->ThrowUVException(
+            static_cast<int>(req.result), "read", nullptr);
+      }
+      if (r == 0) break;
+      offset += static_cast<size_t>(r);
+      remaining -= static_cast<size_t>(r);
+      uv_fs_req_cleanup(&req);
+    }
+    FS_SYNC_TRACE_END(read);
+
+    if (offset < static_cast<size_t>(size)) {
+      // Truncate logical length without reallocating when the file shrank.
+      args.GetReturnValue().Set(
+          Buffer::Copy(isolate, data, offset).ToLocalChecked());
+      return;
+    }
+    args.GetReturnValue().Set(buf_obj);
+    return;
+  }
+
+  // Unknown / zero size: grow like ReadFileUtf8.
+  std::string result;
+  char stack_buf[8192];
+  uv_buf_t buf = uv_buf_init(stack_buf, sizeof(stack_buf));
+
+  FS_SYNC_TRACE_BEGIN(read);
+  while (true) {
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+    if (req.result < 0) {
+      FS_SYNC_TRACE_END(read);
+      return env->ThrowUVException(
+          static_cast<int>(req.result), "read", nullptr);
+    }
+    if (r <= 0) break;
+    result.append(buf.base, static_cast<size_t>(r));
+    uv_fs_req_cleanup(&req);
+  }
+  FS_SYNC_TRACE_END(read);
+
+  Local<Object> out;
+  if (!Buffer::Copy(isolate, result.data(), result.size()).ToLocal(&out)) {
+    return;
+  }
+  args.GetReturnValue().Set(out);
+}
+
+// Fast C++ path for fs.writeFileSync(path, buffer) with ArrayBufferView data.
+// Mirrors WriteFileUtf8 but takes a Buffer/TypedArray payload.
+static void WriteFileBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 4);
+  CHECK(Buffer::HasInstance(args[1]));
+  CHECK(args[2]->IsInt32());
+  CHECK(args[3]->IsInt32());
+
+  Local<Object> data_obj = args[1].As<Object>();
+  char* data = Buffer::Data(data_obj);
+  const size_t length = Buffer::Length(data_obj);
+  const int flags = args[2].As<Int32>()->Value();
+  const int mode = args[3].As<Int32>()->Value();
+
+  uv_file file;
+  bool is_fd = args[0]->IsInt32();
+
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FSReqWrapSync req_open("open", *path);
+    FS_SYNC_TRACE_BEGIN(open);
+    file =
+        SyncCallAndThrowOnError(env, &req_open, uv_fs_open, *path, flags, mode);
+    FS_SYNC_TRACE_END(open);
+    if (is_uv_error(file)) return;
+  }
+
+  int bytes_written = 0;
+  size_t offset = 0;
+  uv_buf_t uvbuf = uv_buf_init(data, length);
+
+  FS_SYNC_TRACE_BEGIN(write);
+  while (offset < length) {
+    FSReqWrapSync req_write("write");
+    bytes_written = SyncCallAndThrowOnError(
+        env, &req_write, uv_fs_write, file, &uvbuf, 1, -1);
+    if (bytes_written < 0) break;
+    offset += static_cast<size_t>(bytes_written);
+    DCHECK_LE(offset, length);
+    uvbuf.base += bytes_written;
+    uvbuf.len -= static_cast<size_t>(bytes_written);
+  }
+  FS_SYNC_TRACE_END(write);
+
+  if (!is_fd) {
+    FSReqWrapSync req_close("close");
+    FS_SYNC_TRACE_BEGIN(close);
+    int result = SyncCallAndThrowOnError(env, &req_close, uv_fs_close, file);
+    FS_SYNC_TRACE_END(close);
+    if (is_uv_error(result)) return;
+  }
+}
+
+// Map st_mode to a uv_dirent type (used when scandir reports
+// UV_DIRENT_UNKNOWN).
+static int ModeToDirentType(uint64_t mode) {
+  if (S_ISDIR(mode)) return UV_DIRENT_DIR;
+  if (S_ISREG(mode)) return UV_DIRENT_FILE;
+  if (S_ISLNK(mode)) return UV_DIRENT_LINK;
+  if (S_ISFIFO(mode)) return UV_DIRENT_FIFO;
+  if (S_ISSOCK(mode)) return UV_DIRENT_SOCKET;
+  if (S_ISCHR(mode)) return UV_DIRENT_CHAR;
+  if (S_ISBLK(mode)) return UV_DIRENT_BLOCK;
+  return UV_DIRENT_UNKNOWN;
+}
+
+// Fast recursive directory walk for readdirSync({ recursive: true }).
+// Uses dirent types from scandir when available so most entries avoid an
+// extra stat() (the JS path calls internalModuleStat per entry).
+static void ReadDirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 2);
+  BufferValue base_path(isolate, args[0]);
+  CHECK_NOT_NULL(*base_path);
+  ToNamespacedPath(env, &base_path);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+  const bool with_types = args.Length() > 2 && args[2]->IsTrue();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env,
+      permission::PermissionScope::kFileSystemRead,
+      base_path.ToStringView());
+
+  std::string base(*base_path, base_path.length());
+  // BFS queue matches the historical JS walk order.
+  std::vector<std::string> queue;
+  queue.push_back(base);
+  size_t qhead = 0;
+
+  LocalVector<Value> out_names(isolate);
+  LocalVector<Value> out_types(isolate);
+  LocalVector<Value> out_paths(isolate);  // parentPath for Dirent
+
+  const char sep =
+#ifdef _WIN32
+      '\\';
+#else
+      '/';
+#endif
+
+  while (qhead < queue.size()) {
+    std::string current = std::move(queue[qhead++]);
+
+    uv_fs_t req;
+    FS_SYNC_TRACE_BEGIN(readdir);
+    int err = uv_fs_scandir(nullptr, &req, current.c_str(), 0, nullptr);
+    FS_SYNC_TRACE_END(readdir);
+    if (err < 0) {
+      uv_fs_req_cleanup(&req);
+      return env->ThrowUVException(err, "scandir", nullptr, current.c_str());
+    }
+
+    // Encode parent path once per directory (withFileTypes).
+    Local<Value> parent_v;
+    if (with_types) {
+      if (!StringBytes::Encode(isolate, current.c_str(), encoding)
+               .ToLocal(&parent_v)) {
+        uv_fs_req_cleanup(&req);
+        return;
+      }
+    }
+
+    for (;;) {
+      uv_dirent_t ent;
+      int r = uv_fs_scandir_next(&req, &ent);
+      if (r == UV_EOF) break;
+      if (r < 0) {
+        uv_fs_req_cleanup(&req);
+        return env->ThrowUVException(r, "scandir", nullptr, current.c_str());
+      }
+
+      std::string full = current;
+      if (full.empty() || full.back() != sep) full.push_back(sep);
+      full.append(ent.name);
+
+      int ent_type = ent.type;
+
+      // Resolve UNKNOWN types (common on some filesystems / Windows) so
+      // Dirent.isDirectory() / isFile() match getDirent()'s lstat behavior.
+      if (with_types && ent_type == UV_DIRENT_UNKNOWN) {
+        uv_fs_t lreq;
+        if (uv_fs_lstat(nullptr, &lreq, full.c_str(), nullptr) == 0) {
+          const uv_stat_t* s = static_cast<const uv_stat_t*>(lreq.ptr);
+          ent_type = ModeToDirentType(s->st_mode);
+        }
+        uv_fs_req_cleanup(&lreq);
+      }
+
+      if (with_types) {
+        Local<Value> base_name_v;
+        if (!StringBytes::Encode(isolate, ent.name, encoding)
+                 .ToLocal(&base_name_v)) {
+          uv_fs_req_cleanup(&req);
+          return;
+        }
+        out_names.push_back(base_name_v);
+        out_types.push_back(Integer::New(isolate, ent_type));
+        out_paths.push_back(parent_v);
+      } else {
+        // Relative path from base (JS returns relative paths).
+        std::string rel;
+        if (full.size() > base.size() &&
+            full.compare(0, base.size(), base) == 0) {
+          size_t start = base.size();
+          if (start < full.size() &&
+              (full[start] == '/' || full[start] == '\\')) {
+            start++;
+          }
+          rel = full.substr(start);
+        } else {
+          rel = ent.name;
+        }
+        Local<Value> name_v;
+        if (!StringBytes::Encode(isolate, rel.c_str(), encoding)
+                 .ToLocal(&name_v)) {
+          uv_fs_req_cleanup(&req);
+          return;
+        }
+        out_names.push_back(name_v);
+      }
+
+      // Descend into directories. For symlinks / unknown types, follow with
+      // stat() like internalModuleStat (JS: isDirectory() || stat===1).
+      bool is_dir = false;
+      if (ent_type == UV_DIRENT_DIR || ent.type == UV_DIRENT_DIR) {
+        is_dir = true;
+      } else if (ent.type == UV_DIRENT_UNKNOWN || ent.type == UV_DIRENT_LINK ||
+                 ent_type == UV_DIRENT_LINK) {
+        uv_fs_t sreq;
+        if (uv_fs_stat(nullptr, &sreq, full.c_str(), nullptr) == 0) {
+          const uv_stat_t* s = static_cast<const uv_stat_t*>(sreq.ptr);
+          is_dir = S_ISDIR(s->st_mode);
+        }
+        uv_fs_req_cleanup(&sreq);
+      }
+
+      if (is_dir) {
+        queue.push_back(std::move(full));
+      }
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  Local<Array> names = Array::New(isolate, out_names.data(), out_names.size());
+  if (with_types) {
+    Local<Value> parts[] = {
+        names,
+        Array::New(isolate, out_types.data(), out_types.size()),
+        Array::New(isolate, out_paths.data(), out_paths.size()),
+    };
+    args.GetReturnValue().Set(Array::New(isolate, parts, arraysize(parts)));
+  } else {
+    args.GetReturnValue().Set(names);
+  }
+}
+
 // Wrapper for readv(2).
 //
 // bytesRead = fs.readv(fd, buffers[, position], callback)
@@ -4160,6 +4561,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
   SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
+  SetMethod(isolate, target, "readFileBuffer", ReadFileBuffer);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
@@ -4182,6 +4584,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeBuffers", WriteBuffers);
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "writeFileUtf8", WriteFileUtf8);
+  SetMethod(isolate, target, "writeFileBuffer", WriteFileBuffer);
+  SetMethod(isolate, target, "readdirRecursiveSync", ReadDirRecursiveSync);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
 
@@ -4284,6 +4688,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadFileUtf8);
+  registry->Register(ReadFileBuffer);
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
   registry->Register(Fsync);
@@ -4306,6 +4711,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteBuffers);
   registry->Register(WriteString);
   registry->Register(WriteFileUtf8);
+  registry->Register(WriteFileBuffer);
+  registry->Register(ReadDirRecursiveSync);
   registry->Register(RealPath);
   registry->Register(CopyFile);
 
