@@ -25,11 +25,37 @@ on:
         type: number
         default: 30
         description: How many times to repeat each benchmark
+      post-comment:
+        type: boolean
+        description: Post a comment linking to the run, with the aggregated result once known.
+      token:
+        type: string
+        description: A GitHub token to post comments cross repository (not recommended)
 
 permissions:
   contents: read
 
 jobs:
+  post-comment:
+    if: inputs.post-comment
+    outputs:
+      url: ${{ steps.comment.outputs.COMMENT_URL }}
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Mark token input as sensitive
+        if: inputs.token != ''
+        run: echo "::add-mask::${{ inputs.token }}"
+      - name: Add link to the current run
+        id: comment
+        run: |
+          echo "COMMENT_URL=$(gh pr comment -R "${REPO:-$GITHUB_REPOSITORY}" "$PR_ID" \
+            --body "Benchmark GHA: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ inputs.token || github.token }}
+          REPO: ${{ inputs.repo }}
+          PR_ID: ${{ inputs.pr_id }}
   build:
     strategy:
       fail-fast: true
@@ -155,9 +181,13 @@ jobs:
           path: ${{ matrix.system }}.csv
 
   aggregate-results:
-    needs: build
+    needs: [build, post-comment]
+    if: ${{ always() && needs.build.result == 'success' && needs.post-comment.result == (inputs.post-comment && 'success' || 'skipped') }}
     name: Aggregate benchmark results
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
@@ -200,4 +230,31 @@ jobs:
                 echo "> [!WARNING] "
                 echo "> Do not take GHA benchmark results as face value, always confirm them"
                 echo "> using a dedicated machine, e.g. Jenkins CI."
-            ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
+            ' | tee /dev/stderr body.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Mark token input as sensitive
+        if: inputs.token != ''
+        run: echo "::add-mask::${{ inputs.token }}"
+      - name: Edit comment
+        if: inputs.post-comment
+        run: |
+          {
+            echo "Benchmark GHA: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '<details><summary>Results</summary>'
+            echo
+            cat body.txt
+            echo
+            echo '</details>'
+          } | jq -Rrcs '{ body: . }' | gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "/repos/${REPO:-$GITHUB_REPOSITORY}/issues/comments/${COMMENT_URL##*-}" \
+            --input -
+        env:
+          GH_TOKEN: ${{ inputs.token || github.token }}
+          REPO: ${{ inputs.repo }}
+          COMMENT_URL: ${{ needs.post-comment.outputs.url }}
+          PR_ID: ${{ inputs.pr_id }}
+
+        
