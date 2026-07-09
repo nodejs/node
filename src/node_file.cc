@@ -97,46 +97,6 @@ using v8::Value;
 #define S_ISREG(mode) (((mode)&S_IFMT) == S_IFREG)
 #endif
 
-#ifndef S_ISLNK
-#ifdef S_IFLNK
-#define S_ISLNK(mode) (((mode)&S_IFMT) == S_IFLNK)
-#else
-#define S_ISLNK(mode) (false)
-#endif
-#endif
-
-#ifndef S_ISFIFO
-#ifdef S_IFIFO
-#define S_ISFIFO(mode) (((mode)&S_IFMT) == S_IFIFO)
-#else
-#define S_ISFIFO(mode) (false)
-#endif
-#endif
-
-#ifndef S_ISSOCK
-#ifdef S_IFSOCK
-#define S_ISSOCK(mode) (((mode)&S_IFMT) == S_IFSOCK)
-#else
-#define S_ISSOCK(mode) (false)
-#endif
-#endif
-
-#ifndef S_ISCHR
-#ifdef S_IFCHR
-#define S_ISCHR(mode) (((mode)&S_IFMT) == S_IFCHR)
-#else
-#define S_ISCHR(mode) (false)
-#endif
-#endif
-
-#ifndef S_ISBLK
-#ifdef S_IFBLK
-#define S_ISBLK(mode) (((mode)&S_IFMT) == S_IFBLK)
-#else
-#define S_ISBLK(mode) (false)
-#endif
-#endif
-
 #ifdef __POSIX__
 constexpr char kPathSeparator = '/';
 #else
@@ -3184,14 +3144,34 @@ static void WriteFileBuffer(const FunctionCallbackInfo<Value>& args) {
 // Map st_mode to a uv_dirent type (used when scandir reports
 // UV_DIRENT_UNKNOWN).
 static int ModeToDirentType(uint64_t mode) {
-  if (S_ISDIR(mode)) return UV_DIRENT_DIR;
-  if (S_ISREG(mode)) return UV_DIRENT_FILE;
-  if (S_ISLNK(mode)) return UV_DIRENT_LINK;
-  if (S_ISFIFO(mode)) return UV_DIRENT_FIFO;
-  if (S_ISSOCK(mode)) return UV_DIRENT_SOCKET;
-  if (S_ISCHR(mode)) return UV_DIRENT_CHAR;
-  if (S_ISBLK(mode)) return UV_DIRENT_BLOCK;
-  return UV_DIRENT_UNKNOWN;
+  switch (mode & S_IFMT) {
+    case S_IFDIR:
+      return UV_DIRENT_DIR;
+    case S_IFREG:
+      return UV_DIRENT_FILE;
+#ifdef S_IFLNK
+    case S_IFLNK:
+      return UV_DIRENT_LINK;
+#endif
+#ifdef S_IFIFO
+    case S_IFIFO:
+      return UV_DIRENT_FIFO;
+#endif
+#ifdef S_IFSOCK
+    case S_IFSOCK:
+      return UV_DIRENT_SOCKET;
+#endif
+#ifdef S_IFCHR
+    case S_IFCHR:
+      return UV_DIRENT_CHAR;
+#endif
+#ifdef S_IFBLK
+    case S_IFBLK:
+      return UV_DIRENT_BLOCK;
+#endif
+    default:
+      return UV_DIRENT_UNKNOWN;
+  }
 }
 
 // Fast recursive directory walk for readdirSync({ recursive: true }).
@@ -3291,7 +3271,7 @@ static void ReadDirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
         out_paths.push_back(parent_v);
       } else {
         // Relative path from base (JS returns relative paths).
-        std::string rel;
+        const char* rel = ent.name;
         if (full.size() > base.size() &&
             full.compare(0, base.size(), base) == 0) {
           size_t start = base.size();
@@ -3299,13 +3279,10 @@ static void ReadDirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
               (full[start] == '/' || full[start] == '\\')) {
             start++;
           }
-          rel = full.substr(start);
-        } else {
-          rel = ent.name;
+          rel = full.c_str() + start;
         }
         Local<Value> name_v;
-        if (!StringBytes::Encode(isolate, rel.c_str(), encoding)
-                 .ToLocal(&name_v)) {
+        if (!StringBytes::Encode(isolate, rel, encoding).ToLocal(&name_v)) {
           uv_fs_req_cleanup(&req);
           return;
         }
@@ -3314,11 +3291,9 @@ static void ReadDirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
 
       // Descend into directories. For symlinks / unknown types, follow with
       // stat() like internalModuleStat (JS: isDirectory() || stat===1).
-      bool is_dir = false;
-      if (ent_type == UV_DIRENT_DIR || ent.type == UV_DIRENT_DIR) {
-        is_dir = true;
-      } else if (ent.type == UV_DIRENT_UNKNOWN || ent.type == UV_DIRENT_LINK ||
-                 ent_type == UV_DIRENT_LINK) {
+      bool is_dir = ent_type == UV_DIRENT_DIR;
+      if (!is_dir && (ent_type == UV_DIRENT_UNKNOWN ||
+                      ent_type == UV_DIRENT_LINK)) {
         uv_fs_t sreq;
         if (uv_fs_stat(nullptr, &sreq, full.c_str(), nullptr) == 0) {
           const uv_stat_t* s = static_cast<const uv_stat_t*>(sreq.ptr);
