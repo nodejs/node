@@ -29,7 +29,6 @@ export interface InspectorBinding {
   registerAsyncHook(enable: () => void, disable: () => void): void;
   isEnabled(): boolean;
   emitProtocolEvent(eventName: string, params: object): void;
-  setupNetworkTracking(enable: () => void, disable: () => void): void;
   console: Console;
   Connection: InspectorConnectionConstructor;
   MainThreadConnection: InspectorConnectionConstructor;

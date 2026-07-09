@@ -36,17 +36,18 @@ void NetworkInspector::emitNotification(v8::Local<v8::Context> context,
   }
 }
 
+// The network tracking diagnostics channels are subscribed at startup when
+// --experimental-network-inspection is set (see
+// lib/internal/process/pre_execution.js), so enabling and disabling only
+// toggles the flag that gates event emission. This must not call into JS:
+// Network.enable/Network.disable are dispatched via an interrupt that can
+// land in the middle of arbitrary JavaScript execution.
+// Refs: https://github.com/nodejs/node/issues/64308
 void NetworkInspector::Enable() {
-  if (auto agent = env_->inspector_agent()) {
-    agent->EnableNetworkTracking();
-  }
   enabled_ = true;
 }
 
 void NetworkInspector::Disable() {
-  if (auto agent = env_->inspector_agent()) {
-    agent->DisableNetworkTracking();
-  }
   enabled_ = false;
 }
 
