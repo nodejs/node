@@ -12,9 +12,13 @@ const http = require('node:http');
 const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
-// Disable certificate validation for the global fetch.
+// Disable certificate validation for the global fetch. Also bypass any proxy
+// configured through the environment (http_proxy/https_proxy) so that ambient
+// proxy settings do not route the requests through a proxy, which would change
+// the observed request URLs and make the test fail.
 const undici = require('internal/deps/undici/undici');
 undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
+  noProxy: '*',
   connect: {
     rejectUnauthorized: false,
   },
