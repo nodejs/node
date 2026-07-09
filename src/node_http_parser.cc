@@ -48,6 +48,7 @@
 // No copying is performed when slicing the buffer, only small reference
 // allocations.
 
+
 namespace node {
 namespace http_parser {  // NOLINT(build/namespaces)
 
@@ -254,36 +255,44 @@ struct ParserComparator {
 
 class ConnectionsList : public BaseObject {
  public:
-  static void New(const FunctionCallbackInfo<Value>& args);
+    static void New(const FunctionCallbackInfo<Value>& args);
 
-  static void All(const FunctionCallbackInfo<Value>& args);
+    static void All(const FunctionCallbackInfo<Value>& args);
 
-  static void Idle(const FunctionCallbackInfo<Value>& args);
+    static void Idle(const FunctionCallbackInfo<Value>& args);
 
-  static void Active(const FunctionCallbackInfo<Value>& args);
+    static void Active(const FunctionCallbackInfo<Value>& args);
 
-  static void Expired(const FunctionCallbackInfo<Value>& args);
+    static void Expired(const FunctionCallbackInfo<Value>& args);
 
-  void Push(Parser* parser) { all_connections_.insert(parser); }
+    void Push(Parser* parser) {
+      all_connections_.insert(parser);
+    }
 
-  void Pop(Parser* parser) { all_connections_.erase(parser); }
+    void Pop(Parser* parser) {
+      all_connections_.erase(parser);
+    }
 
-  void PushActive(Parser* parser) { active_connections_.insert(parser); }
+    void PushActive(Parser* parser) {
+      active_connections_.insert(parser);
+    }
 
-  void PopActive(Parser* parser) { active_connections_.erase(parser); }
+    void PopActive(Parser* parser) {
+      active_connections_.erase(parser);
+    }
 
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(ConnectionsList)
-  SET_SELF_SIZE(ConnectionsList)
+    SET_NO_MEMORY_INFO()
+    SET_MEMORY_INFO_NAME(ConnectionsList)
+    SET_SELF_SIZE(ConnectionsList)
 
  private:
-  ConnectionsList(Environment* env, Local<Object> object)
+    ConnectionsList(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
-    MakeWeak();
-  }
+        MakeWeak();
+      }
 
-  std::set<Parser*, ParserComparator> all_connections_;
-  std::set<Parser*, ParserComparator> active_connections_;
+    std::set<Parser*, ParserComparator> all_connections_;
+    std::set<Parser*, ParserComparator> active_connections_;
 };
 
 class Parser : public AsyncWrap, public StreamListener {
@@ -323,20 +332,21 @@ class Parser : public AsyncWrap, public StreamListener {
       connectionsList_->PushActive(this);
     }
 
-    Local<Value> cb =
-        object()->Get(env()->context(), kOnMessageBegin).ToLocalChecked();
+    Local<Value> cb = object()->Get(env()->context(), kOnMessageBegin)
+                              .ToLocalChecked();
     if (cb->IsFunction()) {
       InternalCallbackScope callback_scope(
-          this, InternalCallbackScope::kSkipTaskQueues);
+        this, InternalCallbackScope::kSkipTaskQueues);
 
-      MaybeLocal<Value> r =
-          cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
+      MaybeLocal<Value> r = cb.As<Function>()->Call(
+        env()->context(), object(), 0, nullptr);
 
       if (r.IsEmpty()) callback_scope.MarkAsFailed();
     }
 
     return 0;
   }
+
 
   int on_url(const char* at, size_t length) {
     int rv = TrackHeader(length);
@@ -348,6 +358,7 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
+
   int on_status(const char* at, size_t length) {
     int rv = TrackHeader(length);
     if (rv != 0) {
@@ -357,6 +368,7 @@ class Parser : public AsyncWrap, public StreamListener {
     status_message_.Update(at, length, &allocator_);
     return 0;
   }
+
 
   int on_header_field(const char* at, size_t length) {
     int rv = TrackHeader(length);
@@ -384,6 +396,7 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
+
   int on_header_value(const char* at, size_t length) {
     int rv = TrackHeader(length);
     if (rv != 0) {
@@ -403,6 +416,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     return 0;
   }
+
 
   int on_headers_complete() {
     headers_completed_ = true;
@@ -426,13 +440,15 @@ class Parser : public AsyncWrap, public StreamListener {
 
     Local<Value> argv[A_MAX];
     Local<Object> obj = object();
-    Local<Value> cb =
-        obj->Get(env()->context(), kOnHeadersComplete).ToLocalChecked();
+    Local<Value> cb = obj->Get(env()->context(),
+                               kOnHeadersComplete).ToLocalChecked();
 
-    if (!cb->IsFunction()) return 0;
+    if (!cb->IsFunction())
+      return 0;
 
     Local<Value> undefined = Undefined(env()->isolate());
-    for (size_t i = 0; i < arraysize(argv); i++) argv[i] = undefined;
+    for (size_t i = 0; i < arraysize(argv); i++)
+      argv[i] = undefined;
 
     if (have_flushed_) {
       // Slow case, flush remaining headers.
@@ -440,7 +456,8 @@ class Parser : public AsyncWrap, public StreamListener {
     } else {
       // Fast case, pass headers and URL to JS land.
       argv[A_HEADERS] = CreateHeaders();
-      if (parser_.type == HTTP_REQUEST) argv[A_URL] = url_.ToString(env());
+      if (parser_.type == HTTP_REQUEST)
+        argv[A_URL] = url_.ToString(env());
     }
 
     num_fields_ = 0;
@@ -454,7 +471,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     // STATUS
     if (parser_.type == HTTP_RESPONSE) {
-      argv[A_STATUS_CODE] = Integer::New(env()->isolate(), parser_.status_code);
+      argv[A_STATUS_CODE] =
+          Integer::New(env()->isolate(), parser_.status_code);
       argv[A_STATUS_MESSAGE] = status_message_.ToString(env());
     }
 
@@ -491,15 +509,18 @@ class Parser : public AsyncWrap, public StreamListener {
     return static_cast<int>(val);
   }
 
+
   int on_body(const char* at, size_t length) {
-    if (length == 0) return 0;
+    if (length == 0)
+      return 0;
 
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
 
     Local<Value> cb = object()->Get(env->context(), kOnBody).ToLocalChecked();
 
-    if (!cb->IsFunction()) return 0;
+    if (!cb->IsFunction())
+      return 0;
 
     Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
 
@@ -513,6 +534,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     return 0;
   }
+
 
   int on_message_complete() {
     HandleScope scope(env()->isolate());
@@ -530,13 +552,15 @@ class Parser : public AsyncWrap, public StreamListener {
       connectionsList_->Push(this);
     }
 
-    if (num_fields_) Flush();  // Flush trailing HTTP headers.
+    if (num_fields_)
+      Flush();  // Flush trailing HTTP headers.
 
     Local<Object> obj = object();
-    Local<Value> cb =
-        obj->Get(env()->context(), kOnMessageComplete).ToLocalChecked();
+    Local<Value> cb = obj->Get(env()->context(),
+                               kOnMessageComplete).ToLocalChecked();
 
-    if (!cb->IsFunction()) return 0;
+    if (!cb->IsFunction())
+      return 0;
 
     MaybeLocal<Value> r;
     {
@@ -558,8 +582,8 @@ class Parser : public AsyncWrap, public StreamListener {
     chunk_extensions_nread_ += length;
 
     if (chunk_extensions_nread_ > kMaxChunkExtensionsSize) {
-      llhttp_set_error_reason(
-          &parser_, "HPE_CHUNK_EXTENSIONS_OVERFLOW:Chunk extensions overflow");
+      llhttp_set_error_reason(&parser_,
+          "HPE_CHUNK_EXTENSIONS_OVERFLOW:Chunk extensions overflow");
       return HPE_USER;
     }
 
@@ -572,6 +596,7 @@ class Parser : public AsyncWrap, public StreamListener {
     chunk_extensions_nread_ = 0;
     return 0;
   }
+
 
   // Reset nread for the next chunk
   int on_chunk_complete() {
@@ -638,8 +663,10 @@ class Parser : public AsyncWrap, public StreamListener {
 
     Local<Value> ret = parser->Execute(buffer.data(), buffer.length());
 
-    if (!ret.IsEmpty()) args.GetReturnValue().Set(ret);
+    if (!ret.IsEmpty())
+      args.GetReturnValue().Set(ret);
   }
+
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
@@ -647,8 +674,10 @@ class Parser : public AsyncWrap, public StreamListener {
 
     Local<Value> ret = parser->Execute(nullptr, 0);
 
-    if (!ret.IsEmpty()) args.GetReturnValue().Set(ret);
+    if (!ret.IsEmpty())
+      args.GetReturnValue().Set(ret);
   }
+
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -689,8 +718,9 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_EQ(env, parser->env());
 
     AsyncWrap::ProviderType provider =
-        (type == HTTP_REQUEST ? AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
-                              : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
+        (type == HTTP_REQUEST ?
+            AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
+            : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
@@ -746,20 +776,22 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     // Already unconsumed
-    if (parser->stream_ == nullptr) return;
+    if (parser->stream_ == nullptr)
+      return;
 
     parser->stream_->RemoveStreamListener(parser);
   }
+
 
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     Local<Object> ret;
-    if (Buffer::Copy(parser->env(),
-                     parser->current_buffer_data_,
-                     parser->current_buffer_len_)
-            .ToLocal(&ret)) {
+    if (Buffer::Copy(
+        parser->env(),
+        parser->current_buffer_data_,
+        parser->current_buffer_len_).ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
     }
   }
@@ -781,6 +813,7 @@ class Parser : public AsyncWrap, public StreamListener {
     return uv_buf_init(binding_data_->parser_buffer.data(), kAllocBufferSize);
   }
 
+
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
     HandleScope scope(env()->isolate());
     // Once we’re done here, either indicate that the HTTP parser buffer
@@ -799,17 +832,20 @@ class Parser : public AsyncWrap, public StreamListener {
     }
 
     // Ignore, empty reads have special meaning in http parser
-    if (nread == 0) return;
+    if (nread == 0)
+      return;
 
     Local<Value> ret = Execute(buf.base, nread);
 
     // Exception
-    if (ret.IsEmpty()) return;
+    if (ret.IsEmpty())
+      return;
 
     Local<Value> cb =
         object()->Get(env()->context(), kOnExecute).ToLocalChecked();
 
-    if (!cb->IsFunction()) return;
+    if (!cb->IsFunction())
+      return;
 
     // Hooks for GetCurrentBuffer
     current_buffer_len_ = nread;
@@ -820,6 +856,7 @@ class Parser : public AsyncWrap, public StreamListener {
     current_buffer_len_ = 0;
     current_buffer_data_ = nullptr;
   }
+
 
   Local<Value> Execute(const char* data, size_t len) {
     EscapableHandleScope scope(env()->isolate());
@@ -859,7 +896,8 @@ class Parser : public AsyncWrap, public StreamListener {
     current_buffer_data_ = nullptr;
 
     // If there was an exception in one of the callbacks
-    if (got_exception_) return scope.Escape(Local<Value>());
+    if (got_exception_)
+      return scope.Escape(Local<Value>());
 
     Local<Integer> nread_obj = Integer::New(env()->isolate(), nread);
 
@@ -867,10 +905,11 @@ class Parser : public AsyncWrap, public StreamListener {
     // TODO(bnoordhuis) What if there is an error on EOF?
     if (!parser_.upgrade && err != HPE_OK) {
       Local<Value> e = Exception::Error(env()->parse_error_string());
-      Local<Object> obj =
-          e->ToObject(env()->isolate()->GetCurrentContext()).ToLocalChecked();
-      obj->Set(env()->context(), env()->bytes_parsed_string(), nread_obj)
-          .Check();
+      Local<Object> obj = e->ToObject(env()->isolate()->GetCurrentContext())
+        .ToLocalChecked();
+      obj->Set(env()->context(),
+               env()->bytes_parsed_string(),
+               nread_obj).Check();
       const char* errno_reason = llhttp_get_error_reason(&parser_);
 
       Local<String> code;
@@ -911,6 +950,7 @@ class Parser : public AsyncWrap, public StreamListener {
     return Array::New(env()->isolate(), headers_v, num_values_ * 2);
   }
 
+
   // spill headers and request path to JS land
   void Flush() {
     HandleScope scope(env()->isolate());
@@ -918,21 +958,27 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(env()->context(), kOnHeaders).ToLocalChecked();
 
-    if (!cb->IsFunction()) return;
+    if (!cb->IsFunction())
+      return;
 
-    Local<Value> argv[2] = {CreateHeaders(), url_.ToString(env())};
+    Local<Value> argv[2] = {
+      CreateHeaders(),
+      url_.ToString(env())
+    };
 
-    MaybeLocal<Value> r =
-        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
+                                       arraysize(argv),
+                                       argv);
 
-    if (r.IsEmpty()) got_exception_ = true;
+    if (r.IsEmpty())
+      got_exception_ = true;
 
     url_.Reset();
     have_flushed_ = true;
   }
 
-  void Init(llhttp_type_t type,
-            uint64_t max_http_header_size,
+
+  void Init(llhttp_type_t type, uint64_t max_http_header_size,
             uint32_t lenient_flags) {
     llhttp_init(&parser_, type, &settings);
 
@@ -984,6 +1030,7 @@ class Parser : public AsyncWrap, public StreamListener {
     max_http_header_size_ = max_http_header_size;
   }
 
+
   int TrackHeader(size_t len) {
     header_nread_ += len;
     if (header_nread_ >= max_http_header_size_) {
@@ -992,6 +1039,7 @@ class Parser : public AsyncWrap, public StreamListener {
     }
     return 0;
   }
+
 
   int MaybePause() {
     if (!pending_pause_) {
@@ -1003,12 +1051,14 @@ class Parser : public AsyncWrap, public StreamListener {
     return HPE_PAUSED;
   }
 
+
   bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // HTTP parsers are able to emit events without any GC root referring
     // to them, because they receive events directly from the underlying
     // libuv resource.
     return true;
   }
+
 
   llhttp_t parser_;
   StringPtrAllocator allocator_;             // shared slab for all StringPtrs
@@ -1036,11 +1086,10 @@ class Parser : public AsyncWrap, public StreamListener {
 
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.
-  template <typename Parser, Parser>
-  struct Proxy;
-  template <typename Parser, typename... Args, int (Parser::*Member)(Args...)>
+  template <typename Parser, Parser> struct Proxy;
+  template <typename Parser, typename ...Args, int (Parser::*Member)(Args...)>
   struct Proxy<int (Parser::*)(Args...), Member> {
-    static int Raw(llhttp_t* p, Args... args) {
+    static int Raw(llhttp_t* p, Args ... args) {
       Parser* parser = ContainerOf(&Parser::parser_, p);
       if (parser->is_being_freed_) {
         return 0;
@@ -1142,9 +1191,9 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsNumber());
   uint64_t headers_timeout =
-      static_cast<uint64_t>(args[0].As<Uint32>()->Value()) * 1000000;
+    static_cast<uint64_t>(args[0].As<Uint32>()->Value()) * 1000000;
   uint64_t request_timeout =
-      static_cast<uint64_t>(args[1].As<Uint32>()->Value()) * 1000000;
+    static_cast<uint64_t>(args[1].As<Uint32>()->Value()) * 1000000;
 
   if (headers_timeout == 0 && request_timeout == 0) {
     return args.GetReturnValue().Set(Array::New(isolate, 0));
@@ -1179,10 +1228,13 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     iter++;
 
     // Check for expiration.
-    if ((!parser->headers_completed_ && headers_deadline > 0 &&
-         parser->last_message_start_ < headers_deadline) ||
-        (request_deadline > 0 &&
-         parser->last_message_start_ < request_deadline)) {
+    if (
+      (!parser->headers_completed_ && headers_deadline > 0 &&
+        parser->last_message_start_ < headers_deadline) ||
+      (
+        request_deadline > 0 &&
+        parser->last_message_start_ < request_deadline)
+    ) {
       result.emplace_back(parser->object());
 
       list->active_connections_.erase(parser);
@@ -1244,7 +1296,7 @@ const llhttp_settings_t Parser::settings = {
     nullptr,
 };
 
-// Flags for BuildHttpMessage — keep in sync with lib/_http_outgoing.js.
+// Flags for BuildHttpMessage - keep in sync with lib/_http_outgoing.js.
 enum BuildHttpMessageFlags : uint32_t {
   kBuildSendDate = 1u << 0,
   kBuildShouldKeepAlive = 1u << 1,
@@ -1507,7 +1559,7 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Body framing. Note: useChunkedByDefault alone gates Content-Length /
-  // Transfer-Encoding auto headers — agent is NOT involved here.
+  // Transfer-Encoding auto headers - agent is NOT involved here.
   bool need_auto_cont_len = false;
   bool need_auto_te = false;
   if (!saw_cont_len && !saw_te) {
@@ -1544,7 +1596,7 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
 
   // body arg: null/undefined => headers-only (_storeHeader); string/buffer
   // (possibly empty) => complete message. Headers-only must not append the
-  // chunked terminator — JS end() still does that.
+  // chunked terminator - JS end() still does that.
   const bool headers_only = args[2]->IsNullOrUndefined();
 
   // HTTP headers are latin1 on the wire. Prefer WriteOneByteV2; for two-byte
@@ -1761,8 +1813,8 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
-  c->InstanceTemplate()->SetInternalFieldCount(
-      ConnectionsList::kInternalFieldCount);
+  c->InstanceTemplate()
+    ->SetInternalFieldCount(ConnectionsList::kInternalFieldCount);
   SetProtoMethod(isolate, c, "all", ConnectionsList::All);
   SetProtoMethod(isolate, c, "idle", ConnectionsList::Idle);
   SetProtoMethod(isolate, c, "active", ConnectionsList::Active);
