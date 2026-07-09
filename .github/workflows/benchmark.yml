@@ -256,5 +256,3 @@ jobs:
           REPO: ${{ inputs.repo }}
           COMMENT_URL: ${{ needs.post-comment.outputs.url }}
           PR_ID: ${{ inputs.pr_id }}
-
-        
