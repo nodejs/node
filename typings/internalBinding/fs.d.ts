@@ -184,6 +184,7 @@ declare namespace InternalFSBinding {
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, usePromises: typeof kUsePromises): Promise<string[]>;
 
   function readFileUtf8(path: StringOrBuffer, flags: number): string;
+  function readFileBuffer(path: StringOrBuffer, flags: number): Buffer;
 
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function readlink(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
@@ -245,6 +246,9 @@ declare namespace InternalFSBinding {
 
   function writeFileUtf8(path: string, data: string, flag: number, mode: number): void;
   function writeFileUtf8(fd: number, data: string, flag: number, mode: number): void;
+
+  function writeFileBuffer(path: string, data: ArrayBufferView, flag: number, mode: number): void;
+  function writeFileBuffer(fd: number, data: ArrayBufferView, flag: number, mode: number): void;
 }
 
 export interface FsBinding {
@@ -288,6 +292,7 @@ export interface FsBinding {
   read: typeof InternalFSBinding.read;
   readBuffers: typeof InternalFSBinding.readBuffers;
   readdir: typeof InternalFSBinding.readdir;
+  readFileBuffer: typeof InternalFSBinding.readFileBuffer;
   readFileUtf8: typeof InternalFSBinding.readFileUtf8;
   readlink: typeof InternalFSBinding.readlink;
   realpath: typeof InternalFSBinding.realpath;
@@ -300,6 +305,7 @@ export interface FsBinding {
   utimes: typeof InternalFSBinding.utimes;
   writeBuffer: typeof InternalFSBinding.writeBuffer;
   writeBuffers: typeof InternalFSBinding.writeBuffers;
+  writeFileBuffer: typeof InternalFSBinding.writeFileBuffer;
   writeFileUtf8: typeof InternalFSBinding.writeFileUtf8;
   writeString: typeof InternalFSBinding.writeString;
 
