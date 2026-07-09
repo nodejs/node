@@ -4,25 +4,33 @@ const assert = require('assert');
 const { spawnSyncAndExit } = require('./child_process');
 
 // Work around a pre-existing inspector issue: if the debuggee exits too quickly
-// the inspector can segfault while tearing down. For now normalize the segfault
+// the inspector can crash while tearing down. For now normalize the crash
 // back to the expected terminal event (e.g. "completed" or "miss")
 // until the upstream bug is fixed.
 // See https://github.com/nodejs/node/issues/62765
 // https://github.com/nodejs/node/issues/58245
+// The crash shows up as with exit code 3221225477 on Windows, or signal
+// SIGSEGV on other platforms.
 const probeTargetExitSignal = 'SIGSEGV';
+// 0xC0000005 STATUS_ACCESS_VIOLATION on Windows
+const probeTargetExitCode = 3221225477;
 
 function isProbeSegvTeardown(result) {
   if (result?.event !== 'error') { return false; }
   const error = result.error;
-  if (error?.signal !== probeTargetExitSignal) { return false; }
+  if (error?.signal !== probeTargetExitSignal && error?.exitCode !== probeTargetExitCode) { return false; }
   return error.code === 'probe_target_exit' || error.code === 'probe_failure';
 }
 
 function findProbeSegvTeardownLine(output) {
   const signalPrefix = `Target exited with signal ${probeTargetExitSignal}`;
-  if (output.startsWith(signalPrefix)) { return 0; }
-  const idx = output.indexOf(`\n${signalPrefix}`);
-  return idx === -1 ? -1 : idx + 1;
+  const codePrefix = `Target exited with code ${probeTargetExitCode}`;
+  for (const prefix of [signalPrefix, codePrefix]) {
+    if (output.startsWith(prefix)) { return 0; }
+    const idx = output.indexOf(`\n${prefix}`);
+    if (idx !== -1) { return idx + 1; }
+  }
+  return -1;
 }
 
 // Replace volatile fields in a probe report (stack frames, Node.js version,
