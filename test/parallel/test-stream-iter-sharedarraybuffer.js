@@ -52,6 +52,7 @@ function testBytesSyncSAB() {
   const sab = new SharedArrayBuffer(5);
   new Uint8Array(sab).set([104, 101, 108, 108, 111]); // 'hello'
   const data = bytesSync(fromSync(sab));
+  assert.ok(data.buffer instanceof ArrayBuffer);
   assert.deepStrictEqual(data, new Uint8Array([104, 101, 108, 108, 111]));
 }
 
@@ -59,6 +60,7 @@ async function testBytesAsyncSAB() {
   const sab = new SharedArrayBuffer(5);
   new Uint8Array(sab).set([104, 101, 108, 108, 111]); // 'hello'
   const data = await bytes(from(sab));
+  assert.ok(data.buffer instanceof ArrayBuffer);
   assert.deepStrictEqual(data, new Uint8Array([104, 101, 108, 108, 111]));
 }
 
@@ -80,7 +82,7 @@ function testArrayBufferSyncSAB() {
   const sab = new SharedArrayBuffer(4);
   new Uint8Array(sab).set([1, 2, 3, 4]);
   const result = arrayBufferSync(fromSync(sab));
-  assert.ok(result instanceof SharedArrayBuffer || result instanceof ArrayBuffer);
+  assert.ok(result instanceof ArrayBuffer);
   assert.deepStrictEqual(new Uint8Array(result), new Uint8Array([1, 2, 3, 4]));
 }
 
@@ -88,7 +90,7 @@ async function testArrayBufferAsyncSAB() {
   const sab = new SharedArrayBuffer(4);
   new Uint8Array(sab).set([1, 2, 3, 4]);
   const result = await arrayBuffer(from(sab));
-  assert.ok(result instanceof SharedArrayBuffer || result instanceof ArrayBuffer);
+  assert.ok(result instanceof ArrayBuffer);
   assert.deepStrictEqual(new Uint8Array(result), new Uint8Array([1, 2, 3, 4]));
 }
 
