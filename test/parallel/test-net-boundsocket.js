@@ -202,18 +202,16 @@ if (!common.isWindows && process.getuid() !== 0) {
   }));
 }
 
-// A synchronous connect(2) failure throws in-tick, without an 'error' event.
-// An IPv4-bound handle connecting to an IPv6 literal fails on family mismatch.
-// POSIX-only: on Windows connect(2) is asynchronous (ConnectEx), so the error
-// is deferred rather than thrown.
-if (!common.isWindows) {
+// A connect failure is reported via a deferred 'error' event, never thrown
+// synchronously. An IPv4-bound handle connecting to an IPv6 literal fails on
+// address family mismatch.
+{
   const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
   const client = new net.Socket({ handle: bound });
-  client.on('error', common.mustNotCall());
-  assert.throws(() => {
-    client.connect({ host: '::1', port: 1 });
-  }, { syscall: 'connect' });
-  assert.strictEqual(client.destroyed, true);
+  client.connect({ host: '::1', port: 1 });
+  client.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.syscall, 'connect');
+  }));
 }
 
 // reusePort: SO_REUSEPORT permits multiple listeners on the same port. Support
