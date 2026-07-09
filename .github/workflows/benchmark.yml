@@ -17,7 +17,7 @@ on:
       category:
         required: true
         type: choice
-        description: The category of tests to run. Maps to a folder in node/benchmark
+        description: The category of tests to run. Maps to a folder in node/benchmark. Ignored when `categories` is set.
         options:
           - abort_controller
           - assert
@@ -72,6 +72,9 @@ on:
           - webstreams
           - worker
           - zlib
+      categories:
+        type: string
+        description: Space-separated list of categories to run. Overrides `category` when set, for running multiple categories at once.
       filter:
         type: string
         description: A substring to restrict the benchmarks to run in a category. e.g. `net-c2c`
@@ -182,7 +185,7 @@ jobs:
                   --filter "$FILTER" \
                   --runs ${{ inputs.runs }} \
                   --old ./base_node --new ./node \
-                  -- ${{ inputs.category }} \
+                  -- ${{ inputs.categories || inputs.category }} \
                 | tee /dev/stderr \
                 > ${{ matrix.system }}.csv
                 echo "> [!WARNING] "
