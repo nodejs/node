@@ -1659,7 +1659,7 @@ closed to avoid leaking the socket.
 
 When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
 issued synchronously: [`socket.localAddress`][] is resolved once
-[`socket.connect()`][] returns, and failures throw synchronously.
+[`socket.connect()`][] returns, and on POSIX failures throw synchronously.
 
 ```mjs
 import net from 'node:net';

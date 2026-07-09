@@ -204,7 +204,9 @@ if (!common.isWindows && process.getuid() !== 0) {
 
 // A synchronous connect(2) failure throws in-tick, without an 'error' event.
 // An IPv4-bound handle connecting to an IPv6 literal fails on family mismatch.
-{
+// POSIX-only: on Windows connect(2) is asynchronous (ConnectEx), so the error
+// is deferred rather than thrown.
+if (!common.isWindows) {
   const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
   const client = new net.Socket({ handle: bound });
   client.on('error', common.mustNotCall());
