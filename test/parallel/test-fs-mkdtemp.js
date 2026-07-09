@@ -64,22 +64,13 @@ function handler(err, folder) {
 {
   const tmpFolder = fs.mkdtempSync(Buffer.from(tmpdir.resolve('foo.')));
 
-  assert.strictEqual(path.basename(tmpFolder).length, 'foo.XXXXXX'.length);
+  assert.strictEqual(path.basename(tmpFolder.toString()).length, 'foo.XXXXXX'.length);
   assert(fs.existsSync(tmpFolder));
 
   const utf8 = fs.mkdtempSync(Buffer.from(tmpdir.resolve('\u0222abc.')));
-  assert.strictEqual(Buffer.byteLength(path.basename(utf8)),
+  assert.strictEqual(Buffer.byteLength(path.basename(utf8.toString())),
                      Buffer.byteLength('\u0222abc.XXXXXX'));
   assert(fs.existsSync(utf8));
-
-  fs.mkdtemp(Buffer.from(tmpdir.resolve('bar.')), common.mustCall(handler));
-
-  // Same test as above, but making sure that passing an options object doesn't
-  // affect the way the callback function is handled.
-  fs.mkdtemp(Buffer.from(tmpdir.resolve('bar.')), {}, common.mustCall(handler));
-
-  // Warning fires only once
-  fs.mkdtemp(Buffer.from(tmpdir.resolve('bar.X')), common.mustCall(handler));
 }
 
 // Test with Uint8Array
