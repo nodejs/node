@@ -48,6 +48,8 @@
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 #include <io.h>
@@ -95,6 +97,50 @@ using v8::Value;
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#endif
+
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode)&S_IFMT) == S_IFREG)
+#endif
+
+#ifndef S_ISLNK
+#ifdef S_IFLNK
+#define S_ISLNK(mode) (((mode)&S_IFMT) == S_IFLNK)
+#else
+#define S_ISLNK(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISFIFO
+#ifdef S_IFIFO
+#define S_ISFIFO(mode) (((mode)&S_IFMT) == S_IFIFO)
+#else
+#define S_ISFIFO(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISSOCK
+#ifdef S_IFSOCK
+#define S_ISSOCK(mode) (((mode)&S_IFMT) == S_IFSOCK)
+#else
+#define S_ISSOCK(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISCHR
+#ifdef S_IFCHR
+#define S_ISCHR(mode) (((mode)&S_IFMT) == S_IFCHR)
+#else
+#define S_ISCHR(mode) (false)
+#endif
+#endif
+
+#ifndef S_ISBLK
+#ifdef S_IFBLK
+#define S_ISBLK(mode) (((mode)&S_IFMT) == S_IFBLK)
+#else
+#define S_ISBLK(mode) (false)
+#endif
 #endif
 
 #ifdef __POSIX__
@@ -4043,6 +4089,196 @@ class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
   const char* syscall_ = nullptr;
 };
 
+// Fast C++ path for fs.readFileSync(path) / fs.readFileSync(path, null)
+// returning a Buffer — avoids open/fstat/read/close JS round-trips.
+static void ReadFileBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  uv_file file;
+  uv_fs_t req;
+
+  bool is_fd = args[0]->IsInt32();
+
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(isolate, args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FS_SYNC_TRACE_BEGIN(open);
+    file = uv_fs_open(nullptr, &req, *path, flags, 0666, nullptr);
+    FS_SYNC_TRACE_END(open);
+    if (req.result < 0) {
+      uv_fs_req_cleanup(&req);
+      return env->ThrowUVException(
+          static_cast<int>(req.result), "open", nullptr, path.out());
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  auto defer_close = OnScopeLeave([file, is_fd, &req]() {
+    if (!is_fd) {
+      FS_SYNC_TRACE_BEGIN(close);
+      CHECK_EQ(0, uv_fs_close(nullptr, &req, file, nullptr));
+      FS_SYNC_TRACE_END(close);
+    }
+    uv_fs_req_cleanup(&req);
+  });
+
+  // Prefer a single allocation when fstat reports a regular file size.
+  // Match JS tryCreateBuffer: refuse files larger than 2 GiB - 1.
+  constexpr int64_t kIoMaxLength = (static_cast<int64_t>(1) << 31) - 1;
+  int64_t size = -1;
+  {
+    FS_SYNC_TRACE_BEGIN(fstat);
+    int r = uv_fs_fstat(nullptr, &req, file, nullptr);
+    FS_SYNC_TRACE_END(fstat);
+    if (r == 0) {
+      const uv_stat_t* s = static_cast<const uv_stat_t*>(req.ptr);
+      if (S_ISREG(s->st_mode) && s->st_size >= 0) {
+        if (s->st_size > kIoMaxLength) {
+          uv_fs_req_cleanup(&req);
+          std::string msg = "File size (" +
+                            std::to_string(static_cast<int64_t>(s->st_size)) +
+                            ") is greater than 2 GiB";
+          return THROW_ERR_FS_FILE_TOO_LARGE(env, msg.c_str());
+        }
+        size = static_cast<int64_t>(s->st_size);
+      }
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  if (size > 0) {
+    Local<Object> buf_obj;
+    if (!Buffer::New(isolate, static_cast<size_t>(size)).ToLocal(&buf_obj)) {
+      return;
+    }
+    char* data = Buffer::Data(buf_obj);
+    size_t remaining = static_cast<size_t>(size);
+    size_t offset = 0;
+
+    FS_SYNC_TRACE_BEGIN(read);
+    while (remaining > 0) {
+      uv_buf_t buf = uv_buf_init(data + offset, remaining);
+      auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+      if (req.result < 0) {
+        FS_SYNC_TRACE_END(read);
+        return env->ThrowUVException(
+            static_cast<int>(req.result), "read", nullptr);
+      }
+      if (r == 0) break;
+      offset += static_cast<size_t>(r);
+      remaining -= static_cast<size_t>(r);
+      uv_fs_req_cleanup(&req);
+    }
+    FS_SYNC_TRACE_END(read);
+
+    if (offset < static_cast<size_t>(size)) {
+      // Truncate logical length without reallocating when the file shrank.
+      args.GetReturnValue().Set(
+          Buffer::Copy(isolate, data, offset).ToLocalChecked());
+      return;
+    }
+    args.GetReturnValue().Set(buf_obj);
+    return;
+  }
+
+  // Unknown / zero size: grow like ReadFileUtf8.
+  std::string result;
+  char stack_buf[8192];
+  uv_buf_t buf = uv_buf_init(stack_buf, sizeof(stack_buf));
+
+  FS_SYNC_TRACE_BEGIN(read);
+  while (true) {
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+    if (req.result < 0) {
+      FS_SYNC_TRACE_END(read);
+      return env->ThrowUVException(
+          static_cast<int>(req.result), "read", nullptr);
+    }
+    if (r <= 0) break;
+    result.append(buf.base, static_cast<size_t>(r));
+    uv_fs_req_cleanup(&req);
+  }
+  FS_SYNC_TRACE_END(read);
+
+  Local<Object> out;
+  if (!Buffer::Copy(isolate, result.data(), result.size()).ToLocal(&out)) {
+    return;
+  }
+  args.GetReturnValue().Set(out);
+}
+
+// Fast C++ path for fs.writeFileSync(path, buffer) with ArrayBufferView data.
+// Mirrors WriteFileUtf8 but takes a Buffer/TypedArray payload.
+static void WriteFileBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 4);
+  CHECK(Buffer::HasInstance(args[1]));
+  CHECK(args[2]->IsInt32());
+  CHECK(args[3]->IsInt32());
+
+  Local<Object> data_obj = args[1].As<Object>();
+  char* data = Buffer::Data(data_obj);
+  const size_t length = Buffer::Length(data_obj);
+  const int flags = args[2].As<Int32>()->Value();
+  const int mode = args[3].As<Int32>()->Value();
+
+  uv_file file;
+  bool is_fd = args[0]->IsInt32();
+
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FSReqWrapSync req_open("open", *path);
+    FS_SYNC_TRACE_BEGIN(open);
+    file =
+        SyncCallAndThrowOnError(env, &req_open, uv_fs_open, *path, flags, mode);
+    FS_SYNC_TRACE_END(open);
+    if (is_uv_error(file)) return;
+  }
+
+  int bytes_written = 0;
+  size_t offset = 0;
+  uv_buf_t uvbuf = uv_buf_init(data, length);
+
+  FS_SYNC_TRACE_BEGIN(write);
+  while (offset < length) {
+    FSReqWrapSync req_write("write");
+    bytes_written = SyncCallAndThrowOnError(
+        env, &req_write, uv_fs_write, file, &uvbuf, 1, -1);
+    if (bytes_written < 0) break;
+    offset += static_cast<size_t>(bytes_written);
+    DCHECK_LE(offset, length);
+    uvbuf.base += bytes_written;
+    uvbuf.len -= static_cast<size_t>(bytes_written);
+  }
+  FS_SYNC_TRACE_END(write);
+
+  if (!is_fd) {
+    FSReqWrapSync req_close("close");
+    FS_SYNC_TRACE_BEGIN(close);
+    int result = SyncCallAndThrowOnError(env, &req_close, uv_fs_close, file);
+    FS_SYNC_TRACE_END(close);
+    if (is_uv_error(result)) return;
+  }
+}
+
+
 // Wrapper for readv(2).
 //
 // bytesRead = fs.readv(fd, buffers[, position], callback)
@@ -5732,6 +5968,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
   SetMethod(isolate, target, "read", Read);
   SetMethod(isolate, target, "readFileUtf8", ReadFileUtf8);
+  SetMethod(isolate, target, "readFileBuffer", ReadFileBuffer);
   SetMethod(isolate, target, "readBuffers", ReadBuffers);
   SetMethod(isolate, target, "fdatasync", Fdatasync);
   SetMethod(isolate, target, "fsync", Fsync);
@@ -5755,6 +5992,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeBuffers", WriteBuffers);
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "writeFileUtf8", WriteFileUtf8);
+  SetMethod(isolate, target, "writeFileBuffer", WriteFileBuffer);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
 
@@ -5888,6 +6126,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadFileUtf8);
+  registry->Register(ReadFileBuffer);
   registry->Register(ReadBuffers);
   registry->Register(Fdatasync);
   registry->Register(Fsync);
@@ -5911,6 +6150,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteBuffers);
   registry->Register(WriteString);
   registry->Register(WriteFileUtf8);
+  registry->Register(WriteFileBuffer);
   registry->Register(RealPath);
   registry->Register(CopyFile);
 
