@@ -16,8 +16,62 @@ on:
         description: The expect HEAD of the PR
       category:
         required: true
-        type: string
-        description: The category (or categories) of tests to run, for example buffers, cluster etc. Maps to a folders in node/benchmark
+        type: choice
+        description: The category of tests to run. Maps to a folder in node/benchmark
+        options:
+          - abort_controller
+          - assert
+          - async_hooks
+          - blob
+          - buffers
+          - child_process
+          - cluster
+          - console
+          - crypto
+          - dgram
+          - diagnostics_channel
+          - dns
+          - domain
+          - error
+          - es
+          - esm
+          - events
+          - ffi
+          - fs
+          - http
+          - http2
+          - https
+          - internal
+          - mime
+          - misc
+          - module
+          - napi
+          - net
+          - os
+          - path
+          - perf_hooks
+          - permission
+          - process
+          - querystring
+          - readline
+          - source_map
+          - sqlite
+          - streams
+          - string_decoder
+          - test_runner
+          - timers
+          - tls
+          - ts
+          - url
+          - util
+          - v8
+          - validators
+          - vm
+          - websocket
+          - webstorage
+          - webstreams
+          - worker
+          - zlib
       filter:
         type: string
         description: A substring to restrict the benchmarks to run in a category. e.g. `net-c2c`
