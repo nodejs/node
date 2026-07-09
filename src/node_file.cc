@@ -3292,8 +3292,8 @@ static void ReadDirRecursiveSync(const FunctionCallbackInfo<Value>& args) {
       // Descend into directories. For symlinks / unknown types, follow with
       // stat() like internalModuleStat (JS: isDirectory() || stat===1).
       bool is_dir = ent_type == UV_DIRENT_DIR;
-      if (!is_dir && (ent_type == UV_DIRENT_UNKNOWN ||
-                      ent_type == UV_DIRENT_LINK)) {
+      if (!is_dir &&
+          (ent_type == UV_DIRENT_UNKNOWN || ent_type == UV_DIRENT_LINK)) {
         uv_fs_t sreq;
         if (uv_fs_stat(nullptr, &sreq, full.c_str(), nullptr) == 0) {
           const uv_stat_t* s = static_cast<const uv_stat_t*>(sreq.ptr);
