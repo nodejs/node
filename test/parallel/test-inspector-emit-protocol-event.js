@@ -6,6 +6,7 @@ common.skipIfInspectorDisabled();
 
 const inspector = require('node:inspector/promises');
 const assert = require('node:assert');
+const { once } = require('node:events');
 
 const EXPECTED_EVENTS = {
   Network: [
@@ -192,6 +193,83 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
       }));
       inspector[domain][event.name](event.params);
     }
+  }
+
+  session.removeAllListeners('Network.requestWillBeSent');
+  {
+    const expectedInitiator = {
+      type: 'script',
+      stack: {
+        description: 'custom stack',
+        callFrames: [{
+          functionName: 'customFunction',
+          scriptId: 'customScript',
+          url: 'file:///custom.js',
+          lineNumber: 12,
+          columnNumber: 34,
+        }],
+        parent: {
+          description: 'parent stack',
+          callFrames: [{
+            functionName: 'parentFunction',
+            scriptId: 'parentScript',
+            url: 'file:///parent.js',
+            lineNumber: 56,
+            columnNumber: 78,
+          }],
+        },
+      },
+      url: 'file:///initiator.js',
+      lineNumber: 90,
+      columnNumber: 12,
+      requestId: 'previous-request-id',
+    };
+    const customInitiator = {
+      ...expectedInitiator,
+      stack: {
+        ...expectedInitiator.stack,
+        ignoredNull: null,
+        ignoredUndefined: undefined,
+        ignoredBoolean: true,
+        ignoredNumber: 1.5,
+      },
+    };
+    const requestWillBeSent = once(session, 'Network.requestWillBeSent');
+    inspector.Network.requestWillBeSent({
+      ...EXPECTED_EVENTS.Network[0].params,
+      requestId: 'request-id-custom-initiator',
+      initiator: customInitiator,
+    });
+    const [{ params }] = await requestWillBeSent;
+    assert.deepStrictEqual(params.initiator, expectedInitiator);
+  }
+
+  session.removeAllListeners('Network.requestWillBeSent');
+  {
+    const customInitiator = { type: 'other' };
+    const requestWillBeSent = once(session, 'Network.requestWillBeSent');
+    inspector.Network.requestWillBeSent({
+      ...EXPECTED_EVENTS.Network[0].params,
+      requestId: 'request-id-custom-initiator-no-stack',
+      initiator: customInitiator,
+    });
+    const [{ params }] = await requestWillBeSent;
+    assert.deepStrictEqual(params.initiator, customInitiator);
+  }
+
+  session.removeAllListeners('Network.requestWillBeSent');
+  {
+    const duplicateParams = {
+      ...EXPECTED_EVENTS.Network[0].params,
+      requestId: 'request-id-duplicate-custom-initiator',
+      initiator: { type: 'other' },
+    };
+    session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
+      assert.strictEqual(params.requestId, duplicateParams.requestId);
+      assert.deepStrictEqual(params.initiator, duplicateParams.initiator);
+    }));
+    inspector.Network.requestWillBeSent(duplicateParams);
+    inspector.Network.requestWillBeSent(duplicateParams);
   }
 
   // Check tht no events are emitted after disabling the domain.
