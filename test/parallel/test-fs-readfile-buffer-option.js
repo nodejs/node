@@ -26,10 +26,10 @@ function readFile(path, options) {
 
 function readFileFd(fd, options) {
   return new Promise((resolve, reject) => {
-    fs.readFile(fd, options, (err, data) => {
+    fs.readFile(fd, options, common.mustCall((err, data) => {
       if (err) reject(err);
       else resolve(data);
-    });
+    }));
   });
 }
 
