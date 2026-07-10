@@ -353,4 +353,42 @@ async function testAsyncValidation() {
   assert.strictEqual(typeof transform.transform, 'function');
 }
 
+// Writer methods validate options.signal on every surface
+{
+  const { writer } = push();
+  assert.throws(() => writer.write('a', { signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['a'], { signal: {} }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end({ signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  // A valid signal and an absent signal are both accepted.
+  writer.write('a', { signal: new AbortController().signal });
+  writer.write('b');
+  writer.endSync();
+}
+
+{
+  const { writer } = broadcast();
+  assert.throws(() => writer.write('a', { signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['a'], { signal: {} }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end({ signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
+
+{
+  const { Writable } = require('stream');
+  const { fromWritable } = require('stream/iter');
+  const writer = fromWritable(new Writable({ write(chunk, enc, cb) { cb(); } }));
+  assert.throws(() => writer.write('a', { signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['a'], { signal: {} }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end({ signal: 'bad' }),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 testAsyncValidation().then(common.mustCall());
