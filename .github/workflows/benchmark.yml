@@ -52,7 +52,7 @@ jobs:
         id: comment
         run: |
           FILTER_IF_SET=
-          [ -z "$FILTER" ] || FILTER_IF_SET="/ $FILTER"
+          [ -z "$FILTER" ] || FILTER_IF_SET=" / $FILTER"
           COMMENT_BODY="Benchmark GHA (${CATEGORIES}${FILTER_IF_SET}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           echo "COMMENT_BODY=$COMMENT_BODY" >> "$GITHUB_OUTPUT"
           echo "COMMENT_URL=$(gh pr comment -R "${REPO:-$GITHUB_REPOSITORY}" "$PR_ID" --body "$COMMENT_BODY")" >> "$GITHUB_OUTPUT"
