@@ -57,6 +57,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -72,7 +73,6 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
-using v8::Uint32Array;
 using v8::Undefined;
 using v8::Value;
 
@@ -1310,7 +1310,7 @@ enum BuildHttpMessageFlags : uint32_t {
   kBuildHasAgent = 1u << 9,
 };
 
-// Out indices written into the optional Uint32Array passed as args[8].
+// Out indices written into the optional Float64Array passed as args[9].
 enum BuildHttpMessageOut : uint32_t {
   kOutLast = 0,
   kOutChunked = 1,
@@ -1334,6 +1334,15 @@ static bool HeaderTokenEquals(const char* a,
   return true;
 }
 
+// Match lib/_http_common.js chunkExpression / conn close:
+// /(?:^|\W)token(?:$|\W)/i  where \W is any non-[A-Za-z0-9_] character.
+// This accepts transfer-coding parameters (`chunked;foo=bar`) as well as
+// list/comma separators.
+static bool IsWordChar(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') || c == '_';
+}
+
 static bool ValueContainsTokenCI(const char* value,
                                  size_t len,
                                  const char* token,
@@ -1350,11 +1359,9 @@ static bool ValueContainsTokenCI(const char* value,
       }
     }
     if (!match) continue;
-    const bool left_ok = i == 0 || value[i - 1] == ' ' || value[i - 1] == ',' ||
-                         value[i - 1] == '\t';
-    const bool right_ok = i + token_len == len || value[i + token_len] == ' ' ||
-                          value[i + token_len] == ',' ||
-                          value[i + token_len] == '\t';
+    const bool left_ok = i == 0 || !IsWordChar(value[i - 1]);
+    const bool right_ok =
+        i + token_len == len || !IsWordChar(value[i + token_len]);
     if (left_ok && right_ok) return true;
   }
   return false;
@@ -1373,7 +1380,7 @@ static bool ValueContainsTokenCI(const char* value,
 // args[6] keepAliveSec  uint32 keep-alive timeout in seconds
 // args[7] maxRequests   int32  max requests per socket (0 = omit)
 // args[8] knownLength   int32  content-length if already known, else -1
-// args[9] out           Uint32Array(kOutCount) optional result flags
+// args[9] out           Float64Array(kOutCount) optional result flags
 void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -1568,9 +1575,10 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Single-shot body: prefer Content-Length over chunked when the message
-  // actually uses chunked-by-default (servers / POST/PUT clients).
+  // actually uses chunked-by-default (servers / POST/PUT clients). Do not
+  // rewrite when a Trailer is advertised — trailers require chunked framing.
   if ((body_is_buffer || body_is_string) && content_length >= 0 && !saw_te &&
-      !removed_cont_len && use_chunked_by_default) {
+      !saw_trailer && !removed_cont_len && use_chunked_by_default) {
     need_auto_cont_len = !saw_cont_len;
     need_auto_te = false;
     chunked = false;
@@ -1599,8 +1607,9 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   }
   size_t off = 0;
 
+  // Subtraction-style bounds checks avoid overflow of `off + n` before compare.
   auto append_raw = [&](const char* p, size_t n) {
-    CHECK_LE(off + n, est);
+    CHECK(off <= est && n <= est - off);
     if (n > 0) {
       std::memcpy(raw + off, p, n);
       off += n;
@@ -1609,18 +1618,19 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
   auto append_lit = [&](const char* lit) { append_raw(lit, std::strlen(lit)); };
   auto append_v8_latin1 = [&](Local<String> s) {
     const int n = s->Length();
-    CHECK_LE(off + static_cast<size_t>(n), est);
+    const size_t sn = static_cast<size_t>(n);
+    CHECK(off <= est && sn <= est - off);
     if (s->IsOneByte()) {
       s->WriteOneByteV2(isolate, 0, n, reinterpret_cast<uint8_t*>(raw + off));
     } else {
-      std::vector<uint16_t> tmp(static_cast<size_t>(n));
+      std::vector<uint16_t> tmp(sn);
       s->WriteV2(isolate, 0, n, tmp.data());
       for (int i = 0; i < n; i++) {
         raw[off + static_cast<size_t>(i)] =
             static_cast<char>(tmp[static_cast<size_t>(i)] & 0xff);
       }
     }
-    off += static_cast<size_t>(n);
+    off += sn;
   };
   auto append_number = [&](uint64_t n) {
     char buf[32];
@@ -1695,7 +1705,8 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
     if (body_is_buffer && body_len > 0) {
       append_raw(body_buf_data, body_len);
     } else if (body_is_string && body_len > 0) {
-      CHECK_LE(off + body_len + 1, est);
+      // Need room for payload; UTF-8 path may use body_len (no trailing NUL).
+      CHECK(off <= est && body_len <= est - off);
       if (body_encoding == 1) {
         body_str->WriteOneByteV2(isolate,
                                  0,
@@ -1704,10 +1715,8 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
         off += body_len;
       } else {
         const size_t written = body_str->WriteUtf8V2(
-            isolate, raw + off, body_len + 1, String::WriteFlags::kNone);
-        size_t payload = written;
-        if (payload > 0 && raw[off + payload - 1] == '\0') payload--;
-        off += payload;
+            isolate, raw + off, body_len, String::WriteFlags::kNone);
+        off += written;
       }
     }
     if (chunked) {
@@ -1729,17 +1738,19 @@ void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (args.Length() > 9 && args[9]->IsUint32Array()) {
-    Local<Uint32Array> out_arr = args[9].As<Uint32Array>();
+  // Float64Array so Content-Length values above 2^32-1 are not truncated
+  // (Uint32 would wrap; JS numbers are already doubles up to 2^53).
+  if (args.Length() > 9 && args[9]->IsFloat64Array()) {
+    Local<Float64Array> out_arr = args[9].As<Float64Array>();
     if (out_arr->Length() >= kOutCount) {
       auto* data =
-          static_cast<uint32_t*>(out_arr->Buffer()->GetBackingStore()->Data());
-      data += out_arr->ByteOffset() / sizeof(uint32_t);
-      data[kOutLast] = is_last ? 1 : 0;
-      data[kOutChunked] = chunked ? 1 : 0;
+          static_cast<double*>(out_arr->Buffer()->GetBackingStore()->Data());
+      data += out_arr->ByteOffset() / sizeof(double);
+      data[kOutLast] = is_last ? 1.0 : 0.0;
+      data[kOutChunked] = chunked ? 1.0 : 0.0;
       data[kOutContentLength] =
-          content_length >= 0 ? static_cast<uint32_t>(content_length) : 0;
-      data[kOutHasContentLength] = content_length >= 0 ? 1 : 0;
+          content_length >= 0 ? static_cast<double>(content_length) : 0.0;
+      data[kOutHasContentLength] = content_length >= 0 ? 1.0 : 0.0;
     }
   }
 
