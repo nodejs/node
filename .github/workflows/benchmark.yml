@@ -39,6 +39,7 @@ jobs:
   post-comment:
     if: inputs.post-comment
     outputs:
+      body: ${{ steps.comment.outputs.COMMENT_BODY }}
       url: ${{ steps.comment.outputs.COMMENT_URL }}
     runs-on: ubuntu-slim
     permissions:
@@ -50,9 +51,14 @@ jobs:
       - name: Add link to the current run
         id: comment
         run: |
-          echo "COMMENT_URL=$(gh pr comment -R "${REPO:-$GITHUB_REPOSITORY}" "$PR_ID" \
-            --body "Benchmark GHA: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")" >> "$GITHUB_OUTPUT"
+          FILTER_IF_SET=
+          [ -z "$FILTER" ] || FILTER_IF_SET="/ $FILTER"
+          COMMENT_BODY="Benchmark GHA (${CATEGORIES}${FILTER_IF_SET}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          echo "COMMENT_BODY=$COMMENT_BODY" >> "$GITHUB_OUTPUT"
+          echo "COMMENT_URL=$(gh pr comment -R "${REPO:-$GITHUB_REPOSITORY}" "$PR_ID" --body "$COMMENT_BODY")" >> "$GITHUB_OUTPUT"
         env:
+          CATEGORIES: ${{ inputs.category }}
+          FILTER: ${{ inputs.filter }}
           GH_TOKEN: ${{ inputs.token || github.token }}
           REPO: ${{ inputs.repo }}
           PR_ID: ${{ inputs.pr_id }}
@@ -230,7 +236,7 @@ jobs:
                 echo "> [!WARNING] "
                 echo "> Do not take GHA benchmark results as face value, always confirm them"
                 echo "> using a dedicated machine, e.g. Jenkins CI."
-            ' | tee /dev/stderr body.txt >> "$GITHUB_STEP_SUMMARY"
+            ' | tee /dev/stderr ${{ inputs.post-comment && 'body.txt' || '' }} >> "$GITHUB_STEP_SUMMARY"
       - name: Mark token input as sensitive
         if: inputs.token != ''
         run: echo "::add-mask::${{ inputs.token }}"
@@ -238,7 +244,7 @@ jobs:
         if: inputs.post-comment
         run: |
           {
-            echo "Benchmark GHA: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "$COMMENT_BODY"
             echo
             echo '<details><summary>Results</summary>'
             echo
@@ -254,5 +260,6 @@ jobs:
         env:
           GH_TOKEN: ${{ inputs.token || github.token }}
           REPO: ${{ inputs.repo }}
+          COMMENT_BODY: ${{ needs.post-comment.outputs.body }}
           COMMENT_URL: ${{ needs.post-comment.outputs.url }}
           PR_ID: ${{ inputs.pr_id }}
