@@ -221,6 +221,16 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 * The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
   along with anything under the control of the operating system.
+* The deployment network environment for the privacy of traffic and routing
+  decisions, including internal networks through which Node.js traffic passes
+  and configured HTTP(S) proxy servers. Built-in proxy support is intended to
+  route traffic through proxies authorized for the deployment, often because a
+  firewall requires one to access external networks. It is not intended to hide
+  traffic from network operators or authorities governing the deployment.
+  Untrusted or unauthorized proxies, as well as deployment policy or legal
+  compliance controls around proxy use, are the responsibility of the deployment
+  operator and are outside this threat model. This does not change that data
+  parsed from network protocol peers is untrusted as described above.
 * The code it is asked to run, including JavaScript, WASM and native code, even
   if said code is dynamically loaded, e.g., all dependencies installed from the
   npm registry or libraries loaded via `node:ffi`.
@@ -300,6 +310,19 @@ the community they pose.
 * Node.js treats data from HTTP/1.1 keep-alive connections as trusted, meaning that a Node.js
   client consuming unsolicited or misordered responses within the same HTTP/1.1 connection
   reuse lifecycle are generally not considered Node.js vulnerabilities.
+
+#### Unauthorized or untrusted HTTP proxy deployments
+
+* Built-in HTTP proxy support is intended for routing outbound requests through
+  a proxy authorized by the deployment, for example because a firewall requires
+  one to reach external networks. It is not an anonymity, traffic-hiding, or
+  policy-evasion feature.
+* Reports that depend on using an unauthorized proxy, expecting Node.js to
+  provide privacy from a configured proxy or internal network, or expecting
+  Node.js to enforce deployment-specific network policy or legal requirements
+  are not considered Node.js vulnerabilities. Deployment operators are
+  responsible for hardening such environments and controlling which proxy
+  settings are allowed.
 
 #### Malicious Third-Party Modules (CWE-1357)
 
