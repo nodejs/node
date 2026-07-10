@@ -1705,9 +1705,20 @@ to `listen()` or `new net.Socket()` later on. For `listen()` this enables
 synchronous port reservation, while for `new net.Socket()`, it allows control
 over the local egress port/IP, via `bind(2)` semantics.
 
+A `BoundSocket` binds either a TCP endpoint (`host` or `port`) or a
+Unix domain/named-pipe endpoint (`path`); the two are mutually exclusive. For a
+`path`, the file system entry is reserved in the constructor, so conflicts such
+as `EADDRINUSE` throw synchronously exactly as a TCP bind does. On Linux a
+leading `'\0'` in `path` selects the abstract namespace (no file system entry);
+an abstract path on any other platform throws [`ERR_INVALID_ARG_VALUE`][].
+
 Adoption transfers ownership of the socket; afterwards `address()` and `close()`
 throw [`ERR_SOCKET_HANDLE_ADOPTED`][]. A handle that is never adopted must be
-closed to avoid leaking the socket.
+closed to avoid leaking the socket. Closing a pipe `BoundSocket` removes its
+file system entry; abstract and TCP binds have none to remove.
+
+When a pipe `BoundSocket` bound to a source `path` is adopted as a client, that
+path is reported as the socket's `localAddress` once it connects.
 
 When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
 issued synchronously, so [`socket.localAddress`][] is resolved once
@@ -1729,6 +1740,10 @@ server.listen(bound); // Adopt as a server, or pass to new net.Socket() instead.
 
 <!-- YAML
 added: v26.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The `path` option is supported.
 -->
 
 * `options` {Object}
@@ -1743,18 +1758,40 @@ added: v26.4.0
   * `reusePort` {boolean} Sets `SO_REUSEPORT`, allowing multiple sockets to bind
     the same address and port for kernel-level load balancing. Support is
     platform-dependent. **Default:** `false`.
+  * `path` {string} Binds a Unix domain socket (or Windows named pipe) at the
+    given path instead of a TCP endpoint. A leading `'\0'` selects the Linux
+    abstract namespace. Mutually exclusive with `host`, `port`, `ipv6Only`, and
+    `reusePort`; combining them throws [`ERR_INVALID_ARG_VALUE`][].
 
 ### `boundSocket.address()`
 
 <!-- YAML
 added: v26.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The bound path is returned for a pipe bind.
 -->
 
-* Returns: {Object} An object with `address`, `family`, and `port` properties,
-  as [`server.address()`][] returns.
+* Returns: {Object|string} For a TCP bind, an object with `address`, `family`,
+  and `port` properties, as [`server.address()`][] returns. For a pipe bind, the
+  bound path string, as [`server.address()`][] returns for a pipe server.
 
 Returns the bound local address. When bound with `port: 0`, `port` is the
 OS-assigned ephemeral port.
+
+### `boundSocket.isPipe`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+`true` when the socket was bound with a `path` (a Unix domain socket or Windows
+named pipe), `false` for a TCP bind. The getter's presence on
+`net.BoundSocket.prototype` also serves as a capability probe for `path`
+support.
 
 ### `boundSocket.fd()`
 
@@ -2262,6 +2299,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`'listening'`]: #event-listening
 [`'timeout'`]: #event-timeout
 [`BoundSocket`]: #class-netboundsocket
+[`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options

@@ -1,7 +1,12 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const fs = require('fs');
 const net = require('net');
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+const isLinux = process.platform === 'linux';
 
 // Constructing a BoundSocket binds synchronously and address() reports the
 // resolved address, including the OS-assigned ephemeral port when port is 0.
@@ -238,6 +243,185 @@ if (!common.isWindows && process.getuid() !== 0) {
       }));
     }));
   }
+}
+
+// The isPipe getter's presence on the prototype is the capability signal that
+// this build honors { path }; the value discriminates pipe from TCP binds.
+assert.ok('isPipe' in net.BoundSocket.prototype);
+{
+  const tcpBound = new net.BoundSocket({ port: 0 });
+  assert.strictEqual(tcpBound.isPipe, false);
+  tcpBound.close();
+}
+
+// The path option is mutually exclusive with the TCP options.
+for (const extra of [{ host: '127.0.0.1' }, { port: 0 }, { ipv6Only: true },
+                     { reusePort: true }]) {
+  assert.throws(
+    () => new net.BoundSocket({ path: common.PIPE, ...extra }),
+    { code: 'ERR_INVALID_ARG_VALUE' });
+}
+
+// A non-string path is rejected.
+assert.throws(() => new net.BoundSocket({ path: 1234 }),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+
+// Pipe bind is synchronous: address() returns the bound path, and a second
+// bind to the same path throws EADDRINUSE in the constructor.
+{
+  const path = `${common.PIPE}-addr`;
+  const bound = new net.BoundSocket({ path });
+  assert.strictEqual(bound.isPipe, true);
+  assert.strictEqual(bound.address(), path);
+  assert.throws(() => new net.BoundSocket({ path }),
+                { code: 'EADDRINUSE', syscall: 'bind' });
+  bound.close();
+}
+
+// Server adoption: server.listen(boundSocket) over a path, client
+// net.connect({ path }) round-trips, and the connection is a pipe.
+{
+  const path = `${common.PIPE}-server`;
+  const bound = new net.BoundSocket({ path });
+
+  const server = net.createServer(common.mustCall((socket) => {
+    assert.strictEqual(socket.remoteFamily, undefined);
+    socket.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'ping');
+      socket.end('pong');
+    }));
+  }));
+
+  server.listen(bound, common.mustCall(() => {
+    assert.strictEqual(server.address(), path);
+    assert.throws(() => bound.address(), { code: 'ERR_SOCKET_HANDLE_ADOPTED' });
+
+    const client = net.connect({ path }, () => {
+      client.end('ping');
+    });
+    client.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'pong');
+    }));
+    client.on('close', common.mustCall(() => server.close()));
+  }));
+}
+
+// Client adoption of a bound source pipe: after connect(), localAddress
+// reflects the bound source path. Binding a client to a source path is a
+// POSIX unix-domain concept.
+if (!common.isWindows) {
+  const srcPath = `${common.PIPE}-src`;
+  const dstPath = `${common.PIPE}-dst`;
+
+  const server = net.createServer(common.mustCall((socket) => {
+    socket.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'ping');
+      socket.end('pong');
+    }));
+  }));
+
+  const dst = new net.BoundSocket({ path: dstPath });
+  server.listen(dst, common.mustCall(() => {
+    const src = new net.BoundSocket({ path: srcPath });
+    assert.strictEqual(src.address(), srcPath);
+
+    const client = new net.Socket({ handle: src });
+    client.connect({ path: dstPath });
+
+    assert.strictEqual(client.localAddress, srcPath);
+
+    client.on('connect', common.mustCall(() => {
+      assert.strictEqual(client.localAddress, srcPath);
+      client.end('ping');
+    }));
+    client.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'pong');
+    }));
+    client.on('close', common.mustCall(() => server.close()));
+  }));
+}
+
+// Reconnecting an adopted pipe BoundSocket after destroy: the adopted handle is
+// gone, so pipe-ness must come from the path option rather than the (now null)
+// handle, otherwise connect() would wrongly attempt a TCP connect.
+if (!common.isWindows) {
+  const path = `${common.PIPE}-reconnect`;
+
+  const server = net.createServer(common.mustCall((socket) => {
+    socket.on('data', (data) => socket.end(data));
+  }, 2));
+
+  const bound = new net.BoundSocket({ path: `${path}-src` });
+  server.listen(path, common.mustCall(() => {
+    const client = new net.Socket({ handle: bound });
+    client.connect({ path });
+    client.once('connect', common.mustCall(() => {
+      client.end('ping');
+      client.once('data', common.mustCall((data) => {
+        assert.strictEqual(data.toString(), 'ping');
+      }));
+      client.once('close', common.mustCall(() => {
+        // The adopted handle is gone; reconnect must still be a pipe.
+        client.connect({ path });
+        client.once('connect', common.mustCall(() => {
+          client.end('pong');
+          client.once('data', common.mustCall((data) => {
+            assert.strictEqual(data.toString(), 'pong');
+          }));
+          client.once('close', common.mustCall(() => server.close()));
+        }));
+      }));
+    }));
+  }));
+}
+
+// Linux abstract namespace: a leading '\0' binds without creating a filesystem
+// entry, and still listens/connects.
+if (isLinux) {
+  const abstractPath = `\0node-test-boundsocket.${process.pid}`;
+  const bound = new net.BoundSocket({ path: abstractPath });
+  assert.strictEqual(bound.address(), abstractPath);
+
+  const server = net.createServer(common.mustCall((socket) => {
+    socket.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'ping');
+      socket.end('pong');
+    }));
+  }));
+
+  server.listen(bound, common.mustCall(() => {
+    // No filesystem entry is created for an abstract socket.
+    assert.ok(!fs.existsSync(abstractPath.slice(1)));
+
+    const client = net.connect({ path: abstractPath }, () => {
+      client.end('ping');
+    });
+    client.on('data', common.mustCall((data) => {
+      assert.strictEqual(data.toString(), 'pong');
+    }));
+    client.on('close', common.mustCall(() => server.close()));
+  }));
+}
+
+// An abstract path on a non-Linux platform is rejected synchronously.
+if (!isLinux) {
+  assert.throws(() => new net.BoundSocket({ path: '\0abstract' }),
+                { code: 'ERR_INVALID_ARG_VALUE' });
+}
+
+// Filesystem bind errors surface synchronously in the constructor. A missing
+// parent directory yields EACCES (libuv maps the kernel's ENOENT to EACCES for
+// cross-platform parity), and an over-long path yields EINVAL (uv_pipe_bind is
+// called with UV_PIPE_NO_TRUNCATE). The path must exceed sun_path on every
+// platform, which is 1023 bytes on AIX.
+if (!common.isWindows) {
+  assert.throws(
+    () => new net.BoundSocket({ path: `${common.PIPE}-nope/child.sock` }),
+    { code: 'EACCES', syscall: 'bind' });
+
+  assert.throws(
+    () => new net.BoundSocket({ path: `${common.PIPE}-${'x'.repeat(2000)}` }),
+    { code: 'EINVAL', syscall: 'bind' });
 }
 
 // IPv6 binds: loopback, and ipv6Only dual-stack control.
