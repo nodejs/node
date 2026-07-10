@@ -4573,6 +4573,22 @@ support.
 
 If the request is made to a Unix domain socket, the proxy settings will be ignored.
 
+### Proxy security considerations
+
+Built-in proxy support routes outbound requests through an HTTP(S) proxy, often
+because a firewall requires one to access external networks. It is not an
+anonymity or traffic-hiding feature and does not attempt to hide traffic from
+the proxy, the local network, network operators, or authorities that govern the
+deployment.
+
+Configure only proxies that are trusted and authorized for the deployment. A
+proxy can observe connection metadata; for plain HTTP requests, or when TLS is
+terminated or intercepted by the proxy, it can also observe request and response
+contents. Node.js does not support treating an untrusted proxy as a privacy
+boundary. Deployment operators are responsible for controlling proxy
+configuration and for meeting deployment-specific network policy and legal
+requirements.
+
 ### Proxy URL Format
 
 Proxy URLs can use either HTTP or HTTPS protocols:
