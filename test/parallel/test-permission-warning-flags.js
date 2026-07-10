@@ -25,6 +25,6 @@ for (const flag of warnFlags) {
     ]
   );
 
-  assert.match(stderr.toString(), new RegExp(`SecurityWarning: The flag ${RegExp.escape(flag)} must be used with extreme caution`));
+  assert.match(stderr.toString(), new RegExp(`\\[PERM\\d{4}\\] SecurityWarning: The flag ${RegExp.escape(flag)} must be used with extreme caution`));
   assert.strictEqual(status, 0);
 }
