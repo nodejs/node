@@ -1717,10 +1717,6 @@ throw [`ERR_SOCKET_HANDLE_ADOPTED`][]. A handle that is never adopted must be
 closed to avoid leaking the socket. Closing a pipe `BoundSocket` removes its
 file system entry; abstract and TCP binds have none to remove.
 
-The presence of the [`boundSocket.isPipe`][] getter on
-`net.BoundSocket.prototype` is a capability signal that a build honors the
-`path` option rather than silently binding a TCP ephemeral port.
-
 When a pipe `BoundSocket` bound to a source `path` is adopted as a client, that
 path is reported as the socket's `localAddress` once it connects.
 
@@ -1744,6 +1740,10 @@ server.listen(bound); // Adopt as a server, or pass to new net.Socket() instead.
 
 <!-- YAML
 added: v26.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The `path` option is supported.
 -->
 
 * `options` {Object}
@@ -1767,6 +1767,10 @@ added: v26.4.0
 
 <!-- YAML
 added: v26.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The bound path is returned for a pipe bind.
 -->
 
 * Returns: {Object|string} For a TCP bind, an object with `address`, `family`,
@@ -2298,7 +2302,6 @@ net.isIPv6('fhqwhgads'); // returns false
 [`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
-[`boundSocket.isPipe`]: #boundsocketispipe
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags

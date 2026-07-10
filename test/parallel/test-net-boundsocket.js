@@ -341,6 +341,40 @@ if (!common.isWindows) {
   }));
 }
 
+// Reconnecting an adopted pipe BoundSocket after destroy: the adopted handle is
+// gone, so pipe-ness must come from the path option rather than the (now null)
+// handle, otherwise connect() would wrongly attempt a TCP connect.
+if (!common.isWindows) {
+  const path = `${common.PIPE}-reconnect`;
+
+  const server = net.createServer(common.mustCall((socket) => {
+    socket.on('data', (data) => socket.end(data));
+  }, 2));
+
+  const bound = new net.BoundSocket({ path: `${path}-src` });
+  server.listen(path, common.mustCall(() => {
+    const client = new net.Socket({ handle: bound });
+    client.connect({ path });
+    client.once('connect', common.mustCall(() => {
+      client.end('ping');
+      client.once('data', common.mustCall((data) => {
+        assert.strictEqual(data.toString(), 'ping');
+      }));
+      client.once('close', common.mustCall(() => {
+        // The adopted handle is gone; reconnect must still be a pipe.
+        client.connect({ path });
+        client.once('connect', common.mustCall(() => {
+          client.end('pong');
+          client.once('data', common.mustCall((data) => {
+            assert.strictEqual(data.toString(), 'pong');
+          }));
+          client.once('close', common.mustCall(() => server.close()));
+        }));
+      }));
+    }));
+  }));
+}
+
 // Linux abstract namespace: a leading '\0' binds without creating a filesystem
 // entry, and still listens/connects.
 if (isLinux) {
