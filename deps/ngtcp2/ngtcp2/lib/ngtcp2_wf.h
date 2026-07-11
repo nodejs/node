@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2025 ngtcp2 contributors
+ * Copyright (c) 2026 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_OSSL_H
-#define TLS_CLIENT_CONTEXT_OSSL_H
+#ifndef NGTCP2_WF_H
+#define NGTCP2_WF_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#endif /* defined(HAVE_CONFIG_H) */
 
-#include <openssl/ssl.h>
+#include <ngtcp2/ngtcp2.h>
 
-#include "shared.h"
+/*
+ * ngtcp2_wf implements Kathleen Nichols's windowed min/max tracking
+ * algorithm.
+ */
 
-using namespace ngtcp2;
+typedef struct ngtcp2_wf_sample {
+  uint64_t value;
+  uint64_t ts;
+} ngtcp2_wf_sample;
 
-class TLSClientContext {
-public:
-  TLSClientContext();
-  ~TLSClientContext();
+typedef struct ngtcp2_wf {
+  uint64_t win;
+  ngtcp2_wf_sample samples[3];
+} ngtcp2_wf;
 
-  std::expected<void, Error> init(const char *private_key_file,
-                                  const char *cert_file);
+void ngtcp2_wf_init(ngtcp2_wf *wf, uint64_t win);
 
-  SSL_CTX *get_native_handle() const;
+void ngtcp2_wf_update(ngtcp2_wf *wf, uint64_t value, uint64_t ts);
 
-  void enable_keylog();
+uint64_t ngtcp2_wf_get_best(const ngtcp2_wf *wf);
 
-private:
-  SSL_CTX *ssl_ctx_{};
-};
-
-#endif // !defined(TLS_CLIENT_CONTEXT_OSSL_H)
+#endif /* !defined(NGTCP2_WF_H) */
