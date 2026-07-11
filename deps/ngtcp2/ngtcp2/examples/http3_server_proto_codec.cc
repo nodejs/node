@@ -603,9 +603,9 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
     nghttp3_pri pri;
 
     if (auto rv =
-          nghttp3_conn_get_stream_priority(httpconn_, &pri, stream->stream_id);
+          nghttp3_conn_get_stream_priority2(httpconn_, &pri, stream->stream_id);
         rv != 0) {
-      std::println(stderr, "nghttp3_conn_get_stream_priority: {}",
+      std::println(stderr, "nghttp3_conn_get_stream_priority2: {}",
                    nghttp3_strerror(rv));
       return std::unexpected{Error::HTTP3};
     }

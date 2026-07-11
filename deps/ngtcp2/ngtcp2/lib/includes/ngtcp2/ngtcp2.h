@@ -3488,6 +3488,24 @@ typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_recv_stop_sending` is invoked when a STOP_SENDING frame
+ * is received from a remote endpoint for a stream identified by
+ * |stream_id|.  |app_error_code| is the application error code carried
+ * by the STOP_SENDING frame.  This callback is called at most
+ * once per stream.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
+                                        uint64_t app_error_code,
+                                        void *user_data,
+                                        void *stream_user_data);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_version_negotiation` is invoked when the compatible
  * version negotiation takes place.  For client, it is called when it
  * sees a change in version field of a long header packet.  This
@@ -3626,7 +3644,8 @@ typedef int (*ngtcp2_get_path_challenge_data2)(ngtcp2_conn *conn,
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
 #define NGTCP2_CALLBACKS_V3 3
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V3
+#define NGTCP2_CALLBACKS_V4 4
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V4
 
 /**
  * @struct
@@ -3964,6 +3983,16 @@ typedef struct ngtcp2_callbacks {
    * .. version-added:: 1.22.0
    */
   ngtcp2_get_path_challenge_data2 get_path_challenge_data2;
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V3. */
+  /**
+   * :member:`recv_stop_sending` is a callback function which is invoked
+   * when a STOP_SENDING frame is received from a remote endpoint.  This
+   * callback function is optional.
+   *
+   * .. version-added:: 1.24.0
+   */
+  ngtcp2_recv_stop_sending recv_stop_sending;
 } ngtcp2_callbacks;
 
 /**
