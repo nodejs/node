@@ -29,6 +29,10 @@ jobs:
         run: |
           mv requisites-*/* .
           ls
+          if grep -nvHE '^/nix/store/[0-9a-df-np-sv-z]{32}-[A-Za-z0-9?=._+-]+$' requisites-*.list; then
+            echo 'Unexpected line format in requisites list; refusing to process.' >&2
+            exit 1
+          fi
           echo "NUMBER=$(grep -E '^[0-9]+$' pr_number.txt || true)" >> "$GITHUB_OUTPUT"
 
       - name: Aggregate results
