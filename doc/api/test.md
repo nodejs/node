@@ -3462,6 +3462,45 @@ object, streaming a series of events representing the execution of the tests.
 Some of the events are guaranteed to be emitted in the same order as the tests
 are defined, while others are emitted in the order that the tests execute.
 
+The following tables summarize all events by scope.
+
+Test scoped events are emitted once per test or suite. Most of them come in
+pairs: a declaration ordered event, buffered so that events are emitted in the
+same order as the tests are defined, and one or more corresponding execution
+ordered events, emitted immediately as the tests execute.
+
+| Declaration ordered (buffered) | Execution ordered (immediate)                         |
+| ------------------------------ | ----------------------------------------------------- |
+| [`'test:start'`][]             | [`'test:enqueue'`][] followed by [`'test:dequeue'`][] |
+| [`'test:pass'`][]              | [`'test:complete'`][] (`details.passed` is `true`)    |
+| [`'test:fail'`][]              | [`'test:complete'`][] (`details.passed` is `false`)   |
+| [`'test:plan'`][]              |                                                       |
+| [`'test:diagnostic'`][]        |                                                       |
+
+File scoped and global events are always emitted immediately, in execution
+order.
+
+File scoped events are emitted once per test file:
+
+| Event                | Notes                                          |
+| -------------------- | ---------------------------------------------- |
+| [`'test:stderr'`][]  | Only emitted if the `--test` flag is passed.   |
+| [`'test:stdout'`][]  | Only emitted if the `--test` flag is passed.   |
+| [`'test:summary'`][] | Per file, only when process isolation is used. |
+
+Global events are emitted once per test run:
+
+| Event                        | Notes                                |
+| ---------------------------- | ------------------------------------ |
+| [`'test:summary'`][]         | The final cumulative summary.        |
+| [`'test:coverage'`][]        | Only when code coverage is enabled.  |
+| [`'test:interrupted'`][]     | Only when the run receives `SIGINT`. |
+| [`'test:watch:drained'`][]   | Watch mode only.                     |
+| [`'test:watch:restarted'`][] | Watch mode only.                     |
+
+The root test also emits [`'test:plan'`][] and [`'test:diagnostic'`][] events
+at the end of the run to report run level totals.
+
 ### Event: `'test:coverage'`
 
 * `data` {Object}
@@ -4710,6 +4749,21 @@ test.describe('my suite', (suite) => {
 
 [TAP]: https://testanything.org/
 [Test tags]: #test-tags
+[`'test:complete'`]: #event-testcomplete
+[`'test:coverage'`]: #event-testcoverage
+[`'test:dequeue'`]: #event-testdequeue
+[`'test:diagnostic'`]: #event-testdiagnostic
+[`'test:enqueue'`]: #event-testenqueue
+[`'test:fail'`]: #event-testfail
+[`'test:interrupted'`]: #event-testinterrupted
+[`'test:pass'`]: #event-testpass
+[`'test:plan'`]: #event-testplan
+[`'test:start'`]: #event-teststart
+[`'test:stderr'`]: #event-teststderr
+[`'test:stdout'`]: #event-teststdout
+[`'test:summary'`]: #event-testsummary
+[`'test:watch:drained'`]: #event-testwatchdrained
+[`'test:watch:restarted'`]: #event-testwatchrestarted
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filterexpr
