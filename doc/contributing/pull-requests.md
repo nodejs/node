@@ -180,14 +180,14 @@ A good commit message should describe what changed and why.
 
 3. Wrap all other lines at 72 columns (except for long URLs).
 
-4. If your patch fixes an open issue, you can add a reference to it at the end
-   of the log. Use the `Fixes:` prefix and the full issue URL. For other
-   references use `Refs:`.
+4. If your patch fixes an open issue, include a reference in the pull request
+   description. Use the `Fixes:` prefix and the full issue URL. For other
+   references, use `Refs:`.
 
-   `Fixes:` and `Refs:` trailers get automatically added to your commit message
-   when the Pull Request lands as long as they are included in the
-   Pull Request's description. If the Pull Request lands in several commits,
-   by default the trailers found in the description are added to each commits.
+   `Fixes:` and `Refs:` trailers are automatically added to the commit message
+   when the pull request lands. If the pull request lands as several commits,
+   the trailers from the description are added to each commit by default. When
+   landing the pull request manually, add the trailers to the commit message.
 
    Examples:
 
@@ -207,7 +207,7 @@ A good commit message should describe what changed and why.
    This rule does not apply to dependency updates (e.g. cherry-picks), release
    commits, or backport commits.
 
-Sample complete commit message:
+Sample final commit message after landing:
 
 ```text
 subsystem: explain the commit in one line
