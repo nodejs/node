@@ -72,10 +72,23 @@ function oneTo5() {
 
 {
   // Concurrency + AbortSignal
+  // Two mappers are started concurrently and block until their signal
+  // is aborted. Aborting while both are in flight must cancel them and
+  // reject the iteration, without ever starting a third mapper.
   const ac = new AbortController();
-  const stream = oneTo5().flatMap(common.mustNotCall(async (_, { signal }) => {
-    await setTimeout(100, { signal });
-  }), { signal: ac.signal, concurrency: 2 });
+  const stream = oneTo5().flatMap(common.mustCall(async (x, { signal }) => {
+    if (x === 2) {
+      // Both mappers allowed by `concurrency` are now in flight.
+      ac.abort();
+    }
+    await new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  }, 2), { signal: ac.signal, concurrency: 2 });
   // pump
   assert.rejects(async () => {
     for await (const item of stream) {
@@ -85,10 +98,6 @@ function oneTo5() {
   }, {
     name: 'AbortError',
   }).then(common.mustCall());
-
-  queueMicrotask(() => {
-    ac.abort();
-  });
 }
 
 {
