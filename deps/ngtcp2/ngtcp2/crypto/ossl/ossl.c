@@ -79,6 +79,60 @@ int ngtcp2_crypto_ossl_init(void) {
   return 0;
 }
 
+void ngtcp2_crypto_ossl_free(void) {
+  if (crypto_hkdf) {
+    EVP_KDF_free(crypto_hkdf);
+    crypto_hkdf = NULL;
+  }
+
+  if (crypto_sha384) {
+    EVP_MD_free(crypto_sha384);
+    crypto_sha384 = NULL;
+  }
+
+  if (crypto_sha256) {
+    EVP_MD_free(crypto_sha256);
+    crypto_sha256 = NULL;
+  }
+
+#ifndef NGTCP2_NO_CHACHA_POLY1305
+  if (crypto_chacha20) {
+    EVP_CIPHER_free(crypto_chacha20);
+    crypto_chacha20 = NULL;
+  }
+
+  if (crypto_chacha20_poly1305) {
+    EVP_CIPHER_free(crypto_chacha20_poly1305);
+    crypto_chacha20_poly1305 = NULL;
+  }
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
+
+  if (crypto_aes_256_ecb) {
+    EVP_CIPHER_free(crypto_aes_256_ecb);
+    crypto_aes_256_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ecb) {
+    EVP_CIPHER_free(crypto_aes_128_ecb);
+    crypto_aes_128_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ccm) {
+    EVP_CIPHER_free(crypto_aes_128_ccm);
+    crypto_aes_128_ccm = NULL;
+  }
+
+  if (crypto_aes_256_gcm) {
+    EVP_CIPHER_free(crypto_aes_256_gcm);
+    crypto_aes_256_gcm = NULL;
+  }
+
+  if (crypto_aes_128_gcm) {
+    EVP_CIPHER_free(crypto_aes_128_gcm);
+    crypto_aes_128_gcm = NULL;
+  }
+}
+
 static const EVP_CIPHER *crypto_aead_aes_128_gcm(void) {
   if (crypto_aes_128_gcm) {
     return crypto_aes_128_gcm;
