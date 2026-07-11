@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   aggregate-results:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
     name: Aggregate results
     runs-on: ubuntu-slim
     permissions:
