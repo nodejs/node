@@ -68,7 +68,13 @@ class FSPermission final : public PermissionBase {
             return split_child->CreateChild(path_prefix.substr(i));
           }
         }
-        child->is_leaf = true;
+        // Only mark the child as a leaf when it already terminates an
+        // inserted path. Routing a longer path through this node must not
+        // turn a pass-through prefix into a granted entry, or an unrelated
+        // parent directory would be treated as allowed.
+        if (child->IsEndNode()) {
+          child->is_leaf = true;
+        }
         return child->CreateChild(path_prefix.substr(i));
       }
 
@@ -136,6 +142,31 @@ class FSPermission final : public PermissionBase {
           return true;
         }
         return is_leaf;
+      }
+
+      // A directory allowed with a trailing wildcard ("/dir/*") also grants
+      // access to the directory itself. After a radix split that grant is
+      // stored as a "/" + "*" descendant of this node rather than on the
+      // node, so look for it explicitly.
+      bool HasWildcardGrantForSelf() const {
+        const char pattern[2] = {node::kPathSeparator, '*'};
+        size_t matched = 0;
+        const Node* current = this;
+        while (matched < 2) {
+          auto it = current->children.find(pattern[matched]);
+          if (it == current->children.end()) {
+            return false;
+          }
+          const Node* child = it->second;
+          for (size_t i = 0; i < child->prefix.length(); ++i) {
+            if (matched >= 2 || child->prefix[i] != pattern[matched]) {
+              return false;
+            }
+            ++matched;
+          }
+          current = child;
+        }
+        return current->wildcard_child != nullptr;
       }
     };
 

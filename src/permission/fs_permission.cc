@@ -304,7 +304,11 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
 
     auto node = current_node->NextNode(path, parent_node_prefix_len);
     if (node == nullptr) {
-      return false;
+      // The whole path matched this node. Grant it when the directory itself
+      // was allowed through a trailing wildcard ("/dir/*"), which after a
+      // radix split lives on a descendant rather than on this node.
+      return parent_node_prefix_len == path_len &&
+             current_node->HasWildcardGrantForSelf();
     }
 
     current_node = node;

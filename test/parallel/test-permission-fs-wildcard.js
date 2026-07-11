@@ -126,3 +126,31 @@ if (common.isWindows) {
     assert.strictEqual(status, 0, stderr.toString());
   }
 }
+
+{
+  // A trailing-wildcard grant for a subdirectory must not leak access to an
+  // unrelated parent directory that only shares a path prefix with sibling
+  // grants. The directory that owns the wildcard stays accessible.
+  if (!common.isWindows) {
+    const { status, stderr } = spawnSync(
+      process.execPath,
+      [
+        '--permission',
+        '--allow-fs-read=/etc/app/logs/*',
+        '--allow-fs-read=/etcd/data/file',
+        '--allow-fs-read=/etcx/y',
+        '-e',
+        `
+        const assert = require('assert')
+        assert.ok(!process.permission.has('fs.read', '/etc'));
+        assert.ok(!process.permission.has('fs.read', '/etc/passwd'));
+        assert.ok(process.permission.has('fs.read', '/etc/app/logs'));
+        assert.ok(process.permission.has('fs.read', '/etc/app/logs/app.log'));
+        assert.ok(process.permission.has('fs.read', '/etcd/data/file'));
+        assert.ok(process.permission.has('fs.read', '/etcx/y'));
+      `,
+      ]
+    );
+    assert.strictEqual(status, 0, stderr.toString());
+  }
+}
