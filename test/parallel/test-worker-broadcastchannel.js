@@ -195,7 +195,7 @@ assert.throws(() => new BroadcastChannel(), {
 
     bc.onmessage = (evt) => {
       assert.strictEqual(evt.data, 'from-main');
-      assert.strictEqual(evt.source, 0);
+      assert.strictEqual(evt.sender, 0);
 
       bc.close();
     };
@@ -206,7 +206,7 @@ assert.throws(() => new BroadcastChannel(), {
   bc.onmessage = common.mustCall((evt) => {
     assert.strictEqual(evt.data, 'from-worker');
 
-    assert.ok(evt.source > 0);
+    assert.ok(evt.sender > 0);
 
     bc.postMessage('from-main');
     bc.close();
