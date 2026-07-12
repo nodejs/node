@@ -1,0 +1,11 @@
+{
+  "name": "dep-a",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./lib/*": "./lib/*.js"
+  }
+}

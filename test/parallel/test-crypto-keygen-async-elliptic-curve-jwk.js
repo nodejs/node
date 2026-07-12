@@ -1,0 +1,46 @@
+'use strict';
+
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+const assert = require('assert');
+const {
+  generateKeyPair,
+} = require('crypto');
+const { hasFIPS } = require('../common/crypto');
+const rejectsXCurves = hasFIPS(3, 5);
+
+// Test async elliptic curve key generation with 'jwk' encoding.
+{
+  for (const type of ['ed25519', 'ed448', 'x25519', 'x448']) {
+    if (process.features.openssl_is_boringssl && type.endsWith('448')) {
+      common.printSkipMessage(`Skipping unsupported ${type} test case`);
+      continue;
+    }
+    generateKeyPair(type, {
+      publicKeyEncoding: {
+        format: 'jwk'
+      },
+      privateKeyEncoding: {
+        format: 'jwk'
+      }
+    }, common.mustCall((err, publicKey, privateKey) => {
+      if (rejectsXCurves && type.startsWith('x')) {
+        assert.strictEqual(err?.code, 'ERR_OSSL_EVP_UNSUPPORTED');
+        return;
+      }
+      assert.ifError(err);
+      assert.strictEqual(typeof publicKey, 'object');
+      assert.strictEqual(typeof privateKey, 'object');
+      assert.strictEqual(publicKey.x, privateKey.x);
+      assert(!publicKey.d);
+      assert(privateKey.d);
+      assert.strictEqual(publicKey.kty, 'OKP');
+      assert.strictEqual(publicKey.kty, privateKey.kty);
+      const expectedCrv = `${type.charAt(0).toUpperCase()}${type.slice(1)}`;
+      assert.strictEqual(publicKey.crv, expectedCrv);
+      assert.strictEqual(publicKey.crv, privateKey.crv);
+    }));
+  }
+}

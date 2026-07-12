@@ -1,0 +1,5 @@
+f3 in *%(basename)s*:8:3
+f2 in =:12:3
+f1 in =:16:3
+<none> in =:19:1
+$

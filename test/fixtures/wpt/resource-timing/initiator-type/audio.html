@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: audio</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body>
+<audio src="/resource-timing/resources/empty.py?id=src"></audio>
+<audio>
+  <source src="/resource-timing/resources/empty.py?id=source-wav"
+    type="audio/wav" />
+</audio>
+<audio>
+  <source src="/resource-timing/resources/empty.py?id=source-mpeg"
+    type="audio/mpeg" />
+</audio>
+<audio>
+  <source src="/resource-timing/resources/empty.py?id=source-ogg"
+    type="audio/ogg" />
+</audio>
+<script>
+  initiator_type_test("empty.py?id=src", "audio", "<audio src> without 'type' attribute");
+  initiator_type_test("empty.py?id=source-wav", "audio", "<source src> with type 'audio/wav'");
+  initiator_type_test("empty.py?id=source-mpeg", "audio", "<source src> with type 'audio/mpeg'");
+  initiator_type_test("empty.py?id=source-ogg", "audio", "<source src> with type 'audio/ogg'");
+</script>
+</body>
+</html>

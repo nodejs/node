@@ -1,0 +1,730 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+-1000 R.D. (-2-04-06) - -1000 R.D. (-2-04-06)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+0 R.D. (0-12-31) - -1000 R.D. (-2-04-06)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 2, months: 8, weeks: 0, days: 24 }
+  Months: DateDuration { is_negative: false, years: 0, months: 33, weeks: 0, days: 24 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 142, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1000 }
+10000 R.D. (28-05-18) - -1000 R.D. (-2-04-06)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 30, months: 1, weeks: 0, days: 13 }
+  Months: DateDuration { is_negative: false, years: 0, months: 372, weeks: 0, days: 13 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1571, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11000 }
+25145 R.D. (69-11-04) - -1000 R.D. (-2-04-06)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 71, months: 7, weeks: 0, days: 10 }
+  Months: DateDuration { is_negative: false, years: 0, months: 885, weeks: 0, days: 10 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3735, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26145 }
+25317 R.D. (70-04-25) - -1000 R.D. (-2-04-06)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: false, years: 0, months: 891, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3759, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26317 }
+25340 R.D. (70-05-18) - -1000 R.D. (-2-04-06)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: false, years: 0, months: 891, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3762, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26340 }
+25344 R.D. (70-05-22) - -1000 R.D. (-2-04-06)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 1, weeks: 0, days: 2 }
+  Months: DateDuration { is_negative: false, years: 0, months: 892, weeks: 0, days: 2 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3763, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26344 }
+25345 R.D. (70-05-23) - -1000 R.D. (-2-04-06)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 1, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: false, years: 0, months: 892, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3763, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26345 }
+25355 R.D. (70-06-02) - -1000 R.D. (-2-04-06)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 1, weeks: 0, days: 13 }
+  Months: DateDuration { is_negative: false, years: 0, months: 892, weeks: 0, days: 13 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3765, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26355 }
+25356 R.D. (70-06-03) - -1000 R.D. (-2-04-06)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 72, months: 1, weeks: 0, days: 14 }
+  Months: DateDuration { is_negative: false, years: 0, months: 892, weeks: 0, days: 14 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3765, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26356 }
+25700 R.D. (71-05-13) - -1000 R.D. (-2-04-06)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3758-7-23, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 73, months: 1, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: false, years: 0, months: 904, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3814, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 26700 }
+-1000 R.D. (-2-04-06) - 0 R.D. (0-12-31)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 2, months: 8, weeks: 0, days: 24 }
+  Months: DateDuration { is_negative: true, years: 0, months: 33, weeks: 0, days: 24 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 142, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1000 }
+0 R.D. (0-12-31) - 0 R.D. (0-12-31)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+10000 R.D. (28-05-18) - 0 R.D. (0-12-31)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 27, months: 4, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: false, years: 0, months: 338, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1428, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 10000 }
+25145 R.D. (69-11-04) - 0 R.D. (0-12-31)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 68, months: 10, weeks: 0, days: 16 }
+  Months: DateDuration { is_negative: false, years: 0, months: 851, weeks: 0, days: 16 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3592, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25145 }
+25317 R.D. (70-04-25) - 0 R.D. (0-12-31)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 4, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: false, years: 0, months: 857, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3616, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25317 }
+25340 R.D. (70-05-18) - 0 R.D. (0-12-31)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 5, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: false, years: 0, months: 858, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3620, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25340 }
+25344 R.D. (70-05-22) - 0 R.D. (0-12-31)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 5, weeks: 0, days: 8 }
+  Months: DateDuration { is_negative: false, years: 0, months: 858, weeks: 0, days: 8 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3620, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25344 }
+25345 R.D. (70-05-23) - 0 R.D. (0-12-31)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 5, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: false, years: 0, months: 858, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3620, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25345 }
+25355 R.D. (70-06-02) - 0 R.D. (0-12-31)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 5, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: false, years: 0, months: 858, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3622, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25355 }
+25356 R.D. (70-06-03) - 0 R.D. (0-12-31)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 69, months: 5, weeks: 0, days: 20 }
+  Months: DateDuration { is_negative: false, years: 0, months: 858, weeks: 0, days: 20 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3622, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25356 }
+25700 R.D. (71-05-13) - 0 R.D. (0-12-31)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3761-4-17, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 70, months: 4, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: false, years: 0, months: 870, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3671, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 25700 }
+-1000 R.D. (-2-04-06) - 10000 R.D. (28-05-18)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 30, months: 1, weeks: 0, days: 14 }
+  Months: DateDuration { is_negative: true, years: 0, months: 372, weeks: 0, days: 14 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1571, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11000 }
+0 R.D. (0-12-31) - 10000 R.D. (28-05-18)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 27, months: 4, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: true, years: 0, months: 338, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1428, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 10000 }
+10000 R.D. (28-05-18) - 10000 R.D. (28-05-18)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25145 R.D. (69-11-04) - 10000 R.D. (28-05-18)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 41, months: 5, weeks: 0, days: 26 }
+  Months: DateDuration { is_negative: false, years: 0, months: 512, weeks: 0, days: 26 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2163, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15145 }
+25317 R.D. (70-04-25) - 10000 R.D. (28-05-18)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 41, months: 11, weeks: 0, days: 21 }
+  Months: DateDuration { is_negative: false, years: 0, months: 518, weeks: 0, days: 21 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2188, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15317 }
+25340 R.D. (70-05-18) - 10000 R.D. (28-05-18)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 41, months: 12, weeks: 0, days: 14 }
+  Months: DateDuration { is_negative: false, years: 0, months: 519, weeks: 0, days: 14 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2191, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15340 }
+25344 R.D. (70-05-22) - 10000 R.D. (28-05-18)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 41, months: 12, weeks: 0, days: 18 }
+  Months: DateDuration { is_negative: false, years: 0, months: 519, weeks: 0, days: 18 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2192, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15344 }
+25345 R.D. (70-05-23) - 10000 R.D. (28-05-18)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 41, months: 12, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: false, years: 0, months: 519, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2192, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15345 }
+25355 R.D. (70-06-02) - 10000 R.D. (28-05-18)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 42, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 520, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2193, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15355 }
+25356 R.D. (70-06-03) - 10000 R.D. (28-05-18)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 42, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: false, years: 0, months: 520, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2193, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15356 }
+25700 R.D. (71-05-13) - 10000 R.D. (28-05-18)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3788-9-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 42, months: 11, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: false, years: 0, months: 531, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2242, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15700 }
+-1000 R.D. (-2-04-06) - 25145 R.D. (69-11-04)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 71, months: 7, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: true, years: 0, months: 885, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3735, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26145 }
+0 R.D. (0-12-31) - 25145 R.D. (69-11-04)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 68, months: 10, weeks: 0, days: 16 }
+  Months: DateDuration { is_negative: true, years: 0, months: 851, weeks: 0, days: 16 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3592, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25145 }
+10000 R.D. (28-05-18) - 25145 R.D. (69-11-04)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 41, months: 5, weeks: 0, days: 27 }
+  Months: DateDuration { is_negative: true, years: 0, months: 512, weeks: 0, days: 27 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2163, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15145 }
+25145 R.D. (69-11-04) - 25145 R.D. (69-11-04)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25317 R.D. (70-04-25) - 25145 R.D. (69-11-04)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 5, weeks: 0, days: 24 }
+  Months: DateDuration { is_negative: false, years: 0, months: 5, weeks: 0, days: 24 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 24, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 172 }
+25340 R.D. (70-05-18) - 25145 R.D. (69-11-04)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 17 }
+  Months: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 17 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 27, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 195 }
+25344 R.D. (70-05-22) - 25145 R.D. (69-11-04)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 21 }
+  Months: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 21 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 28, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 199 }
+25345 R.D. (70-05-23) - 25145 R.D. (69-11-04)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 22 }
+  Months: DateDuration { is_negative: false, years: 0, months: 6, weeks: 0, days: 22 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 28, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 200 }
+25355 R.D. (70-06-02) - 25145 R.D. (69-11-04)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 7, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: false, years: 0, months: 7, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 30, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 210 }
+25356 R.D. (70-06-03) - 25145 R.D. (69-11-04)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 7, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: false, years: 0, months: 7, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 30, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 211 }
+25700 R.D. (71-05-13) - 25145 R.D. (69-11-04)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-3-4, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 1, months: 5, weeks: 0, days: 22 }
+  Months: DateDuration { is_negative: false, years: 0, months: 18, weeks: 0, days: 22 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 79, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 555 }
+-1000 R.D. (-2-04-06) - 25317 R.D. (70-04-25)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: true, years: 0, months: 891, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3759, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26317 }
+0 R.D. (0-12-31) - 25317 R.D. (70-04-25)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 3, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: true, years: 0, months: 857, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3616, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25317 }
+10000 R.D. (28-05-18) - 25317 R.D. (70-04-25)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 41, months: 11, weeks: 0, days: 21 }
+  Months: DateDuration { is_negative: true, years: 0, months: 518, weeks: 0, days: 21 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2188, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15317 }
+25145 R.D. (69-11-04) - 25317 R.D. (70-04-25)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 5, weeks: 0, days: 24 }
+  Months: DateDuration { is_negative: true, years: 0, months: 5, weeks: 0, days: 24 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 24, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 172 }
+25317 R.D. (70-04-25) - 25317 R.D. (70-04-25)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25340 R.D. (70-05-18) - 25317 R.D. (70-04-25)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 23 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 23 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 23 }
+25344 R.D. (70-05-22) - 25317 R.D. (70-04-25)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 27 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 27 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 3, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 27 }
+25345 R.D. (70-05-23) - 25317 R.D. (70-04-25)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 4, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 28 }
+25355 R.D. (70-06-02) - 25317 R.D. (70-04-25)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 1, weeks: 0, days: 8 }
+  Months: DateDuration { is_negative: false, years: 0, months: 1, weeks: 0, days: 8 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 5, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 38 }
+25356 R.D. (70-06-03) - 25317 R.D. (70-04-25)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 1, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: false, years: 0, months: 1, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 5, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 39 }
+25700 R.D. (71-05-13) - 25317 R.D. (70-04-25)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-8-28, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 1, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: false, years: 0, months: 12, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 54, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 383 }
+-1000 R.D. (-2-04-06) - 25340 R.D. (70-05-18)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: true, years: 0, months: 891, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3762, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26340 }
+0 R.D. (0-12-31) - 25340 R.D. (70-05-18)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 4, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: true, years: 0, months: 858, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3620, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25340 }
+10000 R.D. (28-05-18) - 25340 R.D. (70-05-18)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 41, months: 12, weeks: 0, days: 14 }
+  Months: DateDuration { is_negative: true, years: 0, months: 519, weeks: 0, days: 14 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2191, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15340 }
+25145 R.D. (69-11-04) - 25340 R.D. (70-05-18)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 17 }
+  Months: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 17 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 27, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 195 }
+25317 R.D. (70-04-25) - 25340 R.D. (70-05-18)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 23 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 23 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 23 }
+25340 R.D. (70-05-18) - 25340 R.D. (70-05-18)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25344 R.D. (70-05-22) - 25340 R.D. (70-05-18)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 4 }
+25345 R.D. (70-05-23) - 25340 R.D. (70-05-18)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 5 }
+25355 R.D. (70-06-02) - 25340 R.D. (70-05-18)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 15 }
+25356 R.D. (70-06-03) - 25340 R.D. (70-05-18)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 16 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 16 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 2, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 16 }
+25700 R.D. (71-05-13) - 25340 R.D. (70-05-18)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-9-21, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 1, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: false, years: 0, months: 12, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 51, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 360 }
+-1000 R.D. (-2-04-06) - 25344 R.D. (70-05-22)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 1, weeks: 0, days: 2 }
+  Months: DateDuration { is_negative: true, years: 0, months: 892, weeks: 0, days: 2 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3763, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26344 }
+0 R.D. (0-12-31) - 25344 R.D. (70-05-22)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 4, weeks: 0, days: 8 }
+  Months: DateDuration { is_negative: true, years: 0, months: 858, weeks: 0, days: 8 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3620, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25344 }
+10000 R.D. (28-05-18) - 25344 R.D. (70-05-22)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 41, months: 12, weeks: 0, days: 18 }
+  Months: DateDuration { is_negative: true, years: 0, months: 519, weeks: 0, days: 18 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2192, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15344 }
+25145 R.D. (69-11-04) - 25344 R.D. (70-05-22)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 21 }
+  Months: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 21 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 28, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 199 }
+25317 R.D. (70-04-25) - 25344 R.D. (70-05-22)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 27 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 27 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 27 }
+25340 R.D. (70-05-18) - 25344 R.D. (70-05-22)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 4 }
+25344 R.D. (70-05-22) - 25344 R.D. (70-05-22)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25345 R.D. (70-05-23) - 25344 R.D. (70-05-22)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+25355 R.D. (70-06-02) - 25344 R.D. (70-05-22)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+25356 R.D. (70-06-03) - 25344 R.D. (70-05-22)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 12 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 12 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 12 }
+25700 R.D. (71-05-13) - 25344 R.D. (70-05-22)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-9-25, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 1, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: false, years: 0, months: 12, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 50, days: 6 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 356 }
+-1000 R.D. (-2-04-06) - 25345 R.D. (70-05-23)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 1, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: true, years: 0, months: 892, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3763, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26345 }
+0 R.D. (0-12-31) - 25345 R.D. (70-05-23)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 4, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: true, years: 0, months: 858, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3620, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25345 }
+10000 R.D. (28-05-18) - 25345 R.D. (70-05-23)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 41, months: 12, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: true, years: 0, months: 519, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2192, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15345 }
+25145 R.D. (69-11-04) - 25345 R.D. (70-05-23)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 22 }
+  Months: DateDuration { is_negative: true, years: 0, months: 6, weeks: 0, days: 22 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 28, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 200 }
+25317 R.D. (70-04-25) - 25345 R.D. (70-05-23)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 4, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 28 }
+25340 R.D. (70-05-18) - 25345 R.D. (70-05-23)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 5 }
+25344 R.D. (70-05-22) - 25345 R.D. (70-05-23)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+25345 R.D. (70-05-23) - 25345 R.D. (70-05-23)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25355 R.D. (70-06-02) - 25345 R.D. (70-05-23)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 10 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 10 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1, days: 3 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 10 }
+25356 R.D. (70-06-03) - 25345 R.D. (70-05-23)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 1, days: 4 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 11 }
+25700 R.D. (71-05-13) - 25345 R.D. (70-05-23)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-9-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 1, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 12, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 50, days: 5 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 355 }
+-1000 R.D. (-2-04-06) - 25355 R.D. (70-06-02)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 1, weeks: 0, days: 14 }
+  Months: DateDuration { is_negative: true, years: 0, months: 892, weeks: 0, days: 14 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3765, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26355 }
+0 R.D. (0-12-31) - 25355 R.D. (70-06-02)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 4, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: true, years: 0, months: 858, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3622, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25355 }
+10000 R.D. (28-05-18) - 25355 R.D. (70-06-02)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 42, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: true, years: 0, months: 520, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2193, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15355 }
+25145 R.D. (69-11-04) - 25355 R.D. (70-06-02)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 7, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: true, years: 0, months: 7, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 30, days: 0 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 210 }
+25317 R.D. (70-04-25) - 25355 R.D. (70-06-02)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 1, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: true, years: 0, months: 1, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 5, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 38 }
+25340 R.D. (70-05-18) - 25355 R.D. (70-06-02)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15 }
+25344 R.D. (70-05-22) - 25355 R.D. (70-06-02)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+25345 R.D. (70-05-23) - 25355 R.D. (70-06-02)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 10 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 10 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 10 }
+25355 R.D. (70-06-02) - 25355 R.D. (70-06-02)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25356 R.D. (70-06-03) - 25355 R.D. (70-06-02)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 1 }
+25700 R.D. (71-05-13) - 25355 R.D. (70-06-02)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-10-7, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 11, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: false, years: 0, months: 11, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 49, days: 2 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 345 }
+-1000 R.D. (-2-04-06) - 25356 R.D. (70-06-03)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 72, months: 1, weeks: 0, days: 15 }
+  Months: DateDuration { is_negative: true, years: 0, months: 892, weeks: 0, days: 15 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3765, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26356 }
+0 R.D. (0-12-31) - 25356 R.D. (70-06-03)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 69, months: 4, weeks: 0, days: 20 }
+  Months: DateDuration { is_negative: true, years: 0, months: 858, weeks: 0, days: 20 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3622, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25356 }
+10000 R.D. (28-05-18) - 25356 R.D. (70-06-03)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 42, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: true, years: 0, months: 520, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2193, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15356 }
+25145 R.D. (69-11-04) - 25356 R.D. (70-06-03)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 7, weeks: 0, days: 4 }
+  Months: DateDuration { is_negative: true, years: 0, months: 7, weeks: 0, days: 4 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 30, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 211 }
+25317 R.D. (70-04-25) - 25356 R.D. (70-06-03)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 1, weeks: 0, days: 10 }
+  Months: DateDuration { is_negative: true, years: 0, months: 1, weeks: 0, days: 10 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 5, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 39 }
+25340 R.D. (70-05-18) - 25356 R.D. (70-06-03)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 16 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 16 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 16 }
+25344 R.D. (70-05-22) - 25356 R.D. (70-06-03)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 12 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 12 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 12 }
+25345 R.D. (70-05-23) - 25356 R.D. (70-06-03)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 1, days: 4 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 11 }
+25355 R.D. (70-06-02) - 25356 R.D. (70-06-03)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 1 }
+25356 R.D. (70-06-03) - 25356 R.D. (70-06-03)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+25700 R.D. (71-05-13) - 25356 R.D. (70-06-03)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3830-10-8, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 11, weeks: 0, days: 18 }
+  Months: DateDuration { is_negative: false, years: 0, months: 11, weeks: 0, days: 18 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 49, days: 1 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 344 }
+-1000 R.D. (-2-04-06) - 25700 R.D. (71-05-13)
+ Date(3758-7-23, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 73, months: 1, weeks: 0, days: 3 }
+  Months: DateDuration { is_negative: true, years: 0, months: 904, weeks: 0, days: 3 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3814, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 26700 }
+0 R.D. (0-12-31) - 25700 R.D. (71-05-13)
+ Date(3761-4-17, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 70, months: 4, weeks: 0, days: 9 }
+  Months: DateDuration { is_negative: true, years: 0, months: 870, weeks: 0, days: 9 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 3671, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 25700 }
+10000 R.D. (28-05-18) - 25700 R.D. (71-05-13)
+ Date(3788-9-7, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 42, months: 12, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: true, years: 0, months: 531, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 2242, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 15700 }
+25145 R.D. (69-11-04) - 25700 R.D. (71-05-13)
+ Date(3830-3-4, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 1, months: 6, weeks: 0, days: 22 }
+  Months: DateDuration { is_negative: true, years: 0, months: 18, weeks: 0, days: 22 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 79, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 555 }
+25317 R.D. (70-04-25) - 25700 R.D. (71-05-13)
+ Date(3830-8-28, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 1, months: 0, weeks: 0, days: 28 }
+  Months: DateDuration { is_negative: true, years: 0, months: 12, weeks: 0, days: 28 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 54, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 383 }
+25340 R.D. (70-05-18) - 25700 R.D. (71-05-13)
+ Date(3830-9-21, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 1, months: 0, weeks: 0, days: 5 }
+  Months: DateDuration { is_negative: true, years: 0, months: 12, weeks: 0, days: 5 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 51, days: 3 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 360 }
+25344 R.D. (70-05-22) - 25700 R.D. (71-05-13)
+ Date(3830-9-25, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 1, months: 0, weeks: 0, days: 1 }
+  Months: DateDuration { is_negative: true, years: 0, months: 12, weeks: 0, days: 1 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 50, days: 6 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 356 }
+25345 R.D. (70-05-23) - 25700 R.D. (71-05-13)
+ Date(3830-9-26, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 1, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: true, years: 0, months: 12, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 50, days: 5 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 355 }
+25355 R.D. (70-06-02) - 25700 R.D. (71-05-13)
+ Date(3830-10-7, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 11, weeks: 0, days: 19 }
+  Months: DateDuration { is_negative: true, years: 0, months: 11, weeks: 0, days: 19 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 49, days: 2 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 345 }
+25356 R.D. (70-06-03) - 25700 R.D. (71-05-13)
+ Date(3830-10-8, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: true, years: 0, months: 11, weeks: 0, days: 18 }
+  Months: DateDuration { is_negative: true, years: 0, months: 11, weeks: 0, days: 18 }
+  Weeks: DateDuration { is_negative: true, years: 0, months: 0, weeks: 49, days: 1 }
+  Days: DateDuration { is_negative: true, years: 0, months: 0, weeks: 0, days: 344 }
+25700 R.D. (71-05-13) - 25700 R.D. (71-05-13)
+ Date(3831-8-26, am era, for calendar Hebrew) - Date(3831-8-26, am era, for calendar Hebrew)
+  Years: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Months: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Weeks: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }
+  Days: DateDuration { is_negative: false, years: 0, months: 0, weeks: 0, days: 0 }

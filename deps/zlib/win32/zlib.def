@@ -1,0 +1,94 @@
+; zlib data compression library
+EXPORTS
+; basic functions
+    zlibVersion
+    deflate
+    deflateEnd
+    inflate
+    inflateEnd
+; advanced functions
+    deflateSetDictionary
+    deflateGetDictionary
+    deflateCopy
+    deflateReset
+    deflateParams
+    deflateTune
+    deflateBound
+    deflatePending
+    deflatePrime
+    deflateSetHeader
+    inflateSetDictionary
+    inflateGetDictionary
+    inflateSync
+    inflateCopy
+    inflateReset
+    inflateReset2
+    inflatePrime
+    inflateMark
+    inflateGetHeader
+    inflateBack
+    inflateBackEnd
+    zlibCompileFlags
+; utility functions
+    compress
+    compress2
+    compressBound
+    uncompress
+    uncompress2
+    gzopen
+    gzdopen
+    gzbuffer
+    gzsetparams
+    gzread
+    gzfread
+    gzwrite
+    gzfwrite
+    gzprintf
+    gzvprintf
+    gzputs
+    gzgets
+    gzputc
+    gzgetc
+    gzungetc
+    gzflush
+    gzseek
+    gzrewind
+    gztell
+    gzoffset
+    gzeof
+    gzdirect
+    gzclose
+    gzclose_r
+    gzclose_w
+    gzerror
+    gzclearerr
+; large file functions
+    gzopen64
+    gzseek64
+    gztell64
+    gzoffset64
+    adler32_combine64
+    crc32_combine64
+; checksum functions
+    adler32
+    adler32_z
+    crc32
+    crc32_z
+    adler32_combine
+    crc32_combine
+; various hacks, don't look :)
+    deflateInit_
+    deflateInit2_
+    inflateInit_
+    inflateInit2_
+    inflateBackInit_
+    gzgetc_
+    zError
+    inflateSyncPoint
+    get_crc_table
+    inflateUndermine
+    inflateValidate
+    inflateCodesUsed
+    inflateResetKeep
+    deflateResetKeep
+    gzopen_w

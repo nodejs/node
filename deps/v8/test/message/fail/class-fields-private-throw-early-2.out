@@ -1,0 +1,6 @@
+*%(basename)s:8: TypeError: Cannot write private member #x to an object whose class did not declare it
+    ({}).#x = 1;
+            ^
+TypeError: Cannot write private member #x to an object whose class did not declare it
+    at new X (*%(basename)s:8:13)
+    at *%(basename)s:12:1

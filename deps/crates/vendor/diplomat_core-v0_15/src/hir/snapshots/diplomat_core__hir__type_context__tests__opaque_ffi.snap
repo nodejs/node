@@ -1,0 +1,9 @@
+---
+source: core/src/hir/type_context.rs
+assertion_line: 691
+expression: output
+---
+Lowering error in MyOpaqueEnum::new_broken: Opaque passed by value in input: MyOpaqueEnum
+Lowering error in MyOpaqueEnum::do_thing_broken: Method `MyOpaqueEnum_do_thing_broken` takes an opaque by value as the self parameter, but opaques as inputs must be behind refs
+Lowering error in MyOpaqueStruct::new_broken: Opaque passed by value in input: MyOpaqueStruct
+Lowering error in MyOpaqueStruct::do_thing_broken: Method `MyOpaqueStruct_do_thing_broken` takes an opaque by value as the self parameter, but opaques as inputs must be behind refs

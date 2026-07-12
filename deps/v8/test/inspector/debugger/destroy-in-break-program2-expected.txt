@@ -1,0 +1,3 @@
+Check we're not pausing on breaks while installing console API
+frobnicate("test", "self") = self test
+paused in: the-right-place.js

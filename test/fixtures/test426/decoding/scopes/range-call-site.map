@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "file": "range-call-site.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "inlineMe",
+    "function"
+  ],
+  "scopes": "BCAAA,BHBACE,CEA,CFA,ECAA,EDBAC,IAGC,FK,FJA"
+}

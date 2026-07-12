@@ -1,0 +1,284 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Internal methods of Window's named properties object</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#named-properties-object">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+function sloppyModeSet(base, key, value) { base[key] = value; }
+</script>
+<script>
+"use strict";
+
+const supportedNonIndex = "supported non-index property name";
+const supportedIndex = "supported indexed property name";
+const unsupportedNonIndex = "unsupported non-index property name";
+const unsupportedIndex = "unsupported indexed property name";
+const existingSymbol = "existing symbol property name";
+const nonExistingSymbol = "non-existing symbol property name";
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    Object.setPrototypeOf(wp, w.EventTarget.prototype); // Setting current [[Prototype]] value shouldn't throw
+
+    assert_throws_js(TypeError, () => { Object.setPrototypeOf(wp, {}); });
+    assert_throws_js(w.TypeError, () => { wp.__proto__ = null; });
+    assert_false(Reflect.setPrototypeOf(wp, w.Object.prototype));
+
+    assert_equals(Object.getPrototypeOf(wp), w.EventTarget.prototype);
+}, "[[SetPrototypeOf]] and [[GetPrototypeOf]]");
+
+test(t => {
+    const { wp } = createWindowProperties(t);
+
+    assert_throws_js(TypeError, () => { Object.preventExtensions(wp); });
+    assert_false(Reflect.preventExtensions(wp));
+
+    assert_true(Object.isExtensible(wp));
+}, "[[PreventExtensions]] and [[IsExtensible]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    const elA = appendElementWithId(w, "a");
+    const el0 = appendIframeWithName(w, 0);
+
+    assert_prop_desc(Object.getOwnPropertyDescriptor(wp, "a"), elA, supportedNonIndex);
+    assert_prop_desc(Reflect.getOwnPropertyDescriptor(wp, 0), el0, supportedIndex);
+    assert_equals(Reflect.getOwnPropertyDescriptor(wp, "b"), undefined, unsupportedNonIndex);
+    assert_equals(Object.getOwnPropertyDescriptor(wp, 1), undefined, unsupportedIndex);
+}, "[[GetOwnProperty]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    appendIframeWithName(w, "hasOwnProperty");
+    appendFormWithName(w, "addEventListener");
+    appendElementWithId(w, "a");
+    appendIframeWithName(w, 0);
+
+    w.Object.prototype.a = {};
+    w.EventTarget.prototype[0] = {};
+
+    // These are shadowed by properties higher in [[Prototype]] chain. See https://webidl.spec.whatwg.org/#dfn-named-property-visibility
+    assert_equals(Object.getOwnPropertyDescriptor(wp, "hasOwnProperty"), undefined, supportedNonIndex);
+    assert_equals(Reflect.getOwnPropertyDescriptor(wp, "addEventListener"), undefined, supportedNonIndex);
+    assert_equals(Object.getOwnPropertyDescriptor(wp, "a"), undefined, supportedNonIndex);
+    assert_equals(Reflect.getOwnPropertyDescriptor(wp, 0), undefined, supportedIndex);
+}, "[[GetOwnProperty]] (named property visibility algorithm)");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    appendElementWithId(w, "a");
+    appendFormWithName(w, 0);
+
+    assert_define_own_property_fails(wp, "a", {}, supportedNonIndex);
+    assert_define_own_property_fails(wp, 0, {}, supportedIndex);
+    assert_define_own_property_fails(wp, "b", {}, unsupportedNonIndex);
+    assert_define_own_property_fails(wp, 1, {}, unsupportedIndex);
+    assert_define_own_property_fails(wp, Symbol.toStringTag, {}, existingSymbol);
+    assert_define_own_property_fails(wp, Symbol(), {}, nonExistingSymbol);
+}, "[[DefineOwnProperty]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    appendFormWithName(w, "a");
+    appendElementWithId(w, 0);
+
+    assert_true("a" in wp, supportedNonIndex);
+    assert_true(Reflect.has(wp, "a"), supportedNonIndex);
+    assert_true(0 in wp, supportedIndex);
+    assert_true(Reflect.has(wp, 0), supportedIndex);
+
+    assert_false("b" in wp, unsupportedNonIndex);
+    assert_false(Reflect.has(wp, 1), unsupportedIndex);
+}, "[[HasProperty]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+    const elA = appendFormWithName(w, "a");
+    const el0 = appendIframeWithName(w, 0);
+
+    assert_equals(wp.a, elA, supportedNonIndex);
+    assert_equals(wp[0], el0, supportedIndex);
+    assert_equals(wp[Symbol.toStringTag], "WindowProperties", existingSymbol);
+
+    assert_equals(wp.b, undefined, unsupportedNonIndex);
+    assert_equals(wp[1], undefined, unsupportedIndex);
+    assert_equals(wp[Symbol.iterator], undefined, nonExistingSymbol);
+}, "[[Get]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    appendIframeWithName(w, "isPrototypeOf");
+    appendFormWithName(w, "dispatchEvent");
+    appendElementWithId(w, "a");
+    appendElementWithId(w, 0);
+
+    w.EventTarget.prototype.a = 10;
+    w.Object.prototype[0] = 20;
+
+    // These are shadowed by properties higher in [[Prototype]] chain. See https://webidl.spec.whatwg.org/#dfn-named-property-visibility
+    assert_equals(wp.isPrototypeOf, w.Object.prototype.isPrototypeOf, supportedNonIndex);
+    assert_equals(wp.dispatchEvent, w.EventTarget.prototype.dispatchEvent, supportedNonIndex);
+    assert_equals(wp.a, 10, supportedNonIndex);
+    assert_equals(wp[0], 20, supportedIndex);
+}, "[[Get]] (named property visibility algorithm)");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+    const elA = appendIframeWithName(w, "a");
+    const el0 = appendFormWithName(w, 0);
+
+    assert_set_fails(wp, "a", supportedNonIndex);
+    assert_set_fails(wp, "b", unsupportedNonIndex);
+    assert_set_fails(wp, 0, supportedIndex);
+    assert_set_fails(wp, 1, unsupportedIndex);
+    assert_set_fails(wp, Symbol.toStringTag, existingSymbol);
+    assert_set_fails(wp, Symbol(), nonExistingSymbol);
+
+    assert_equals(wp.a, elA, supportedNonIndex);
+    assert_equals(wp[0], el0, supportedIndex);
+    assert_equals(wp.b, undefined, unsupportedNonIndex);
+    assert_equals(wp[1], undefined, unsupportedIndex);
+}, "[[Set]] (direct)");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+    const receiver = Object.create(wp);
+
+    appendIframeWithName(w, "a");
+    appendElementWithId(w, 0);
+
+    let setterThisValue;
+    Object.defineProperty(w.Object.prototype, 1, { set() { setterThisValue = this; } });
+    Object.defineProperty(w.EventTarget.prototype, "b", { writable: false });
+
+    receiver.a = 10;
+    assert_throws_js(TypeError, () => { receiver.b = {}; }, unsupportedNonIndex);
+    receiver[0] = 20;
+    receiver[1] = {};
+
+    assert_equals(receiver.a, 10, supportedNonIndex);
+    assert_equals(receiver[0], 20, supportedIndex);
+    assert_false(receiver.hasOwnProperty("b"), unsupportedNonIndex);
+    assert_false(receiver.hasOwnProperty(1), unsupportedIndex);
+    assert_equals(setterThisValue, receiver, "setter |this| value is receiver");
+}, "[[Set]] (prototype chain)");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+    const receiver = {};
+
+    appendFormWithName(w, "a");
+    appendIframeWithName(w, 0);
+
+    let setterThisValue;
+    Object.defineProperty(w.Object.prototype, "b", { set() { setterThisValue = this; } });
+    Object.defineProperty(w.EventTarget.prototype, 1, { writable: false });
+
+    assert_true(Reflect.set(wp, "a", 10, receiver), supportedNonIndex);
+    assert_true(Reflect.set(wp, 0, 20, receiver), supportedIndex);
+    assert_true(Reflect.set(wp, "b", {}, receiver), unsupportedNonIndex);
+    assert_false(Reflect.set(wp, 1, {}, receiver), unsupportedIndex);
+
+    assert_equals(receiver.a, 10, supportedNonIndex);
+    assert_equals(receiver[0], 20, supportedIndex);
+    assert_false(receiver.hasOwnProperty("b"), unsupportedNonIndex);
+    assert_equals(setterThisValue, receiver, "setter |this| value is receiver");
+    assert_false(receiver.hasOwnProperty(1), unsupportedIndex);
+}, "[[Set]] (Reflect.set)");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+    const elA = appendFormWithName(w, "a");
+    const el0 = appendElementWithId(w, 0);
+
+    assert_delete_fails(wp, "a", supportedNonIndex);
+    assert_delete_fails(wp, 0, supportedIndex);
+    assert_delete_fails(wp, "b", unsupportedNonIndex);
+    assert_delete_fails(wp, 1, unsupportedIndex);
+    assert_delete_fails(wp, Symbol.toStringTag, existingSymbol);
+    assert_delete_fails(wp, Symbol("foo"), nonExistingSymbol);
+
+    assert_equals(wp.a, elA, supportedNonIndex);
+    assert_equals(wp[0], el0, supportedIndex);
+    assert_equals(wp[Symbol.toStringTag], "WindowProperties", existingSymbol);
+}, "[[Delete]]");
+
+test(t => {
+    const { w, wp } = createWindowProperties(t);
+
+    appendIframeWithName(w, "a");
+    appendElementWithId(w, 0);
+    appendFormWithName(w, "b");
+
+    const forInKeys = [];
+    for (const key in wp)
+        forInKeys.push(key);
+
+    assert_array_equals(forInKeys, Object.keys(w.EventTarget.prototype));
+    assert_array_equals(Object.getOwnPropertyNames(wp), []);
+    assert_array_equals(Reflect.ownKeys(wp), [Symbol.toStringTag]);
+}, "[[OwnPropertyKeys]]");
+
+function createWindowProperties(t) {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    t.add_cleanup(() => { iframe.remove(); });
+
+    const w = iframe.contentWindow;
+    const wp = Object.getPrototypeOf(w.Window.prototype);
+    return { w, wp };
+}
+
+function appendIframeWithName(w, name) {
+    const el = w.document.createElement("iframe");
+    el.name = name;
+    w.document.body.append(el);
+    return el.contentWindow;
+}
+
+function appendFormWithName(w, name) {
+    const el = w.document.createElement("form");
+    el.name = name;
+    w.document.body.append(el);
+    return el;
+}
+
+function appendElementWithId(w, id) {
+    const el = w.document.createElement("div");
+    el.id = id;
+    w.document.body.append(el);
+    return el;
+}
+
+function assert_prop_desc(desc, value, testInfo) {
+    assert_equals(typeof desc, "object", `${testInfo} typeof desc`);
+    assert_equals(desc.value, value, `${testInfo} [[Value]]`);
+    assert_true(desc.writable, `${testInfo} [[Writable]]`);
+    assert_false(desc.enumerable, `${testInfo} [[Enumerable]]`);
+    assert_true(desc.configurable, `${testInfo} [[Configurable]]`);
+}
+
+function assert_define_own_property_fails(object, key, desc, testInfo) {
+    assert_throws_js(TypeError, () => { Object.defineProperty(object, key, desc); }, testInfo);
+    assert_false(Reflect.defineProperty(object, key, desc), testInfo);
+}
+
+function assert_set_fails(object, key, value, testInfo) {
+    sloppyModeSet(object, key, value);
+    assert_throws_js(TypeError, () => { object[key] = value; }, testInfo);
+    assert_false(Reflect.set(object, key, value), testInfo);
+}
+
+function assert_delete_fails(object, key, testInfo) {
+    assert_throws_js(TypeError, () => { delete object[key]; }, testInfo);
+    assert_false(Reflect.deleteProperty(object, key), testInfo);
+}
+</script>

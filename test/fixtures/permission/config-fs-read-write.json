@@ -1,0 +1,10 @@
+{
+    "permission": {
+        "allow-fs-read": [
+            "*"
+        ],
+        "allow-fs-write": [
+            "*"
+        ]
+    }
+}

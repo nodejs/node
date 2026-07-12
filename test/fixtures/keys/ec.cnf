@@ -1,0 +1,17 @@
+[ req ]
+default_bits           = 2048
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = SF
+O                      = Joyent
+OU                     = Node.js
+CN                     = agent2
+emailAddress           = ry@tinyclouds.org
+
+[ req_attributes ]

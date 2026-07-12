@@ -1,0 +1,7 @@
+<!doctype html>
+<script>
+self.addEventListener('message', e => {
+  URL.revokeObjectURL(e.data.url);
+  e.source.postMessage('revoked', '*');
+});
+</script>

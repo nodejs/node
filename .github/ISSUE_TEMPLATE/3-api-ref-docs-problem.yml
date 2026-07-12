@@ -1,0 +1,18 @@
+name: 📗 Open an issue regarding the Node.js API reference docs
+description: Let us know about any problematic API reference documents
+labels: [doc]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for wanting to make nodejs.org better!
+
+        Please fill in as much of the following form as you're able.
+  - type: input
+    attributes:
+      label: Affected URL(s)
+  - type: textarea
+    attributes:
+      label: Description of the problem
+    validations:
+      required: true

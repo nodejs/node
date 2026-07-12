@@ -1,0 +1,4 @@
+*modules-skip-cycle6.mjs:5: SyntaxError: The requested module 'modules-cycle6.mjs' does not provide an export named 'foo'
+export {foo} from "modules-cycle6.mjs";
+        ^^^
+SyntaxError: The requested module 'modules-cycle6.mjs' does not provide an export named 'foo'

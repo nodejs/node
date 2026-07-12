@@ -1,0 +1,5 @@
+features:
+- name: streams
+  files:
+    # Top-level only. Subdirectories have their own mapping.
+    - "*"

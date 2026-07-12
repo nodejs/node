@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": ["multiple-mappings-original.js"],
+  "sourcesContent": ["\"Hello World\";   function f() {   };  6"],
+  "mappings": ";CAAA,aAAa,EAAI,kBAAkB,EAAG;",
+  "rangeMappings": ";AC;"
+}

@@ -1,0 +1,9 @@
+<project-root>/test/fixtures/errors/force_colors.js:2
+throw new Error('Should include grayed stack trace');
+^
+
+Error: Should include grayed stack trace
+    at Object.<anonymous> [90m(<project-root>/[39mtest/fixtures/errors/force_colors.js:2:7[90m)[39m
+[90m    at <node-internal-frames>[39m
+
+Node.js <node-version>

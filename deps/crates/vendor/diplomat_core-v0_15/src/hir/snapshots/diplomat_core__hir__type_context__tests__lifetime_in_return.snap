@@ -1,0 +1,6 @@
+---
+source: core/src/hir/type_context.rs
+assertion_line: 970
+expression: output
+---
+Lowering error in Opaque::returns_foo_ref: found &T in output where T is a custom type, but not opaque. T = Foo

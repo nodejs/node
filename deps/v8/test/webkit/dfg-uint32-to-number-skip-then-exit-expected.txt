@@ -1,0 +1,232 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This tests that a skipped conversion of uint32 to number does not confuse OSR exit into thinking that the conversion is dead.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS foo(i, 1, o) is 42
+PASS foo(i, 1, o) is 42
+PASS foo(i, 1, o) is 43
+PASS foo(i, 1, o) is 43
+PASS foo(i, 1, o) is 44
+PASS foo(i, 1, o) is 44
+PASS foo(i, 1, o) is 45
+PASS foo(i, 1, o) is 45
+PASS foo(i, 1, o) is 46
+PASS foo(i, 1, o) is 46
+PASS foo(i, 1, o) is 47
+PASS foo(i, 1, o) is 47
+PASS foo(i, 1, o) is 48
+PASS foo(i, 1, o) is 48
+PASS foo(i, 1, o) is 49
+PASS foo(i, 1, o) is 49
+PASS foo(i, 1, o) is 50
+PASS foo(i, 1, o) is 50
+PASS foo(i, 1, o) is 51
+PASS foo(i, 1, o) is 51
+PASS foo(i, 1, o) is 52
+PASS foo(i, 1, o) is 52
+PASS foo(i, 1, o) is 53
+PASS foo(i, 1, o) is 53
+PASS foo(i, 1, o) is 54
+PASS foo(i, 1, o) is 54
+PASS foo(i, 1, o) is 55
+PASS foo(i, 1, o) is 55
+PASS foo(i, 1, o) is 56
+PASS foo(i, 1, o) is 56
+PASS foo(i, 1, o) is 57
+PASS foo(i, 1, o) is 57
+PASS foo(i, 1, o) is 58
+PASS foo(i, 1, o) is 58
+PASS foo(i, 1, o) is 59
+PASS foo(i, 1, o) is 59
+PASS foo(i, 1, o) is 60
+PASS foo(i, 1, o) is 60
+PASS foo(i, 1, o) is 61
+PASS foo(i, 1, o) is 61
+PASS foo(i, 1, o) is 62
+PASS foo(i, 1, o) is 62
+PASS foo(i, 1, o) is 63
+PASS foo(i, 1, o) is 63
+PASS foo(i, 1, o) is 64
+PASS foo(i, 1, o) is 64
+PASS foo(i, 1, o) is 65
+PASS foo(i, 1, o) is 65
+PASS foo(i, 1, o) is 66
+PASS foo(i, 1, o) is 66
+PASS foo(i, 1, o) is 67
+PASS foo(i, 1, o) is 67
+PASS foo(i, 1, o) is 68
+PASS foo(i, 1, o) is 68
+PASS foo(i, 1, o) is 69
+PASS foo(i, 1, o) is 69
+PASS foo(i, 1, o) is 70
+PASS foo(i, 1, o) is 70
+PASS foo(i, 1, o) is 71
+PASS foo(i, 1, o) is 71
+PASS foo(i, 1, o) is 72
+PASS foo(i, 1, o) is 72
+PASS foo(i, 1, o) is 73
+PASS foo(i, 1, o) is 73
+PASS foo(i, 1, o) is 74
+PASS foo(i, 1, o) is 74
+PASS foo(i, 1, o) is 75
+PASS foo(i, 1, o) is 75
+PASS foo(i, 1, o) is 76
+PASS foo(i, 1, o) is 76
+PASS foo(i, 1, o) is 77
+PASS foo(i, 1, o) is 77
+PASS foo(i, 1, o) is 78
+PASS foo(i, 1, o) is 78
+PASS foo(i, 1, o) is 79
+PASS foo(i, 1, o) is 79
+PASS foo(i, 1, o) is 80
+PASS foo(i, 1, o) is 80
+PASS foo(i, 1, o) is 81
+PASS foo(i, 1, o) is 81
+PASS foo(i, 1, o) is 82
+PASS foo(i, 1, o) is 82
+PASS foo(i, 1, o) is 83
+PASS foo(i, 1, o) is 83
+PASS foo(i, 1, o) is 84
+PASS foo(i, 1, o) is 84
+PASS foo(i, 1, o) is 85
+PASS foo(i, 1, o) is 85
+PASS foo(i, 1, o) is 86
+PASS foo(i, 1, o) is 86
+PASS foo(i, 1, o) is 87
+PASS foo(i, 1, o) is 87
+PASS foo(i, 1, o) is 88
+PASS foo(i, 1, o) is 88
+PASS foo(i, 1, o) is 89
+PASS foo(i, 1, o) is 89
+PASS foo(i, 1, o) is 90
+PASS foo(i, 1, o) is 90
+PASS foo(i, 1, o) is 91
+PASS foo(i, 1, o) is 91
+PASS foo(i, 1, o) is 92
+PASS foo(i, 1, o) is 92
+PASS foo(i, 1, o) is 93
+PASS foo(i, 1, o) is 93
+PASS foo(i, 1, o) is 94
+PASS foo(i, 1, o) is 94
+PASS foo(i, 1, o) is 95
+PASS foo(i, 1, o) is 95
+PASS foo(i, 1, o) is 96
+PASS foo(i, 1, o) is 96
+PASS foo(i, 1, o) is 97
+PASS foo(i, 1, o) is 97
+PASS foo(i, 1, o) is 98
+PASS foo(i, 1, o) is 98
+PASS foo(i, 1, o) is 99
+PASS foo(i, 1, o) is 99
+PASS foo(i, 1, o) is 100
+PASS foo(i, 1, o) is 100
+PASS foo(i, 1, o) is 101
+PASS foo(i, 1, o) is 101
+PASS foo(i, 1, o) is 102
+PASS foo(i, 1, o) is 102
+PASS foo(i, 1, o) is 103
+PASS foo(i, 1, o) is 103
+PASS foo(i, 1, o) is 104
+PASS foo(i, 1, o) is 104
+PASS foo(i, 1, o) is 105
+PASS foo(i, 1, o) is 105
+PASS foo(i, 1, o) is 106
+PASS foo(i, 1, o) is 106
+PASS foo(i, 1, o) is 107
+PASS foo(i, 1, o) is 107
+PASS foo(i, 1, o) is 108
+PASS foo(i, 1, o) is 108
+PASS foo(i, 1, o) is 109
+PASS foo(i, 1, o) is 109
+PASS foo(i, 1, o) is 110
+PASS foo(i, 1, o) is 110
+PASS foo(i, 1, o) is 111
+PASS foo(i, 1, o) is 111
+PASS foo(i, 1, o) is 112
+PASS foo(i, 1, o) is 112
+PASS foo(i, 1, o) is 113
+PASS foo(i, 1, o) is 113
+PASS foo(i, 1, o) is 114
+PASS foo(i, 1, o) is 114
+PASS foo(i, 1, o) is 115
+PASS foo(i, 1, o) is 115
+PASS foo(i, 1, o) is 116
+PASS foo(i, 1, o) is 116
+PASS foo(i, 1, o) is 118
+PASS foo(i, 1, o) is 118
+PASS foo(i, 1, o) is 119
+PASS foo(i, 1, o) is 119
+PASS foo(i, 1, o) is 120
+PASS foo(i, 1, o) is 120
+PASS foo(i, 1, o) is 121
+PASS foo(i, 1, o) is 121
+PASS foo(i, 1, o) is 122
+PASS foo(i, 1, o) is 122
+PASS foo(i, 1, o) is 123
+PASS foo(i, 1, o) is 123
+PASS foo(i, 1, o) is 124
+PASS foo(i, 1, o) is 124
+PASS foo(i, 1, o) is 125
+PASS foo(i, 1, o) is 125
+PASS foo(i, 1, o) is 126
+PASS foo(i, 1, o) is 126
+PASS foo(i, 1, o) is 127
+PASS foo(i, 1, o) is 127
+PASS foo(i, 1, o) is 128
+PASS foo(i, 1, o) is 128
+PASS foo(i, 1, o) is 129
+PASS foo(i, 1, o) is 129
+PASS foo(i, 1, o) is 130
+PASS foo(i, 1, o) is 130
+PASS foo(i, 1, o) is 131
+PASS foo(i, 1, o) is 131
+PASS foo(i, 1, o) is 132
+PASS foo(i, 1, o) is 132
+PASS foo(i, 1, o) is 133
+PASS foo(i, 1, o) is 133
+PASS foo(i, 1, o) is 134
+PASS foo(i, 1, o) is 134
+PASS foo(i, 1, o) is 135
+PASS foo(i, 1, o) is 135
+PASS foo(i, 1, o) is 136
+PASS foo(i, 1, o) is 136
+PASS foo(i, 1, o) is 137
+PASS foo(i, 1, o) is 137
+PASS foo(i, 1, o) is 138
+PASS foo(i, 1, o) is 138
+PASS foo(i, 1, o) is 139
+PASS foo(i, 1, o) is 139
+PASS foo(i, 1, o) is 140
+PASS foo(i, 1, o) is 140
+PASS foo(i, 1, o) is 141
+PASS foo(i, 1, o) is 141
+PASS foo(i, 1, o) is 142
+PASS foo(i, 1, o) is 142
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

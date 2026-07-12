@@ -1,0 +1,10 @@
+Checks call stack capturing by heap profiler.
+Starting heap profiler with stack depth: (unspecified)
+Call tree size: 7
+Call tree contains allocationChunk: true
+Starting heap profiler with stack depth: 1
+Call tree size: 2
+Call tree contains allocationChunk: true
+Starting heap profiler with stack depth: 0
+Expected error: Invalid stack depth
+Successfully finished

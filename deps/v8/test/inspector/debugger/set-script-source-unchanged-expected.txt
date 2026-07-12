@@ -1,0 +1,1 @@
+Check that setScriptSource does not crash when source is unchanged

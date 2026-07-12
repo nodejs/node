@@ -1,0 +1,26 @@
+Line breakpoints for yield
+
+Running test: testYieldInGeneratorWithLeadingWhitespace
+Setting breakpoint on `yield this.foo()` in `obj.barGenerator`
+Calling `obj.barGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testYieldInGeneratorWithoutLeadingWhitespace
+Setting breakpoint on `await this.foo()` in `obj.bazGenerator`
+Calling `obj.bazGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testYieldInAsyncGeneratorWithLeadingWhitespace
+Setting breakpoint on `yield this.foo()` in `obj.barAsyncGenerator`
+Calling `obj.barAsyncGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testYieldInAsyncGeneratorWithoutLeadingWhitespace
+Setting breakpoint on `yield this.foo()` in `obj.bazAsyncGenerator`
+Calling `obj.bazAsyncGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testYieldInMinifiedGenerator
+Setting breakpoint on `yield this.foo()` in `obj.minifiedGenerator`
+Calling `obj.minifiedGenerator().next()`
+Hit breakpoint before calling into `this.foo`

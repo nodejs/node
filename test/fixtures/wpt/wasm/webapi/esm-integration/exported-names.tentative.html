@@ -1,0 +1,17 @@
+<!doctype html>
+<title>Exported names from a WebAssembly module</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script type=module>
+setup({ single_test: true });
+import * as mod from "./resources/exported-names.wasm";
+assert_array_equals(Object.getOwnPropertyNames(mod).sort(),
+                    ["func", "glob", "mem", "tab"]);
+assert_true(mod.func instanceof Function);
+assert_true(mod.mem instanceof WebAssembly.Memory);
+assert_true(mod.glob instanceof WebAssembly.Global);
+assert_true(mod.tab instanceof WebAssembly.Table);
+assert_throws_js(TypeError, () => { mod.func = 2; });
+done();
+</script>

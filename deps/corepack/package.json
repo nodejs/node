@@ -1,0 +1,101 @@
+{
+  "name": "corepack",
+  "version": "0.35.0",
+  "homepage": "https://github.com/nodejs/corepack#readme",
+  "bugs": {
+    "url": "https://github.com/nodejs/corepack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodejs/corepack.git"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "packageManager": "yarn@4.14.1+sha224.88b7a7244bbd9040380c417f7eb556d85c67640b651f113cb4c72113",
+  "devDependencies": {
+    "@types/debug": "^4.1.5",
+    "@types/node": "^22.0.0",
+    "@types/proxy-from-env": "^1",
+    "@types/semver": "^7.1.0",
+    "@types/which": "^3.0.0",
+    "@yarnpkg/eslint-config": "^3.0.0",
+    "@yarnpkg/fslib": "^3.0.0-rc.48",
+    "@zkochan/cmd-shim": "^6.0.0",
+    "clipanion": "patch:clipanion@npm%3A3.2.1#~/.yarn/patches/clipanion-npm-3.2.1-fc9187f56c.patch",
+    "debug": "^4.1.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^9.22.0",
+    "semver": "^7.6.3",
+    "supports-color": "^10.0.0",
+    "tar": "^7.5.11",
+    "tsx": "^4.16.2",
+    "typescript": "^5.7.3",
+    "v8-compile-cache": "^2.3.0",
+    "vitest": "^4.0.5",
+    "which": "^7.0.0"
+  },
+  "dependenciesMeta": {
+    "esbuild": {
+      "built": true
+    }
+  },
+  "scripts": {
+    "build": "run clean && run build:bundle && tsx ./mkshims.ts",
+    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node22.22.2 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    "clean": "run rimraf dist shims",
+    "corepack": "tsx ./sources/_cli.ts",
+    "lint": "eslint .",
+    "prepack": "yarn build",
+    "postpack": "run clean",
+    "rimraf": "node -e 'for(let i=2;i<process.argv.length;i++)fs.rmSync(process.argv[i],{recursive:true,force:true});'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "files": [
+    "dist",
+    "shims",
+    "LICENSE.md"
+  ],
+  "publishConfig": {
+    "bin": {
+      "corepack": "./dist/corepack.js",
+      "pnpm": "./dist/pnpm.js",
+      "pnpx": "./dist/pnpx.js",
+      "yarn": "./dist/yarn.js",
+      "yarnpkg": "./dist/yarnpkg.js"
+    },
+    "executableFiles": [
+      "./dist/npm.js",
+      "./dist/npx.js",
+      "./dist/pnpm.js",
+      "./dist/pnpx.js",
+      "./dist/yarn.js",
+      "./dist/yarnpkg.js",
+      "./dist/corepack.js",
+      "./shims/npm",
+      "./shims/npm.ps1",
+      "./shims/npx",
+      "./shims/npx.ps1",
+      "./shims/pnpm",
+      "./shims/pnpm.ps1",
+      "./shims/pnpx",
+      "./shims/pnpx.ps1",
+      "./shims/yarn",
+      "./shims/yarn.ps1",
+      "./shims/yarnpkg",
+      "./shims/yarnpkg.ps1"
+    ]
+  },
+  "bin": {
+    "corepack": "./dist/corepack.js",
+    "pnpm": "./dist/pnpm.js",
+    "pnpx": "./dist/pnpx.js",
+    "yarn": "./dist/yarn.js",
+    "yarnpkg": "./dist/yarnpkg.js"
+  }
+}

@@ -1,0 +1,17 @@
+---
+source: utils/zerovec/src/schemars.rs
+expression: schema
+---
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VarZeroVec<ZeroSlice<uint32>>",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  }
+}

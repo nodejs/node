@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<meta charset="utf-8">
+<title>ReadableStream size algorithm throws during enqueue</title>
+<script>
+  let throwOnSize = false;
+  let pullCount = 0;
+  const rs = new ReadableStream(
+    {
+      pull(controller) {
+        pullCount++;
+        if (pullCount <= 2) {
+          controller.enqueue({});
+        } else {
+          throwOnSize = true;
+          try {
+            controller.enqueue({});
+          } catch (e) {
+          }
+        }
+      },
+    },
+    {
+      size() {
+        if (throwOnSize) {
+          throw new Error("size algorithm threw");
+        }
+        return 1;
+      },
+      highWaterMark: 10,
+    }
+  );
+  new Response(rs).text().catch(() => {
+    document.documentElement.classList.remove("test-wait");
+  });
+</script>

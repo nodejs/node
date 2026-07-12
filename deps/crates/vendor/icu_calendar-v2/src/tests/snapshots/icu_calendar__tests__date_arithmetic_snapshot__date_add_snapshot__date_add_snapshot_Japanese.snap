@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(5-1-1, reiwa era, for calendar Japanese))
+    +10d → Date(5-1-11, reiwa era, for calendar Japanese)
+    +2m → Date(5-3-1, reiwa era, for calendar Japanese)
+    +1y → Date(6-1-1, reiwa era, for calendar Japanese)
+    +1y 3m 15d → Date(6-4-16, reiwa era, for calendar Japanese)
+
+2024-6-15
+  (start: Date(6-6-15, reiwa era, for calendar Japanese))
+    +10d → Date(6-6-25, reiwa era, for calendar Japanese)
+    +2m → Date(6-8-15, reiwa era, for calendar Japanese)
+    +1y → Date(7-6-15, reiwa era, for calendar Japanese)
+    +1y 3m 15d → Date(7-9-30, reiwa era, for calendar Japanese)
+
+2025-12-31
+  (start: Date(7-12-31, reiwa era, for calendar Japanese))
+    +10d → Date(8-1-10, reiwa era, for calendar Japanese)
+    +2m → Date(8-2-28, reiwa era, for calendar Japanese)
+    +1y → Date(8-12-31, reiwa era, for calendar Japanese)
+    +1y 3m 15d → Date(9-4-15, reiwa era, for calendar Japanese)

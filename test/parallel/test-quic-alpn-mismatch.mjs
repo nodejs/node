@@ -1,0 +1,47 @@
+// Flags: --experimental-quic --no-warnings
+
+// Test: ALPN mismatch causes connection failure.
+// The server offers 'quic-test' but the client requests 'nonexistent'.
+// The handshake should fail with a `no_application_protocol` alert.
+//
+// The QUIC transport error code for a CRYPTO_ERROR carrying a TLS alert is
+// 0x100 | <tls_alert>. For `no_application_protocol` (alert 120 / 0x78) this
+// is 0x178 == 376.
+
+import { hasQuic, skip, mustNotCall, expectsError } from '../common/index.mjs';
+import assert from 'node:assert';
+
+if (!hasQuic) {
+  skip('QUIC is not enabled');
+}
+
+const { listen, connect } = await import('../common/quic.mjs');
+
+const expected = {
+  code: 'ERR_QUIC_TRANSPORT_ERROR',
+  errorCode: 376n,
+  message: /no application protocol/
+};
+
+const transportParams = { maxIdleTimeout: 1 };
+
+// The handshake fails so the session is never surfaced to JS
+const serverEndpoint = await listen(
+  mustNotCall('server session must not be surfaced for a failed handshake'),
+  {
+    transportParams,
+  });
+
+// Client requests an ALPN the server doesn't offer.
+const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'nonexistent-protocol',
+  transportParams,
+  onerror: expectsError(expected),
+});
+
+await assert.rejects(clientSession.opened, expected);
+
+// The handshake should fail — opened may reject or never resolve.
+// The session should close with an error.
+await assert.rejects(clientSession.closed, expected);
+await serverEndpoint.close();

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Legacy platform objects [[GetOwnProperty]] method</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./helper.js"></script>
+<script>
+
+test(function() {
+  // DOMTokenList has an indexed property getter, no indexed property setter
+  // and no named property handlers.
+  let div = document.createElement("div");
+  div.classList.add("baz", "quux");
+  const domTokenList = div.classList;
+  assert_prop_desc_equals(
+      domTokenList, "1",
+      {value: "quux", writable: false, enumerable: true, configurable: true},
+      "[[GetOwnProperty]] for indexed properties returns the right descriptor");
+  assert_prop_desc_equals(
+      domTokenList, "42", undefined,
+      "[[GetOwnProperty]] with invalid index returns undefined");
+  assert_array_equals(Object.keys(domTokenList), ["0", "1"]);
+  assert_array_equals(Object.values(domTokenList), ["baz", "quux"]);
+
+  // getElementsByTagName() returns an HTMLCollection.
+  // HTMLCollection has indexed and named property getters, no setters. Its IDL
+  // interface declaration has [LegacyUnenumerableNamedProperties] so its named
+  // properties are not enumerable.
+  let span1 = document.createElement("span");
+  span1.id = "foo";
+  let span2 = document.createElement("span");
+  span2.id = "bar";
+  document.head.appendChild(span1);
+  document.head.appendChild(span2);
+  const elementList = document.getElementsByTagName("span");
+  assert_prop_desc_equals(
+      elementList, "foo",
+      {value: span1, writable: false, enumerable: false, configurable: true},
+      "[[GetOwnProperty]] for named properties returns the right descriptor");
+  assert_prop_desc_equals(
+      elementList, "1",
+      {value: span2, writable: false, enumerable: true, configurable: true},
+      "[[GetOwnProperty]] for indexed properties returns the right descriptor");
+  assert_prop_desc_equals(
+      elementList, "unknown", undefined,
+      "[[GetOwnProperty]] with invalid property name returns undefined");
+  assert_array_equals(Object.keys(elementList), ["0", "1"]);
+  assert_array_equals(Object.values(elementList), [span1, span2]);
+}, "[[GetOwnProperty]] with getters and no setters");
+
+test(function() {
+  // DOMStringMap supports named property getters and setters, but not indexed
+  // properties.
+  let span = document.createElement("span");
+  span.dataset.foo = "bar";
+  assert_prop_desc_equals(
+      span.dataset, "foo",
+      {value: "bar", writable: true, enumerable: true, configurable: true},
+      "[[GetOwnProperty]] for named properties returns the right descriptor");
+  assert_prop_desc_equals(
+      span.dataset, "unknown", undefined,
+      "[[GetOwnProperty]] with invalid property name returns undefined");
+  assert_array_equals(Object.keys(span.dataset), ["foo"]);
+  assert_array_equals(Object.values(span.dataset), ["bar"]);
+}, "[[GetOwnProperty]] with named property getters and setters");
+
+test(function() {
+  // HTMLSelectElement has indexed property getters and setters, but no support
+  // for named properties.
+  let selectElement = document.createElement("select");
+  assert_prop_desc_equals(
+      selectElement, "0", undefined,
+      "[[GetOwnProperty]] with invalid property index returns undefined");
+  let optionElement = document.createElement("option");
+  selectElement.appendChild(optionElement);
+  assert_prop_desc_equals(
+      selectElement, "0",
+      {value: optionElement, writable: true, enumerable: true, configurable: true},
+      "[[GetOwnProperty]] for indexed properties returns the right descriptor");
+  assert_array_equals(Object.keys(selectElement), ["0"]);
+  assert_array_equals(Object.values(selectElement), [optionElement]);
+}, "[[GetOwnProperty]] with indexed property getters and setters");
+</script>

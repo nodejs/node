@@ -1,0 +1,232 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests correctness of function calls when the function is overwritten.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS bar(i, i + 1) is 1
+PASS bar(i, i + 1) is 3
+PASS bar(i, i + 1) is 5
+PASS bar(i, i + 1) is 7
+PASS bar(i, i + 1) is 9
+PASS bar(i, i + 1) is 11
+PASS bar(i, i + 1) is 13
+PASS bar(i, i + 1) is 15
+PASS bar(i, i + 1) is 17
+PASS bar(i, i + 1) is 19
+PASS bar(i, i + 1) is 21
+PASS bar(i, i + 1) is 23
+PASS bar(i, i + 1) is 25
+PASS bar(i, i + 1) is 27
+PASS bar(i, i + 1) is 29
+PASS bar(i, i + 1) is 31
+PASS bar(i, i + 1) is 33
+PASS bar(i, i + 1) is 35
+PASS bar(i, i + 1) is 37
+PASS bar(i, i + 1) is 39
+PASS bar(i, i + 1) is 41
+PASS bar(i, i + 1) is 43
+PASS bar(i, i + 1) is 45
+PASS bar(i, i + 1) is 47
+PASS bar(i, i + 1) is 49
+PASS bar(i, i + 1) is 51
+PASS bar(i, i + 1) is 53
+PASS bar(i, i + 1) is 55
+PASS bar(i, i + 1) is 57
+PASS bar(i, i + 1) is 59
+PASS bar(i, i + 1) is 61
+PASS bar(i, i + 1) is 63
+PASS bar(i, i + 1) is 65
+PASS bar(i, i + 1) is 67
+PASS bar(i, i + 1) is 69
+PASS bar(i, i + 1) is 71
+PASS bar(i, i + 1) is 73
+PASS bar(i, i + 1) is 75
+PASS bar(i, i + 1) is 77
+PASS bar(i, i + 1) is 79
+PASS bar(i, i + 1) is 81
+PASS bar(i, i + 1) is 83
+PASS bar(i, i + 1) is 85
+PASS bar(i, i + 1) is 87
+PASS bar(i, i + 1) is 89
+PASS bar(i, i + 1) is 91
+PASS bar(i, i + 1) is 93
+PASS bar(i, i + 1) is 95
+PASS bar(i, i + 1) is 97
+PASS bar(i, i + 1) is 99
+PASS bar(i, i + 1) is 101
+PASS bar(i, i + 1) is 103
+PASS bar(i, i + 1) is 105
+PASS bar(i, i + 1) is 107
+PASS bar(i, i + 1) is 109
+PASS bar(i, i + 1) is 111
+PASS bar(i, i + 1) is 113
+PASS bar(i, i + 1) is 115
+PASS bar(i, i + 1) is 117
+PASS bar(i, i + 1) is 119
+PASS bar(i, i + 1) is 121
+PASS bar(i, i + 1) is 123
+PASS bar(i, i + 1) is 125
+PASS bar(i, i + 1) is 127
+PASS bar(i, i + 1) is 129
+PASS bar(i, i + 1) is 131
+PASS bar(i, i + 1) is 133
+PASS bar(i, i + 1) is 135
+PASS bar(i, i + 1) is 137
+PASS bar(i, i + 1) is 139
+PASS bar(i, i + 1) is 141
+PASS bar(i, i + 1) is 143
+PASS bar(i, i + 1) is 145
+PASS bar(i, i + 1) is 147
+PASS bar(i, i + 1) is 149
+PASS bar(i, i + 1) is 151
+PASS bar(i, i + 1) is 153
+PASS bar(i, i + 1) is 155
+PASS bar(i, i + 1) is 157
+PASS bar(i, i + 1) is 159
+PASS bar(i, i + 1) is 161
+PASS bar(i, i + 1) is 163
+PASS bar(i, i + 1) is 165
+PASS bar(i, i + 1) is 167
+PASS bar(i, i + 1) is 169
+PASS bar(i, i + 1) is 171
+PASS bar(i, i + 1) is 173
+PASS bar(i, i + 1) is 175
+PASS bar(i, i + 1) is 177
+PASS bar(i, i + 1) is 179
+PASS bar(i, i + 1) is 181
+PASS bar(i, i + 1) is 183
+PASS bar(i, i + 1) is 185
+PASS bar(i, i + 1) is 187
+PASS bar(i, i + 1) is 189
+PASS bar(i, i + 1) is 191
+PASS bar(i, i + 1) is 193
+PASS bar(i, i + 1) is 195
+PASS bar(i, i + 1) is 197
+PASS bar(i, i + 1) is 199
+PASS bar(i, i + 1) is 201
+PASS bar(i, i + 1) is 203
+PASS bar(i, i + 1) is 205
+PASS bar(i, i + 1) is 207
+PASS bar(i, i + 1) is 209
+PASS bar(i, i + 1) is 211
+PASS bar(i, i + 1) is 213
+PASS bar(i, i + 1) is 215
+PASS bar(i, i + 1) is 217
+PASS bar(i, i + 1) is 219
+PASS bar(i, i + 1) is 221
+PASS bar(i, i + 1) is 223
+PASS bar(i, i + 1) is 225
+PASS bar(i, i + 1) is 227
+PASS bar(i, i + 1) is 229
+PASS bar(i, i + 1) is 231
+PASS bar(i, i + 1) is 233
+PASS bar(i, i + 1) is 235
+PASS bar(i, i + 1) is 237
+PASS bar(i, i + 1) is 239
+PASS bar(i, i + 1) is 241
+PASS bar(i, i + 1) is 243
+PASS bar(i, i + 1) is 245
+PASS bar(i, i + 1) is 247
+PASS bar(i, i + 1) is 249
+PASS bar(i, i + 1) is 251
+PASS bar(i, i + 1) is 253
+PASS bar(i, i + 1) is 255
+PASS bar(i, i + 1) is 257
+PASS bar(i, i + 1) is 259
+PASS bar(i, i + 1) is 261
+PASS bar(i, i + 1) is 263
+PASS bar(i, i + 1) is 265
+PASS bar(i, i + 1) is 267
+PASS bar(i, i + 1) is 269
+PASS bar(i, i + 1) is 271
+PASS bar(i, i + 1) is 273
+PASS bar(i, i + 1) is 275
+PASS bar(i, i + 1) is 277
+PASS bar(i, i + 1) is 279
+PASS bar(i, i + 1) is 281
+PASS bar(i, i + 1) is 283
+PASS bar(i, i + 1) is 285
+PASS bar(i, i + 1) is 287
+PASS bar(i, i + 1) is 289
+PASS bar(i, i + 1) is 291
+PASS bar(i, i + 1) is 293
+PASS bar(i, i + 1) is 295
+PASS bar(i, i + 1) is 297
+PASS bar(i, i + 1) is 299
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS bar(i, i + 1) is -1
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

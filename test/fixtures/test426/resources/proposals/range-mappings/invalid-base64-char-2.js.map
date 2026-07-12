@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "names": [],
+  "file": "invalid-base64-char-2.js",
+  "sources": ["empty-original.js"],
+  "sourcesContent": [""],
+  "mappings": "",
+  "rangeMappings": "ab="
+}

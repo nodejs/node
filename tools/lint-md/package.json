@@ -1,0 +1,13 @@
+{
+  "name": "lint-md",
+  "description": "markdown linting",
+  "version": "1.0.0",
+  "dependencies": {
+    "remark-parse": "^11.0.0",
+    "remark-preset-lint-node": "^5.1.2",
+    "remark-stringify": "^11.0.0",
+    "to-vfile": "^8.0.0",
+    "unified": "^11.0.5",
+    "vfile-reporter": "^8.1.1"
+  }
+}

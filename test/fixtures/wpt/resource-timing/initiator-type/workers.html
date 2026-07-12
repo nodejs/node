@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiatorType: worker resources</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+
+</head>
+
+<script>
+  const moduleWorkerURL = 'resources/empty.js?moduleWorker';
+  const workerURL = 'resources/empty.js?worker';
+  new Worker(moduleWorkerURL, {type: "module"});
+  new Worker(workerURL, {type: "classic"});
+  initiator_type_test(workerURL, "other", "classic worker");
+  initiator_type_test(moduleWorkerURL, "other", "module worker");
+</script>
+</body>
+</html>

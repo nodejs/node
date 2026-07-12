@@ -1,0 +1,11 @@
+libmbed*
+*.sln
+*.vcxproj
+
+####START_COMMENTED_GENERATED_FILES###
+#/error.c
+#/version_features.c
+#/ssl_debug_helpers_generated.c
+#/psa_crypto_driver_wrappers.h
+#/psa_crypto_driver_wrappers_no_static.c
+####END_COMMENTED_GENERATED_FILES###

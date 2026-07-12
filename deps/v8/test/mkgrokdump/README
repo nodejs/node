@@ -1,0 +1,2 @@
+v8heapconst.py describes V8's known heap layout. To regenerate it, run
+`tools/dev/gm.py mkgrokdump`.

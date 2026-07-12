@@ -1,0 +1,6 @@
+Tests that REPL mode still works even with a broken Promise.prototype.then
+{
+    description : 42
+    type : number
+    value : 42
+}

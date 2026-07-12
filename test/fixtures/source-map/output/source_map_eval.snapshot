@@ -1,0 +1,10 @@
+<project-root>/synthesized/workspace/tabs-source-url.coffee:26
+	alert "I knew it!"
+	^
+
+ReferenceError: alert is not defined
+    at Object.eval (<project-root>/synthesized/workspace/tabs-source-url.coffee:26:2)
+    at eval (<project-root>/synthesized/workspace/tabs-source-url.coffee:1:14)
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/output/source_map_eval.js:11:1)
+
+Node.js <node-version>

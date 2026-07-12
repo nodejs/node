@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Unexpected eval or arguments in strict mode
+import { foo as eval } from "mod";
+                ^^^^
+SyntaxError: Unexpected eval or arguments in strict mode

@@ -1,0 +1,5 @@
+*%(basename)s:7: SyntaxError: let is disallowed as a lexically bound name
+let [let];
+     ^^^
+SyntaxError: let is disallowed as a lexically bound name
+

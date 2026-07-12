@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Interface.prototype.constructor is defined on [[Set]] receiver</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#interface-prototype-object">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+"use strict";
+const testValue = Object.freeze(function() {});
+
+test(() => {
+  Location.prototype.constructor = testValue;
+  assert_false(Location.prototype.propertyIsEnumerable("constructor"));
+
+  HTMLDocument.prototype.constructor = testValue;
+  assert_false(HTMLDocument.prototype.propertyIsEnumerable("constructor"));
+
+  HTMLDivElement.prototype.constructor = testValue;
+  assert_false(HTMLDivElement.prototype.propertyIsEnumerable("constructor"));
+}, "Direct [[Set]] preserves [[Enumerable]]: false property attribute");
+
+test(() => {
+  window.constructor = testValue;
+  assert_equals(window.constructor, testValue);
+  assert_equals(Window.prototype.constructor, Window);
+
+  navigator.constructor = testValue;
+  assert_equals(navigator.constructor, testValue);
+  assert_equals(Navigator.prototype.constructor, Navigator);
+
+  const span = document.createElement("span");
+  span.constructor = testValue;
+  assert_equals(span.constructor, testValue);
+  assert_equals(HTMLSpanElement.prototype.constructor, HTMLSpanElement);
+}, "Prototype chain [[Set]] creates property on receiver");
+</script>

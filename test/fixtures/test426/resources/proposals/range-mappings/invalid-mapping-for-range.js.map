@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": ["invalid-mapping-for-range-original.js"],
+  "sourcesContent": ["42;"],
+  "mappings": ";A,EAAE",
+  "rangeMappings": ";A"
+}

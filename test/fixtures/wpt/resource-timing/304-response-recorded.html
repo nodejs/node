@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing - cached resources generate performance entries</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help"
+  href="https://www.w3.org/TR/resource-timing-2/#resources-included-in-the-performanceresourcetiming-interface"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/resource-loaders.js"></script>
+</head>
+<body>
+<h1>Description</h1>
+<p>This test validates that a 304 Not Modified resource appears in the
+Performance Timeline.</p>
+<script>
+// Need to fetch the same resource twice; the first will get a 200 response but
+// the second request should be cached and get a 304.
+promise_test(async () => {
+  performance.clearResourceTimings();
+
+  const unique = Math.random();
+  const path = `resources/fake_responses.py?tag=${unique}`;
+
+  await load.xhr_sync(path);
+  await load.xhr_sync(path, {"If-None-Match": `${unique}`});
+  const entries = await new Promise(resolve => {
+    const accumulator = [];
+    new PerformanceObserver(entry_list => {
+      entry_list.getEntries().forEach(entry => {
+        accumulator.push(entry);
+      });
+      if (accumulator.length >= 2) {
+        resolve(accumulator);
+      }
+    }).observe({'type': 'resource', 'buffered': true});
+  });
+
+
+  if (entries.length != 2) {
+    throw new Error(`Expecting 2 but got ${entries.length} entries`);
+  }
+
+  assert_equals(entries[0].name, entries[1].name,
+    "Both entries should have the same name");
+  invariants.assert_tao_pass_no_redirect_http(entries[0]);
+  invariants.assert_tao_pass_304_not_modified_http(entries[1]);
+}, "304 responses should still show up in the PerformanceTimeline");
+</script>
+</body>
+</html>

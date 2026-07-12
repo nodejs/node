@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "sibling-ranges.js",
+  "sources": [
+    "original_0.js",
+    "original_1.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global"
+  ],
+  "scopes": "BCAAA,CKA,BCKAA,CKA,ECAA,FK,EDKAC,FK,EBKA,FK"
+}

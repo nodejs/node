@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "pkg-a": {
+      "url": "./root",
+      "dependencies": {}
+    },
+    "pkg-b": {
+      "url": "./root",
+      "dependencies": {}
+    }
+  }
+}

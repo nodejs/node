@@ -1,0 +1,12 @@
+#############################################################################
+# UBSan vptr ignorelist.
+# Function and type based ignorelisting use a mangled name, and it is especially
+# tricky to represent C++ types. For now, any possible changes by name manglings
+# are simply represented as wildcard expressions of regexp, and thus it might be
+# over-ignorelisted.
+
+#############################################################################
+# UBsan goes into an infinite recursion when __dynamic_cast instrumented with
+# "vptr". See crbug.com/609786.
+
+src:*/third_party/libc\+\+abi/trunk/src/private_typeinfo.cpp

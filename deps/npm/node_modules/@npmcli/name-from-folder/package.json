@@ -1,0 +1,45 @@
+{
+  "name": "@npmcli/name-from-folder",
+  "version": "4.0.0",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "description": "Get the package name from a folder path",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/name-from-folder.git"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.0",
+    "@npmcli/template-oss": "4.27.1",
+    "tap": "^16.3.2"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.27.1",
+    "publish": true
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

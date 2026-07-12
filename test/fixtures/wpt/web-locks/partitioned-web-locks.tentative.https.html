@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Web Locks API: Partitioned WebLocks</title>
+
+<!-- Pull in get_host_info() -->
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script src="resources/helpers.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+
+const { HTTPS_ORIGIN, HTTPS_NOTSAMESITE_ORIGIN } = get_host_info();
+// Map of lock_id => function that releases a lock.
+const held = new Map();
+let next_lock_id = 1;
+
+// How this test works:
+// Step 1 (top-frame): request an exclusive web-lock and store its id
+// and release for clean-up.
+// Step 2 (top-frame): open a pop-up window and load a not-same-site
+// ./web-locks/resources/partitioned-parent.html
+// Step 3 (pop-up): load a same-site iframe inside the pop-up.
+// Step 4 (pop-up): send a web-lock request to the same-site iframe.
+// Step 5 (iframe): process the web-lock request and message the result
+// back to the pop-up.
+// Step 6 (pop-up): intercept the result message from the iframe and
+// send it to the top-frame.
+// Step 7 (top-frame): add cleanup hook.
+// Step 8 (top-frame): ensure that the same-site iframe's web-lock
+// request succeeds since it and the top-level site are successfully
+// partitioned and each can hold an exclusive lock.
+
+async function third_party_test(t) {
+  let target_url = HTTPS_ORIGIN + '/web-locks/resources/iframe.html';
+  target_url = new URL(
+    `/web-locks/resources/partitioned-parent.html?target=${encodeURIComponent(target_url)}`,
+    HTTPS_NOTSAMESITE_ORIGIN + self.location.pathname);
+
+  // Step 1.
+  let lock_id = next_lock_id++;
+  let [ promise, release ] = makePromiseAndResolveFunc();
+  let released = navigator.locks.request('testLock', {mode: 'exclusive', ifAvailable: true},
+        lock => {
+          if (lock === null) {
+            assert_true(false)
+            return;
+          }
+          return promise;
+        });
+  held.set(lock_id, { release, released });
+
+  // Step 2.
+  const w = window.open(target_url);
+  const result = await new Promise(resolve => window.onmessage = resolve);
+
+  // Step 7.
+  t.add_cleanup(() => {
+    w.close();
+    let released = [];
+    for(let i = 1; i < next_lock_id; i++){
+      let h = held.get(i);
+      h.release();
+      released.push(h.released);
+    }
+    return Promise.allSettled(released);
+  });
+
+  // Step 8.
+  // When 3rd party storage partitioning is enabled, the iframe should be able
+  // to acquire a lock with the same name as one exclusively held by the opener
+  // of its top window, even when that opener has the same origin.
+  assert_equals(result.data.failed, undefined,
+      'The 1p iframe failed to acquire the lock');
+}
+
+promise_test(t => {
+  return third_party_test(t);
+}, 'WebLocks of an iframe under a 3rd-party site are partitioned');
+
+
+// Optional Test: Checking for partitioned web locks in an A->B->A
+// (nested-iframe with cross-site ancestor chain) scenario.
+//
+// How this test works:
+// Nested Step 1 (top frame): request an exclusive web-lock and
+// store its id and release for clean-up.
+// Nested Step 2 (top frame): open a pop-up window and load a
+// same-site /web-locks/resources/partitioned-parent.html.
+// Nested Step 3 (pop-up): load a not-same-site "parent" iframe (A->B)
+// (/web-locks/resources/iframe-parent.html) inside the pop-up.
+// Nested Step 4 (pop-up): send a web-lock request to the parent iframe.
+// Nested Step 5 (parent iframe): load a "child" iframe (A->B->A)
+// (/web-locks/resources/iframe.html) that is same-site with the
+// pop-up inside the "parent" iframe.
+// Nested Step 6 (parent iframe): pass on the web-lock request message to
+// the "child" iframe.
+// Nested Step 7 (child iframe): process the web-lock request and message
+// the result to the parent iframe.
+// Nested Step 8 (parent iframe): intercept the result message from the
+// child iframe and send it to the pop-up.
+// Nested Step 9 (pop-up): intercept the result message from the parent
+// iframe and send it to the top frame.
+// Nested Step 10 (top frame): add cleanup hook
+// Nested Step 11 (top frame): ensure that the same-site iframe's web-lock
+// request succeeds since it and the top-level are successfully
+// partitioned and each can hold an exclusive lock.
+
+// Map of lock_id => function that releases a lock.
+const held_2 = new Map();
+let next_lock_id_2 = 1;
+
+async function nested_iframe_test(t) {
+  // Create innermost child iframe (leaf).
+  let leaf_url = HTTPS_ORIGIN + '/web-locks/resources/iframe.html';
+  // Wrap the child iframe in its cross-origin parent (middle).
+  let middle_url = new URL(
+    `/web-locks/resources/iframe-parent.html?target=${encodeURIComponent(leaf_url)}`,
+    HTTPS_NOTSAMESITE_ORIGIN + self.location.pathname);
+  // Embed the parent iframe in the top-level site (top).
+  let top_url = new URL(
+    `/web-locks/resources/partitioned-parent.html?target=${encodeURIComponent(middle_url)}`,
+    HTTPS_ORIGIN + self.location.pathname);
+
+  // Nested Step 1.
+  // Request the weblock for the top-level site.
+  let lock_id = next_lock_id_2++;
+  let [ promise, release ] = makePromiseAndResolveFunc();
+  let released = navigator.locks.request('testLock', {mode: 'exclusive', ifAvailable: true},
+        lock => {
+          if (lock === null) {
+            assert_true(false)
+            return;
+          }
+          return promise;
+        }).catch(error => alert(error.message));
+  held_2.set(lock_id, { release, released });
+
+  // Nested Step 2.
+  // Open the nested iframes. The script in the innermost child iframe
+  // will attempt to obtain the same weblock as above.
+  const w = window.open(top_url);
+  const result = await new Promise(resolve => window.onmessage = resolve);
+
+  // Nested Step 10.
+  t.add_cleanup(() => {
+    w.close();
+    let released = [];
+    for(let i = 1; i < next_lock_id; i++){
+      let h = held_2.get(i);
+      h.release();
+      released.push(h.released);
+    }
+    return Promise.allSettled(released);
+  });
+
+  // Nested Step 11.
+  // With third-party storage partitioning enabled, the same-site iframe
+  // should be able to acquire the lock as it has a cross-site ancestor
+  // and is partitioned separately from the top-level site.
+  assert_equals(result.data.failed, undefined,
+      'The 1p iframe failed to acquire the lock');
+}
+
+promise_test(t => {
+  return nested_iframe_test(t);
+}, 'WebLocks of a nested iframe with a cross-site ancestor are partitioned');
+</script>
+</body>

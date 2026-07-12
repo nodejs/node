@@ -1,0 +1,17 @@
+Tests buildId for JavaScript scripts/modules
+Debugger.scriptParsed with:
+url: script1.js
+buildId: 85314830-023f-4cf1-a267-535f4e37bb17
+
+Debugger.scriptParsed with:
+url: module1.js
+buildId: cdc0c7f3-423a-4250-9f15-baac67a52cce
+
+Debugger.scriptParsed with:
+url: wrong-magic-comment.js
+buildId: 
+
+Debugger.scriptFailedToParse with:
+url: failed-to-parse.js
+buildId: 715dd671-19f9-42dd-af76-93664d8a1bef
+

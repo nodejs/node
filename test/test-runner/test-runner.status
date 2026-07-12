@@ -1,0 +1,11 @@
+prefix test-runner
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+# https://github.com/nodejs/node/pull/54888#issuecomment-2351128116
+# TODO(pmarchini): This test is failing when isolation is set to none and must be fixed.
+test-watch-create-isolation-none: SKIP

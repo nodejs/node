@@ -1,0 +1,6 @@
+[submodule "munit"]
+	path = munit
+	url = https://github.com/ngtcp2/munit
+[submodule "http-parser"]
+	path = http-parser
+	url = https://github.com/nodejs/http-parser

@@ -1,0 +1,5 @@
+(node:<pid>) UnhandledPromiseRejectionWarning: Error: alas
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/promise_unhandled_warn_with_error.js:7:16)
+    at <node-internal-frames>
+(Use `<node-exe> --trace-warnings ...` to show where the warning was created)
+(node:<pid>) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To terminate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)

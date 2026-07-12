@@ -1,0 +1,140 @@
+Tests that protocol works with different locales
+
+Running test: consoleLogWithDefaultLocale
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 239
+                type : number
+                value : 239
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+
+Running test: consoleTimeWithCommaAsSeparator
+set locale to fr_CA.UTF-8 (has comma as separator)
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : a: 0.001 ms
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : timeEnd
+    }
+}
+
+Running test: consoleLogWithCommaAsSeparator
+set locale to fr_CA.UTF-8 (has comma as separator)
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 239
+                type : number
+                value : 239
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+
+Running test: consoleTimeWithCommaAfterConsoleLog
+set locale to fr_CA.UTF-8 (has comma as separator)
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 239
+                type : number
+                value : 239
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : a: 0.001 ms
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : timeEnd
+    }
+}

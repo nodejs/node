@@ -1,0 +1,159 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+macro LoadWithHoleCheck<Elements : type extends FixedArrayBase>(
+    elements: FixedArrayBase, index: Smi): JSAny
+    labels IfHole;
+
+LoadWithHoleCheck<FixedArray>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
+    labels IfHole {
+  const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+  const element: Object = elements.objects[index];
+  if (element == TheHole) goto IfHole;
+  return UnsafeCast<JSAny>(element);
+}
+
+LoadWithHoleCheck<FixedDoubleArray>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
+    labels IfHole {
+  const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+  try {
+    const element: float64 =
+        elements.values[index].Value() otherwise IfUndefined,
+                   IfHole;
+    return AllocateHeapNumberWithValue(element);
+  } label IfUndefined {
+    return Undefined;
+  }
+}
+
+macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
+    context: Context, array: JSArray, from: Smi, searchElement: JSAny): Smi {
+  const elements: FixedArrayBase = array.elements;
+  let k: Smi = from;
+
+  // Bug(898785): Due to side-effects in the evaluation of `fromIndex`
+  // the {from} can be out-of-bounds here, so we need to clamp {k} to
+  // the {elements} length. We might be reading holes / hole NaNs still
+  // due to that, but those will be ignored below.
+  if (k >= elements.length) {
+    k = elements.length - 1;
+  }
+
+  while (k >= 0) {
+    try {
+      const element: JSAny = LoadWithHoleCheck<Elements>(elements, k)
+          otherwise Hole;
+
+      const same: Boolean = StrictEqual(searchElement, element);
+      if (same == True) {
+        dcheck(Is<FastJSArray>(array));
+        return k;
+      }
+    } label Hole {}  // Do nothing for holes.
+
+    --k;
+  }
+
+  dcheck(Is<FastJSArray>(array));
+  return -1;
+}
+
+transitioning macro GetFromIndex(
+    context: Context, length: Number, arguments: Arguments): Number {
+  // 4. If fromIndex is present, let n be ? ToInteger(fromIndex);
+  //    else let n be len - 1.
+  const n: Number =
+      arguments.length < 2 ? length - 1 : ToInteger_Inline(arguments[1]);
+
+  // 5. If n >= 0, then.
+  let k: Number = SmiConstant(0);
+  if (n >= 0) {
+    // a. If n is -0, let k be +0; else let k be min(n, len - 1).
+    // If n was -0 it got truncated to 0.0, so taking the minimum is fine.
+    k = Min(n, length - 1);
+  } else {
+    // a. Let k be len + n.
+    k = length + n;
+  }
+  return k;
+}
+
+macro TryFastArrayLastIndexOf(
+    context: Context, receiver: JSReceiver, searchElement: JSAny,
+    from: Number): JSAny
+    labels Slow {
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  const length: Smi = array.length;
+  if (length == 0) return SmiConstant(-1);
+
+  const fromSmi: Smi = Cast<Smi>(from) otherwise Slow;
+  const kind: ElementsKind = array.map.elements_kind;
+  if (IsFastSmiOrTaggedElementsKind(kind)) {
+    return FastArrayLastIndexOf<FixedArray>(
+        context, array, fromSmi, searchElement);
+  }
+  dcheck(IsDoubleElementsKind(kind));
+  return FastArrayLastIndexOf<FixedDoubleArray>(
+      context, array, fromSmi, searchElement);
+}
+
+transitioning macro GenericArrayLastIndexOf(
+    context: Context, object: JSReceiver, searchElement: JSAny,
+    from: Number): JSAny {
+  let k: Number = from;
+
+  // 7. Repeat, while k >= 0.
+  while (k >= 0) {
+    // a. Let kPresent be ? HasProperty(O, ! ToString(k)).
+    const kPresent: Boolean = HasProperty(object, k);
+
+    // b. If kPresent is true, then.
+    if (kPresent == True) {
+      // i. Let elementK be ? Get(O, ! ToString(k)).
+      const element: JSAny = GetProperty(object, k);
+
+      // ii. Let same be the result of performing Strict Equality Comparison
+      //     searchElement === elementK.
+      const same: Boolean = StrictEqual(searchElement, element);
+
+      // iii. If same is true, return k.
+      if (same == True) return k;
+    }
+
+    // c. Decrease k by 1.
+    --k;
+  }
+
+  // 8. Return -1.
+  return SmiConstant(-1);
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
+transitioning javascript builtin ArrayPrototypeLastIndexOf(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const length: Number = GetLengthProperty(object);
+
+  // 3. If len is 0, return -1.
+  if (length == SmiConstant(0)) return SmiConstant(-1);
+
+  // Step 4 - 6.
+  const from: Number = GetFromIndex(context, length, arguments);
+
+  const searchElement: JSAny = arguments[0];
+
+  try {
+    return TryFastArrayLastIndexOf(context, object, searchElement, from)
+        otherwise Baseline;
+  } label Baseline {
+    return GenericArrayLastIndexOf(context, object, searchElement, from);
+  }
+}
+}

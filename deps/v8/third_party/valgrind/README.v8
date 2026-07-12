@@ -1,0 +1,11 @@
+Name: valgrind
+URL: https://valgrind.org/
+Version: 3.6
+License: BSD
+License File: LICENSE
+Shipped: no
+Security Critical: no
+Update Mechanism: Static (https://crbug/422926977)
+
+Description:
+Client header for controlling Valgrind execution.

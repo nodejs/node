@@ -1,0 +1,88 @@
+{
+  "file": "sibling-scopes.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 50,
+          "column": 0
+        },
+        "name": null,
+        "kind": null,
+        "isStackFrame": false,
+        "variables": [],
+        "children": [
+          {
+            "start": {
+              "line": 10,
+              "column": 5
+            },
+            "end": {
+              "line": 18,
+              "column": 1
+            },
+            "name": "toplevelFunction1",
+            "kind": "function",
+            "isStackFrame": true,
+            "variables": [],
+            "children": []
+          },
+          {
+            "start": {
+              "line": 20,
+              "column": 5
+            },
+            "end": {
+              "line": 28,
+              "column": 1
+            },
+            "name": "toplevelFunction2",
+            "kind": "function",
+            "isStackFrame": true,
+            "variables": [],
+            "children": []
+          },
+          {
+            "start": {
+              "line": 30,
+              "column": 5
+            },
+            "end": {
+              "line": 38,
+              "column": 1
+            },
+            "name": "toplevelFunction3",
+            "kind": "function",
+            "isStackFrame": true,
+            "variables": [],
+            "children": []
+          },
+          {
+            "start": {
+              "line": 40,
+              "column": 5
+            },
+            "end": {
+              "line": 48,
+              "column": 1
+            },
+            "name": "toplevelFunction4",
+            "kind": "function",
+            "isStackFrame": true,
+            "variables": [],
+            "children": []
+          }
+        ]
+      }
+    }
+  ],
+  "ranges": []
+}

@@ -1,0 +1,99 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        pub struct TestingStruct { x: i32, y: i32, } pub trait TesterTrait:\n        std::marker::Send\n        {\n            fn test_trait_fn(&self, x: i32) -> i32; fn\n            test_void_trait_fn(&self); fn\n            test_struct_trait_fn(&self, s: TestingStruct) -> i32; fn\n            test_slice_trait_fn(&self, s: &[u8]) -> i32;\n        } pub struct Wrapper { cant_be_empty: bool, } impl Wrapper\n        {\n            pub fn test_with_trait(t: impl TesterTrait, x: i32) -> i32\n            { t.test_void_trait_fn(); t.test_trait_fn(x) } pub fn\n            test_trait_with_struct(t: impl TesterTrait) -> i32\n            {\n                let arg = TestingStruct { x: 1, y: 5, };\n                t.test_struct_trait_fn(arg)\n            }\n        }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    pub struct TestingStruct {
+        x: i32,
+        y: i32,
+    }
+    pub trait TesterTrait: std::marker::Send {
+        fn test_trait_fn(&self, x: i32) -> i32;
+        fn test_void_trait_fn(&self);
+        fn test_struct_trait_fn(&self, s: TestingStruct) -> i32;
+        fn test_slice_trait_fn(&self, s: &[u8]) -> i32;
+    }
+    #[repr(C)]
+    pub struct Wrapper {
+        cant_be_empty: bool,
+    }
+    impl Wrapper {
+        pub fn test_with_trait(t: impl TesterTrait, x: i32) -> i32 {
+            t.test_void_trait_fn();
+            t.test_trait_fn(x)
+        }
+        pub fn test_trait_with_struct(t: impl TesterTrait) -> i32 {
+            let arg = TestingStruct { x: 1, y: 5 };
+            t.test_struct_trait_fn(arg)
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Wrapper_test_with_trait(
+        t: DiplomatTraitStruct_TesterTrait,
+        x: i32,
+    ) -> i32 {
+        Wrapper::test_with_trait(t, x)
+    }
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Wrapper_test_trait_with_struct(
+        t: DiplomatTraitStruct_TesterTrait,
+    ) -> i32 {
+        Wrapper::test_trait_with_struct(t)
+    }
+    #[repr(C)]
+    #[allow(deprecated)]
+    pub struct TesterTrait_VTable {
+        pub destructor: Option<unsafe extern "C" fn(*const c_void)>,
+        pub size: usize,
+        pub alignment: usize,
+        pub run_test_trait_fn_callback: unsafe extern "C" fn(*const c_void, i32) -> i32,
+        pub run_test_void_trait_fn_callback: unsafe extern "C" fn(*const c_void),
+        pub run_test_struct_trait_fn_callback: unsafe extern "C" fn(
+            *const c_void,
+            TestingStruct,
+        ) -> i32,
+        pub run_test_slice_trait_fn_callback: unsafe extern "C" fn(
+            *const c_void,
+            diplomat_runtime::DiplomatSlice<u8>,
+        ) -> i32,
+    }
+    #[repr(C)]
+    pub struct DiplomatTraitStruct_TesterTrait {
+        data: *const c_void,
+        pub vtable: TesterTrait_VTable,
+    }
+    unsafe impl std::marker::Send for DiplomatTraitStruct_TesterTrait {}
+    impl TesterTrait for DiplomatTraitStruct_TesterTrait {
+        fn test_trait_fn(&self, x: i32) -> i32 {
+            unsafe { ((self.vtable).run_test_trait_fn_callback)(self.data, x) }
+        }
+        fn test_void_trait_fn(&self) {
+            unsafe {
+                ((self.vtable).run_test_void_trait_fn_callback)(self.data);
+            }
+        }
+        fn test_struct_trait_fn(&self, s: TestingStruct) -> i32 {
+            unsafe { ((self.vtable).run_test_struct_trait_fn_callback)(self.data, s) }
+        }
+        fn test_slice_trait_fn(&self, s: &[u8]) -> i32 {
+            unsafe {
+                let s: diplomat_runtime::DiplomatSlice<u8> = s.into();
+                ((self.vtable).run_test_slice_trait_fn_callback)(self.data, s)
+            }
+        }
+    }
+    impl Drop for DiplomatTraitStruct_TesterTrait {
+        fn drop(&mut self) {
+            if let Some(destructor) = self.vtable.destructor {
+                unsafe {
+                    (destructor)(self.data);
+                }
+            }
+        }
+    }
+}

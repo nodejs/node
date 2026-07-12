@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>window.Interface is defined on [[Set]] receiver</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#define-the-global-property-references">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+"use strict";
+const testValue = Object.freeze(function() {});
+
+test(() => {
+  window.Window = testValue;
+  assert_false(window.propertyIsEnumerable("Window"));
+
+  window.History = testValue;
+  assert_false(window.propertyIsEnumerable("History"));
+
+  window.HTMLDivElement = testValue;
+  assert_false(window.propertyIsEnumerable("HTMLDivElement"))
+}, "Direct [[Set]] preserves [[Enumerable]]: false property attribute");
+
+test(() => {
+  const heir = Object.create(window);
+
+  heir.Location = testValue;
+  assert_equals(heir.Location, testValue);
+  assert_not_equals(window.Location, testValue);
+
+  heir.HTMLDocument = testValue;
+  assert_equals(heir.HTMLDocument, testValue);
+  assert_not_equals(window.HTMLDocument, testValue);
+
+  heir.HTMLPreElement = testValue;
+  assert_equals(heir.HTMLPreElement, testValue);
+  assert_not_equals(window.HTMLPreElement, testValue);
+}, "Prototype chain [[Set]] creates property on receiver");
+</script>

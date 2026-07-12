@@ -1,0 +1,69 @@
+{
+  "name": "minipass-sized",
+  "version": "2.0.0",
+  "description": "A Minipass stream that raises an error if you get a different number of bytes than expected",
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "pretest": "npm run prepare",
+    "presnap": "npm run prepare",
+    "prepare": "tshy",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "format": "prettier --write . --log-level warn",
+    "typedoc": "typedoc"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "tap": "^21.5.0",
+    "tshy": "^3.1.0",
+    "typedoc": "^0.28.15"
+  },
+  "dependencies": {
+    "minipass": "^7.1.2"
+  },
+  "main": "./dist/commonjs/index.js",
+  "keywords": [
+    "minipass",
+    "size",
+    "length"
+  ],
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/minipass-sized.git"
+  },
+  "engines": {
+    "node": ">=8"
+  },
+  "type": "module",
+  "tshy": {
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./src/index.ts"
+    }
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/commonjs/index.d.ts",
+        "default": "./dist/commonjs/index.js"
+      }
+    }
+  },
+  "types": "./dist/commonjs/index.d.ts",
+  "module": "./dist/esm/index.js"
+}

@@ -1,0 +1,39 @@
+Tests stepping out from javascript to a wasm caller
+
+Running test: test
+Instantiating.
+Running exports.main.
+>>> First round
+Paused at:
+function pauseAlternating() {
+  if (pause) #debugger;
+  pause = !pause;
+
+Paused at:
+Script wasm://wasm/004fa7ea byte offset 53: Wasm opcode 0x0b (kExprEnd)
+Paused at:
+instance.exports.main()#
+
+exports.main returned.
+After stepping out of the last script, we should stop right at the beginning of the next script.
+>>> Second round
+Paused at:
+#instance.exports.main()
+
+exports.main returned.
+The next cycle should work as before (stopping at the "debugger" statement), after stopping at script entry.
+>>> Third round
+Paused at:
+#instance.exports.main()
+
+Paused at:
+function pauseAlternating() {
+  if (pause) #debugger;
+  pause = !pause;
+
+Paused at:
+Script wasm://wasm/004fa7ea byte offset 53: Wasm opcode 0x0b (kExprEnd)
+Paused at:
+instance.exports.main()#
+
+exports.main returned.

@@ -1,0 +1,8 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in OutStruct: Options of structs/enums/primitives not supported by this backend
+Lowering error in Struct: Options of structs/enums/primitives not supported by this backend
+Lowering error in Struct2: Options of structs/enums/primitives not supported by this backend
+Lowering error in Opaque::take_option: Options of structs/enums/primitives not supported by this backend

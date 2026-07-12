@@ -1,0 +1,7 @@
+Error: test
+    at one (file://<project-root>/[eval1]:2:9)
+    at two (file://<project-root>/[eval1]:15:9)
+    at async three (file://<project-root>/[eval1]:18:3)
+    at async four (file://<project-root>/[eval1]:22:3)
+    at async main (file://<project-root>/[eval1]:28:5)
+

@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(5783-4-8, am era, for calendar Hebrew))
+    +10d → Date(5783-4-18, am era, for calendar Hebrew)
+    +2m → Date(5783-6-8, am era, for calendar Hebrew)
+    +1y → Date(5784-4-8, am era, for calendar Hebrew)
+    +1y 3m 15d → Date(5784-7-23, am era, for calendar Hebrew)
+
+2024-6-15
+  (start: Date(5784-10-9, am era, for calendar Hebrew))
+    +10d → Date(5784-10-19, am era, for calendar Hebrew)
+    +2m → Date(5784-12-9, am era, for calendar Hebrew)
+    +1y → Date(5785-9-9, am era, for calendar Hebrew)
+    +1y 3m 15d → Date(5785-12-24, am era, for calendar Hebrew)
+
+2025-12-31
+  (start: Date(5786-4-11, am era, for calendar Hebrew))
+    +10d → Date(5786-4-21, am era, for calendar Hebrew)
+    +2m → Date(5786-6-11, am era, for calendar Hebrew)
+    +1y → Date(5787-4-11, am era, for calendar Hebrew)
+    +1y 3m 15d → Date(5787-7-26, am era, for calendar Hebrew)

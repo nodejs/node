@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "file": "sibling-scopes.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "toplevelFunction1",
+    "function",
+    "toplevelFunction2",
+    "toplevelFunction3",
+    "toplevelFunction4"
+  ],
+  "scopes": "BAAA,BHKFAC,CIB,BHCFEA,CIB,BHCFCA,CIB,BHCFCA,CIB,CCA"
+}

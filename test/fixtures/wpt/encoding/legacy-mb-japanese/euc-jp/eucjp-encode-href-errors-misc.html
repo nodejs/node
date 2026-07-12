@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="euc-jp"> <!-- test breaks if the server overrides this -->
+<title>EUC-JP encoding errors (href, misc)</title>
+<meta name="timeout" content="long">
+<meta name="variant" content="?1-1000">
+<meta name="variant" content="?1001-2000">
+<meta name="variant" content="?2001-3000">
+<meta name="variant" content="?3001-last">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/subset-tests.js"></script>
+<script src="jis0208_index.js"></script>
+<script src="eucjp-encoder.js"></script>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://encoding.spec.whatwg.org/#euc-jp">
+<meta name="assert" content="The browser produces percent-escaped character references when writing characters to an href value and encoding miscellaneous characters that are not in the euc-jp encoding.">
+<style>
+ iframe { display:none }
+ form { display:none }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<script src="../../resources/ranges.js"></script>
+<script>
+var errors = true;
+var encoder = eucjpEncoder;
+var ranges = rangesMisc;
+function expect(result, codepoint) {
+  return "%26%23" + codepoint + "%3B";
+}
+// Overwrite normalizeStr
+function normalizeStr(str) {
+  return str;
+}
+</script>
+<script src="../../resources/encode-href-common.js"></script>
+</body>
+</html>

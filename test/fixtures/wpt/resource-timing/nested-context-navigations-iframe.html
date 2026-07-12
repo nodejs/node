@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name=timeout content=long>
+<title>Resource Timing embed navigate - back button navigation</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/nested-contexts.js"></script>
+<script>
+  open_test_window("resources/iframe-navigate-back.html",
+    "Test that iframe navigations are not observable by the parent, even after history navigations by the parent");
+  open_test_window("resources/iframe-navigate-back.html?crossorigin",
+    "Test that crossorigin iframe navigations are not observable by the parent, even after history navigations by the parent");
+  open_test_window("resources/iframe-navigate-back.html?cross-site",
+    "Test that cross-site iframe navigations are not observable by the parent, even after history navigations by the parent");
+  open_test_window("resources/iframe-navigate.html",
+    "Test that iframe navigations are not observable by the parent");
+  open_test_window("resources/iframe-navigate.html?crossorigin",
+    "Test that crossorigin iframe navigations are not observable by the parent");
+  open_test_window("resources/iframe-navigate.html?cross-site",
+    "Test that cross-site iframe navigations are not observable by the parent");
+  open_test_window("resources/iframe-refresh.html",
+    "Test that iframe refreshes are not observable by the parent");
+  open_test_window("resources/iframe-refresh.html?crossorigin",
+    "Test that crossorigin iframe refreshes are not observable by the parent");
+  open_test_window("resources/iframe-refresh.html?cross-site",
+    "Test that cross-site iframe refreshes are not observable by the parent");
+
+</script>
+

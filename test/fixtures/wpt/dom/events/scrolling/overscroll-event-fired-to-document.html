@@ -1,0 +1,62 @@
+<!DOCTYPE HTML>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#targetDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 400px;
+  height: 400px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="targetDiv">
+  <div id="innerDiv">
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var overscrolled_x_delta = 0;
+var overscrolled_y_delta = 0;
+function onOverscroll(event) {
+  assert_false(event.cancelable);
+  // overscroll events are bubbled when the target node is document.
+  assert_true(event.bubbles);
+  overscrolled_x_delta = event.deltaX;
+  overscrolled_y_delta = event.deltaY;
+}
+document.addEventListener("overscroll", onOverscroll);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no overscroll event is sent to target_div.
+    target_div.addEventListener("overscroll",
+        t.unreached_func("target_div got unexpected overscroll event."));
+    await waitForCompositorCommit();
+
+    // Scroll up on target div and wait for the doc to get overscroll event.
+    await touchScrollInTarget(300, target_div, 'up');
+    await waitFor(() => { return overscrolled_y_delta < 0; },
+        'Document did not receive overscroll event after scroll up on target.');
+    assert_equals(target_div.scrollTop, 0);
+
+    // Scroll left on target div and wait for the doc to get overscroll event.
+    await touchScrollInTarget(300, target_div, 'left');
+    await waitFor(() => { return overscrolled_x_delta < 0; },
+        'Document did not receive overscroll event after scroll left on target.');
+    assert_equals(target_div.scrollLeft, 0);
+  }, 'Tests that the document gets overscroll event when no element scrolls ' +
+      'after touch scrolling.');
+}
+</script>

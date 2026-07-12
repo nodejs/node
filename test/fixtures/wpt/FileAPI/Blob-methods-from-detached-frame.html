@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Blob methods from detached frame work as expected</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<iframe id="emptyDocumentIframe" src="../support/empty-document.html"></iframe>
+
+<script>
+const BlobPrototypeFromDetachedFramePromise = new Promise(resolve => {
+    emptyDocumentIframe.onload = () => {
+        const BlobPrototype = emptyDocumentIframe.contentWindow.Blob.prototype;
+        emptyDocumentIframe.remove();
+        resolve(BlobPrototype);
+    };
+});
+
+const charCodeArrayToString = charCodeArray => Array.from(charCodeArray, c => String.fromCharCode(c)).join("");
+const charCodeBufferToString = charCodeBuffer => charCodeArrayToString(new Uint8Array(charCodeBuffer));
+
+promise_test(async () => {
+    const { slice } = await BlobPrototypeFromDetachedFramePromise;
+    const blob = new Blob(["foobar"]);
+
+    const slicedBlob = slice.call(blob, 1, 3);
+    assert_true(slicedBlob instanceof Blob);
+
+    assert_equals(await slicedBlob.text(), "oo");
+    assert_equals(charCodeBufferToString(await slicedBlob.arrayBuffer()), "oo");
+    assert_equals(charCodeArrayToString(await slicedBlob.bytes()), "oo");
+
+    const reader = slicedBlob.stream().getReader();
+    const { value } = await reader.read();
+    assert_equals(charCodeArrayToString(value), "oo");
+}, "slice()");
+
+promise_test(async () => {
+    const { text } = await BlobPrototypeFromDetachedFramePromise;
+    const blob = new Blob(["foo"]);
+
+    assert_equals(await text.call(blob), "foo");
+}, "text()");
+
+promise_test(async () => {
+    const { arrayBuffer } = await BlobPrototypeFromDetachedFramePromise;
+    const blob = new Blob(["bar"]);
+
+    const charCodeBuffer = await arrayBuffer.call(blob);
+    assert_equals(charCodeBufferToString(charCodeBuffer), "bar");
+}, "arrayBuffer()");
+
+promise_test(async () => {
+    const { bytes } = await BlobPrototypeFromDetachedFramePromise;
+    const blob = new Blob(["bar"]);
+
+    const charCodeBytes = await bytes.call(blob);
+    assert_equals(charCodeArrayToString(charCodeBytes), "bar");
+}, "bytes()");
+
+promise_test(async () => {
+    const { stream } = await BlobPrototypeFromDetachedFramePromise;
+    const blob = new Blob(["baz"]);
+
+    const reader = stream.call(blob).getReader();
+    const { value } = await reader.read();
+    assert_equals(charCodeArrayToString(value), "baz");
+}, "stream()");
+</script>
