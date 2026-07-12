@@ -266,6 +266,63 @@ struct ContextInfo {
 
 class EnabledDebugList;
 
+// A bump allocator for stream read buffers. Reads reserve a chunk of the
+// current slab and, once completed, are handed to JS as a view (ArrayBuffer +
+// offset) over the slab, so that no per-read allocation or copy is needed.
+// Unused reservation space is rewound when a read returns fewer bytes than
+// were reserved. Slabs with reads still pending when a new slab is started
+// (possible when multiple reads are in flight, e.g. on Windows) are kept
+// alive in `retired_` until those reads complete.
+class StreamReadSlab {
+ public:
+  // Sized to match the read buffer size that libuv suggests for stream
+  // reads: a slab typically serves a single large read (still avoiding the
+  // copy that right-sizing the buffer would need), or many small ones.
+  // Larger slabs amortize allocations further, but stay alive (pinned by
+  // chunk views) long enough to be promoted to V8's old generation, where
+  // their external memory is only reclaimed by major GCs.
+  static constexpr size_t kSlabSize = 64 * 1024;
+
+  // Reserve `suggested` bytes. Starts a new slab if the current one does
+  // not have enough space left.
+  uv_buf_t Allocate(v8::Isolate* isolate, size_t suggested);
+  // Commit a completed read of `nread` bytes into the buffer previously
+  // returned by Allocate(), rewinding the unused remainder of the
+  // reservation if possible. Returns the slab's ArrayBuffer and the offset
+  // of `buf.base` within it. Returns false if the buffer was not allocated
+  // from this slab (e.g. reads rerouted from another stream listener).
+  bool Commit(v8::Isolate* isolate,
+              const uv_buf_t& buf,
+              size_t nread,
+              v8::Local<v8::ArrayBuffer>* ab,
+              size_t* offset);
+  // Return an unused reservation (failed or empty read). Returns false if
+  // the buffer was not allocated from this slab.
+  bool Release(const uv_buf_t& buf);
+
+ private:
+  struct Slab {
+    std::shared_ptr<v8::BackingStore> bs;
+    v8::Global<v8::ArrayBuffer> ab;
+    size_t offset = 0;          // Bump pointer.
+    size_t pending = 0;         // Reservations not yet committed/released.
+    char* last_base = nullptr;  // Most recent reservation...
+    size_t last_end = 0;        // ...and the bump pointer after it.
+
+    char* data() const { return static_cast<char*>(bs->Data()); }
+    size_t size() const { return bs->ByteLength(); }
+    bool Contains(const char* p) const {
+      return bs && p >= data() && p < data() + size();
+    }
+  };
+
+  Slab* FindSlab(const char* base);
+  void CompleteReservation(Slab* slab, const uv_buf_t& buf, size_t used);
+
+  Slab current_;
+  std::vector<Slab> retired_;
+};
+
 namespace per_process {
 extern std::shared_ptr<KVStore> system_environment;
 }
@@ -1042,6 +1099,10 @@ class Environment final : public MemoryRetainer {
   uv_buf_t allocate_managed_buffer(const size_t suggested_size);
   std::unique_ptr<v8::BackingStore> release_managed_buffer(const uv_buf_t& buf);
 
+  StreamReadSlab& stream_read_slab() {
+    return stream_read_slab_;
+  }
+
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
 
@@ -1256,6 +1317,9 @@ class Environment final : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
+
+  // Used by EmitToJSStreamListener to allocate stream read buffers.
+  StreamReadSlab stream_read_slab_;
 
   v8::CpuProfiler* cpu_profiler_ = nullptr;
   std::vector<v8::ProfilerId> pending_profiles_;

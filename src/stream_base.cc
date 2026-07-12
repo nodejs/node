@@ -684,7 +684,7 @@ void StreamResource::ClearError() {
 uv_buf_t EmitToJSStreamListener::OnStreamAlloc(size_t suggested_size) {
   CHECK_NOT_NULL(stream_);
   Environment* env = static_cast<StreamBase*>(stream_)->stream_env();
-  return env->allocate_managed_buffer(suggested_size);
+  return env->stream_read_slab().Allocate(env->isolate(), suggested_size);
 }
 
 void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
@@ -694,23 +694,33 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
-  std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
 
   if (nread <= 0)  {
+    if (!env->stream_read_slab().Release(buf_))
+      env->release_managed_buffer(buf_);
     if (nread < 0)
       stream->CallJSOnreadMethod(nread, Local<ArrayBuffer>());
     return;
   }
 
-  CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
-  if (static_cast<size_t>(nread) != bs->ByteLength()) {
-    std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(
-        isolate, nread, BackingStoreInitializationMode::kUninitialized);
-    memcpy(bs->Data(), old_bs->Data(), nread);
+  CHECK_LE(static_cast<size_t>(nread), buf_.len);
+  size_t offset = 0;
+  Local<ArrayBuffer> ab;
+  if (!env->stream_read_slab().Commit(isolate, buf_, nread, &ab, &offset)) {
+    // The buffer was allocated through allocate_managed_buffer() by another
+    // stream listener (e.g. StreamPipe's) whose read was rerouted here after
+    // that listener was removed.
+    std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
+    CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
+    if (static_cast<size_t>(nread) != bs->ByteLength()) {
+      std::unique_ptr<BackingStore> old_bs = std::move(bs);
+      bs = ArrayBuffer::NewBackingStore(
+          isolate, nread, BackingStoreInitializationMode::kUninitialized);
+      memcpy(bs->Data(), old_bs->Data(), nread);
+    }
+    ab = ArrayBuffer::New(isolate, std::move(bs));
   }
-
-  stream->CallJSOnreadMethod(nread, ArrayBuffer::New(isolate, std::move(bs)));
+  stream->CallJSOnreadMethod(nread, ab, offset);
 }
 
 
