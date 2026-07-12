@@ -30,7 +30,7 @@ async function testShareSyncMultipleConsumers() {
     yield [enc.encode('c')];
   }
 
-  const shared = shareSync(gen(), { highWaterMark: 16 });
+  const shared = shareSync(gen(), { budget: 16384 });
 
   const c1 = shared.pull();
   const c2 = shared.pull();
@@ -70,7 +70,7 @@ function testShareSyncCancelMidIteration() {
       sourceReturnCalled = true;
     }
   }
-  const shared = shareSync(gen(), { highWaterMark: 16 });
+  const shared = shareSync(gen(), { budget: 16384 });
   const consumer = shared.pull();
 
   const items = [];
@@ -97,7 +97,7 @@ function testShareSyncCancelWithReason() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = shareSync(gen(), { highWaterMark: 16 });
+  const shared = shareSync(gen(), { budget: 16384 });
   const c1 = shared.pull();
   const c2 = shared.pull();
 

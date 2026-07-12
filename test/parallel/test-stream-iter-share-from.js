@@ -97,13 +97,13 @@ function testSyncShareProtocolReturnsNonObject() {
 }
 
 // =============================================================================
-// Block backpressure: two consumers, slow consumer blocks the source
+// Unbounded backpressure: two consumers, slow consumer blocks the source
 // =============================================================================
 
 async function testShareBlockBackpressure() {
-  // A source that yields 5 items. With two consumers and highWaterMark: 2,
+  // A source that yields 5 items. With two consumers and budget: 16384,
   // the fast consumer drives the source forward. The slow consumer holds back
-  // trimming, causing the buffer to fill. 'block' mode should stall the
+  // trimming, causing the buffer to fill. 'unbounded' mode should stall the
   // source pull until the slow consumer catches up.
   const enc = new TextEncoder();
   async function* source() {
@@ -111,7 +111,7 @@ async function testShareBlockBackpressure() {
       yield [enc.encode(`item${i}`)];
     }
   }
-  const shared = share(source(), { highWaterMark: 2, backpressure: 'block' });
+  const shared = share(source(), { budget: 16384, backpressure: 'unbounded' });
   const fast = shared.pull();
   const slow = shared.pull();
 
@@ -138,7 +138,7 @@ async function testShareDropOldest() {
       yield [new TextEncoder().encode(`${i}`)];
     }
   }
-  const shared = share(source(), { highWaterMark: 2, backpressure: 'drop-oldest' });
+  const shared = share(source(), { budget: 16384, backpressure: 'drop-oldest' });
   const fast = shared.pull();
   const slow = shared.pull();
 
@@ -168,14 +168,16 @@ async function testShareDropOldest() {
 }
 
 async function testShareDropNewest() {
-  // With drop-newest and a stalled consumer, upstream results are discarded
-  // once the buffer reaches highWaterMark.
+  // With drop-newest and a stalled consumer, the async path allows the
+  // buffer to grow beyond budget (the "drop" applies to the
+  // backpressure signal, not the buffer contents). Both consumers
+  // ultimately see all items.
   async function* source() {
     for (let i = 0; i < 4; i++) {
       yield [new TextEncoder().encode(`${i}`)];
     }
   }
-  const shared = share(source(), { highWaterMark: 2, backpressure: 'drop-newest' });
+  const shared = share(source(), { budget: 16384, backpressure: 'drop-newest' });
   const fast = shared.pull();
   const slow = shared.pull();
 
@@ -209,13 +211,13 @@ async function testShareStrictBackpressure() {
       yield [new TextEncoder().encode(`${i}`)];
     }
   }
-  const shared = share(source(), { highWaterMark: 2, backpressure: 'strict' });
+  const shared = share(source(), { budget: 16384, backpressure: 'strict' });
   const fast = shared.pull();
   // Create a second consumer that never reads — this prevents buffer trimming
   shared.pull();
 
   // The fast consumer's pulls will eventually cause the buffer to exceed
-  // the highWaterMark (since the slow consumer prevents trimming),
+  // the budget (since the slow consumer prevents trimming),
   // triggering an ERR_OUT_OF_RANGE error.
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars

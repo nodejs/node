@@ -129,8 +129,8 @@ async function testWriteSyncAlwaysFails() {
 // backpressure. pipeTo must wait for drain, not retry the same write.
 async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
   const { writer, readable } = push({
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
 
   const pipe = pipeTo(source, writer);
@@ -156,7 +156,7 @@ async function testPushWriterBlockSyncFalseAccepted() {
 
 async function testPipeToSyncPushWriterStrictFalseRejected() {
   const decoder = new TextDecoder();
-  const { writer, readable } = push({ highWaterMark: 1 });
+  const { writer, readable } = push({ budget: 16384 });
 
   const total = pipeToSync(['a', 'b'], writer, { preventClose: true });
   assert.strictEqual(total, 1);
