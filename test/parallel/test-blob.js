@@ -407,6 +407,24 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(['hello\n'], { endings: 'native' });
   assert.strictEqual(b.size, EOL.length + 5);
 
+  // The WHATWG "convert line endings to native" algorithm normalizes every
+  // standalone "\r", "\n", and "\r\n" sequence to the native line ending.
+  // Refs: https://w3c.github.io/FileAPI/#convert-line-endings-to-native
+  (async () => {
+    const cases = [
+      ['a\rb', `a${EOL}b`],
+      ['a\nb', `a${EOL}b`],
+      ['a\r\nb', `a${EOL}b`],
+      ['a\r\rb', `a${EOL}${EOL}b`],
+      ['a\n\rb', `a${EOL}${EOL}b`],
+      ['\r\n\r', `${EOL}${EOL}`],
+    ];
+    for (const [input, expected] of cases) {
+      const blob = new Blob([input], { endings: 'native' });
+      assert.strictEqual(await blob.text(), expected);
+    }
+  })().then(common.mustCall());
+
   [1, {}, 'foo'].forEach((endings) => {
     assert.throws(() => new Blob([], { endings }), {
       code: 'ERR_INVALID_ARG_VALUE',
