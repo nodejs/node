@@ -1745,6 +1745,41 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+#ifdef _WIN32
+static void ClearReadOnlyAttributeWHelper(const wchar_t* path) {
+  DWORD attrs = GetFileAttributesW(path);
+  if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY)) {
+    SetFileAttributesW(path, attrs & ~FILE_ATTRIBUTE_READONLY);
+  }
+}
+
+static void ClearReadOnlyAttributeW(const std::filesystem::path& path,
+                                    bool recursive) {
+  std::error_code ec;
+  auto file_status = std::filesystem::symlink_status(path, ec);
+  if (ec) return;
+
+  if (recursive &&
+      file_status.type() == std::filesystem::file_type::directory) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             path,
+             std::filesystem::directory_options::skip_permission_denied,
+             ec)) {
+      std::error_code entry_ec;
+      auto entry_status = entry.symlink_status(entry_ec);
+      if (entry_ec) continue;
+      if (entry_status.type() != std::filesystem::file_type::symlink) {
+        ClearReadOnlyAttributeWHelper(entry.path().c_str());
+      }
+    }
+  }
+
+  if (file_status.type() != std::filesystem::file_type::symlink) {
+    ClearReadOnlyAttributeWHelper(path.c_str());
+  }
+}
+#endif
+
 static void RmSync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -1789,6 +1824,9 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   };
 
   int i = 1;
+#ifdef _WIN32
+  bool cleared_readonly = false;
+#endif
 
   while (maxRetries >= 0) {
     if (recursive) {
@@ -1796,6 +1834,22 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
     } else {
       std::filesystem::remove(file_path, error);
     }
+
+#ifdef _WIN32
+    // On Windows, libc++ does not clear the read-only attribute before
+    // removing a file (unlike MSVC STL which does). Attempt to clear it
+    // manually when we get EPERM (operation_not_permitted) so that read-only
+    // files can be deleted, matching the behavior of official Node.js builds.
+    if (error == std::errc::operation_not_permitted && !cleared_readonly) {
+      cleared_readonly = true;
+      ClearReadOnlyAttributeW(file_path, recursive);
+      if (recursive) {
+        std::filesystem::remove_all(file_path, error);
+      } else {
+        std::filesystem::remove(file_path, error);
+      }
+    }
+#endif  // _WIN32
 
     if (!error || error == std::errc::no_such_file_or_directory) {
       return;
