@@ -378,7 +378,7 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+  * `shell` {boolean|string} If `true`, runs `file` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
@@ -400,7 +400,7 @@ efficient than [`child_process.exec()`][].
 > cancellation, externally propagated aborts, and timeouts. See
 > [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
 
-The same options as [`child_process.exec()`][] are supported. Since a shell is
+The same options as [`child_process.exec()`][] are supported. If a shell is
 not spawned, behaviors such as I/O redirection and file globbing are not
 supported.
 
@@ -1195,7 +1195,7 @@ changes:
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+  * `shell` {boolean|string} If `true`, runs `file` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
