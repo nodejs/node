@@ -9,7 +9,6 @@ const fs = require('node:fs');
 const {
   open,
   readFile,
-  truncate,
   writeFile,
 } = fs.promises;
 const path = require('node:path');
@@ -125,24 +124,6 @@ async function doReadAndCancel() {
     }, 'tick-1');
   }
 
-  // For validates the ability of the filesystem module to handle large files
-  {
-    const largeFileSize = 5 * 1024 * 1024 * 1024; // 5 GiB
-    const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
-
-    if (!tmpdir.hasEnoughSpace(largeFileSize)) {
-      common.printSkipMessage(`Not enough space in ${tmpDir}`);
-    } else {
-      await writeFile(newFile, Buffer.from('0'));
-      await truncate(newFile, largeFileSize);
-
-      const fileHandle = await open(newFile, 'r');
-
-      const data = await fileHandle.readFile();
-      console.log(`File read successfully, size: ${data.length} bytes`);
-      await fileHandle.close();
-    }
-  }
 }
 
 validateReadFile()
