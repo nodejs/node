@@ -953,7 +953,8 @@ bool IsSQLiteMemoryLocation(std::string_view location) {
 bool IsSQLiteReadOnlyLocation(std::string_view location, bool read_only) {
   return read_only ||
          (location.starts_with("file:") &&
-          SQLiteUriParameterEquals(location, "mode", "ro"));
+          (SQLiteUriParameterEquals(location, "mode", "ro") ||
+           SQLiteUriBooleanParameter(location, "immutable")));
 }
 
 }  // namespace
