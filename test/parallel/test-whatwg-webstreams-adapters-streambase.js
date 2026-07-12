@@ -35,6 +35,8 @@ const {
 {
   const buf = Buffer.from('hello');
   const check = new Uint8Array(buf);
+  const buf2 = Buffer.from('world');
+  const check2 = new Uint8Array(buf2);
 
   const stream = new JSStream();
 
@@ -47,13 +49,20 @@ const {
     assert.deepStrictEqual(new Uint8Array(value), check);
 
     reader.read().then(common.mustCall(({ done, value }) => {
-      assert(done);
-      assert.strictEqual(value, undefined);
-    }));
+      assert(!done);
+      assert.deepStrictEqual(new Uint8Array(value), check2);
 
+      reader.read().then(common.mustCall(({ done, value }) => {
+        assert(done);
+        assert.strictEqual(value, undefined);
+      }));
+    }));
   }));
 
+  // Two reads land in the same read buffer; the second chunk must be
+  // sliced from its offset within it.
   stream.readBuffer(buf);
+  stream.readBuffer(buf2);
   stream.emitEOF();
 }
 
