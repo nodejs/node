@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const { Agent } = require('_http_agent');
+const { Agent } = require('http');
 
 const agent = new Agent({
   keepAlive: true,
