@@ -19,10 +19,23 @@ libffi-init
 
 global srcdir subdir
 
+if { [string match $compiler_vendor "microsoft"] } {
+    # -wd4005  macro redefinition
+    # -wd4244  implicit conversion to type of smaller size
+    # -wd4305  truncation to smaller type
+    # -wd4477  printf %lu of uintptr_t
+    # -wd4312  implicit conversion to type of greater size
+    # -wd4311  pointer truncation to unsigned long
+    # -EHsc    C++ Exception Handling (no SEH exceptions)
+    set additional_options "-wd4005 -wd4244 -wd4305 -wd4477 -wd4312 -wd4311 -EHsc";
+} else {
+    set additional_options "";
+}
+
 set tlist [lsort [glob -nocomplain -- $srcdir/$subdir/*.{c,cc}]]
 
 if { [libffi_feature_test "#ifdef FFI_GO_CLOSURES"] } {
-    run-many-tests $tlist ""
+    run-many-tests $tlist $additional_options
 } else {
     foreach test $tlist {
 	unsupported "$test"

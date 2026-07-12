@@ -6,6 +6,7 @@
    PR:		none.
    Originator:	<andreast@gcc.gnu.org> 20030828	 */
 
+/* { dg-do run } */
 
 #include "ffitest.h"
 
@@ -80,8 +81,10 @@ int main (void)
   CHECK(ffi_prep_closure_loc(pcl, &cif, closure_loc_test_fn0,
 			 (void *) 3 /* userdata */, codeloc) == FFI_OK);
 
-#if !defined(FFI_EXEC_STATIC_TRAMP) && !defined(__EMSCRIPTEN__)
-  /* With static trampolines, the codeloc does not point to closure */
+#if !defined(FFI_EXEC_STATIC_TRAMP) && !defined(__EMSCRIPTEN__) \
+    && !(defined(FFI_EXEC_TRAMPOLINE_TABLE) && FFI_EXEC_TRAMPOLINE_TABLE)
+  /* With static trampolines or a trampoline table (Apple aarch64), the
+     codeloc does not point to the closure */
   CHECK(memcmp(pcl, FFI_CL(codeloc), sizeof(*pcl)) == 0);
 #endif
 
