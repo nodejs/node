@@ -202,9 +202,6 @@ added: v26.4.0
 -->
 
 The base class for all VFS providers. Subclasses implement the essential
-primitives (`open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
-`rename`, ...) and inherit default implementations of the derived
-The base class for all VFS providers. Subclasses implement the essential
 primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, etc.) and inherit default implementations of the derived
 methods (such as `readFile`, `writeFile`, `exists`, `copyFile`, `access`, etc.).
