@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const { kHighWaterMark } = require('_http_outgoing');
+const { kHighWaterMark } = require('internal/http/outgoing');
 
 const { getDefaultHighWaterMark } = require('internal/streams/state');
 

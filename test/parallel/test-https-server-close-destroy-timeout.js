@@ -1,3 +1,4 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -6,7 +7,7 @@ if (!common.hasCrypto) {
 }
 
 const { createServer } = require('https');
-const { kConnectionsCheckingInterval } = require('_http_server');
+const { kConnectionsCheckingInterval } = require('internal/http/server');
 
 const fixtures = require('../common/fixtures');
 

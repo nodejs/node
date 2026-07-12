@@ -1,11 +1,12 @@
-// Flags: --expose-gc
+// Flags: --expose-gc --expose-internals
+
 'use strict';
 
 const common = require('../common');
 const { onGC } = require('../common/gc');
 const assert = require('node:assert');
 const { AsyncLocalStorage } = require('node:async_hooks');
-const { freeParser, parsers, HTTPParser } = require('_http_common');
+const { freeParser, parsers, HTTPParser } = require('internal/http/common');
 
 let storeGCed = false;
 
