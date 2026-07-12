@@ -54,6 +54,12 @@ async function validateLargeFileSupport() {
 
   await writeFile(FILE_PATH, virtualFile);
 
+  common.expectWarning({
+    LargeFileWarning: [[
+      /Detected `fs\.readFile\(\)` to read a file larger than the recommended limit/,
+    ]],
+  });
+
   const buffer = await readFile(FILE_PATH);
 
   assert.strictEqual(

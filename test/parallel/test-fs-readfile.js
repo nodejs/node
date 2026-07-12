@@ -13,6 +13,9 @@ const prefix = `.removeme-fs-readfile-${process.pid}`;
 
 tmpdir.refresh();
 
+const kLargeFileSize = 3 * 1024 * 1024 * 1024; // 3 GiB
+let largeFilePath;
+
 const fileInfo = [
   { name: tmpdir.resolve(`${prefix}-1K.txt`),
     len: 1024 },
@@ -55,16 +58,26 @@ for (const e of fileInfo) {
 
 // Test to verify that readFile() and readFileSync() can handle large files
 {
-  const kLargeFileSize = 3 * 1024 * 1024 * 1024; // 3 GiB
-
   if (!tmpdir.hasEnoughSpace(kLargeFileSize)) {
     // truncateSync() will fail with ENOSPC if there is not enough space.
     common.printSkipMessage(`Not enough space in ${tmpdir.path}`);
   } else {
-    const file = path.join(tmpdir.path, 'temp-large-file.txt');
-    fs.writeFileSync(file, Buffer.alloc(1024));
-    fs.truncateSync(file, kLargeFileSize);
+    largeFilePath = path.join(tmpdir.path, 'temp-large-file.txt');
+    fs.writeFileSync(largeFilePath, Buffer.alloc(1024));
+    fs.truncateSync(largeFilePath, kLargeFileSize);
   }
+}
+if (largeFilePath !== undefined) {
+  common.expectWarning({
+    LargeFileWarning: [[
+      /Detected `fs\.readFile\(\)` to read a file larger than the recommended limit/,
+    ]],
+  });
+
+  // Trigger warning on the callback path without reading the whole file.
+  fs.readFile(largeFilePath, { buffer: Buffer.alloc(1) }, common.mustCall((err) => {
+    assert.strictEqual(err?.code, 'ERR_INVALID_ARG_VALUE');
+  }));
 }
 {
   // Test cancellation, before
