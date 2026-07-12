@@ -1,33 +1,47 @@
 #include "embedded_data.h"
-#include <vector>
+#include <array>
 
 namespace node {
-std::string ToOctalString(const uint8_t ch) {
-  // We can print most printable characters directly. The exceptions are '\'
-  // (escape characters), " (would end the string), and ? (trigraphs). The
-  // latter may be overly conservative: we compile with C++17 which doesn't
-  // support trigraphs.
-  if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
-    return std::string(1, static_cast<char>(ch));
+namespace {
+
+struct OctalStr {
+  char data[5] = {0};
+
+  constexpr OctalStr() = default;
+  explicit constexpr OctalStr(uint8_t ch) {
+    // We can print most printable characters directly. The exceptions are '\'
+    // (escape characters), " (would end the string), and ? (trigraphs). The
+    // latter may be overly conservative: we compile with C++20 which doesn't
+    // support trigraphs.
+    if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
+      data[0] = static_cast<char>(ch);
+    } else {
+      data[0] = '\\';
+      data[1] = '0' + ((ch >> 6) & 7);
+      data[2] = '0' + ((ch >> 3) & 7);
+      data[3] = '0' + (ch & 7);
+    }
   }
-  // All other characters are blindly output as octal.
-  const char c0 = '0' + ((ch >> 6) & 7);
-  const char c1 = '0' + ((ch >> 3) & 7);
-  const char c2 = '0' + (ch & 7);
-  return std::string("\\") + c0 + c1 + c2;
+
+  constexpr std::string_view view() const {
+    return {data, data[1] == '\0' ? 1u : 4u};
+  }
+};
+
+constexpr auto MakeOctalTable() {
+  std::array<OctalStr, 256> table{};
+  for (unsigned i = 0; i < 256; ++i) {
+    table[i] = OctalStr(static_cast<uint8_t>(i));
+  }
+  return table;
 }
 
-std::vector<std::string> GetOctalTable() {
-  size_t size = 1 << 8;
-  std::vector<std::string> code_table(size);
-  for (size_t i = 0; i < size; ++i) {
-    code_table[i] = ToOctalString(static_cast<uint8_t>(i));
-  }
-  return code_table;
+constexpr auto octal_table = MakeOctalTable();
+
+}  // namespace
+
+std::string_view GetOctalCode(uint8_t index) {
+  return octal_table[index].view();
 }
 
-const std::string& GetOctalCode(uint8_t index) {
-  static std::vector<std::string> table = GetOctalTable();
-  return table[index];
-}
 }  // namespace node

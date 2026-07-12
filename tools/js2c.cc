@@ -515,8 +515,8 @@ Fragment GetDefinitionImpl(const std::vector<char>& code,
               i,
               ch);
       }
-      const std::string& str = GetOctalCode(ch);
-      memcpy(result.data() + cur, str.c_str(), str.size());
+      std::string_view str = GetOctalCode(ch);
+      memcpy(result.data() + cur, str.data(), str.size());
       cur += str.size();
     }
   }

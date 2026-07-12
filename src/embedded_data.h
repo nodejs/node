@@ -2,7 +2,7 @@
 #define SRC_EMBEDDED_DATA_H_
 
 #include <cinttypes>
-#include <string>
+#include <string_view>
 
 // This file must not depend on node.h or other code that depends on
 // the full Node.js implementation because it is used during the
@@ -10,7 +10,7 @@
 
 namespace node {
 
-const std::string& GetOctalCode(uint8_t index);
+std::string_view GetOctalCode(uint8_t index);
 
 }  // namespace node
 
