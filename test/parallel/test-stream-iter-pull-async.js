@@ -358,7 +358,7 @@ async function testTransformReturnsArrayBuffer() {
 // pipeTo() accepts a string source directly (normalized via from())
 async function testPipeToStringSource() {
   const { pipeTo, push: pushFn, text: textFn } = require('stream/iter');
-  const { writer, readable } = pushFn({ highWaterMark: 10 });
+  const { writer, readable } = pushFn({ budget: 16384 });
   const consume = (async () => textFn(readable))();
   await pipeTo('hello-pipe', writer);
   const data = await consume;

@@ -46,7 +46,7 @@ async function testBidirectional() {
 }
 
 async function testMultipleWrites() {
-  const [channelA, channelB] = duplex({ highWaterMark: 10 });
+  const [channelA, channelB] = duplex({ budget: 16384 });
 
   await channelA.writer.write('one');
   await channelA.writer.write('two');
@@ -75,7 +75,7 @@ async function testChannelClose() {
 
 async function testWithOptions() {
   const [channelA, channelB] = duplex({
-    highWaterMark: 2,
+    budget: 16384,
     backpressure: 'strict',
   });
 
@@ -88,8 +88,8 @@ async function testWithOptions() {
 
 async function testPerChannelOptions() {
   const [channelA, channelB] = duplex({
-    a: { highWaterMark: 1 },
-    b: { highWaterMark: 4 },
+    a: { budget: 16384 },
+    b: { budget: 16384 },
   });
 
   // Channel A -> B direction uses A's options

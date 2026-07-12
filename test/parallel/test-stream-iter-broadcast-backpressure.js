@@ -11,7 +11,7 @@ const { broadcast, text } = require('stream/iter');
 
 async function testDropOldest() {
   const { writer, broadcast: bc } = broadcast({
-    highWaterMark: 2,
+    budget: 16384,
     backpressure: 'drop-oldest',
   });
   const consumer = bc.push();
@@ -28,7 +28,7 @@ async function testDropOldest() {
 
 async function testDropNewest() {
   const { writer, broadcast: bc } = broadcast({
-    highWaterMark: 1,
+    budget: 16384,
     backpressure: 'drop-newest',
   });
   const consumer = bc.push();
@@ -48,8 +48,8 @@ async function testDropNewest() {
 
 async function testBlockBackpressure() {
   const { writer, broadcast: bc } = broadcast({
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
   const consumer = bc.push();
   writer.writeSync('a');
@@ -77,8 +77,8 @@ async function testBlockBackpressure() {
 // Verify block backpressure data flows correctly end-to-end
 async function testBlockBackpressureContent() {
   const { writer, broadcast: bc } = broadcast({
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
   const consumer = bc.push();
 
@@ -107,7 +107,7 @@ async function testBlockBackpressureContent() {
 
 // Writev async path
 async function testWritevAsync() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   await writer.writev(['hello', ' ', 'world']);
@@ -119,7 +119,7 @@ async function testWritevAsync() {
 
 // endSync returns the total byte count
 async function testEndSyncReturnValue() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   bc.push(); // Need a consumer to write to
 
   writer.writeSync('hello'); // 5 bytes

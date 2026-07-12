@@ -30,7 +30,7 @@ async function testShareMultipleConsumers() {
     yield [new TextEncoder().encode('chunk3')];
   }
 
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   const c1 = shared.pull();
   const c2 = shared.pull();
@@ -97,7 +97,7 @@ async function testShareCancelMidIteration() {
       sourceReturnCalled = true;
     }
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const consumer = shared.pull();
 
   const items = [];
@@ -141,8 +141,8 @@ async function testShareAbortSignal() {
     yield [enc.encode('b')];
   }
   const shared = share(source(), {
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
     signal: ac.signal,
   });
   const fast = shared.pull()[Symbol.asyncIterator]();
@@ -259,7 +259,7 @@ async function testShareLateJoiningConsumer() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   // First consumer reads all data
   const c1 = shared.pull();
@@ -281,7 +281,7 @@ async function testShareConsumerBreak() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const c1 = shared.pull();
   const c2 = shared.pull();
 
