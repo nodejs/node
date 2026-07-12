@@ -404,6 +404,7 @@
   V(writable_string, "writable")                                               \
   V(write_host_object_string, "_writeHostObject")                              \
   V(write_queue_size_string, "writeQueueSize")                                 \
+  V(write_status_string, "writeStatus")                                        \
   V(zlib_string, "zlib")                                                       \
   V(zstd_string, "zstd")
 
