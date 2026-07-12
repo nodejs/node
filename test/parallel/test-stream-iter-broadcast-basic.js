@@ -32,7 +32,7 @@ async function testBasicBroadcast() {
 }
 
 async function testMultipleWrites() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
 
   const consumer = bc.push();
 
@@ -74,12 +74,12 @@ async function testConsumerCount() {
 // =============================================================================
 
 async function testWriteSync() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 2 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   assert.strictEqual(writer.writeSync('a'), true);
   assert.strictEqual(writer.writeSync('b'), true);
-  // Buffer full (highWaterMark=2, strict policy)
+  // Buffer full (budget=16384, strict policy)
   assert.strictEqual(writer.writeSync('c'), false);
 
   writer.endSync();
@@ -89,7 +89,7 @@ async function testWriteSync() {
 }
 
 async function testWritevSync() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   assert.strictEqual(writer.writevSync(['hello', ' ', 'world']), true);
@@ -257,7 +257,7 @@ async function testCancelWithFalsyReason() {
 
 // Late-joining consumer should read from oldest buffered entry
 async function testLateJoinerSeesBufferedData() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 16 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
 
   // Write data before any consumer joins
   writer.writeSync('before-join');
