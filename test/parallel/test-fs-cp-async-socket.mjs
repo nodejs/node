@@ -15,7 +15,7 @@ if (isWindows) {
 
 // See https://github.com/nodejs/node/pull/48409
 if (common.isInsideDirWithUnusualChars) {
-  common.skip('Test is borken in directories with unusual characters');
+  common.skip('Test is broken in directories with unusual characters');
 }
 
 tmpdir.refresh();

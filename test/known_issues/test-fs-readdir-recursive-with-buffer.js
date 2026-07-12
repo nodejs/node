@@ -1,6 +1,6 @@
 'use strict';
 
-// This test will fail because the the implementation does not properly
+// This test will fail because the implementation does not properly
 // handle the case when the path is a Buffer and the function is called
 // in recursive mode.
 

@@ -5,7 +5,7 @@
 #ifdef _AIX
 // AIX allows over-allocation, and will SIGKILL when the allocated pages are
 // used if there is not enough VM. Check for available space until
-// out-of-memory.  Don't allow more then some (large) proportion of it to be
+// out-of-memory.  Don't allow more than some (large) proportion of it to be
 // used for the test strings, so Node & V8 have some space for allocations.
 #include <signal.h>
 #include <sys/vminfo.h>

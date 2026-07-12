@@ -2346,7 +2346,7 @@ console.log('OK');
 ```
 
 **Note:** Strictly speaking, in this mode, `node:vm` departs from the letter of
-the ECMAScript specification for [enqueing jobs][], by allowing asynchronous
+the ECMAScript specification for [enqueuing jobs][], by allowing asynchronous
 tasks from different contexts to run in a different order than they were
 enqueued.
 
@@ -2588,7 +2588,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
-[enqueing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
+[enqueuing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
