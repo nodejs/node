@@ -3590,14 +3590,6 @@ An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
 via a `worker_threads` `postMessage()` call while it was not in a transferable
 state, for example because it had already started reading or had buffered data.
 
-<a id="ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED"></a>
-
-### `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`
-
-An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
-on a platform where moving the underlying handle between event loops is not
-supported (currently Windows).
-
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
 ### `ERR_WORKER_INIT_FAILED`

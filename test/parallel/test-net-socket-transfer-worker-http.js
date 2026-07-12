@@ -7,11 +7,6 @@
 
 const common = require('../common');
 
-if (common.isWindows) {
-  common.skip('transferring TCP handles between threads is not supported on ' +
-              'Windows yet');
-}
-
 const assert = require('assert');
 const net = require('net');
 const http = require('http');
