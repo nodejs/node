@@ -232,7 +232,7 @@ suite('conflict resolution', () => {
     const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
-    database2.prepare(insertSql).run(2, 'hello');  // database2 already constains hello
+    database2.prepare(insertSql).run(2, 'hello');  // database2 already contains hello
 
     return {
       database2,

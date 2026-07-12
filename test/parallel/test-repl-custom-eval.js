@@ -75,7 +75,7 @@ describe('repl with custom eval', { concurrency: true }, () => {
     delete global.foo;
   });
 
-  it('inherits variables from the global context but does not use it afterwords if `useGlobal` is false', async () => {
+  it('inherits variables from the global context but does not use it afterwards if `useGlobal` is false', async () => {
     global.bar = 'global_bar';
     const context = await new Promise((resolve) => {
       const { replServer } = startNewREPLServer({
