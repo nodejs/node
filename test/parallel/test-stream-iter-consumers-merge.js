@@ -179,6 +179,7 @@ async function testMergeSignalDuringPendingSingleSourceRead() {
       return this;
     },
     next() {
+      // Intentionally never settle to verify that aborting interrupts a pending read.
       return new Promise(() => {});
     },
     return() {
