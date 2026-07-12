@@ -279,6 +279,10 @@ test('es6 Maps and Sets', () => {
   assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
   assertNotDeepOrStrict(new Set([{ a: 0 }]), new Set([{ a: 1 }]));
   assertNotDeepOrStrict(new Set([Symbol()]), new Set([Symbol()]));
+  // A null/primitive member lined up against object-only members in the other
+  // set must report inequality, not throw on `member.constructor`.
+  assertNotDeepOrStrict(new Set([null, {}, {}]), new Set([{}, {}, {}]));
+  assertNotDeepOrStrict(new Set([undefined, {}, {}]), new Set([{}, {}, {}]));
 
   {
     const a = [ 1, 2 ];
@@ -298,6 +302,17 @@ test('es6 Maps and Sets', () => {
   assertNotDeepOrStrict(
     new Map([[[1], 1], [{}, 2]]),
     new Map([[[1], 2], [{}, 1]])
+  );
+  // A null/primitive key that lines up with object-only keys in the other map
+  // must report inequality, not throw on `key.constructor`. Refs: object keys
+  // of `b` equal in count to `a.size` used to skip the primitive-key handling.
+  assertNotDeepOrStrict(
+    new Map([[null, 1], [{}, 2]]),
+    new Map([[{}, 9], [{}, 9]])
+  );
+  assertNotDeepOrStrict(
+    new Map([[undefined, 1], [{}, 2]]),
+    new Map([[{}, 9], [{}, 9]])
   );
 
   assertNotDeepOrStrict(new Set([1]), [1]);
