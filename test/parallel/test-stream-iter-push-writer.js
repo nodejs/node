@@ -171,6 +171,28 @@ async function testWritevSync() {
   assert.strictEqual(result, 'hello');
 }
 
+async function testWritevSyncInvalidChunkDoesNotQueue() {
+  const { writer, readable } = push({ highWaterMark: 10 });
+
+  assert.throws(
+    () => writer.writevSync([1]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+
+  const iter = readable[Symbol.asyncIterator]();
+  const next = iter.next();
+  const result = await Promise.race([
+    next.then(() => 'resolved'),
+    new Promise((resolve) => setImmediate(resolve, 'pending')),
+  ]);
+  assert.strictEqual(result, 'pending');
+
+  writer.endSync();
+  const end = await next;
+  assert.strictEqual(end.value, undefined);
+  assert.strictEqual(end.done, true);
+}
+
 async function testWritevMixedTypes() {
   const { writer, readable } = push({ highWaterMark: 10 });
   // Mix strings and Uint8Arrays
@@ -494,6 +516,7 @@ Promise.all([
   testOndrainRejectsOnConsumerThrow(),
   testWritev(),
   testWritevSync(),
+  testWritevSyncInvalidChunkDoesNotQueue(),
   testWritevMixedTypes(),
   testWriteAfterEnd(),
   testWriteAfterFail(),
