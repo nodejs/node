@@ -1249,8 +1249,7 @@ freshly accepted or created TCP connection that has not yet started reading and
 has no buffered data, otherwise `postMessage()` throws
 `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
 connections on one thread and distribute them across a pool of worker threads.
-Only TCP handles are supported, and only on Unix-like platforms; on Windows
-`postMessage()` throws `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`.
+Only TCP handles are supported.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.

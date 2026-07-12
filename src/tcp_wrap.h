@@ -62,11 +62,10 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
     }
   }
 
-  // Transfer the underlying socket to another thread via .postMessage(). Within
-  // a single process all threads share the same file descriptor table, so the
-  // transfer dup()s the fd and re-adopts it (uv_tcp_open) in the receiving
-  // event loop. This is the building block for distributing listening sockets
-  // and accepted connections across worker_threads.
+  // Transfer the underlying socket to another thread via .postMessage(). The
+  // transfer duplicates the socket and re-adopts it (uv_tcp_open) in the
+  // receiving event loop. This is the building block for distributing
+  // listening sockets and accepted connections across worker_threads.
   BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<worker::TransferData> TransferForMessaging() override;
 
@@ -75,7 +74,8 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
 
   class TransferData : public worker::TransferData {
    public:
-    explicit TransferData(int fd, SocketType type) : fd_(fd), type_(type) {}
+    explicit TransferData(uv_os_sock_t socket, SocketType type)
+        : socket_(socket), type_(type) {}
     ~TransferData() override;
 
     BaseObjectPtr<BaseObject> Deserialize(
@@ -88,7 +88,7 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
     SET_SELF_SIZE(TransferData)
 
    private:
-    int fd_;
+    uv_os_sock_t socket_;
     SocketType type_;
   };
 
