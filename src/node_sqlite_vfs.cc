@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace node {
 namespace sqlite {
@@ -45,6 +47,7 @@ void DecodeUriComponent(std::string_view component, std::string* decoded) {
 
 bool GetSQLiteUriParameter(std::string_view path,
                            std::string_view parameter,
+                           bool use_last,
                            std::string* value) {
   if (!path.starts_with("file:")) return false;
 
@@ -62,6 +65,7 @@ bool GetSQLiteUriParameter(std::string_view path,
   size_t parameter_start = query_start + 1;
   std::string decoded_key;
   std::string decoded_value;
+  bool found = false;
   while (parameter_start <= query_end) {
     size_t parameter_end = path.find('&', parameter_start);
     if (parameter_end == std::string_view::npos || parameter_end > query_end) {
@@ -83,13 +87,25 @@ bool GetSQLiteUriParameter(std::string_view path,
                            &decoded_value);
         *value = decoded_value;
       }
-      return true;
+      found = true;
+      if (!use_last) return true;
     }
 
     if (parameter_end == query_end) break;
     parameter_start = parameter_end + 1;
   }
-  return false;
+  return found;
+}
+
+bool EqualsIgnoreCase(std::string_view left, std::string_view right) {
+  if (left.size() != right.size()) return false;
+  for (size_t i = 0; i < left.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(left[i])) !=
+        std::tolower(static_cast<unsigned char>(right[i]))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool IsSidecarPath(std::string_view path, std::string* database_path) {
@@ -113,6 +129,25 @@ bool IsSidecarPath(std::string_view path, std::string* database_path) {
   return false;
 }
 
+sqlite3_filename CreateReadOnlyShmFilename(sqlite3_filename name) {
+  std::vector<const char*> parameters = {"readonly_shm", "1"};
+  for (int index = 0;; ++index) {
+    const char* key = sqlite3_uri_key(name, index);
+    if (key == nullptr) break;
+    if (strcmp(key, "readonly_shm") == 0) continue;
+
+    const char* value = sqlite3_uri_parameter(name, key);
+    parameters.push_back(key);
+    parameters.push_back(value == nullptr ? "" : value);
+  }
+
+  return sqlite3_create_filename(sqlite3_filename_database(name),
+                                 sqlite3_filename_journal(name),
+                                 sqlite3_filename_wal(name),
+                                 static_cast<int>(parameters.size() / 2),
+                                 parameters.data());
+}
+
 std::string CanonicalPath(SQLitePermissionVFS* vfs, const char* path) {
   if (path == nullptr) return {};
 
@@ -133,9 +168,11 @@ std::string CanonicalPath(SQLitePermissionVFS* vfs, const char* path) {
 struct PermissionFile {
   sqlite3_file base;
   SQLitePermissionVFS* vfs;
+  sqlite3_filename parent_name;
   bool can_read;
   bool can_write;
   bool can_write_sidecar;
+  bool read_only_shm;
   sqlite3_io_methods methods;
 };
 
@@ -203,6 +240,8 @@ int PermissionClose(sqlite3_file* file) {
   const int result = real->pMethods == nullptr
                          ? SQLITE_OK
                          : real->pMethods->xClose(real);
+  sqlite3_free_filename(permission_file->parent_name);
+  permission_file->parent_name = nullptr;
   file->pMethods = nullptr;
   return result;
 }
@@ -321,8 +360,12 @@ int PermissionShmMap(sqlite3_file* file,
   if (!HasReadPermission(permission_file)) return SQLITE_PERM;
 
   // OS VFS implementations can open or create the SHM file read-write even
-  // when extend is false.
-  if (!permission_file->can_write_sidecar) return SQLITE_PERM;
+  // when extend is false. A read-only clone of the SQLite filename is used
+  // when the caller has no permission to write sidecars.
+  if (!permission_file->can_write_sidecar &&
+      !permission_file->read_only_shm) {
+    return SQLITE_PERM;
+  }
 
   sqlite3_file* real = RealFile(permission_file);
   if (real->pMethods->xShmMap == nullptr) return SQLITE_NOTFOUND;
@@ -468,14 +511,27 @@ const char* PermissionVfsNextSystemCall(sqlite3_vfs* vfs, const char* name) {
 
 bool HasSQLiteVfsUriParameter(std::string_view path) {
   std::string value;
-  return GetSQLiteUriParameter(path, "vfs", &value);
+  return GetSQLiteUriParameter(path, "vfs", false, &value);
 }
 
 bool SQLiteUriParameterEquals(std::string_view path,
                               std::string_view parameter,
                               std::string_view value) {
   std::string actual;
-  return GetSQLiteUriParameter(path, parameter, &actual) && actual == value;
+  return GetSQLiteUriParameter(path, parameter, true, &actual) &&
+         actual == value;
+}
+
+bool SQLiteUriBooleanParameter(std::string_view path,
+                               std::string_view parameter) {
+  std::string value;
+  if (!GetSQLiteUriParameter(path, parameter, false, &value)) return false;
+
+  if (!value.empty() && std::isdigit(static_cast<unsigned char>(value[0]))) {
+    return std::strtoll(value.c_str(), nullptr, 10) != 0;
+  }
+  return EqualsIgnoreCase(value, "on") || EqualsIgnoreCase(value, "yes") ||
+         EqualsIgnoreCase(value, "true");
 }
 
 std::string SQLitePathForPermission(std::string_view path) {
@@ -516,12 +572,15 @@ std::string SQLitePathForPermission(std::string_view path) {
 
 SQLitePermissionVFS::SQLitePermissionVFS(Environment* env)
     : parent_(sqlite3_vfs_find(nullptr)),
+      memory_vfs_(sqlite3_vfs_find("memdb")),
       permission_(env->permission()),
       name_("node-permission-" + std::to_string(++next_vfs_id)) {
   CHECK_NOT_NULL(parent_);
+  CHECK_NOT_NULL(memory_vfs_);
 
   vfs_.iVersion = parent_->iVersion;
-  vfs_.szOsFile = sizeof(PermissionFile) + parent_->szOsFile;
+  vfs_.szOsFile = sizeof(PermissionFile) +
+                  std::max(parent_->szOsFile, memory_vfs_->szOsFile);
   vfs_.mxPathname = parent_->mxPathname;
   vfs_.zName = name_.c_str();
   vfs_.pAppData = this;
@@ -585,18 +644,29 @@ bool SQLitePermissionVFS::AllowsPath(std::string_view path,
                            candidate));
   };
 
-  if (allowed(canonical)) return true;
+  return allowed(canonical);
+}
+
+bool SQLitePermissionVFS::AllowsSidecarPath(std::string_view path,
+                                            bool read,
+                                            bool write) const {
+  if (AllowsPath(path, read, write)) return true;
+
+  const std::string canonical = CanonicalPath(
+      const_cast<SQLitePermissionVFS*>(this), std::string(path).c_str());
+  if (canonical.empty()) return false;
 
   std::string database_path;
-  return IsSidecarPath(canonical, &database_path) && allowed(database_path);
+  return IsSidecarPath(canonical, &database_path) &&
+         AllowsPath(database_path, read, write);
 }
 
 bool SQLitePermissionVFS::AllowsTemporaryFile(bool read, bool write) const {
   if (permission_->warning_only()) return true;
 
-  // SQLite does not provide a pathname for anonymous temporary files. Only
-  // allow them when the corresponding global permission is granted; a
-  // path-specific grant cannot safely authorize an unknown temporary path.
+  // SQLite does not provide a pathname for anonymous temporary files. Disk
+  // storage is allowed only with global permissions. Otherwise xOpen uses
+  // SQLite's memory VFS.
   return (!read || permission_->is_granted_no_side_effects(
                          permission::PermissionScope::kFileSystemRead, "")) &&
          (!write || permission_->is_granted_no_side_effects(
@@ -613,32 +683,66 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
 
   const bool read =
       (flags & (SQLITE_OPEN_READONLY | SQLITE_OPEN_READWRITE)) != 0;
-  const bool write = (flags & SQLITE_OPEN_READWRITE) != 0;
+  const bool immutable = name != nullptr && (flags & SQLITE_OPEN_MAIN_DB) &&
+                         sqlite3_uri_boolean(name, "immutable", 0) != 0;
+  bool write = (flags & SQLITE_OPEN_READWRITE) != 0 && !immutable;
+  int parent_flags = flags;
+  sqlite3_vfs* selected_vfs = parent_;
   bool can_write_sidecar = write;
+  bool read_only_shm = false;
   bool allowed;
 
   if (flags & SQLITE_OPEN_MEMORY) {
+    selected_vfs = memory_vfs_;
     allowed = true;
   } else if (name == nullptr) {
     allowed = AllowsTemporaryFile(read, write);
+    if (!allowed) {
+      selected_vfs = memory_vfs_;
+      allowed = true;
+    }
   } else {
     const char* permission_name = name;
-    if (flags & (SQLITE_OPEN_MAIN_JOURNAL | SQLITE_OPEN_WAL)) {
+    const bool is_journal =
+        flags & (SQLITE_OPEN_MAIN_JOURNAL | SQLITE_OPEN_WAL);
+    if (is_journal) {
       permission_name = sqlite3_filename_database(name);
+      sqlite3_file* database_file = sqlite3_database_file_object(name);
+      if (database_file != nullptr &&
+          !PermissionFileFromBase(database_file)->can_write_sidecar) {
+        write = false;
+        parent_flags &= ~(SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
+        parent_flags |= SQLITE_OPEN_READONLY;
+      }
     }
+
     allowed = permission_name != nullptr &&
               !HasSQLiteVfsUriParameter(permission_name) &&
-              AllowsPath(permission_name, read, write);
-    if (permission_name != nullptr && (flags & SQLITE_OPEN_MAIN_DB)) {
+              ((flags & SQLITE_OPEN_SUPER_JOURNAL)
+                   ? AllowsSidecarPath(permission_name, read, write)
+                   : AllowsPath(permission_name, read, write));
+    if (allowed && permission_name != nullptr &&
+        (flags & SQLITE_OPEN_MAIN_DB)) {
       can_write_sidecar = AllowsPath(permission_name, false, true);
+      if (!can_write_sidecar) {
+        permission_file->parent_name = CreateReadOnlyShmFilename(name);
+        if (permission_file->parent_name == nullptr) return SQLITE_NOMEM;
+        read_only_shm = true;
+      }
     }
   }
 
   if (!allowed) return SQLITE_PERM;
 
+  sqlite3_filename parent_name = permission_file->parent_name == nullptr
+                                     ? name
+                                     : permission_file->parent_name;
   sqlite3_file* real = RealFile(permission_file);
-  const int result = parent_->xOpen(parent_, name, real, flags, out_flags);
+  const int result = selected_vfs->xOpen(
+      selected_vfs, parent_name, real, parent_flags, out_flags);
   if (real->pMethods == nullptr) {
+    sqlite3_free_filename(permission_file->parent_name);
+    permission_file->parent_name = nullptr;
     file->pMethods = nullptr;
     return result;
   }
@@ -648,6 +752,7 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
                                (out_flags == nullptr ||
                                 (*out_flags & SQLITE_OPEN_READONLY) == 0);
   permission_file->can_write_sidecar = can_write_sidecar;
+  permission_file->read_only_shm = read_only_shm;
   permission_file->methods = kPermissionIoMethods;
   permission_file->methods.iVersion = std::min(
       permission_file->methods.iVersion, real->pMethods->iVersion);
@@ -666,7 +771,9 @@ int SQLitePermissionVFS::Open(sqlite3_filename name,
 }
 
 int SQLitePermissionVFS::Delete(const char* name, int sync_dir) {
-  if (name == nullptr || !AllowsPath(name, false, true)) return SQLITE_PERM;
+  if (name == nullptr || !AllowsSidecarPath(name, false, true)) {
+    return SQLITE_PERM;
+  }
   return parent_->xDelete(parent_, name, sync_dir);
 }
 
@@ -678,7 +785,7 @@ int SQLitePermissionVFS::Access(const char* name, int flags, int* result) {
 
   const bool read = true;
   const bool write = flags == SQLITE_ACCESS_READWRITE;
-  if (!AllowsPath(name, read, write)) {
+  if (!AllowsSidecarPath(name, read, write)) {
     *result = 0;
     return SQLITE_OK;
   }

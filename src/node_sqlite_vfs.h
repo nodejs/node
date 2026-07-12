@@ -27,6 +27,9 @@ bool HasSQLiteVfsUriParameter(std::string_view path);
 bool SQLiteUriParameterEquals(std::string_view path,
                               std::string_view parameter,
                               std::string_view value);
+// Returns true if the first matching SQLite URI parameter is a true boolean.
+bool SQLiteUriBooleanParameter(std::string_view path,
+                               std::string_view parameter);
 // Returns the decoded filesystem path portion of a SQLite URI filename. Plain
 // filenames are returned unchanged.
 std::string SQLitePathForPermission(std::string_view path);
@@ -67,11 +70,13 @@ class SQLitePermissionVFS {
   const char* NextSystemCall(const char* name);
 
   bool AllowsPath(std::string_view path, bool read, bool write) const;
+  bool AllowsSidecarPath(std::string_view path, bool read, bool write) const;
   bool AllowsTemporaryFile(bool read, bool write) const;
 
  private:
   sqlite3_vfs vfs_{};
   sqlite3_vfs* parent_ = nullptr;
+  sqlite3_vfs* memory_vfs_ = nullptr;
   permission::Permission* permission_ = nullptr;
   std::string name_;
   bool registered_ = false;
