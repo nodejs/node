@@ -3476,6 +3476,10 @@ ordered events, emitted immediately as the tests execute.
 | [`'test:fail'`][]              | [`'test:complete'`][] (`details.passed` is `false`)   |
 | [`'test:plan'`][]              |                                                       |
 | [`'test:diagnostic'`][]        |                                                       |
+|                                | [`'test:log'`][]                                      |
+
+[`'test:log'`][] is deliberately execution ordered only: it is the live
+counterpart of [`'test:diagnostic'`][]'s buffered reporting.
 
 File scoped and global events are always emitted immediately, in execution
 order.
@@ -3742,6 +3746,38 @@ the tests that were running at the time of interruption.
 When using process isolation (the default), the test name will be the file path
 since the parent runner only knows about file-level tests. When using
 `--test-isolation=none`, the actual test name is shown.
+
+### Event: `'test:log'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `data` {any} The structured payload passed to [`context.log`][], or
+    `undefined` if none was provided. The test runner does not interpret this
+    value.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
+  * `file` {string|undefined} The path of the test file,
+    `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `message` {string} The log message.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests.
+  * `testId` {number} A numeric identifier for the test instance that emitted
+    the log message.
+
+Emitted when [`context.log`][] is called. Unlike [`'test:diagnostic'`][],
+this event is emitted immediately, in the order that the tests execute,
+making it suitable for reporters that render test output unbuffered.
 
 ### Event: `'test:pass'`
 
@@ -4266,6 +4302,29 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.log(message[, data])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string} Message to be reported.
+* `data` {any} Optional structured payload attached to the message. The test
+  runner passes it through untouched. When tests run with process isolation,
+  this value must be compatible with the [HTML structured clone algorithm][].
+
+This function is used to write a log message to the output. Unlike
+[`context.diagnostic`][], the resulting [`'test:log'`][] event is emitted
+immediately, in the order that the tests execute, rather than being buffered
+until the test reports its results. This function does not return a value.
+
+```js
+test('top level test', (t) => {
+  t.log('fetched user', { userId: 42 });
+  t.log('retrying flaky endpoint', { attempt: 3 });
+});
+```
+
 ### `context.filePath`
 
 <!-- YAML
@@ -4747,6 +4806,26 @@ test.describe('my suite', (suite) => {
 });
 ```
 
+### `context.log(message[, data])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string} Message to be reported.
+* `data` {any} Optional structured payload attached to the message. The test
+  runner passes it through untouched.
+
+Write a log message to the output. The resulting [`'test:log'`][] event is
+emitted immediately, in the order that the tests execute.
+
+```js
+test.describe('my suite', (suite) => {
+  suite.log('Suite log message');
+});
+```
+
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [TAP]: https://testanything.org/
 [Test tags]: #test-tags
 [`'test:complete'`]: #event-testcomplete
@@ -4756,6 +4835,7 @@ test.describe('my suite', (suite) => {
 [`'test:enqueue'`]: #event-testenqueue
 [`'test:fail'`]: #event-testfail
 [`'test:interrupted'`]: #event-testinterrupted
+[`'test:log'`]: #event-testlog
 [`'test:pass'`]: #event-testpass
 [`'test:plan'`]: #event-testplan
 [`'test:start'`]: #event-teststart
@@ -4791,6 +4871,7 @@ test.describe('my suite', (suite) => {
 [`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
+[`context.log`]: #contextlogmessage-data
 [`context.skip`]: #contextskipmessage
 [`context.tags`]: #contexttags
 [`context.todo`]: #contexttodomessage
