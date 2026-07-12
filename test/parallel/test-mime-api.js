@@ -158,3 +158,30 @@ assert.throws(() => params.set(`x${NOT_HTTP_TOKEN_CODE_POINT}`, 'x'), /parameter
 assert.throws(() => params.set('x', `${NOT_HTTP_QUOTED_STRING_CODE_POINT};`), /parameter value/i);
 assert.throws(() => params.set('x', `${NOT_HTTP_QUOTED_STRING_CODE_POINT}x`), /parameter value/i);
 assert.throws(() => params.set('x', `x${NOT_HTTP_QUOTED_STRING_CODE_POINT}`), /parameter value/i);
+
+// MIME parameter names are case-insensitive. The parser lower-cases them, so
+// the MIMEParams accessors must lower-case their argument too; otherwise a
+// parsed parameter is unreachable by the casing the caller actually used and
+// `set()` can create case-colliding duplicate parameters.
+// Refs: https://mimesniff.spec.whatwg.org/ (parameter names are ASCII-lowercased)
+{
+  const mime = new MIMEType('text/plain;Charset=value');
+  assert.strictEqual(mime.params.get('Charset'), 'value');
+  assert.strictEqual(mime.params.get('charset'), 'value');
+  assert.strictEqual(mime.params.get('CHARSET'), 'value');
+  assert.strictEqual(mime.params.has('Charset'), true);
+  assert.strictEqual(`${mime.params}`, 'charset=value');
+
+  // `set()` with a mixed-case name overwrites the same parameter rather than
+  // adding a second, case-colliding one.
+  const params = new MIMEType('text/plain').params;
+  params.set('Foo', 'a');
+  params.set('foo', 'b');
+  assert.deepStrictEqual([...params], [['foo', 'b']]);
+  assert.strictEqual(`${params}`, 'foo=b');
+
+  // `delete()` is case-insensitive as well.
+  params.delete('FOO');
+  assert.strictEqual(params.has('foo'), false);
+  assert.deepStrictEqual([...params], []);
+}
