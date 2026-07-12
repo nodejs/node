@@ -384,7 +384,9 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // Same setImmediate() pull vs. timer race as the non-BYOB case above:
+    // the stream may already have pulled the next 'hello' (5 bytes), hence -5.
+    assert([0, -5].includes(stream[kState].controller.desiredSize));
   }), 0);
 })().then(common.mustCall());
 
