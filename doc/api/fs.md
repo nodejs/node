@@ -3882,6 +3882,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+- version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The resulting path is now passed as a Buffer if the provided prefix is a Buffer.
   - version:
     - v20.6.0
     - v18.19.0
@@ -3915,7 +3918,7 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
   * `err` {Error}
-  * `directory` {string}
+  * `directory` {string|Buffer}
 
 Creates a unique temporary directory.
 
@@ -3925,8 +3928,7 @@ inconsistencies, avoid trailing `X` characters in `prefix`. Some platforms,
 notably the BSDs, can return more than six random characters, and replace
 trailing `X` characters in `prefix` with random characters.
 
-The created directory path is passed as a string to the callback's second
-parameter.
+The created directory path is passed to the callback's second parameter. If `prefix` is a `Buffer` , then the resulting directory path is passed as a  `Buffer`. Otherwise, the path is passed as a string using the specified encoding.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
