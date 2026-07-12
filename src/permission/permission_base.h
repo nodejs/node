@@ -65,6 +65,13 @@ class PermissionBase {
   virtual bool is_granted(Environment* env,
                           PermissionScope perm,
                           const std::string_view& param = "") const = 0;
+
+  // Used by native I/O callbacks. Implementations must not access V8,
+  // publish diagnostics, or resolve relative paths in this method.
+  virtual bool is_granted_no_side_effects(
+      PermissionScope perm, const std::string_view& param = "") const {
+    return false;
+  }
 };
 
 }  // namespace permission

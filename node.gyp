@@ -481,8 +481,10 @@
     ],
     'node_sqlite_sources': [
       'src/node_sqlite.cc',
+      'src/node_sqlite_vfs.cc',
       'src/node_webstorage.cc',
       'src/node_sqlite.h',
+      'src/node_sqlite_vfs.h',
       'src/node_webstorage.h',
     ],
     'node_ffi_sources': [
