@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
 
-// This test ensures that data like an empty line (`\r\n`) recevied by the
+// This test ensures that data like an empty line (`\r\n`) received by the
 // server after a request, does not reset the keep-alive timeout. See
 // https://github.com/nodejs/node/issues/58140.
 

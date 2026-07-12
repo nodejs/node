@@ -13,7 +13,7 @@ const {
 
 const { setTimeout: sleep } = require('timers/promises');
 
-// All of the the tests in this file depend on public-facing Node.js APIs.
+// All of the tests in this file depend on public-facing Node.js APIs.
 // For tests that depend on Node.js internal APIs, please add them to
 // test-abortcontroller-internal.js instead.
 
@@ -93,7 +93,7 @@ test('AbortSignal.abort() creates an already aborted signal', () => {
   assert.ok(signal.aborted);
 });
 
-test('AbortController properties and methods valiate the receiver', () => {
+test('AbortController properties and methods validate the receiver', () => {
   const acSignalGet = Object.getOwnPropertyDescriptor(
     AbortController.prototype,
     'signal'
