@@ -95,6 +95,20 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(isolate, IsConstructCallCallback);
   ww->InstanceTemplate()->SetInternalFieldCount(WriteWrap::kInternalFieldCount);
+  // Pre-create the fields that JS attaches to write requests, so that they
+  // are in-object properties and the object shape stays monomorphic.
+  ww->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
+  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
+                              v8::Null(isolate));
+  ww->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
+  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "async"),
+                              v8::False(isolate));
+  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "bytes"),
+                              v8::Integer::New(isolate, 0));
+  ww->InstanceTemplate()->Set(env->buffer_string(), v8::Null(isolate));
+  // Slot for a completion that fires before JS attaches `oncomplete`; see
+  // ReportWritesToJSStreamListener::OnStreamAfterReqFinished().
+  ww->InstanceTemplate()->Set(env->write_status_string(), v8::Null(isolate));
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
   SetConstructorFunction(context, target, "WriteWrap", ww);
   env->set_write_wrap_template(ww->InstanceTemplate());
@@ -103,6 +117,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
   NODE_DEFINE_CONSTANT(target, kBytesWritten);
   NODE_DEFINE_CONSTANT(target, kLastWriteWasAsync);
+  NODE_DEFINE_CONSTANT(target, kLastWriteErr);
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "streamBaseState"),
