@@ -170,6 +170,36 @@ async function testMergeSignalDuringPendingMultiSourceRead() {
   await assert.rejects(next, { name: 'AbortError' });
 }
 
+async function testMergeSignalDuringPendingSingleSourceRead() {
+  const ac = new AbortController();
+  let returned = false;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return this;
+    },
+    next() {
+      return new Promise(() => {});
+    },
+    return() {
+      returned = true;
+      return { __proto__: null, done: true };
+    },
+  };
+
+  const iter = merge(source, {
+    __proto__: null,
+    signal: ac.signal,
+  })[Symbol.asyncIterator]();
+
+  const next = iter.next();
+  await new Promise(setImmediate);
+  ac.abort();
+
+  await assert.rejects(next, { name: 'AbortError' });
+  assert.strictEqual(returned, true);
+}
+
 async function testMergeDoesNotDrainSourcesWhileIdle() {
   function source(n) {
     return {
@@ -332,6 +362,7 @@ Promise.all([
   testMergeConsumerBreak(),
   testMergeSignalMidIteration(),
   testMergeSignalDuringPendingMultiSourceRead(),
+  testMergeSignalDuringPendingSingleSourceRead(),
   testMergeDoesNotDrainSourcesWhileIdle(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
