@@ -7,7 +7,7 @@ const { push, text } = require('stream/iter');
 
 async function testStrictBackpressure() {
   const { writer, readable } = push({
-    highWaterMark: 1,
+    budget: 16384,
     backpressure: 'strict',
   });
 
@@ -25,7 +25,7 @@ async function testStrictBackpressure() {
 
 async function testDropOldest() {
   const { writer, readable } = push({
-    highWaterMark: 2,
+    budget: 16384,
     backpressure: 'drop-oldest',
   });
 
@@ -52,7 +52,7 @@ async function testDropOldest() {
 
 async function testDropNewest() {
   const { writer, readable } = push({
-    highWaterMark: 1,
+    budget: 16384,
     backpressure: 'drop-newest',
   });
 
@@ -66,7 +66,7 @@ async function testDropNewest() {
 }
 
 async function testBlockBackpressure() {
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
 
   // Fill the buffer
   writer.writeSync('a');
@@ -99,7 +99,7 @@ async function testBlockWriteSyncDoesNotEnqueue() {
   // With block policy, writeSync returns false when the buffer is full.
   // The data is NOT accepted — writeSync only operates on the slots buffer.
   // The caller should fall back to write() which uses the pending queue.
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
 
   // Fill the buffer
   assert.strictEqual(writer.writeSync('a'), true);
@@ -118,11 +118,11 @@ async function testBlockWriteSyncDoesNotEnqueue() {
 }
 
 async function testStrictPendingQueueOverflow() {
-  // With highWaterMark: 1 and strict, the pending writes queue is also limited to 1.
+  // With budget: 16384 and strict, the pending writes queue is also limited to 1.
   // Filling the buffer (1 sync write) + filling the pending queue (1 async write)
   // should leave no room. A third write must reject with a RangeError.
   const { writer, readable } = push({
-    highWaterMark: 1,
+    budget: 16384,
     backpressure: 'strict',
   });
 
