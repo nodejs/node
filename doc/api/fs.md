@@ -3928,7 +3928,10 @@ inconsistencies, avoid trailing `X` characters in `prefix`. Some platforms,
 notably the BSDs, can return more than six random characters, and replace
 trailing `X` characters in `prefix` with random characters.
 
-The created directory path is passed to the callback's second parameter. If `prefix` is a `Buffer` , then the resulting directory path is passed as a  `Buffer`. Otherwise, the path is passed as a string using the specified encoding.
+The created directory path is passed to the callback's second parameter. If
+`prefix` is a `Buffer`, then the resulting directory path is passed as a
+`Buffer`. Otherwise, the path is passed as a string using the specified
+encoding.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
