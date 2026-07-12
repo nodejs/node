@@ -770,9 +770,7 @@ threads.
 The socket must be a freshly accepted or created TCP connection: it must still
 be attached to a live handle, must not be connecting or destroyed, and must not
 have started reading or have buffered data. Otherwise `postMessage()` throws
-`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. Only TCP sockets are supported, and only
-on Unix-like platforms; on Windows `postMessage()` throws
-`ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`.
+`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. Only TCP sockets are supported.
 
 ```cjs
 const net = require('node:net');
