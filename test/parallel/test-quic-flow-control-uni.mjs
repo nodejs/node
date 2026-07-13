@@ -39,7 +39,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 const stream = await clientSession.createUnidirectionalStream({
-  highWaterMark: 512,
+  budget: 512,
 });
 const w = stream.writer;
 

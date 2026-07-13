@@ -41,7 +41,7 @@ const stream = await clientSession.createBidirectionalStream();
 const w = stream.writer;
 
 // Writer should be open.
-strictEqual(typeof w.desiredSize, 'number');
+strictEqual(typeof w.canWrite, 'boolean');
 
 // Write multiple chunks synchronously.
 strictEqual(w.writeSync(encoder.encode('chunk1')), true);
@@ -55,8 +55,8 @@ strictEqual(totalWritten, 18); // 6 * 3
 // After end, write should return false.
 strictEqual(w.writeSync(encoder.encode('nope')), false);
 
-// desiredSize should be null after close.
-strictEqual(w.desiredSize, null);
+// canWrite should be null after close.
+strictEqual(w.canWrite, null);
 
 await Promise.all([stream.closed, done.promise]);
 await clientSession.close();

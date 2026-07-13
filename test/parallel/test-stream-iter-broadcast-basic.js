@@ -74,18 +74,18 @@ async function testConsumerCount() {
 // =============================================================================
 
 async function testWriteSync() {
+  const kChunk = new Uint8Array(16384);
   const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
-  assert.strictEqual(writer.writeSync('a'), true);
-  assert.strictEqual(writer.writeSync('b'), true);
-  // Buffer full (budget=16384, strict policy)
-  assert.strictEqual(writer.writeSync('c'), false);
+  assert.strictEqual(writer.writeSync(kChunk), true);
+  // Buffer full (16384 >= budget), strict policy rejects
+  assert.strictEqual(writer.writeSync(kChunk), false);
 
   writer.endSync();
 
   const data = await text(consumer);
-  assert.strictEqual(data, 'ab');
+  assert.strictEqual(data.length, 16384);
 }
 
 async function testWritevSync() {

@@ -155,26 +155,18 @@ async function testPushWriterBlockSyncFalseAccepted() {
 }
 
 async function testPipeToSyncPushWriterStrictFalseRejected() {
-  const decoder = new TextDecoder();
-  const { writer, readable } = push({ budget: 16384 });
+  const kChunk = new Uint8Array(16384);
+  const { writer } = push({ budget: 16384 });
 
-  const total = pipeToSync(['a', 'b'], writer, { preventClose: true });
-  assert.strictEqual(total, 1);
+  // Pre-fill the buffer so it's at capacity
+  writer.writeSync(kChunk);
 
-  const iter = readable[Symbol.asyncIterator]();
-  const first = await iter.next();
-  assert.strictEqual(first.done, false);
-  assert.strictEqual(decoder.decode(first.value[0]), 'a');
-
-  const second = await Promise.race([
-    iter.next().then((result) => {
-      return result.done ? '<done>' : decoder.decode(result.value[0]);
-    }),
-    setImmediatePromise().then(() => '<no second chunk>'),
-  ]);
-  assert.strictEqual(second, '<no second chunk>');
-
-  await iter.return?.();
+  // pipeToSync should throw when writeSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync([kChunk], writer,
+                     { preventClose: true, preventFail: true }),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
 }
 
 async function testPipeToSyncWritevFalseNotCounted() {
@@ -187,8 +179,11 @@ async function testPipeToSyncWritevFalseNotCounted() {
     yield [new Uint8Array([1]), new Uint8Array([2])];
   }
 
-  const total = pipeToSync(source(), writer);
-  assert.strictEqual(total, 0);
+  // pipeToSync throws when writevSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync(source(), writer),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
 }
 
 // pipeToSync with writevSync
