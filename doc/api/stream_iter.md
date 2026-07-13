@@ -226,7 +226,7 @@ How each policy uses these buffers:
 
 | Policy          | Buffer limit | Pending writes limit |
 | --------------- | ------------ | -------------------- |
-| `'strict'`      | `budget`     | `budget`             |
+| `'strict'`      | `budget`     | 1                    |
 | `'unbounded'`   | `budget`     | Unbounded            |
 | `'drop-oldest'` | `budget`     | N/A (never waits)    |
 | `'drop-newest'` | `budget`     | N/A (never waits)    |
@@ -235,8 +235,8 @@ How each policy uses these buffers:
 
 Strict mode catches "fire-and-forget" patterns where the producer calls
 `write()` without awaiting, which would cause unbounded memory growth.
-It limits both the buffer and the pending writes queue to
-`budget` bytes.
+It limits the buffer to `budget` bytes and the pending writes queue
+to a single entry.
 
 If you properly await each write, you can only ever have one pending
 write at a time (yours), so you never hit the pending writes limit.
