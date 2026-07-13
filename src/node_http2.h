@@ -78,6 +78,7 @@ constexpr int kSessionStateWriteInProgress = 0x20;
 constexpr int kSessionStateReadingStopped = 0x40;
 constexpr int kSessionStateReceivePaused = 0x80;
 constexpr int kSessionStateReceiving = 0x100;
+constexpr int kSessionStateClosePending = 0x200;
 
 // The Padding Strategy determines the method by which extra padding is
 // selected for HEADERS and DATA frames. These are configurable via the
@@ -332,6 +333,10 @@ class Http2Stream : public AsyncWrap,
 
   // Destroy this stream instance and free all held memory.
   void Destroy();
+
+  // Completes Destroy() after set_destroyed(); may run deferred until after
+  // nghttp2_session_mem_recv() returns.
+  void CompleteDestroyCleanup();
 
   bool is_destroyed() const {
     return flags_ & kStreamStateDestroyed;
@@ -671,6 +676,7 @@ class Http2Session : public AsyncWrap,
   IS_FLAG(reading_stopped, kSessionStateReadingStopped)
   IS_FLAG(receive_paused, kSessionStateReceivePaused)
   IS_FLAG(receiving, kSessionStateReceiving)
+  IS_FLAG(close_pending, kSessionStateClosePending)
 
 #undef IS_FLAG
 
@@ -712,6 +718,10 @@ class Http2Session : public AsyncWrap,
   bool has_pending_rststream(int32_t stream_id) {
     return pending_rst_streams_.end() !=
            std::ranges::find(pending_rst_streams_, stream_id);
+  }
+
+  void RemovePendingRstStream(int32_t stream_id) {
+    std::erase(pending_rst_streams_, stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.
@@ -963,6 +973,10 @@ class Http2Session : public AsyncWrap,
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
+  // Saved arguments for Close() deferred while nghttp2_session_mem_recv()
+  // callbacks are active.
+  uint32_t pending_close_code_ = NGHTTP2_NO_ERROR;
+  bool pending_close_socket_closed_ = false;
   // Count streams that have been rejected while being opened. Exceeding a fixed
   // limit will result in the session being destroyed, as an indication of a
   // misbehaving peer. This counter is reset once new streams are being
@@ -977,6 +991,8 @@ class Http2Session : public AsyncWrap,
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
+  void FinishClose(uint32_t code, bool socket_closed);
+  void MaybeFinishPendingClose();
 
   void MaybeNotifyGracefulCloseComplete();
 
