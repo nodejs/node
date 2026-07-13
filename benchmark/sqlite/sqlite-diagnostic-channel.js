@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common.js');
 const sqlite = require('node:sqlite');
-const dc = require('diagnostics_channel');
-const assert = require('assert');
+const dc = require('node:diagnostics_channel');
+const assert = require('node:assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
