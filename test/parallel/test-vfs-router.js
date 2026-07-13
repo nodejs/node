@@ -9,7 +9,7 @@
 require('../common');
 const assert = require('assert');
 const path = require('path');
-const { isUnderMountPoint, getRelativePath, isAbsolutePath } =
+const { isUnderMountPoint, getRelativePath } =
   require('internal/vfs/router');
 
 const mount = path.resolve('/app');
@@ -57,7 +57,3 @@ if (process.platform !== 'win32') {
 const mountA = path.resolve('/m/a');
 const deep = path.join(mountA, 'b', 'c', 'd');
 assert.strictEqual(getRelativePath(deep, mountA), '/b/c/d');
-
-// isAbsolutePath is re-exported from node:path
-assert.strictEqual(isAbsolutePath(path.resolve('/foo')), true);
-assert.strictEqual(isAbsolutePath('foo'), false);
