@@ -1,7 +1,7 @@
 // Flags: --experimental-vfs --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -45,3 +45,31 @@ const vfs = require('node:vfs');
 
   myVfs.unmount();
 }
+
+// A malformed ancestor package.json aborts the scope walk with
+// ERR_INVALID_PACKAGE_CONFIG for both CJS and ESM.
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/outer/inner', { recursive: true });
+  myVfs.writeFileSync('/outer/package.json', '{ bad }');
+  myVfs.writeFileSync('/outer/inner/mod.js', 'module.exports = 1;');
+  const mountPoint = myVfs.mount();
+
+  assert.throws(() => require(`${mountPoint}/outer/inner/mod.js`),
+                { code: 'ERR_INVALID_PACKAGE_CONFIG' });
+
+  myVfs.unmount();
+}
+
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/outer2/inner', { recursive: true });
+  myVfs.writeFileSync('/outer2/package.json', '{ bad }');
+  myVfs.writeFileSync('/outer2/inner/mod.js', 'export const x = 1;');
+  const mountPoint = myVfs.mount();
+
+  await assert.rejects(() => import(`${mountPoint}/outer2/inner/mod.js`),
+                       { code: 'ERR_INVALID_PACKAGE_CONFIG' });
+
+  myVfs.unmount();
+})().then(common.mustCall());

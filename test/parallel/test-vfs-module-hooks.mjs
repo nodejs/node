@@ -656,9 +656,12 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/no-type.js', 'module.exports = { noType: true };');
   const mountPoint = myVfs.mount();
 
-  // Should treat as 'none' (commonjs) since package.json is invalid
-  const result = require(`${mountPoint}/no-type.js`);
-  assert.strictEqual(result.noType, true);
+  // Aborts with ERR_INVALID_PACKAGE_CONFIG - matches native
+  // GetPackageJSON, which throws on the first malformed package.json
+  // encountered on the way up rather than silently treating it as
+  // "none".
+  assert.throws(() => require(`${mountPoint}/no-type.js`),
+                { code: 'ERR_INVALID_PACKAGE_CONFIG' });
 
   myVfs.unmount();
 }
