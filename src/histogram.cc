@@ -488,8 +488,7 @@ IterationHistogram::IterationHistogram(Environment* env,
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
-      static_cast<HistogramImpl*>(this),
-      EmbedderDataTag::kDefault);
+      static_cast<HistogramImpl*>(this));
   uv_check_init(env->event_loop(), &check_handle_);
   uv_prepare_init(env->event_loop(), &prepare_handle_);
   uv_unref(reinterpret_cast<uv_handle_t*>(&check_handle_));
