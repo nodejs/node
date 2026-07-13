@@ -28,15 +28,14 @@ async function testMultipleWrites() {
 }
 
 async function testCanWrite() {
+  const kHalf = new Uint8Array(8192);
   const { writer } = push({ budget: 16384 });
 
   assert.strictEqual(writer.canWrite, true);
-  writer.writeSync('a');
-  assert.strictEqual(writer.canWrite, true);
-  writer.writeSync('b');
-  assert.strictEqual(writer.canWrite, true);
-  writer.writeSync('c');
-  assert.strictEqual(writer.canWrite, false);
+  writer.writeSync(kHalf);
+  assert.strictEqual(writer.canWrite, true);  // 8192 < 16384
+  writer.writeSync(kHalf);
+  assert.strictEqual(writer.canWrite, false); // 16384 >= 16384
 
   writer.end();
   assert.strictEqual(writer.canWrite, null);

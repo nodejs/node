@@ -21,11 +21,11 @@ async function testBroadcastWriteAbort() {
   const consumer = bc.push();
 
   // Fill the buffer to capacity
-  writer.writeSync(new Uint8Array([1]));
+  writer.writeSync(new Uint8Array(16384).fill(1));
 
   // Next write will block — pass a signal
   const ac = new AbortController();
-  const writePromise = writer.write(new Uint8Array([2]),
+  const writePromise = writer.write(new Uint8Array(16384).fill(2),
                                     { signal: ac.signal });
 
   // Abort the signal

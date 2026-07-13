@@ -10,36 +10,41 @@ const { broadcast, text } = require('stream/iter');
 // =============================================================================
 
 async function testDropOldest() {
+  const chunk1 = new Uint8Array(16384).fill(49); // '1'
+  const chunk2 = new Uint8Array(16384).fill(50); // '2'
+  const chunk3 = new Uint8Array(16384).fill(51); // '3'
   const { writer, broadcast: bc } = broadcast({
-    budget: 16384,
+    budget: 32768,
     backpressure: 'drop-oldest',
   });
   const consumer = bc.push();
 
-  writer.writeSync('first');
-  writer.writeSync('second');
-  // This should drop 'first'
-  writer.writeSync('third');
+  writer.writeSync(chunk1); // 16384 < 32768
+  writer.writeSync(chunk2); // 32768 >= 32768
+  // Buffer full: this drops chunk1, adds chunk3
+  writer.writeSync(chunk3);
   writer.endSync();
 
   const data = await text(consumer);
-  assert.strictEqual(data, 'secondthird');
+  assert.strictEqual(data, '2'.repeat(16384) + '3'.repeat(16384));
 }
 
 async function testDropNewest() {
+  const kept = new Uint8Array(16384).fill(75);    // 'K'
+  const dropped = new Uint8Array(16384).fill(68); // 'D'
   const { writer, broadcast: bc } = broadcast({
     budget: 16384,
     backpressure: 'drop-newest',
   });
   const consumer = bc.push();
 
-  writer.writeSync('kept');
-  // This should be silently dropped
-  writer.writeSync('dropped');
+  writer.writeSync(kept);
+  // Buffer full: new write is silently discarded
+  writer.writeSync(dropped);
   writer.endSync();
 
   const data = await text(consumer);
-  assert.strictEqual(data, 'kept');
+  assert.strictEqual(data, 'K'.repeat(16384));
 }
 
 // =============================================================================
@@ -47,16 +52,17 @@ async function testDropNewest() {
 // =============================================================================
 
 async function testBlockBackpressure() {
+  const kChunk = new Uint8Array(16384);
   const { writer, broadcast: bc } = broadcast({
     budget: 16384,
     backpressure: 'unbounded',
   });
   const consumer = bc.push();
-  writer.writeSync('a');
+  writer.writeSync(kChunk);
 
   // Next write should block
   let writeResolved = false;
-  const writePromise = writer.write('b').then(() => { writeResolved = true; });
+  const writePromise = writer.write(kChunk).then(() => { writeResolved = true; });
   await new Promise(setImmediate);
   assert.strictEqual(writeResolved, false);
 
@@ -76,30 +82,32 @@ async function testBlockBackpressure() {
 
 // Verify block backpressure data flows correctly end-to-end
 async function testBlockBackpressureContent() {
+  const chunk1 = new Uint8Array(16384).fill(65); // 'A'
+  const chunk2 = new Uint8Array(16384).fill(66); // 'B'
   const { writer, broadcast: bc } = broadcast({
     budget: 16384,
     backpressure: 'unbounded',
   });
   const consumer = bc.push();
 
-  writer.writeSync('a');
-  const writePromise = writer.write('b');
+  writer.writeSync(chunk1);
+  const writePromise = writer.write(chunk2);
   await new Promise(setImmediate);
 
   // Read all and verify content
   const iter = consumer[Symbol.asyncIterator]();
   const first = await iter.next();
   assert.strictEqual(first.done, false);
-  const firstStr = new TextDecoder().decode(first.value[0]);
-  assert.strictEqual(firstStr, 'a');
+  assert.strictEqual(first.value[0].byteLength, 16384);
+  assert.strictEqual(first.value[0][0], 65); // 'A'
 
   await writePromise;
   writer.endSync();
 
   const second = await iter.next();
   assert.strictEqual(second.done, false);
-  const secondStr = new TextDecoder().decode(second.value[0]);
-  assert.strictEqual(secondStr, 'b');
+  assert.strictEqual(second.value[0].byteLength, 16384);
+  assert.strictEqual(second.value[0][0], 66); // 'B'
 
   const done = await iter.next();
   assert.strictEqual(done.done, true);

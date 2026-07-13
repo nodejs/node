@@ -66,7 +66,7 @@ namespace quic {
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
-  V(HIGH_WATER_MARK, high_water_mark, uint32_t)
+  V(BUDGET, budget, uint32_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -1857,13 +1857,13 @@ void Stream::UpdateWriteDesiredSize() {
   if (!outbound_ || !outbound_->is_streaming()) return;
 
   uint64_t available;
-  uint64_t hwm = state()->high_water_mark;
+  uint64_t bgt = state()->budget;
 
   if (is_pending()) {
     // Pending streams don't have a stream ID yet, so ngtcp2 can't
-    // report their flow control window. Use the high water mark as
-    // the available capacity so writes can proceed while pending.
-    available = hwm > 0 ? hwm : std::numeric_limits<uint32_t>::max();
+    // report their flow control window. Use the budget as the
+    // available capacity so writes can proceed while pending.
+    available = bgt > 0 ? bgt : std::numeric_limits<uint32_t>::max();
   } else {
     // Calculate available capacity based on QUIC flow control.
     // The effective limit is the minimum of stream-level and
@@ -1873,9 +1873,9 @@ void Stream::UpdateWriteDesiredSize() {
     uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
     available = std::min(stream_left, conn_left);
 
-    // Apply the high water mark as an additional ceiling.
-    if (hwm > 0) {
-      available = std::min(available, hwm);
+    // Apply the budget as an additional ceiling.
+    if (bgt > 0) {
+      available = std::min(available, bgt);
     }
   }
 

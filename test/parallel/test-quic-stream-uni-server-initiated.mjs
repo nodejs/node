@@ -47,7 +47,7 @@ clientSession.onstream = mustCall(async (stream) => {
   // The receiving side of a uni stream should not be writable.
   // The writer should be pre-closed.
   const w = stream.writer;
-  strictEqual(w.desiredSize, null);
+  strictEqual(w.canWrite, null);
 
   await stream.closed;
   clientSession.close();

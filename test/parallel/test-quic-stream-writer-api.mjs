@@ -93,12 +93,12 @@ await clientSession.opened;
 {
   const stream = await clientSession.createBidirectionalStream();
   const w = stream.writer;
-  // desiredSize should be a number (may be 0 initially before flow
-  // control window opens, or > 0 if the window is already open).
-  strictEqual(typeof w.desiredSize, 'number');
-  ok(w.desiredSize >= 0, `desiredSize should be >= 0, got ${w.desiredSize}`);
-  // drainableProtocol should return null when desiredSize > 0 (has capacity),
-  // or a promise when desiredSize <= 0 (backpressured). Either way, it
+  // canWrite should be a boolean (false initially before flow
+  // control window opens, or true if the window is already open).
+  strictEqual(typeof w.canWrite, 'boolean');
+  ok(w.canWrite !== null, `canWrite should not be null, got ${w.canWrite}`);
+  // drainableProtocol should return null when canWrite is true (has capacity),
+  // or a promise when canWrite is false (backpressured). Either way, it
   // should not throw.
   const { drainableProtocol: dp } = await import('stream/iter');
   const drain = w[dp]();
@@ -115,8 +115,8 @@ await clientSession.opened;
   const w = stream.writer;
   const testError = new Error('writer fail test');
   w.fail(testError);
-  // After fail, desiredSize is null.
-  strictEqual(w.desiredSize, null);
+  // After fail, canWrite is null.
+  strictEqual(w.canWrite, null);
   // drainableProtocol returns null when errored.
   const { drainableProtocol: dp } = await import('stream/iter');
   strictEqual(w[dp](), null);
