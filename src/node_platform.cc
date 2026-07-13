@@ -116,6 +116,10 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
                        std::unique_ptr<Task> task,
                        double delay_in_seconds) {
     auto locked = tasks_.Lock();
+    // Once Stop() has begun tearing down the scheduler, the uv_async_send()
+    // below would hit a closing handle and abort. Drop tasks that arrive
+    // during shutdown.
+    if (stopped_) return;
 
     auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
     auto delayed = std::make_unique<ScheduleTask>(
@@ -132,6 +136,9 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
   void Stop() {
     auto locked = tasks_.Lock();
+    // Flip stopped_ so no new tasks get scheduled while we shut down.
+    if (stopped_) return;
+    stopped_ = true;
     locked.Push(std::make_unique<StopTask>(this));
     uv_async_send(&flush_tasks_);
   }
@@ -238,6 +245,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   // Locally scheduled tasks to be poped into the worker task runner queue.
   // It is flushed whenever the next closest timer expires.
   TaskQueue<Task> tasks_;
+  bool stopped_ = false;
   uv_loop_t loop_;
   uv_async_t flush_tasks_;
   std::unordered_set<uv_timer_t*> timers_;

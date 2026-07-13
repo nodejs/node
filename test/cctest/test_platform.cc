@@ -38,6 +38,40 @@ class RepostingTask : public v8::Task {
   node::NodePlatform* platform_;
 };
 
+class NoopTask : public v8::Task {
+ public:
+  void Run() final {}
+};
+
+class PostDelayedTaskAfterShutdownStartsTask : public v8::Task {
+ public:
+  PostDelayedTaskAfterShutdownStartsTask(node::NodePlatform* platform,
+                                         uv_sem_t* task_started,
+                                         uv_sem_t* post_task)
+      : platform_(platform),
+        task_started_(task_started),
+        post_task_(post_task) {}
+
+  void Run() final {
+    uv_sem_post(task_started_);
+    uv_sem_wait(post_task_);
+    uv_sleep(50);
+    platform_->PostDelayedTaskOnWorkerThreadImpl(v8::TaskPriority::kUserVisible,
+                                                 std::make_unique<NoopTask>(),
+                                                 1.0,
+                                                 v8::SourceLocation());
+  }
+
+ private:
+  node::NodePlatform* platform_;
+  uv_sem_t* task_started_;
+  uv_sem_t* post_task_;
+};
+
+static void ShutdownPlatform(void* arg) {
+  static_cast<node::NodePlatform*>(arg)->Shutdown();
+}
+
 class PlatformTest : public EnvironmentTestFixture {};
 
 TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
@@ -58,6 +92,40 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
   EXPECT_EQ(3, run_count);
   EXPECT_FALSE(platform->FlushForegroundTasks(isolate_));
+}
+
+// Regression test: a worker thread posting a delayed task concurrently with
+// platform shutdown must not call uv_async_send() on the scheduler's
+// flush_tasks_ handle after Stop() has begun closing it. The two semaphores
+// and the sleeps pin the ordering so the delayed task is posted only after
+// Shutdown() has run, which is the window that used to abort with
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)". The test passes
+// when shutdown completes without crashing.
+TEST_F(NodeZeroIsolateTestFixture, DelayedWorkerTaskDuringPlatformShutdown) {
+  node::NodePlatform test_platform(1, tracing_agent->GetTracingController());
+
+  uv_sem_t task_started;
+  uv_sem_t post_task;
+  ASSERT_EQ(0, uv_sem_init(&task_started, 0));
+  ASSERT_EQ(0, uv_sem_init(&post_task, 0));
+
+  test_platform.PostTaskOnWorkerThreadImpl(
+      v8::TaskPriority::kUserBlocking,
+      std::make_unique<PostDelayedTaskAfterShutdownStartsTask>(
+          &test_platform, &task_started, &post_task),
+      v8::SourceLocation());
+
+  uv_sem_wait(&task_started);
+
+  uv_thread_t shutdown_thread;
+  ASSERT_EQ(
+      0, uv_thread_create(&shutdown_thread, ShutdownPlatform, &test_platform));
+  uv_sleep(50);
+  uv_sem_post(&post_task);
+  ASSERT_EQ(0, uv_thread_join(&shutdown_thread));
+
+  uv_sem_destroy(&post_task);
+  uv_sem_destroy(&task_started);
 }
 
 // Tests the registration of an abstract `IsolatePlatformDelegate` instance as
