@@ -49,32 +49,35 @@ test('execute an .mts file importing a .cts file', async () => {
 
 test('execute an .mts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/mts/test-mts-node_modules.mts'),
   ]);
 
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.stdout, '');
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute a .cts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/mts/test-cts-node_modules.mts'),
   ]);
 
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.stdout, '');
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute a .ts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
     fixtures.path('typescript/mts/test-ts-node_modules.mts'),
   ]);
 
-  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  assert.strictEqual(result.stdout, '');
-  assert.strictEqual(result.code, 1);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute an empty .ts file', async () => {
