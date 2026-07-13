@@ -5,8 +5,9 @@ require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
-// Test that invalid package.json in VFS falls through to index.js
-// (bad JSON is skipped, like a missing package.json).
+// Test that a malformed package.json in VFS throws
+// ERR_INVALID_PACKAGE_CONFIG (matches native CJS behavior after
+// nodejs/node#48606).
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg', { recursive: true });
@@ -14,7 +15,8 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/pkg/index.js', 'module.exports = 42;');
   const mountPoint = myVfs.mount();
 
-  assert.strictEqual(require(`${mountPoint}/pkg`), 42);
+  assert.throws(() => require(`${mountPoint}/pkg`),
+                { code: 'ERR_INVALID_PACKAGE_CONFIG' });
 
   myVfs.unmount();
 }
