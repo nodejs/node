@@ -4,7 +4,7 @@ Welcome. You've found your way to the Node.js native crypto subsystem.
 
 Do not be afraid.
 
-While crypto may be a dark, mysterious, and forboding subject; and while
+While crypto may be a dark, mysterious, and foreboding subject; and while
 this directory may be filled with many `*.h` and `*.cc` files, finding
 your way around is not too difficult. And I can promise you that a Gru
 will not jump out of the shadows and eat you (well, "promise" may be a
