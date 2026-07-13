@@ -81,13 +81,13 @@ function oneTo5() {
       // Both mappers allowed by `concurrency` are now in flight.
       ac.abort();
     }
-    await new Promise((resolve, reject) => {
-      if (signal.aborted) {
-        reject(signal.reason);
-        return;
-      }
-      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-    });
+    const { promise, reject } = Promise.withResolvers();
+    if (signal.aborted) {
+      reject(signal.reason);
+    }
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    // Promise is expected to reject.
+    await promise;
   }, 2), { signal: ac.signal, concurrency: 2 });
   // pump
   assert.rejects(async () => {

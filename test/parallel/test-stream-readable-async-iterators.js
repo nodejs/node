@@ -963,5 +963,31 @@ async function tests() {
   })().then(common.mustCall());
 }
 
+{
+  // Draining a large number of queued next() calls must not overflow
+  // the call stack.
+  // Refs: https://github.com/nodejs/node/pull/64447#discussion_r3566240419
+  (async () => {
+    const count = 20_000;
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+
+    const requests = [];
+    for (let i = 0; i < count; i++) {
+      requests.push(it.next());
+    }
+    for (let i = 0; i < count; i++) {
+      r.push(i);
+    }
+    r.push(null);
+
+    const results = await Promise.all(requests);
+    for (let i = 0; i < count; i++) {
+      assert.deepStrictEqual(results[i], { done: false, value: i });
+    }
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
 // To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());
