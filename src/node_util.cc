@@ -469,6 +469,26 @@ void MarkPromiseAsHandled(const FunctionCallbackInfo<Value>& args) {
   promise->MarkAsSilent();
 }
 
+// Returns a promise rejected with the given reason, already marked as handled
+// and silent so it does not trigger unhandled rejection tracking. This avoids
+// the extra boundary crossing of rejecting the promise in JS and then marking
+// it as handled through a separate call.
+void CreateRejectedHandledPromise(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
+    return;
+  }
+  Local<Promise> promise = resolver->GetPromise();
+  promise->MarkAsHandled();
+  promise->MarkAsSilent();
+  if (resolver->Reject(context, args[0]).IsNothing()) {
+    return;
+  }
+  args.GetReturnValue().Set(promise);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -488,6 +508,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DefineLazyPropertiesGetter);
   registry->Register(ConstructSharedArrayBuffer);
   registry->Register(MarkPromiseAsHandled);
+  registry->Register(CreateRejectedHandledPromise);
 }
 
 void Initialize(Local<Object> target,
@@ -594,6 +615,10 @@ void Initialize(Local<Object> target,
             "constructSharedArrayBuffer",
             ConstructSharedArrayBuffer);
   SetMethod(context, target, "markPromiseAsHandled", MarkPromiseAsHandled);
+  SetMethod(context,
+            target,
+            "createRejectedHandledPromise",
+            CreateRejectedHandledPromise);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");

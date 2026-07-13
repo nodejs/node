@@ -24,6 +24,7 @@ export interface UtilBinding {
   getHiddenValue(object: object, index: number): any;
   setHiddenValue(object: object, index: number, value: any): boolean;
   getPromiseDetails(promise: any): undefined | [state: 0] | [state: 1 | 2, result: any];
+  createRejectedHandledPromise(reason: any): Promise<never>;
   getProxyDetails(proxy: any, fullProxy?: boolean): undefined | any | [target: any, handler: any];
   previewEntries(object: object, slowPath?: boolean): undefined | any[] | [entries: any[], isKeyValue: boolean];
   getOwnNonIndexProperties(object: object, filter: number): Array<string | symbol>;
