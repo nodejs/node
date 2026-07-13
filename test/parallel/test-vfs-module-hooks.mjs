@@ -639,9 +639,10 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // Should fall through to index.js after failing to parse package.json
-  const result = require(`${mountPoint}/bad-json-dir`);
-  assert.strictEqual(result.fallbackIndex, true);
+  // A malformed package.json raises ERR_INVALID_PACKAGE_CONFIG for
+  // both CJS and ESM after nodejs/node#48606.
+  assert.throws(() => require(`${mountPoint}/bad-json-dir`),
+                { code: 'ERR_INVALID_PACKAGE_CONFIG' });
 
   myVfs.unmount();
 }
