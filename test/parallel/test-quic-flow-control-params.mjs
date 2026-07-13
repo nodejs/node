@@ -50,7 +50,7 @@ const encoder = new TextEncoder();
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
-    highWaterMark: 512,
+    budget: 512,
   });
   const w = stream.writer;
 

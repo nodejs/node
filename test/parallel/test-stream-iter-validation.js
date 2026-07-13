@@ -21,13 +21,16 @@ const {
 // push() validation
 // =============================================================================
 
-// Budget must be integer >= 1
+// Budget must be integer >= 16384
 assert.throws(() => push({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => push({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
-// Values < 16384 are clamped to 16384
-assert.strictEqual(push({ budget: 0 }).writer.canWrite, true);
-assert.strictEqual(push({ budget: -1 }).writer.canWrite, true);
-assert.strictEqual(push({ budget: -100 }).writer.canWrite, true);
+// Values < 16384 are rejected
+assert.throws(() => push({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: -100 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: 16383 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum accepted value
+assert.strictEqual(push({ budget: 16384 }).writer.canWrite, true);
 // MAX_SAFE_INTEGER is accepted
 assert.strictEqual(push({ budget: Number.MAX_SAFE_INTEGER }).writer.canWrite,
                    true);
@@ -89,14 +92,8 @@ assert.throws(() => duplex({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => duplex({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// Values < 16384 are clamped to 16384 (both directions)
-{
-  const [a, b] = duplex({ budget: 0 });
-  assert.strictEqual(a.writer.canWrite, true);
-  assert.strictEqual(b.writer.canWrite, true);
-  a.close();
-  b.close();
-}
+// Values < 16384 are rejected (both directions)
+assert.throws(() => duplex({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
 // MAX_SAFE_INTEGER is accepted
 {
   const [a, b] = duplex({ budget: Number.MAX_SAFE_INTEGER });
@@ -107,8 +104,8 @@ assert.throws(() => duplex({ budget: Number.MAX_SAFE_INTEGER + 1 }),
 }
 // Per-direction overrides
 {
-  const [a, b] = duplex({ a: { budget: 0 }, b: { budget: 16384 } });
-  assert.strictEqual(a.writer.canWrite, true); // clamped
+  const [a, b] = duplex({ a: { budget: 16384 }, b: { budget: 32768 } });
+  assert.strictEqual(a.writer.canWrite, true);
   assert.strictEqual(b.writer.canWrite, true);
   a.close();
   b.close();
@@ -137,15 +134,13 @@ assert.throws(() => broadcast({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => broadcast({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// Values < 16384 are clamped to 16384 (need a consumer for canWrite to work)
+// Values < 16384 are rejected
+assert.throws(() => broadcast({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => broadcast({ budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => broadcast({ budget: 16383 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum accepted value
 {
-  const bc = broadcast({ budget: 0 });
-  bc.broadcast.push();
-  assert.strictEqual(bc.writer.canWrite, true);
-  bc.writer.endSync();
-}
-{
-  const bc = broadcast({ budget: -1 });
+  const bc = broadcast({ budget: 16384 });
   bc.broadcast.push();
   assert.strictEqual(bc.writer.canWrite, true);
   bc.writer.endSync();
@@ -217,9 +212,11 @@ assert.throws(() => share(from('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
 assert.throws(() => share(from('a'), { signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => share(from('a'), { backpressure: 'bad' }), { code: 'ERR_INVALID_ARG_VALUE' });
 
-// share() values < 16384 are clamped (no canWrite, but accepts the value)
-share(from('a'), { budget: 0 }).cancel();
-share(from('a'), { budget: -1 }).cancel();
+// share() values < 16384 are rejected
+assert.throws(() => share(from('a'), { budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => share(from('a'), { budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum, MAX_SAFE_INTEGER is accepted
+share(from('a'), { budget: 16384 }).cancel();
 share(from('a'), { budget: Number.MAX_SAFE_INTEGER }).cancel();
 
 assert.throws(() => shareSync(42), { code: 'ERR_INVALID_ARG_TYPE' });
@@ -230,9 +227,13 @@ assert.throws(() => shareSync(fromSync('a'), { budget: 1.5 }),
 assert.throws(() => shareSync(fromSync('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// shareSync() values < 16384 are clamped (accepts the value)
-shareSync(fromSync('a'), { budget: 0 }).cancel();
-shareSync(fromSync('a'), { budget: -1 }).cancel();
+// shareSync() values < 16384 are rejected
+assert.throws(() => shareSync(fromSync('a'), { budget: 0 }),
+              { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => shareSync(fromSync('a'), { budget: -1 }),
+              { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum, MAX_SAFE_INTEGER is accepted
+shareSync(fromSync('a'), { budget: 16384 }).cancel();
 shareSync(fromSync('a'), { budget: Number.MAX_SAFE_INTEGER }).cancel();
 
 // Share.from / SyncShare.fromSync reject non-iterable

@@ -1296,7 +1296,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1337,7 +1337,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1944,7 +1944,7 @@ added: v23.8.0
 The directionality of the stream, or `null` if the stream has been destroyed
 or is still pending. Read only.
 
-### `stream.highWaterMark`
+### `stream.budget`
 
 <!-- YAML
 added: v26.2.0
@@ -2256,7 +2256,8 @@ The Writer has the following methods:
   the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
   See [`stream.destroy()`][] for a full-stream abort that also resets
   the readable side via `STOP_SENDING`.
-* `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
+* `canWrite` — `true` if writes will be accepted, `false` if at capacity,
+  or `null` if closed/errored.
 
 The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
 input chunk are copied into an internal buffer, so the caller's source

@@ -1,8 +1,8 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
 // Test: writer backpressure.
-// writeSync returns false when highWaterMark is exceeded.
-// drainableProtocol returns promise when desiredSize <= 0.
+// writeSync returns false when budget is exceeded.
+// drainableProtocol returns promise when canWrite is false.
 // drainableProtocol promise resolves when drain fires.
 // Try-fallback pattern: writeSync false, await drain, retry.
 
@@ -18,7 +18,7 @@ if (!hasQuic) {
 const { listen, connect } = await import('../common/quic.mjs');
 const { bytes, drainableProtocol: dp } = await import('stream/iter');
 
-// Total data: 8 x 1KB = 8KB. highWaterMark: 2KB.
+// Total data: 8 x 1KB = 8KB. budget: 2KB.
 const numChunks = 8;
 const chunkSize = 1024;
 const totalSize = numChunks * chunkSize;
@@ -40,13 +40,13 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 const stream = await clientSession.createBidirectionalStream({
-  highWaterMark: 2048,
+  budget: 2048,
 });
 const w = stream.writer;
 
-// Initial desiredSize should be the highWaterMark.
-strictEqual(w.desiredSize, 2048);
-strictEqual(stream.highWaterMark, 2048);
+// Initial canWrite should be true.
+strictEqual(w.canWrite, true);
+strictEqual(stream.budget, 2048);
 
 let backpressureCount = 0;
 
@@ -64,14 +64,14 @@ for (let i = 0; i < numChunks; i++) {
     // The promise resolves when drain fires.
     await drain;
 
-    // After drain, desiredSize should be > 0.
-    ok(w.desiredSize > 0, `desiredSize after drain should be > 0, got ${w.desiredSize}`);
+    // After drain, canWrite should be true.
+    ok(w.canWrite === true, `canWrite after drain should be true, got ${w.canWrite}`);
   }
 }
 
 w.endSync();
 
-// Backpressure should have been hit with a 2KB highWaterMark
+// Backpressure should have been hit with a 2KB budget
 // and 1KB chunks (every 2 chunks fills the buffer).
 ok(backpressureCount > 0, 'backpressure should have been hit');
 

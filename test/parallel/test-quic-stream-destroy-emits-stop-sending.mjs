@@ -6,7 +6,7 @@
 // from the peer's perspective and they would keep transmitting until
 // the session-level idle timer fired.
 //
-// Verified via the server-side writer's `desiredSize` getter, which
+// Verified via the server-side writer's `canWrite` getter, which
 // returns `null` once `state.writeEnded` is set. STOP_SENDING from
 // the client triggers `Stream::ReceiveStopSending -> EndWritable` on
 // the server, which sets `state.writeEnded = 1`.
@@ -16,7 +16,7 @@
 // processes RESET_STREAM first (firing `onreset`) and then
 // STOP_SENDING. The observation must therefore be deferred until
 // after the `onreset` callback returns so ngtcp2 can finish
-// processing the packet. Capturing `writer.desiredSize` synchronously
+// processing the packet. Capturing `writer.canWrite` synchronously
 // inside `onreset` would always see the pre-STOP_SENDING value.
 // Throwing inside `onreset` would also crash the process before
 // STOP_SENDING could be processed.
@@ -38,12 +38,12 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const writer = stream.writer;
     // Sanity: the writer is active before the peer tears the stream
-    // down, so desiredSize is a number reflecting the initial
+    // down, so canWrite is a boolean reflecting the initial
     // flow-control window.
-    if (typeof writer.desiredSize !== 'number') {
+    if (typeof writer.canWrite !== 'boolean') {
       serverObservation.reject(new Error(
-        `expected initial writer.desiredSize to be a number, ` +
-        `got ${writer.desiredSize}`));
+        `expected initial writer.canWrite to be a boolean, ` +
+        `got ${writer.canWrite}`));
       return;
     }
     stream.onreset = mustCall(() => {
@@ -53,9 +53,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
       // next event loop tick the rest of the packet has been
       // processed and `Stream::ReceiveStopSending -> EndWritable` has
       // flipped `state.writeEnded` to 1, which makes the writer's
-      // desiredSize getter return null.
+      // canWrite getter return null.
       setImmediate(() => {
-        serverObservation.resolve(writer.desiredSize);
+        serverObservation.resolve(writer.canWrite);
       });
     });
 
@@ -78,8 +78,8 @@ const clientClosedAssertion = assert.rejects(stream.closed, err);
 
 stream.destroy(err);
 
-const observedDesiredSize = await serverObservation.promise;
-strictEqual(observedDesiredSize, null);
+const observedCanWrite = await serverObservation.promise;
+strictEqual(observedCanWrite, null);
 
 await clientClosedAssertion;
 

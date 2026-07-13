@@ -5,7 +5,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   consumers: [2, 8, 32],
   batches: [1e4],
-  backpressure: ['block'],
+  backpressure: ['unbounded'],
   n: [5],
 }, {
   flags: ['--experimental-stream-iter'],
@@ -24,7 +24,7 @@ async function main({ consumers, batches, backpressure, n }) {
 
   bench.start();
   for (let i = 0; i < n; i++) {
-    const shared = share(source(), { highWaterMark: 64, backpressure });
+    const shared = share(source(), { budget: 65536, backpressure });
     const readers = Array.from({ length: consumers }, () => array(shared.pull()));
     await Promise.all(readers);
   }
