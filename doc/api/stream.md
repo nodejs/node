@@ -3550,7 +3550,7 @@ changes:
 * `stream` {Stream|ReadableStream|WritableStream} A stream to attach a signal
   to.
 
-Attaches an AbortSignal to a readable or writeable stream. This lets code
+Attaches an AbortSignal to a readable or writable stream. This lets code
 control stream destruction using an `AbortController`.
 
 Calling `abort` on the `AbortController` corresponding to the passed
@@ -3842,7 +3842,7 @@ const myWritable = new Writable({
 
 Calling `abort` on the `AbortController` corresponding to the passed
 `AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
-on the writeable stream.
+on the writable stream.
 
 ```js
 const { Writable } = require('node:stream');
