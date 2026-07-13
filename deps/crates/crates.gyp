@@ -2,6 +2,7 @@
   'variables': {
     'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
+    'temporal_capi_dir': 'temporal_capi',
     'cargo_rust_target%': '',
   },
   'conditions': [
@@ -120,7 +121,7 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(cargo_vendor_dir)/temporal_capi/bindings/cpp',
+          '<(cargo_vendor_dir)/<(temporal_capi_dir)/bindings/cpp',
         ],
       },
     },
