@@ -395,6 +395,19 @@ function myWriter(output) {
 }
 ```
 
+### Block-based history navigation
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When recalling a multiline entry from history, the Up and Down arrow
+keys navigate between history entries as whole blocks rather than
+moving the cursor line-by-line within the recalled entry. Up/Down
+always jump directly to the previous/next history entry, making it
+easy to recall multiline functions and code blocks with a single
+keypress — matching the behavior of Ctrl+P and Ctrl+N.
+
 ## Class: `REPLServer`
 
 <!-- YAML
