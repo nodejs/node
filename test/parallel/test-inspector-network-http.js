@@ -179,18 +179,20 @@ function verifyHttpResponse(response) {
 
   // Verifies that the inspector does not put the response into flowing mode.
   assert.strictEqual(response.readableFlowing, null);
+  response.setEncoding('utf8');
+  assert.strictEqual(response.readableFlowing, null);
   // Verifies that the data listener may be added at a later time, and it can
   // still observe the data in full.
   queueMicrotask(common.mustCall(() => {
-    response.on('data', (chunk) => {
+    response.on('data', common.mustCallAtLeast((chunk) => {
+      assert.strictEqual(typeof chunk, 'string');
       chunks.push(chunk);
-    });
+    }));
     assert.strictEqual(response.readableFlowing, true);
   }));
 
   response.on('end', common.mustCall(() => {
-    const body = Buffer.concat(chunks).toString();
-    assert.strictEqual(body, '\nhello world\n');
+    assert.strictEqual(chunks.join(''), '\nhello world\n');
   }));
 }
 

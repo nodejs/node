@@ -1586,6 +1586,15 @@ Emitted when client starts a request.
 
 Emitted when an error occurs during a client request.
 
+##### Event: `'http.client.response.bodyChunk'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `chunk` {Buffer}
+
+Emitted before each response body chunk is added to the `IncomingMessage`
+readable buffer.
+
 ##### Event: `'http.client.response.finish'`
 
 * `request` {http.ClientRequest}
