@@ -16,6 +16,6 @@ await run(`new Promise((resolve) => setImmediate(() => {
   resolve(42);
 }))\n`);
 
-assert.strictEqual(output.accumulator, '42\n');
+assert.strictEqual(output.accumulator, '| | | 42\n');
 
 replServer.close();
