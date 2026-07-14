@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-env=*
 'use strict';
 
 const common = require('../common');
@@ -40,6 +40,7 @@ const commonPathWildcard = path.join(__filename, '../../common*');
       '--permission',
       `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${allowedFolder}`,
       `--allow-fs-write=${allowedFolder}`,
+      '--allow-env=*',
       file,
     ],
     {
