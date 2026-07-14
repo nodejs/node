@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
    ffi_sysv.c - Copyright (C) 2013 IBM
-                Copyright (C) 2011 Anthony Green
+                Copyright (C) 2011, 2026 Anthony Green
                 Copyright (C) 2011 Kyle Moffett
                 Copyright (C) 2008 Red Hat, Inc
                 Copyright (C) 2007, 2008 Free Software Foundation, Inc

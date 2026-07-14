@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffiw64.c - Copyright (c) 2018 Anthony Green
+   ffiw64.c - Copyright (c) 2018, 2026 Anthony Green
               Copyright (c) 2014 Red Hat, Inc.
 
    x86 win64 Foreign Function Interface
@@ -126,12 +126,15 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
   size_t rsize;
   struct win64_call_frame *frame;
   ffi_type **arg_types = cif->arg_types;
+  void **avalue_copy = NULL;
   int nargs = cif->nargs;
 
   FFI_ASSERT(cif->abi == FFI_GNUW64 || cif->abi == FFI_WIN64);
 
   /* If we have any int128 or irregularly sized structure arguments,
-     make a copy so we are passing by value.  */
+     make a copy so we are passing by value.  The pointer array is cloned
+     first: the caller owns avalue[] and may reuse it for another call,
+     so it must not be modified.  */
   for (i = 0; i < nargs; i++)
     {
       ffi_type *at = arg_types[i];
@@ -159,6 +162,12 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
       if (needcopy)
         {
           char *argcopy = alloca (size);
+          if (avalue_copy == NULL)
+            {
+              avalue_copy = alloca (nargs * sizeof (void *));
+              memcpy (avalue_copy, avalue, nargs * sizeof (void *));
+              avalue = avalue_copy;
+            }
           memcpy (argcopy, avalue[i], size);
           avalue[i] = argcopy;
         }

@@ -4,6 +4,7 @@
    Copyright (C) 1998 Geoffrey Keating
    Copyright (C) 2001 John Hornkvist
    Copyright (C) 2002, 2006, 2007, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2026 Anthony Green
 
    FFI support for Darwin and AIX.
    
