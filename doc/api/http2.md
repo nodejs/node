@@ -4403,6 +4403,29 @@ does not imply that the client has received anything yet.
 
 After this event, no more events will be emitted on the response object.
 
+#### Event: `'sendingHeaders'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted synchronously, exactly once, immediately before the response headers are
+serialized and the `HEADERS` frame is sent. The listener is called with `this`
+bound to the response, while `response.headersSent` is still `false`, so it may
+make final changes to the outgoing message: read or modify headers with
+[`response.setHeader()`][], `response.appendHeader()`, and
+`response.removeHeader()`, or change `response.statusCode`.
+
+The event is reached by every header-flushing path
+([`response.writeHead()`][], implicit headers from the first
+[`response.write()`][] or [`response.end()`][], and `response.flushHeaders()`),
+so independent middleware can each register a listener without coordinating.
+Listeners run in registration order and must be synchronous; changes deferred
+past an `await` run after the headers are already sent and have no effect.
+
+This is the HTTP/2 counterpart of the HTTP/1
+[`'sendingHeaders'`](http.md#event-sendingheaders) event.
+
 #### `response.addTrailers(headers)`
 
 <!-- YAML
