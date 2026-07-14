@@ -11,12 +11,13 @@ const server = http.createServer(common.mustCall((request, response) => {
 
   request.on('data', function onData(chunk) {
     received += chunk.length;
-    request.off('data', onData);
-    request.destroy();
+    if (received > BODY.length / 2) {
+      request.off('data', onData);
+      response.writeHead(413, { 'content-length': 0 });
+      response.end();
+      request.destroy();
+    }
   });
-
-  response.writeHead(413, { 'content-length': 0 });
-  response.end();
 
   request.on('end', common.mustNotCall());
   request.on('close', common.mustCall(() => {
@@ -38,18 +39,17 @@ server.listen(0, common.mustCall(() => {
     response = res;
     assert.strictEqual(res.statusCode, 413);
     // Deliberately do not consume the response body. A response that has
-    // already been received should not be followed by a late ClientRequest
-    // socket error.
-    req.write(BODY);
-    req.end();
+    // completed after the request finished should not be followed by a late
+    // ClientRequest socket error.
   }));
 
   req.on('error', common.mustNotCall());
   req.on('close', common.mustCall(() => {
     assert(response);
+    assert.strictEqual(req.writableFinished, true);
     assert.strictEqual(response.complete, true);
     server.close();
   }));
 
-  req.flushHeaders();
+  req.end(BODY);
 }));
