@@ -11,8 +11,6 @@ const { Readable } = require('stream');
 
 tmpdir.refresh();
 
-const dest = path.resolve(tmpDir, 'tmp.txt');
-const otherDest = path.resolve(tmpDir, 'tmp-2.txt');
 const buffer = Buffer.from('abc'.repeat(1000));
 const stream = Readable.from(['a', 'b', 'c']);
 const stream2 = Readable.from(['ümlaut', ' ', 'sechzig']);
@@ -56,122 +54,138 @@ const asyncIterable = {
   }
 };
 
-async function doWriteString() {
+let counter = 0;
+
+async function doAppendString() {
   const string = 'x~yz'.repeat(100);
-  await fsPromises.writeFile(dest, string);
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, string);
   const data = fs.readFileSync(dest);
   const stringAsBuffer = Buffer.from(string, 'utf8');
   assert.deepStrictEqual(stringAsBuffer, data);
 }
 
-async function doWriteBuffer() {
-  await fsPromises.writeFile(dest, buffer);
+async function doAppendBuffer() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, buffer);
   const data = fs.readFileSync(dest);
   assert.deepStrictEqual(data, buffer);
 }
 
-async function doWriteStream() {
-  await fsPromises.writeFile(dest, stream);
+async function doAppendStream() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, stream);
   const expected = 'abc';
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, expected);
 }
 
-async function doWriteStreamWithCancel() {
+async function doAppendStreamWithCancel() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
   const controller = new AbortController();
   const { signal } = controller;
   process.nextTick(() => controller.abort());
   await assert.rejects(
-    fsPromises.writeFile(otherDest, stream, { signal }),
+    fsPromises.appendFile(dest, stream, { signal }),
     { name: 'AbortError' }
   );
 }
 
-async function doWriteIterable() {
-  await fsPromises.writeFile(dest, iterable);
+async function doAppendIterable() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, iterable);
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, iterable.expected);
 }
 
-async function doWriteInvalidIterable() {
+async function doAppendInvalidIterable() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
   await Promise.all(
     [42, 42n, {}, Symbol('42'), true, undefined, null, NaN].map((value) =>
-      assert.rejects(fsPromises.writeFile(dest, iterableWith(value)), {
+      assert.rejects(fsPromises.appendFile(dest, iterableWith(value)), {
         code: 'ERR_INVALID_ARG_TYPE',
       })
     )
   );
 }
 
-async function doWriteIterableWithEncoding() {
-  await fsPromises.writeFile(dest, stream2, 'latin1');
+async function doAppendIterableWithEncoding() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, stream2, 'latin1');
   const expected = 'ümlaut sechzig';
   const data = fs.readFileSync(dest, 'latin1');
   assert.deepStrictEqual(data, expected);
 }
 
-async function doWriteBufferIterable() {
-  await fsPromises.writeFile(dest, bufferIterable);
+async function doAppendBufferIterable() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, bufferIterable);
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, bufferIterable.expected);
 }
 
-async function doWriteAsyncIterable() {
-  await fsPromises.writeFile(dest, asyncIterable);
+async function doAppendAsyncIterable() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, asyncIterable);
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, asyncIterable.expected);
 }
 
-async function doWriteLargeIterable() {
-  await fsPromises.writeFile(dest, veryLargeIterable);
+async function doAppendLargeIterable() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+  await fsPromises.appendFile(dest, veryLargeIterable);
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, veryLargeIterable.expected);
 }
 
-async function doWriteInvalidValues() {
+async function doAppendInvalidValues() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
   await Promise.all(
     [42, 42n, {}, Symbol('42'), true, undefined, null, NaN].map((value) =>
-      assert.rejects(fsPromises.writeFile(dest, value), {
+      assert.rejects(fsPromises.appendFile(dest, value), {
         code: 'ERR_INVALID_ARG_TYPE',
       })
     )
   );
 }
 
-async function doWriteBufferAndCancel() {
+async function doAppendBufferAndCancel() {
+  const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
   const controller = new AbortController();
   const { signal } = controller;
   process.nextTick(() => controller.abort());
   await assert.rejects(
-    fsPromises.writeFile(otherDest, buffer, { signal }),
+    fsPromises.appendFile(dest, buffer, { signal }),
     { name: 'AbortError' }
   );
 }
 
-async function doWriteTypedArrays() {
+async function doAppendTypedArrays() {
   for (const Constructor of [Uint8Array, Uint16Array, Uint32Array]) {
+    const dest = path.resolve(tmpDir, `tmp-${counter++}.txt`);
+
     // Use a file size larger than `kReadFileMaxChunkSize`.
     const buffer = Buffer.from('012'.repeat(2 ** 14));
 
     const array = new Constructor(buffer.buffer);
-    await fsPromises.writeFile(dest, array);
+    await fsPromises.appendFile(dest, array);
     const data = await fsPromises.readFile(dest);
     assert.deepStrictEqual(data, buffer);
   }
 }
 
 (async () => {
-  await doWriteBuffer();
-  await doWriteBufferAndCancel();
-  await doWriteString();
-  await doWriteStream();
-  await doWriteStreamWithCancel();
-  await doWriteIterable();
-  await doWriteInvalidIterable();
-  await doWriteIterableWithEncoding();
-  await doWriteBufferIterable();
-  await doWriteAsyncIterable();
-  await doWriteLargeIterable();
-  await doWriteInvalidValues();
-  await doWriteTypedArrays();
+  await doAppendBuffer();
+  await doAppendBufferAndCancel();
+  await doAppendString();
+  await doAppendStream();
+  await doAppendStreamWithCancel();
+  await doAppendIterable();
+  await doAppendInvalidIterable();
+  await doAppendIterableWithEncoding();
+  await doAppendBufferIterable();
+  await doAppendAsyncIterable();
+  await doAppendLargeIterable();
+  await doAppendInvalidValues();
+  await doAppendTypedArrays();
 })().then(common.mustCall());
