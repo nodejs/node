@@ -378,13 +378,13 @@ extend_integer_type (void *source, int type)
     }
 }
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 void extend_hfa_type (void *dest, void *src, int h);
 #else
 static void
 extend_hfa_type (void *dest, void *src, int h)
 {
-  ssize_t f = h - AARCH64_RET_S4;
+  ptrdiff_t f = h - AARCH64_RET_S4;
   void *x0;
 
 #define BTI_J "hint #36"
@@ -449,7 +449,7 @@ extend_hfa_type (void *dest, void *src, int h)
 }
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 void* compress_hfa_type (void *dest, void *src, int h);
 #else
 static void *
@@ -550,7 +550,9 @@ allocate_int128_to_reg_or_stack (struct call_context *context,
   ngrn += ngrn & 1;
 #endif
 
-  if (ngrn < N_X_ARG_REG)
+  /* The value must fit entirely in registers, i.e. the low half may
+     not be allocated to x7 with the high half spilled to the stack.  */
+  if (ngrn + 2 <= N_X_ARG_REG)
     {
       ret = &context->x[ngrn];
       ngrn += 2;
@@ -641,6 +643,23 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	flags |= AARCH64_FLAG_ARG_V;
 	break;
       }
+
+  /* Composites larger than 16 bytes (that are not HFAs) are passed by
+     invisible reference: ffi_call copies the payload into the argument
+     slab (next_struct_area, growing down) and, once the X registers are
+     exhausted, also spills the by-ref pointer into the same slab (the
+     NSAA, growing up).  The generic prep_cif accounting in cif->bytes
+     only charges the payload copy, not that 8-byte pointer slot, so the
+     two regions can collide and a later struct copy can overwrite an
+     already-spilled pointer with the copied payload bytes.  Reserve an
+     extra 8 bytes per such argument so the slab is always large enough
+     for both.  */
+  for (i = 0, n = cif->nargs; i < n; i++)
+    {
+      ffi_type *ty = cif->arg_types[i];
+      if (ty->size > 16 && !is_vfp_type (ty))
+	bytes += 8;
+    }
 
   /* Round the stack up to a multiple of the stack alignment requirement. */
   cif->bytes = (unsigned) FFI_ALIGN(bytes, 16);
