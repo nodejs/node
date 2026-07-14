@@ -27,6 +27,7 @@ function stripAnsi(text) {
 // Test: NO_COLOR=1 produces plain output
 {
   const env = { ...process.env, NO_COLOR: '1' };
+  delete env.FORCE_COLOR;
   execFile(process.execPath, ['--help'], { env },
            common.mustSucceed((stdout) => {
              assert.ok(stripAnsi(stdout) === stdout,
@@ -51,6 +52,7 @@ function stripAnsi(text) {
 {
   const envStyled = { ...process.env, FORCE_COLOR: '1' };
   const envPlain = { ...process.env, NO_COLOR: '1' };
+  delete envPlain.FORCE_COLOR;
   execFile(process.execPath, ['--help'], { env: envStyled },
            common.mustSucceed((styledStdout) => {
              execFile(process.execPath, ['--help'], { env: envPlain },
