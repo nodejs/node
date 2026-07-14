@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 2012  Anthony Green
+   ffitarget.h - Copyright (c) 2012, 2026  Anthony Green
                  Copyright (c) 1996-2003  Red Hat, Inc.
    Target configuration macros for hppa.
 
@@ -82,11 +82,19 @@ typedef enum ffi_abi {
 #define FFI_TYPE_SMALL_STRUCT7 -7
 #define FFI_TYPE_SMALL_STRUCT8 -8
 
-/* linux.S and hpux32.S expect FFI_TYPE_COMPLEX is the last generic type.  */
-#define FFI_PA_TYPE_LAST FFI_TYPE_COMPLEX
+/* The return-value jump tables in linux.S and hpux32.S are indexed by
+   cif->flags, which ffi_prep_cif_machdep derives from the return type.  Any
+   return type it does not handle explicitly -- including FFI_TYPE_COMPLEX and
+   the 128-bit integer types FFI_TYPE_UINT128/FFI_TYPE_SINT128 -- falls through
+   to the default case and is mapped to FFI_TYPE_INT, so cif->flags never
+   exceeds FFI_TYPE_COMPLEX and the existing tables remain sufficient.  Bump
+   FFI_PA_TYPE_LAST to the current FFI_TYPE_LAST once you have confirmed any
+   newly added generic type is likewise handled (or the tables extended).  */
+#define FFI_PA_TYPE_LAST FFI_TYPE_SINT128
 
-/* If new generic types are added, the jump tables in linux.S and hpux32.S
-   likely need updating.  */
+/* Tripwire: when a new generic type is added FFI_TYPE_LAST changes and this
+   fires, forcing a review of ffi_prep_cif_machdep and the linux.S / hpux32.S
+   jump tables before FFI_PA_TYPE_LAST above is bumped.  */
 #if FFI_TYPE_LAST != FFI_PA_TYPE_LAST
 # error "You likely have broken jump tables"
 #endif

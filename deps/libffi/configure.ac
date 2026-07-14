@@ -2,11 +2,17 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.68])
 
-AC_INIT([libffi],[3.6.0],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.7.1],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
-FFI_VERSION_STRING="3.5.2"
-FFI_VERSION_NUMBER=30502
+dnl Derive the version macros from AC_INIT so they cannot drift when the
+dnl release version is bumped.  FFI_VERSION_NUMBER encodes X.Y.Z as
+dnl X*10000 + Y*100 + Z, ignoring any non-numeric suffix (e.g. -rc0).
+FFI_VERSION_STRING="AC_PACKAGE_VERSION"
+ffi_version_major=`echo "AC_PACKAGE_VERSION" | cut -d. -f1`
+ffi_version_minor=`echo "AC_PACKAGE_VERSION" | cut -d. -f2 | sed 's/[[^0-9]].*//'`
+ffi_version_micro=`echo "AC_PACKAGE_VERSION" | cut -d. -f3 | sed 's/[[^0-9]].*//'`
+FFI_VERSION_NUMBER=`expr ${ffi_version_major:-0} \* 10000 + ${ffi_version_minor:-0} \* 100 + ${ffi_version_micro:-0}`
 AC_SUBST(FFI_VERSION_STRING)
 AC_SUBST(FFI_VERSION_NUMBER)
 

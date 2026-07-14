@@ -1,5 +1,5 @@
 
-libffi-3.6.0 was released on June 20, 2026.
+libffi-3.7.1 was released on July 10, 2026.
 
 
 What is libffi?
@@ -200,6 +200,30 @@ History
 =======
 
 See the git log for details at http://github.com/libffi/libffi.
+
+    3.7.1 July-10-2026
+        Fix aarch64 ffi_call memory corruption when passing many large
+          structs by value.
+        Fix i386 thiscall/fastcall closure stack cleanup for 64-bit
+          integer and struct arguments.
+        Fix aarch64 int128 argument split between x7 and the stack on
+          Darwin (#993).
+        Fix aarch64 clang-cl link failure for HFA helper functions (#996).
+        Build a generic ffi_call_plan fallback on Windows x86-64.
+        Add Windows ARM64 (MSVC) build and continuous integration support.
+
+    3.7.0 July-7-2026
+        Add reusable call plans (ffi_call_plan_alloc/ffi_call_plan_invoke/ffi_call_plan_free).
+        Fix PA-RISC build broken by the conditional __int128 support added in 3.6.0.
+        Fix PA-RISC stack overflow passing many small structs by value.
+        Fix powerpc aix/darwin closure build errors (#987).
+        Include .note.GNU-stack on FreeBSD/x86 (#991).
+        Fix MSVC Win32 spin-lock atomics in bundled dlmalloc (#989).
+        Harden static trampoline and x86_64 closure internals.
+        Fix ffi_call clobbering the caller's argument pointer array
+          when passing large structs by value.
+        Allow a NULL rvalue in ffi_call to discard the return value.
+        Fix wasm widening of integral returns narrower than ffi_arg.
 
     3.6.0 Jun-20-2026
         Add LoongArch32 support.

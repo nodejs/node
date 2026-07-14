@@ -411,6 +411,10 @@ proc libffi_target_compile { source dest type options } {
             lappend options "libs= -lpthread"
         }
 
+        if { [string match "*-*-netbsd*" $target_triplet] } {
+            lappend options "libs= -lpthread"
+        }
+
         lappend options "libs= -lffi"
 
         if { [string match "aarch64*-*-linux*" $target_triplet] } {

@@ -3,7 +3,7 @@ This is libffi.info, produced by makeinfo version 7.1 from libffi.texi.
 This manual is for libffi, a portable foreign function interface
 library.
 
-   Copyright © 2008-2025 Anthony Green and Red Hat, Inc.
+   Copyright © 2008-2026 Anthony Green and Red Hat, Inc.
 
    Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -38,7 +38,7 @@ libffi
 This manual is for libffi, a portable foreign function interface
 library.
 
-   Copyright © 2008-2025 Anthony Green and Red Hat, Inc.
+   Copyright © 2008-2026 Anthony Green and Red Hat, Inc.
 
    Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -112,6 +112,7 @@ File: libffi.info,  Node: Using libffi,  Next: Memory Usage,  Prev: Introduction
 * Simple Example::              A simple example.
 * Types::                       libffi type descriptions.
 * Multiple ABIs::               Different passing styles on one platform.
+* Reusable Call Plans::         Building a call plan once and reusing it.
 * The Closure API::             Writing a generic function.
 * Closure Example::             A closure example.
 * Thread Safety::               Thread safety.
@@ -200,6 +201,11 @@ function:
      responsibility to ensure this.  If CIF declares that the function
      returns ‘void’ (using ‘ffi_type_void’), then RVALUE is ignored.
 
+     RVALUE may also be ‘NULL’, in which case the call is performed and
+     the return value is discarded.  This works for any return type,
+     including structures returned in memory; ‘libffi’ supplies internal
+     scratch space for the callee when needed.
+
      In most situations, ‘libffi’ will handle promotion according to the
      ABI. However, for historical reasons, there is a special case with
      return values that must be handled by your code.  In particular,
@@ -213,7 +219,9 @@ function:
      AVALUES is a vector of ‘void *’ pointers that point to the memory
      locations holding the argument values for a call.  If CIF declares
      that the function has no arguments (i.e., NARGS was 0), then
-     AVALUES is ignored.
+     AVALUES is ignored.  ‘ffi_call’ does not modify the vector or the
+     argument values it points to, so both may be reused for subsequent
+     calls.
 
      Note that while the return value must be register-sized, arguments
      should exactly match their declared type.  For example, if an
@@ -739,7 +747,7 @@ compilers that support them:
 type descriptors in the previous example.
 
 
-File: libffi.info,  Node: Multiple ABIs,  Next: The Closure API,  Prev: Types,  Up: Using libffi
+File: libffi.info,  Node: Multiple ABIs,  Next: Reusable Call Plans,  Prev: Types,  Up: Using libffi
 
 2.4 Multiple ABIs
 =================
@@ -751,9 +759,46 @@ instance, the x86 platform has both ‘stdcall’ and ‘fastcall’ functions.
 necessarily platform-specific.
 
 
-File: libffi.info,  Node: The Closure API,  Next: Closure Example,  Prev: Multiple ABIs,  Up: Using libffi
+File: libffi.info,  Node: Reusable Call Plans,  Next: The Closure API,  Prev: Multiple ABIs,  Up: Using libffi
 
-2.5 The Closure API
+2.5 Reusable Call Plans
+=======================
+
+When the same signature is called many times - as language bindings
+typically do - you can build a “call plan” once and reuse it, so that
+each call avoids the work ‘ffi_call’ would otherwise repeat on every
+invocation.  A plan is an opaque, caller-owned object built from a
+prepared ‘ffi_cif’.
+
+ -- Function: ffi_call_plan * ffi_call_plan_alloc (ffi_cif *CIF)
+     Builds and returns a reusable plan for the signature described by
+     CIF, which must already have been prepared with ‘ffi_prep_cif’.
+     The plan does not copy CIF; CIF must remain valid for as long as
+     the plan is used.
+
+     Returns ‘NULL’ only when memory cannot be allocated.  A signature
+     for which no accelerated path exists is still valid: the returned
+     plan simply falls back to ‘ffi_call’ when it is invoked.
+
+ -- Function: void ffi_call_plan_invoke (ffi_call_plan *PLAN, void *FN,
+          void *RVALUE, void **AVALUES)
+     Calls FN using PLAN.  The FN, RVALUE, and AVALUES arguments have
+     exactly the same meaning as for ‘ffi_call’ (*note The Basics::),
+     including the rule that integral return values narrower than a
+     register are widened to ‘ffi_arg’.
+
+     A plan is immutable once built, so a single plan may be invoked
+     concurrently from multiple threads without additional locking.
+
+ -- Function: void ffi_call_plan_free (ffi_call_plan *PLAN)
+     Releases a plan returned by ‘ffi_call_plan_alloc’.  Passing ‘NULL’
+     is harmless.  The ‘ffi_cif’ the plan was built from is not
+     affected.
+
+
+File: libffi.info,  Node: The Closure API,  Next: Closure Example,  Prev: Reusable Call Plans,  Up: Using libffi
+
+2.6 The Closure API
 ===================
 
 ‘libffi’ also provides a way to write a generic function - a function
@@ -857,7 +902,7 @@ executable addresses.
 
 File: libffi.info,  Node: Closure Example,  Next: Thread Safety,  Prev: The Closure API,  Up: Using libffi
 
-2.6 Closure Example
+2.7 Closure Example
 ===================
 
 A trivial example that creates a new ‘puts’ by binding ‘fputs’ with
@@ -916,7 +961,7 @@ A trivial example that creates a new ‘puts’ by binding ‘fputs’ with
 
 File: libffi.info,  Node: Thread Safety,  Prev: Closure Example,  Up: Using libffi
 
-2.7 Thread Safety
+2.8 Thread Safety
 =================
 
 ‘libffi’ is not completely thread-safe.  However, many parts are, and if
@@ -1004,17 +1049,21 @@ Index
 * cif:                                   The Basics.          (line  14)
 * closure API:                           The Closure API.     (line  13)
 * closures:                              The Closure API.     (line  13)
-* const char *:                          The Basics.          (line 106)
+* const char *:                          The Basics.          (line 113)
 * FFI:                                   Introduction.        (line  31)
 * ffi_call:                              The Basics.          (line  72)
+* ffi_call_plan *:                       Reusable Call Plans. (line  12)
+* ffi_call_plan_alloc:                   Reusable Call Plans. (line  12)
+* ffi_call_plan_free:                    Reusable Call Plans. (line  32)
+* ffi_call_plan_invoke:                  Reusable Call Plans. (line  22)
 * ffi_closure_alloc:                     The Closure API.     (line  19)
 * ffi_closure_free:                      The Closure API.     (line  26)
 * FFI_CLOSURES:                          The Closure API.     (line  13)
-* ffi_get_closure_size:                  The Basics.          (line 118)
-* ffi_get_default_abi:                   The Basics.          (line 115)
+* ffi_get_closure_size:                  The Basics.          (line 125)
+* ffi_get_default_abi:                   The Basics.          (line 122)
 * ffi_get_struct_offsets:                Size and Alignment.  (line  39)
-* ffi_get_version:                       The Basics.          (line 106)
-* ffi_get_version_number:                The Basics.          (line 110)
+* ffi_get_version:                       The Basics.          (line 113)
+* ffi_get_version_number:                The Basics.          (line 117)
 * ffi_prep_cif:                          The Basics.          (line  16)
 * ffi_prep_cif_var:                      The Basics.          (line  39)
 * ffi_prep_closure_loc:                  The Closure API.     (line  41)
@@ -1051,12 +1100,14 @@ Index
 * ffi_type_ushort:                       Primitive Types.     (line  53)
 * ffi_type_void:                         Primitive Types.     (line  10)
 * Foreign Function Interface:            Introduction.        (line  31)
-* size_t:                                The Basics.          (line 118)
-* unsigned int:                          The Basics.          (line 115)
-* unsigned long:                         The Basics.          (line 110)
+* size_t:                                The Basics.          (line 125)
+* unsigned int:                          The Basics.          (line 122)
+* unsigned long:                         The Basics.          (line 117)
 * void:                                  The Basics.          (line  72)
-* void <1>:                              The Closure API.     (line  19)
-* void <2>:                              The Closure API.     (line  26)
+* void <1>:                              Reusable Call Plans. (line  22)
+* void <2>:                              Reusable Call Plans. (line  32)
+* void <3>:                              The Closure API.     (line  19)
+* void <4>:                              The Closure API.     (line  26)
 
 
 
@@ -1064,23 +1115,24 @@ Tag Table:
 Node: Top1387
 Node: Introduction2909
 Node: Using libffi4569
-Node: The Basics5098
-Node: Simple Example10868
-Node: Types11925
-Node: Primitive Types12436
-Node: Structures14753
-Node: Size and Alignment15864
-Node: Arrays Unions Enums18135
-Node: Type Example21112
-Node: Complex22418
-Node: Complex Type Example23932
-Node: Multiple ABIs26984
-Node: The Closure API27367
-Node: Closure Example31703
-Node: Thread Safety33347
-Node: Memory Usage34180
-Node: Missing Features35455
-Node: Index35832
+Node: The Basics5172
+Node: Simple Example11346
+Node: Types12403
+Node: Primitive Types12914
+Node: Structures15231
+Node: Size and Alignment16342
+Node: Arrays Unions Enums18613
+Node: Type Example21590
+Node: Complex22896
+Node: Complex Type Example24410
+Node: Multiple ABIs27462
+Node: Reusable Call Plans27849
+Node: The Closure API29566
+Node: Closure Example33908
+Node: Thread Safety35552
+Node: Memory Usage36385
+Node: Missing Features37660
+Node: Index38037
 
 End Tag Table
 

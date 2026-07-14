@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - (c) 2011 Anthony Green
+   ffi.c - (c) 2011, 2026 Anthony Green
            (c) 2008 Red Hat, Inc.
 	   (c) 2006 Free Software Foundation, Inc.
            (c) 2003-2004 Randolph Chung <tausq@debian.org>
@@ -280,9 +280,24 @@ static void ffi_size_stack_pa32(ffi_cif *cif)
 
 #ifdef PA_HPUX
 	case FFI_TYPE_LONGDOUBLE:
+	  z += 1; /* passed by pointer, like a large struct */
+	  break;
 #endif
+
 	case FFI_TYPE_STRUCT:
-	  z += 1; /* pass by ptr, callee will copy */
+	  /* This must mirror the slot accounting in ffi_prep_args_pa32:
+	     structs of 1-4 bytes occupy one slot, structs of 5-8 bytes are
+	     passed inline in two even-aligned slots (exactly like a 64-bit
+	     value), and larger structs are passed by pointer in one slot.
+	     z stays offset from the marshaller's slot by FIRST_ARG_SLOT (odd),
+	     so (z & 1) tracks the same alignment the marshaller applies.  */
+	  {
+	    size_t len = (*ptr)->size;
+	    if (len <= 4 || len > 8)
+	      z += 1;
+	    else
+	      z += 2 + (z & 1);
+	  }
 	  break;
 
 	default: /* <= 32-bit values */
@@ -363,12 +378,13 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
   extended_cif ecif;
   size_t i, nargs = cif->nargs;
   ffi_type **arg_types = cif->arg_types;
+  void **avalue_copy = NULL;
 
   ecif.cif = cif;
-  ecif.avalue = avalue;
 
   /* If we have any large structure arguments, make a copy so we are passing
-     by value.  */
+     by value.  The pointer array is cloned first: the caller owns avalue[]
+     and may reuse it for another call, so it must not be modified.  */
   for (i = 0; i < nargs; i++)
     {
       ffi_type *at = arg_types[i];
@@ -376,10 +392,17 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
       if (at->type == FFI_TYPE_STRUCT && size > 8)
 	{
 	  char *argcopy = alloca (size);
+	  if (avalue_copy == NULL)
+	    {
+	      avalue_copy = alloca (nargs * sizeof (void *));
+	      memcpy (avalue_copy, avalue, nargs * sizeof (void *));
+	      avalue = avalue_copy;
+	    }
 	  memcpy (argcopy, avalue[i], size);
 	  avalue[i] = argcopy;
 	}
     }
+  ecif.avalue = avalue;
 
   /* If the return value is a struct and we don't have a return
      value address then we need to make one.  */

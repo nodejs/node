@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
    tramp.c - Copyright (c) 2020 Madhavan T. Venkataraman
-             Copyright (c) 2022 Anthony Green
+             Copyright (c) 2022, 2026 Anthony Green
 
    API and support functions for managing statically defined closure
    trampolines.
@@ -201,11 +201,18 @@ static int tramp_table_alloc (void);
 
 #if defined (__linux__) || defined (__CYGWIN__)
 
+/* Stringify a macro value for use in a scanf field-width specifier.  */
+#define FFI_TRAMP_STR_(x) #x
+#define FFI_TRAMP_STR(x)  FFI_TRAMP_STR_(x)
+
 static int
 ffi_tramp_get_libffi (void)
 {
   FILE *fp;
-  char file[PATH_MAX], line[PATH_MAX+100], perm[10], dev[10];
+  /* `file' is sized PATH_MAX+1 so a scanf field width of PATH_MAX
+     (which permits PATH_MAX characters plus the terminating NUL) cannot
+     overflow.  */
+  char file[PATH_MAX+1], line[PATH_MAX+100], perm[10], dev[10];
   unsigned long start, end, offset, inode;
   uintptr_t addr = (uintptr_t) tramp_globals.text;
   int nfields, found;
@@ -215,7 +222,7 @@ ffi_tramp_get_libffi (void)
   open_flags |= O_CLOEXEC;
 #endif
 
-  snprintf (file, PATH_MAX, "/proc/%d/maps", getpid());
+  snprintf (file, sizeof (file), "/proc/%d/maps", getpid());
   fp = fopen (file, "r");
   if (fp == NULL)
     return 0;
@@ -225,7 +232,10 @@ ffi_tramp_get_libffi (void)
     if (fgets (line, sizeof (line), fp) == 0)
       break;
 
-    nfields = sscanf (line, "%lx-%lx %9s %lx %9s %ld %s",
+    /* Bound the path field width so a long mapping name cannot overflow
+       the fixed-size `file' buffer.  */
+    nfields = sscanf (line,
+      "%lx-%lx %9s %lx %9s %ld %" FFI_TRAMP_STR(PATH_MAX) "s",
       &start, &end, perm, &offset, dev, &inode, file);
     if (nfields != 7)
       continue;

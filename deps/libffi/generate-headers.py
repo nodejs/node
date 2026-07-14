@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 
-LIBFFI_VERSION = '3.6.0'
-LIBFFI_VERSION_NUMBER = '30600'
+LIBFFI_VERSION = '3.7.1'
+LIBFFI_VERSION_NUMBER = '30701'
 
 def normalize_arch(target_arch):
     aliases = {

@@ -1,3 +1,953 @@
+commit 5c1c43091ed611fdea774374355eb938c73a9157
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 09:50:53 2026 -0400
+
+    Prepare for 3.7.1
+    
+    Bump version to 3.7.1 and libtool -version-info to 12:1:4 (revision
+    bump; no ABI change).  See the README for the change list.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit aaeaafb04a8335bea93b2873ca9a2d01107737eb
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 09:24:36 2026 -0400
+
+    testsuite: Make closure_thiscall_fastcall_pop portable across compilers
+    
+    The i386 esp-balance shim faulted on Android i686 (clang, -O2): it read
+    the closure code pointer through an esp-relative memory operand after
+    manually moving esp, and it did not 16-byte align the stack for the
+    call, so the -O2-built closure body faulted on aligned SSE.
+    
+    Read every operand into a register while esp is still at its incoming
+    value, 16-byte align the stack at the call per the i386 psABI, avoid ebx
+    so it works under -fPIC, and return the delta via memory.  Verified with
+    gcc and clang at -O0 and -O2: passes with the fix, still catches the
+    under-pop without it.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit ebe306becb167937ead4332290868e041d0c08a7
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 08:54:39 2026 -0400
+
+    x86: Fix i386 THISCALL/FASTCALL closure stack-pop accounting
+    
+    For THISCALL and FASTCALL, ffi_closure_inner force-bumps narg_reg to 2
+    when an argument is a 64-bit integer or a struct, so that following
+    integer arguments are placed on the stack (the Issue #434 rule).  The
+    closure return path then computed the callee stack pop as
+    cif->bytes - narg_reg * 4, which discounts register slots that were
+    never used once narg_reg has been forced, under-popping the stack.
+    
+    For example FASTCALL void(uint64_t) has cif->bytes == 8 with the uint64
+    placed on the stack, but the formula yields a pop of 0 instead of 8; a
+    callee-clean call site that does not re-sync ESP from a frame pointer is
+    then left with the argument bytes in place of its return address.
+    
+    Encode the pop as the number of bytes actually consumed from the
+    incoming stack (argp - stack, dir == 1 for these ABIs), which equals the
+    old formula in the non-forced cases and is correct in the forced ones.
+    
+    Adds closure_thiscall_fastcall_pop.c (i386/GNU), which invokes the
+    generated closure through a minimal callee-clean call site and checks
+    ESP is balanced; without this fix the imbalance is 8 (FASTCALL uint64)
+    or 4 (THISCALL this+uint64).
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit a2ef91c79f4f193dd1e828f615c818fb6bcaff0d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 08:20:39 2026 -0400
+
+    aarch64: Fix argument slab under-budget for large by-value structs
+    
+    On AArch64, composites larger than 16 bytes (that are not HFAs) are
+    passed by invisible reference.  ffi_call copies each payload into the
+    argument slab from the top (next_struct_area, growing down) and, once
+    X0-X7 are exhausted, spills the by-ref pointer into the same slab from
+    the bottom (the NSAA, growing up).  The generic prep_cif accounting in
+    cif->bytes only charges the payload copy, not the extra 8-byte pointer
+    slot, so with enough large structs the two regions collide: a later
+    payload copy overwrites an already-spilled pointer, and the callee then
+    receives a corrupt pointer for a by-value argument.
+    
+    Reserve an additional 8 bytes in ffi_prep_cif_machdep for each large
+    by-reference struct argument so the copy and spill regions can never
+    overlap.
+    
+    Adds many_large_structs.c, which passes sixteen 32-byte structs by
+    value; it crashes without this fix and passes with it.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 25283b0d812b6729299a21a1c02433bc291174e9
+Merge: e87b59f5 665c5c00
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 08:22:39 2026 -0400
+
+    Merge pull request #997 from libffi/windows-arm64-ci
+    
+    Add Windows ARM64 (MSVC) CI; fix latent msvcc.sh and testsuite bugs it exposed
+
+commit 665c5c00f2f492e199a1c9e01bda57a82f4440ef
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 07:46:24 2026 -0400
+
+    testsuite: Pass MSVC warning suppressions in go.exp
+    
+    Same latent issue as closure.exp: the Go closure tests ran with no
+    MSVC warning options, so ffitest.h's benign C4005 PRI-macro
+    redefinition warnings count as excess errors.  Latent until the
+    msvcc.sh -E fix let the FFI_GO_CLOSURES feature probe succeed under
+    MSVC; the execution tests themselves pass on both x86 MSVC jobs.
+    Mirror the call.exp/closure.exp warning-suppression block.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 2e897db821a43068e3851a414bd47b2b5592d403
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 07:25:53 2026 -0400
+
+    testsuite: Skip closure_loc_fn0 memcmp check under trampoline tables
+    
+    Now that closure_loc_fn0.c actually executes, it fails on Apple
+    aarch64: with FFI_EXEC_TRAMPOLINE_TABLE, codeloc points at a
+    trampoline table entry rather than a copy of the closure, so the
+    memcmp sanity check is invalid there -- the same reason it is already
+    skipped for static trampolines.  fficonfig.h (included by ffitest.h)
+    provides the macro.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 15b9abc239a1a2f6964a4cfc92f8fb78b3475d37
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 07:19:28 2026 -0400
+
+    ci: Add Windows ARM64 Visual C++ to the MSVC build matrix
+    
+    Build and test on GitHub's windows-11-arm runners.  Cygwin and the
+    amd64_arm64 cross tools (cl, armasm64) are x64-hosted and run under
+    the runner's x64 emulation; the ARM64 binaries they produce execute
+    natively, so the full testsuite runs (784 passes, 0 failures).  This
+    is the first CI coverage for the win64_armasm.S closure trampolines.
+    
+    The matrix entries grow runner/mflag/pkg/rcedit_arch parameters; the
+    existing x86 job names and release artifact names are unchanged.
+    Release tags now also publish ARM64 MSVC binaries
+    (libffi-<ver>-arm64-msvc-binaries).
+    
+    Replaces the temporary winarm64.yml iteration workflow.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit e4435739c82106cf13336bf26da99a03281848a0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 06:58:17 2026 -0400
+
+    testsuite: Actually run closure_loc_fn0; fix msvcc.sh -S
+    
+    closure_loc_fn0.c is the only test in the suite without a dg-do
+    directive, so DejaGnu has been defaulting to its compile-only action
+    on every platform -- the ffi_closure_alloc/ffi_prep_closure_loc path
+    it exists to exercise was never executed.  Add the missing
+    /* { dg-do run } */.
+    
+    The compile-only default also exposed msvcc.sh's broken -S handling:
+    it mapped -S to -FAs alone, which emits a listing but still runs the
+    link step, failing with unresolved externals since compile-only
+    invocations pass no libraries.  Map -S to a true compile-to-assembly:
+    -c -FAs with the listing written to the -o target.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit bf2fa49b6dbe68dac021c02ee3deddb343ec3541
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 06:36:26 2026 -0400
+
+    testsuite: Pass MSVC warning suppressions to closures C tests
+    
+    closure.exp defines additional_options with the same -wd warning
+    suppressions call.exp uses, but only passed them to the C++ tests;
+    the C tests ran with "".  Under MSVC the benign C4005/C4305/C4477
+    warnings then count as excess errors and fail every C test's compile
+    check.  This was latent until the previous commit made the
+    FFI_CLOSURES feature probe work under msvcc.sh, allowing the closures
+    suite to run on MSVC at all.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit c2ace700754b6e63f07efdec39fc8c09ed960d63
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 06:11:00 2026 -0400
+
+    msvcc.sh: Handle -E (preprocess) so DejaGnu feature tests work
+    
+    The testsuite's libffi_feature_test probes compile a snippet with
+    "-E -o <file>" and treat any compiler output as failure.  msvcc.sh
+    had no -E handling: cl's preprocessed text went to stdout, where the
+    awk diagnostics filter passed through every line containing the
+    string "warning" -- including ffi.h's own #pragma warning lines --
+    and cl printed the source file name to stderr.  The probes therefore
+    always failed under msvcc.sh, silently marking the entire closures
+    suite (99 tests) and the bhaible callback tests (80) UNSUPPORTED on
+    every MSVC CI job.
+    
+    Recognize -E, write the preprocessed output to the -o target, and
+    swallow cl's stderr banner so feature probes see clean output.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit e994c8a22d6bc480cd13c9daa2abaedf42627f88
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 05:49:48 2026 -0400
+
+    ci: Add Windows ARM64 Visual C++ job (iteration branch)
+    
+    Build and test libffi on GitHub's windows-11-arm runners using
+    msvcc.sh -marm64 (cl + armasm64 via the amd64_arm64 cross tools,
+    running under x64 emulation; the resulting ARM64 binaries execute
+    natively).  msvcc.sh already understands -marm64.
+    
+    This is a temporary standalone workflow scoped to the
+    windows-arm64-ci branch so the job can be iterated on without
+    triggering the full CI matrix; it will be folded into build.yml
+    once green.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit e87b59f53f3879cb254a4c331fd0d2c221d6ea73
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 05:40:57 2026 -0400
+
+    aarch64: Fix clang-cl link failure for HFA helper functions
+    
+    clang-cl defines both __clang__ and _MSC_VER.  Since the build system
+    detects clang before MSVC, it sets MSVC=0 and builds sysv.S rather
+    than win64_armasm.S.  But ffi.c gated its C implementations of
+    extend_hfa_type and compress_hfa_type on !defined(_MSC_VER), so under
+    clang-cl neither implementation was built and linking failed.
+    
+    Gate on defined(_MSC_VER) && !defined(__clang__) instead: clang-cl
+    supports GCC-style extended inline asm, so the C implementations work
+    there.  Also replace ssize_t (POSIX-only, absent on Windows) with
+    ptrdiff_t in extend_hfa_type now that it compiles for MSVC targets.
+    
+    Fixes #996
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit cacaf519159668bce9fcbab64082bc85c277e89d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Thu Jul 9 21:34:47 2026 -0400
+
+    x86-64: build generic ffi_call_plan fallback on Windows x86-64
+    
+    The ffi_call_plan_* API has two providers: the accelerated x86-64 SysV
+    implementation in src/x86/ffi64.c, and the portable fallback in
+    src/prep_cif.c that just wraps ffi_call.  ffi64.c is not compiled for
+    X86_WIN64 (that target builds ffiw64.c/win64.S instead), but clang-cl
+    and MSYS/mingw both define __x86_64__, so prep_cif.c's guard suppressed
+    the fallback too -- leaving ffi_call_plan_alloc/invoke/free undefined at
+    link time on those toolchains.  MSVC cl escaped this only because it does
+    not define __x86_64__.
+    
+    Suppress the generic fallback only when ffi64.c actually provides the
+    functions, i.e. add && !defined(X86_WIN64) to the guard.  X86_WIN64 is a
+    command-line define visible to the generic sources (cf. src/closures.c).
+    
+    Fixes #995.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit c2c2e538c7c5403bd4edc3e77220bbe25a3ad47f
+Merge: 132fb82f 7c3144c8
+Author: Anthony Green <green@moxielogic.com>
+Date:   Thu Jul 9 09:10:49 2026 -0400
+
+    Merge pull request #994 from libffi/fix-993-aarch64-darwin-int128
+    
+    aarch64: Don't split an int128 between x7 and the stack on Darwin
+
+commit 7c3144c80d8077b745588ee64bffd8504c44f5c9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 21:23:31 2026 -0400
+
+    aarch64: Don't split an int128 between x7 and the stack on Darwin
+    
+    The Apple arm64 ABI does not round NGRN up to an even number for
+    128-bit integer arguments, but like AAPCS64 it still requires the
+    value to fit entirely in registers: if only x7 remains, the whole
+    value goes on the stack.  allocate_int128_to_reg_or_stack only
+    checked ngrn < 8, so with ngrn == 7 it wrote the low half to x7
+    and the high half past the end of the register array, while the
+    callee reads the argument from the stack.
+    
+    This fixes the libffi.call/i128-1.c failure at iteration 7 (seven
+    int args followed by an __int128) on aarch64-darwin, for both the
+    call and closure paths.
+    
+    Fixes #993
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 132fb82ff4b43c9b8eaeeb533f38c95ae925131c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 07:40:34 2026 -0400
+
+    Update libtool version to 12:0:4 for 3.7.0
+    
+    3.7.0 adds three new public interfaces (ffi_call_plan_alloc,
+    ffi_call_plan_invoke, ffi_call_plan_free) additively, with no
+    existing interface removed or changed.  Per the libtool rules:
+    increment current, reset revision, increment age (11:1:3 -> 12:0:4).
+    This keeps the change ABI backward-compatible; the soname stays
+    libffi.so.8 (current - age = 8).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 0ad8fd46c0a32cbbf18260c72cc60679da66c89f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:43:03 2026 -0400
+
+    Prepare for 3.7.0
+
+commit c9275302baf0d109ec474972d4679a6afe8fe64d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:29:29 2026 -0400
+
+    Bump version to 3.7.0
+    
+    Set AC_INIT to 3.7.0 and update the manual's edition/version/date
+    stamps to match.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 4f7ef24565eb60e8a093bfeba0bb77d5c576c311
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:28:30 2026 -0400
+
+    Update copyright year
+    
+    Bump the LICENSE year range to 2026.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 5ab7b328c3adde14105b1f36ae30adc9cdefae0a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:24:26 2026 -0400
+
+    Add Anthony Green copyright line for 2026 authorship
+    
+    Attribute this year's work in the wasm and PA backends and the darwin
+    PowerPC closure code:
+      - wasm/ffi.c: widen narrow/unboxed returns to ffi_arg; NULL rvalue.
+      - pa/ffi.c: bump year (5-8 byte struct slot-sizing fix + avalue copy).
+      - powerpc/ffi_darwin.c: PPC_LD_* jump-table indexes for the aix/darwin
+        closure build fix.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 5e334c6aa70b937b5c0d30ba10a373e34d7526b6
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:17:58 2026 -0400
+
+    x86-64: add copyright line for the 2026 unix64.S plan trampolines
+    
+    The fast-path plan trampoline (ffi_plan_fast_call) and the pure-GP64
+    direct thunks (ffi_plan_gp0..6) were added to unix64.S this year, so
+    add an Anthony Green copyright line alongside the original authors'.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 70106b98d0a333a13b509b4bdc554018785be50c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 06:15:53 2026 -0400
+
+    Update copyright year to 2026
+    
+    Add 2026 to the copyright line on the source files, headers and the
+    manual touched during this year's development.  Following existing
+    practice, only the maintainer's own copyright line is bumped (the
+    Anthony Green line, plus the Red Hat line in types.c); the years on
+    third-party-held backends are left as their original authors set them.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 621874d6726007a6470b9c0c90b5a27c3c3ed932
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Jul 8 05:43:18 2026 -0400
+
+    configure: derive FFI_VERSION_STRING/NUMBER from AC_INIT
+    
+    The 3.6.0 release bumped AC_INIT but left FFI_VERSION_STRING and
+    FFI_VERSION_NUMBER at 3.5.2/30502, so the released headers report the
+    wrong version.  Compute both from AC_PACKAGE_VERSION instead of
+    duplicating the version by hand: the string is the package version
+    verbatim, and the number encodes X.Y.Z as X*10000 + Y*100 + Z with any
+    non-numeric suffix (e.g. -rc0) ignored.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit b8c60b06597cc77cbe66bd208083acc20251fae0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 12:57:06 2026 -0400
+
+    README: note the ffi_call fixes in the 3.7.0 history
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit ed5da041796cd6e38d2f30b948eadf63cf96139a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 12:30:56 2026 -0400
+
+    wasm: don't widen unboxed small-struct returns
+    
+    The previous commit widened narrow integral returns to ffi_arg, but
+    unbox_small_structs had already collapsed single-member struct returns
+    into those same scalar type ids, and a struct return is stored at its
+    natural size -- the caller's buffer is exactly the struct.  This broke
+    cls_1_1byte and the bhaible small-struct return tests.
+    
+    Remember whether the original return type was a struct and widen only
+    genuine scalar returns.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 59a9e68e59205da9c4db854dd1f1bce4e8b58dad
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 12:02:20 2026 -0400
+
+    wasm: widen narrow integral returns to ffi_arg
+    
+    The return store wrote only the natural width for integer returns
+    narrower than a register (one byte for U8/S8, two for U16/S16, four on
+    wasm64 for 32-bit types), leaving the rest of the caller's ffi_arg
+    buffer as stack garbage.  The documented API widens such returns to a
+    full ffi_arg, and every native port stores the full register width.
+    This is what plan_mixed.c caught: two identical calls disagreed in the
+    garbage bytes of their ffi_arg results.
+    
+    Mask or sign-extend the JS result explicitly and store a full ffi_arg
+    (32 bits on wasm32, 64 on wasm64).
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 6954bd1715b8a5895adfad7c2196d4eb41094dc7
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 11:30:55 2026 -0400
+
+    testsuite: use ffi_arg for the integral return in plan.c
+    
+    The struct-argument block stored an ffi_type_slong return into a plain
+    long.  Integral returns narrower than a register are widened to
+    ffi_arg, so on LLP64 targets libffi writes 8 bytes into the 4-byte
+    variable and clobbers its neighbor; this is what broke plan.c on MSVC
+    Win64 while mingw survived by stack-layout luck.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 822d2e555fd97271c7c0ba8b6325cf4b541e3e9c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 11:30:55 2026 -0400
+
+    Allow a NULL rvalue in ffi_call; handle it in the wasm port
+    
+    Most ports already quietly supported calling with rvalue == NULL by
+    substituting scratch space for in-memory returns, and the new plan
+    tests rely on it, but the manual never promised it and the wasm port
+    passed NULL straight to the callee as the return-by-argument pointer,
+    writing the result through address zero.
+    
+    Document NULL rvalue as supported for any return type, and in the wasm
+    port allocate stack scratch for return-by-argument callees and skip the
+    store-back for scalar returns when rvalue is NULL.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 110156e1cceab76b4440ced9d95b5abaa84f30f7
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 11:30:55 2026 -0400
+
+    ffi_call: never modify the caller's avalue array
+    
+    Eight ports made large struct arguments pass-by-value by alloca'ing a
+    copy inside ffi_call and writing the copy's address back into the
+    caller's avalue[].  Those pointers dangle as soon as ffi_call returns,
+    so any caller that legally reuses its avalue array for a second call
+    reads dead stack.  The new ffi_call_plan equivalence tests do exactly
+    that and exposed it as plan_struct.c failures on hppa, MSVC Win64 and
+    macOS x86_64 under Rosetta; other targets passed only because the dead
+    copy usually survives between back-to-back calls.
+    
+    Clone the pointer array once, on the first argument that needs a copy,
+    and redirect the clone instead.  Document that ffi_call leaves the
+    caller's vector untouched.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit e3dae4657710a9ddd4eb4bdbefbcc73722aad9fe
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 09:18:31 2026 -0400
+
+    testsuite: add ffi_call_plan equivalence tests; fix EXTRA_DIST gaps
+    
+    Add plan.c, plan_mixed.c, plan_spill.c, plan_struct.c and plan_var.c.
+    Each builds a reusable call plan (ffi_call_plan_alloc/invoke/free) and
+    checks it against ffi_call across the x86-64 argument-placement matrix:
+    the pure-GP64 direct thunks, the mixed GP+SSE fast path, stack-spilled
+    arguments, struct returns (in-memory including a NULL rvalue, and the
+    register pair), a struct-by-value argument that falls back to ffi_call,
+    and variadic calls.  On targets without the accelerated backend the
+    generic plan simply wraps ffi_call, so the tests still pass there.
+    
+    While adding these to EXTRA_DIST, register four existing tests that were
+    never listed (i128-1.c, large_struct_by_value.c, many_small_structs.c
+    and complex_i128.c).  They ran via the .exp globs but were missing from
+    distribution tarballs.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit a40ab3a7e85f8c9b193b8a442297bb20de2b4293
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 08:19:33 2026 -0400
+
+    README: update 3.7.0 history entry
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 50baa0458db6b2d617e0d661292bbf12354b22ce
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 08:10:29 2026 -0400
+
+    x86_64: size closure argument buffer to match copy loop
+    
+    ffi_closure_unix64_inner allocated a fixed 16 bytes when gathering a
+    register-passed argument's eightbytes, but the copy loop writes n * 8
+    bytes and examine_argument can classify up to MAX_CLASSES (4)
+    eightbytes for vector-classified types.  Allocate n * 8 bytes so the
+    buffer always matches the loop bound.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit ff30d37615f82ef7bf1130b34528e01e1479b63d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 08:10:29 2026 -0400
+
+    tramp.c: bound sscanf path field when parsing /proc/self/maps
+    
+    The %s conversion into file[PATH_MAX] was unbounded while the input
+    line buffer is PATH_MAX+100 bytes, so a mapping with a very long
+    pathname could overflow the destination.  Give the conversion an
+    explicit PATH_MAX field width and size the buffer PATH_MAX+1 to
+    accommodate the terminating NUL.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit ed1844e6b50d0498d2b88d1b3ef31cc39b6cf117
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 08:10:29 2026 -0400
+
+    .gitignore: ignore local build and scan artifact directories
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+commit 854df63dbbda802985facbfab7a0e7c4169aefd1
+Merge: 2a595a18 731ec08f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 7 08:06:25 2026 -0400
+
+    Merge pull request #991 from rorth/freebsd-libffi-note-gnu-stack
+    
+    Include .note.GNU-stack on FreeBSD/x86
+
+commit 731ec08f3c3bbec883d823a71f1b0f86731cf312
+Author: Rainer Orth <ro@CeBiTec.Uni-Bielefeld.DE>
+Date:   Tue Jul 7 11:14:09 2026 +0200
+
+    Fix typo.
+
+commit 19cc1424e924767c7ca43f9e4d4c27fbae27d1d9
+Author: Rainer Orth <ro@CeBiTec.Uni-Bielefeld.DE>
+Date:   Tue Jul 7 10:27:55 2026 +0200
+
+    Include .note.GNU-stack on FreeBSD/x86
+    
+    When building libffi on FreeBSD/x86 with --disable-shared as is done inside
+    the GCC tree, all tests FAIL when using GNU ld:
+    
+    gld-2.46: warning: win64.o: missing .note.GNU-stack section implies executable stack
+    gld-2.46: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
+    
+    The emission of .note.GNU-stack in src/x86/*.S is currently guarded by
+    __ELF__ && __linux__, but FreeBSD/x86 uses that NOTE section, too.  This
+    doesn't happen with libffi.so which lacks that NOTE.
+    
+    Therefore this patch extends the emission accordingly.
+    
+    Tested on amd64-pc-freebsd15.1 with and without --disable-shared.
+
+commit 2a595a183be146974bdf55716969e7a3e860f112
+Merge: c93f9428 f7b36640
+Author: Anthony Green <green@moxielogic.com>
+Date:   Thu Jul 2 20:03:30 2026 -0400
+
+    Merge pull request #989 from rvandermeulen/dlmalloc-msvc-lock-cast
+    
+    dlmalloc: cast Win32 spin-lock word to LONG volatile* in CAS_LOCK/CLEAR_LOCK
+
+commit f7b36640544a59813ee372ed1a763affe7a67562
+Author: Ryan VanderMeulen <rvandermeulen@mozilla.com>
+Date:   Thu Jul 2 19:32:00 2026 -0400
+
+    dlmalloc: cast Win32 spin-lock word to LONG volatile* in CAS_LOCK/CLEAR_LOCK
+    
+    MLOCK_T is int, but on the Win32 MSC path CAS_LOCK/CLEAR_LOCK map to
+    _InterlockedExchange(LONG volatile *, LONG), so the int* lock word is
+    passed to a LONG volatile * parameter. clang 22 promotes
+    -Wincompatible-pointer-types to an error by default, which breaks the
+    clang-cl build (32- and 64-bit) with:
+    
+      error: incompatible pointer types passing 'int *' to parameter of type
+      'volatile long *' [-Wincompatible-pointer-types]
+    
+    Cast to (LONG volatile *), matching what the ffi_spin_peek macro just
+    below already does in its _MSC_VER branch. LONG and int are both 32-bit
+    on Windows, so this is a type-correctness fix with no behavioral change.
+
+commit c93f9428d17cde4eb35517b58feeae6fb43aba5b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Jun 22 17:33:33 2026 -0400
+
+    testsuite: link threads tests against libpthread on NetBSD
+    
+    The libffi.threads/tsan.c test calls pthread_create but the harness
+    only appended -lpthread for OpenBSD, FreeBSD, and some Linux targets.
+    On NetBSD this caused an undefined reference to pthread_create.
+    
+    Fixes #988
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 9ca53a19833dabaf80b73763638ab988bdbc42cc
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 18:42:37 2026 -0400
+
+    powerpc: fix aix/darwin closure build errors
+    
+    unbuildable: the PPC_LD_* jump-table indexes (defined in ffi_powerpc.h,
+    which this file cannot include) were missing, and the closure helper
+    functions still declared an ffi_type* return type inconsistent with the
+    PPC_LD_* constants they now return.
+    
+    Define the PPC_LD_* constants locally and change the closure helper
+    return types to int.
+    
+    Fixes #987
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 807a93115f927229f6e7cf5675384e8dc2bf76d5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 18:31:12 2026 -0400
+
+    doc: mark the 3.7.0 release date as TBD
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit c876d4663183c40edbe5218603a26290900e7794
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 18:28:12 2026 -0400
+
+    doc: add 3.7.0 history entry
+    
+    Record the next release (3.7.0, a minor bump for the new reusable call-plan API
+    on master) and the two PA-RISC fixes merged in #986.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit c3e054afebb2d9121ff4d12a56a803eecc31cc41
+Merge: 3cc6beb7 1f04d458
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 18:13:59 2026 -0400
+
+    Merge pull request #986 from libffi/ci-enable-parisc-regression
+    
+    Add PA32/ARCompact struct-by-value regression tests; enable hppa CI
+
+commit 1f04d458126bd79c58196073477515c88de8163d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 17:37:26 2026 -0400
+
+    pa: fix stack sizing for 5-8 byte structs passed by value (FFI_PA32)
+    
+    ffi_size_stack_pa32 reserved a single stack slot for every struct argument,
+    but ffi_prep_args_pa32 passes a 5-8 byte struct inline in two even-aligned
+    slots (like a 64-bit value).  With enough such arguments the marshaller's slot
+    count outgrew cif->bytes and it wrote past the allocated frame -- below sp and
+    over ffi_call_pa32's saved return pointer -- corrupting the call.
+    
+    Make the sizing mirror the marshalling exactly: 1-4 byte structs take one slot,
+    5-8 byte structs take "2 + (z & 1)" slots (z stays offset from the marshaller's
+    slot by the odd FIRST_ARG_SLOT, so the parity matches), and larger structs are
+    passed by pointer in one slot.  Split the PA_HPUX long double case out since it
+    is passed by pointer.
+    
+    Fixes the failure exercised by testsuite/libffi.call/many_small_structs.c.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit cf45dfc368ea7373fdd946603845782dbcc1549a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 16:57:56 2026 -0400
+
+    testsuite: make many_small_structs actually trigger the PA32 overflow
+    
+    With only 16 structs the PA-RISC slot under-count overflows ~32 bytes below
+    sp, landing in the 64-byte register save area where it clobbers nothing live,
+    so the call still returned correctly and the test passed under qemu.
+    
+    Raise the count to 40 so the marshaller's writes sweep past the save area and
+    over ffi_call_pa32's saved return pointer (sp-20), corrupting the return path.
+    On a correct backend the arguments still marshal within the allocated frame and
+    the call returns the expected sums; the test now fails only on an unfixed
+    FFI_PA32.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit d55de2637abd9518d550d18a3e1d89a37bd32f47
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 16:39:30 2026 -0400
+
+    pa: fix build broken by the int128 generic types
+    
+    FFI_TYPE_UINT128/FFI_TYPE_SINT128 were added after FFI_TYPE_COMPLEX, moving
+    FFI_TYPE_LAST to FFI_TYPE_SINT128.  The PA-RISC tripwire still pinned
+    FFI_PA_TYPE_LAST to FFI_TYPE_COMPLEX, so "#error You likely have broken jump
+    tables" fired and PA-RISC stopped building once int128 support landed.
+    
+    ffi_prep_cif_machdep maps every return type it does not handle explicitly --
+    including FFI_TYPE_COMPLEX and the 128-bit integer types -- to FFI_TYPE_INT via
+    its default case, so cif->flags never exceeds FFI_TYPE_COMPLEX and the linux.S /
+    hpux32.S return-value jump tables remain sufficient.  Bump FFI_PA_TYPE_LAST to
+    FFI_TYPE_SINT128 to clear the tripwire, with a comment recording why no table
+    entries were needed.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit d7177f2db574c962b4366b1948b7f7e1aaf896c2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 16:26:53 2026 -0400
+
+    ci: run the testsuite on PA-RISC 32-bit (hppa) under qemu-user
+    
+    Add an hppa-linux-gnu entry to the build-cross-qemu matrix so the testsuite is
+    cross-compiled with the Debian gcc-hppa-linux-gnu toolchain and run under
+    qemu-user (binfmt).  hppa-linux uses FFI_PA32, so this exercises the
+    ffi_prep_args_pa32 / ffi_size_stack_pa32 marshalling path and will surface the
+    many_small_structs.c regression until the backend is fixed.
+    
+    Also drop the stale g++-5-hppa-linux-gnu pin from install.sh; the toolchain and
+    qemu-user-static now come from the CROSS_QEMU block.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit a384cba94f3935ac54a38f7c6489b6fbe0488c8c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jun 21 16:26:21 2026 -0400
+
+    testsuite: add struct-by-value regression tests for PA32 and ARCompact
+    
+    Two ffi_call tests covering argument-marshalling defects found by a security
+    review of the backends:
+    
+    * many_small_structs.c -- passes sixteen 8-byte structs by value.  On
+      PA-RISC 32-bit (FFI_PA32), ffi_size_stack_pa32 reserves one stack slot per
+      struct while ffi_prep_args_pa32 consumes two slots for a 5-8 byte struct
+      passed inline, so enough such args write past the asm-allocated frame.
+    
+    * large_struct_by_value.c -- passes one 64-byte struct by value.  On
+      ARCompact (FFI_ARCOMPACT), ffi_call_int sizes the stack arg area at two
+      words per argument, but a by-value struct is marshalled one word at a time
+      and words beyond the eight argument registers are written to that
+      under-sized area without bound.
+    
+    Both are written as ordinary correctness tests (valid CIFs, asserts on the
+    expected sums); they pass on unaffected targets and fail on PA32/ARCompact
+    until the backends are fixed.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 3cc6beb7d404e12d3458461d76557b79795816ff
+Author: Anthony Green <anthony@atgreen.org>
+Date:   Sun Jun 21 09:47:10 2026 -0400
+
+    x86-64: replace the transparent plan cache with an explicit ffi_call_plan API
+    
+    The transparent plan cache sped up ffi_call and closures by caching a
+    precomputed argument-placement plan per signature, but it charged every
+    call a cache lookup and content fingerprint, and it slightly regressed
+    signatures with no fast path (struct-by-value) that paid the key
+    computation only to find there was nothing to do.
+    
+    Replace it with an opt-in API.  ffi_call_plan_alloc builds a plan from a
+    prepared cif, ffi_call_plan_invoke applies it with no per-call lookup,
+    and ffi_call_plan_free releases it.  The plan is opaque and caller-owned,
+    immutable once built (so it may be shared across threads), and falls back
+    to ffi_call for signatures with no fast path.  ffi_call and the closure
+    path return to their original behaviour, so callers that don't adopt the
+    API pay nothing.
+    
+    The x86-64 backend provides an accelerated plan; every other target gets
+    a portable fallback in prep_cif.c that wraps ffi_call, so the symbols are
+    defined on all platforms.  The per-thread cache, content fingerprint,
+    thread-exit cleanup and closure demarshal layout are removed.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 0c8f175eb650bb204b679996696b3e7706505d8f
+Author: Anthony Green <anthony@atgreen.org>
+Date:   Sun Jun 21 08:18:14 2026 -0400
+
+    x86-64: trim the plan-cache fingerprint to the arg_types contents
+    
+    abi, nargs and rtype are stored in the slot and compared exactly on every
+    hit, so folding them into the fingerprint is redundant work on the hot
+    path.  Hashing only the arg_types element pointers keeps the same collision
+    behaviour and the same protection against a reused arg_types address, while
+    shortening the per-call hash and speeding up the all-pointer thunk path.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 7b8c3283351298c55d09f580414ab937f358156c
+Merge: d4995b5b f1e21329
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 19:48:22 2026 -0400
+
+    Merge pull request #985 from libffi/plan-cache-fingerprint
+    
+    x86-64: content-based plan-cache key and thread-exit cleanup
+
+commit f1e2132940880128e26b885ee956e76fe3cad2d8
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 19:46:50 2026 -0400
+
+    x86-64: content-based plan-cache key and thread-exit cleanup
+    
+    Follow-up to the plan cache (PR #984), addressing two issues.
+    
+    Content key: the cache keyed slots on the abi/nargs/rtype plus the arg_types
+    *array pointer*.  If a cif's arg_types array was freed and the address later
+    reused for a different signature with the same abi/nargs/rtype, the keys
+    collided and a stale plan could be returned.  Key on a 64-bit fingerprint that
+    folds in the element ffi_type pointers, so distinct argument types always get
+    distinct keys.  Lookup is now O(nargs) cheap pointer reads -- still far less
+    than re-classifying the call.
+    
+    Thread-exit cleanup: the per-thread cache leaked its malloc'd plans when a
+    thread exited.  Register a pthread key whose destructor frees the thread's
+    plans.  pthread is referenced via weak symbols, so a program that never links
+    pthread simply skips the registration (the cache is already bounded per thread).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit d4995b5bff6e5ecefb46eda218c40717f895baaf
+Merge: 918ca8ed de3826a8
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 18:43:14 2026 -0400
+
+    Merge pull request #984 from libffi/fast-libffi-plan
+    
+    x86-64: transparent plan cache for ffi_call and closures
+
+commit de3826a8063fde113ee8d1e455d459038d5814cc
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 18:14:08 2026 -0400
+
+    x86-64: limit the plan cache to the SysV ABI
+    
+    The Win64/EFI64 plan path failed an MSVC execution test (libffi.call/float3)
+    that can't be reproduced or validated without a Windows toolchain.  Revert
+    ffiw64.c to the proven upstream implementation and build plans only for
+    FFI_UNIX64, leaving Win64/EFI64/GNUW64 on the existing path.  The SysV fast
+    path -- the bulk of the speedup -- is unaffected.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit fdbf8deaf297b308731385f91868ea8b5e7dbd21
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 17:59:54 2026 -0400
+
+    x86-64: fix Windows build of the plan cache
+    
+    Native Windows targets build only ffiw64.c + win64.S for the x86 backend;
+    ffi64.c (which instantiates the plan-cache storage and ffi_build_plan_arch)
+    is not compiled, so ffiw64.c's ffi_plan_get left ffi_plan_miss / ffi_plan_cache
+    unresolved at link time.  Instantiate the cache in ffiw64.c when X86_WIN64 is
+    defined (i.e. when ffi64.c is absent); on Unix x86-64 ffi64.c still does it and
+    X86_WIN64 is undefined, so there is no duplicate definition.
+    
+    Also use a portable thread-local qualifier (FFI_TLS: __declspec(thread) on
+    MSVC, __thread elsewhere).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 872365e143c521b4a84f712aa60f4e638a8b8053
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 17:25:17 2026 -0400
+
+    x86-64: reword plan-cache comments to be self-contained
+    
+    Drop the in-development "Mechanism A" label and the stale references to the
+    earlier opt-in arena/slab storage, so the comments describe the cache as it
+    now stands.  No functional change.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit c4c9750c37868f26d1ce914592ca826e4ffc0b35
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 13:10:18 2026 -0400
+
+    x86-64: transparent plan cache for ffi_call and closures
+    
+    Precompute each signature's argument placement once and cache it, keyed on
+    (abi, nargs, rtype, arg_types) in a per-thread direct-mapped cache, so ffi_call
+    and closures skip the per-call ABI classification.  No API or ABI change --
+    every caller benefits transparently on a relink.
+    
+      - Cache: src/plan-cache.h (inline O(1) probe) + src/plan-cache-impl.h
+        (per-thread storage, evict-and-free, FFI_PLAN_NONE for non-plan-able sigs).
+      - SysV (ffi64.c, unix64.S): pure-GP64 direct thunks (avalue -> arg regs), a
+        lean trampoline for register-only calls, and a plan executor reusing
+        ffi_call_unix64; closures use a precomputed demarshal layout.  CFI on the
+        thunks/trampoline so exceptions unwind through them.
+      - Win64/EFI64 (ffiw64.c): plan executor + demarshal.
+      - W^X preserved: no runtime codegen; thunks shipped in .text.
+    
+    Scalar/pointer/int128/float/double args are accelerated; struct/complex/x87
+    args fall back to the existing path.  Pointer-heavy calls ~5x faster.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 918ca8edddbf542d9034d8e58931edfea036ecca
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Jun 20 12:34:46 2026 -0400
+
+    ci: actually zip the MSVC binaries before the release upload
+    
+    The MSVC 'Create binary distribution' step builds a *directory*
+    (libffi-<ver>-x86-<width>bit-msvc-binaries/), but 'Upload to GitHub Release'
+    pointed softprops/action-gh-release at a .zip file that was never created.  With
+    no matching file the action just warns and succeeds, so on the v3.6.0 tag the
+    step reported success while attaching nothing.
+    
+    Add a pwsh Compress-Archive step to produce the .zip (contents at top level, like
+    the upload-artifact layout), and set fail_on_unmatched_files: true so a missing
+    file fails the step loudly instead of silently passing.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
 commit f6303b8b0dd6353c6a5bb4de2e855a13b86f22cf
 Author: Anthony Green <green@moxielogic.com>
 Date:   Sat Jun 20 09:54:12 2026 -0400
