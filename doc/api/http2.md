@@ -2732,6 +2732,10 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64493
+    description: The event is emitted when a custom `ALPNCallback` selects an
+                 unsupported protocol.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: This event will only be emitted if the client did not transmit
@@ -2750,9 +2754,12 @@ In earlier versions of Node.js, this event would be emitted if `allowHTTP1` is
 `false` and, during the TLS handshake, the client either does not send an ALPN
 extension or sends an ALPN extension that does not include HTTP/2 (`h2`). Newer
 versions of Node.js only emit this event if `allowHTTP1` is `false` and the
-client does not send an ALPN extension. If the client sends an ALPN extension
-that does not include HTTP/2 (or HTTP/1.1 if `allowHTTP1` is `true`), the TLS
-handshake will fail and no secure connection will be established.
+client does not send an ALPN extension. The event is also emitted when a custom
+`ALPNCallback` selects a protocol other than `h2` (or `http/1.1` when
+`allowHTTP1` is `true`). With the default ALPN configuration, if the client
+sends an ALPN extension that does not include HTTP/2 (or HTTP/1.1 if
+`allowHTTP1` is `true`), the TLS handshake will fail and no secure connection
+will be established.
 
 See the [Compatibility API][].
 
