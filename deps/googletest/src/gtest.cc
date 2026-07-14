@@ -6732,6 +6732,12 @@ static const char kColorEncodedHelpMessage[] =
     "recreate_environments_when_repeating@D\n"
     "      Sets up and tears down the global test environment on each repeat\n"
     "      of the test.\n"
+    "  @G--" GTEST_FLAG_PREFIX_
+    "fail_fast@D\n"
+    "      Stop running tests after the first failure.\n"
+    "  @G--" GTEST_FLAG_PREFIX_
+    "fail_if_no_test_linked@D\n"
+    "      Fail if no test is linked into the test program.\n"
     "\n"
     "Test Output:\n"
     "  @G--" GTEST_FLAG_PREFIX_
@@ -6743,6 +6749,9 @@ static const char kColorEncodedHelpMessage[] =
     "  @G--" GTEST_FLAG_PREFIX_
     "print_time=0@D\n"
     "      Don't print the elapsed time of each test.\n"
+    "  @G--" GTEST_FLAG_PREFIX_
+    "print_utf8=0@D\n"
+    "      Don't print UTF-8 characters as text.\n"
     "  @G--" GTEST_FLAG_PREFIX_
     "output=@Y(@Gjson@Y|@Gxml@Y)[@G:@YDIRECTORY_PATH@G" GTEST_PATH_SEP_
     "@Y|@G:@YFILE_PATH]@D\n"
@@ -6760,6 +6769,9 @@ static const char kColorEncodedHelpMessage[] =
     "  @G--" GTEST_FLAG_PREFIX_
     "death_test_style=@Y(@Gfast@Y|@Gthreadsafe@Y)@D\n"
     "      Set the default death test style.\n"
+    "  @G--" GTEST_FLAG_PREFIX_
+    "death_test_use_fork@D\n"
+    "      Use fork() instead of clone() to spawn death test child processes.\n"
 #endif  // GTEST_HAS_DEATH_TEST && !GTEST_OS_WINDOWS
     "  @G--" GTEST_FLAG_PREFIX_
     "break_on_failure@D\n"
@@ -6772,6 +6784,9 @@ static const char kColorEncodedHelpMessage[] =
     "catch_exceptions=0@D\n"
     "      Do not report exceptions as test failures. Instead, allow them\n"
     "      to crash the program or throw a pop-up (on Windows).\n"
+    "  @G--" GTEST_FLAG_PREFIX_
+    "stack_trace_depth=@Y[NUMBER]@D\n"
+    "      Maximum number of stack frames to print when an assertion fails.\n"
     "\n"
     "Except for @G--" GTEST_FLAG_PREFIX_
     "list_tests@D, you can alternatively set "
