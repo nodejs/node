@@ -25,4 +25,6 @@ async function run({ useColors }) {
   replServer.close();
 }
 
-run({ useColors: true }).then(() => run({ useColors: false }));
+run({ useColors: true })
+  .then(() => run({ useColors: false }))
+  .then(common.mustCall());

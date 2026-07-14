@@ -1,5 +1,6 @@
 // Flags: --expose-gc
 
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { startNewREPLServer } from '../common/repl.js';
 
