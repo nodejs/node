@@ -2314,7 +2314,7 @@ The certificates will be deduplicated before being set as the default.
 
 This function only affects the current Node.js thread. Previous
 sessions cached by the HTTPS agent won't be affected by this change, so
-this method should be called before any unwanted cachable TLS connections are
+this method should be called before any unwanted cacheable TLS connections are
 made.
 
 To use system CA certificates as the default:
