@@ -56,3 +56,23 @@ function test() {
     s.close();
   }));
 }
+
+for (const falsy of [null, 0, false, '']) {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.statusMessage = falsy;
+    res.end('');
+  }));
+
+  server.listen(0, common.mustCall(function() {
+    const client = net.connect(this.address().port, () => {
+      client.write('GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n');
+    });
+    const bufs = [];
+    client.on('data', (chunk) => bufs.push(chunk));
+    client.on('end', common.mustCall(() => {
+      const head = Buffer.concat(bufs).toString('latin1').split('\r\n')[0];
+      assert.strictEqual(head, 'HTTP/1.1 200 OK');
+      server.close();
+    }));
+  }));
+}
