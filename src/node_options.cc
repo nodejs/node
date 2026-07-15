@@ -606,6 +606,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
             HAVE_SQLITE);
+  AddOption("--experimental-kvstore",
+            "experimental node:kvstore module",
+            &EnvironmentOptions::experimental_kvstore,
+            kAllowedInEnvvar,
+            HAVE_SQLITE);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,

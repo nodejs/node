@@ -70,6 +70,7 @@ const hasCrypto = Boolean(process.versions.openssl) &&
 
 const hasInspector = Boolean(process.features.inspector);
 const hasSQLite = Boolean(process.versions.sqlite);
+const hasKVStore = hasSQLite;
 const hasFFI = Boolean(process.config.variables.node_use_ffi);
 
 const hasDtls = hasCrypto && !!process.features.dtls;
@@ -763,6 +764,12 @@ function skipIfSQLiteMissing() {
   }
 }
 
+function skipIfKVStoreMissing() {
+  if (!hasKVStore) {
+    skip('missing KVStore (requires SQLite)');
+  }
+}
+
 function skipIfFFIMissing() {
   if (!hasFFI) {
     skip('missing FFI');
@@ -1011,6 +1018,7 @@ const common = {
   hasQuic,
   hasInspector,
   hasSQLite,
+  hasKVStore,
   hasFFI,
   hasLocalStorage,
   invalidArgTypeHelper,
@@ -1047,6 +1055,7 @@ const common = {
   skipIfInspectorDisabled,
   skipIfFFIMissing,
   skipIfSQLiteMissing,
+  skipIfKVStoreMissing,
   spawnPromisified,
   sleepSync,
   usesSharedLibrary,
