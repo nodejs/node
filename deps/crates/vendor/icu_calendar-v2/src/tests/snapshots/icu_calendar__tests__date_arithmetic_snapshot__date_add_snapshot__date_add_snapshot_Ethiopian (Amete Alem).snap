@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(7515-4-23, aa era, for calendar Ethiopian (Amete Alem)))
+    +10d → Date(7515-5-3, aa era, for calendar Ethiopian (Amete Alem))
+    +2m → Date(7515-6-23, aa era, for calendar Ethiopian (Amete Alem))
+    +1y → Date(7516-4-23, aa era, for calendar Ethiopian (Amete Alem))
+    +1y 3m 15d → Date(7516-8-8, aa era, for calendar Ethiopian (Amete Alem))
+
+2024-6-15
+  (start: Date(7516-10-8, aa era, for calendar Ethiopian (Amete Alem)))
+    +10d → Date(7516-10-18, aa era, for calendar Ethiopian (Amete Alem))
+    +2m → Date(7516-12-8, aa era, for calendar Ethiopian (Amete Alem))
+    +1y → Date(7517-10-8, aa era, for calendar Ethiopian (Amete Alem))
+    +1y 3m 15d → Date(7518-1-15, aa era, for calendar Ethiopian (Amete Alem))
+
+2025-12-31
+  (start: Date(7518-4-22, aa era, for calendar Ethiopian (Amete Alem)))
+    +10d → Date(7518-5-2, aa era, for calendar Ethiopian (Amete Alem))
+    +2m → Date(7518-6-22, aa era, for calendar Ethiopian (Amete Alem))
+    +1y → Date(7519-4-22, aa era, for calendar Ethiopian (Amete Alem))
+    +1y 3m 15d → Date(7519-8-7, aa era, for calendar Ethiopian (Amete Alem))
