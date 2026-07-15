@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(1739-4-23, am era, for calendar Coptic))
+    +10d → Date(1739-5-3, am era, for calendar Coptic)
+    +2m → Date(1739-6-23, am era, for calendar Coptic)
+    +1y → Date(1740-4-23, am era, for calendar Coptic)
+    +1y 3m 15d → Date(1740-8-8, am era, for calendar Coptic)
+
+2024-6-15
+  (start: Date(1740-10-8, am era, for calendar Coptic))
+    +10d → Date(1740-10-18, am era, for calendar Coptic)
+    +2m → Date(1740-12-8, am era, for calendar Coptic)
+    +1y → Date(1741-10-8, am era, for calendar Coptic)
+    +1y 3m 15d → Date(1742-1-15, am era, for calendar Coptic)
+
+2025-12-31
+  (start: Date(1742-4-22, am era, for calendar Coptic))
+    +10d → Date(1742-5-2, am era, for calendar Coptic)
+    +2m → Date(1742-6-22, am era, for calendar Coptic)
+    +1y → Date(1743-4-22, am era, for calendar Coptic)
+    +1y 3m 15d → Date(1743-8-7, am era, for calendar Coptic)
