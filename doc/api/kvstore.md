@@ -156,6 +156,28 @@ added: v27.0.0
 
 Deletes every key in the database.
 
+```mjs
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+kv.set('a', 1);
+kv.set('b', 2);
+kv.clear();
+console.log(kv.get('a').value); // null
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+kv.set('a', 1);
+kv.set('b', 2);
+kv.clear();
+console.log(kv.get('a').value); // null
+kv.close();
+```
+
 ### `kv.close()`
 
 <!-- YAML
@@ -175,6 +197,26 @@ added: v27.0.0
 * Returns: {boolean} `true` if an entry was deleted, `false` otherwise.
 
 Removes the entry associated with `key`, if one exists.
+
+```mjs
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+kv.set(['user', 1], { name: 'alice' });
+console.log(kv.delete(['user', 1])); // true
+console.log(kv.delete(['user', 1])); // false (already absent)
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+kv.set(['user', 1], { name: 'alice' });
+console.log(kv.delete(['user', 1])); // true
+console.log(kv.delete(['user', 1])); // false (already absent)
+kv.close();
+```
 
 ### `kv.get(key)`
 
@@ -228,6 +270,44 @@ added: v27.0.0
 
 Retrieves the values associated with each of `keys`. If no value exists for
 a given key, its entry has a `null` value (same caveat as `kv.get()` above).
+
+```mjs
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+kv.set(['user', 1], 'alice');
+kv.set(['user', 2], 'bob');
+kv.set(['user', 3], 'carol');
+
+// Output order matches input order, not storage order.
+console.log(kv.getMany([['user', 3], ['user', 1]]).map((e) => e.value));
+// Prints: ['carol', 'alice']
+
+// Missing keys yield null in their position.
+console.log(kv.getMany([['user', 1], ['user', 99]]).map((e) => e.value));
+// Prints: ['alice', null]
+
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+kv.set(['user', 1], 'alice');
+kv.set(['user', 2], 'bob');
+kv.set(['user', 3], 'carol');
+
+// Output order matches input order, not storage order.
+console.log(kv.getMany([['user', 3], ['user', 1]]).map((e) => e.value));
+// Prints: ['carol', 'alice']
+
+// Missing keys yield null in their position.
+console.log(kv.getMany([['user', 1], ['user', 99]]).map((e) => e.value));
+// Prints: ['alice', null]
+
+kv.close();
+```
 
 ### `kv.keys(selector)`
 
@@ -283,6 +363,48 @@ for (const key of kv.keys({ prefix: [] })) {
 }
 ```
 
+Range queries use `{ start, end }` (both inclusive) without a `prefix`:
+
+```mjs
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+for (const c of ['a', 'b', 'c', 'd', 'e']) kv.set([c], c);
+
+const inRange = [];
+for (const { key } of kv.keys({ start: ['b'], end: ['d'] })) inRange.push(key[0]);
+console.log(inRange); // ['b', 'c', 'd']
+
+// String and numeric segments with the same printed value are distinct keys
+// because of type tags in the encoded form.
+kv.set([5], 'numeric');
+kv.set(['5'], 'string');
+const fives = [];
+for (const { key } of kv.keys({ start: [5], end: [5] })) fives.push(key);
+console.log(fives); // [[5]] — only the numeric key
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+for (const c of ['a', 'b', 'c', 'd', 'e']) kv.set([c], c);
+
+const inRange = [];
+for (const { key } of kv.keys({ start: ['b'], end: ['d'] })) inRange.push(key[0]);
+console.log(inRange); // ['b', 'c', 'd']
+
+// String and numeric segments with the same printed value are distinct keys
+// because of type tags in the encoded form.
+kv.set([5], 'numeric');
+kv.set(['5'], 'string');
+const fives = [];
+for (const { key } of kv.keys({ start: [5], end: [5] })) fives.push(key);
+console.log(fives); // [[5]] — only the numeric key
+kv.close();
+```
+
 ### `kv.publish(topic, payload)`
 
 <!-- YAML
@@ -296,7 +418,35 @@ Publishes `payload` to `topic`. Topics live in their own namespace,
 independent of the key store — see [Topic plane][] below.
 
 ```mjs
-kv.publish('events.signup', { userId: 42 });
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+// Topic watchers receive the published payload directly (no type envelope).
+const sub = kv.watch({ topic: 'events.signup' });
+sub.on('data', (payload) => console.log('signup:', payload.userId));
+
+kv.publish('events.signup', { userId: 42 }); // signup: 42
+kv.publish('events.signup', { userId: 43 }); // signup: 43
+kv.publish('events.logout', { userId: 42 }); // different topic — sub ignores this
+
+sub.destroy();
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+// Topic watchers receive the published payload directly (no type envelope).
+const sub = kv.watch({ topic: 'events.signup' });
+sub.on('data', (payload) => console.log('signup:', payload.userId));
+
+kv.publish('events.signup', { userId: 42 }); // signup: 42
+kv.publish('events.signup', { userId: 43 }); // signup: 43
+kv.publish('events.logout', { userId: 42 }); // different topic — sub ignores this
+
+sub.destroy();
+kv.close();
 ```
 
 ### `kv.set(key, value)`
@@ -393,6 +543,40 @@ const sub = kv.watch({ prefix: ['user'] });
 for await (const event of sub) {
   // { type: 'set', key: ['user', 42], value: {...} } | ...
 }
+```
+
+The optional `events` array narrows delivery to a subset of mutation types.
+This is useful when you only care about new arrivals (writes) and want to
+ignore deletes and `clear`:
+
+```mjs
+import { openKv } from 'node:kvstore';
+const kv = openKv();
+
+// Only fires on 'set' — deletes and clear are silently discarded.
+const arrivals = kv.watch({ prefix: ['inbox'], events: ['set'] });
+arrivals.on('data', ({ key, value }) =>
+  console.log(`new message at ${JSON.stringify(key)} from ${value.from}`));
+
+kv.set(['inbox', 1, 'msg-1'], { from: 'alice' }); // fires
+kv.delete(['inbox', 1, 'msg-1']);                  // filtered out
+arrivals.destroy();
+kv.close();
+```
+
+```cjs
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+// Only fires on 'set' — deletes and clear are silently discarded.
+const arrivals = kv.watch({ prefix: ['inbox'], events: ['set'] });
+arrivals.on('data', ({ key, value }) =>
+  console.log(`new message at ${JSON.stringify(key)} from ${value.from}`));
+
+kv.set(['inbox', 1, 'msg-1'], { from: 'alice' }); // fires
+kv.delete(['inbox', 1, 'msg-1']);                  // filtered out
+arrivals.destroy();
+kv.close();
 ```
 
 > **Migration from 0.x.** The legacy positional form `kv.watch(keys[])` has
@@ -533,6 +717,228 @@ try {
     console.log(err instanceof Error); // true
   }
 }
+```
+
+## Examples
+
+The following examples use CJS (`require`). ESM (`import { openKv } from 'node:kvstore'`)
+works identically.
+
+### Namespace isolation via composite key prefixes
+
+Multiple logical "tables" can coexist in a single store by prefixing every
+key with a namespace segment. Because `kv.keys({ prefix })`, `kv.watch({
+prefix })`, and `kv.delete()` all operate on encoded key ranges, the isolation
+is enforced by the codec — no `namespace` option is needed.
+
+```cjs
+'use strict';
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+// Wrap a KVStore with a fixed namespace prefix.
+function ns(namespace) {
+  const pfx = (key) => [namespace, ...(Array.isArray(key) ? key : [key])];
+  return {
+    get:    (key) => kv.get(pfx(key)),
+    set:    (key, value) => kv.set(pfx(key), value),
+    delete: (key) => kv.delete(pfx(key)),
+    keys:   (sel) => kv.keys({ ...sel, prefix: [namespace, ...(sel?.prefix ?? [])] }),
+  };
+}
+
+const users = ns('users');
+const cache = ns('cache');
+
+users.set(42, { name: 'alice' });
+cache.set(42, { etag: 'abc-123' });
+
+// Same logical key, different namespace — no collision.
+console.log(users.get(42).value); // { name: 'alice' }
+console.log(cache.get(42).value); // { etag: 'abc-123' }
+
+users.delete(42);
+console.log(users.get(42).value); // null
+console.log(cache.get(42).value); // { etag: 'abc-123' } (untouched)
+
+kv.close();
+```
+
+### Cache with TTL
+
+The store has no built-in TTL; implement one by storing `{ value, expiresAt }`
+envelopes and validating expiry on read. A `cleanup()` sweep can be called
+periodically or at startup to evict stale entries in bulk.
+
+```cjs
+'use strict';
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+const NS = 'cache';
+
+function put(name, value, ttlMs) {
+  kv.set([NS, name], { value, expiresAt: Date.now() + ttlMs });
+}
+
+function fetch(name) {
+  const { value: env } = kv.get([NS, name]);
+  if (!env) return null;
+  if (env.expiresAt <= Date.now()) {
+    kv.delete([NS, name]);
+    return null;
+  }
+  return env.value;
+}
+
+function cleanup() {
+  let evicted = 0;
+  for (const { key } of kv.keys({ prefix: [NS] })) {
+    const { value: env } = kv.get(key);
+    if (env && env.expiresAt <= Date.now()) { kv.delete(key); evicted++; }
+  }
+  return evicted;
+}
+
+put('config', { debug: true }, 60_000); // 60 s TTL
+console.log(fetch('config'));            // { debug: true }
+console.log(fetch('missing'));           // null
+
+kv.close();
+```
+
+### Session store
+
+A session store combining key-plane persistence with topic-plane event
+broadcasting. Every mutation is audited by a prefix watcher; login/logout
+events are broadcast on separate topics for other consumers (analytics,
+notifications, etc.).
+
+```cjs
+'use strict';
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+// Audit trail: record every session mutation.
+const auditLog = [];
+const audit = kv.watch({ prefix: ['session'] });
+audit.on('data', (e) => auditLog.push({ op: e.type, key: e.key }));
+
+// App-level event feed: subscribe to login events.
+const loginFeed = kv.watch({ topic: 'login' });
+loginFeed.on('data', (user) => console.log(`logged in: ${user}`));
+
+function login(id, user) {
+  kv.set(['session', id], { user, lastSeen: Date.now() });
+  kv.publish('login', user);
+}
+
+function touch(id) {
+  const { value } = kv.get(['session', id]);
+  if (!value) return false;
+  kv.set(['session', id], { ...value, lastSeen: Date.now() });
+  return true;
+}
+
+function logout(id) {
+  const { value } = kv.get(['session', id]);
+  if (!value) return false;
+  kv.delete(['session', id]);
+  kv.publish('logout', value.user);
+  return true;
+}
+
+login('s-1', 'alice');  // logged in: alice
+login('s-2', 'bob');    // logged in: bob
+touch('s-1');
+logout('s-2');
+
+// auditLog (after the event loop drains) contains:
+// [{ op: 'set',    key: ['session', 's-1'] },
+//  { op: 'set',    key: ['session', 's-2'] },
+//  { op: 'set',    key: ['session', 's-1'] },  ← touch refresh
+//  { op: 'delete', key: ['session', 's-2'] }]
+
+audit.destroy();
+loginFeed.destroy();
+kv.close();
+```
+
+### Work queue
+
+A multi-producer / single-consumer queue using a topic as a lightweight
+wake-up signal and the key store as the durable backlog. The topic fires
+the worker immediately when new work arrives; the worker drains the queue
+by scanning the `['queue']` prefix until it is empty.
+
+```cjs
+'use strict';
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+let nextId = 0;
+
+function enqueue(task) {
+  kv.set(['queue', ++nextId], task);
+  kv.publish('queue.new', nextId);
+}
+
+function claimNext() {
+  for (const { key } of kv.keys({ prefix: ['queue'] })) {
+    const { value } = kv.get(key);
+    if (kv.delete(key)) return { id: key[1], task: value };
+  }
+  return null;
+}
+
+const wakeups = kv.watch({ topic: 'queue.new' });
+wakeups.on('data', () => {
+  let item;
+  while ((item = claimNext())) {
+    console.log(`processing ${item.id}: ${item.task.kind}`);
+  }
+});
+
+enqueue({ kind: 'email',   to: 'alice' });
+enqueue({ kind: 'webhook', url: 'https://example.com' });
+enqueue({ kind: 'email',   to: 'bob' });
+
+// (after event loop drains)
+// processing 1: email
+// processing 2: webhook
+// processing 3: email
+
+wakeups.destroy();
+kv.close();
+```
+
+### Reactive audit log
+
+A watcher on `['data']` writes an append-only entry under `['audit']` for
+every mutation. Because the auditor writes to a *different* prefix it cannot
+trigger itself recursively.
+
+```cjs
+'use strict';
+const { openKv } = require('node:kvstore');
+const kv = openKv();
+
+let seq = 0;
+const watcher = kv.watch({ prefix: ['data'] });
+watcher.on('data', (e) => {
+  if (e.type === 'lag' || e.type === 'clear') return;
+  kv.set(['audit', ++seq], { at: Date.now(), op: e.type, key: e.key });
+});
+
+kv.set(['data', 'user', 1], { name: 'alice' });
+kv.set(['data', 'user', 2], { name: 'bob' });
+kv.set(['data', 'user', 1], { name: 'alice', role: 'admin' });
+kv.delete(['data', 'user', 2]);
+
+// (after event loop drains)
+// kv.keys({ prefix: ['audit'] }) yields 4 entries, one per mutation above.
+
+watcher.destroy();
+kv.close();
 ```
 
 [Errors]: #errors
