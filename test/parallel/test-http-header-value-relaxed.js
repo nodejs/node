@@ -1,10 +1,12 @@
+// Flags: --expose-internals --no-warnings
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
 const { duplexPair } = require('stream');
-const { HTTPParser } = require('_http_common');
+const { HTTPParser } = require('internal/http/common');
 // llhttp_set_lenient_header_value_relaxed() was added in llhttp 9.4.0.
 // On shared-library builds using an older system llhttp the constant is
 // exported as 0, so inbound-parsing tests must be skipped there.
