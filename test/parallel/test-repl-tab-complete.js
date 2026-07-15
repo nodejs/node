@@ -562,4 +562,14 @@ describe('REPL tab completion (core functionality)', () => {
 
     replServer.close();
   });
+
+  it('does not evaluate dynamic imports for completion', () => {
+    const { replServer } = startNewREPLServer({
+      eval: common.mustNotCall(),
+    });
+
+    replServer.complete('import("").', getNoResultsFunction());
+
+    replServer.close();
+  });
 });
