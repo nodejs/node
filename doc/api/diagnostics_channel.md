@@ -237,9 +237,13 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 * `nameOrChannels` {string|TracingChannel} Channel name or
   object containing all the [TracingChannel Channels][]
@@ -744,9 +748,13 @@ The scope must be used with the `using` syntax to ensure proper disposal.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The class `TracingChannel` is a collection of [TracingChannel Channels][] which
 together express a single traceable action. It is used to formalize and
