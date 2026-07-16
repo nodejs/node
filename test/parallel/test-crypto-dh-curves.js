@@ -9,6 +9,7 @@ const { hasOpenSSL } = require('../common/crypto');
 const {
   DH_CHECK_P_NOT_PRIME,
   DH_CHECK_P_NOT_SAFE_PRIME,
+  DH_NOT_SUITABLE_GENERATOR,
 } = crypto.constants;
 
 // Second OAKLEY group, see
@@ -76,6 +77,11 @@ if (hasOpenSSL(3)) {
     () => crypto.createDiffieHellman(Buffer.from(p, 'hex'),
                                      Buffer.from(p, 'hex')),
     { code: 'ERR_OSSL_DH_BAD_GENERATOR' });
+} else if (!process.features.openssl_is_boringssl) {
+  assert.strictEqual(
+    crypto.createDiffieHellman(Buffer.from(p, 'hex'),
+                               Buffer.from(p, 'hex')).verifyError,
+    DH_NOT_SUITABLE_GENERATOR);
 }
 
 const availableCurves = new Set(crypto.getCurves());
