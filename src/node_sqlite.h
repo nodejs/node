@@ -52,6 +52,24 @@ static_assert(
     CheckLimitIndices(),
     "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
+// Mapping from JavaScript counter names to SQLite statement status constants
+struct StatusInfo {
+  std::string_view js_name;
+  int sqlite_status_id;
+};
+
+inline constexpr std::array<StatusInfo, 9> kStatusMapping = {{
+    {"fullscanStep", SQLITE_STMTSTATUS_FULLSCAN_STEP},
+    {"sort", SQLITE_STMTSTATUS_SORT},
+    {"autoindex", SQLITE_STMTSTATUS_AUTOINDEX},
+    {"vmStep", SQLITE_STMTSTATUS_VM_STEP},
+    {"reprepare", SQLITE_STMTSTATUS_REPREPARE},
+    {"run", SQLITE_STMTSTATUS_RUN},
+    {"filterMiss", SQLITE_STMTSTATUS_FILTER_MISS},
+    {"filterHit", SQLITE_STMTSTATUS_FILTER_HIT},
+    {"memused", SQLITE_STMTSTATUS_MEMUSED},
+}};
+
 class DatabaseOpenConfiguration {
  public:
   explicit DatabaseOpenConfiguration(std::string&& location)
@@ -272,6 +290,7 @@ class StatementSync : public BaseObject {
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowUnknownNamedParameters(

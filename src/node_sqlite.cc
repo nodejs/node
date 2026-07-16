@@ -170,6 +170,16 @@ static constexpr const LimitInfo* GetLimitInfoFromName(std::string_view name) {
   return nullptr;
 }
 
+static constexpr const StatusInfo* GetStatusInfoFromName(
+    std::string_view name) {
+  for (const auto& info : kStatusMapping) {
+    if (name == info.js_name) {
+      return &info;
+    }
+  }
+  return nullptr;
+}
+
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
   Local<String> js_msg;
@@ -3202,6 +3212,34 @@ void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  Isolate* isolate = env->isolate();
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"counter\" argument must be a string.");
+    return;
+  }
+
+  Utf8Value counter(isolate, args[0].As<String>());
+  const StatusInfo* status_info = GetStatusInfoFromName(counter.ToStringView());
+  if (status_info == nullptr) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        isolate, "The \"counter\" argument is not a valid statistic name.");
+    return;
+  }
+
+  // The reset flag is always false; the counter is read without being cleared.
+  int value = sqlite3_stmt_status(
+      stmt->statement_, status_info->sqlite_status_id, false);
+  args.GetReturnValue().Set(Integer::New(isolate, value));
+}
+
 void StatementSync::SetAllowBareNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
@@ -3617,6 +3655,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             StatementSync::ExpandedSQLGetter);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "stat", StatementSync::Stat);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",
