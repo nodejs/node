@@ -1708,6 +1708,11 @@ Adoption transfers ownership of the socket; afterwards `address()` and `close()`
 throw [`ERR_SOCKET_HANDLE_ADOPTED`][]. A handle that is never adopted must be
 closed to avoid leaking the socket.
 
+When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
+issued synchronously, so [`socket.localAddress`][] is resolved once
+[`socket.connect()`][] returns. Connection failures are still reported via a
+deferred `'error'` event.
+
 ```mjs
 import net from 'node:net';
 
@@ -2293,6 +2298,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.connecting`]: #socketconnecting
 [`socket.destroy()`]: #socketdestroyerror
 [`socket.end()`]: #socketenddata-encoding-callback
+[`socket.localAddress`]: #socketlocaladdress
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
