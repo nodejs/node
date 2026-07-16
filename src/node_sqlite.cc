@@ -1573,12 +1573,12 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, nullptr);
+  StatementPtr stmt_ptr(s);
 
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  BaseObjectPtr<StatementSync> stmt =
-      StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
+  BaseObjectPtr<StatementSync> stmt = StatementSync::Create(
+      env, BaseObjectPtr<DatabaseSync>(db), std::move(stmt_ptr));
   if (!stmt) {
-    sqlite3_finalize(s);
     return;
   }
   db->statements_.insert(stmt.get());
@@ -2632,10 +2632,9 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
 StatementSync::StatementSync(Environment* env,
                              Local<Object> object,
                              BaseObjectPtr<DatabaseSync> db,
-                             sqlite3_stmt* stmt)
-    : BaseObject(env, object), db_(std::move(db)) {
+                             StatementPtr stmt)
+    : BaseObject(env, object), db_(std::move(db)), statement_(std::move(stmt)) {
   MakeWeak();
-  statement_ = stmt;
   use_big_ints_ = db_->use_big_ints();
   return_arrays_ = db_->return_arrays();
   allow_bare_named_params_ = db_->allow_bare_named_params();
@@ -2656,8 +2655,7 @@ void StatementSync::Close() {
 }
 
 void StatementSync::Finalize() {
-  sqlite3_finalize(statement_);
-  statement_ = nullptr;
+  statement_.reset();
   InvalidateColumnNameCache();
 }
 
@@ -2686,11 +2684,11 @@ void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
 
 inline int StatementSync::ResetStatement() {
   reset_generation_++;
-  return sqlite3_reset(statement_);
+  return sqlite3_reset(statement_.get());
 }
 
 bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
-  int r = sqlite3_clear_bindings(statement_);
+  int r = sqlite3_clear_bindings(statement_.get());
   CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
 
   int anon_idx = 1;
@@ -2707,10 +2705,10 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
 
     if (allow_bare_named_params_ && !bare_named_params_.has_value()) {
       bare_named_params_.emplace();
-      int param_count = sqlite3_bind_parameter_count(statement_);
+      int param_count = sqlite3_bind_parameter_count(statement_.get());
       // Parameter indexing starts at one.
       for (int i = 1; i <= param_count; ++i) {
-        const char* name = sqlite3_bind_parameter_name(statement_, i);
+        const char* name = sqlite3_bind_parameter_name(statement_.get(), i);
         if (name == nullptr) {
           continue;
         }
@@ -2742,12 +2740,12 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
       }
 
       Utf8Value utf8_key(env()->isolate(), key);
-      int r = sqlite3_bind_parameter_index(statement_, *utf8_key);
+      int r = sqlite3_bind_parameter_index(statement_.get(), *utf8_key);
       if (r == 0) {
         if (allow_bare_named_params_) {
           auto lookup = bare_named_params_->find(std::string(*utf8_key));
           if (lookup != bare_named_params_->end()) {
-            r = sqlite3_bind_parameter_index(statement_,
+            r = sqlite3_bind_parameter_index(statement_.get(),
                                              lookup->second.c_str());
           }
         }
@@ -2777,7 +2775,8 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = anon_start; i < args.Length(); ++i) {
     while (1) {
-      const char* param = sqlite3_bind_parameter_name(statement_, anon_idx);
+      const char* param =
+          sqlite3_bind_parameter_name(statement_.get(), anon_idx);
       if (param == nullptr || param[0] == '?') break;
       anon_idx++;
     }
@@ -2803,7 +2802,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   int r;
   if (value->IsNumber()) {
     const double val = value.As<Number>()->Value();
-    r = sqlite3_bind_double(statement_, index, val);
+    r = sqlite3_bind_double(statement_.get(), index, val);
   } else if (value->IsString()) {
     Utf8Value val(isolate, value.As<String>());
     if (val.IsAllocated()) {
@@ -2813,9 +2812,9 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
       const sqlite3_uint64 length = static_cast<sqlite3_uint64>(val.length());
       val.Release();
       r = sqlite3_bind_text64(
-          statement_, index, data, length, std::free, SQLITE_UTF8);
+          statement_.get(), index, data, length, std::free, SQLITE_UTF8);
     } else {
-      r = sqlite3_bind_text64(statement_,
+      r = sqlite3_bind_text64(statement_.get(),
                               index,
                               *val,
                               static_cast<sqlite3_uint64>(val.length()),
@@ -2823,17 +2822,17 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
                               SQLITE_UTF8);
     }
   } else if (value->IsNull()) {
-    r = sqlite3_bind_null(statement_, index);
+    r = sqlite3_bind_null(statement_.get(), index);
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob64(statement_,
+    r = sqlite3_bind_blob64(statement_.get(),
                             index,
                             buf.data(),
                             static_cast<sqlite3_uint64>(buf.length()),
                             SQLITE_TRANSIENT);
   } else if (value->IsBoolean()) {
-    r = sqlite3_bind_int(statement_, index, value->IsTrue() ? 1 : 0);
+    r = sqlite3_bind_int(statement_.get(), index, value->IsTrue() ? 1 : 0);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -2841,7 +2840,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
       THROW_ERR_INVALID_ARG_VALUE(env(), "BigInt value is too large to bind.");
       return false;
     }
-    r = sqlite3_bind_int64(statement_, index, as_int);
+    r = sqlite3_bind_int64(statement_.get(), index, as_int);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         isolate,
@@ -2856,11 +2855,11 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
 
 MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
   return StatementExecutionHelper::ColumnToValue(
-      env(), statement_, column, use_big_ints_);
+      env(), statement_.get(), column, use_big_ints_);
 }
 
 MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
-  const char* col_name = sqlite3_column_name(statement_, column);
+  const char* col_name = sqlite3_column_name(statement_.get(), column);
   if (col_name == nullptr) {
     THROW_ERR_INVALID_STATE(env(), "Cannot get name of column %d", column);
     return MaybeLocal<Name>();
@@ -2877,10 +2876,10 @@ bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
   Isolate* isolate = env()->isolate();
 
   const int reprepare_count =
-      sqlite3_stmt_status(statement_, SQLITE_STMTSTATUS_REPREPARE, false);
+      sqlite3_stmt_status(statement_.get(), SQLITE_STMTSTATUS_REPREPARE, false);
   if (reprepare_count != cached_column_names_reprepare_count_) {
     cached_column_names_.clear();
-    const int num_cols = sqlite3_column_count(statement_);
+    const int num_cols = sqlite3_column_count(statement_.get());
     if (num_cols == 0) {
       cached_column_names_reprepare_count_ = reprepare_count;
       return true;
@@ -3133,12 +3132,12 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
+  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_.get()); });
 
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
-                                    stmt->statement_,
+                                    stmt->statement_.get(),
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3185,7 +3184,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   Local<Value> result;
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
-                                    stmt->statement_,
+                                    stmt->statement_.get(),
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3208,7 +3207,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> result;
   if (StatementExecutionHelper::Run(
-          env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
+          env, stmt->db_.get(), stmt->statement_.get(), stmt->use_big_ints_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -3220,7 +3219,7 @@ void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
-  int num_cols = sqlite3_column_count(stmt->statement_);
+  int num_cols = sqlite3_column_count(stmt->statement_.get());
   Isolate* isolate = env->isolate();
   LocalVector<Value> cols(isolate);
   auto sqlite_column_template = env->sqlite_column_template();
@@ -3235,14 +3234,14 @@ void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
   for (int i = 0; i < num_cols; ++i) {
     MaybeLocal<Value> values[] = {
         NullableSQLiteStringToValue(
-            isolate, sqlite3_column_origin_name(stmt->statement_, i)),
+            isolate, sqlite3_column_origin_name(stmt->statement_.get(), i)),
         NullableSQLiteStringToValue(
-            isolate, sqlite3_column_database_name(stmt->statement_, i)),
+            isolate, sqlite3_column_database_name(stmt->statement_.get(), i)),
         stmt->ColumnNameToName(i),
         NullableSQLiteStringToValue(
-            isolate, sqlite3_column_table_name(stmt->statement_, i)),
+            isolate, sqlite3_column_table_name(stmt->statement_.get(), i)),
         NullableSQLiteStringToValue(
-            isolate, sqlite3_column_decltype(stmt->statement_, i)),
+            isolate, sqlite3_column_decltype(stmt->statement_.get(), i)),
     };
 
     Local<Object> col;
@@ -3264,7 +3263,7 @@ void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   Local<String> sql;
-  if (!String::NewFromUtf8(env->isolate(), sqlite3_sql(stmt->statement_))
+  if (!String::NewFromUtf8(env->isolate(), sqlite3_sql(stmt->statement_.get()))
            .ToLocal(&sql)) {
     return;
   }
@@ -3279,7 +3278,7 @@ void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
 
   // sqlite3_expanded_sql may return nullptr without producing an error code.
-  char* expanded = sqlite3_expanded_sql(stmt->statement_);
+  char* expanded = sqlite3_expanded_sql(stmt->statement_.get());
   if (expanded == nullptr) {
     return THROW_ERR_SQLITE_ERROR(
         env->isolate(), "Expanded SQL text would exceed configured limits");
@@ -3453,11 +3452,11 @@ bool SQLTagStore::ResetAndBindStatement(
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
 
-  r = sqlite3_clear_bindings(stmt->statement_);
+  r = sqlite3_clear_bindings(stmt->statement_.get());
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
 
   uint32_t n_params = args.Length() - 1;
-  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
+  int param_count = sqlite3_bind_parameter_count(stmt->statement_.get());
   if (param_count != static_cast<int>(n_params)) {
     THROW_ERR_INVALID_ARG_VALUE(
         env,
@@ -3494,7 +3493,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> result;
   if (StatementExecutionHelper::Run(
-          env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
+          env, stmt->db_.get(), stmt->statement_.get(), stmt->use_big_ints_)
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
@@ -3549,7 +3548,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
   Local<Value> result;
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
-                                    stmt->statement_,
+                                    stmt->statement_.get(),
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3575,11 +3574,11 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
+  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_.get()); });
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
-                                    stmt->statement_,
+                                    stmt->statement_.get(),
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3645,19 +3644,20 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     sqlite3_stmt* s = nullptr;
     int r = sqlite3_prepare_v2(
         session->database_->connection_, sql.data(), sql.size(), &s, nullptr);
+    StatementPtr stmt_ptr(s);
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
-      sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }
 
-    BaseObjectPtr<StatementSync> stmt_obj = StatementSync::Create(
-        env, BaseObjectPtr<DatabaseSync>(session->database_), s);
+    BaseObjectPtr<StatementSync> stmt_obj =
+        StatementSync::Create(env,
+                              BaseObjectPtr<DatabaseSync>(session->database_),
+                              std::move(stmt_ptr));
 
     if (!stmt_obj) {
       THROW_ERR_SQLITE_ERROR(isolate, "Failed to create StatementSync");
-      sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }
 
@@ -3723,7 +3723,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
 }
 
 BaseObjectPtr<StatementSync> StatementSync::Create(
-    Environment* env, BaseObjectPtr<DatabaseSync> db, sqlite3_stmt* stmt) {
+    Environment* env, BaseObjectPtr<DatabaseSync> db, StatementPtr stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -3732,7 +3732,8 @@ BaseObjectPtr<StatementSync> StatementSync::Create(
     return nullptr;
   }
 
-  return MakeBaseObject<StatementSync>(env, obj, std::move(db), stmt);
+  return MakeBaseObject<StatementSync>(
+      env, obj, std::move(db), std::move(stmt));
 }
 
 StatementSyncIterator::StatementSyncIterator(Environment* env,
@@ -3805,11 +3806,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
       iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
       "iterator was invalidated");
 
-  int r = sqlite3_step(iter->stmt_->statement_);
+  int r = sqlite3_step(iter->stmt_->statement_.get());
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
-    sqlite3_reset(iter->stmt_->statement_);
+    sqlite3_reset(iter->stmt_->statement_.get());
     iter->done_ = true;
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
     Local<Object> result;
@@ -3820,13 +3821,13 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  int num_cols = sqlite3_column_count(iter->stmt_->statement_);
+  int num_cols = sqlite3_column_count(iter->stmt_->statement_.get());
   Local<Value> row_value;
   LocalVector<Name> row_keys(isolate);
   LocalVector<Value> row_values(isolate);
 
   if (ExtractRowValues(env,
-                       iter->stmt_->statement_,
+                       iter->stmt_->statement_.get(),
                        num_cols,
                        iter->stmt_->use_big_ints_,
                        &row_values)
@@ -3862,7 +3863,7 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
 
-  sqlite3_reset(iter->stmt_->statement_);
+  sqlite3_reset(iter->stmt_->statement_.get());
   iter->done_ = true;
 
   auto iter_template = getLazyIterTemplate(env);
