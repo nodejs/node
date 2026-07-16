@@ -274,7 +274,7 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 > Stability: 1.0 - Early development

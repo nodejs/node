@@ -2568,7 +2568,7 @@ JavaScript `ArrayBuffer`s are described in
 #### `node_api_create_external_sharedarraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 ```c
@@ -2675,7 +2675,7 @@ ECMAScript Language Specification.
 #### `napi_create_object_with_properties`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 > Stability: 1 - Experimental
@@ -2840,7 +2840,7 @@ exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
 added: v8.3.0
 napiVersion: 1
 changes:
-  - version: REPLACEME
+  - version: v22.24.0
     pr-url: https://github.com/nodejs/node/pull/60473
     description: Added support for `SharedArrayBuffer`.
 -->

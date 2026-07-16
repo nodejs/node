@@ -234,7 +234,7 @@ debug>
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.24.0
 -->
 
 > Stability: 1 - Experimental

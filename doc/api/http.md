@@ -2678,7 +2678,7 @@ will result in a [`TypeError`][] being thrown.
 ### `response.writeInformation(statusCode[, headers][, callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 * `statusCode` {number} An HTTP 1xx informational status code, between `100`
@@ -2999,7 +2999,7 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 ### `message.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 * Type: {AbortSignal}

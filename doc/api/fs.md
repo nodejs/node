@@ -628,7 +628,7 @@ Read from a file and write to an array of {ArrayBufferView}s
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.24.0
     pr-url: https://github.com/nodejs/node/pull/57775
     description: Now accepts an additional `signal` property to allow aborting the operation.
   - version: v10.5.0
@@ -7633,7 +7633,7 @@ Optimal transfer block size.
 #### `statfs.frsize`
 
 <!-- YAML
-added: REPLACEME
+added: v22.24.0
 -->
 
 * Type: {number|bigint}

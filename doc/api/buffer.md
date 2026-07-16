@@ -1498,7 +1498,7 @@ console.log(Buffer.isEncoding(''));
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v22.24.0
     pr-url: https://github.com/nodejs/node/pull/63597
     description: Default raised from 8192 to 65536.
 -->
