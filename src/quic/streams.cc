@@ -25,6 +25,7 @@ using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BigInt;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Global;
 using v8::HandleScope;
@@ -63,6 +64,8 @@ namespace quic {
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
   V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
+  /* Set when the stream has a datagram event handler (RFC 9297) */            \
+  V(WANTS_DATAGRAM, wants_datagram, uint8_t)                                   \
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
@@ -104,7 +107,8 @@ namespace quic {
   V(GetReader, getReader, false)                                               \
   V(InitStreamingSource, initStreamingSource, false)                           \
   V(Write, write, false)                                                       \
-  V(EndWrite, endWrite, false)
+  V(EndWrite, endWrite, false)                                                 \
+  V(SendDatagram, sendDatagram, false)
 
 // ============================================================================
 // RecvAccumulator implementation
@@ -581,6 +585,39 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     stream->EndWriting();
+  }
+
+  // Sends an HTTP/3 datagram (RFC 9297) associated with this stream. Returns
+  // the underlying QUIC datagram id, or 0n if the datagram was not queued.
+  JS_METHOD(SendDatagram) {
+    auto env = Environment::GetCurrent(args);
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    DCHECK(args[0]->IsArrayBufferView());
+
+    Store store;
+    if (!Store::From(args[0].As<ArrayBufferView>()).To(&store)) {
+      return;
+    }
+
+    // Mint the id up front. It is exposed (returned non-zero to JS) only
+    // if the datagram is committed - queued now, or buffered for a pending
+    // stream. Sync rejection returns 0 and discards (no subsequent status).
+    datagram_id id = stream->session().ReserveDatagramId();
+
+    // A pending stream has no id yet, so the datagram cannot be framed and
+    // bound to a Quarter Stream ID. Buffer it and flush when the stream opens.
+    // If it cannot be buffered (queue full) the id is discarded.
+    if (stream->is_pending()) {
+      bool buffered = stream->EnqueuePendingDatagram(id, std::move(store));
+      return args.GetReturnValue().Set(
+          BigInt::New(env->isolate(), buffered ? id : 0));
+    }
+
+    Session::SendPendingDataScope send_scope(&stream->session());
+    datagram_id result = stream->session().application().SendDatagram(
+        stream, std::move(store), id);
+    args.GetReturnValue().Set(BigInt::New(env->isolate(), result));
   }
 };
 
@@ -1262,6 +1299,21 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
+  if (!pending_datagram_queue_.empty()) {
+    // Like the headers flush above, this runs inside an ngtcp2 callback, so
+    // the queued datagrams ride the session's deferred flush; no send scope.
+    std::deque<PendingDatagram> queue;
+    pending_datagram_queue_.swap(queue);
+    pending_datagram_bytes_ = 0;
+    for (auto& dgram : queue) {
+      // The id was already returned to JS. If the send is rejected now (e.g.
+      // the framed size exceeds the peer's max) we report ABANDONED.
+      if (session().application().SendDatagram(
+              this, std::move(dgram.data), dgram.id) == 0) {
+        session().DatagramStatus(dgram.id, DatagramStatus::ABANDONED);
+      }
+    }
+  }
   // If the stream is not a local undirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
@@ -1297,6 +1349,23 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
   Debug(this, "Enqueuing headers for pending stream");
   pending_headers_queue_.push_back(std::make_unique<PendingHeaders>(
       kind, Global<Array>(env()->isolate(), headers), flags));
+}
+
+bool Stream::EnqueuePendingDatagram(datagram_id id, Store&& store) {
+  // Bound the pending queue by the stream's outbound high water mark. When
+  // full, we refuse to send the datagram (its id is discarded by the caller).
+  // A high water mark of 0  means unbounded, matching the stream-write path.
+  uint64_t hwm = state()->high_water_mark;
+  size_t incoming = store.length();
+  if (hwm > 0 && !pending_datagram_queue_.empty() &&
+      pending_datagram_bytes_ + incoming > hwm) {
+    Debug(this, "Pending datagram buffer full, refusing datagram %" PRIu64, id);
+    return false;
+  }
+  Debug(this, "Buffering datagram %" PRIu64 " for pending stream", id);
+  pending_datagram_bytes_ += incoming;
+  pending_datagram_queue_.push_back({id, std::move(store)});
+  return true;
 }
 
 bool Stream::is_pending() const {
@@ -1635,6 +1704,19 @@ void Stream::Destroy(QuicError error) {
   }
   state()->pending = 0;
 
+  // Datagrams still buffered for a pending stream had their ids returned to
+  // JS but will never reach the wire, so abandon them here to close each
+  // handle. If the session is already gone there is nobody to notify.
+  if (!pending_datagram_queue_.empty()) {
+    if (!session_->is_destroyed()) {
+      for (auto& dgram : pending_datagram_queue_) {
+        session_->DatagramStatus(dgram.id, DatagramStatus::ABANDONED);
+      }
+    }
+    pending_datagram_queue_.clear();
+    pending_datagram_bytes_ = 0;
+  }
+
   maybe_pending_stream_.reset();
 
   // End the writable before marking as destroyed.
@@ -1845,6 +1927,21 @@ void Stream::EmitBlocked() {
   }
   CallbackScope<Stream> cb_scope(this);
   MakeCallback(BindingData::Get(env()).stream_blocked_callback(), 0, nullptr);
+}
+
+void Stream::EmitDatagram(Store&& payload, bool early) {
+  // state()->wants_datagram is set from the JavaScript side when an ondatagram
+  // handler is attached to the stream. Drop datagrams without a handler.
+  if (!env()->can_call_into_js() || !state()->wants_datagram) {
+    return;
+  }
+  Debug(this, "Emitting %zu-byte datagram", payload.length());
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> argv[] = {payload.ToUint8Array(env()),
+                         Boolean::New(env()->isolate(), early)};
+  MakeCallback(BindingData::Get(env()).stream_datagram_callback(),
+               arraysize(argv),
+               argv);
 }
 
 void Stream::EmitDrain() {

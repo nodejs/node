@@ -210,6 +210,25 @@ class Session::Application : public MemoryRetainer {
   // do not support headers should return false (the default).
   virtual bool SupportsHeaders() const { return false; }
 
+  // Returns true if the application protocol supports a custom datagrams
+  // format, e.g. HTTP/3 datagrams bound to a request stream.
+  virtual bool SupportsDatagrams() const { return false; }
+
+  // Called when a QUIC DATAGRAM frame is received, so that custom formats
+  // can be handled by the Application.
+  virtual void ReceiveDatagram(const uint8_t* data,
+                               size_t datalen,
+                               const Session::DatagramReceivedFlags& flags);
+
+  // Sends a datagram associated with the given stream, using the caller's
+  // reserved id. Applications that do not support stream-bound datagrams
+  // return 0. Returns the id on success, or 0 if the datagram was not queued.
+  virtual datagram_id SendDatagram(Stream* stream,
+                                   Store&& payload,
+                                   datagram_id id) {
+    return 0;
+  }
+
   // Initiates application-level graceful shutdown signaling (e.g.,
   // HTTP/3 GOAWAY). Called when Session::Close(GRACEFUL) is invoked.
   virtual void BeginShutdown() {}

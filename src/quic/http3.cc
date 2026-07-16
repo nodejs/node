@@ -145,6 +145,7 @@ class Http3ApplicationImpl final : public Session::Application {
       : Application(session, options),
         allocator_(BindingData::Get(env()).nghttp3_allocator()),
         options_(options),
+        local_datagrams_enabled_(options.enable_datagrams),
         conn_(nullptr) {
     // Build the ORIGIN frame payload from the SNI configuration before
     // creating the nghttp3 connection, since InitializeConnection needs
@@ -201,6 +202,16 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   bool SupportsHeaders() const override { return true; }
+
+  // HTTP/3 datagrams (RFC 9297 Section 2.1.1) MUST NOT be sent until
+  // SETTINGS_H3_DATAGRAM has been "both sent and received with a value of 1",
+  // and the transport negotiated a non-zero max_datagram_frame_size.
+  // We don't support 0RTT for datagrams here - that would require the client
+  // to persist the previous SETTINGS to know if it's allowed first.
+  bool SupportsDatagrams() const override {
+    return local_datagrams_enabled_ && peer_datagrams_enabled_ &&
+           session().max_datagram_size() > 0;
+  }
 
   bool is_started() const override { return started_; }
 
@@ -376,6 +387,78 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application extending max stream data to %" PRIu64,
           max_data);
     nghttp3_conn_unblock_stream(*this, stream->id());
+  }
+
+  datagram_id SendDatagram(Stream* stream,
+                           Store&& payload,
+                           datagram_id id) override {
+    if (!SupportsDatagrams()) return 0;
+
+    // HTTP/3 datagrams can only ever be associated with client-initiated
+    // bidi streams (requests). Those ids are always divisible by 4, and
+    // sent /4 in the framing itself.
+    stream_id sid = stream->id();
+    if (sid < 0 || sid % 4 != 0) return 0;
+    uint64_t qsid = static_cast<uint64_t>(sid) / 4;
+
+    size_t prefix_len = nghttp3_put_uvarintlen(qsid);
+    uv_buf_t buf = payload;
+    size_t total = prefix_len + buf.len;
+
+    // Framed datagram must fit in the peer's maximum datagram size.
+    if (total > session().max_datagram_size()) {
+      Debug(&session(),
+            "Ignoring oversized HTTP/3 datagram (%zu > %u)",
+            total,
+            session().max_datagram_size());
+      return 0;
+    }
+
+    JS_TRY_ALLOCATE_BACKING_OR_RETURN(env(), backing, total, 0);
+    uint8_t* dest = static_cast<uint8_t*>(backing->Data());
+    nghttp3_put_uvarint(dest, qsid);
+    // N.b. HTTP/3 Datagram payloads can be empty (RFC 9297).
+    if (buf.len > 0) memcpy(dest + prefix_len, buf.base, buf.len);
+    return session().SendDatagram(Store(std::move(backing), total), id);
+  }
+
+  void ReceiveDatagram(const uint8_t* data,
+                       size_t datalen,
+                       const Session::DatagramReceivedFlags& flags) override {
+    if (!local_datagrams_enabled_ || datalen == 0) return;
+
+    size_t qsid_len = nghttp3_get_uvarintlen(data);
+    if (qsid_len > datalen) {
+      Debug(&session(), "Dropping malformed HTTP/3 datagram");
+      return;
+    }
+    uint64_t qsid = 0;
+    nghttp3_get_uvarint(&qsid, data);
+
+    const uint8_t* body = data + qsid_len;
+    size_t bodylen = datalen - qsid_len;
+
+    static constexpr uint64_t kMaxStreamId = (1ULL << 62) - 1;
+    if (qsid > (kMaxStreamId >> 2)) {
+      Debug(&session(), "Dropping HTTP/3 datagram with out-of-range stream id");
+      return;
+    }
+    stream_id id = static_cast<stream_id>(qsid * 4);
+
+    auto stream = session().FindStream(id);
+    if (!stream) {
+      Debug(&session(),
+            "Dropping HTTP/3 datagram for unknown stream %" PRIi64,
+            id);
+      return;
+    }
+
+    session().IncrementDatagramsReceived();
+
+    // The payload may be empty (RFC 9297); a zero-length backing is fine.
+    JS_TRY_ALLOCATE_BACKING(env(), backing, bodylen);
+    if (bodylen > 0) memcpy(backing->Data(), body, bodylen);
+    stream->EmitDatagram(Store(std::move(backing), bodylen), flags.early);
   }
 
   void CollectSessionTicketAppData(
@@ -998,7 +1081,9 @@ class Http3ApplicationImpl final : public Session::Application {
     options_.qpack_blocked_streams = settings->qpack_blocked_streams;
     options_.qpack_max_dtable_capacity = settings->qpack_max_dtable_capacity;
 
-    // Per RFC 9297 §3, an H3 endpoint MUST NOT send HTTP Datagrams
+    peer_datagrams_enabled_ = settings->h3_datagram != 0;
+
+    // Per RFC 9297 Section 3, an H3 endpoint MUST NOT send HTTP Datagrams
     // unless the peer indicated support via SETTINGS_H3_DATAGRAM=1.
     // If the peer disabled it, set the session's max datagram size to 0
     // which blocks sends at the existing JS/C++ check.
@@ -1016,6 +1101,8 @@ class Http3ApplicationImpl final : public Session::Application {
   bool started_ = false;
   nghttp3_mem* allocator_;
   Options options_;
+  const bool local_datagrams_enabled_;
+  bool peer_datagrams_enabled_ = false;
   Http3ConnectionPointer conn_;
   stream_id control_stream_id_ = -1;
   stream_id qpack_dec_stream_id_ = -1;

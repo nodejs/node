@@ -30,6 +30,7 @@ const callbacks = {
   onSessionVersionNegotiation() {},
   onStreamCreated() {},
   onStreamBlocked() {},
+  onStreamDatagram() {},
   onStreamClose() {},
   onStreamDrain() {},
   onStreamReset() {},
