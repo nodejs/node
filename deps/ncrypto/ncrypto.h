@@ -639,6 +639,7 @@ class Rsa final {
  private:
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   bool rsa_ = false;
+  bool rsa_pss_ = false;
   DeleteFnPtr<BIGNUM, BN_free> n_;
   DeleteFnPtr<BIGNUM, BN_free> e_;
   DeleteFnPtr<BIGNUM, BN_clear_free> d_;

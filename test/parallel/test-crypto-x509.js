@@ -7,6 +7,7 @@ if (!common.hasCrypto)
 
 const {
   X509Certificate,
+  createHash,
   createPrivateKey,
   generateKeyPairSync,
   createSign,
@@ -26,6 +27,42 @@ const key = readFileSync(fixtures.path('keys', 'agent1-key.pem'));
 const ca = readFileSync(fixtures.path('keys', 'ca1-cert.pem'));
 
 const privateKey = createPrivateKey(key);
+
+if (!process.features.openssl_is_boringssl) {
+  const expectedPubkeys = hasOpenSSL3 ? [
+    [
+      'rsa_pss_cert_2048.pem',
+      292,
+      'dff998a209bfa2e6ded1208c6e57f5b6bdedfa44b631265e3e244f38e637f6e4',
+    ],
+    [
+      'rsa_pss_cert_2048_sha256_sha256_16.pem',
+      342,
+      'da0bcd53fbe3969c7cc2730f86abc34e0e1c340264bbdfa3faf01484c2eeece0',
+    ],
+  ] : [
+    [
+      'rsa_pss_cert_2048.pem',
+      294,
+      '4d4f2f076aced4f0df922b84b466b0a60ba4cb50a23d695ae12ddc5fff7aca14',
+    ],
+    [
+      'rsa_pss_cert_2048_sha256_sha256_16.pem',
+      294,
+      'd37942c3bd02bc25c724fcd31efd647824e536c13d62d9ad0b5db8c0900d3cba',
+    ],
+  ];
+
+  for (const [name, length, digest] of expectedPubkeys) {
+    const pssCert = new X509Certificate(
+      readFileSync(fixtures.path('keys', name)));
+    const pubkey = pssCert.toLegacyObject().pubkey;
+    assert.strictEqual(pubkey.length, length);
+    assert.strictEqual(
+      createHash('sha256').update(pubkey).digest('hex'),
+      digest);
+  }
+}
 
 [1, {}, false, null].forEach((i) => {
   assert.throws(() => new X509Certificate(i), {
