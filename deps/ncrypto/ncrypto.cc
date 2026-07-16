@@ -93,7 +93,11 @@ const EVP_MD* GetDigestCtxMd(const EVP_MD_CTX* ctx) {
 }
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
+using ASN1StringPointer = DeleteFnPtr<ASN1_STRING, ASN1_STRING_free>;
 using OSSLParamBldPointer = DeleteFnPtr<OSSL_PARAM_BLD, OSSL_PARAM_BLD_free>;
+using RsaPssParamsPointer = DeleteFnPtr<RSA_PSS_PARAMS, RSA_PSS_PARAMS_free>;
+using X509AlgorPointer = DeleteFnPtr<X509_ALGOR, X509_ALGOR_free>;
+using X509PubkeyPointer = DeleteFnPtr<X509_PUBKEY, X509_PUBKEY_free>;
 struct OSSLParamDeleter {
   void operator()(OSSL_PARAM* params) const {
     if (params == nullptr) return;
@@ -5684,6 +5688,66 @@ bool ReadRsaPssParams(const EVP_PKEY* pkey, Rsa::PssParams* params) {
 
   return true;
 }
+
+bool SetRsaPssHashAlgorithm(X509_ALGOR** out, const Digest& digest) {
+  if (EVP_MD_is_a(digest.get(), "SHA1")) return true;
+
+  X509AlgorPointer algorithm(X509_ALGOR_new());
+  if (!algorithm) return false;
+  X509_ALGOR_set_md(algorithm.get(), digest.get());
+  *out = algorithm.release();
+  return true;
+}
+
+bool SetRsaPssMaskGenAlgorithm(X509_ALGOR** out, const Digest& digest) {
+  if (EVP_MD_is_a(digest.get(), "SHA1")) return true;
+
+  X509AlgorPointer hash_algorithm(X509_ALGOR_new());
+  if (!hash_algorithm) return false;
+  X509_ALGOR_set_md(hash_algorithm.get(), digest.get());
+
+  ASN1StringPointer hash_algorithm_der(ASN1_item_pack(
+      hash_algorithm.get(), ASN1_ITEM_rptr(X509_ALGOR), nullptr));
+  if (!hash_algorithm_der) return false;
+
+  X509AlgorPointer algorithm(X509_ALGOR_new());
+  if (!algorithm || X509_ALGOR_set0(algorithm.get(),
+                                    OBJ_nid2obj(NID_mgf1),
+                                    V_ASN1_SEQUENCE,
+                                    hash_algorithm_der.get()) != 1) {
+    return false;
+  }
+  hash_algorithm_der.release();
+  *out = algorithm.release();
+  return true;
+}
+
+ASN1StringPointer EncodeRsaPssParams(const Rsa::PssParams& params) {
+  const Digest digest = Digest::FromName(params.digest.data());
+  if (!digest) return {};
+
+  const Digest mgf1_digest = params.mgf1_digest
+                                 ? Digest::FromName(params.mgf1_digest->data())
+                                 : digest;
+  if (!mgf1_digest) return {};
+
+  RsaPssParamsPointer pss(RSA_PSS_PARAMS_new());
+  if (!pss || !SetRsaPssHashAlgorithm(&pss->hashAlgorithm, digest) ||
+      !SetRsaPssMaskGenAlgorithm(&pss->maskGenAlgorithm, mgf1_digest)) {
+    return {};
+  }
+
+  if (params.salt_length != 20) {
+    pss->saltLength = ASN1_INTEGER_new();
+    if (pss->saltLength == nullptr ||
+        ASN1_INTEGER_set_int64(pss->saltLength, params.salt_length) != 1) {
+      return {};
+    }
+  }
+
+  return ASN1StringPointer(
+      ASN1_item_pack(pss.get(), ASN1_ITEM_rptr(RSA_PSS_PARAMS), nullptr));
+}
 }  // namespace
 
 Rsa::Rsa() : rsa_(false) {}
@@ -5691,6 +5755,7 @@ Rsa::Rsa() : rsa_(false) {}
 Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
   const int type = EVPKeyPointer::id(pkey);
   if (type != EVP_PKEY_RSA && type != EVP_PKEY_RSA_PSS) return;
+  rsa_pss_ = type == EVP_PKEY_RSA_PSS;
   if (!GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_N, &n_) ||
       !GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_E, &e_)) {
     return;
@@ -5786,7 +5851,35 @@ BIOPointer Rsa::derPublicKey() const {
   if (!bio) return {};
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(*this);
-  if (!pkey || i2d_PUBKEY_bio(bio.get(), pkey.get()) != 1) return {};
+  if (!pkey) return {};
+  if (!rsa_pss_) {
+    if (i2d_PUBKEY_bio(bio.get(), pkey.get()) != 1) return {};
+    return bio;
+  }
+
+  X509_PUBKEY* raw_pubkey = nullptr;
+  const int result = X509_PUBKEY_set(&raw_pubkey, pkey.get());
+  X509PubkeyPointer pubkey(raw_pubkey);
+  if (result != 1) return {};
+
+  int parameter_type = V_ASN1_UNDEF;
+  ASN1StringPointer parameters;
+  if (pss_params_) {
+    parameters = EncodeRsaPssParams(*pss_params_);
+    if (!parameters) return {};
+    parameter_type = V_ASN1_SEQUENCE;
+  }
+
+  if (X509_PUBKEY_set0_param(pubkey.get(),
+                             OBJ_nid2obj(NID_rsaEncryption),
+                             parameter_type,
+                             parameters.get(),
+                             nullptr,
+                             0) != 1) {
+    return {};
+  }
+  parameters.release();
+  if (i2d_X509_PUBKEY_bio(bio.get(), pubkey.get()) != 1) return {};
 #else
   if (rsa_ == nullptr || i2d_RSA_PUBKEY_bio(bio.get(), rsa_) != 1) return {};
 #endif
