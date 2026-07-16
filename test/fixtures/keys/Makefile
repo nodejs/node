@@ -71,6 +71,8 @@ all: \
   rsa_private_4096.pem \
   rsa_public_2048.pem \
   rsa_public_4096.pem \
+  rsa_pss_cert_2048.pem \
+  rsa_pss_cert_2048_sha256_sha256_16.pem \
   rsa_pss_private_2048.pem \
   rsa_pss_private_2048_sha256_sha256_16.pem \
   rsa_pss_private_2048_sha512_sha256_20.pem \
@@ -917,6 +919,12 @@ rsa_pss_private_2048_sha512_sha256_20.pem:
 
 rsa_pss_private_2048_sha1_sha1_20.pem:
 	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha1 -pkeyopt rsa_pss_keygen_mgf1_md:sha1 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha1_sha1_20.pem
+
+rsa_pss_cert_2048.pem: rsa_pss_private_2048.pem
+	openssl req -new -x509 -key rsa_pss_private_2048.pem -subj "/CN=Node.js" -days 36500 -set_serial 1 -out rsa_pss_cert_2048.pem
+
+rsa_pss_cert_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.pem
+	openssl req -new -x509 -key rsa_pss_private_2048_sha256_sha256_16.pem -subj "/CN=Node.js" -days 36500 -set_serial 1 -out rsa_pss_cert_2048_sha256_sha256_16.pem
 
 rsa_pss_public_2048.pem: rsa_pss_private_2048.pem
 	openssl pkey -in rsa_pss_private_2048.pem -pubout -out rsa_pss_public_2048.pem
