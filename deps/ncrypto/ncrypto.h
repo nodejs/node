@@ -641,12 +641,12 @@ class Rsa final {
   bool rsa_ = false;
   DeleteFnPtr<BIGNUM, BN_free> n_;
   DeleteFnPtr<BIGNUM, BN_free> e_;
-  DeleteFnPtr<BIGNUM, BN_free> d_;
-  DeleteFnPtr<BIGNUM, BN_free> p_;
-  DeleteFnPtr<BIGNUM, BN_free> q_;
-  DeleteFnPtr<BIGNUM, BN_free> dp_;
-  DeleteFnPtr<BIGNUM, BN_free> dq_;
-  DeleteFnPtr<BIGNUM, BN_free> qi_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> d_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> p_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> q_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> dp_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> dq_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> qi_;
   std::optional<PssParams> pss_params_;
 #else
   OSSL3_CONST RSA* rsa_;
@@ -1634,7 +1634,7 @@ class ECKeyPointer final {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
-  DeleteFnPtr<BIGNUM, BN_free> priv_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> priv_;
 #else
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
 #endif
