@@ -4723,7 +4723,7 @@ calling or overriding `_listen2`.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/99999
+    pr-url: https://github.com/nodejs/node/pull/64342
     description: Documentation-only deprecation.
 -->
 
