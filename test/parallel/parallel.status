@@ -23,10 +23,8 @@ test-snapshot-incompatible: SKIP
 # https://github.com/nodejs/node/issues/59090
 test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
-test-fs-cp-sync-error-on-exist: SKIP
 test-fs-cp-sync-symlink-points-to-dest-error: SKIP
 test-fs-cp-async-symlink-points-to-dest: SKIP
-test-fs-cp-sync-unicode-folder-names: SKIP
 
 # Windows on ARM
 [$system==win32 && $arch==arm64]
