@@ -3,8 +3,9 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { Writable } = require('stream');
 const {
-  from, fromSync, pull, pullSync, pipeTo,
+  from, fromSync, pull, pullSync, pipeTo, fromWritable,
   push, duplex, broadcast, Broadcast, share, shareSync,
   Share, SyncShare,
   bytes, bytesSync, text, textSync,
@@ -41,6 +42,19 @@ assert.throws(() => push({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 // Transforms must be functions or transform objects
 assert.throws(() => push(42, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => push('bad', {}), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// Writer options.signal must be AbortSignal
+{
+  const { writer } = push();
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
 
 // Writer.writev requires array
 {
@@ -147,6 +161,19 @@ assert.throws(() => broadcast({ highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
 assert.throws(() => broadcast({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG_VALUE' });
 
+// BroadcastWriter options.signal must be AbortSignal
+{
+  const { writer } = broadcast();
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
+
 // BroadcastWriter.writev requires array
 {
   const { writer } = broadcast();
@@ -159,6 +186,24 @@ assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG
 
 // Broadcast.from rejects non-streamable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// fromWritable Writer options.signal must be AbortSignal
+{
+  const writable = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    },
+  });
+  const writer = fromWritable(writable);
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writable.destroy();
+}
 
 // =============================================================================
 // share() / shareSync() validation
