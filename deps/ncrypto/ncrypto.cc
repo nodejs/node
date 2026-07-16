@@ -94,7 +94,19 @@ const EVP_MD* GetDigestCtxMd(const EVP_MD_CTX* ctx) {
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 using OSSLParamBldPointer = DeleteFnPtr<OSSL_PARAM_BLD, OSSL_PARAM_BLD_free>;
-using OSSLParamPointer = DeleteFnPtr<OSSL_PARAM, OSSL_PARAM_free>;
+struct OSSLParamDeleter {
+  void operator()(OSSL_PARAM* params) const {
+    if (params == nullptr) return;
+    for (OSSL_PARAM* param = params; param->key != nullptr; param++) {
+      if (param->data != nullptr && param->data_type != OSSL_PARAM_UTF8_PTR &&
+          param->data_type != OSSL_PARAM_OCTET_PTR) {
+        OPENSSL_cleanse(param->data, param->data_size);
+      }
+    }
+    OSSL_PARAM_free(params);
+  }
+};
+using OSSLParamPointer = std::unique_ptr<OSSL_PARAM, OSSLParamDeleter>;
 struct OpenSSLBufferDeleter {
   void operator()(unsigned char* pointer) const { OPENSSL_free(pointer); }
 };
@@ -106,9 +118,8 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-bool GetPKeyBnParam(const EVP_PKEY* pkey,
-                    const char* name,
-                    DeleteFnPtr<BIGNUM, BN_free>* out) {
+template <typename Pointer>
+bool GetPKeyBnParam(const EVP_PKEY* pkey, const char* name, Pointer* out) {
   BIGNUM* bn = nullptr;
   if (pkey == nullptr) return false;
   if (EVP_PKEY_get_bn_param(pkey, name, &bn) == 1) {
@@ -135,9 +146,10 @@ bool GetPKeyBnParam(const EVP_PKEY* pkey,
   return true;
 }
 
+template <typename Pointer>
 bool GetOptionalPKeyBnParam(const EVP_PKEY* pkey,
                             const char* name,
-                            DeleteFnPtr<BIGNUM, BN_free>* out) {
+                            Pointer* out) {
   BIGNUM* bn = nullptr;
   if (pkey == nullptr) {
     out->reset();
@@ -273,9 +285,11 @@ bool GetDhParams(const EVP_PKEY* pkey,
 
 bool GetDhKeys(const EVP_PKEY* pkey,
                DeleteFnPtr<BIGNUM, BN_free>* pub,
-               DeleteFnPtr<BIGNUM, BN_free>* priv) {
-  return GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PUB_KEY, pub) &&
-         GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PRIV_KEY, priv);
+               DeleteFnPtr<BIGNUM, BN_clear_free>* priv) {
+  return (pub == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PUB_KEY, pub)) &&
+         (priv == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PRIV_KEY, priv));
 }
 #endif
 
@@ -2287,8 +2301,7 @@ DataPointer DHPointer::getPublicKey() const {
   if (!dh_) return {};
 
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return {};
+  if (!GetDhKeys(dh_.get(), &pub_key, nullptr)) return {};
   return BignumPointer::Encode(pub_key.get());
 #else
   const BIGNUM* pub_key;
@@ -2303,9 +2316,8 @@ DataPointer DHPointer::getPrivateKey() const {
   if (pvt_key_) return pvt_key_.encode();
   if (!dh_) return {};
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return {};
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return {};
   return BignumPointer::Encode(pvt_key.get());
 #else
   const BIGNUM* pvt_key;
@@ -2320,9 +2332,8 @@ bool DHPointer::hasPrivateKey() const {
   if (pvt_key_) return true;
   if (!dh_) return false;
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return false;
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return false;
   return pvt_key != nullptr;
 #else
   const BIGNUM* pvt_key = nullptr;
@@ -2358,7 +2369,7 @@ DataPointer DHPointer::generateKeys() {
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
   if (!GetDhParams(dh_.get(), &p, &g) ||
       !GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
     return {};
@@ -2493,9 +2504,8 @@ bool DHPointer::setPublicKey(BignumPointer&& key) {
     return true;
   }
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) {
     return false;
   }
   EVPKeyPointer pkey;
@@ -2532,8 +2542,7 @@ bool DHPointer::setPrivateKey(BignumPointer&& key) {
   }
 
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
+  if (!GetDhKeys(dh_.get(), &pub_key, nullptr)) {
     return false;
   }
   EVPKeyPointer pkey;
@@ -3525,12 +3534,13 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   size_t der_len = 0;
   OSSLEncoderCtxPointer ctx(OSSL_ENCODER_CTX_new_for_pkey(
       pkey, OSSL_KEYMGMT_SELECT_KEYPAIR, "DER", "pkcs1", nullptr));
-  if (!ctx || OSSL_ENCODER_to_data(ctx.get(), &der, &der_len) != 1) {
-    return false;
-  }
+  if (!ctx) return false;
 
-  OpenSSLBufferPointer der_storage(der);
-  DERView der_view{der_storage.get(), der_len};
+  const int result = OSSL_ENCODER_to_data(ctx.get(), &der, &der_len);
+  DataPointer der_storage(der, der_len);
+  if (result != 1) return false;
+
+  DERView der_view{der_storage.get<const unsigned char>(), der_len};
   return PEM_ASN1_write_bio(
              WriteDERView,
              PEM_STRING_RSA,
@@ -4959,7 +4969,7 @@ bool ECKeyPointer::generate() {
   if (EVP_PKEY_keygen(ctx.get(), &raw) != 1) return false;
   EVPKeyPointer pkey(raw);
 
-  DeleteFnPtr<BIGNUM, BN_free> priv;
+  DeleteFnPtr<BIGNUM, BN_clear_free> priv;
   if (!GetPKeyBnParam(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, &priv)) {
     return false;
   }
