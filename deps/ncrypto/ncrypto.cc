@@ -5685,12 +5685,14 @@ Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
       !GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_E, &e_)) {
     return;
   }
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_D, &d_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_);
+  if (!GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_D, &d_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_)) {
+    return;
+  }
 
   if (type == EVP_PKEY_RSA_PSS) {
     MarkPopErrorOnReturn pop_errors;

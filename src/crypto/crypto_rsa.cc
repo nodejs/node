@@ -315,6 +315,13 @@ bool ExportJWKRsaKey(Environment* env,
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt_key = rsa.getPrivateKey();
+    if (pub_key.d == nullptr || pvt_key.p == nullptr || pvt_key.q == nullptr ||
+        pvt_key.dp == nullptr || pvt_key.dq == nullptr ||
+        pvt_key.qi == nullptr) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to export RSA private key");
+      return false;
+    }
     if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d)
             .IsNothing() ||
         SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p)
