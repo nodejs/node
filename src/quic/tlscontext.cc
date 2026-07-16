@@ -12,6 +12,9 @@
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+#include <openssl/comp.h>
+#endif
 #include <util-inl.h>
 #include <v8.h>
 #include "application.h"
@@ -594,6 +597,48 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
+  // TLS certificate compression (RFC 8879). OpenSSL enables all available
+  // algorithms by default once compression libraries are linked, so we
+  // always clear the preference first to keep certificate compression
+  // opt-in (matching the behavior of node:tls). When the
+  // certificateCompression option is set, apply the requested algorithms
+  // and pre-compress the certificate(s) loaded above. QUIC always uses
+  // TLS 1.3, which is the minimum required for certificate compression.
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  {
+    ClearErrorOnReturn clear_error_on_return;
+    SSL_CTX_set1_cert_comp_preference(ctx.get(), nullptr, 0);
+
+    // The JS layer packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a
+    // single uint32. IDs match TLSEXT_comp_cert_zlib (1), _brotli (2),
+    // _zstd (3).
+    const uint32_t packed = options_.certificate_compression;
+    const size_t len = packed & 0xff;
+    if (len > 0) {
+      // TLSEXT_comp_cert_limit bounds the zero-terminated algs array; the
+      // number of usable algorithms is one fewer.
+      constexpr size_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+      if (len > kMaxCompAlgs) {
+        validation_error_ = "Invalid certificate compression preference";
+        return SSLCtxPointer();
+      }
+      int algs[kMaxCompAlgs];
+      for (size_t i = 0; i < len; i++) {
+        algs[i] = (packed >> (8 * (i + 1))) & 0xff;
+      }
+      if (!SSL_CTX_set1_cert_comp_preference(ctx.get(), algs, len)) {
+        validation_error_ = "Failed to set certificate compression preference";
+        return SSLCtxPointer();
+      }
+      // Pre-compress the loaded certificate(s) for the preferred algorithms.
+      // Returns 0 when no certificate is loaded (e.g. a client context) or
+      // when compression did not reduce the size; both are non-fatal.
+      constexpr int kCompressAllAlgs = 0;
+      SSL_CTX_compress_certs(ctx.get(), kCompressAllAlgs);
+    }
+  }
+#endif  // NODE_OPENSSL_HAS_CERT_COMP
+
   {
     ClearErrorOnReturn clear_error_on_return;
     for (const auto& key : options_.keys) {
@@ -730,9 +775,9 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
-      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
-      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
-      !SET_VECTOR(Store, crl)) {
+      !SET(certificate_compression) || !SET(authoritative) ||
+      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
+      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -761,6 +806,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_private_key ? std::string("yes") : std::string("no"));
   res += prefix + "ciphers: " + ciphers;
   res += prefix + "groups: " + groups;
+  res += prefix +
+         "certificate compression: " + std::to_string(certificate_compression);
   res += prefix + "keys: " + std::to_string(keys.size());
   res += prefix + "certs: " + std::to_string(certs.size());
   res += prefix + "ca: " + std::to_string(ca.size());
