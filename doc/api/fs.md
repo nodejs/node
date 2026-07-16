@@ -7336,6 +7336,13 @@ Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
 {fs.Dirent} objects, rather than strings or {Buffer}s.
 
+When a directory is read, such as with [`fs.readdir()`][] or
+[`fs.opendir()`][], the file type of each entry is the type reported by the
+operating system and may depend on the file system; for example, some file
+systems may report a type that differs from what [`fs.lstat()`][] returns.
+Node.js calls [`fs.lstat()`][] on such an entry only when the reported type
+is unknown. Use [`fs.lstat()`][] when an accurate file type is required.
+
 #### `dirent.isBlockDevice()`
 
 <!-- YAML
