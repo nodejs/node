@@ -77,6 +77,7 @@ class SessionManager;
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
+  V(certificate_compression, "certificateCompression")                         \
   V(certs, "certs")                                                            \
   V(code, "code")                                                              \
   V(ciphers, "ciphers")                                                        \
