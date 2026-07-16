@@ -30,6 +30,7 @@
 #include "frozen/bits/version.h"
 
 #include <utility>
+#include <functional>
 
 namespace frozen {
 
@@ -138,12 +139,12 @@ public:
   constexpr size_type max_size() const { return N; }
 
   /* lookup */
-  
+
   template <class KeyType>
   constexpr std::size_t count(KeyType const &key) const {
     return bits::binary_search<N>(items_.begin(), key, less_than_);
   }
-  
+
   template <class KeyType>
   constexpr const_iterator find(KeyType const &key) const {
     return map::find_impl(*this, key);
@@ -152,12 +153,12 @@ public:
   constexpr iterator find(KeyType const &key) {
     return map::find_impl(*this, key);
   }
-  
+
   template <class KeyType>
   constexpr bool contains(KeyType const &key) const {
     return this->find(key) != this->end();
   }
-  
+
   template <class KeyType>
   constexpr std::pair<const_iterator, const_iterator>
   equal_range(KeyType const &key) const {
@@ -167,7 +168,7 @@ public:
   constexpr std::pair<iterator, iterator> equal_range(KeyType const &key) {
     return equal_range_impl(*this, key);
   }
-  
+
   template <class KeyType>
   constexpr const_iterator lower_bound(KeyType const &key) const {
     return lower_bound_impl(*this, key);
@@ -176,7 +177,7 @@ public:
   constexpr iterator lower_bound(KeyType const &key) {
     return lower_bound_impl(*this, key);
   }
-  
+
   template <class KeyType>
   constexpr const_iterator upper_bound(KeyType const &key) const {
     return upper_bound_impl(*this, key);
