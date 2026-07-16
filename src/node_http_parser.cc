@@ -28,13 +28,13 @@
 #include "llhttp.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
-#include "node_http_common.h"
 #include "stream_base-inl.h"
 #include "v8.h"
 
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
-
+#include <string_view>
+#include <unordered_set>
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -107,6 +107,106 @@ const uint32_t kLenientAll =
 
 inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
+}
+
+constexpr std::string_view kKnownHeaderNames[] = {
+    "Accept-Encoding",
+    "Accept-Language",
+    "Accept-Ranges",
+    "Accept",
+    "Access-Control-Allow-Credentials",
+    "Access-Control-Allow-Headers",
+    "Access-Control-Allow-Methods",
+    "Access-Control-Allow-Origin",
+    "Access-Control-Expose-Headers",
+    "Access-Control-Request-Headers",
+    "Access-Control-Request-Method",
+    "Age",
+    "Authorization",
+    "Cache-Control",
+    "Connection",
+    "Content-Disposition",
+    "Content-Encoding",
+    "Content-Length",
+    "Content-Type",
+    "Cookie",
+    "Date",
+    "ETag",
+    "Forwarded",
+    "Host",
+    "If-Modified-Since",
+    "If-None-Match",
+    "If-Range",
+    "Last-Modified",
+    "Link",
+    "Location",
+    "Range",
+    "Referer",
+    "Server",
+    "Set-Cookie",
+    "Strict-Transport-Security",
+    "Transfer-Encoding",
+    "TE",
+    "Upgrade-Insecure-Requests",
+    "Upgrade",
+    "User-Agent",
+    "Vary",
+    "X-Content-Type-Options",
+    "X-Frame-Options",
+    "Keep-Alive",
+    "Proxy-Connection",
+    "X-XSS-Protection",
+    "Alt-Svc",
+    "Content-Security-Policy",
+    "Early-Data",
+    "Expect-CT",
+    "Origin",
+    "Purpose",
+    "Timing-Allow-Origin",
+    "X-Forwarded-For",
+    "Priority",
+    "Accept-Charset",
+    "Access-Control-Max-Age",
+    "Allow",
+    "Content-Language",
+    "Content-Location",
+    "Content-MD5",
+    "Content-Range",
+    "DNT",
+    "Expect",
+    "Expires",
+    "From",
+    "If-Match",
+    "If-Unmodified-Since",
+    "Max-Forwards",
+    "Prefer",
+    "Proxy-Authenticate",
+    "Proxy-Authorization",
+    "Refresh",
+    "Retry-After",
+    "Trailer",
+    "Tk",
+    "Via",
+    "Warning",
+    "WWW-Authenticate",
+    "HTTP2-Settings",
+};
+
+constexpr size_t kMaxKnownHeaderNameLength = [] {
+  size_t max = 0;
+  for (std::string_view name : kKnownHeaderNames) {
+    if (name.size() > max) max = name.size();
+  }
+  return max;
+}();
+
+// Only known header field names in their canonical Train-Case form may be
+// internalized. Internalizing arbitrary client-controlled names would let
+// peers pollute the isolate-wide string table.
+bool IsKnownHeaderName(const char* str, size_t size) {
+  static const std::unordered_set<std::string_view> known_names(
+      std::begin(kKnownHeaderNames), std::end(kKnownHeaderNames));
+  return known_names.contains(std::string_view(str, size));
 }
 
 class BindingData : public BaseObject {
@@ -236,13 +336,9 @@ struct StringPtr {
   }
 
   Local<String> ToInternalizedString(Environment* env) const {
-    // Only internalize short names to avoid pressuring the string table.
-    if (size_ != 0 && size_ < kMaxInternalizedHeaderNameLength) {
-      return String::NewFromOneByte(env->isolate(),
-                                    reinterpret_cast<const uint8_t*>(str_),
-                                    NewStringType::kInternalized,
-                                    size_)
-          .ToLocalChecked();
+    if (size_ <= kMaxKnownHeaderNameLength && IsKnownHeaderName(str_, size_)) {
+      return OneByteString(
+          env->isolate(), str_, size_, NewStringType::kInternalized);
     }
     return ToString(env);
   }
@@ -954,7 +1050,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
     for (size_t i = 0; i < num_values_; ++i) {
-      // Field names repeat across requests, so internalize them.
+      // Known field names repeat across requests, so internalize them.
       headers_v[i * 2] = fields_[i].ToInternalizedString(env());
       headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
