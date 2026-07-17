@@ -459,7 +459,7 @@ commit.
 
 If a pull request has been inactive for more than six months, add the `stalled` label
 to it. That will trigger an automation that adds a comment explaining the pull request
-may be close for inactivity, giving a heads-up to the contributor before actually
+may be closed for inactivity, giving a heads-up to the contributor before actually
 closing it if it remains inactive.
 
 ### Approving a change
