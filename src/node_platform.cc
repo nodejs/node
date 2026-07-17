@@ -597,9 +597,9 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
     // However, not blocking on the worker tasks at all can lead to loss of some
     // critical user-blocking worker tasks e.g. wasm async compilation tasks,
     // which should block the main thread until they are completed, as the
-    // documentation suggets. As a compromise, we currently only block on
+    // documentation suggests. As a compromise, we currently only block on
     // user-blocking tasks to reduce the chance of deadlocks while making sure
-    // that criticl user-blocking tasks are not lost.
+    // that critical user-blocking tasks are not lost.
     worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
 }
