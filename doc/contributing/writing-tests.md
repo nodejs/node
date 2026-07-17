@@ -345,7 +345,7 @@ when troubleshooting tests that timeout in CI. With no log statements, we have
 no idea where the test got hung up.
 
 There have been cases where tests fail without `console.log()`, and then pass
-when its added, so be cautious about its use, particularly in tests of the I/O
+when it's added, so be cautious about its use, particularly in tests of the I/O
 and streaming APIs.
 
 Excessive use of console output is discouraged as it can overwhelm the display,
