@@ -1,0 +1,7 @@
+{
+  "name": "doc",
+  "private": true,
+  "dependencies": {
+    "@node-core/doc-kit": "1.4.1"
+  }
+}

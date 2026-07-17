@@ -1,0 +1,12 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in Broken::iterable_no_return: Iterables must return a custom type
+Lowering error in Broken::iterable_no_self: Iterables must accept a self parameter
+Lowering error in Broken::iterable_non_custom: Cannot mark type as iterable twice
+Lowering error in Broken::iterable_non_custom: Iterables must return a custom opaque type
+Lowering error in BrokenIterator::iterator_no_return: Iterator method must return nullable value
+Lowering error in BrokenIterator::iterator_no_self: Iterator must accept a self parameter
+Lowering error in BrokenIterator::iterator_no_option: Cannot mark type as iterator twice
+Lowering error in BrokenIterator::iterator_no_option: Iterator method must return nullable value

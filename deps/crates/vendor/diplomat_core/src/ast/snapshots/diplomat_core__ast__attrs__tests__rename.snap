@@ -1,0 +1,8 @@
+---
+source: core/src/ast/attrs.rs
+expression: attr
+---
+pattern:
+  replacement: foobar_
+  insertion_index: 7
+

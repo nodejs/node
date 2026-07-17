@@ -1,0 +1,51 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Iterator helpers are specced as generators but implemented as direct
+// iterators. As such, generator states need to be tracked manually.
+extern enum JSIteratorHelperState extends uint31 {
+  kSuspendedStart,
+  kSuspendedYield,
+  kExecuting,
+  kCompleted
+}
+
+@abstract
+extern class JSIteratorHelper extends JSObject {
+  state: SmiTagged<JSIteratorHelperState>;
+}
+
+@abstract
+extern class JSIteratorHelperSimple extends JSIteratorHelper {
+  underlying_iterator: iterator::IteratorRecord;
+}
+
+extern class JSIteratorMapHelper extends JSIteratorHelperSimple {
+  mapper: Callable;
+  counter: Number;
+}
+
+extern class JSIteratorFilterHelper extends JSIteratorHelperSimple {
+  predicate: Callable;
+  counter: Number;
+}
+
+extern class JSIteratorTakeHelper extends JSIteratorHelperSimple {
+  remaining: Number;
+}
+
+extern class JSIteratorDropHelper extends JSIteratorHelperSimple {
+  remaining: Number;
+}
+
+extern class JSIteratorFlatMapHelper extends JSIteratorHelperSimple {
+  mapper: Callable;
+  counter: Number;
+  inner_iterator: iterator::IteratorRecord;
+}
+
+extern class JSIteratorConcatHelper extends JSIteratorHelperSimple {
+  iterables: FixedArray;
+  current: Smi;
+}

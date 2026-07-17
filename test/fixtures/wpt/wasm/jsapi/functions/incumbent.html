@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Incumbent settings object for host functions</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<!-- This is the entry page. -->
+
+<iframe src="resources/incumbent-incumbent.html"></iframe>
+
+<script>
+setup({ explicit_done: true });
+
+// postMessage should pick the incumbent page as its .source value to set on the MessageEvent, even
+// inside host functions.
+const expectedURL = (new URL("resources/incumbent-incumbent.html", location.href)).href;
+
+let testId = 0;
+
+window.onload = () => {
+  const relevantWindow = frames[0].document.querySelector("#r").contentWindow;
+
+  function setupTest(t) {
+    ++testId;
+    const thisTestId = testId;
+
+    relevantWindow.addEventListener("messagereceived", t.step_func(e => {
+      const [receivedTestId, receivedSourceURL] = e.detail;
+
+      if (receivedTestId !== thisTestId) {
+        return;
+      }
+
+      assert_equals(receivedSourceURL, expectedURL);
+      t.done();
+    }));
+
+    return thisTestId;
+  }
+
+  async_test(t => {
+    const thisTestId = setupTest(t);
+
+    frames[0].runWindowPostMessageVeryIndirectly(thisTestId, "*");
+  }, "Sanity check: this all works as expected synchronously");
+
+  async_test(t => {
+    const thisTestId = setupTest(t);
+    frames[0].runWindowPostMessageVeryIndirectlyWithNoUserCode(thisTestId, "*");
+  }, "Start function");
+
+  done();
+};
+</script>

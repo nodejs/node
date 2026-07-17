@@ -1,0 +1,21 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        struct Foo {} impl Foo\n        { pub fn fill_slice(s: &mut [f64]) { unimplemented!() } }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    struct Foo {}
+    impl Foo {
+        pub fn fill_slice(s: &mut [f64]) {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_fill_slice(s: diplomat_runtime::DiplomatSliceMut<f64>) {
+        let s = s.into();
+        Foo::fill_slice(s)
+    }
+}

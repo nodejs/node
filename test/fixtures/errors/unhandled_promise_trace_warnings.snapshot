@@ -1,0 +1,12 @@
+(node:<pid>) UnhandledPromiseRejectionWarning: Error: This was rejected
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/unhandled_promise_trace_warnings.js:4:26)
+    at <node-internal-frames>
+(node:<pid>) Error: This was rejected
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/unhandled_promise_trace_warnings.js:4:26)
+    at <node-internal-frames>
+(node:<pid>) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
+    at <node-internal-frames>
+    at Promise.then (<anonymous>)
+    at Promise.catch (<anonymous>)
+    at Immediate.<anonymous> (<project-root>/test/fixtures/errors/unhandled_promise_trace_warnings.js:5:27)
+    at <node-internal-frames>

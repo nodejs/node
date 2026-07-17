@@ -1,0 +1,117 @@
+.TH "NPM-APPROVE-SCRIPTS" "1" "June 2026" "NPM@11.18.0" ""
+.SH "NAME"
+\fBnpm-approve-scripts\fR - Approve install scripts for specific dependencies
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm approve-scripts <pkg> \[lB]<pkg> ...\[rB]
+npm approve-scripts --all
+npm approve-scripts --allow-scripts-pending
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Manages the \fBallowScripts\fR field in your project's \fBpackage.json\fR, which records which of your dependencies are permitted to run install scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry sources). This command is the recommended way to maintain that field.
+.P
+In the current release, this field is advisory: install scripts still run by default, but installs print a list of packages whose scripts have not been reviewed. A future release will block unreviewed install scripts.
+.P
+This command only works inside a project that has a \fBpackage.json\fR. Running it with \fB--global\fR (\fB-g\fR) fails with an \fBEGLOBAL\fR error, since global installs (\fBnpm install -g\fR) and one-off executions (\fBnpm exec\fR / \fBnpx\fR) have no project \fBpackage.json\fR to write to. To allow install scripts in those contexts, use the \fB--allow-scripts\fR flag at install time (for example \fBnpm install -g --allow-scripts=canvas,sharp\fR) or persist the setting with \fBnpm config set allow-scripts=canvas,sharp --location=user\fR.
+.P
+There are three modes:
+.P
+.RS 2
+.nf
+npm approve-scripts <pkg> \[lB]<pkg> ...\[rB]
+npm approve-scripts --all
+npm approve-scripts --allow-scripts-pending
+.fi
+.RE
+.P
+\fB<pkg>\fR matches every installed version of that package. By default the command writes pinned entries (\fBpkg@1.2.3\fR), which keep their approval narrowed to the specific version you reviewed. Pass \fB--no-allow-scripts-pin\fR to write name-only entries that allow any future version.
+.P
+\fB--all\fR approves every package with unreviewed install scripts in one go.
+.P
+\fB--allow-scripts-pending\fR is read-only: it lists every package whose install scripts are not yet covered by \fBallowScripts\fR, without modifying \fBpackage.json\fR.
+.P
+\fBapprove-scripts\fR honours the asymmetric pin rule: if you re-approve a package whose installed version has changed, the existing pin is rewritten to track the new installed version. Multi-version statements (\fBpkg@1 || 2\fR) are left alone, since they likely capture intent that the command cannot infer. Existing \fBfalse\fR entries always win; \fBapprove-scripts\fR will not silently re-allow a package you previously denied.
+.P
+If a registry dependency has no \fBresolved\fR URL in your \fBpackage-lock.json\fR (for example, an older lockfile or one written with \fBomit-lockfile-registry-resolved\fR), npm cannot verify a trusted version for it and cannot pin it: a \fBpkg@1.2.3\fR entry never matches, so the package keeps appearing under \fB--allow-scripts-pending\fR. \fBapprove-scripts\fR approves these by name (\fBpkg: true\fR) and warns when it does. To restore pinning, refresh the lockfile with \fBnpm install\fR.
+.SS "Examples"
+.P
+.RS 2
+.nf
+# Approve all currently-installed install scripts after reviewing them
+npm approve-scripts --all
+
+# Approve specific packages, pinned to their installed version
+npm approve-scripts canvas sharp
+
+# Approve name-only (any version of this package is allowed)
+npm approve-scripts --no-allow-scripts-pin canvas
+
+# Preview which packages still need review
+npm approve-scripts --allow-scripts-pending
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBall\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show or act on all packages, not just the ones your project directly depends on. For \fBnpm outdated\fR and \fBnpm ls\fR this lists every outdated or installed package. For \fBnpm approve-scripts\fR and \fBnpm deny-scripts\fR it selects every package with pending install scripts.
+.SS "\fBallow-scripts-pending\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+List packages with install scripts that are not yet covered by the \fBallowScripts\fR policy, without modifying \fBpackage.json\fR. Only meaningful for \fBnpm approve-scripts\fR.
+.SS "\fBallow-scripts-pin\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Write pinned (\fBpkg@version\fR) entries when approving install scripts. Set to \fBfalse\fR to write name-only entries that allow any version. Has no effect on \fBnpm deny-scripts\fR, which always writes name-only entries regardless of this setting.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help deny-scripts
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help rebuild
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.RE 0

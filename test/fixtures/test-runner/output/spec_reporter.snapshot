@@ -1,0 +1,310 @@
+✔ sync expect fail (method) (*ms) # EXPECTED FAILURE
+✔ sync expect fail (options) (*ms) # EXPECTED FAILURE
+✔ async expect fail (method) (*ms) # EXPECTED FAILURE
+✔ async expect fail (options) (*ms) # EXPECTED FAILURE
+✔ sync todo with expect fail (*ms) # TODO
+﹣ sync skip expect fail (*ms) # SKIP
+✔ sync pass todo (*ms) # TODO
+✔ sync pass todo with message (*ms) # this is a passing todo
+⚠ sync fail todo (*ms) # TODO
+⚠ sync fail todo with message (*ms) # this is a failing todo
+﹣ sync skip pass (*ms) # SKIP
+﹣ sync skip pass with message (*ms) # this is skipped
+✔ sync pass (*ms)
+ℹ this test should pass
+✖ sync throw fail (*ms)
+﹣ async skip pass (*ms) # SKIP
+✔ async pass (*ms)
+✖ async throw fail (*ms)
+﹣ async skip fail (*ms) # SKIP
+✖ async assertion fail (*ms)
+✔ resolve pass (*ms)
+✖ reject fail (*ms)
+✔ unhandled rejection - passes but warns (*ms)
+✔ async unhandled rejection - passes but warns (*ms)
+✔ immediate throw - passes but warns (*ms)
+✔ immediate reject - passes but warns (*ms)
+✔ immediate resolve pass (*ms)
+▶ subtest sync throw fail
+  ✖ +sync throw fail (*ms)
+  ℹ this subtest should make its parent test fail
+✖ subtest sync throw fail (*ms)
+✖ sync throw non-error fail (*ms)
+▶ level 0a
+  ✔ level 1a (*ms)
+  ✔ level 1b (*ms)
+  ✔ level 1c (*ms)
+  ✔ level 1d (*ms)
+✔ level 0a (*ms)
+▶ top level
+  ✔ +long running (*ms)
+  ▶ +short running
+    ✔ ++short running (*ms)
+  ✔ +short running (*ms)
+✔ top level (*ms)
+✔ invalid subtest - pass but subtest fails (*ms)
+﹣ sync skip option (*ms) # SKIP
+﹣ sync skip option with message (*ms) # this is skipped
+✖ sync skip option is false fail (*ms)
+✔ <anonymous> (*ms)
+✔ functionOnly (*ms)
+✔ <anonymous> (*ms)
+✔ test with only a name provided (*ms)
+✔ <anonymous> (*ms)
+﹣ <anonymous> (*ms) # SKIP
+﹣ test with a name and options provided (*ms) # SKIP
+﹣ functionAndOptions (*ms) # SKIP
+✔ callback pass (*ms)
+✖ callback fail (*ms)
+✔ sync t is this in test (*ms)
+✔ async t is this in test (*ms)
+✔ callback t is this in test (*ms)
+✖ callback also returns a Promise (*ms)
+✖ callback throw (*ms)
+✖ callback called twice (*ms)
+✔ callback called twice in different ticks (*ms)
+✖ callback called twice in future tick (*ms)
+✖ callback async throw (*ms)
+✔ callback async throw after done (*ms)
+▶ only is set on subtests but not in only mode
+  ✔ running subtest 1 (*ms)
+  ✔ running subtest 3 (*ms)
+  ✔ running subtest 4 (*ms)
+✔ only is set on subtests but not in only mode (*ms)
+✖ custom inspect symbol fail (*ms)
+✖ custom inspect symbol that throws fail (*ms)
+▶ subtest sync throw fails
+  ✖ sync throw fails at first (*ms)
+  ✖ sync throw fails at second (*ms)
+✖ subtest sync throw fails (*ms)
+✖ timed out async test (*ms)
+✖ timed out callback test (*ms)
+✔ large timeout async test is ok (*ms)
+✔ large timeout callback test is ok (*ms)
+✔ successful thenable (*ms)
+✖ rejected thenable (*ms)
+✖ unfinished test with uncaughtException (*ms)
+✖ unfinished test with unhandledRejection (*ms)
+✖ assertion errors display actual and expected properly (*ms)
+✖ invalid subtest fail (*ms)
+ℹ Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:96:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:100:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: uncaught from outside of a test" which triggered an uncaughtException event, caught by the test runner.
+ℹ Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/output.js:104:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/output.js:110:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/output.js:275:1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ Error: Test "callback async throw after done" at test/fixtures/test-runner/output/output.js:293:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ℹ tests 81
+ℹ suites 0
+ℹ pass 40
+ℹ fail 24
+ℹ cancelled 2
+ℹ skipped 10
+ℹ todo 5
+ℹ duration_ms *
+
+✖ failing tests:
+
+test at test/fixtures/test-runner/output/output.js:40:1
+⚠ sync fail todo (*ms) # TODO
+  Error: thrown from sync fail todo
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:42:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:45:1
+⚠ sync fail todo with message (*ms) # this is a failing todo
+  Error: thrown from sync fail todo with message
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:47:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:62:1
+✖ sync throw fail (*ms)
+  Error: thrown from sync throw fail
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:63:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:74:1
+✖ async throw fail (*ms)
+  Error: thrown from async throw fail
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:75:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:78:1
+﹣ async skip fail (*ms) # SKIP
+  Error: thrown from async throw fail
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:80:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:83:1
+✖ async assertion fail (*ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:85:10)
+      at <node-internal-frames>
+      at <node-internal-frames> {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/fixtures/test-runner/output/output.js:92:1
+✖ reject fail (*ms)
+  Error: rejected from reject fail
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:93:25)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:125:11
+✖ +sync throw fail (*ms)
+  Error: thrown from subtest sync throw fail
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:127:11)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:125:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:131:1
+✖ sync throw non-error fail (*ms)
+  Symbol(thrown symbol from sync throw non-error fail)
+
+test at test/fixtures/test-runner/output/output.js:211:1
+✖ sync skip option is false fail (*ms)
+  Error: this should be executed
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:212:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:243:1
+✖ callback fail (*ms)
+  Error: callback failure
+      at Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:245:10)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:262:1
+✖ callback also returns a Promise (*ms)
+  'passed a callback but also returned a Promise'
+
+test at test/fixtures/test-runner/output/output.js:266:1
+✖ callback throw (*ms)
+  Error: thrown from callback throw
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:267:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:270:1
+✖ callback called twice (*ms)
+  'callback invoked multiple times'
+
+test at test/fixtures/test-runner/output/output.js:280:1
+✖ callback called twice in future tick (*ms)
+  Error [ERR_TEST_FAILURE]: callback invoked multiple times
+      at Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:283:5) {
+    code: 'ERR_TEST_FAILURE',
+    failureType: 'multipleCallbackInvocations',
+    cause: 'callback invoked multiple times'
+  }
+
+test at test/fixtures/test-runner/output/output.js:287:1
+✖ callback async throw (*ms)
+  Error: thrown from callback async throw
+      at Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:289:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:311:1
+✖ custom inspect symbol fail (*ms)
+  customized
+
+test at test/fixtures/test-runner/output/output.js:322:1
+✖ custom inspect symbol that throws fail (*ms)
+  { foo: 1, Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]] }
+
+test at test/fixtures/test-runner/output/output.js:334:11
+✖ sync throw fails at first (*ms)
+  Error: thrown from subtest sync throw fails at first
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:335:11)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:334:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:337:11
+✖ sync throw fails at second (*ms)
+  Error: thrown from subtest sync throw fails at second
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:338:11)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:337:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:342:1
+✖ timed out async test (*ms)
+  'test timed out after *ms'
+
+test at test/fixtures/test-runner/output/output.js:351:1
+✖ timed out callback test (*ms)
+  'test timed out after *ms'
+
+test at test/fixtures/test-runner/output/output.js:380:1
+✖ rejected thenable (*ms)
+  'custom error'
+
+test at test/fixtures/test-runner/output/output.js:391:1
+✖ unfinished test with uncaughtException (*ms)
+  Error: foo
+      at Timeout._onTimeout (<project-root>/test/fixtures/test-runner/output/output.js:393:30)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:397:1
+✖ unfinished test with unhandledRejection (*ms)
+  Error: bar
+      at Timeout._onTimeout (<project-root>/test/fixtures/test-runner/output/output.js:399:37)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/output.js:409:1
+✖ assertion errors display actual and expected properly (*ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
+
+  {
+    bar: 1,
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
+    foo: 1
+  }
+
+  should loosely deep-equal
+
+  {
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
+  }
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/output.js:425:12) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepEqual',
+    diff: 'simple'
+  }
+
+test at test/fixtures/test-runner/output/output.js:197:7
+✖ invalid subtest fail (*ms)
+  'test could not be started because its parent finished'

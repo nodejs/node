@@ -1,0 +1,8 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Secure Curves in the Web Cryptography API (https://wicg.github.io/webcrypto-secure-curves/)
+
+dictionary Ed448Params : Algorithm {
+  BufferSource context;
+};

@@ -1,0 +1,34 @@
+version: "{build}"
+
+environment:
+  matrix:
+  - ARCHITECTURE: x64
+    MSVC_VER: 14
+  - ARCHITECTURE: x86
+    MSVC_VER: 14
+  - ARCHITECTURE: x64
+    MSVC_VER: 12
+  - ARCHITECTURE: x86
+    MSVC_VER: 12
+  - ARCHITECTURE: x86
+    MSVC_VER: 11
+  - ARCHITECTURE: x86
+    MSVC_VER: 10
+  - ARCHITECTURE: x86
+    MSVC_VER: 9
+
+branches:
+  except:
+    - master
+    - /^(wip\/)?(travis|osx|mingw|ipp)(\-.+)?$/
+
+configuration: Debug
+
+install:
+
+before_build:
+  - call "C:\Program Files (x86)\Microsoft Visual Studio %MSVC_VER%.0\VC\vcvarsall.bat" %ARCHITECTURE%
+
+build_script: cl.exe /W4 /WX /Feexample munit.c example.c
+
+test_script: example.exe --color always

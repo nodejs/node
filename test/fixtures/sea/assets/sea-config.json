@@ -1,0 +1,8 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "assets": {
+    "utf8_test_text.txt": "utf8_test_text.txt",
+    "person.jpg": "person.jpg"
+  }
+}

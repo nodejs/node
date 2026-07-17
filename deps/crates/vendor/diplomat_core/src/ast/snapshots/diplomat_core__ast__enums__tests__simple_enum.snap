@@ -1,0 +1,27 @@
+---
+source: core/src/ast/enums.rs
+expression: "Enum::new(&syn::parse_quote! {\n                /// Some docs.\n                #[diplomat :: rust_link(foo :: Bar, Enum)] enum MyLocalEnum\n                {\n                    Abc, /// Some more docs.\n                    Def\n                }\n            }, &Default::default())"
+---
+name: MyLocalEnum
+docs:
+  - Some docs.
+  - - path:
+        elements:
+          - foo
+          - Bar
+      typ: Enum
+      display: Normal
+variants:
+  - - Abc
+    - 0
+    - - ""
+      - []
+    - {}
+  - - Def
+    - 1
+    - - Some more docs.
+      - []
+    - {}
+methods: []
+attrs: {}
+

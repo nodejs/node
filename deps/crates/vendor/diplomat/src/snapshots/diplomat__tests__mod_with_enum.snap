@@ -1,0 +1,24 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        enum Abc { A, B = 123, } impl Abc\n        { pub fn do_something(&self) { unimplemented!() } }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    enum Abc {
+        A,
+        B = 123,
+    }
+    impl Abc {
+        pub fn do_something(&self) {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Abc_do_something(this: &Abc) {
+        this.do_something()
+    }
+}

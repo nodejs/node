@@ -1,0 +1,12 @@
+Test whether then callback receivers are correctly set.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS fulfilled
+PASS thisInOnFulfilled is undefined
+PASS rejected
+PASS thisInOnRejected is undefined
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

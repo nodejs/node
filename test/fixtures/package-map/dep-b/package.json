@@ -1,0 +1,7 @@
+{
+  "name": "dep-b",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

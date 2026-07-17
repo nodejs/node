@@ -1,0 +1,11 @@
+features:
+- name: url
+  files:
+  - "*"
+  - "!url-statics-canparse.*"
+- name: url-canparse
+  files:
+  - url-statics-canparse.*
+- name: base
+  files:
+  - a-element*

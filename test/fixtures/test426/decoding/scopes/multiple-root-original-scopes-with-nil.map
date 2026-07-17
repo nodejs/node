@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "file": "multiple-root-original-scopes-with-nil.js",
+  "sources": [
+    "original_0.js",
+    "original_1.js",
+    "original_2.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global"
+  ],
+  "scopes": "BCAAA,CKA,A,BCAAA,CKA"
+}

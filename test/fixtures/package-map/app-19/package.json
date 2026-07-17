@@ -1,0 +1,7 @@
+{
+  "name": "app-19",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

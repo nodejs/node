@@ -1,0 +1,18 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-plural-rules.h'
+
+type JSPluralRulesType extends int32 constexpr 'JSPluralRules::Type';
+bitfield struct JSPluralRulesFlags extends uint31 {
+  Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
+}
+
+extern class JSPluralRules extends JSObject {
+  locale: String;
+  flags: SmiTagged<JSPluralRulesFlags>;
+  icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
+  icu_number_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+}
