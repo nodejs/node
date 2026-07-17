@@ -75,6 +75,16 @@ const vfs = require('node:vfs');
   await fsp.utimes(p('src/hello.txt'), now, now);
   await fsp.lutimes(p('src/hello.txt'), now, now);
 
+  await fsp.lchmod(p('src/plnk.txt'), 0o700);
+  assert.strictEqual(
+    (await fsp.lstat(p('src/hello.txt'))).mode & 0o777,
+    0o644,
+  );
+  assert.strictEqual(
+    (await fsp.lstat(p('src/plnk.txt'))).mode & 0o777,
+    0o700,
+  );
+
   // FileHandle via fsp.open
   const handle = await fsp.open(p('src/hello.txt'), 'r');
   assert.strictEqual(await handle.readFile('utf8'), 'hello');
