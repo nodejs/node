@@ -21,7 +21,7 @@ If your first contribution is motivated by an issue you already encounter, but y
 is complex, introduces a new feature, breaks backward compatibility, or needs a significant refactor,
 it can be useful to open an issue to discuss whether the change or its design is acceptable before
 working out the implementation details. The issue can be opened before you send the pull request,
-or along side your pull request (in which case, it's better to keep the pull request in draft mode).
+or alongside your pull request (in which case, it's better to keep the pull request in draft mode).
 
 Straightforward or non-controversial changes, such as an obvious bug fix or a small refactor, don't
 usually benefit from discussions in a separate issue, and can be sent directly as a pull request.
