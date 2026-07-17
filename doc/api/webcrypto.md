@@ -2383,11 +2383,16 @@ added:
 added:
  - v25.9.0
  - v24.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64557
+    description: Limit customization to 512 bytes.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The optional customization string for KangarooTwelve.
+The optional customization string for KangarooTwelve. It must not exceed 512
+bytes.
 
 #### `kangarooTwelveParams.name`
 
