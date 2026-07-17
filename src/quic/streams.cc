@@ -1262,7 +1262,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
-  // If the stream is not a local undirectional stream and is_readable is
+  // If the stream is not a local unidirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
