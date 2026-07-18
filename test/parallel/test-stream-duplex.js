@@ -120,7 +120,7 @@ process.on('exit', () => {
       this.push(null);
     },
     write: common.mustCall((chunk) => {
-      assert.strictEqual(chunk, dataToWrite);
+      assert.deepStrictEqual(chunk, dataToWrite);
     })
   });
 
@@ -143,7 +143,7 @@ process.on('exit', () => {
       this.push(null);
     },
     write: common.mustCall((chunk) => {
-      assert.strictEqual(chunk, dataToWrite);
+      assert.deepStrictEqual(chunk, dataToWrite);
     })
   });
 
