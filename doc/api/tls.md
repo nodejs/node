@@ -1072,6 +1072,18 @@ added: v0.11.4
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
 
+The peer certificate is only verified during a full TLS handshake. When a
+connection is established by resuming a previous session (see
+[Session Resumption][]), verification is not repeated. If the client
+presented a certificate in the original handshake, `authorized` and
+`authorizationError` carry the result stored with the session, including
+any verification error. On TLS 1.3, a client that sent no certificate at
+all can resume a session and report `authorized` as `true`, while
+[`tls.TLSSocket.getPeerCertificate()`][] returns an empty object. Servers
+that authorize clients manually with `rejectUnauthorized: false` should
+therefore also check [`tls.TLSSocket.isSessionReused()`][] and that a peer
+certificate is present.
+
 ### `tlsSocket.disableRenegotiation()`
 
 <!-- YAML
@@ -2580,6 +2592,7 @@ added: v0.11.3
 [`tls.TLSSocket.getProtocol()`]: #tlssocketgetprotocol
 [`tls.TLSSocket.getSession()`]: #tlssocketgetsession
 [`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
+[`tls.TLSSocket.isSessionReused()`]: #tlssocketissessionreused
 [`tls.TLSSocket.servername`]: #tlssocketservername
 [`tls.TLSSocket`]: #class-tlstlssocket
 [`tls.connect()`]: #tlsconnectoptions-callback
