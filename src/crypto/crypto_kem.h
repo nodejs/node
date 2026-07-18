@@ -18,8 +18,6 @@ namespace crypto {
 enum class KEMMode { Encapsulate, Decapsulate };
 
 struct KEMConfiguration final : public MemoryRetainer {
-  CryptoJobMode job_mode;
-  KEMMode mode;
   KeyObjectData key;
   ByteSource ciphertext;
 
@@ -67,7 +65,12 @@ class KEMEncapsulateJob final : public CryptoJob<KEMEncapsulateTraits> {
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
-  std::optional<ncrypto::KEM::EncapsulateResult> out_;
+  struct Output {
+    ByteSource ciphertext;
+    ByteSource shared_key;
+  };
+
+  std::optional<Output> out_;
 };
 
 struct KEMDecapsulateTraits final {

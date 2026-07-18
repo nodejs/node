@@ -54,7 +54,7 @@ EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
 }
 
 void SecretKeyGenConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (out) tracker->TrackFieldWithSize("out", length);
+  tracker->TraitTrackInline(out, "out");
 }
 
 Maybe<void> SecretKeyGenTraits::AdditionalConfig(

@@ -25,7 +25,6 @@ namespace crypto {
 // at least 16 bytes in length.
 
 struct ScryptConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   ByteSource pass;
   ByteSource salt;
   uint32_t N;

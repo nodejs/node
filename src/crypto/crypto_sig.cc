@@ -684,8 +684,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 }
 
 SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
+    : mode(other.mode),
       key(std::move(other.key)),
       data(std::move(other.data)),
       signature(std::move(other.signature)),
@@ -705,11 +704,9 @@ SignConfiguration& SignConfiguration::operator=(
 
 void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (IsCryptoJobAsync(job_mode)) {
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("signature", signature.size());
-    tracker->TrackFieldWithSize("context_string", context_string.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(signature, "signature");
+  tracker->TraitTrackInline(context_string, "context_string");
 }
 
 Maybe<void> SignTraits::AdditionalConfig(
@@ -719,8 +716,6 @@ Maybe<void> SignTraits::AdditionalConfig(
     SignConfiguration* params) {
   ClearErrorOnReturn clear_error_on_return;
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // Sign Mode
 

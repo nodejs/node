@@ -54,7 +54,7 @@ Hash::Hash(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
 
 void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("mdctx", mdctx_ ? kSizeOf_EVP_MD_CTX : 0);
-  tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
+  tracker->TraitTrackInline(digest_, "md");
 }
 
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
@@ -537,10 +537,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 HashConfig::HashConfig(HashConfig&& other) noexcept
-    : mode(other.mode),
-      in(std::move(other.in)),
-      digest(other.digest),
-      length(other.length) {}
+    : in(std::move(other.in)), digest(other.digest), length(other.length) {}
 
 HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
   if (&other == this) return *this;
@@ -549,8 +546,7 @@ HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
 }
 
 void HashConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If the Job is sync, then the HashConfig does not own the data.
-  if (IsCryptoJobAsync(mode)) tracker->TrackFieldWithSize("in", in.size());
+  tracker->TraitTrackInline(in, "in");
 }
 
 MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
@@ -565,8 +561,6 @@ Maybe<void> HashTraits::AdditionalConfig(
     unsigned int offset,
     HashConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(args[offset]->IsString());  // Hash algorithm
   Utf8Value digest(env->isolate(), args[offset]);
@@ -796,8 +790,7 @@ bool DigestUpdateBytepad(ncrypto::EVPMDCtxPointer* ctx,
 }  // namespace
 
 CShakeConfig::CShakeConfig(CShakeConfig&& other) noexcept
-    : mode(other.mode),
-      in(std::move(other.in)),
+    : in(std::move(other.in)),
       function_name(std::move(other.function_name)),
       customization(std::move(other.customization)),
       variant(other.variant),
@@ -810,12 +803,9 @@ CShakeConfig& CShakeConfig::operator=(CShakeConfig&& other) noexcept {
 }
 
 void CShakeConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If the Job is sync, then the CShakeConfig does not own the data.
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("in", in.size());
-    tracker->TrackFieldWithSize("function_name", function_name.size());
-    tracker->TrackFieldWithSize("customization", customization.size());
-  }
+  tracker->TraitTrackInline(in, "in");
+  tracker->TraitTrackInline(function_name, "function_name");
+  tracker->TraitTrackInline(customization, "customization");
 }
 
 MaybeLocal<Value> CShakeTraits::EncodeOutput(Environment* env,
@@ -830,8 +820,6 @@ Maybe<void> CShakeTraits::AdditionalConfig(
     unsigned int offset,
     CShakeConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(args[offset]->IsString());  // Algorithm name
   Utf8Value algorithm_name(env->isolate(), args[offset]);

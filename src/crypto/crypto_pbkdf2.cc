@@ -22,8 +22,7 @@ using v8::Value;
 
 namespace crypto {
 PBKDF2Config::PBKDF2Config(PBKDF2Config&& other) noexcept
-    : mode(other.mode),
-      key(std::move(other.key)),
+    : key(std::move(other.key)),
       pass(std::move(other.pass)),
       salt(std::move(other.salt)),
       iterations(other.iterations),
@@ -37,12 +36,11 @@ PBKDF2Config& PBKDF2Config::operator=(PBKDF2Config&& other) noexcept {
 }
 
 void PBKDF2Config::MemoryInfo(MemoryTracker* tracker) const {
-  // If the job is sync, PBKDF2Config does not own the data.
-  if (key) tracker->TrackField("key", key);
-  if (IsCryptoJobAsync(mode)) {
-    if (!key) tracker->TrackFieldWithSize("pass", pass.size());
-    tracker->TrackFieldWithSize("salt", salt.size());
-  }
+  if (key)
+    tracker->TrackField("key", key);
+  else
+    tracker->TraitTrackInline(pass, "pass");
+  tracker->TraitTrackInline(salt, "salt");
 }
 
 MaybeLocal<Value> PBKDF2Traits::EncodeOutput(Environment* env,
@@ -64,8 +62,6 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
     unsigned int offset,
     PBKDF2Config* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(KeyObjectHandle::HasInstance(env, args[offset]) ||
         IsAnyBufferSource(args[offset]));  // pass

@@ -26,6 +26,20 @@
 #define NODE_OPENSSL_HAS_CERT_COMP 1
 #endif
 
+namespace node {
+namespace crypto {
+class ByteSource;
+}
+
+template <>
+struct MemoryRetainerTraits<crypto::ByteSource> {
+  static void MemoryInfo(MemoryTracker* tracker,
+                         const crypto::ByteSource& value);
+  static const char* MemoryInfoName(const crypto::ByteSource& value);
+  static size_t SelfSize(const crypto::ByteSource& value);
+};
+}  // namespace node
+
 namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the
@@ -250,6 +264,7 @@ class ByteSource final {
       Environment* env, v8::Local<v8::Value> value);
 
  private:
+  friend struct node::MemoryRetainerTraits<ByteSource>;
   friend void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
 
   const void* data_ = nullptr;
@@ -610,7 +625,7 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
 
   SET_SELF_SIZE(DeriveBitsJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<DeriveBitsTraits>::MemoryInfo(tracker);
   }
 

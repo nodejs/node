@@ -12,7 +12,6 @@
 namespace node {
 namespace crypto {
 struct HKDFConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   size_t length;
   ncrypto::Digest digest;
   KeyObjectData key;
