@@ -154,6 +154,7 @@ class EnvironmentOptions : public Options {
   bool allow_wasi = false;
   bool allow_ffi = false;
   bool allow_worker_threads = false;
+  bool experimental_repl_typescript = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
   bool expose_internals = false;

@@ -778,6 +778,11 @@ this flag allows Node.js to locate and print their locations.
 .It Fl -experimental-quic
 Enable experimental support for the QUIC protocol.
 .
+.It Fl -experimental-repl-typescript
+Enable experimental support for TypeScript stripping in the REPL. Input that is
+valid JavaScript is evaluated as JavaScript before falling back to TypeScript
+type stripping.
+.
 .It Fl -experimental-sea-config
 Use this flag to generate a blob that can be injected into the Node.js
 binary to produce a single executable application. See the documentation
