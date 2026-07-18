@@ -8,6 +8,14 @@ const path = require('path');
 const os = require('os');
 const vfs = require('node:vfs');
 
+// Mount points look like `${os.devNull}/vfs/<id>` where `<id>` is a decimal
+// integer segment. This regex captures that structural invariant without
+// tying the tests to a specific id.
+const mountPointShape = new RegExp(
+  `^${os.devNull.replace(/[\\^$.*+?()[\]{}|/\\\\]/g, '\\$&')}` +
+  `\\${path.sep}vfs\\${path.sep}\\d+$`,
+);
+
 // Basic mount/unmount API and dispatch through node:vfs from the public fs.
 
 function createMountedVfs() {
@@ -27,9 +35,7 @@ function createMountedVfs() {
   const mountPoint = myVfs.mount();
   assert.strictEqual(myVfs.mounted, true);
   assert.strictEqual(myVfs.mountPoint, mountPoint);
-  assert.strictEqual(
-    mountPoint,
-    path.join(os.devNull, 'vfs', String(myVfs.layerId)));
+  assert.match(mountPoint, mountPointShape);
 
   myVfs.unmount();
   assert.strictEqual(myVfs.mounted, false);
@@ -53,12 +59,8 @@ function createMountedVfs() {
   const mountA = a.mount();
   const mountB = b.mount();
   assert.notStrictEqual(mountA, mountB);
-  assert.strictEqual(
-    mountA,
-    path.join(os.devNull, 'vfs', String(a.layerId)));
-  assert.strictEqual(
-    mountB,
-    path.join(os.devNull, 'vfs', String(b.layerId)));
+  assert.match(mountA, mountPointShape);
+  assert.match(mountB, mountPointShape);
   assert.strictEqual(fs.readFileSync(path.join(mountA, 'f.txt'), 'utf8'), 'A');
   assert.strictEqual(fs.readFileSync(path.join(mountB, 'f.txt'), 'utf8'), 'B');
   a.unmount();

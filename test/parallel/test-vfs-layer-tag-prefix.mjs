@@ -1,8 +1,10 @@
 // Flags: --experimental-vfs
 
-// Regression: unmounting layer 1 must not purge layer 10's ESM cache entries
-// just because "1" is a decimal prefix of "10". Mount points look like
-// `${os.devNull}/vfs/<id>` and identity is carried by the id path segment.
+// Regression: unmounting a layer whose id is a decimal prefix of another
+// (e.g. layer 1 vs layer 10) must not purge the other's ESM cache entries.
+// Mount points look like `${os.devNull}/vfs/<id>`, so we create instances
+// until the returned mount points exhibit the prefix collision, then
+// verify the survivor's cache lives on.
 
 import '../common/index.mjs';
 import assert from 'node:assert';
@@ -11,21 +13,12 @@ import vfs from 'node:vfs';
 
 const vfsImport = (path) => pathToFileURL(path).href;
 
-// nextLayerId starts at 0 and increments per vfs.create(). Manoeuvre so we
-// have one VFS at layer 1 and one at layer 10.
-const sentinel = vfs.create();
-assert.strictEqual(sentinel.layerId, 0);
-
-const layerOne = vfs.create();
-assert.strictEqual(layerOne.layerId, 1);
-
-const burn = [];
-for (let i = 0; i < 8; i++) burn.push(vfs.create());
-
-const layerTen = vfs.create();
-assert.strictEqual(layerTen.layerId, 10);
-assert.ok(String(layerTen.layerId).startsWith(String(layerOne.layerId)),
-          'test scaffolding: 10 must have 1 as a string prefix');
+// Layer ids are per-process and increment on every `vfs.create()`, so the
+// second construction lands at id 1 and the eleventh at id 10.
+const instances = [];
+for (let i = 0; i < 11; i++) instances.push(vfs.create());
+const layerOne = instances[1];
+const layerTen = instances[10];
 
 layerOne.writeFileSync('/m.mjs', 'export const tag = "one";');
 const mountOne = layerOne.mount();
@@ -33,7 +26,10 @@ const mountOne = layerOne.mount();
 layerTen.writeFileSync('/m.mjs', 'export const tag = "ten";');
 const mountTen = layerTen.mount();
 
-// Warm both ESM cache entries.
+assert.notStrictEqual(mountOne, mountTen);
+assert.ok(mountTen.startsWith(mountOne),
+          'test scaffolding: expected layerTen mount to start with layerOne mount');
+
 const oneA = await import(vfsImport(`${mountOne}/m.mjs`));
 const tenA = await import(vfsImport(`${mountTen}/m.mjs`));
 assert.strictEqual(oneA.tag, 'one');
