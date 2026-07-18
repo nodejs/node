@@ -179,6 +179,7 @@ strictEqual(sessionState.maxDatagramSize, 0);
 strictEqual(sessionState.lastDatagramId, 0n);
 
 strictEqual(typeof streamState.toJSON(), 'object');
+strictEqual(JSON.parse(streamState.toString()).resetCode, '0');
 strictEqual(typeof sessionState.toJSON(), 'object');
 strictEqual(typeof inspect(streamState), 'string');
 strictEqual(typeof inspect(sessionState), 'string');
