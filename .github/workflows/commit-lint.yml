@@ -44,4 +44,8 @@ jobs:
               break
             fi
           done < <(git log --no-merges --reverse --format="%H" "${base_sha}..HEAD")
-          echo "${first_commit}" | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          if [ -z "$first_commit" ]; then
+            echo "ERROR: Could not find a commit to validate (all commits are titled 'Initial plan')."
+            exit 1
+          fi
+          npx -q core-validate-commit --no-validate-metadata --tap "$first_commit"
