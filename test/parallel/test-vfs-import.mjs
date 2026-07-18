@@ -6,9 +6,8 @@ import vfs from 'node:vfs';
 
 const vfsImport = (path) => pathToFileURL(path).href;
 
-// NOTE: ESM imports are cached by URL and unmounting does not clear the V8
-// module cache. Each vfs.create() gets its own layer id, so every mount
-// point returned by mount() is unique — no stale cache entries can be hit.
+// ESM imports are cached by URL and unmounting does not clear the V8 module
+// cache; each vfs.create() gets its own layer id so mount points are unique.
 
 // Test importing a simple virtual ES module
 {
@@ -89,7 +88,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/test.mjs', 'export const x = 1;');
   myVfs.mount();
 
-  // Import from node: should still work
   const assertMod = await import('node:assert');
   assert.strictEqual(typeof assertMod.strictEqual, 'function');
 
@@ -106,7 +104,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
   const { esmValue } = await import(vfsImport(`${mountPoint}/esm-module.mjs`));
   assert.strictEqual(esmValue, 'esm');
 
-  // CJS require should also work (via createRequire)
   const { createRequire } = await import('module');
   const require = createRequire(import.meta.url);
   const { cjsValue } = require(`${mountPoint}/cjs-module.js`);
@@ -116,10 +113,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
 }
 
 // Test ESM bare specifier resolution from VFS node_modules.
-// This sets up a proper node_modules structure inside VFS and imports
-// using a bare specifier (e.g., import 'my-vfs-pkg') instead of an
-// absolute path. This exercises the ESM default resolver's
-// internalModuleStat and getPackageJSONURL code paths.
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/my-vfs-pkg', { recursive: true });
@@ -132,8 +125,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
     '/app/node_modules/my-vfs-pkg/index.mjs',
     'export const fromVfs = true;',
   );
-  // The importing module must also live inside the VFS mount so that
-  // node_modules resolution walks upward from a VFS path.
+  // Importing module must live in the VFS mount so node_modules walk stays inside VFS.
   myVfs.writeFileSync(
     '/app/entry.mjs',
     "export { fromVfs } from 'my-vfs-pkg';",

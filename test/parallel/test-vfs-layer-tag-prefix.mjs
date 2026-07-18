@@ -1,9 +1,8 @@
 // Flags: --experimental-vfs
 
-// Layer identity is carried by the mount-point path itself
-// (`${os.devNull}/vfs/<id>`), so unmounting one layer must
-// purge exactly that layer's ESM cache entries - layers whose ids
-// share a decimal prefix (1 vs 10) must be unaffected.
+// Regression: unmounting layer 1 must not purge layer 10's ESM cache entries
+// just because "1" is a decimal prefix of "10". Mount points look like
+// `${os.devNull}/vfs/<id>` and identity is carried by the id path segment.
 
 import '../common/index.mjs';
 import assert from 'node:assert';
@@ -12,17 +11,14 @@ import vfs from 'node:vfs';
 
 const vfsImport = (path) => pathToFileURL(path).href;
 
-// nextLayerId starts at 0 in a fresh process and increments per
-// VirtualFileSystem construction. Burn through constructions until we
-// have one VFS at layer 1 and one at layer 10 - the decimal-prefix
-// collision this test exercises.
+// nextLayerId starts at 0 and increments per vfs.create(). Manoeuvre so we
+// have one VFS at layer 1 and one at layer 10.
 const sentinel = vfs.create();
 assert.strictEqual(sentinel.layerId, 0);
 
 const layerOne = vfs.create();
 assert.strictEqual(layerOne.layerId, 1);
 
-// Burn layers 2..9 so the next constructed VFS lands at layer 10.
 const burn = [];
 for (let i = 0; i < 8; i++) burn.push(vfs.create());
 
@@ -43,15 +39,10 @@ const tenA = await import(vfsImport(`${mountTen}/m.mjs`));
 assert.strictEqual(oneA.tag, 'one');
 assert.strictEqual(tenA.tag, 'ten');
 
-// Unmount layer 1. Layer 10's cache entry must survive: its mount
-// point is `.../10`, which is not under `.../1` even though "1" is a
-// decimal prefix of "10".
 layerOne.unmount();
 
-// Layer 10 is still mounted; importing again must resolve to the same
-// already-evaluated module namespace. A cache miss would cause the
-// loader to create a new module job and re-evaluate, producing a
-// different namespace object.
+// Layer 10 still mounted: re-import must hit the cache and return the same
+// namespace object. A prefix-based purge would evict it and cause re-eval.
 const tenB = await import(vfsImport(`${mountTen}/m.mjs`));
 assert.strictEqual(tenA, tenB);
 

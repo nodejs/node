@@ -11,9 +11,6 @@ const vfs = require('node:vfs');
 const vfsImport = (path) => pathToFileURL(path).href;
 
 // Test requiring a simple virtual module
-// VFS internal path: /hello.js
-// Logical prefix: /virtual — the actual mount point is returned by mount()
-// External path: `${mountPoint}/hello.js`
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.js', 'module.exports = "hello from vfs";');
@@ -109,10 +106,8 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/test.js', 'module.exports = 1;');
   myVfs.mount();
 
-  // require('assert') should still work (builtin)
   assert.strictEqual(typeof assert.strictEqual, 'function');
 
-  // Real file requires should still work
   const commonMod = require('../common');
   assert.ok(commonMod);
 
@@ -330,7 +325,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
 }
 
 // Test ESM legacyMainResolve: import() a VFS package with "main" (no "exports")
-// This triggers the ESM legacyMainResolve path in resolve.js via bare specifier
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/esm-legacy-main/lib', { recursive: true });
@@ -382,7 +376,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.writeFileSync('/esm-pkg/entry', 'export const x = 123;');
   const mountPoint = myVfs.mount();
 
-  // Use import() to trigger ESM loader path for extensionless file detection
   import(vfsImport(`${mountPoint}/esm-pkg/entry`)).then(common.mustCall((mod) => {
     assert.strictEqual(mod.x, 123);
     myVfs.unmount();
@@ -400,11 +393,9 @@ const vfsImport = (path) => pathToFileURL(path).href;
 
   myVfs.unmount();
 
-  // After unmounting, the VFS hooks should not serve the file. On Windows,
-  // the native loader may surface the NUL-backed former mount path as an
-  // invalid package config while probing for package.json.
+  // On Windows, the native loader may surface the NUL-backed former mount
+  // path as ERR_INVALID_PACKAGE_CONFIG while probing for package.json.
   assert.throws(() => {
-    // Clear require cache first — the cache key is the resolved mounted path
     delete require.cache[path.join(mountPoint, 'unmount-test.js')];
     require(`${mountPoint}/unmount-test.js`);
   }, (err) => {
