@@ -8,14 +8,10 @@ import vfs from 'node:vfs';
 const require = createRequire(import.meta.url);
 const vfsImport = (path) => pathToFileURL(path).href;
 
-// NOTE: mount() takes a purely logical prefix and returns the actual mount
-// point (a reserved path under os.devNull). Each test captures the
-// returned mount point and uses it for requires/imports. Distinct prefixes
-// (/mh1, /mh2, ...) are kept for readability.
+// mount() returns the actual mount point (reserved under os.devNull);
+// each test captures it and uses it for requires/imports.
 
-// =================================================================
 // Test: CJS bare specifier resolution with exports string shorthand
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/str-pkg', { recursive: true });
@@ -39,9 +35,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Conditional exports with import/require/default conditions
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/cond-pkg', { recursive: true });
@@ -65,32 +59,26 @@ const vfsImport = (path) => pathToFileURL(path).href;
     '/app/node_modules/cond-pkg/default.js',
     'module.exports = { source: "default" };',
   );
-  // ESM entry that imports via bare specifier
   myVfs.writeFileSync(
     '/app/esm-entry.mjs',
     "export { source } from 'cond-pkg';",
   );
-  // CJS entry that requires via bare specifier
   myVfs.writeFileSync(
     '/app/cjs-entry.js',
     "module.exports = require('cond-pkg');",
   );
   const mountPoint = myVfs.mount();
 
-  // ESM import should get the 'import' condition
   const esmResult = await import(vfsImport(`${mountPoint}/app/esm-entry.mjs`));
   assert.strictEqual(esmResult.source, 'esm');
 
-  // CJS require should get the 'require' condition
   const cjsResult = require(`${mountPoint}/app/cjs-entry.js`);
   assert.strictEqual(cjsResult.source, 'cjs');
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Subpath exports map
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/sub-pkg/lib', { recursive: true });
@@ -126,9 +114,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Subpath exports with conditional object target
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/sub-cond-pkg', { recursive: true });
@@ -161,9 +147,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
-// Test: Nested conditional exports (e.g. node → import/require)
-// =================================================================
+// Test: Nested conditional exports (e.g. node -> import/require)
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/nested-cond-pkg', { recursive: true });
@@ -201,9 +185,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Package without exports, using main field
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/main-pkg', { recursive: true });
@@ -228,9 +210,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Package without exports/main, fallback to index.js
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/index-pkg', { recursive: true });
@@ -253,17 +233,13 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Extension resolution (require without file extension)
-// =================================================================
 {
   const myVfs = vfs.create();
-  // The embedded specifier must be an absolute mounted path, so mount
-  // first and write the files through the mounted paths.
+  // The embedded specifier must be an absolute mounted path, so mount first.
   const mountPoint = myVfs.mount();
   myVfs.mkdirSync(`${mountPoint}/lib`, { recursive: true });
   myVfs.writeFileSync(`${mountPoint}/lib/utils.js`, 'module.exports = { ext: "js" };');
-  // File without .js extension in specifier
   myVfs.writeFileSync(
     `${mountPoint}/lib/main.js`,
     `module.exports = require(${JSON.stringify(`${mountPoint}/lib/utils`)});`,
@@ -275,13 +251,9 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Extension resolution with .json
-// =================================================================
 {
   const myVfs = vfs.create();
-  // The embedded specifier must be an absolute mounted path, so mount
-  // first and write the files through the mounted paths.
   const mountPoint = myVfs.mount();
   myVfs.writeFileSync(`${mountPoint}/data.json`, JSON.stringify({ ext: 'json' }));
   myVfs.writeFileSync(
@@ -295,9 +267,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Scoped package resolution (@scope/pkg)
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/@myorg/mylib', { recursive: true });
@@ -322,9 +292,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Scoped package with subpath
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/@myorg/utils/lib', { recursive: true });
@@ -358,9 +326,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
-// Test: .js file with type: module in package.json → ESM format
-// =================================================================
+// Test: .js file with type: module in package.json -> ESM format
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'module' }));
@@ -373,13 +339,9 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: .cjs always treated as CommonJS regardless of package type
-// =================================================================
 {
   const myVfs = vfs.create();
-  // The embedded specifier must be an absolute mounted path, so mount
-  // first and write the files through the mounted paths.
   const mountPoint = myVfs.mount();
   myVfs.writeFileSync(`${mountPoint}/package.json`, JSON.stringify({ type: 'module' }));
   myVfs.writeFileSync(`${mountPoint}/helper.cjs`, 'module.exports = { cjsAlways: true };');
@@ -399,9 +361,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: file: URL specifier
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/fileurl.mjs', 'export const fromFileUrl = true;');
@@ -413,9 +373,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Package with main field requiring extension resolution
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/dir-pkg', { recursive: true });
@@ -429,16 +387,13 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // Main field has no extension - tryExtensions should resolve entry → entry.js
   const result = require(`${mountPoint}/dir-pkg`);
   assert.strictEqual(result.dirPkg, true);
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Bare specifier with package subpath (no exports, direct file)
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/direct-pkg/lib', { recursive: true });
@@ -461,9 +416,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Bare specifier subpath with extension resolution
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/ext-pkg/lib', { recursive: true });
@@ -476,7 +429,6 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   myVfs.writeFileSync(
     '/app/entry-ext.js',
-    // No .js extension - should be resolved by tryExtensions
     "module.exports = require('ext-pkg/lib/util');",
   );
   const mountPoint = myVfs.mount();
@@ -487,9 +439,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Bare specifier main field with extension resolution
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/main-ext-pkg', { recursive: true });
@@ -513,9 +463,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: exports with array value (fallback array)
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/arr-exp-pkg', { recursive: true });
@@ -536,16 +484,13 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // Array target in exports: canonical resolver tries each entry in order
   const result = require(`${mountPoint}/app/entry-arr.js`);
   assert.strictEqual(result.arrExport, true);
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Exports with "default" condition
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/default-pkg', { recursive: true });
@@ -568,16 +513,13 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // 'browser' condition not active in Node, 'default' should match
   const result = await import(vfsImport(`${mountPoint}/app/entry-default.mjs`));
   assert.strictEqual(result.fromDefault, true);
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Package.json type "commonjs" explicitly set for .js
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'commonjs' }));
@@ -590,9 +532,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
-// Test: .js file with no package.json → defaults to commonjs
-// =================================================================
+// Test: .js file with no package.json -> defaults to commonjs
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/no-pkg.js', 'module.exports = { noPkg: true };');
@@ -604,14 +544,10 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Package.json type walk stops at node_modules boundary
-// =================================================================
 {
   const myVfs = vfs.create();
-  // Root has type: module
   myVfs.writeFileSync('/package.json', JSON.stringify({ type: 'module' }));
-  // But file is inside node_modules with no local package.json
   myVfs.mkdirSync('/node_modules/inner', { recursive: true });
   myVfs.writeFileSync(
     '/node_modules/inner/index.js',
@@ -619,16 +555,14 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // The walk should stop at node_modules, not inherit type:module from root
+  // Walk stops at node_modules; type:module from root is not inherited.
   const result = require(`${mountPoint}/node_modules/inner/index.js`);
   assert.strictEqual(result.inner, true);
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Invalid package.json in directory resolution
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/bad-json-dir', { recursive: true });
@@ -639,36 +573,27 @@ const vfsImport = (path) => pathToFileURL(path).href;
   );
   const mountPoint = myVfs.mount();
 
-  // A malformed package.json raises ERR_INVALID_PACKAGE_CONFIG for
-  // both CJS and ESM after nodejs/node#48606.
+  // Malformed package.json raises ERR_INVALID_PACKAGE_CONFIG after nodejs/node#48606.
   assert.throws(() => require(`${mountPoint}/bad-json-dir`),
                 { code: 'ERR_INVALID_PACKAGE_CONFIG' });
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Invalid package.json in type walk-up
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/package.json', '{ broken json }');
   myVfs.writeFileSync('/no-type.js', 'module.exports = { noType: true };');
   const mountPoint = myVfs.mount();
 
-  // Aborts with ERR_INVALID_PACKAGE_CONFIG - matches native
-  // GetPackageJSON, which throws on the first malformed package.json
-  // encountered on the way up rather than silently treating it as
-  // "none".
   assert.throws(() => require(`${mountPoint}/no-type.js`),
                 { code: 'ERR_INVALID_PACKAGE_CONFIG' });
 
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: Scoped package without slash (just @scope/name)
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/node_modules/@solo/pkg', { recursive: true });
@@ -692,9 +617,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: node: builtin passthrough
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/use-builtin.mjs', `
@@ -709,9 +632,7 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
 // Test: JSON import with type assertion
-// =================================================================
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/data.json', JSON.stringify({ preformat: true }));
@@ -723,15 +644,12 @@ const vfsImport = (path) => pathToFileURL(path).href;
   myVfs.unmount();
 }
 
-// =================================================================
-// Test: File with unknown extension → defaults to commonjs
-// =================================================================
+// Test: File with unknown extension -> defaults to commonjs
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/data.txt', 'module.exports = { txt: true };');
   const mountPoint = myVfs.mount();
 
-  // .txt extension → falls back to 'commonjs' via VFS_FORMAT_MAP default
   const result = require(`${mountPoint}/data.txt`);
   assert.strictEqual(result.txt, true);
 

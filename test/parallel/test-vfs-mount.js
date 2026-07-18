@@ -18,8 +18,7 @@ function createMountedVfs() {
   return { myVfs, mountPoint };
 }
 
-// Test: mounted/mountPoint getters; mount() returns the mount point in
-// the reserved namespace under os.devNull.
+// Test: mounted/mountPoint getters; mount() returns a path under os.devNull.
 {
   const myVfs = vfs.create();
   assert.strictEqual(myVfs.mounted, false);
@@ -45,8 +44,7 @@ function createMountedVfs() {
   myVfs.unmount();
 }
 
-// Test: two instances each get a distinct mount point in their own
-// layer namespace.
+// Test: two instances get distinct mount points in their own layer namespace.
 {
   const a = vfs.create();
   const b = vfs.create();

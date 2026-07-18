@@ -6,7 +6,7 @@ const assert = require('assert');
 const path = require('path');
 const vfs = require('node:vfs');
 
-// Test 1: read() reads package.json from VFS
+// read() reads package.json from VFS
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg', { recursive: true });
@@ -42,7 +42,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test 2: getNearestParentPackageJSON() walks up VFS directories
+// getNearestParentPackageJSON() walks up VFS directories
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/app/src/lib/deep', { recursive: true });
@@ -70,7 +70,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test 3: getPackageScopeConfig() returns correct scope from VFS
+// getPackageScopeConfig() returns correct scope from VFS
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/project/src', { recursive: true });
@@ -113,7 +113,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test 4: getPackageType() returns correct type from VFS
+// getPackageType() returns correct type from VFS
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/esm-app', { recursive: true });
@@ -147,7 +147,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test 5: End-to-end CJS require with package.json type detection
+// End-to-end CJS require with package.json type detection
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/cjs-app', { recursive: true });
@@ -166,7 +166,7 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
-// Test 6: End-to-end ESM import with VFS package type
+// End-to-end ESM import with VFS package type
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/esm', { recursive: true });
@@ -176,7 +176,6 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/esm/mod.mjs', 'export const x = 42;');
   const mountPoint = myVfs.mount();
 
-  // Use .mjs to ensure ESM treatment regardless of package type
   const mod = require(`${mountPoint}/esm/mod.mjs`);
   assert.strictEqual(mod.x, 42);
 

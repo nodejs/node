@@ -1,20 +1,7 @@
 'use strict';
 
-// Measures the dispatch overhead the VFS layer adds to fs operations
-// against real-filesystem paths (paths that no VFS claims). The hot
-// path in lib/fs.js is:
-//
-//   const h = vfsState.handlers;
-//   if (h !== null) { const r = h.opSync(path, ...); if (r !== undefined) return r; }
-//   binding.op(getValidatedPath(path));
-//
-// With layers=0 the VFS module is never required and `h === null` is
-// the first thing fs sees. With layers>=1 the handler normalizes the
-// path once and rejects it with a single prefix comparison against the
-// reserved VFS namespace - the number of mounted layers should not
-// matter. The benchmark mounts N VFSes and probes a real file under
-// __dirname, so every call falls through after the namespace check
-// declines the path.
+// Measures VFS dispatch overhead on fs ops against real-filesystem paths
+// (paths no VFS claims). Layers=0 means the VFS module is never loaded.
 
 const common = require('../common.js');
 const fs = require('fs');
@@ -23,8 +10,6 @@ const path = require('path');
 const bench = common.createBenchmark(main, {
   n: [3e5],
   op: ['statSync', 'existsSync', 'accessSync', 'readFileSync'],
-  // 0 = VFS module never loaded (true baseline)
-  // >=1 = that many VFS instances mounted
   layers: [0, 1, 2, 5, 10],
 }, {
   flags: ['--experimental-vfs', '--no-warnings'],
@@ -46,8 +31,6 @@ function main({ n, op, layers }) {
 
   const target = layers === 0 ? __filename : path.join(__dirname, path.basename(__filename));
 
-  // Warm-up - get the JIT past the first-call icache + IC misses so we
-  // measure steady-state dispatch cost, not first-call resolution.
   for (let i = 0; i < 1000; i++) {
     if (op === 'statSync') fs.statSync(target);
     else if (op === 'existsSync') fs.existsSync(target);
