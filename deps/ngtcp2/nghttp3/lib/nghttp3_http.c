@@ -385,7 +385,8 @@ static int http_request_on_header(nghttp3_http_state *http,
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
 
-    if (lstrieq("webtransport", nv->value->base, nv->value->len)) {
+    if (lstrieq("webtransport-h3", nv->value->base, nv->value->len) ||
+        lstrieq("webtransport", nv->value->base, nv->value->len)) {
       http->flags |= NGHTTP3_HTTP_FLAG_WEBTRANSPORT;
     }
 

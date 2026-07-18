@@ -249,8 +249,6 @@ struct nghttp3_stream {
       uint64_t unscheduled_nwrite;
       nghttp3_stream_type type;
       nghttp3_stream_read_state rstate;
-      /* error_code indicates the reason of closure of this stream. */
-      uint64_t error_code;
 
       struct {
         uint64_t offset;

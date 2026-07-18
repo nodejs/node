@@ -69,7 +69,6 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
         .http.content_length = -1,
         .http.pri.urgency = NGHTTP3_DEFAULT_URGENCY,
       },
-    .error_code = NGHTTP3_H3_NO_ERROR,
   };
 
   nghttp3_tnode_init(&stream->node, stream_id);

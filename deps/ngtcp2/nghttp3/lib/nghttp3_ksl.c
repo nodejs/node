@@ -37,8 +37,11 @@ static nghttp3_ksl_blk null_blk;
 
 nghttp3_objalloc_def(ksl_blk, nghttp3_ksl_blk, oplent)
 
+#define NGHTTP3_KSL_ALIGNED_BLKLEN                                             \
+  ((sizeof(nghttp3_ksl_blk) + 0x7U) & ~(size_t)0x7U)
+
 static size_t ksl_blklen(size_t aligned_keylen) {
-  return sizeof(nghttp3_ksl_blk) + NGHTTP3_KSL_MAX_NBLK * aligned_keylen;
+  return NGHTTP3_KSL_ALIGNED_BLKLEN + NGHTTP3_KSL_MAX_NBLK * aligned_keylen;
 }
 
 /*
@@ -80,7 +83,7 @@ static nghttp3_ksl_blk *ksl_blk_objalloc_new(nghttp3_ksl *ksl) {
     return NULL;
   }
 
-  blk->keys = (uint8_t *)blk + sizeof(*blk);
+  blk->keys = (uint8_t *)blk + NGHTTP3_KSL_ALIGNED_BLKLEN;
   blk->aligned_keylen = (uint16_t)ksl->aligned_keylen;
 
   return blk;

@@ -2030,7 +2030,7 @@ typedef int (*nghttp3_acked_stream_data)(nghttp3_conn *conn, int64_t stream_id,
 /**
  * @functypedef
  *
- * :type:`nghttp3_conn_stream_close` is a callback function which is
+ * :type:`nghttp3_stream_close` is a callback function which is
  * invoked when a stream identified by |stream_id| is closed.  QUIC
  * application error code |app_error_code| indicates the reason of
  * this closure.
@@ -2039,6 +2039,9 @@ typedef int (*nghttp3_acked_stream_data)(nghttp3_conn *conn, int64_t stream_id,
  * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
  * caller immediately.  Any values other than 0 is treated as
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ *
+ * .. seealso::
+ *   :type:`nghttp3_stream_close2`
  */
 typedef int (*nghttp3_stream_close)(nghttp3_conn *conn, int64_t stream_id,
                                     uint64_t app_error_code,
@@ -2310,6 +2313,75 @@ typedef int (*nghttp3_recv_settings2)(nghttp3_conn *conn,
                                       void *conn_user_data);
 
 /**
+ * @macrosection
+ *
+ * Stream close flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_NONE` indicates no flag set.
+ *
+ * .. version-added:: 1.18.0
+ */
+#define NGHTTP3_STREAM_CLOSE_FLAG_NONE 0x00U
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` indicates
+ * that rx_app_error_code parameter is set.
+ *
+ * .. version-added:: 1.18.0
+ */
+#define NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET 0x01U
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` indicates
+ * that tx_app_error_code parameter is set.
+ *
+ * .. version-added:: 1.18.0
+ */
+#define NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET 0x02U
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_stream_close2` is a callback function which is
+ * invoked when a stream identified by |stream_id| is closed.  If
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` is set in
+ * |flags|, |rx_app_error_code| is the QUIC application error code
+ * received from the remote endpoint.  If
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` is set in
+ * |flags|, |tx_app_error_code| is the QUIC application error code
+ * sent to the remote endpoint.  No application code means that
+ * direction of stream is closed without any error.
+ *
+ * This callback should be used with `nghttp3_conn_close_stream2`.  If
+ * `nghttp3_conn_close_stream` is used, the app_error_code is set to
+ * both |rx_app_error_code| and |tx_app_error_code|, and
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` and
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` are set in
+ * |flags|.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ *
+ * .. version-added:: 1.18.0
+ */
+typedef int (*nghttp3_stream_close2)(nghttp3_conn *conn, uint32_t flags,
+                                     int64_t stream_id,
+                                     uint64_t rx_app_error_code,
+                                     uint64_t tx_app_error_code,
+                                     void *conn_user_data,
+                                     void *stream_user_data);
+
+/**
  * @functypedef
  *
  * :type:`nghttp3_recv_wt_data` is a callback function which is
@@ -2375,7 +2447,8 @@ typedef int (*nghttp3_recv_wt_close_session)(nghttp3_conn *conn,
 #define NGHTTP3_CALLBACKS_V1 1
 #define NGHTTP3_CALLBACKS_V2 2
 #define NGHTTP3_CALLBACKS_V3 3
-#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V3
+#define NGHTTP3_CALLBACKS_V4 4
+#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V4
 
 /**
  * @struct
@@ -2392,6 +2465,9 @@ typedef struct nghttp3_callbacks {
   /**
    * :member:`stream_close` is a callback function which is invoked
    * when a particular stream has closed.
+   *
+   * .. seealso::
+   *   :member:`stream_close2`
    */
   nghttp3_stream_close stream_close;
   /**
@@ -2500,6 +2576,8 @@ typedef struct nghttp3_callbacks {
    * .. version-added:: 1.11.0
    */
   nghttp3_rand rand;
+  /* The following fields have been added since
+     NGHTTP3_CALLBACKS_V3. */
   /**
    * :member:`recv_settings2` is a callback function which is invoked
    * when SETTINGS frame is received.
@@ -2507,6 +2585,15 @@ typedef struct nghttp3_callbacks {
    * .. version-added:: 1.14.0
    */
   nghttp3_recv_settings2 recv_settings2;
+  /* The following fields have been added since
+     NGHTTP3_CALLBACKS_V4. */
+  /**
+   * :member:`stream_close2` is a callback function which is invoked
+   * when a particular stream has closed.
+   *
+   * .. version-added:: 1.18.0
+   */
+  nghttp3_stream_close2 stream_close2;
   /**
    * :member:`recv_wt_data` is a callback function which is invoked
    * when data on WebTransport data stream is received.
@@ -2985,10 +3072,46 @@ NGHTTP3_EXTERN int nghttp3_conn_resume_stream(nghttp3_conn *conn,
  *     A critical stream is closed.
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ *
+ * .. seealso::
+ *   `nghttp3_conn_close_stream2`
  */
 NGHTTP3_EXTERN int nghttp3_conn_close_stream(nghttp3_conn *conn,
                                              int64_t stream_id,
                                              uint64_t app_error_code);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_close_stream2` tells the library that a stream
+ * identified by |stream_id| has been closed.  If
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` is set in
+ * |flags|, |rx_app_error_code| is QUIC application error received
+ * from the remote endpoint.  Similarly,
+ * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` is set in
+ * |flags|, |tx_app_error_code| is QUIC application error sent to the
+ * remote endpoint.
+ *
+ * For stream close callback, prefer
+ * :member:`nghttp3_callbacks.stream_close2` to
+ * :member:`nghttp3_callbacks.stream_close`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_STREAM_NOT_FOUND`
+ *     Stream not found.
+ * :macro:`NGHTTP3_ERR_H3_CLOSED_CRITICAL_STREAM`
+ *     A critical stream is closed.
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ *
+ * .. version-added:: 1.18.0
+ */
+NGHTTP3_EXTERN int nghttp3_conn_close_stream2(nghttp3_conn *conn,
+                                              uint32_t flags, int64_t stream_id,
+                                              uint64_t rx_app_error_code,
+                                              uint64_t tx_app_error_code);
 
 /**
  * @macrosection
@@ -3512,7 +3635,7 @@ NGHTTP3_EXTERN int nghttp3_conn_is_drained2(const nghttp3_conn *conn);
  *
  * - :method = "CONNECT"
  * - :scheme = "https"
- * - :protocol = "webtransport"
+ * - :protocol = "webtransport-h3"
  * - :authority
  * - :path
  *
@@ -3754,6 +3877,8 @@ NGHTTP3_EXTERN int nghttp3_err_is_fatal(int liberr);
  * that contains a valid variable-length unsigned integer.  Use
  * `nghttp3_get_uvarintlen` to get the number of bytes to successfully
  * decode an integer.
+ *
+ * .. version-added:: 1.17.0
  */
 NGHTTP3_EXTERN const uint8_t *nghttp3_get_uvarint(uint64_t *dest,
                                                   const uint8_t *p);
@@ -3765,6 +3890,8 @@ NGHTTP3_EXTERN const uint8_t *nghttp3_get_uvarint(uint64_t *dest,
  * read variable-length unsigned integer starting at |p|.  |p| must
  * not be NULL.  This function only reads the single byte from the
  * buffer pointed by |p|, and determines the number of bytes to read.
+ *
+ * .. version-added:: 1.17.0
  */
 NGHTTP3_EXTERN size_t nghttp3_get_uvarintlen(const uint8_t *p);
 
@@ -3778,6 +3905,8 @@ NGHTTP3_EXTERN size_t nghttp3_get_uvarintlen(const uint8_t *p);
  * that contains a valid variable-length unsigned integer.  Use
  * `nghttp3_get_uvarintlen` to get the number of bytes to successfully
  * decode an integer.
+ *
+ * .. version-added:: 1.17.0
  */
 NGHTTP3_EXTERN const uint8_t *nghttp3_get_varint(int64_t *dest,
                                                  const uint8_t *p);
@@ -3791,6 +3920,8 @@ NGHTTP3_EXTERN const uint8_t *nghttp3_get_varint(int64_t *dest,
  * the buffer pointed by |p| has sufficient capacity to encode |n|.
  * To know the required capacity, use `nghttp3_put_uvarintlen`.  |n|
  * must be less than or equal to (1 << 62) - 1.
+ *
+ * .. version-added:: 1.17.0
  */
 NGHTTP3_EXTERN uint8_t *nghttp3_put_uvarint(uint8_t *p, uint64_t n);
 
@@ -3800,6 +3931,8 @@ NGHTTP3_EXTERN uint8_t *nghttp3_put_uvarint(uint8_t *p, uint64_t n);
  * `nghttp3_put_uvarintlen` returns the required number of bytes to
  * encode |n| in variable-length unsigned integer encoding.  |n| must
  * be less than or equal to (1 << 62) - 1.
+ *
+ * .. version-added:: 1.17.0
  */
 NGHTTP3_EXTERN size_t nghttp3_put_uvarintlen(uint64_t n);
 

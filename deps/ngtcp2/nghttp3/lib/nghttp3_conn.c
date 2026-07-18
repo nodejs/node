@@ -756,7 +756,9 @@ static nghttp3_ssize conn_read_type(nghttp3_conn *conn, nghttp3_stream *stream,
   return nread;
 }
 
-static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream);
+static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream,
+                              uint32_t flags, uint64_t rx_app_error_code,
+                              uint64_t tx_app_error_code);
 
 nghttp3_ssize nghttp3_conn_read_uni(nghttp3_conn *conn, nghttp3_stream *stream,
                                     const uint8_t *src, size_t srclen, int fin,
@@ -782,7 +784,8 @@ nghttp3_ssize nghttp3_conn_read_uni(nghttp3_conn *conn, nghttp3_stream *stream,
         return NGHTTP3_ERR_H3_EXCESSIVE_LOAD;
       }
 
-      return conn_delete_stream(conn, stream);
+      return conn_delete_stream(conn, stream, NGHTTP3_STREAM_CLOSE_FLAG_NONE, 0,
+                                0);
     }
     nread = conn_read_type(conn, stream, src, srclen, fin);
     if (nread < 0) {
@@ -1501,8 +1504,11 @@ static int conn_unlink_wt_session(nghttp3_conn *conn,
   return 0;
 }
 
-static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream) {
+static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream,
+                              uint32_t flags, uint64_t rx_app_error_code,
+                              uint64_t tx_app_error_code) {
   int rv;
+  uint64_t app_error_code;
 
   rv = conn_call_deferred_consume(conn, stream,
                                   nghttp3_stream_get_buffered_datalen(stream));
@@ -1519,8 +1525,26 @@ static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream) {
     }
   }
 
-  if (conn->callbacks.stream_close) {
-    rv = conn->callbacks.stream_close(conn, stream->node.id, stream->error_code,
+  if (conn->callbacks.stream_close2) {
+    rv = conn->callbacks.stream_close2(conn, flags, stream->node.id,
+                                       rx_app_error_code, tx_app_error_code,
+                                       conn->user_data, stream->user_data);
+    if (rv != 0) {
+      return NGHTTP3_ERR_CALLBACK_FAILURE;
+    }
+  } else if (conn->callbacks.stream_close) {
+    app_error_code = NGHTTP3_H3_NO_ERROR;
+
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+      app_error_code = rx_app_error_code;
+    }
+
+    if (app_error_code == NGHTTP3_H3_NO_ERROR &&
+        (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET)) {
+      app_error_code = tx_app_error_code;
+    }
+
+    rv = conn->callbacks.stream_close(conn, stream->node.id, app_error_code,
                                       conn->user_data, stream->user_data);
     if (rv != 0) {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
@@ -3135,6 +3159,16 @@ int nghttp3_conn_resume_stream(nghttp3_conn *conn, int64_t stream_id) {
 
 int nghttp3_conn_close_stream(nghttp3_conn *conn, int64_t stream_id,
                               uint64_t app_error_code) {
+  return nghttp3_conn_close_stream2(
+    conn,
+    NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET |
+      NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET,
+    stream_id, app_error_code, app_error_code);
+}
+
+int nghttp3_conn_close_stream2(nghttp3_conn *conn, uint32_t flags,
+                               int64_t stream_id, uint64_t rx_app_error_code,
+                               uint64_t tx_app_error_code) {
   nghttp3_stream *stream = nghttp3_conn_find_stream(conn, stream_id);
 
   if (stream == NULL) {
@@ -3145,11 +3179,10 @@ int nghttp3_conn_close_stream(nghttp3_conn *conn, int64_t stream_id,
     return NGHTTP3_ERR_H3_CLOSED_CRITICAL_STREAM;
   }
 
-  stream->error_code = app_error_code;
-
   nghttp3_conn_unschedule_stream(conn, stream);
 
-  return conn_delete_stream(conn, stream);
+  return conn_delete_stream(conn, stream, flags, rx_app_error_code,
+                            tx_app_error_code);
 }
 
 int nghttp3_conn_shutdown_stream_read(nghttp3_conn *conn, int64_t stream_id) {
