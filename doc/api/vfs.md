@@ -205,33 +205,6 @@ The current mount point as an absolute string (the value returned by
 the last [`vfs.mount()`][] call), or `null` when the VFS is not
 mounted.
 
-### `vfs.layerId`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-A per-process monotonically increasing identifier assigned at
-construction. The id is stable across `mount()` / `unmount()` cycles
-for the lifetime of the instance, and is independent of the order in
-which VFS layers are mounted.
-
-The layer id forms the `<id>` segment of the reserved mount
-namespace, so every path served by this instance carries the id, and
-it appears in the `NODE_DEBUG=vfs` output for `register` and
-`deregister` events.
-
-```cjs
-const vfs = require('node:vfs');
-
-const a = vfs.create();
-const b = vfs.create();
-console.log(a.layerId); // e.g. 0
-console.log(b.layerId); // a.layerId + 1
-```
-
 ### `vfs.provider`
 
 <!-- YAML
