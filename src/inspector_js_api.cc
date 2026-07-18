@@ -10,9 +10,6 @@
 #include "v8.h"
 
 #include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
 
 namespace node {
 namespace inspector {
@@ -22,8 +19,6 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::GCCallbackFlags;
-using v8::GCType;
 using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
@@ -70,7 +65,13 @@ class JSBindingsConnection : public BaseObject {
 
     void SendMessageToFrontend(const v8_inspector::StringView& message)
         override {
-      connection_->SendMessageToFrontend(message);
+      Isolate* isolate = env_->isolate();
+      HandleScope handle_scope(isolate);
+      Context::Scope context_scope(env_->context());
+      Local<Value> argument;
+      if (!ToV8Value(env_->context(), message, isolate).ToLocal(&argument))
+        return;
+      connection_->OnMessage(argument);
     }
 
    private:
@@ -85,91 +86,12 @@ class JSBindingsConnection : public BaseObject {
     Agent* inspector = env->inspector_agent();
     session_ = ConnectionType::Connect(
         inspector, std::make_unique<JSBindingsSessionDelegate>(env, this));
-    // Track whether the isolate is currently collecting garbage so we never
-    // deliver an inspector message (which runs JS) from inside a GC.
-    env->isolate()->AddGCPrologueCallback(GCPrologueCallback, this);
-    env->isolate()->AddGCEpilogueCallback(GCEpilogueCallback, this);
-  }
-
-  ~JSBindingsConnection() override {
-    env()->isolate()->RemoveGCPrologueCallback(GCPrologueCallback, this);
-    env()->isolate()->RemoveGCEpilogueCallback(GCEpilogueCallback, this);
-  }
-
-  // Entry point for messages coming from the inspector. The in-process session
-  // delivers messages synchronously by calling back into JS. That is unsafe
-  // when the inspector emits a message from a GC weak callback, so we hold
-  // off on delivering messages until the GC is done.
-  void SendMessageToFrontend(const v8_inspector::StringView& message) {
-    if (in_gc_ || delivering_ || !pending_messages_.empty()) {
-      pending_messages_.emplace_back(
-          message.is8Bit()
-              ? std::u16string(message.characters8(),
-                               message.characters8() + message.length())
-              : std::u16string(message.characters16(),
-                               message.characters16() + message.length()));
-      ScheduleFlush();
-      return;
-    }
-    Isolate* isolate = env()->isolate();
-    HandleScope handle_scope(isolate);
-    Context::Scope context_scope(env()->context());
-    Local<Value> argument;
-    if (!ToV8Value(env()->context(), message, isolate).ToLocal(&argument))
-      return;
-    OnMessage(argument);
   }
 
   void OnMessage(Local<Value> value) {
     auto result = callback_.Get(env()->isolate())
                       ->Call(env()->context(), object(), 1, &value);
     (void)result;
-  }
-
-  void ScheduleFlush() {
-    if (flush_scheduled_ || delivering_) return;
-    flush_scheduled_ = true;
-    BaseObjectPtr<JSBindingsConnection> strong_ref{this};
-    env()->SetImmediate(
-        [strong_ref](Environment*) { strong_ref->FlushPendingMessages(); },
-        CallbackFlags::kUnrefed);
-  }
-
-  void FlushPendingMessages() {
-    flush_scheduled_ = false;
-    if (pending_messages_.empty()) return;
-    Isolate* isolate = env()->isolate();
-    HandleScope handle_scope(isolate);
-    Context::Scope context_scope(env()->context());
-    delivering_ = true;
-    // Deliver in FIFO order. Messages produced by JS handlers while we are
-    // flushing are appended (see SendMessageToFrontend) and delivered in turn.
-    while (!pending_messages_.empty()) {
-      std::u16string message = std::move(pending_messages_.front());
-      pending_messages_.erase(pending_messages_.begin());
-      Local<Value> argument;
-      if (ToV8Value(env()->context(), std::u16string_view(message), isolate)
-              .ToLocal(&argument)) {
-        OnMessage(argument);
-      }
-    }
-    delivering_ = false;
-  }
-
-  static void GCPrologueCallback(Isolate*,
-                                 GCType,
-                                 GCCallbackFlags,
-                                 void* data) {
-    static_cast<JSBindingsConnection*>(data)->in_gc_ = true;
-  }
-
-  static void GCEpilogueCallback(Isolate*,
-                                 GCType,
-                                 GCCallbackFlags,
-                                 void* data) {
-    auto* connection = static_cast<JSBindingsConnection*>(data);
-    connection->in_gc_ = false;
-    if (!connection->pending_messages_.empty()) connection->ScheduleFlush();
   }
 
   static void Bind(Environment* env, Local<Object> target) {
@@ -211,12 +133,8 @@ class JSBindingsConnection : public BaseObject {
     CHECK(info[0]->IsString());
 
     if (session->session_) {
-      Isolate* isolate = info.GetIsolate();
       session->session_->Dispatch(
-          ToInspectorString(isolate, info[0])->string());
-      if (!isolate->IsExecutionTerminating()) {
-        isolate->PerformMicrotaskCheckpoint();
-      }
+          ToInspectorString(info.GetIsolate(), info[0])->string());
     }
   }
 
@@ -236,10 +154,6 @@ class JSBindingsConnection : public BaseObject {
  private:
   std::unique_ptr<InspectorSession> session_;
   Global<Function> callback_;
-  std::vector<std::u16string> pending_messages_;
-  bool in_gc_ = false;
-  bool delivering_ = false;
-  bool flush_scheduled_ = false;
 };
 
 static bool InspectorEnabled(Environment* env) {
