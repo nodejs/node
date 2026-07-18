@@ -74,6 +74,12 @@ flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
 [`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
 `--experimental-ffi` flag and is only available in builds with FFI support.
 
+To allow loading private keys through OpenSSL STORE loaders via
+[`crypto.createPrivateKey()`][], use the [`--allow-crypto-store`][] flag.
+This flag grants broad authority to configured OpenSSL STORE loaders, which may
+access files, devices, tokens, or the network. Access performed by a loader is
+not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--permission`][]
@@ -208,7 +214,8 @@ Example `node.config.json`:
     "allow-worker": true,
     "allow-net": true,
     "allow-addons": false,
-    "allow-ffi": false
+    "allow-ffi": false,
+    "allow-crypto-store": false
   }
 }
 ```
@@ -318,6 +325,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-crypto-store`]: cli.md#--allow-crypto-store
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
@@ -325,5 +333,6 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
 [`--permission`]: cli.md#--permission
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
 [`permission.has()`]: process.md#processpermissionhasscope-reference

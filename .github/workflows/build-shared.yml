@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: ''
+      pkcs11-store-test:
+        description: Whether to enable the PKCS#11-backed crypto STORE test
+        required: false
+        type: boolean
+        default: false
     secrets:
       CACHIX_AUTH_TOKEN:
         description: Cachix auth token for nodejs.cachix.org.
@@ -73,10 +78,12 @@ jobs:
 
       - name: Build Node.js and run tests
         shell: bash
+        env:
+          NODE_TEST_PKCS11_NIX: ${{ inputs.pkcs11-store-test && '1' || '0' }}
         run: |
           nix-shell \
             -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" \
-            --pure --keep TAR_DIR --keep FLAKY_TESTS \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS --keep NODE_TEST_PKCS11_NIX \
             --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
             --arg loadJSBuiltinsDynamically false \
             --arg ccache "${NIX_SCCACHE:-null}" \

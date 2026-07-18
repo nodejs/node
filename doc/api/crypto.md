@@ -2652,7 +2652,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
   * `dsaEncoding` {string}
   * `padding` {integer}
   * `saltLength` {integer}
@@ -3986,14 +3986,19 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
-    material, either in PEM, DER, JWK, or raw format.
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|URL}
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object|URL} The key
+    material, either in PEM, DER, JWK, or raw format, or a {URL} referencing an
+    object for an OpenSSL STORE loader.
   * `format` {string} Must be `'pem'`, `'der'`, `'jwk'`, `'raw-private'`,
     or `'raw-seed'`. **Default:** `'pem'`.
   * `type` {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
-  * `passphrase` {string | Buffer} The passphrase to use for decryption.
+  * `passphrase` {string | Buffer} The passphrase to use for decryption. When
+    `key` is a {URL}, this is the optional PIN/passphrase forwarded to the
+    STORE loader.
+  * `properties` {string} The optional OpenSSL property query used when
+    fetching the STORE loader for a {URL} key.
   * `encoding` {string} The string encoding to use when `key` is a string.
   * `asymmetricKeyType` {string} Required when `format` is `'raw-private'`
     or `'raw-seed'` and ignored otherwise.
@@ -4010,6 +4015,36 @@ must be an object with the properties described above.
 
 If the private key is encrypted, a `passphrase` must be specified. The length
 of the passphrase is limited to 1024 bytes.
+
+#### Private keys from OpenSSL STORE loaders
+
+> Stability: 1.1 - Active development
+
+If `key` is a {URL} (or an object whose `key` is a {URL}), the private key is
+loaded through an OpenSSL STORE loader. The URL is passed to OpenSSL as a URI,
+for example a `file:` URI or a provider-backed scheme such as `pkcs11:`. When
+the [Permission Model][] is enabled, [`--allow-crypto-store`][] is required.
+
+Configured OpenSSL STORE loaders have broad authority and may access files,
+devices, tokens, or the network. Access performed by a loader is not constrained
+by the `fs.read`, `fs.write`, or `net` permission scopes.
+
+When a {URL} is used, `format`, `type`, `asymmetricKeyType`, and `namedCurve`
+are ignored even when those options would otherwise depend on each other, such
+as `type` with `format: 'der'` or `namedCurve` with
+`asymmetricKeyType: 'ec'`. The input is passed to the STORE loader as a URI,
+not handled as PEM, DER, JWK, or raw key material. `passphrase` is still used as
+the optional PIN/passphrase passed to the loader, and `encoding` applies if that
+`passphrase` is a string.
+
+Use `passphrase` instead of embedding credentials in the URI passed to the
+STORE loader. Node.js redacts the URI from its own permission-denial resource
+and diagnostics. Errors reported by OpenSSL or a provider after loading begins
+may include the URI.
+
+When `properties` is specified with a {URL} key, it is passed to OpenSSL as the
+property query for selecting the STORE loader. It is not appended to the URL and
+is distinct from provider-specific URI parameters.
 
 ### `crypto.createPublicKey(key)`
 
@@ -4084,6 +4119,10 @@ extracted from the returned `KeyObject`. Similarly, if a `KeyObject` with type
 `'private'` is given, a new `KeyObject` with type `'public'` will be returned
 and it will be impossible to extract the private key from the returned object.
 
+A store-backed private key can be used as a public key by first loading it with
+[`crypto.createPrivateKey()`][]; a {URL} cannot be passed to
+`crypto.createPublicKey()` directly.
+
 ### `crypto.createSecretKey(key[, encoding])`
 
 <!-- YAML
@@ -4155,7 +4194,7 @@ algorithm names.
 added: v24.7.0
 -->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Private Key
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL} Private Key
 * `ciphertext` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `callback` {Function}
   * `err` {Error}
@@ -4199,7 +4238,7 @@ changes:
 -->
 
 * `options` {Object}
-  * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+  * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
   * `publicKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `callback` {Function}
   * `err` {Error}
@@ -5288,7 +5327,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
   * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
     **Default:** `'sha1'`
   * `oaepLabel` {string|ArrayBuffer|Buffer|TypedArray|DataView} The label to
@@ -5336,9 +5375,10 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
-  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
-    A PEM encoded private key.
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
+    The private key material, a {KeyObject}, or a {URL} referencing an object
+    for an OpenSSL STORE loader.
   * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} An optional
     passphrase for the private key.
   * `padding` {crypto.constants} An optional padding value defined in
@@ -6197,7 +6237,7 @@ changes:
 
 * `algorithm` {string | null | undefined}
 * `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|URL}
 * `callback` {Function}
   * `err` {Error}
   * `signature` {Buffer}
@@ -6968,6 +7008,7 @@ See the [list of SSL OP Flags][] for details.
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [OpenSSL's FIPS README file]: https://github.com/openssl/openssl/blob/openssl-3.0/README-FIPS.md
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man3.0/man1/openssl-spkac.html
+[Permission Model]: permissions.md#permission-model
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
 [RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
@@ -6981,6 +7022,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [Web Crypto API documentation]: webcrypto.md
+[`--allow-crypto-store`]: cli.md#--allow-crypto-store
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html

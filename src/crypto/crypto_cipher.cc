@@ -837,7 +837,11 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  // TODO(panva): Use GetPrivateKeyFromJs() for private operations, then
+  // remove allow_private_key_store and URL handling from
+  // GetPublicOrPrivateKeyFromJs().
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(
+      args, &offset, operation == PublicKeyCipher::kPrivate);
   if (!data) return;
   const auto& pkey = data.GetAsymmetricKey();
   if (!pkey) return;
