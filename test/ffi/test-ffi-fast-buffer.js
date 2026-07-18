@@ -70,7 +70,10 @@ test('fast FFI buffer arguments reject invalid values', () => {
   }
 });
 
-test('fast FFI string buffers survive reentrant callbacks', () => {
+test('fast FFI string buffers survive reentrant callbacks', {
+  // Bundled libffi callbacks crash on SmartOS.
+  skip: common.isSunOS,
+}, () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     safe_strlen: { arguments: ['string'], return: 'i32' },
     string_survives_callback: {
