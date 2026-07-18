@@ -503,7 +503,8 @@ class Http3ApplicationImpl final : public Session::Application {
       code = error.code();
     }
 
-    int rv = nghttp3_conn_close_stream(*this, stream->id(), code);
+    int rv = nghttp3_conn_close_stream2(*this, NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET,
+                                        stream->id(), code, 0);
     // If the call is successful, Http3Application::OnStreamClose callback will
     // be invoked when the stream is ready to be closed. We'll handle destroying
     // the actual Stream object there.
@@ -797,16 +798,31 @@ class Http3ApplicationImpl final : public Session::Application {
     return Http3ConnectionPointer(conn);
   }
 
-  void OnStreamClose(Stream* stream, error_code app_error_code) {
-    if (app_error_code != NGHTTP3_H3_NO_ERROR) {
+  void OnStreamClose(Stream* stream, uint32_t flags, 
+                     error_code rx_app_error_code,
+                     error_code tx_app_error_code) {
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
       Debug(&session(),
             "HTTP/3 application received stream close for stream %" PRIi64
-            " with code %" PRIu64,
+            " with remote error code %" PRIu64,
             stream->id(),
-            app_error_code);
+            rx_app_error_code);
+    }
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+      Debug(&session(),
+            "HTTP/3 application send stream close for stream %" PRIi64
+            " with error code %" PRIu64,
+            stream->id(),
+            tx_app_error_code);
     }
     auto direction = stream->direction();
-    stream->Destroy(QuicError::ForApplication(app_error_code));
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+      stream->Destroy(QuicError::ForApplication(rx_app_error_code));
+    } else if (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET) {
+      stream->Destroy(QuicError::ForApplication(tx_app_error_code));
+    } else {
+       stream->Destroy();
+    }
     ExtendMaxStreams(EndpointLabel::REMOTE, direction, 1);
   }
 
@@ -1168,13 +1184,16 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_stream_close(nghttp3_conn* conn,
+                             uint32_t flags,
                              stream_id id,
-                             error_code app_error_code,
+                             error_code rx_app_error_code,
+                             error_code tx_app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     if (auto stream = app.session().FindStream(id)) {
-      app.OnStreamClose(stream.get(), app_error_code);
+      app.OnStreamClose(stream.get(), flags, rx_app_error_code,
+        tx_app_error_code);
     }
     return NGTCP2_SUCCESS;
   }
@@ -1382,7 +1401,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static constexpr nghttp3_callbacks kCallbacks = {
       on_acked_stream_data,
-      on_stream_close,
+      nullptr, //nghttp3_stream_close (deprecated)
       on_receive_data,
       on_deferred_consume,
       on_begin_headers,
@@ -1399,7 +1418,8 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_origin,
       on_end_origin,
       on_rand,
-      on_receive_settings};
+      on_receive_settings,
+      on_stream_close};
 };
 
 std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
