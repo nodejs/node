@@ -518,6 +518,8 @@ class MaybeStackBuffer {
   inline std::basic_string_view<U> ToStringView() const {
     return {out(), length()};
   }
+  // This can only be used if the buffer contains path data in UTF8
+  inline std::filesystem::path ToPath() const;
 
  private:
   size_t length_;
@@ -1023,8 +1025,14 @@ class JSONOutputStream final : public v8::OutputStream {
 // Returns true if OS==Windows and filename ends in .bat or .cmd,
 // case insensitive.
 inline bool IsWindowsBatchFile(const char* filename);
-inline std::wstring ConvertToWideString(const std::string& str, UINT code_page);
+inline std::wstring ConvertUTF8ToWideString(const std::string& str);
+inline std::string ConvertWideStringToUTF8(const std::wstring& wstr);
+
 #endif  // _WIN32
+
+inline std::filesystem::path ConvertUTF8ToPath(const std::string& str);
+inline std::string ConvertPathToUTF8(const std::filesystem::path& path);
+inline std::string ConvertGenericPathToUTF8(const std::filesystem::path& path);
 
 }  // namespace node
 
