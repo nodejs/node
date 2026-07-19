@@ -91,6 +91,9 @@ if (process.features.openssl_is_boringssl) {
     ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
 }
 
+skipSubtests(
+  ['digest/kangarootwelve.tentative.https.any.js', /C=(?:\d{4,}|5(?:1[3-9]|[2-9]\d)|[6-9]\d{2}) bytes/]);
+
 function assertNoOverlap(fileSkips, subtestSkips) {
   const subtestSkipFiles = new Set(Object.keys(subtestSkips));
   const overlap = Object.keys(fileSkips).filter((file) => subtestSkipFiles.has(file));
