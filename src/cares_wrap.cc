@@ -249,6 +249,23 @@ std::vector<std::pair<std::string, int>> ParseServersCsv(const char* csv) {
   return servers;
 }
 
+int GetAnswerCountForTTLBuffer(const unsigned char* buf, int len) {
+  static constexpr int kDNSAnswerCountOffset = 6;
+  static constexpr int kAresDefaultTTLBufferLength = 256;
+  if (len <= kDNSAnswerCountOffset + 1) {
+    return kAresDefaultTTLBufferLength;
+  }
+
+  const int answer_count = (static_cast<int>(buf[kDNSAnswerCountOffset]) << 8) |
+                           static_cast<int>(buf[kDNSAnswerCountOffset + 1]);
+  return answer_count == 0 ? 1 : answer_count;
+}
+
+template <typename T>
+std::vector<T> MakeAddrTTLBuffer(const unsigned char* buf, int len) {
+  return std::vector<T>(GetAnswerCountForTTLBuffer(buf, len));
+}
+
 Maybe<int> ParseGeneralReply(Environment* env,
                              const unsigned char* buf,
                              int len,
@@ -1217,11 +1234,12 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
   int type, status, old_count;
 
   /* Parse A records or CNAME records */
-  ares_addrttl addrttls[256];
-  int naddrttls = arraysize(addrttls);
+  std::vector<ares_addrttl> addrttls =
+      MakeAddrTTLBuffer<ares_addrttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size());
 
   type = ns_t_cname_or_a;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1294,11 +1312,13 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
   }
 
   /* Parse AAAA records */
-  ares_addr6ttl addr6ttls[256];
-  int naddr6ttls = arraysize(addr6ttls);
+  std::vector<ares_addr6ttl> addr6ttls =
+      MakeAddrTTLBuffer<ares_addr6ttl>(buf, len);
+  int naddr6ttls = static_cast<int>(addr6ttls.size());
 
   type = ns_t_aaaa;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addr6ttls, &naddr6ttls)
+  if (!ParseGeneralReply(
+           env, buf, len, &type, ret, addr6ttls.data(), &naddr6ttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1486,12 +1506,13 @@ Maybe<int> ATraits::Parse(QueryAWrap* wrap,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  ares_addrttl addrttls[256];
-  int naddrttls = arraysize(addrttls), status;
+  std::vector<ares_addrttl> addrttls =
+      MakeAddrTTLBuffer<ares_addrttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size()), status;
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_a;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1499,7 +1520,8 @@ Maybe<int> ATraits::Parse(QueryAWrap* wrap,
     return Just<int>(status);
   }
 
-  Local<Array> ttls = AddrTTLToArray<ares_addrttl>(env, addrttls, naddrttls);
+  Local<Array> ttls =
+      AddrTTLToArray<ares_addrttl>(env, addrttls.data(), naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
   return Just<int>(ARES_SUCCESS);
@@ -1518,12 +1540,13 @@ Maybe<int> AaaaTraits::Parse(QueryAaaaWrap* wrap,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  ares_addr6ttl addrttls[256];
-  int naddrttls = arraysize(addrttls), status;
+  std::vector<ares_addr6ttl> addrttls =
+      MakeAddrTTLBuffer<ares_addr6ttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size()), status;
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_aaaa;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1531,7 +1554,8 @@ Maybe<int> AaaaTraits::Parse(QueryAaaaWrap* wrap,
     return Just<int>(status);
   }
 
-  Local<Array> ttls = AddrTTLToArray<ares_addr6ttl>(env, addrttls, naddrttls);
+  Local<Array> ttls =
+      AddrTTLToArray<ares_addr6ttl>(env, addrttls.data(), naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
   return Just<int>(ARES_SUCCESS);
