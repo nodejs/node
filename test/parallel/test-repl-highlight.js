@@ -1,12 +1,14 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { inspect, stripVTControlCharacters } = require('util');
 const ArrayStream = require('../common/arraystream');
 const { highlight } = require('internal/repl/highlight');
 const { REPLServer } = require('repl');
+
+common.skipIfInspectorDisabled();
 
 assert.strictEqual(stripVTControlCharacters(highlight(
   'const /* comment */ answer = 42; // comment',
