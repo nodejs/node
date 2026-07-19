@@ -3834,6 +3834,7 @@ one is included in the list below.
 * `--experimental-print-required-tla`
 * `--experimental-quic`
 * `--experimental-require-module`
+* `--experimental-repl-typescript`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
