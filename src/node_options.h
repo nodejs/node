@@ -351,6 +351,9 @@ class PerProcessOptions : public Options {
   bool print_version = false;
   std::string experimental_sea_config;
   std::string run;
+  // Tracks whether `--run` was passed, since an empty `run` is ambiguous
+  // between "not passed" and "passed without a script name" (lists scripts).
+  bool has_run = false;
 
   std::string build_sea;
 #ifdef NODE_HAVE_I18N_SUPPORT

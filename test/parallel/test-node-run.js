@@ -222,4 +222,39 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
+
+  it('lists available scripts to stdout when no command is given', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.match(child.stdout, /Available scripts are:/);
+    assert.match(child.stdout, /test: echo "Error: no test specified" && exit 1/);
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('does not consume a following flag as the script name', async () => {
+    // `--run` followed by a flag lists scripts rather than treating the flag
+    // as a script name.
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', '--no-warnings'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.match(child.stdout, /Available scripts are:/);
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('errors when listing scripts without a package.json', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run'],
+      { cwd: __dirname },
+    );
+    assert.match(child.stderr, /Can't find package\.json/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 1);
+  });
 });
