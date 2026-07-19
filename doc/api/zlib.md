@@ -870,6 +870,9 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `finishFlush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
 * `chunkSize` {integer} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
+* `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} Optional dictionary used
+  to improve compression efficiency when compressing or decompressing data that
+  shares common patterns with the dictionary.
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
@@ -1857,7 +1860,7 @@ added: v25.9.0
     * `BROTLI_PARAM_LGBLOCK` -- input block size (log2).
       See the [Brotli compressor options][] in the zlib documentation for the
       full list.
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a Brotli compression transform. Output is compatible with
@@ -1877,7 +1880,7 @@ added: v25.9.0
   * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS` (15).
   * `memLevel` {number} **Default:** `9`.
   * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a deflate compression transform. Output is compatible with
@@ -1897,7 +1900,7 @@ added: v25.9.0
   * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS` (15).
   * `memLevel` {number} **Default:** `9`.
   * `strategy` {number} **Default:** `Z_DEFAULT_STRATEGY`.
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a gzip compression transform. Output is compatible with `zlib.gunzip()`
@@ -1924,7 +1927,7 @@ added: v25.9.0
       See the [Zstd compressor options][] in the zlib documentation for the
       full list.
   * `pledgedSrcSize` {number} Expected uncompressed size (optional hint).
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a Zstandard compression transform. Output is compatible with
@@ -1948,7 +1951,7 @@ added: v25.9.0
       Window Brotli" mode (not compatible with [RFC 7932][]).
       See the [Brotli decompressor options][] in the zlib documentation for
       details.
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a Brotli decompression transform.
@@ -1964,7 +1967,7 @@ added: v25.9.0
 * `options` {Object}
   * `chunkSize` {number} Output buffer size. **Default:** `65536` (64 KB).
   * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS` (15).
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a deflate decompression transform.
@@ -1980,7 +1983,7 @@ added: v25.9.0
 * `options` {Object}
   * `chunkSize` {number} Output buffer size. **Default:** `65536` (64 KB).
   * `windowBits` {number} **Default:** `Z_DEFAULT_WINDOWBITS` (15).
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a gzip decompression transform.
@@ -2001,7 +2004,7 @@ added: v25.9.0
       will allocate. Limits memory usage against malicious input.
       See the [Zstd decompressor options][] in the zlib documentation for
       details.
-  * `dictionary` {Buffer|TypedArray|DataView}
+  * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Object} A stateful transform.
 
 Create a Zstandard decompression transform.
