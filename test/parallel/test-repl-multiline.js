@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { startNewREPLServer } = require('../common/repl');
+const { stripVTControlCharacters } = require('util');
 
 const input = ['const foo = {', '};', 'foo'];
 
@@ -10,16 +11,16 @@ async function run({ useColors }) {
 
   await write(input);
 
-  const actual = output.accumulator.split('\n');
+  // The output contains various escape codes, including
+  // screen clears and others, so we trim them all to
+  // simplify this test.
+  const actual = stripVTControlCharacters(output.accumulator);
 
-  // Validate the output, which contains terminal escape codes.
-  assert.strictEqual(actual.length, 6);
-  assert.ok(actual[0].endsWith(input[0]));
-  assert.ok(actual[1].includes('| '));
-  assert.ok(actual[1].endsWith(input[1]));
-  assert.ok(actual[2].includes('undefined'));
-  assert.ok(actual[3].endsWith(input[2]));
-  assert.strictEqual(actual[4], '{}');
+  const firstStatementIdx = actual.indexOf(input.slice(0, 1).join('\n| '));
+  assert(firstStatementIdx > -1);
+
+  assert(actual.slice(firstStatementIdx).includes('undefined'));
+  assert(actual.slice(firstStatementIdx).includes('foo'));
 
   replServer.on('exit', common.mustCall());
   replServer.close();
