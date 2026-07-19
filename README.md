@@ -148,7 +148,7 @@ For information about the governance of the Node.js project, see
 
 <!--lint disable prohibited-strings-->
 
-* [aduh95](https://github.com/aduh95) -
+* [aduh95](https://github.com/pathum255) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
 * [anonrig](https://github.com/anonrig) -
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him)
