@@ -2688,6 +2688,9 @@ The following environment variables are set when running a script with `--run`:
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
+Environment variables loaded from a file with [`--env-file`][] are not applied
+to the command executed by `--run`.
+
 ### `--secure-heap-min=n`
 
 <!-- YAML
