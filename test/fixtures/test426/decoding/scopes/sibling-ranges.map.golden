@@ -1,0 +1,93 @@
+{
+  "file": "sibling-ranges.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 10,
+          "column": 0
+        },
+        "name": null,
+        "kind": "global",
+        "isStackFrame": false,
+        "variables": [],
+        "children": []
+      }
+    },
+    {
+      "url": "original_1.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 10,
+          "column": 0
+        },
+        "end": {
+          "line": 20,
+          "column": 0
+        },
+        "name": null,
+        "kind": "global",
+        "isStackFrame": false,
+        "variables": [],
+        "children": []
+      }
+    }
+  ],
+  "ranges": [
+    {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 0,
+        "column": 10
+      },
+      "definitionIndex": 0,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [],
+      "children": []
+    },
+    {
+      "start": {
+        "line": 10,
+        "column": 0
+      },
+      "end": {
+        "line": 10,
+        "column": 10
+      },
+      "definitionIndex": 1,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [],
+      "children": []
+    },
+    {
+      "start": {
+        "line": 20,
+        "column": 0
+      },
+      "end": {
+        "line": 20,
+        "column": 10
+      },
+      "definitionIndex": null,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [],
+      "children": []
+    }
+  ]
+}

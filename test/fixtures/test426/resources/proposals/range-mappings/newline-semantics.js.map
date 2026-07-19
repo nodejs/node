@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "names": [],
+  "file": "empty-string.js",
+  "sources": ["newline-semantics-original.js"],
+  "sourcesContent": ["1234\n5678"],
+  "mappings": "CAAA;GACG",
+  "rangeMappings": "A;"
+}

@@ -1,0 +1,9 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "assets": {
+    "asset-1.txt": "asset-1.txt",
+    "asset-2.txt": "asset-2.txt",
+    "asset-3.txt": "asset-3.txt"
+  }
+}

@@ -1,0 +1,8 @@
+before
+
+<project-root>/test/fixtures/errors/throw_in_line_with_tabs.js:31
+	throw ({ foo: 'bar' });
+	^
+{ foo: 'bar' }
+
+Node.js <node-version>

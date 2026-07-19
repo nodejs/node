@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing - Check that nextHopProtocol is TAO protected</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/custom-cors-response.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/tao-response.js"></script>
+</head>
+<body>
+<script>
+
+const {HTTPS_REMOTE_ORIGIN} = get_host_info();
+
+const tao_protected_next_hop_test = (loader, item) => {
+  attribute_test(
+    loader, custom_cors_response({}, HTTPS_REMOTE_ORIGIN),
+    entry => assert_equals(entry.nextHopProtocol, "",
+      "nextHopProtocol should be the empty string."),
+    `Fetch TAO-less ${item} from remote origin. Make sure nextHopProtocol ` +
+    "is the empty string."
+  );
+
+  attribute_test(
+    loader, remote_tao_response('*'),
+    entry => assert_not_equals(entry.nextHopProtocol, "",
+      "nextHopProtocol should not be the empty string."),
+    `Fetch TAO'd ${item} from remote origin. Make sure nextHopProtocol ` +
+    "is not the empty string."
+  );
+}
+
+tao_protected_next_hop_test(load.font, "font");
+tao_protected_next_hop_test(load.iframe, "iframe");
+tao_protected_next_hop_test(load.image, "image");
+tao_protected_next_hop_test(path => load.object(path, "text/plain"), "object");
+tao_protected_next_hop_test(load.script, "script");
+tao_protected_next_hop_test(load.stylesheet, "stylesheet");
+tao_protected_next_hop_test(load.xhr_sync, "synchronous xhr");
+tao_protected_next_hop_test(load.xhr_async, "asynchronous xhr");
+
+</script>
+</body>
+</html>

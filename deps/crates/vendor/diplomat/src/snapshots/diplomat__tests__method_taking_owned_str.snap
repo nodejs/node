@@ -1,0 +1,23 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        struct Foo {} impl Foo\n        { pub fn something_with_str(s: Box<str>) { unimplemented!() } }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    struct Foo {}
+    impl Foo {
+        pub fn something_with_str(s: Box<str>) {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_something_with_str(
+        s: diplomat_runtime::DiplomatOwnedUTF8StrSlice,
+    ) {
+        let s = s.into();
+        Foo::something_with_str(s)
+    }
+}

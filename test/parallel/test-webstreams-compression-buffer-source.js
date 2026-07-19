@@ -1,0 +1,42 @@
+'use strict';
+require('../common');
+const assert = require('assert');
+const test = require('node:test');
+const { DecompressionStream, CompressionStream } = require('stream/web');
+
+// Minimal gzip-compressed bytes for "hello"
+const compressedGzip = new Uint8Array([
+  31, 139, 8, 0, 0, 0, 0, 0, 0, 3,
+  203, 72, 205, 201, 201, 7, 0, 134, 166, 16, 54, 5, 0, 0, 0,
+]);
+
+test('DecompressionStream accepts ArrayBuffer chunks', async () => {
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+
+  const writePromise = writer.write(compressedGzip.buffer);
+  writer.close();
+
+  const chunks = await Array.fromAsync(ds.readable);
+  await writePromise;
+  const out = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+  assert.strictEqual(out.toString(), 'hello');
+});
+
+test('CompressionStream round-trip with ArrayBuffer input', async () => {
+  const cs = new CompressionStream('gzip');
+  const ds = new DecompressionStream('gzip');
+
+  const csWriter = cs.writable.getWriter();
+
+  const input = new TextEncoder().encode('hello').buffer;
+
+  await csWriter.write(input);
+  csWriter.close();
+
+  await cs.readable.pipeTo(ds.writable);
+
+  const out = await Array.fromAsync(ds.readable);
+  const result = Buffer.concat(out.map((c) => Buffer.from(c)));
+  assert.strictEqual(result.toString(), 'hello');
+});

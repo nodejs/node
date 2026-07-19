@@ -1,0 +1,153 @@
+#include "crypto/crypto_hkdf.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
+#include "crypto/crypto_keys.h"
+#include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "threadpoolwork-inl.h"
+#include "v8.h"
+
+namespace node {
+
+using ncrypto::Digest;
+using v8::FunctionCallbackInfo;
+using v8::JustVoid;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Nothing;
+using v8::Uint32;
+using v8::Value;
+
+namespace crypto {
+HKDFConfig::HKDFConfig(HKDFConfig&& other) noexcept
+    : mode(other.mode),
+      length(other.length),
+      digest(other.digest),
+      key(std::move(other.key)),
+      key_data(std::move(other.key_data)),
+      salt(std::move(other.salt)),
+      info(std::move(other.info)) {}
+
+HKDFConfig& HKDFConfig::operator=(HKDFConfig&& other) noexcept {
+  if (&other == this) return *this;
+  this->~HKDFConfig();
+  return *new (this) HKDFConfig(std::move(other));
+}
+
+MaybeLocal<Value> HKDFTraits::EncodeOutput(Environment* env,
+                                           const HKDFConfig& params,
+                                           ByteSource* out) {
+  return out->ToArrayBuffer(env);
+}
+
+Maybe<void> HKDFTraits::AdditionalConfig(
+    CryptoJobMode mode,
+    const FunctionCallbackInfo<Value>& args,
+    unsigned int offset,
+    HKDFConfig* params) {
+  Environment* env = Environment::GetCurrent(args);
+
+  params->mode = mode;
+
+  CHECK(args[offset]->IsString());  // Hash
+  CHECK(KeyObjectHandle::HasInstance(env, args[offset + 1]) ||
+        IsAnyBufferSource(args[offset + 1]));  // Key
+  CHECK(IsAnyBufferSource(args[offset + 2]));  // Salt
+  CHECK(IsAnyBufferSource(args[offset + 3]));  // Info
+  CHECK(args[offset + 4]->IsUint32());  // Length
+
+  Utf8Value hash(env->isolate(), args[offset]);
+  params->digest = Digest::FromName(*hash);
+  if (!params->digest) [[unlikely]] {
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", hash);
+    return Nothing<void>();
+  }
+
+  if (KeyObjectHandle::HasInstance(env, args[offset + 1])) {
+    KeyObjectHandle* key;
+    ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<void>());
+    params->key = key->Data().addRef();
+  } else {
+    ArrayBufferOrViewContents<char> key_data(args[offset + 1]);
+    if (!key_data.CheckSizeInt32()) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+      return Nothing<void>();
+    }
+    params->key_data =
+        IsCryptoJobAsync(mode) ? key_data.ToCopy() : key_data.ToByteSource();
+  }
+
+  ArrayBufferOrViewContents<char> salt(args[offset + 2]);
+  ArrayBufferOrViewContents<char> info(args[offset + 3]);
+
+  if (!salt.CheckSizeInt32()) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "salt is too big");
+    return Nothing<void>();
+  }
+  if (!info.CheckSizeInt32()) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "info is too big");
+    return Nothing<void>();
+  }
+
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
+
+  params->info = IsCryptoJobAsync(mode) ? info.ToCopy() : info.ToByteSource();
+
+  params->length = args[offset + 4].As<Uint32>()->Value();
+  // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as the
+  // output of the hash function. 255 is a hard limit because HKDF appends an
+  // 8-bit counter to each HMAC'd message, starting at 1.
+  if (!ncrypto::checkHkdfLength(params->digest, params->length)) [[unlikely]] {
+    THROW_ERR_CRYPTO_INVALID_KEYLEN(env);
+    return Nothing<void>();
+  }
+
+  return JustVoid();
+}
+
+bool HKDFTraits::DeriveBits(Environment* env,
+                            const HKDFConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
+  const ncrypto::Buffer<const unsigned char> key_data{
+      .data = params.key ? reinterpret_cast<const unsigned char*>(
+                               params.key.GetSymmetricKey())
+                         : params.key_data.data<unsigned char>(),
+      .len = params.key ? params.key.GetSymmetricKeySize()
+                        : params.key_data.size(),
+  };
+
+  auto dp = ncrypto::hkdf(params.digest,
+                          key_data,
+                          ncrypto::Buffer<const unsigned char>{
+                              .data = params.info.data<const unsigned char>(),
+                              .len = params.info.size(),
+                          },
+                          ncrypto::Buffer<const unsigned char>{
+                              .data = params.salt.data<const unsigned char>(),
+                              .len = params.salt.size(),
+                          },
+                          params.length);
+  if (!dp) {
+    errors->Insert(NodeCryptoError::HKDF_FAILED);
+    return false;
+  }
+
+  DCHECK(!dp.isSecure());
+  *out = ByteSource::Allocated(dp.release());
+  return true;
+}
+
+void HKDFConfig::MemoryInfo(MemoryTracker* tracker) const {
+  if (key) tracker->TrackField("key", key);
+  // If the job is sync, then the HKDFConfig does not own the data
+  if (IsCryptoJobAsync(mode)) {
+    if (!key) tracker->TrackFieldWithSize("key", key_data.size());
+    tracker->TrackFieldWithSize("salt", salt.size());
+    tracker->TrackFieldWithSize("info", info.size());
+  }
+}
+
+}  // namespace crypto
+}  // namespace node

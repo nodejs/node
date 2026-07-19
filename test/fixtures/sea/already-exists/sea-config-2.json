@@ -1,0 +1,6 @@
+{
+  "main": "sea-2.js",
+  "output": "sea-2",
+  "executable": "sea",
+  "disableExperimentalSEAWarning": true
+}

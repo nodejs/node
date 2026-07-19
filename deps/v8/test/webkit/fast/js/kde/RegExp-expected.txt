@@ -1,0 +1,126 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+KDE JS Test
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS (new RegExp()).source is '(?:)'
+PASS Boolean(new RegExp()) is true
+PASS isNaN(Number(new RegExp())) is true
+PASS RegExp(/x/).source is 'x'
+PASS RegExp('x', 'g').global is true
+PASS RegExp('x').source is 'x'
+PASS new RegExp('x').source is 'x'
+PASS (/a/).global is false
+PASS typeof (/a/).global is 'boolean'
+PASS rg.global is true
+PASS (/a/).ignoreCase is false
+PASS ri.ignoreCase is true
+PASS (/a/).multiline is false
+PASS rm.multiline is true
+PASS rg.toString() is '/a/g'
+PASS ri.toString() is '/a/i'
+PASS rm.toString() is '/a/m'
+PASS rg.global is true
+PASS ri.ignoreCase is true
+PASS rm.multiline is true
+PASS Boolean(/a/.test) is true
+PASS /(b)c/.exec('abcd').toString() is "bc,b"
+PASS /(b)c/.exec('abcd').length is 2
+PASS /(b)c/.exec('abcd').index is 1
+PASS /(b)c/.exec('abcd').input is 'abcd'
+PASS rs.source is 'foo'
+PASS var r = new RegExp(/x/); r.global=true; r.lastIndex = -1; typeof r.test('a') is 'boolean'
+PASS 'abcdefghi'.match(/(abc)def(ghi)/).toString() is 'abcdefghi,abc,ghi'
+PASS /(abc)def(ghi)/.exec('abcdefghi').toString() is 'abcdefghi,abc,ghi'
+PASS RegExp.$1 is 'abc'
+PASS RegExp.$2 is 'ghi'
+PASS RegExp.$3 is ''
+PASS 'abcdefghi'.match(/(a(b(c(d(e)f)g)h)i)/).toString() is 'abcdefghi,abcdefghi,bcdefgh,cdefg,def,e'
+PASS RegExp.$1 is 'abcdefghi'
+PASS RegExp.$2 is 'bcdefgh'
+PASS RegExp.$3 is 'cdefg'
+PASS RegExp.$4 is 'def'
+PASS RegExp.$5 is 'e'
+PASS RegExp.$6 is ''
+PASS '(100px 200px 150px 15px)'.match(/\((\d+)(px)* (\d+)(px)* (\d+)(px)* (\d+)(px)*\)/).toString() is '(100px 200px 150px 15px),100,px,200,px,150,px,15,px'
+PASS RegExp.$1 is '100'
+PASS RegExp.$3 is '200'
+PASS RegExp.$5 is '150'
+PASS RegExp.$7 is '15'
+PASS ''.match(/((\d+)(px)* (\d+)(px)* (\d+)(px)* (\d+)(px)*)/) is null
+PASS RegExp.$1 is '100'
+PASS RegExp.$3 is '200'
+PASS RegExp.$5 is '150'
+PASS RegExp.$7 is '15'
+PASS 'faure@kde.org'.match(invalidChars) == null is true
+PASS 'faure-kde@kde.org'.match(invalidChars) == null is false
+PASS 'test1test2'.replace('test','X') is 'X1test2'
+PASS 'test1test2'.replace(/\d/,'X') is 'testXtest2'
+PASS '1test2test3'.replace(/\d/,'') is 'test2test3'
+PASS 'test1test2'.replace(/test/g,'X') is 'X1X2'
+PASS '1test2test3'.replace(/\d/g,'') is 'testtest'
+PASS '1test2test3'.replace(/x/g,'') is '1test2test3'
+PASS 'test1test2'.replace(/(te)(st)/g,'$2$1') is 'stte1stte2'
+PASS 'foo+bar'.replace(/\+/g,'%2B') is 'foo%2Bbar'
+PASS caught is true
+PASS 'foo'.replace(/z?/g,'x') is 'xfxoxox'
+PASS 'test test'.replace(/\s*/g,'') is 'testtest'
+PASS 'abc$%@'.replace(/[^0-9a-z]*/gi,'') is 'abc'
+PASS 'ab'.replace(/[^\d\.]*/gi,'') is ''
+PASS '1ab'.replace(/[^\d\.]*/gi,'') is '1'
+PASS '1test2test3blah'.split(/test/).toString() is '1,2,3blah'
+PASS reg.exec(str).toString() is '98 ,98 '
+PASS reg.lastIndex is 3
+PASS RegExp.$1 is '98 '
+PASS RegExp.$2 is ''
+PASS reg.exec(str).toString() is '76 ,76 '
+PASS reg.lastIndex is 6
+PASS RegExp.$1 is '76 '
+PASS RegExp.$2 is ''
+PASS reg.exec(str) is null
+PASS reg.lastIndex is 0
+PASS myRe=/d(b+)d/g; myArray = myRe.exec('cdbbdbsbz'); myRe.lastIndex is 5
+PASS reg.ignoreCase == true is true
+PASS reg.global === false is true
+PASS reg.multiline === false is true
+PASS reg.test('UGO') is true
+PASS reg.x = 1; reg.x is 1
+PASS var r2 = reg; r2.x = 2; reg.x is 2
+PASS str.match(re).toString() is 'Chapter 3.4.5.1,Chapter 3.4.5.1,.1'
+PASS str.match(/d/gi).toString() is 'D,d'
+PASS /\u0061/.source is '\\u0061'
+PASS 'abc'.match(/\u0062/).toString() is 'b'
+FAIL Object.prototype.toString.apply(RegExp.prototype) should be [object RegExp]. Was [object Object].
+PASS typeof RegExp.prototype.toString() is 'string'
+PASS new RegExp().toString() is '/(?:)/'
+PASS (new RegExp('(?:)')).source is '(?:)'
+PASS /(?:)/.toString() is '/(?:)/'
+PASS /(?:)/.source is '(?:)'
+Done.
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

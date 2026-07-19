@@ -1,0 +1,16 @@
+include_rules = [
+  # See `include_dirs` from Chromium's `//third_party/rust/temporal_capi`.
+  "+temporal_rs"
+]
+
+specific_include_rules = {
+  "deoptimization-data.cc": [
+    "+third_party/zlib",
+  ],
+  "string-inl.h": [
+    "+absl/functional/overload.h"
+  ],
+  "string.cc": [
+    "+absl/functional/overload.h"
+  ],
+}

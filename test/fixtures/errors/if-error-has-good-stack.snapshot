@@ -1,0 +1,26 @@
+node:assert:<line>
+    throw newErr;
+    ^
+
+AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
+    at z (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:21:14)
+    at y (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:22:7)
+    at x (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:23:5)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:24:3)
+    at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:13:13)
+    at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:14:7)
+    at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:15:5)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:16:3) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: Error: test error
+      at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:13:13)
+      at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:14:7)
+      at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:15:5)
+      at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:16:3),
+  expected: null,
+  operator: 'ifError',
+  diff: 'simple'
+}
+
+Node.js <node-version>

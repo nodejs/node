@@ -1,0 +1,557 @@
+#if HAVE_OPENSSL && HAVE_QUIC
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
+#include <env-inl.h>
+#include <memory_tracker-inl.h>
+#include <ngtcp2/ngtcp2.h>
+#include <node_sockaddr-inl.h>
+#include <openssl/ssl.h>
+#include <string_bytes.h>
+#include <v8.h>
+#include "bindingdata.h"
+#include "data.h"
+#include "defs.h"
+#include "util.h"
+
+namespace node {
+
+using v8::Array;
+using v8::ArrayBuffer;
+using v8::ArrayBufferView;
+using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
+using v8::BigInt;
+using v8::Isolate;
+using v8::Just;
+using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Nothing;
+using v8::Uint8Array;
+using v8::Undefined;
+using v8::Value;
+
+namespace quic {
+thread_local int DebugIndentScope::indent_ = 0;
+
+Path::Path(const SocketAddress& local, const SocketAddress& remote) {
+  ngtcp2_addr_init(&this->local, local.data(), local.length());
+  ngtcp2_addr_init(&this->remote, remote.data(), remote.length());
+}
+
+std::string Path::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+
+  const sockaddr* local_in = reinterpret_cast<const sockaddr*>(local.addr);
+  auto local_addr = SocketAddress::GetAddress(local_in);
+  auto local_port = SocketAddress::GetPort(local_in);
+
+  const sockaddr* remote_in = reinterpret_cast<const sockaddr*>(remote.addr);
+  auto remote_addr = SocketAddress::GetAddress(remote_in);
+  auto remote_port = SocketAddress::GetPort(remote_in);
+
+  std::string res("{");
+  res += prefix + "local: " + local_addr + ":" + std::to_string(local_port);
+  res += prefix + "remote: " + remote_addr + ":" + std::to_string(remote_port);
+  res += indent.Close();
+  return res;
+}
+
+PathStorage::PathStorage() {
+  Reset();
+}
+
+void PathStorage::Reset() {
+  ngtcp2_path_storage_zero(this);
+}
+
+void PathStorage::CopyTo(PathStorage* path) const {
+  ngtcp2_path_copy(&path->path, &this->path);
+}
+
+bool PathStorage::operator==(const PathStorage& other) const {
+  return ngtcp2_path_eq(&path, &other.path) != 0;
+}
+
+bool PathStorage::operator!=(const PathStorage& other) const {
+  return ngtcp2_path_eq(&path, &other.path) == 0;
+}
+
+// ============================================================================
+
+Store::Store(std::shared_ptr<BackingStore> store, size_t length, size_t offset)
+    : store_(std::move(store)), length_(length), offset_(offset) {
+  CHECK_LE(offset_, store_->ByteLength());
+  CHECK_LE(length_, store_->ByteLength() - offset_);
+}
+
+Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
+    : store_(std::move(store)), length_(length), offset_(offset) {
+  CHECK_LE(offset_, store_->ByteLength());
+  CHECK_LE(length_, store_->ByteLength() - offset_);
+}
+
+Maybe<Store> Store::From(Local<ArrayBuffer> buffer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
+  auto length = buffer->ByteLength();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return Nothing<Store>();
+  }
+  if (length > 0) {
+    memcpy(dest->Data(), buffer->Data(), length);
+  }
+  return Just(Store(std::move(dest), length, 0));
+}
+
+Maybe<Store> Store::From(Local<ArrayBufferView> view) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
+  auto length = view->ByteLength();
+  auto offset = view->ByteOffset();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return Nothing<Store>();
+  }
+  if (length > 0) {
+    memcpy(dest->Data(),
+           static_cast<const uint8_t*>(view->Buffer()->Data()) + offset,
+           length);
+  }
+  return Just(Store(std::move(dest), length, 0));
+}
+
+Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  auto backing = buffer->GetBackingStore();
+  auto length = buffer->ByteLength();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
+  // copy content
+  memcpy(dest->Data(), backing->Data(), length);
+  return Store(std::move(dest), length, 0);
+}
+
+Store Store::CopyFrom(Local<ArrayBufferView> view) {
+  Isolate* isolate = Isolate::GetCurrent();
+  auto backing = view->Buffer()->GetBackingStore();
+  auto length = view->ByteLength();
+  auto offset = view->ByteOffset();
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  // copy content
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
+  memcpy(dest->Data(), static_cast<char*>(backing->Data()) + offset, length);
+  return Store(std::move(dest), length, 0);
+}
+
+Local<Uint8Array> Store::ToUint8Array(Environment* env) const {
+  return !store_
+             ? Uint8Array::New(ArrayBuffer::New(env->isolate(), 0), 0, 0)
+             : Uint8Array::New(
+                   ArrayBuffer::New(env->isolate(), store_), offset_, length_);
+}
+
+Store::operator bool() const {
+  return store_ != nullptr;
+}
+size_t Store::length() const {
+  return length_;
+}
+
+size_t Store::total_length() const {
+  return store_ ? store_->ByteLength() : 0;
+}
+
+template <typename T, OneByteType N>
+T Store::convert() const {
+  // We can only safely convert to T if we have a valid store.
+  CHECK(store_);
+  T buf;
+  buf.base = static_cast<N*>(store_->Data()) + offset_;
+  buf.len = length_;
+  return buf;
+}
+
+Store::operator uv_buf_t() const {
+  return convert<uv_buf_t, char>();
+}
+
+Store::operator ngtcp2_vec() const {
+  return convert<ngtcp2_vec, uint8_t>();
+}
+
+Store::operator nghttp3_vec() const {
+  return convert<nghttp3_vec, uint8_t>();
+}
+
+void Store::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("store", store_);
+}
+
+// ============================================================================
+
+namespace {
+constexpr std::string_view TypeName(QuicError::Type type) {
+  switch (type) {
+    case QuicError::Type::APPLICATION:
+      return "application";
+    case QuicError::Type::TRANSPORT:
+      return "transport";
+    case QuicError::Type::VERSION_NEGOTIATION:
+      return "version_negotiation";
+    case QuicError::Type::IDLE_CLOSE:
+      return "idle_close";
+    case QuicError::Type::DROP_CONNECTION:
+      return "drop_connection";
+    case QuicError::Type::RETRY:
+      return "retry";
+    default:
+      return "<unknown>";
+  }
+}
+}  // namespace
+
+QuicError::QuicError(const std::string& reason)
+    : reason_(reason), error_(), ptr_(&error_) {
+  ngtcp2_ccerr_default(&error_);
+}
+
+// Keep in mind that reason_ in each of the constructors here will copy
+// the string from the ngtcp2_ccerr input.
+QuicError::QuicError(const ngtcp2_ccerr* ptr)
+    : reason_(reinterpret_cast<const char*>(ptr->reason), ptr->reasonlen),
+      error_(),
+      ptr_(ptr) {}
+
+QuicError::QuicError(const ngtcp2_ccerr& error)
+    : reason_(reinterpret_cast<const char*>(error.reason), error.reasonlen),
+      error_(error),
+      ptr_(&error_) {}
+
+QuicError::QuicError(QuicError&& other) noexcept
+    : reason_(std::move(other.reason_)),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  // Fix up the internal reason pointer after moving.
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(QuicError&& other) noexcept {
+  if (this != &other) {
+    reason_ = std::move(other.reason_);
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
+
+QuicError::QuicError(const QuicError& other)
+    : reason_(other.reason_),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(const QuicError& other) {
+  if (this != &other) {
+    reason_ = other.reason_;
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
+
+const uint8_t* QuicError::reason_c_str() const {
+  return reinterpret_cast<const uint8_t*>(reason_.c_str());
+}
+
+bool QuicError::operator!=(const QuicError& other) const {
+  return !(*this == other);
+}
+
+bool QuicError::operator==(const QuicError& other) const {
+  if (this == &other) return true;
+  return type() == other.type() && code() == other.code() &&
+         frame_type() == other.frame_type();
+}
+
+QuicError::Type QuicError::type() const {
+  return static_cast<Type>(ptr_->type);
+}
+
+error_code QuicError::code() const {
+  return ptr_->error_code;
+}
+
+uint64_t QuicError::frame_type() const {
+  return ptr_->frame_type;
+}
+
+const std::string_view QuicError::reason() const {
+  return reason_;
+}
+
+QuicError::operator const ngtcp2_ccerr&() const {
+  return *ptr_;
+}
+
+QuicError::operator const ngtcp2_ccerr*() const {
+  return ptr_;
+}
+
+std::string QuicError::reason_for_liberr(int liberr) {
+  return ngtcp2_strerror(liberr);
+}
+
+std::string QuicError::reason_for_h3_liberr(int liberr) {
+  return nghttp3_strerror(liberr);
+}
+
+bool QuicError::is_fatal_liberror(int liberr) {
+  return ngtcp2_err_is_fatal(liberr) != 0;
+}
+
+bool QuicError::is_fatal_h3_liberror(int liberr) {
+  return nghttp3_err_is_fatal(liberr) != 0;
+}
+
+error_code QuicError::liberr_to_code(int liberr) {
+  return ngtcp2_err_infer_quic_transport_error_code(liberr);
+}
+
+error_code QuicError::h3_liberr_to_code(int liberr) {
+  return nghttp3_err_infer_quic_app_error_code(liberr);
+}
+
+bool QuicError::is_crypto_error() const {
+  return code() & NGTCP2_CRYPTO_ERROR;
+}
+
+std::optional<int> QuicError::get_crypto_error() const {
+  if (!is_crypto_error()) return std::nullopt;
+  return code() & ~NGTCP2_CRYPTO_ERROR;
+}
+
+const char* QuicError::name() const {
+  // CRYPTO_ERROR carries a TLS alert in its low byte (RFC 9001 sec. 4.8).
+  // OpenSSL's SSL_alert_desc_string_long owns a stable string for every
+  // alert it knows about; we filter out the "unknown" placeholder so the
+  // JS side can present `errorName` as undefined for unrecognised alerts.
+  if (auto alert = get_crypto_error()) {
+    const char* n = SSL_alert_desc_string_long(*alert);
+    if (n != nullptr && std::string_view(n) != "unknown") return n;
+    return nullptr;
+  }
+  // Named transport-layer error codes from RFC 9000 sec. 20.1 (and the
+  // RFC 9368 version-negotiation extension). Application error codes are
+  // opaque to QUIC, so we only decode for transport.
+  if (type() != Type::TRANSPORT) return nullptr;
+  switch (code()) {
+    case NGTCP2_NO_ERROR:
+      return "NO_ERROR";
+    case NGTCP2_INTERNAL_ERROR:
+      return "INTERNAL_ERROR";
+    case NGTCP2_CONNECTION_REFUSED:
+      return "CONNECTION_REFUSED";
+    case NGTCP2_FLOW_CONTROL_ERROR:
+      return "FLOW_CONTROL_ERROR";
+    case NGTCP2_STREAM_LIMIT_ERROR:
+      return "STREAM_LIMIT_ERROR";
+    case NGTCP2_STREAM_STATE_ERROR:
+      return "STREAM_STATE_ERROR";
+    case NGTCP2_FINAL_SIZE_ERROR:
+      return "FINAL_SIZE_ERROR";
+    case NGTCP2_FRAME_ENCODING_ERROR:
+      return "FRAME_ENCODING_ERROR";
+    case NGTCP2_TRANSPORT_PARAMETER_ERROR:
+      return "TRANSPORT_PARAMETER_ERROR";
+    case NGTCP2_CONNECTION_ID_LIMIT_ERROR:
+      return "CONNECTION_ID_LIMIT_ERROR";
+    case NGTCP2_PROTOCOL_VIOLATION:
+      return "PROTOCOL_VIOLATION";
+    case NGTCP2_INVALID_TOKEN:
+      return "INVALID_TOKEN";
+    case NGTCP2_APPLICATION_ERROR:
+      return "APPLICATION_ERROR";
+    case NGTCP2_CRYPTO_BUFFER_EXCEEDED:
+      return "CRYPTO_BUFFER_EXCEEDED";
+    case NGTCP2_KEY_UPDATE_ERROR:
+      return "KEY_UPDATE_ERROR";
+    case NGTCP2_AEAD_LIMIT_REACHED:
+      return "AEAD_LIMIT_REACHED";
+    case NGTCP2_NO_VIABLE_PATH:
+      return "NO_VIABLE_PATH";
+    case NGTCP2_VERSION_NEGOTIATION_ERROR:
+      return "VERSION_NEGOTIATION_ERROR";
+    default:
+      return nullptr;
+  }
+}
+
+MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
+  if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
+      (type() == Type::APPLICATION &&
+       (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
+      type() == Type::IDLE_CLOSE) {
+    // Application code 0 is the default no-error code for raw QUIC
+    // applications (DefaultApplication::GetNoErrorCode() returns 0).
+    // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
+    // Idle close is always clean — the session timed out normally.
+    return Undefined(env->isolate());
+  }
+
+  Local<Value> type_str;
+  if (!node::ToV8Value(env->context(), TypeName(type())).ToLocal(&type_str)) {
+    return {};
+  }
+
+  Local<Value> argv[] = {
+      type_str,
+      BigInt::NewFromUnsigned(env->isolate(), code()),
+      Undefined(env->isolate()),
+      Undefined(env->isolate()),
+  };
+
+  // Note that per the QUIC specification, the reason, if present, is
+  // expected to be UTF-8 encoded. The spec uses the term "SHOULD" here,
+  // which means that is is entirely possible that some QUIC implementation
+  // could choose a different encoding, in which case the conversion here
+  // will produce garbage. That's ok though, we're going to use the default
+  // assumption that the impl is following the guidelines.
+  if (reason_.length() > 0 &&
+      !node::ToV8Value(env->context(), reason()).ToLocal(&argv[2])) {
+    return {};
+  }
+
+  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
+  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
+  // codes leave the slot as undefined.
+  if (const char* n = name()) {
+    argv[3] = BindingData::Get(env).error_name_string(n);
+  }
+
+  return Array::New(env->isolate(), argv, arraysize(argv)).As<Value>();
+}
+
+std::string QuicError::ToString() const {
+  std::string str = "QuicError(";
+  str += TypeName(type());
+  str += ") ";
+  str += std::to_string(code());
+  if (!reason_.empty()) str += ": " + reason_;
+  return str;
+}
+
+void QuicError::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("reason", reason_.length());
+}
+
+QuicError QuicError::ForTransport(TransportError code, std::string reason) {
+  return ForTransport(static_cast<error_code>(code), std::move(reason));
+}
+
+QuicError QuicError::ForTransport(error_code code, std::string reason) {
+  QuicError error(std::move(reason));
+  ngtcp2_ccerr_set_transport_error(
+      &error.error_, code, error.reason_c_str(), error.reason().length());
+  return error;
+}
+
+QuicError QuicError::ForApplication(Http3Error code, std::string reason) {
+  return ForApplication(static_cast<error_code>(code), std::move(reason));
+}
+
+QuicError QuicError::ForApplication(error_code code, std::string reason) {
+  QuicError error(std::move(reason));
+  ngtcp2_ccerr_set_application_error(
+      &error.error_, code, error.reason_c_str(), error.reason().length());
+  return error;
+}
+
+QuicError QuicError::ForVersionNegotiation(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_RECV_VERSION_NEGOTIATION, std::move(reason));
+}
+
+QuicError QuicError::ForIdleClose(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_IDLE_CLOSE, std::move(reason));
+}
+
+QuicError QuicError::ForDropConnection(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_DROP_CONN, std::move(reason));
+}
+
+QuicError QuicError::ForRetry(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_RETRY, std::move(reason));
+}
+
+QuicError QuicError::ForNgtcp2Error(int code, std::string reason) {
+  QuicError error(std::move(reason));
+  ngtcp2_ccerr_set_liberr(
+      &error.error_, code, error.reason_c_str(), error.reason().length());
+  return error;
+}
+
+QuicError QuicError::ForTlsAlert(int code, std::string reason) {
+  QuicError error(std::move(reason));
+  ngtcp2_ccerr_set_tls_alert(
+      &error.error_, code, error.reason_c_str(), error.reason().length());
+  return error;
+}
+
+QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
+  return QuicError(ngtcp2_conn_get_ccerr(session));
+}
+
+#define V(name)                                                                \
+  const QuicError QuicError::TRANSPORT_##name =                                \
+      ForTransport(TransportError::name);
+QUIC_TRANSPORT_ERRORS(V)
+#undef V
+
+const QuicError QuicError::TRANSPORT_NO_ERROR =
+    ForTransport(TransportError::NO_ERROR_);
+const QuicError QuicError::HTTP3_NO_ERROR = ForApplication(NGHTTP3_H3_NO_ERROR);
+const QuicError QuicError::VERSION_NEGOTIATION = ForVersionNegotiation();
+const QuicError QuicError::IDLE_CLOSE = ForIdleClose();
+const QuicError QuicError::DROP_CONNECTION = ForDropConnection();
+const QuicError QuicError::RETRY = ForRetry();
+const QuicError QuicError::INTERNAL_ERROR = ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
+
+}  // namespace quic
+}  // namespace node
+
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL && HAVE_QUIC

@@ -1,0 +1,26 @@
+Tests how breakpoints and side effects live together.
+Test breakpoint, should pause inside foo:
+foo (test.js:3:2)
+(anonymous) (:0:0)
+
+Run foo with no side effects:
+{
+    className : EvalError
+    description : EvalError: Possible side-effect in debug-evaluate
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+
+Test breakpoint after run with side effect check:
+foo (test.js:3:2)
+(anonymous) (:0:0)
+
+Run foo with no side effects after debugger disabled:
+{
+    className : EvalError
+    description : EvalError: Possible side-effect in debug-evaluate
+    objectId : <objectId>
+    subtype : error
+    type : object
+}

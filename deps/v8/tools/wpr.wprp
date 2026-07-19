@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0">
+  <!--
+Note: The following utilities are usually installed to: "C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit"
+See https://docs.microsoft.com/en-us/windows-hardware/test/wpt/ for an overview of the tools.
+
+Start and stop the trace:
+
+  wpr -start wpr.wprp!V8js
+...run scenario...
+  wpr -stop v8js.etl
+
+You can also run "wpr -status collectors details" while recording to check on status.
+
+Note: If you have issues with the command line, run WRPUI, and load this profile via the dialog.
+
+Run the below to open the trace:
+
+  wpa v8js.etl
+
+Set _NT_SYMBOL_PATH to a value such as "C:\src\v8\v8\out.gn\x64.debug;srv*c:\symbols*https://msdl.microsoft.com/download/symbols" first.
+Append "-symcacheonly" on the WPA command to save it trying to reload prior failed symbols on subsequent runs.
+
+For details on editing this file, see https://docs.microsoft.com/en-us/windows-hardware/test/wpt/authoring-recording-profiles
+  -->
+  <Profiles>
+    <SystemCollector Id="SystemCollector" Name="NT Kernel Logger">
+      <BufferSize Value="1024"/>
+      <Buffers Value="384"/>
+    </SystemCollector>
+    <EventCollector Id="EventCollector_V8js" Name="V8js Event Collector">
+      <BufferSize Value="1024"/>
+      <Buffers Value="256"/>
+    </EventCollector>
+    <SystemProvider Id="SystemProvider">
+      <Keywords>
+        <Keyword Value="ProcessThread"/>
+        <Keyword Value="Loader"/>
+        <Keyword Value="SampledProfile"/>
+        <Keyword Value="ReadyThread"/>
+        <Keyword Value="CSwitch"/>
+        <Keyword Value="DiskIOInit"/>
+        <Keyword Value="FileIOInit"/>
+        <Keyword Value="HardFaults"/>
+      </Keywords>
+      <Stacks>
+        <!-- See https://docs.microsoft.com/en-us/windows-hardware/test/wpt/stack-wpa for options -->
+        <Stack Value="SampledProfile"/>
+        <Stack Value="ReadyThread"/>
+        <Stack Value="CSwitch"/>
+      </Stacks>
+    </SystemProvider>
+    <EventProvider Id="Provider_V8js" Name="57277741-3638-4A4B-BDBA-0AC6E45DA56C" Level="5" Stack="true"></EventProvider>
+    <Profile Id="V8js.Verbose.File" Name="V8js" DetailLevel="Verbose" LoggingMode="File" Description="V8.js profile">
+      <Collectors>
+        <SystemCollectorId Value="SystemCollector">
+          <SystemProviderId Value="SystemProvider"></SystemProviderId>
+        </SystemCollectorId>
+        <EventCollectorId Value="EventCollector_V8js">
+          <EventProviders>
+            <EventProviderId Value="Provider_V8js"></EventProviderId>
+          </EventProviders>
+        </EventCollectorId>
+      </Collectors>
+    </Profile>
+    <Profile Id="V8js.Verbose.Memory" Base="V8js.Verbose.File" Name="V8js" DetailLevel="Verbose" LoggingMode="Memory" Description="V8.js profile"></Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

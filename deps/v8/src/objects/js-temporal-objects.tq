@@ -1,0 +1,37 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-temporal-objects.h'
+
+extern class JSTemporalDuration extends JSObject {
+  duration: Foreign;  // Managed<temporal_rs::Duration>
+}
+
+extern class JSTemporalInstant extends JSObject {
+  instant: Foreign;  // Managed<temporal_rs::Instant>
+}
+
+extern class JSTemporalPlainDateTime extends JSObject {
+  date_time: Foreign;  // Managed<temporal_rs::PlainDateTime>
+}
+
+extern class JSTemporalPlainDate extends JSObject {
+  date: Foreign;  // Managed<temporal_rs::PlainDate>
+}
+
+extern class JSTemporalPlainMonthDay extends JSObject {
+  month_day: Foreign;  // Managed<temporal_rs::PlainMonthDay>
+}
+
+extern class JSTemporalPlainTime extends JSObject {
+  time: Foreign;  // Managed<temporal_rs::PlainTime>
+}
+
+extern class JSTemporalPlainYearMonth extends JSObject {
+  year_month: Foreign;  // Managed<temporal_rs::PlainDate>
+}
+
+extern class JSTemporalZonedDateTime extends JSObject {
+  zoned_date_time: Foreign;  // Managed<temporal_rs::ZonedDateTime>
+}

@@ -1,0 +1,99 @@
+.TH "NPM-DENY-SCRIPTS" "1" "June 2026" "NPM@11.18.0" ""
+.SH "NAME"
+\fBnpm-deny-scripts\fR - Deny install scripts for specific dependencies
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm deny-scripts <pkg> \[lB]<pkg> ...\[rB]
+npm deny-scripts --all
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+The companion command to npm help approve-scripts. Writes \fBfalse\fR entries into the \fBallowScripts\fR field of your project's \fBpackage.json\fR, recording that a dependency must not run install scripts even if a future version would otherwise be eligible.
+.P
+In the current release, install scripts still run by default, so \fBdeny-scripts\fR only affects how installs of denied packages are reported. A future release will block unreviewed install scripts and respect deny entries at install time.
+.P
+.RS 2
+.nf
+npm deny-scripts <pkg> \[lB]<pkg> ...\[rB]
+npm deny-scripts --all
+.fi
+.RE
+.P
+\fB<pkg>\fR matches every installed version of that package. Denies are always written name-only (\fB"pkg": false\fR), regardless of \fB--allow-scripts-pin\fR. Pinning a deny to a specific version would silently re-allow scripts for any other version of the same package, which defeats the purpose; the command picks the safer default for you.
+.P
+\fB--all\fR denies every package with unreviewed install scripts.
+.P
+If a \fBtrue\fR (pinned or name-only) entry exists for a package and you then deny it, the existing allow entries are removed so the name-only deny is unambiguous.
+.SS "Examples"
+.P
+.RS 2
+.nf
+# Deny a specific package outright
+npm deny-scripts telemetry-pkg
+
+# Deny everything that has install scripts and isn't already approved
+npm deny-scripts --all
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBall\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show or act on all packages, not just the ones your project directly depends on. For \fBnpm outdated\fR and \fBnpm ls\fR this lists every outdated or installed package. For \fBnpm approve-scripts\fR and \fBnpm deny-scripts\fR it selects every package with pending install scripts.
+.SS "\fBallow-scripts-pending\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+List packages with install scripts that are not yet covered by the \fBallowScripts\fR policy, without modifying \fBpackage.json\fR. Only meaningful for \fBnpm approve-scripts\fR.
+.SS "\fBallow-scripts-pin\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Write pinned (\fBpkg@version\fR) entries when approving install scripts. Set to \fBfalse\fR to write name-only entries that allow any version. Has no effect on \fBnpm deny-scripts\fR, which always writes name-only entries regardless of this setting.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help approve-scripts
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.RE 0

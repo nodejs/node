@@ -1,0 +1,584 @@
+Checks possible break locations.
+
+Running test: testEval
+break at:
+function testEval() {
+  #eval('// comment only');
+  eval('// comment only\n');
+
+break at:
+  eval('// comment only');
+  #eval('// comment only\n');
+}
+
+break at:
+  eval('// comment only\n');
+#}
+
+
+
+Running test: testProcedure
+break at:
+function testProcedure() {
+  #procedure();
+}
+
+break at:
+  procedure();
+#}
+
+
+
+Running test: testIf
+break at:
+  var a;
+  if (true) #a = true;
+  if (!a) {
+
+break at:
+  if (true) a = true;
+  #if (!a) {
+    a = true;
+
+break at:
+  } else {
+    #a = false;
+  }
+
+break at:
+  }
+  #if (returnTrue()) {
+    a = false;
+
+break at:
+  if (returnTrue()) {
+    #a = false;
+  } else {
+
+break at:
+  }
+#}
+
+
+
+Running test: testEmptyFunction
+break at:
+function testEmptyFunction() {
+  #emptyFunction();
+}
+
+break at:
+  emptyFunction();
+#}
+
+
+
+Running test: testCallArguments
+break at:
+function testCallArguments() {
+  #twoArguments(emptyFunction(), emptyFunction());
+}
+
+break at:
+  twoArguments(emptyFunction(), emptyFunction());
+#}
+
+
+
+Running test: testNested
+break at:
+  }
+  #nested1();
+}
+
+break at:
+  nested1();
+#}
+
+
+
+Running test: testCallAtReturn
+break at:
+function testCallAtReturn() {
+  #return returnCall();
+}
+
+break at:
+function testCallAtReturn() {
+  return returnCall();#
+}
+
+
+Running test: testWith
+break at:
+function testWith() {
+  #with (returnObject()) {
+    foo();
+
+break at:
+  with (returnObject()) {
+    #foo();
+  }
+
+break at:
+  }
+  #with({}) {
+    return;
+
+break at:
+  with({}) {
+    #return;
+  }
+
+break at:
+  with({}) {
+    return;#
+  }
+
+
+Running test: testForLoop
+break at:
+function testForLoop() {
+  for (var i = #0; i < 1; ++i) {}
+  for (var i = 0; i < 1; ++i) i;
+
+break at:
+function testForLoop() {
+  for (var i = 0; i #< 1; ++i) {}
+  for (var i = 0; i < 1; ++i) i;
+
+break at:
+function testForLoop() {
+  for (var i = 0; i < 1; ++#i) {}
+  for (var i = 0; i < 1; ++i) i;
+
+break at:
+function testForLoop() {
+  for (var i = 0; i #< 1; ++i) {}
+  for (var i = 0; i < 1; ++i) i;
+
+break at:
+  for (var i = 0; i < 1; ++i) {}
+  for (var i = #0; i < 1; ++i) i;
+  for (var i = 0; i < 0; ++i) {}
+
+break at:
+  for (var i = 0; i < 1; ++i) {}
+  for (var i = 0; i #< 1; ++i) i;
+  for (var i = 0; i < 0; ++i) {}
+
+break at:
+  for (var i = 0; i < 1; ++i) {}
+  for (var i = 0; i < 1; ++#i) i;
+  for (var i = 0; i < 0; ++i) {}
+
+break at:
+  for (var i = 0; i < 1; ++i) {}
+  for (var i = 0; i #< 1; ++i) i;
+  for (var i = 0; i < 0; ++i) {}
+
+break at:
+  for (var i = 0; i < 1; ++i) i;
+  for (var i = #0; i < 0; ++i) {}
+}
+
+break at:
+  for (var i = 0; i < 1; ++i) i;
+  for (var i = 0; i #< 0; ++i) {}
+}
+
+break at:
+  for (var i = 0; i < 0; ++i) {}
+#}
+
+
+
+Running test: testForOfLoop
+break at:
+function testForOfLoop() {
+  for (var k of #[]) {}
+  for (var k of [1]) k;
+
+break at:
+  for (var k of []) {}
+  for (var k of #[1]) k;
+  var a = [];
+
+break at:
+  for (var k of []) {}
+  for (var #k of [1]) k;
+  var a = [];
+
+break at:
+  for (var k of []) {}
+  for (var k of [1]) #k;
+  var a = [];
+
+break at:
+  for (var k of [1]) k;
+  var a = #[];
+  for (var k of a) {}
+
+break at:
+  var a = [];
+  for (var k of #a) {}
+}
+
+break at:
+  for (var k of a) {}
+#}
+
+
+
+Running test: testPromiseForAwaitLoop
+break at:
+async function testPromiseForAwaitLoop() {
+  for await (var k of #[]) { }
+  for await (var k of [Promise.resolve(1)]) k;
+
+
+Running test: testForInLoop
+break at:
+function testForInLoop() {
+  var o = #{};
+  for (var k in o) {}
+
+break at:
+  var o = {};
+  for (var k in #o) {}
+  for (var k in o) k;
+
+break at:
+  for (var k in o) {}
+  for (var k in #o) k;
+  for (var k in { a:1 }) {}
+
+break at:
+  for (var k in o) k;
+  for (var k in #{ a:1 }) {}
+  for (var k in { a:1 }) k;
+
+break at:
+  for (var k in o) k;
+  for (var #k in { a:1 }) {}
+  for (var k in { a:1 }) k;
+
+break at:
+  for (var k in { a:1 }) {}
+  for (var k in #{ a:1 }) k;
+}
+
+break at:
+  for (var k in { a:1 }) {}
+  for (var #k in { a:1 }) k;
+}
+
+break at:
+  for (var k in { a:1 }) {}
+  for (var k in { a:1 }) #k;
+}
+
+break at:
+  for (var k in { a:1 }) k;
+#}
+
+
+
+Running test: testSimpleExpressions
+break at:
+  1 + 2 + 3;
+  var a = #1;
+  ++a;
+
+break at:
+  var a = 1;
+  #++a;
+  a--;
+
+break at:
+  ++a;
+  #a--;
+}
+
+break at:
+  a--;
+#}
+
+
+
+Running test: testGetter
+break at:
+function testGetter() {
+  #getterFoo();
+}
+
+break at:
+  getterFoo();
+#}
+
+
+
+Running test: testChainedCalls
+break at:
+function testChainedCalls() {
+  #obj.foo().boo()();
+}
+
+break at:
+  obj.foo().boo()();
+#}
+
+
+
+Running test: testChainedWithNative
+break at:
+function testChainedWithNative() {
+  #Array.from([1]).concat([2]).map(v => v * 2);
+}
+
+break at:
+  Array.from([1]).concat([2]).map(v => v * 2);
+#}
+
+
+
+Running test: testPromiseThen
+break at:
+function testPromiseThen() {
+  #return Promise.resolve().then(v => v * 2).then(v => v * 2);
+}
+
+break at:
+function testPromiseThen() {
+  return Promise.resolve().then(v => v * 2).then(v => v * 2);#
+}
+
+
+Running test: testSwitch
+break at:
+function testSwitch() {
+  for (var i = #0; i < 3; ++i) {
+    switch(i) {
+
+break at:
+function testSwitch() {
+  for (var i = 0; i #< 3; ++i) {
+    switch(i) {
+
+break at:
+  for (var i = 0; i < 3; ++i) {
+    #switch(i) {
+      case 0: continue;
+
+break at:
+    switch(i) {
+      case 0: #continue;
+      case 1: return42(); break;
+
+break at:
+function testSwitch() {
+  for (var i = 0; i < 3; ++#i) {
+    switch(i) {
+
+break at:
+function testSwitch() {
+  for (var i = 0; i #< 3; ++i) {
+    switch(i) {
+
+break at:
+  for (var i = 0; i < 3; ++i) {
+    #switch(i) {
+      case 0: continue;
+
+break at:
+      case 0: continue;
+      case 1: #return42(); break;
+      default: return;
+
+break at:
+      case 0: continue;
+      case 1: return42(); #break;
+      default: return;
+
+break at:
+function testSwitch() {
+  for (var i = 0; i < 3; ++#i) {
+    switch(i) {
+
+break at:
+function testSwitch() {
+  for (var i = 0; i #< 3; ++i) {
+    switch(i) {
+
+break at:
+  for (var i = 0; i < 3; ++i) {
+    #switch(i) {
+      case 0: continue;
+
+break at:
+      case 1: return42(); break;
+      default: #return;
+    }
+
+break at:
+      case 1: return42(); break;
+      default: return;#
+    }
+
+
+Running test: testGenerator
+break at:
+function testGenerator() {
+  var gen = #idMaker();
+  return42();
+
+break at:
+  var gen = idMaker();
+  #return42();
+  gen.next().value;
+
+break at:
+  return42();
+  gen.#next().value;
+  debugger;
+
+break at:
+  gen.next().value;
+  #debugger;
+  gen.next().value;
+
+break at:
+  debugger;
+  gen.#next().value;
+  return42();
+
+break at:
+  gen.next().value;
+  #return42();
+  gen.next().value;
+
+break at:
+  return42();
+  gen.#next().value;
+  return42();
+
+break at:
+  gen.next().value;
+  #return42();
+  gen.next().value;
+
+break at:
+  return42();
+  gen.#next().value;
+}
+
+break at:
+  gen.next().value;
+#}
+
+
+
+Running test: testCaughtException
+break at:
+  try {
+    #throwException()
+  } catch (e) {
+
+break at:
+  } catch (e) {
+    #return;
+  }
+
+break at:
+  } catch (e) {
+    return;#
+  }
+
+
+Running test: testClasses
+break at:
+  }
+  #new Lion().speak();
+}
+
+break at:
+  new Lion().speak();
+#}
+
+
+
+Running test: testAsyncAwait
+break at:
+async function testAsyncAwait() {
+  #await asyncFoo();
+  await awaitBoo();
+
+
+Running test: testPromiseAsyncWithCode
+break at:
+  var nextTest;
+  var testPromise = #new Promise(resolve => nextTest = resolve);
+  async function main() {
+
+break at:
+  }
+  #main();
+  return testPromise;
+
+break at:
+  main();
+  #return testPromise;
+}
+
+break at:
+  main();
+  return testPromise;#
+}
+
+break at:
+function return42() {
+  #return 42;
+}
+
+break at:
+function return42() {
+  return 42;#
+}
+
+break at:
+      var resolveNested;
+      var p = #new Promise(resolve => resolveNested = resolve);
+      setTimeout(resolveNested, 0);
+
+break at:
+      var p = new Promise(resolve => resolveNested = resolve);
+      #setTimeout(resolveNested, 0);
+      await p;
+
+break at:
+      setTimeout(resolveNested, 0);
+      #await p;
+    }
+
+
+Running test: testPromiseComplex
+break at:
+  var nextTest;
+  var testPromise = #new Promise(resolve => nextTest = resolve);
+  async function main() {
+
+break at:
+  }
+  #main();
+  return testPromise;
+
+break at:
+  main();
+  #return testPromise;
+}
+
+break at:
+  main();
+  return testPromise;#
+}
+

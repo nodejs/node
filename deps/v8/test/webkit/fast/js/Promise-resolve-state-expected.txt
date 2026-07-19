@@ -1,0 +1,12 @@
+Test whether Promise processes microtasks in the correct order.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS promiseState is "pending"
+PASS promiseState is "pending"
+PASS promiseState is "fulfilled"
+PASS promiseResult is "hello"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

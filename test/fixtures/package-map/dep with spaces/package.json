@@ -1,0 +1,7 @@
+{
+  "name": "dep-with-spaces",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing iframe navigate - back button navigation</title>
+</head>
+<body onunload="/*disable bfcache*/">
+<script src="/common/get-host-info.sub.js"></script>
+<script src="nested-contexts.js"></script>
+<script>
+  setup_back_navigation("iframe-navigate-back.html");
+</script>
+<iframe id="target"></iframe>
+<script>
+  target.src = pre_navigate_url;
+</script>
+</body>
+</html>

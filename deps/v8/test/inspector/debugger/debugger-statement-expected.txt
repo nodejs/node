@@ -1,0 +1,4 @@
+Tests that pauses due to debugger statements and breakpoints report the hit breakpoint
+
+Running test: testDebuggerStatement
+Paused with reason other and hit breakpoints: 1:0:0:foo.js.

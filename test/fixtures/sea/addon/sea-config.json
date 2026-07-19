@@ -1,0 +1,8 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "disableExperimentalSEAWarning": true,
+  "assets": {
+    "hello.node": "binding.node"
+  }
+}

@@ -1,0 +1,15 @@
+turbofan func     0:0xbe   mem 0 i32.load     from 0000000000000004 val:  i32:0 / 0x0
+turbofan func     1:0xc7   mem 0 i32.load8_u  from 0000000000000001 val:   i8:0 / 0x0
+turbofan func     3:0xdb   mem 0 i32.store    to   0000000000000004 val:  i32:305419896 / 0x12345678
+turbofan func     0:0xbe   mem 0 i32.load     from 0000000000000002 val:  i32:1450704896 / 0x56780000
+turbofan func     1:0xc7   mem 0 i32.load8_u  from 0000000000000006 val:   i8:52 / 0x34
+turbofan func     2:0xd0   mem 0 f32.load     from 0000000000000002 val:  f32:6.81697e+13 / 0x56780000
+turbofan func     4:0xe5   mem 0 i32.store8   to   0000000000000004 val:   i8:171 / 0xab
+turbofan func     0:0xbe   mem 0 i32.load     from 0000000000000002 val:  i32:1454047232 / 0x56ab0000
+turbofan func     2:0xd0   mem 0 f32.load     from 0000000000000002 val:  f32:9.40082e+13 / 0x56ab0000
+turbofan func     6:0xfb   mem 0 v128.store   to   0000000000000004 val: s128:48879 48879 48879 48879 / 0000beef 0000beef 0000beef 0000beef
+turbofan func     5:0xed   mem 0 v128.load    from 0000000000000002 val: s128:3203334144 3203334144 3203334144 3203334144 / beef0000 beef0000 beef0000 beef0000
+turbofan func     7:0x104  mem 0 i32.load16_u from 0000000000000004 val:  i16:48879 / 0xbeef
+turbofan func     8:0x10d  mem 0 i64.load     from 0000000000000002 val:  i64:13758215389843488768 / 0xbeef0000beef0000
+turbofan func     9:0x116  mem 0 f64.load     from 0000000000000002 val:  f64:-1.4782e-05 / 0xbeef0000beef0000
+turbofan func    10:0x11f  mem 1 i32.load     from 0000000000000064 val:  i32:0 / 0x0

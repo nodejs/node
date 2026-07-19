@@ -1,0 +1,57 @@
+name: V8 patch update
+on:
+  schedule:
+    # Run once a week at 00:05 AM UTC on Sunday.
+    - cron: 5 0 * * 0
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  v8-update:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Cache node modules and update-v8
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        id: cache-v8-npm
+        env:
+          cache-name: cache-v8-npm
+        with:
+          path: |
+            ~/.update-v8
+            ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+      - name: Install Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+      - name: Setup Git config
+        run: |
+          git config --global user.name "Node.js GitHub Bot"
+          git config --global user.email "github-bot@iojs.org"
+      - name: Check and download new V8 version
+        run: |
+            ./tools/dep_updaters/update-v8-patch.sh > temp-output
+            cat temp-output
+            tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+            rm temp-output
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        # Creates a PR or update the Action's existing PR, or
+        # no-op if the base branch is already up-to-date.
+        with:
+          token: ${{ secrets.GH_USER_TOKEN }}
+          branch: actions/update-v8-patch  # Custom branch *just* for this Action.
+          delete-branch: true
+          title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
+          body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
+          labels: dependencies, v8 engine

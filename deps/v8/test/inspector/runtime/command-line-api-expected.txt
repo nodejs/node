@@ -1,0 +1,719 @@
+Checks command line API.
+
+Running test: testKeys
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function keys() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : a
+            ]
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : a
+            ]
+        }
+    }
+}
+
+Running test: testInspect
+[object Object]
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : -0
+            type : number
+            unserializableValue : -0
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            copyToClipboard : true
+        }
+        object : {
+            type : string
+            value : hello
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+
+Running test: testQueryObjects
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function queryObjects() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Promise
+            description : Promise
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Is Promise.prototype: true
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Promise
+            description : Promise
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Is Promise.prototype: true
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Is p: true
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            queryObjects : true
+        }
+        object : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+
+Running test: testEvaluationResult
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : -0
+            type : number
+            unserializableValue : -0
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+            }
+        }
+    }
+}
+
+Running test: testDebug
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function debug() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function undebug() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+foo (:0:16)
+(anonymous) (:0:0)
+[
+    [0] : 5:1
+]
+debugCommand
+foo (:0:16)
+(anonymous) (:0:0)
+[
+    [0] : 5:1
+]
+debugCommand
+toUpper (:0:31)
+(anonymous) (:0:0)
+[
+    [0] : 5:2
+]
+debugCommand
+callSetTimeout (:0:28)
+(anonymous) (:0:0)
+[
+    [0] : 5:3
+]
+debugCommand
+callSetTimeout (:0:28)
+(anonymous) (:0:0)
+[
+    [0] : 5:3
+]
+debugCommand
+fromCharCode (:0:40)
+(anonymous) (:0:0)
+[
+    [0] : 5:4
+]
+debugCommand
+
+Running test: testMonitor
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function monitor() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function unmonitor() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+function foo called
+after first call
+store functions..
+function foo called
+after first call
+function fromCharCode called with arguments: 1, 2, 3
+
+Running test: testProfile
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function profile() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function profileEnd() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Profiler.consoleProfileStarted
+    params : {
+        id : 1
+        location : {
+            columnNumber : 1
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        title : 42
+    }
+}
+{
+    method : Profiler.consoleProfileFinished
+    params : {
+        id : 1
+        location : {
+            columnNumber : 1
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        profile : <profile>
+        title : 42
+    }
+}
+{
+    method : Profiler.consoleProfileStarted
+    params : {
+        id : 2
+        location : {
+            columnNumber : 6
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        title : 239
+    }
+}
+{
+    method : Profiler.consoleProfileFinished
+    params : {
+        id : 2
+        location : {
+            columnNumber : 6
+            lineNumber : 1
+            scriptId : <scriptId>
+        }
+        profile : <profile>
+        title : 239
+    }
+}
+
+Running test: testDir
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function dir() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dir
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dir
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 5
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dir
+    }
+}
+
+Running test: testDirXML
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function dirxml() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dirxml
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dirxml
+    }
+}
+
+Running test: testTable
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function table() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : table
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : table
+    }
+}
+
+Running test: testClear
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function clear() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.clear
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : clear
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.clear
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 5
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : clear
+    }
+}
