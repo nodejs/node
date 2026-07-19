@@ -352,7 +352,16 @@ async function testAsyncValidation() {
 
   // Zstd pledgedSrcSize
   await assert.rejects(consume(compressZstd({ pledgedSrcSize: 'bad' })), TYPE);
-  await assert.rejects(consume(compressZstd({ pledgedSrcSize: -1 })), RANGE);
+  for (const pledgedSrcSize of [
+    NaN,
+    Infinity,
+    -Infinity,
+    1.9,
+    -1,
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    await assert.rejects(consume(compressZstd({ pledgedSrcSize })), RANGE);
+  }
 }
 
 // =============================================================================
