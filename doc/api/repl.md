@@ -27,7 +27,8 @@ result. Input and output may be from `stdin` and `stdout`, respectively, or may
 be connected to any Node.js [stream][].
 
 Instances of [`repl.REPLServer`][] support automatic completion of inputs,
-completion preview, simplistic Emacs-style line editing, multi-line inputs,
+completion preview, inline syntax highlighting, simplistic Emacs-style line
+editing, multi-line inputs,
 [ZSH][]-like reverse-i-search, [ZSH][]-like substring-based history search,
 ANSI-styled output, saving and restoring current REPL session state, error
 recovery, and customizable evaluation functions. Terminals that do not support
@@ -231,6 +232,27 @@ undefined
 1002
 undefined
 ```
+
+### Syntax highlighting
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `useColors` is `true`, the REPL highlights
+JavaScript input using the following color scheme:
+
+* Keywords (`const`, `let`, `function`, `if`, `return`, etc.): Magenta
+* Strings (single-quoted, double-quoted, and template literals): Green
+* Numbers: Yellow
+* Boolean literals (`true`, `false`), `null`, `undefined`, `NaN`,
+  `Infinity`: Yellow
+* Regular expressions: Red
+* Comments (line and block): Gray
+
+Syntax highlighting is applied only to the display; the internal `line`
+property remains plain text. Highlighting can be disabled by passing
+`syntaxHighlighting: false` to [`repl.start()`][].
 
 ### Reverse-i-search
 
@@ -747,6 +769,11 @@ changes:
     previews or not. **Default:** `true` with the default eval function and
     `false` in case a custom eval function is used. If `terminal` is falsy, then
     there are no previews and the value of `preview` has no effect.
+  * `syntaxHighlighting` {boolean} If `true`, enables inline syntax
+    highlighting of REPL input using ANSI color codes. Keywords are displayed
+    in magenta, strings in green, numbers in yellow, regular expressions in
+    red, and comments in gray. Requires `useColors` to be `true` and `terminal` to be `true`.
+    **Default:** `true`.
   * `handleError` {Function} This function customizes error handling in the REPL.
     It receives the thrown exception as its first argument and must return one
     of the following values synchronously:
