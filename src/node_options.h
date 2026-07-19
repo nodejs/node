@@ -420,6 +420,9 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(report_on_fatalerror) = false;
   DEFINE_BOOL_FIELD(report_compact) = false;
   DEFINE_BOOL_FIELD(trace_sigint) = false;
+  // Tracks whether `--run` was passed, since an empty `run` is ambiguous
+  // between "not passed" and "passed without a script name" (lists scripts).
+  DEFINE_BOOL_FIELD(has_run) = false;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors,
