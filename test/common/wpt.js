@@ -92,8 +92,9 @@ class ReportResult {
 // Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
 // for more details.
 class WPTReport {
-  constructor(path) {
-    this.filename = `report-${path.replaceAll('/', '-')}.json`;
+  constructor(testPath) {
+    this.filename = `report-${testPath.replaceAll('/', '-')}.json`;
+    this.filepath = path.join(__dirname, `../../out/wpt/${this.filename}`);
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
@@ -134,7 +135,7 @@ class WPTReport {
       os: getOs(),
     };
 
-    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify({
+    fs.writeFileSync(this.filepath, JSON.stringify({
       time_start: this.time_start,
       time_end: this.time_end,
       run_info: this.run_info,
@@ -211,6 +212,7 @@ class ResourceLoader {
     return {
       ok: true,
       arrayBuffer() { return data.buffer; },
+      bytes() { return new Uint8Array(data); },
       json() { return JSON.parse(data.toString()); },
       text() { return data.toString(); },
     };
@@ -223,6 +225,7 @@ class StatusRule {
     this.requires = value.requires || [];
     this.fail = value.fail;
     this.skip = value.skip;
+    this.skipTests = value.skipTests;
     if (pattern) {
       this.pattern = this.transformPattern(pattern);
     }
@@ -299,6 +302,7 @@ class WPTTestSpec {
     this.failedTests = [];
     this.flakyTests = [];
     this.skipReasons = [];
+    this.skippedTests = [];
     for (const item of rules) {
       if (item.requires.length) {
         for (const req of item.requires) {
@@ -314,6 +318,9 @@ class WPTTestSpec {
       }
       if (item.skip) {
         this.skipReasons.push(item.skip);
+      }
+      if (Array.isArray(item.skipTests)) {
+        this.skippedTests.push(...item.skipTests);
       }
     }
 
@@ -331,6 +338,22 @@ class WPTTestSpec {
     const spec = new WPTTestSpec(mod, filename, rules);
     const meta = spec.getMeta();
     return meta.variant?.map((variant) => new WPTTestSpec(mod, filename, rules, variant)) || [spec];
+  }
+
+  /**
+   * Check if a subtest should be skipped by name.
+   * @param {string} name
+   * @returns {boolean}
+   */
+  isSkippedTest(name) {
+    for (const matcher of this.skippedTests) {
+      if (typeof matcher === 'string') {
+        if (name === matcher) return true;
+      } else if (matcher.test(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   getRelativePath() {
@@ -464,14 +487,16 @@ class StatusLoader {
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
-    let statusFile = path.join(dir, 'status', `${this.path}.json`);
     let result;
 
-    if (fs.existsSync(statusFile)) {
-      result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
-    } else {
-      statusFile = path.join(dir, 'status', `${this.path}.cjs`);
-      result = require(statusFile);
+    try {
+      this.statusFile = `${this.path}.json`;
+      const jsonFile = path.join(dir, 'status', this.statusFile);
+      result = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err;
+      this.statusFile = `${this.path}.cjs`;
+      result = require(path.join(dir, 'status', this.statusFile));
     }
 
     this.rules.addRules(result);
@@ -537,12 +562,15 @@ class WPTRunner {
 
     this.status = new StatusLoader(path);
     this.status.load();
+    this.statusFile = this.status.statusFile;
     this.specs = new Set(this.status.specs);
 
     this.results = {};
     this.inProgress = new Set();
     this.workers = new Map();
     this.unexpectedFailures = [];
+
+    this.subtestCounts = { passed: 0, failed: 0, expectedFailures: 0, skipped: 0, unexpectedPasses: 0 };
 
     if (process.env.WPT_REPORT != null) {
       this.report = new WPTReport(path);
@@ -668,6 +696,7 @@ class WPTRunner {
             },
             scriptsToRun,
             needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
+            skippedTests: spec.skippedTests,
           },
         });
         this.inProgress.add(spec);
@@ -678,6 +707,8 @@ class WPTRunner {
           switch (message.type) {
             case 'result':
               return this.resultCallback(spec, message.result, reportResult);
+            case 'skip':
+              return this.skipTest(spec, { name: message.name }, reportResult);
             case 'completion':
               return this.completionCallback(spec, message.status, reportResult);
             default:
@@ -706,6 +737,7 @@ class WPTRunner {
           // Mark the whole test as failed in wpt.fyi report.
           reportResult?.finish('ERROR');
           this.inProgress.delete(spec);
+          this.report?.write();
         });
 
         await events.once(worker, 'exit').catch(() => {});
@@ -761,35 +793,45 @@ class WPTRunner {
         }
 
         // Full check: every expected to fail test is present
-        if (specs.failedTests.some((expectedToFail) => {
+        const _unexpectedPasses = specs.failedTests.filter((expectedToFail) => {
           if (specs.flakyTests.includes(expectedToFail)) {
             return false;
           }
           return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
-        })) {
-          unexpectedPasses.push(key);
+        });
+        if (_unexpectedPasses.length) {
+          unexpectedPasses.push(..._unexpectedPasses.map((name) => `${key}:${name}`));
           continue;
         }
       }
 
+      // Write the report on clean exit. The report is also written
+      // incrementally after each spec completes (see completionCallback)
+      // so that results survive if the process is killed.
       this.report?.write();
 
+      const p = (n, word, suffix = 's') => `${n} ${word}${n === 1 ? '' : suffix}`;
       const ran = queue.length;
       const total = ran + skipped;
       const passed = ran - expectedFailures - failures.length;
+      const { subtestCounts } = this;
       console.log('');
-      console.log(`Ran ${ran}/${total} tests, ${skipped} skipped,`,
-                  `${passed} passed, ${expectedFailures} expected failures,`,
-                  `${failures.length} unexpected failures,`,
-                  `${unexpectedPasses.length} unexpected passes`);
+      console.log(`Files: ${ran}/${total} ran, ${passed} passed,`,
+                  `${skipped} skipped, ${p(expectedFailures, 'expected failure')},`,
+                  `${p(failures.length, 'unexpected failure')},`,
+                  `${p(unexpectedPasses.length, 'unexpected pass', 'es')}`);
+      console.log(`Subtests: ${subtestCounts.passed} passed,`,
+                  `${subtestCounts.skipped} skipped, ${p(subtestCounts.expectedFailures, 'expected failure')},`,
+                  `${p(subtestCounts.failed, 'unexpected failure')},`,
+                  `${p(subtestCounts.unexpectedPasses, 'unexpected pass', 'es')}`);
       if (failures.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', this.statusFile);
         throw new Error(
           `Found ${failures.length} unexpected failures. ` +
           `Consider updating ${file} for these files:\n${failures.join('\n')}`);
       }
       if (unexpectedPasses.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', this.statusFile);
         throw new Error(
           `Found ${unexpectedPasses.length} unexpected passes. ` +
           `Consider updating ${file} for these files:\n${unexpectedPasses.join('\n')}`);
@@ -825,7 +867,7 @@ class WPTRunner {
     if (status !== kPass) {
       this.fail(spec, test, status, reportResult);
     } else {
-      this.succeed(test, status, reportResult);
+      this.succeed(spec, test, status, reportResult);
     }
   }
 
@@ -858,6 +900,9 @@ class WPTRunner {
       reportResult?.finish();
     }
     this.inProgress.delete(spec);
+    // Write report incrementally so results survive even if the process
+    // is killed before the exit handler runs.
+    this.report?.write();
     // Always force termination of the worker. Some tests allocate resources
     // that would otherwise keep it alive.
     this.workers.get(spec).terminate();
@@ -867,8 +912,16 @@ class WPTRunner {
     let result = this.results[spec.filename];
     result ||= this.results[spec.filename] = {};
     if (item.status === kSkip) {
-      // { filename: { skip: 'reason' } }
-      result[kSkip] = item.reason;
+      if (item.name) {
+        // Subtest-level skip: { filename: { skipTests: [ ... ] } }
+        result.skipTests ||= [];
+        if (!result.skipTests.includes(item.name)) {
+          result.skipTests.push(item.name);
+        }
+      } else {
+        // File-level skip: { filename: { skip: 'reason' } }
+        result[kSkip] = item.reason;
+      }
     } else {
       // { filename: { fail: { expected: [ ... ],
       //                      unexpected: [ ... ] } }}
@@ -882,9 +935,26 @@ class WPTRunner {
     }
   }
 
-  succeed(test, status, reportResult) {
-    console.log(`[${status.toUpperCase()}] ${test.name}`);
+  succeed(spec, test, status, reportResult) {
+    const unexpectedPass = spec.failedTests.includes(test.name);
+    if (unexpectedPass) {
+      console.log(`[UNEXPECTED_PASS][${status.toUpperCase()}] ${test.name}`);
+      this.subtestCounts.unexpectedPasses++;
+    } else {
+      console.log(`[${status.toUpperCase()}] ${test.name}`);
+      this.subtestCounts.passed++;
+    }
     reportResult?.addSubtest(test.name, 'PASS');
+  }
+
+  skipTest(spec, test, reportResult) {
+    console.log(`[SKIP] ${test.name}`);
+    reportResult?.addSubtest(test.name, 'NOTRUN');
+    this.subtestCounts.skipped++;
+    this.addTestResult(spec, {
+      name: test.name,
+      status: kSkip,
+    });
   }
 
   fail(spec, test, status, reportResult) {
@@ -903,6 +973,11 @@ class WPTRunner {
     console.log(`Command: ${command}\n`);
 
     reportResult?.addSubtest(test.name, 'FAIL', test.message);
+    if (expected) {
+      this.subtestCounts.expectedFailures++;
+    } else {
+      this.subtestCounts.failed++;
+    }
 
     this.addTestResult(spec, {
       name: test.name,

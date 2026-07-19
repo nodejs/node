@@ -295,7 +295,6 @@ class ZstdContext : public MemoryRetainer {
   ZstdContext() = default;
 
   // Streaming-related, should be available for all compression libraries:
-  void Close();
   void SetBuffers(const char* in, uint32_t in_len, char* out, uint32_t out_len);
   void SetFlush(int flush);
   void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
@@ -320,6 +319,7 @@ class ZstdCompressContext final : public ZstdContext {
   ZstdCompressContext() = default;
 
   // Streaming-related, should be available for all compression libraries:
+  void Close();
   void DoThreadPoolWork();
   CompressionError ResetStream();
 
@@ -346,6 +346,7 @@ class ZstdDecompressContext final : public ZstdContext {
   ZstdDecompressContext() = default;
 
   // Streaming-related, should be available for all compression libraries:
+  void Close();
   void DoThreadPoolWork();
   CompressionError ResetStream();
 
@@ -1490,8 +1491,6 @@ CompressionError BrotliDecoderContext::GetErrorInfo() const {
   }
 }
 
-void ZstdContext::Close() {}
-
 void ZstdContext::SetBuffers(const char* in,
                              uint32_t in_len,
                              char* out,
@@ -1533,6 +1532,10 @@ CompressionError ZstdCompressContext::SetParameter(int key, int value) {
         "Setting parameter failed", "ERR_ZSTD_PARAM_SET_FAILED", -1);
   }
   return {};
+}
+
+void ZstdCompressContext::Close() {
+  cctx_.reset();
 }
 
 CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
@@ -1585,6 +1588,10 @@ CompressionError ZstdDecompressContext::SetParameter(int key, int value) {
         "Setting parameter failed", "ERR_ZSTD_PARAM_SET_FAILED", -1);
   }
   return {};
+}
+
+void ZstdDecompressContext::Close() {
+  dctx_.reset();
 }
 
 CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,

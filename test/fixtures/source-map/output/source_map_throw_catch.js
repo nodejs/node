@@ -7,7 +7,5 @@ Error.stackTraceLimit = 2;
 try {
   require('../typescript-throw');
 } catch (err) {
-  setTimeout(() => {
-    console.info(err);
-  }, 10);
+  console.info(err);
 }

@@ -509,8 +509,10 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
+          Local<Value> exception = try_catch.Exception();
           Finalize();
-          resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
+          resolver->Reject(env()->context(), exception).ToChecked();
+          delete this;
           return;
         }
       }
@@ -529,11 +531,15 @@ class BackupJob : public ThreadPoolWork {
     resolver
         ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
         .ToChecked();
+    delete this;
   }
 
   void Finalize() {
     Cleanup();
-    source_->RemoveBackup(this);
+    if (source_) {
+      source_->RemoveBackup(this);
+      source_.reset();
+    }
   }
 
   void Cleanup() {
@@ -554,28 +560,32 @@ class BackupJob : public ThreadPoolWork {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   Environment* env() const { return env_; }
 
   Environment* env_;
-  DatabaseSync* source_;
+  BaseObjectPtr<DatabaseSync> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
   sqlite3* dest_ = nullptr;
@@ -1458,8 +1468,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (table_value->IsString()) {
-        String::Utf8Value str(env->isolate(), table_value);
-        table = *str;
+        table = Utf8Value(env->isolate(), table_value).ToString();
       } else {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.table\" argument must be a string.");
@@ -1479,8 +1488,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       if (db_value->IsString()) {
-        String::Utf8Value str(env->isolate(), db_value);
-        db_name = std::string(*str);
+        db_name = Utf8Value(env->isolate(), db_value).ToString();
       } else {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.db\" argument must be a string.");
@@ -1639,7 +1647,6 @@ static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
 
 static int xFilter(void* pCtx, const char* zTab) {
   auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
-  if (!ctx->filterCallback) return 1;
   return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
@@ -1743,7 +1750,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       db->connection_,
       buf.length(),
       const_cast<void*>(static_cast<const void*>(buf.data())),
-      xFilter,
+      context.filterCallback ? xFilter : nullptr,
       xConflict,
       static_cast<void*>(&context));
   if (r == SQLITE_OK) {
@@ -1807,9 +1814,6 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   BufferValue entryPoint(isolate, args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
-  if (*entryPoint == nullptr) {
-    ToNamespacedPath(env, &entryPoint);
-  }
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   char* errmsg = nullptr;
@@ -1959,20 +1963,38 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
   // original type.
+  Isolate* isolate = env()->isolate();
   int r;
   if (value->IsNumber()) {
-    double val = value.As<Number>()->Value();
+    const double val = value.As<Number>()->Value();
     r = sqlite3_bind_double(statement_, index, val);
   } else if (value->IsString()) {
-    Utf8Value val(env()->isolate(), value.As<String>());
-    r = sqlite3_bind_text(
-        statement_, index, *val, val.length(), SQLITE_TRANSIENT);
+    Utf8Value val(isolate, value.As<String>());
+    if (val.IsAllocated()) {
+      // Avoid an extra SQLite copy for large strings by transferring ownership
+      // of the malloc()'d buffer to SQLite.
+      char* data = *val;
+      const sqlite3_uint64 length = static_cast<sqlite3_uint64>(val.length());
+      val.Release();
+      r = sqlite3_bind_text64(
+          statement_, index, data, length, std::free, SQLITE_UTF8);
+    } else {
+      r = sqlite3_bind_text64(statement_,
+                              index,
+                              *val,
+                              static_cast<sqlite3_uint64>(val.length()),
+                              SQLITE_TRANSIENT,
+                              SQLITE_UTF8);
+    }
   } else if (value->IsNull()) {
     r = sqlite3_bind_null(statement_, index);
   } else if (value->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob(
-        statement_, index, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    r = sqlite3_bind_blob64(statement_,
+                            index,
+                            buf.data(),
+                            static_cast<sqlite3_uint64>(buf.length()),
+                            SQLITE_TRANSIENT);
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -1983,13 +2005,13 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     r = sqlite3_bind_int64(statement_, index, as_int);
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
-        env()->isolate(),
+        isolate,
         "Provided value cannot be bound to SQLite parameter %d.",
         index);
     return false;
   }
 
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(isolate, db_.get(), r, SQLITE_OK, false);
   return true;
 }
 
@@ -2487,7 +2509,7 @@ Local<FunctionTemplate> StatementSyncIterator::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSyncIterator"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StatementSync::kInternalFieldCount);
+        StatementSyncIterator::kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "next", StatementSyncIterator::Next);
     SetProtoMethod(isolate, tmpl, "return", StatementSyncIterator::Return);
     env->set_sqlite_statement_sync_iterator_constructor_template(tmpl);

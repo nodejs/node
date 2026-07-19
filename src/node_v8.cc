@@ -236,8 +236,8 @@ void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  String::Utf8Value flags(args.GetIsolate(), args[0]);
-  V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
+  Utf8Value flags(args.GetIsolate(), args[0]);
+  V8::SetFlagsFromString(flags.out(), flags.length());
 }
 
 static void IsStringOneByteRepresentation(
@@ -684,7 +684,7 @@ void Initialize(Local<Object> target,
   // GCProfiler
   Local<FunctionTemplate> t =
       NewFunctionTemplate(env->isolate(), GCProfiler::New);
-  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(GCProfiler::kInternalFieldCount);
   SetProtoMethod(env->isolate(), t, "start", GCProfiler::Start);
   SetProtoMethod(env->isolate(), t, "stop", GCProfiler::Stop);
   SetConstructorFunction(context, target, "GCProfiler", t);

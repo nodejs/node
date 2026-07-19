@@ -144,3 +144,7 @@ static
 
 test/fixtures/out
 *.actual
+*.sln
+*.vcproj
+!test/fixtures/expected-win32/**/*.sln
+!test/fixtures/expected-win32/**/*.vcproj

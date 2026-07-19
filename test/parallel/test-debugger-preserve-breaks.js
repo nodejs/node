@@ -29,6 +29,8 @@ const runTest = async () => {
     await cli.stepCommand('c'); // hit line 3
     assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 3 });
     await cli.command('restart');
+    await cli.waitFor(/Debugger attached\./);
+    await cli.waitForPrompt();
     await cli.waitForInitialBreak();
     assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
     await cli.stepCommand('c');

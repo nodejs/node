@@ -340,7 +340,7 @@ static int clear_line(void) {
 }
 
 
-void rewind_cursor() {
+void rewind_cursor(void) {
   if (clear_line() == -1) {
     /* If clear_line fails (stdout is not a console), print a newline. */
     fprintf(stderr, "\n");

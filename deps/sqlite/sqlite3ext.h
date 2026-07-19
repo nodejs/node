@@ -371,7 +371,11 @@ struct sqlite3_api_routines {
   /* Version 3.51.0 and later */
   int (*set_errmsg)(sqlite3*,int,const char*);
   int (*db_status64)(sqlite3*,int,sqlite3_int64*,sqlite3_int64*,int);
-  
+  /* Version 3.52.0 and later */
+  void (*str_truncate)(sqlite3_str*,int);
+  void (*str_free)(sqlite3_str*);
+  int (*carray_bind)(sqlite3_stmt*,int,void*,int,int,void(*)(void*));
+  int (*carray_bind_v2)(sqlite3_stmt*,int,void*,int,int,void(*)(void*),void*);
 };
 
 /*
@@ -710,6 +714,11 @@ typedef int (*sqlite3_loadext_entry)(
 /* Version 3.51.0 and later */
 #define sqlite3_set_errmsg             sqlite3_api->set_errmsg
 #define sqlite3_db_status64            sqlite3_api->db_status64
+/* Version 3.52.0 and later */
+#define sqlite3_str_truncate           sqlite3_api->str_truncate
+#define sqlite3_str_free               sqlite3_api->str_free
+#define sqlite3_carray_bind            sqlite3_api->carray_bind
+#define sqlite3_carray_bind_v2         sqlite3_api->carray_bind_v2
 #endif /* !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION) */
 
 #if !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION)

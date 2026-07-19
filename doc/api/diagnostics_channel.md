@@ -1302,7 +1302,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 > Stability: 1 - Experimental
 
-##### Event: `'module.require.start'`
+##### Event: `'tracing:module.require:start'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1310,7 +1310,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 Emitted when `require()` is executed. See [`start` event][].
 
-##### Event: `'module.require.end'`
+##### Event: `'tracing:module.require:end'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1318,7 +1318,7 @@ Emitted when `require()` is executed. See [`start` event][].
 
 Emitted when a `require()` call returns. See [`end` event][].
 
-##### Event: `'module.require.error'`
+##### Event: `'tracing:module.require:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1327,7 +1327,7 @@ Emitted when a `require()` call returns. See [`end` event][].
 
 Emitted when a `require()` throws an error. See [`error` event][].
 
-##### Event: `'module.import.asyncStart'`
+##### Event: `'tracing:module.import:asyncStart'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1335,7 +1335,7 @@ Emitted when a `require()` throws an error. See [`error` event][].
 
 Emitted when `import()` is invoked. See [`asyncStart` event][].
 
-##### Event: `'module.import.asyncEnd'`
+##### Event: `'tracing:module.import:asyncEnd'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1343,7 +1343,7 @@ Emitted when `import()` is invoked. See [`asyncStart` event][].
 
 Emitted when `import()` has completed. See [`asyncEnd` event][].
 
-##### Event: `'module.import.error'`
+##### Event: `'tracing:module.import:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1412,7 +1412,29 @@ added: v16.18.0
 
 Emitted when a new process is created.
 
-##### Event: `'execve'`
+`tracing:child_process.spawn:start`
+
+* `process` {ChildProcess}
+* `options` {Object}
+
+Emitted when [`child_process.spawn()`][] is invoked, before the process is
+actually spawned.
+
+`tracing:child_process.spawn:end`
+
+* `process` {ChildProcess}
+
+Emitted when [`child_process.spawn()`][] has completed successfully and the
+process has been created.
+
+`tracing:child_process.spawn:error`
+
+* `process` {ChildProcess}
+* `error` {Error}
+
+Emitted when [`child_process.spawn()`][] encounters an error.
+
+##### Event: `'process.execve'`
 
 * `execPath` {string}
 * `args` {string\[]}
@@ -1443,6 +1465,7 @@ Emitted when a new thread is created.
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels

@@ -50,7 +50,25 @@ inline double AsyncWrap::get_trigger_async_id() const {
 }
 
 inline v8::Local<v8::Value> AsyncWrap::context_frame() const {
-  return context_frame_.Get(env()->isolate());
+  auto as_data = object()->GetInternalField(kAsyncContextFrame);
+  DCHECK_IMPLIES(!as_data.IsEmpty(),
+                 as_data->IsValue() || as_data->IsPrivate());
+  if (as_data->IsPrivate()) {
+    DCHECK(as_data.As<v8::Private>()->Name()->SameValue(
+        env()->empty_context_frame_sentinel_symbol()->Name()));
+    return {};
+  }
+  return as_data.As<v8::Value>();
+}
+
+inline void AsyncWrap::set_context_frame(v8::Local<v8::Value> value) {
+  if (value.IsEmpty()) {
+    // Empty values are not allowed in internal fields
+    object()->SetInternalField(kAsyncContextFrame,
+                               env()->empty_context_frame_sentinel_symbol());
+  } else {
+    object()->SetInternalField(kAsyncContextFrame, value);
+  }
 }
 
 inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
@@ -87,6 +105,15 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
 inline v8::Local<v8::FunctionTemplate> AsyncWrap::GetConstructorTemplate(
     Environment* env) {
   return GetConstructorTemplate(env->isolate_data());
+}
+
+// static
+v8::Local<v8::FunctionTemplate> AsyncWrap::MakeLazilyInitializedJSTemplate(
+    Environment* env, int internal_field_count) {
+  v8::Local<v8::FunctionTemplate> t =
+      BaseObject::MakeLazilyInitializedJSTemplate(env, internal_field_count);
+  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  return t;
 }
 
 }  // namespace node

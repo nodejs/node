@@ -61,7 +61,7 @@ static void uv_get_process_title_edge_cases(void) {
 
 TEST_IMPL(process_title) {
 #if defined(__sun) || defined(__CYGWIN__) || defined(__MSYS__) || \
-    defined(__PASE__)
+    defined(__PASE__) || defined(__QNX__)
   RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
 #endif
 

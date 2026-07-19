@@ -483,6 +483,19 @@
       ['clang==0 and OS!="win"', {
         'cflags': [ '-Wno-restrict', ],
       }],
+      # TODO(joyeecheung): investigate if it breaks addons.
+      # ['OS=="mac"', {
+      #   'xcode_settings': {
+      #     'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
+      #     'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES'  # -fvisibility-inlines-hidden
+      #   },
+      # }],
+      # ['OS!="win" or clang==1', {
+      #   'cflags': [
+      #     '-fvisibility=hidden',
+      #     '-fvisibility-inlines-hidden'
+      #   ],
+      # }],
       # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
           'target_conditions': [
@@ -918,11 +931,6 @@
             'LD_DYLIB_INSTALL_NAME':
               '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
           },
-        }],
-        [ 'node_use_node_code_cache=="true"', {
-          'defines': [
-            'NODE_USE_NODE_CODE_CACHE=1',
-          ],
         }],
         ['node_shared=="true" and OS in "aix os400"', {
           'product_name': 'node_base',

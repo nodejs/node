@@ -79,7 +79,7 @@ void TCPWrap::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(TCPWrap::kInternalFieldCount);
 
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
@@ -115,9 +115,7 @@ void TCPWrap::Initialize(Local<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  Local<FunctionTemplate> cwt =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> cwt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "TCPConnectWrap", cwt);
 
   // Define constants
@@ -237,10 +235,11 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
 }
 
 template <typename T>
-void TCPWrap::Bind(
-    const FunctionCallbackInfo<Value>& args,
-    int family,
-    std::function<int(const char* ip_address, int port, T* addr)> uv_ip_addr) {
+void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args,
+                   int family,
+                   int (*uv_ip_addr)(const char* ip_address,
+                                     int port,
+                                     T* addr)) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
@@ -293,30 +292,19 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[2]->IsUint32());
-  // explicit cast to fit to libuv's type expectation
-  int port = static_cast<int>(args[2].As<Uint32>()->Value());
-  Connect<sockaddr_in>(args,
-                       [port](const char* ip_address, sockaddr_in* addr) {
-      return uv_ip4_addr(ip_address, port, addr);
-  });
+  Connect<sockaddr_in>(args, uv_ip4_addr);
 }
 
 
 void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args[2]->IsUint32());
-  int port;
-  if (!args[2]->Int32Value(env->context()).To(&port)) return;
-  Connect<sockaddr_in6>(args,
-                        [port](const char* ip_address, sockaddr_in6* addr) {
-      return uv_ip6_addr(ip_address, port, addr);
-  });
+  Connect<sockaddr_in6>(args, uv_ip6_addr);
 }
 
 template <typename T>
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
-    std::function<int(const char* ip_address, T* addr)> uv_ip_addr) {
+                      int (*uv_ip_addr)(const char* ip_address,
+                                        int port,
+                                        T* addr)) {
   Environment* env = Environment::GetCurrent(args);
 
   TCPWrap* wrap;
@@ -326,11 +314,14 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
 
+  int port;
+  if (!args[2]->Int32Value(env->context()).To(&port)) return;
+
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
 
   T addr;
-  int err = uv_ip_addr(*ip_address, &addr);
+  int err = uv_ip_addr(*ip_address, port, &addr);
 
   if (err == 0) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);

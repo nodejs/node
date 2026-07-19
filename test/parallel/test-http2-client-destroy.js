@@ -81,7 +81,19 @@ const { getEventListeners } = require('events');
     assert.throws(() => client.ping(), sessionError);
     assert.throws(() => client.settings({}), sessionError);
     assert.throws(() => client.goaway(), sessionError);
-    assert.throws(() => client.request(), sessionError);
+
+    const pendingReq = client.request();
+    pendingReq.on('response', common.mustNotCall());
+    pendingReq.on('error', common.expectsError(sessionError));
+    pendingReq.on('close', common.mustCall());
+
+    client.on('close', common.mustCall(() => {
+      const postCloseReq = client.request();
+      postCloseReq.on('response', common.mustNotCall());
+      postCloseReq.on('error', common.expectsError(sessionError));
+      postCloseReq.on('close', common.mustCall());
+    }));
+
     client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
@@ -92,7 +104,6 @@ const { getEventListeners } = require('events');
       assert.throws(() => client.ping(), sessionError);
       assert.throws(() => client.settings({}), sessionError);
       assert.throws(() => client.goaway(), sessionError);
-      assert.throws(() => client.request(), sessionError);
       client.close();  // Should be a non-op at this point
     });
 

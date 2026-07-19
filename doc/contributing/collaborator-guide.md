@@ -132,6 +132,9 @@ Pay special attention to pull requests for dependencies which have not
 been automatically generated and follow the guidance in
 [Maintaining Dependencies](https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md#updating-dependencies).
 
+Pull requests that exceed 5000 lines of changes have additional requirements.
+See the [large pull requests][] guide.
+
 In some cases, it might be necessary to summon a GitHub team to a pull request
 for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
@@ -387,6 +390,12 @@ undergo deprecation. The exceptions to this rule are:
 * Changes to errors thrown by dependencies of Node.js, such as V8.
 * One-time exceptions granted by the TSC.
 
+Experimental and undocumented APIs are not considered stable, therefore are
+typically removed without a deprecation cycle. However, if such API has gotten
+some non-trivial adoption in the ecosystem, it (or a subset of it) can undergo
+deprecation – at which point, changes to that API (or at least, its deprecated
+subset) should follow [semantic versioning][] rules.
+
 For more information, see [Deprecations](#deprecations).
 
 #### Breaking changes to internal elements
@@ -456,6 +465,14 @@ For pull requests introducing new core modules:
 * Land only after sign-off from at least two TSC voting members.
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
+* Introducing an Experimental feature means taking ownership of the experiment
+  and committing to a clear outcome: either promoting it to stable or removing
+  it in a timely manner. Because experimental features can be vulnerable to
+  security issues, the author is also expected to help assess and patch
+  vulnerabilities. If an experimental feature has reached mainstream adoption such
+  that breaking changes are not realistically possible without ecosystem breakage,
+  it should be considered stable and either be promoted or be removed after a
+  deprecation cycle.
 
 ### Introducing new APIs on the global scope
 
@@ -526,8 +543,8 @@ the three Deprecation levels. Documentation-Only Deprecations can land in a
 minor release. They can not change to a Runtime Deprecation until the next major
 release.
 
-No API can change to End-of-Life without going through a Runtime Deprecation
-cycle. There is no rule that deprecated code must progress to End-of-Life.
+No deprecated APIs can change to End-of-Life without going through a Runtime
+Deprecation cycle. There is no rule that deprecated code must progress to End-of-Life.
 Documentation-Only and Runtime Deprecations can remain in place for an unlimited
 duration.
 
@@ -1054,11 +1071,13 @@ need to be attached anymore, as only important bugfixes will be included.
 [git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
+[large pull requests]: large-pull-requests.md
 [macos]: https://github.com/orgs/nodejs/teams/platform-macos
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [ppc]: https://github.com/orgs/nodejs/teams/platform-ppc
 [s390]: https://github.com/orgs/nodejs/teams/platform-s390
+[semantic versioning]: https://semver.org/
 [smartos]: https://github.com/orgs/nodejs/teams/platform-smartos
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
 [windows]: https://github.com/orgs/nodejs/teams/platform-windows

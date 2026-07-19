@@ -211,7 +211,8 @@ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__linux__)                                                     \
-    || defined(__sun)
+    || defined(__sun)                                                         \
+    || defined(__QNX__)
 static struct timespec uv__fs_to_timespec(double time) {
   struct timespec ts;
 
@@ -222,13 +223,6 @@ static struct timespec uv__fs_to_timespec(double time) {
 
   ts.tv_sec  = time;
   ts.tv_nsec = (time - ts.tv_sec) * 1e9;
-
- /* TODO(bnoordhuis) Remove this. utimesat() has nanosecond resolution but we
-  * stick to microsecond resolution for the sake of consistency with other
-  * platforms. I'm the original author of this compatibility hack but I'm
-  * less convinced it's useful nowadays.
-  */
-  ts.tv_nsec -= ts.tv_nsec % 1000;
 
   if (ts.tv_nsec < 0) {
     ts.tv_nsec += 1e9;
@@ -248,7 +242,8 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__linux__)                                                     \
-    || defined(__sun)
+    || defined(__sun)                                                         \
+    || defined(__QNX__)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -465,27 +460,28 @@ static ssize_t uv__preadv_or_pwritev(int fd,
                                      off_t off,
                                      _Atomic uintptr_t* cache,
                                      int is_pread) {
-  ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
-  void* p;
+  union {
+    ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
+    void* p;
+  } u;
 
-  p = (void*) atomic_load_explicit(cache, memory_order_relaxed);
-  if (p == NULL) {
+  u.p = (void*) atomic_load_explicit(cache, memory_order_relaxed);
+  if (u.p == NULL) {
 #ifdef RTLD_DEFAULT
     /* Try _LARGEFILE_SOURCE version of preadv/pwritev first,
      * then fall back to the plain version, for libcs like musl.
      */
-    p = dlsym(RTLD_DEFAULT, is_pread ? "preadv64" : "pwritev64");
-    if (p == NULL)
-      p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
+    u.p = dlsym(RTLD_DEFAULT, is_pread ? "preadv64" : "pwritev64");
+    if (u.p == NULL)
+      u.p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
     dlerror();  /* Clear errors. */
 #endif  /* RTLD_DEFAULT */
-    if (p == NULL)
-      p = is_pread ? uv__preadv_emul : uv__pwritev_emul;
-    atomic_store_explicit(cache, (uintptr_t) p, memory_order_relaxed);
+    if (u.p == NULL)
+      u.f = is_pread ? uv__preadv_emul : uv__pwritev_emul;
+    atomic_store_explicit(cache, (uintptr_t) u.p, memory_order_relaxed);
   }
 
-  f = p;
-  return f(fd, bufs, nbufs, off);
+  return u.f(fd, bufs, nbufs, off);
 }
 
 
@@ -716,6 +712,11 @@ static int uv__fs_statfs(uv_fs_t* req) {
   stat_fs->f_bavail = buf.f_bavail;
   stat_fs->f_files = buf.f_files;
   stat_fs->f_ffree = buf.f_ffree;
+#if defined(__linux__)
+  stat_fs->f_frsize = buf.f_frsize;
+#else
+  stat_fs->f_frsize = buf.f_bsize;
+#endif
   req->ptr = stat_fs;
   return 0;
 }
@@ -1147,7 +1148,8 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__linux__)                                                     \
-    || defined(__sun)
+    || defined(__sun)                                                         \
+    || defined(__QNX__)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -1181,7 +1183,8 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__linux__)                                                     \
-    || defined(__sun)
+    || defined(__sun)                                                         \
+    || defined(__QNX__)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -1322,10 +1325,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   times[1] = src_statsbuf.st_mtim;
 #endif
 
-  if (futimens(dstfd, times) == -1) {
-    err = UV__ERR(errno);
-    goto out;
-  }
+  (void) futimens(dstfd, times);
 
   /*
    * Change the ownership and permissions of the destination file to match the

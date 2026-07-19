@@ -1,4 +1,4 @@
-import { MinimatchOptions } from './index.js';
+import type { MinimatchOptions } from './index.js';
 /**
  * Un-escape a string that has been escaped with {@link escape}.
  *

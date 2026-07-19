@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -48,10 +48,10 @@ jobs:
       # install a version and checkout
       - name: Get latest nightly
         if: matrix.node-version == 'latest-nightly'
-        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
+        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-arm64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
@@ -63,7 +63,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -79,7 +79,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false
@@ -95,6 +95,48 @@ jobs:
             echo "WPT_REPORT=$(pwd)/out/wpt/wptreport.json" >> $GITHUB_ENV
           fi
 
+      # undici WPT Runner
+      - name: Set env.UNDICI_VERSION
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          UNDICI_VERSION=$(jq -r '.version' < deps/undici/src/package.json)
+          echo "UNDICI_VERSION=v$UNDICI_VERSION" >> $GITHUB_ENV
+          if [ "${UNDICI_VERSION%%.*}" -ge 7 ]; then
+            echo "UNDICI_WPT=current" >> $GITHUB_ENV
+          else
+            echo "UNDICI_WPT=legacy" >> $GITHUB_ENV
+          fi
+      # Checkout composite actions from the default branch since the
+      # version-specific checkout above overwrites .github/actions/
+      - name: Checkout undici WPT actions
+        if: ${{ env.WPT_REPORT != '' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions/undici-wpt-current
+            .github/actions/undici-wpt-legacy
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          path: _wpt_actions
+          clean: false
+      - name: Place undici WPT actions
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          mkdir -p .github/actions
+          cp -r _wpt_actions/.github/actions/undici-wpt-* .github/actions/
+      - name: Run undici WPT (current)
+        if: ${{ env.UNDICI_WPT == 'current' }}
+        uses: ./.github/actions/undici-wpt-current
+        with:
+          undici-version: ${{ env.UNDICI_VERSION }}
+          wpt-report: ${{ env.WPT_REPORT }}
+      - name: Run undici WPT (legacy)
+        if: ${{ env.UNDICI_WPT == 'legacy' }}
+        uses: ./.github/actions/undici-wpt-legacy
+        with:
+          undici-version: ${{ env.UNDICI_VERSION }}
+          wpt-report: ${{ env.WPT_REPORT }}
+
       # Upload artifacts
       - name: Clone report for upload
         if: ${{ env.WPT_REPORT != '' }}
@@ -102,7 +144,7 @@ jobs:
         run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Report for ${{ steps.setup-node.outputs.node-version }}

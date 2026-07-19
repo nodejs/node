@@ -94,7 +94,7 @@ API
         Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes,
         typically between 92 and 108 bytes.
 
-.. c:function:: void uv_pipe_connect2(uv_connect_t* req, uv_pipe_t* handle, const char* name, size_t namelen, unsigned int flags, uv_connect_cb cb)
+.. c:function:: int uv_pipe_connect2(uv_connect_t* req, uv_pipe_t* handle, const char* name, size_t namelen, unsigned int flags, uv_connect_cb cb)
 
     Connect to the Unix domain socket or the Windows named pipe.
 

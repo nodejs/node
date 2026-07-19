@@ -270,6 +270,11 @@ using Http2Header = NgHeader<Http2HeaderTraits>;
 class Http2Stream : public AsyncWrap,
                     public StreamBase {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
+
   static Http2Stream* New(
       Http2Session* session,
       int32_t id,
@@ -485,9 +490,11 @@ class Http2Stream : public AsyncWrap,
 
   // The Current Headers block... As headers are received for this stream,
   // they are temporarily stored here until the OnFrameReceived is called
-  // signalling the end of the HEADERS frame
+  // signalling the end of the HEADERS frame.
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
   uint32_t current_headers_length_ = 0;  // total number of octets
+  // Charged against maxSessionMemory while headers stay alive in JS.
+  uint64_t retained_headers_length_ = 0;
   std::vector<Http2Header> current_headers_;
 
   // This keeps track of the amount of data read from the socket while the

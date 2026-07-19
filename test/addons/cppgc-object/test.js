@@ -28,7 +28,7 @@ for (let i = 0; i < count; ++i) {
 
 globalThis.gc();
 
-setTimeout(async function() {
+setTimeout(common.mustCall(() => (async function() {
   // GC should have invoked Trace() on at least some of the CppGCed objects,
   // but they should all be alive at this point.
   assert.strictEqual(states[kDestructCount], 0);
@@ -57,4 +57,4 @@ setTimeout(async function() {
     undefined,
     GC_OPTIONS,
   );
-}, 1);
+})().then(common.mustCall())), 1);

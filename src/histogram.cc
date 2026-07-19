@@ -2,6 +2,7 @@
 #include "base_object-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util.h"
@@ -11,7 +12,6 @@ namespace node {
 using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
-using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -161,8 +161,8 @@ void HistogramBase::RecordDelta(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->RecordDelta();
 }
 
-void HistogramBase::FastRecordDelta(Local<Value> unused,
-                                    Local<Value> receiver) {
+void HistogramBase::FastRecordDelta(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.recordDelta");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   (*histogram)->RecordDelta();
@@ -182,14 +182,9 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->Record(value);
 }
 
-void HistogramBase::FastRecord(Local<Value> unused,
-                               Local<Value> receiver,
-                               const int64_t value,
-                               FastApiCallbackOptions& options) {
-  if (value < 1) {
-    options.fallback = true;
-    return;
-  }
+void HistogramBase::FastRecord(Local<Value> receiver, const int64_t value) {
+  CHECK_GE(value, 1);
+  TRACK_V8_FAST_API_CALL("histogram.record");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   (*histogram)->Record(value);
@@ -275,7 +270,7 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "Histogram");
     tmpl->SetClassName(classname);
     auto instance = tmpl->InstanceTemplate();
-    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
+    instance->SetInternalFieldCount(HistogramBase::kInternalFieldCount);
     SetFastMethod(isolate, instance, "record", Record, &fast_record_);
     SetFastMethod(
         isolate, instance, "recordDelta", RecordDelta, &fast_record_delta_);
@@ -331,7 +326,7 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Histogram"));
     auto instance = tmpl->InstanceTemplate();
-    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
+    instance->SetInternalFieldCount(IntervalHistogram::kInternalFieldCount);
     HistogramImpl::AddMethods(isolate, tmpl);
     SetFastMethod(isolate, instance, "start", Start, &fast_start_);
     SetFastMethod(isolate, instance, "stop", Stop, &fast_stop_);
@@ -426,9 +421,8 @@ void IntervalHistogram::Start(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
 }
 
-void IntervalHistogram::FastStart(Local<Value> unused,
-                                  Local<Value> receiver,
-                                  bool reset) {
+void IntervalHistogram::FastStart(Local<Value> receiver, bool reset) {
+  TRACK_V8_FAST_API_CALL("histogram.start");
   IntervalHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
@@ -440,7 +434,8 @@ void IntervalHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStop();
 }
 
-void IntervalHistogram::FastStop(Local<Value> unused, Local<Value> receiver) {
+void IntervalHistogram::FastStop(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stop");
   IntervalHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStop();
@@ -553,46 +548,51 @@ void HistogramImpl::DoReset(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->Reset();
 }
 
-void HistogramImpl::FastReset(Local<Value> unused, Local<Value> receiver) {
+void HistogramImpl::FastReset(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.reset");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   (*histogram)->Reset();
 }
 
-double HistogramImpl::FastGetCount(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetCount(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.count");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Count());
 }
 
-double HistogramImpl::FastGetMin(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMin(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.min");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Min());
 }
 
-double HistogramImpl::FastGetMax(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMax(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.max");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Max());
 }
 
-double HistogramImpl::FastGetMean(Local<Value> unused, Local<Value> receiver) {
+double HistogramImpl::FastGetMean(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.mean");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return (*histogram)->Mean();
 }
 
-double HistogramImpl::FastGetExceeds(Local<Value> unused,
-                                     Local<Value> receiver) {
+double HistogramImpl::FastGetExceeds(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.exceeds");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Exceeds());
 }
 
-double HistogramImpl::FastGetStddev(Local<Value> unused,
-                                    Local<Value> receiver) {
+double HistogramImpl::FastGetStddev(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stddev");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return (*histogram)->Stddev();
 }
 
-double HistogramImpl::FastGetPercentile(Local<Value> unused,
-                                        Local<Value> receiver,
+double HistogramImpl::FastGetPercentile(Local<Value> receiver,
                                         const double percentile) {
+  TRACK_V8_FAST_API_CALL("histogram.percentile");
   HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
   return static_cast<double>((*histogram)->Percentile(percentile));
 }

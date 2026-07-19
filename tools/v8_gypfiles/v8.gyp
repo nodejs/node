@@ -46,17 +46,32 @@
       }
     },
     'conditions': [
-      ['OS=="mac"', {
-        # Hide symbols that are not explicitly exported with V8_EXPORT.
-        # TODO(joyeecheung): enable it on other platforms. Currently gcc times out
-        # or run out of memory with -fvisibility=hidden on some machines in the CI.
-        'xcode_settings': {
-          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
-        },
+      # Build with -fvisibility=hidden and -fvisibility-inlines-hidden to avoid
+      # including unnecessary internal symbols, which may lead to run-time fixups.
+      # This is not done on AIX where symbols are exported by tools/create_expfile.sh
+      # see https://github.com/nodejs/node/pull/56290#issuecomment-2582703109
+      ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+          'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
+        ]
+      }],
+      ['node_shared=="true"', {
+        'defines': [
+          'V8_TLS_USED_IN_LIBRARY',  # Enable V8_TLS_LIBRARY_MODE.
         ],
       }],
+      ['OS=="mac"', {
+        'xcode_settings': {
+          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
+          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES'  # -fvisibility-inlines-hidden
+        },
+      }, '(OS!="aix" and OS!="os400") and (OS!="win" or clang==1)', {
+        'cflags': [
+          '-fvisibility=hidden',
+          '-fvisibility-inlines-hidden'
+        ],
+      }],  # MSVC hides the non-public symbols by default so no need to configure it.
     ],
   },
   'targets': [
@@ -1307,6 +1322,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
         }],
         ['v8_enable_i18n_support==1', {
@@ -1384,6 +1400,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1396,6 +1413,15 @@
           'ExceptionHandling': 1,
         },
       },
+      # Reduce optimisation of one file on AIX - it causes torque
+      # to segfault if you build node with "--shared"
+      'conditions': [
+        ['OS=="aix" and node_shared=="true"', {
+          'cflags': ['-O1'],
+          'cflags!': ['-O3'],
+          'sources': ['<(V8_ROOT)/src/torque/implementation-visitor.cc'],
+        }],
+      ],
     },  # torque_base
     {
       'target_name': 'torque_ls_base',
@@ -1410,6 +1436,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1780,6 +1807,7 @@
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'dependencies': [
         "v8_libbase",
@@ -1841,6 +1869,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1884,6 +1913,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -2116,10 +2146,12 @@
           ],
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
               'USING_V8_SHARED',
+              'USING_V8_PLATFORM_SHARED',
             ],
           },
           'conditions': [

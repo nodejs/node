@@ -653,7 +653,7 @@ added: v22.2.0
 
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
@@ -893,6 +893,9 @@ changes:
 
 Evaluate the following argument as JavaScript. The modules which are
 predefined in the REPL can also be used in `script`.
+
+If `script` starts with `-`, pass it using `=` (for example,
+`node --print --eval=-42`) so it is parsed as the value of `--eval`.
 
 On Windows, using `cmd.exe` a single quote will not work correctly because it
 only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
@@ -1592,6 +1595,9 @@ a random available port will be used.
 
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
+See the [security warning][] below regarding the `host`
+parameter usage.
+
 ### `--inspect-port=[host:]port`
 
 <!-- YAML
@@ -1626,6 +1632,9 @@ Default `host:port` is `127.0.0.1:9229`. If port `0` is specified,
 a random available port will be used.
 
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
+
+See the [security warning][] below regarding the `host`
+parameter usage.
 
 ### `--inspect[=[host:]port]`
 
@@ -3879,6 +3888,8 @@ documented here:
 ### `--expose-gc`
 
 ### `--harmony-shadow-realm`
+
+### `--heap-snapshot-on-oom`
 
 ### `--huge-max-old-generation-size`
 

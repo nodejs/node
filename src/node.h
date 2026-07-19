@@ -124,6 +124,8 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
+struct napi_module;
+struct ssl_ctx_st;  // Forward declaration of SSL_CTX for OpenSSL.
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
@@ -592,6 +594,8 @@ NODE_EXTERN v8::Isolate* NewIsolate(
     const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
+// Call `RegisterContext` after the context been created to register
+// the context with Node.js specific setups like the inspector.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Isolate* isolate,
     v8::Local<v8::ObjectTemplate> object_template =
@@ -600,6 +604,18 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
 NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
+
+// Associate the context with the given Environment. This registers the context
+// as known to Node.js, makes it available to the inspector. This also registers
+// Node.js promise hooks on the context.
+NODE_EXTERN void RegisterContext(Environment* env,
+                                 v8::Local<v8::Context> context,
+                                 std::string_view name = "",
+                                 std::string_view origin = "");
+// Unregister the context. Call this when the embedder finished all work with
+// this context.
+NODE_EXTERN void UnregisterContext(Environment* env,
+                                   v8::Local<v8::Context> context);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
@@ -1422,6 +1438,10 @@ NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
                                         const char* name,
                                         async_id trigger_async_id = -1);
+NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
+                                        v8::Local<v8::Object> resource,
+                                        std::string_view name,
+                                        async_id trigger_async_id = -1);
 
 NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
@@ -1517,6 +1537,10 @@ class NODE_EXTERN AsyncResource {
                 v8::Local<v8::Object> resource,
                 const char* name,
                 async_id trigger_async_id = -1);
+  AsyncResource(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                std::string_view name,
+                async_id trigger_async_id = -1);
 
   virtual ~AsyncResource();
 
@@ -1587,6 +1611,20 @@ void RegisterSignalHandler(int signal,
 NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
                                    v8::Local<v8::Object> object,
                                    void* wrappable);
+
+namespace crypto {
+
+// Returns the SSL_CTX* from a SecureContext JS object, as returned by
+// tls.createSecureContext().
+// Returns nullptr if the value is not a SecureContext instance,
+// or if Node.js was built without OpenSSL.
+//
+// The returned pointer is not owned by the caller and must not be freed.
+// It is valid only while the SecureContext JS object remains alive.
+NODE_EXTERN struct ssl_ctx_st* GetSSLCtx(v8::Local<v8::Context> context,
+                                         v8::Local<v8::Value> secure_context);
+
+}  // namespace crypto
 
 }  // namespace node
 

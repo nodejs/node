@@ -27,12 +27,12 @@ jobs:
         subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url", "WebCryptoAPI"]') }}
 
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -68,7 +68,7 @@ jobs:
           SUBSYSTEM: ${{ matrix.subsystem }}
 
       - name: Open or update PR for the subsystem update
-        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
         with:
           # The create-or-update-pull-request-action matches the branch name by prefix,
           # which is why we need to add the -wpt suffix. If we dont do that, we risk matching wrong PRs,
