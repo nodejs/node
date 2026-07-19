@@ -329,7 +329,9 @@ function runTest() {
     }),
     completer: opts.completer,
     prompt,
-    useColors: opts.useColors || false,
+    // Keep syntax highlighting out of the reverse-search transcript. Result
+    // colors are enabled below after readline has been initialized.
+    useColors: false,
     terminal: true
   }, common.mustCall((err, repl) => {
     if (err) {
@@ -350,6 +352,11 @@ function runTest() {
 
       setImmediate(runTestWrap, true);
     }));
+
+    if (opts.useColors) {
+      repl.useColors = true;
+      repl.writer.options.colors = true;
+    }
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {

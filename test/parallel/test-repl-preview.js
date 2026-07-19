@@ -61,9 +61,13 @@ async function tests(options) {
     prompt: PROMPT,
     stream: new REPLStream(),
     ignoreUndefined: true,
-    useColors: true,
+    // Keep syntax highlighting out of these preview transcript assertions.
+    // Preview and result colors are enabled after readline is initialized.
+    useColors: false,
     ...options
   });
+  repl.useColors = true;
+  repl.writer.options.colors = true;
 
   repl.inputStream.run([
     'function foo(x) { return x; }',

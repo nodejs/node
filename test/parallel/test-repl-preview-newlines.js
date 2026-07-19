@@ -6,7 +6,14 @@ const { startNewREPLServer } = require('../common/repl');
 
 common.skipIfInspectorDisabled();
 
-const { input, output } = startNewREPLServer({ useColors: true });
+// Ignore terminal settings so the preview remains active under TERM=dumb.
+process.env.TERM = '';
+
+// Keep syntax highlighting out of this test so it only covers preview layout.
+// Preview and result colors are enabled after readline is initialized.
+const { input, output, replServer } = startNewREPLServer({ useColors: false });
+replServer.useColors = true;
+replServer.writer.options.colors = true;
 
 output.accumulator = '';
 
