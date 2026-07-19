@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ranges>
+#include <type_traits>
 #include "node_options.h"
 #include "util.h"
 
@@ -453,18 +454,21 @@ void OptionsParser<Options>::Parse(
 
     std::string value;
     if (info.type != kBoolean && info.type != kNoOp && info.type != kV8Option) {
+      // `--run` may be passed without a script name to list available scripts,
+      // so an omitted value is not an error and must not swallow a later flag.
+      const bool optional_value = name == "--run";
       if (equals_index != std::string::npos) {
         value = arg.substr(equals_index + 1);
-        if (value.empty()) {
+        if (value.empty() && !optional_value) {
+          missing_argument();
+          break;
+        }
+      } else if (args.empty() || (optional_value && args.first()[0] == '-')) {
+        if (!optional_value) {
           missing_argument();
           break;
         }
       } else {
-        if (args.empty()) {
-          missing_argument();
-          break;
-        }
-
         value = args.pop_first();
 
         if (!value.empty() && value[0] == '-') {
@@ -511,6 +515,12 @@ void OptionsParser<Options>::Parse(
         break;
       default:
         UNREACHABLE();
+    }
+
+    // Record that `--run` was seen so an empty value can be distinguished from
+    // the option being absent. Guarded so it only compiles for the owning type.
+    if constexpr (std::is_same_v<Options, PerProcessOptions>) {
+      if (name == "--run") options->has_run = true;
     }
   }
   options->CheckOptions(errors, orig_args);
