@@ -1705,7 +1705,7 @@ to `listen()` or `new net.Socket()` later on. For `listen()` this enables
 synchronous port reservation, while for `new net.Socket()`, it allows control
 over the local egress port/IP, via `bind(2)` semantics.
 
-A `BoundSocket` binds either a TCP endpoint (`host`/`port`) or a
+A `BoundSocket` binds either a TCP endpoint (`host` or `port`) or a
 Unix domain/named-pipe endpoint (`path`); the two are mutually exclusive. For a
 `path`, the file system entry is reserved in the constructor, so conflicts such
 as `EADDRINUSE` throw synchronously exactly as a TCP bind does. On Linux a
