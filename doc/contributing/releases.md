@@ -156,7 +156,7 @@ should be listed in the Node.js GitHub README.md file.
 > enforced by the Node.js project.
 > Run: `git config commit.gpgsign true` inside the `node` folder or use the
 > `-S` flag on your git operations (The examples in this document will
-> include `-S` expliticlty)
+> include `-S` explicitly)
 
 While GitHub allows signing individual commits using an ssh key,
 that is not covered here as this will not allow you to sign releases, so you
