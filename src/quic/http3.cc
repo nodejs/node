@@ -821,7 +821,7 @@ class Http3ApplicationImpl final : public Session::Application {
     } else if (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET) {
       stream->Destroy(QuicError::ForApplication(tx_app_error_code));
     } else {
-       stream->Destroy();
+      stream->Destroy();
     }
     ExtendMaxStreams(EndpointLabel::REMOTE, direction, 1);
   }
