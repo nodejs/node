@@ -8706,12 +8706,14 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_SYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for file integrity.</td>
+    operations waiting for file integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_DSYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for data integrity.</td>
+    operations waiting for data integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>
@@ -8721,7 +8723,7 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_DIRECT</code></td>
     <td>When set, an attempt will be made to minimize caching effects of file
-    I/O.</td>
+    I/O. On Windows, this maps to <code>FILE_FLAG_NO_BUFFERING</code>.</td>
   </tr>
   <tr>
     <td><code>O_NONBLOCK</code></td>
