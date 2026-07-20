@@ -4860,7 +4860,7 @@ test.describe('my suite', (suite) => {
 [`'test:watch:restarted'`]: #event-testwatchrestarted
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
-[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filterexpr
+[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filtertag
 [`--import`]: cli.md#--importmodule
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
