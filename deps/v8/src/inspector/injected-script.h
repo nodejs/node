@@ -298,6 +298,9 @@ class PromiseHandlerTracker {
   Id create(Args&&... args);
   void discard(Id id, DiscardReason reason);
   InjectedScript::ProtocolPromiseHandler* get(Id id) const;
+  void makeWeakForContext(int executionContextId);
+  void makeWeakForObjectGroup(int sessionId, const String16& objectGroup);
+  void makeWeakForSession(int sessionId);
 
  private:
   void sendFailure(InjectedScript::ProtocolPromiseHandler* handler,

@@ -1,0 +1,31 @@
+Tests the lifetime of Runtime.evaluate REPL promises.
+
+Running test: testPromiseIsKeptAlive
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+
+Running test: testObjectGroupReleaseMakesPromiseCollectible
+{
+    error : {
+        code : -32000
+        message : Promise was collected
+    }
+    id : <messageId>
+}
+
+Running test: testContextDestructionDiscardsPromise
+{
+    error : {
+        code : -32000
+        message : Execution context was destroyed.
+    }
+    id : <messageId>
+}
