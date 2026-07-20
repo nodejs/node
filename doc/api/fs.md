@@ -323,6 +323,9 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -335,7 +338,8 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -3057,6 +3061,9 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -3114,7 +3121,8 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -9330,6 +9338,7 @@ the file contents.
 [`minimatch`]: https://github.com/isaacs/minimatch
 [`node:stream/iter`]: stream_iter.md
 [`statfs.bsize`]: #statfsbsize
+[`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
 [`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer
 [`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
 [`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms
