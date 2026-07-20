@@ -409,6 +409,24 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
                          reinterpret_cast<uv_handle_t*>(&client_socket)));
 }
 
+TEST_F(InspectorSocketTest, WaitsForFrameBodyToArrive) {
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  expect_handshake();
+
+  // A header announcing a masked five byte payload, with the masking key and
+  // the payload still on the wire. The frame has to be treated as incomplete
+  // until the remaining bytes show up.
+  const char FRAME_HEADER[] = {'\x81', '\x85'};
+  do_write(FRAME_HEADER, sizeof(FRAME_HEADER));
+
+  const char FRAME_BODY[] = {'\x01', '\x02', '\x03', '\x04',
+                             '\x69', '\x67', '\x6F', '\x68', '\x6E'};
+  do_write(FRAME_BODY, sizeof(FRAME_BODY));
+
+  const char CLIENT_MESSAGE[] = "hello";
+  delegate->ExpectData(CLIENT_MESSAGE, sizeof(CLIENT_MESSAGE) - 1);
+}
+
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
