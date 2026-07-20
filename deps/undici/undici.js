@@ -10470,6 +10470,7 @@ var require_global2 = __commonJS({
     var { InvalidArgumentError } = require_errors();
     var Agent = require_agent();
     var Dispatcher1Wrapper = require_dispatcher1_wrapper();
+    var fallbackDispatcher;
     if (getGlobalDispatcher2() === void 0) {
       setGlobalDispatcher2(new Agent());
     }
@@ -10477,23 +10478,27 @@ var require_global2 = __commonJS({
       if (!agent || typeof agent.dispatch !== "function") {
         throw new InvalidArgumentError("Argument agent must implement Agent");
       }
-      Object.defineProperty(globalThis, globalDispatcher, {
-        value: agent,
-        writable: true,
-        enumerable: false,
-        configurable: false
-      });
-      const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent);
-      Object.defineProperty(globalThis, legacyGlobalDispatcher, {
-        value: legacyAgent,
-        writable: true,
-        enumerable: false,
-        configurable: false
-      });
+      try {
+        Object.defineProperty(globalThis, globalDispatcher, {
+          value: agent,
+          writable: true,
+          enumerable: false,
+          configurable: false
+        });
+        const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent);
+        Object.defineProperty(globalThis, legacyGlobalDispatcher, {
+          value: legacyAgent,
+          writable: true,
+          enumerable: false,
+          configurable: false
+        });
+      } catch {
+        fallbackDispatcher = agent;
+      }
     }
     __name(setGlobalDispatcher2, "setGlobalDispatcher");
     function getGlobalDispatcher2() {
-      return globalThis[globalDispatcher];
+      return globalThis[globalDispatcher] ?? fallbackDispatcher;
     }
     __name(getGlobalDispatcher2, "getGlobalDispatcher");
     var installedExports = (

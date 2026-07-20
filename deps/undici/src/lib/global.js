@@ -8,6 +8,9 @@ const { InvalidArgumentError } = require('./core/errors')
 const Agent = require('./dispatcher/agent')
 const Dispatcher1Wrapper = require('./dispatcher/dispatcher1-wrapper')
 
+// Fallback storage used when globalThis is not extensible (e.g. Object.freeze(globalThis)).
+let fallbackDispatcher
+
 if (getGlobalDispatcher() === undefined) {
   setGlobalDispatcher(new Agent())
 }
@@ -17,25 +20,31 @@ function setGlobalDispatcher (agent) {
     throw new InvalidArgumentError('Argument agent must implement Agent')
   }
 
-  Object.defineProperty(globalThis, globalDispatcher, {
-    value: agent,
-    writable: true,
-    enumerable: false,
-    configurable: false
-  })
+  try {
+    Object.defineProperty(globalThis, globalDispatcher, {
+      value: agent,
+      writable: true,
+      enumerable: false,
+      configurable: false
+    })
 
-  const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent)
+    const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent)
 
-  Object.defineProperty(globalThis, legacyGlobalDispatcher, {
-    value: legacyAgent,
-    writable: true,
-    enumerable: false,
-    configurable: false
-  })
+    Object.defineProperty(globalThis, legacyGlobalDispatcher, {
+      value: legacyAgent,
+      writable: true,
+      enumerable: false,
+      configurable: false
+    })
+  } catch {
+    // globalThis is not extensible (e.g. frozen via Object.freeze(globalThis)).
+    // Fall back to module-level storage so that fetch, WebSocket, etc. still work.
+    fallbackDispatcher = agent
+  }
 }
 
 function getGlobalDispatcher () {
-  return globalThis[globalDispatcher]
+  return globalThis[globalDispatcher] ?? fallbackDispatcher
 }
 
 // These are the globals that can be installed by undici.install().
