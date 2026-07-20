@@ -73,15 +73,16 @@ const http2 = require('http2');
 
     client.on('connect', common.mustCall(() => {
       const windowSize = 2 ** 20;
-      const defaultSetting = http2.getDefaultSettings();
       client.setLocalWindowSize(windowSize);
 
       assert.strictEqual(client.state.effectiveLocalWindowSize, windowSize);
-      assert.strictEqual(client.state.localWindowSize, windowSize);
-      assert.strictEqual(
-        client.state.remoteWindowSize,
-        defaultSetting.initialWindowSize
-      );
+      // localWindowSize returns the available connection window.
+      // When decreasing from the default 33554432 to 1048576,
+      // the available window stays at 33554432.
+      assert.strictEqual(client.state.localWindowSize, 33554432);
+      // remoteWindowSize is the connection-level send window,
+      // which remains at the HTTP/2 default of 65535.
+      assert.strictEqual(client.state.remoteWindowSize, 65535);
 
       server.close();
       client.close();
@@ -101,18 +102,16 @@ const http2 = require('http2');
 
     client.on('connect', common.mustCall(() => {
       const windowSize = 20;
-      const defaultSetting = http2.getDefaultSettings();
       client.setLocalWindowSize(windowSize);
 
       assert.strictEqual(client.state.effectiveLocalWindowSize, windowSize);
-      assert.strictEqual(
-        client.state.localWindowSize,
-        defaultSetting.initialWindowSize
-      );
-      assert.strictEqual(
-        client.state.remoteWindowSize,
-        defaultSetting.initialWindowSize
-      );
+      // localWindowSize returns the available connection window.
+      // When decreasing from the default 33554432 to 20,
+      // the available window stays at 33554432.
+      assert.strictEqual(client.state.localWindowSize, 33554432);
+      // remoteWindowSize is the connection-level send window,
+      // which remains at the HTTP/2 default of 65535.
+      assert.strictEqual(client.state.remoteWindowSize, 65535);
 
       server.close();
       client.close();

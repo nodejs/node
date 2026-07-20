@@ -52,8 +52,10 @@ function testRequest(path, targetFrameCount, callback) {
     });
 }
 
-// SETTINGS => SETTINGS => HEADERS => DATA
-const MIN_FRAME_COUNT = 4;
+// SETTINGS => WINDOW_UPDATE => SETTINGS ACK => HEADERS => DATA
+// The WINDOW_UPDATE frame is sent because the default local connection
+// window is now increased to 32MB (see https://github.com/nodejs/node/issues/38426)
+const MIN_FRAME_COUNT = 5;
 
 server.listen(0, () => {
   testRequest('/singleEnd', MIN_FRAME_COUNT, () => {

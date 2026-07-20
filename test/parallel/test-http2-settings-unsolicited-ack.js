@@ -35,8 +35,11 @@ server.listen(0, common.mustCall(() => {
   // servers are received, so that the first ack is actually expected.
   client.once('data', common.mustCall((chunk) => {
     // The very first chunk of data we get from the server should
-    // be a settings frame.
-    assert.deepStrictEqual(chunk.slice(0, 9), kSettings.data);
+    // be a settings frame. The server now sends an initialWindowSize
+    // setting by default (6 bytes payload).
+    assert.deepStrictEqual(chunk.slice(0, 9), Buffer.from([
+      0, 0, 6, 4, 0, 0, 0, 0, 0,
+    ]));
     // The first ack is expected.
     client.write(kSettingsAck.data, () => countdown.dec());
     // The second one is not and will be ignored.

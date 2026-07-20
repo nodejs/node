@@ -89,7 +89,7 @@ const initialWindowSizeList = [
   (1 << 8) - 1,
   1 << 8,
   1 << 17,
-  undefined, // Use default window size which is (1 << 16) - 1
+  undefined, // Use default window size which is now 4194304 (4MB)
 ];
 
 // Call `run` on each element in the cartesian product of buffersList and
