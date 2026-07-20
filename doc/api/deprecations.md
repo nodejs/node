@@ -4663,6 +4663,31 @@ implement `Symbol.dispose`. Prefer [`clearTimeout()`][] instead to cancel a
 timeout. This deprecation does not apply to [`Immediate`][] objects returned by
 [`setImmediate()`][].
 
+```cjs
+// Deprecated
+const timeout = setTimeout(() => {}, 1000);
+timeout[Symbol.dispose]();
+
+{
+  using t = setTimeout(() => {}, 1000);
+} // Calls timeout[Symbol.dispose]()
+```
+
+```cjs
+// Use this instead
+const timeout = setTimeout(() => {}, 1000);
+clearTimeout(timeout);
+
+{
+  const t = setTimeout(() => {}, 1000);
+  try {
+    // ...
+  } finally {
+    clearTimeout(t);
+  }
+}
+```
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
