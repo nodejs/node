@@ -103,6 +103,60 @@ test('DynamicLibrary exposes functions and symbols', () => {
   }
 });
 
+test('DynamicLibrary evaluates function signatures once', () => {
+  function makeChangingSignature() {
+    const reads = { arguments: 0, return: 0 };
+    return {
+      reads,
+      signature: {
+        get arguments() {
+          reads.arguments++;
+          return reads.arguments === 1 ?
+            Array(8).fill('i32') : ['i32'];
+        },
+        get return() {
+          reads.return++;
+          return 'i32';
+        },
+      },
+    };
+  }
+
+  {
+    const lib = new ffi.DynamicLibrary(libraryPath);
+    const { reads, signature } = makeChangingSignature();
+
+    try {
+      const fn = lib.getFunction('sum_8_i32', signature);
+      assert.strictEqual(fn(1, 2, 3, 4, 5, 6, 7, 8), 36);
+      assert.deepStrictEqual(reads, { arguments: 1, return: 1 });
+    } finally {
+      lib.close();
+    }
+  }
+
+  {
+    const lib = new ffi.DynamicLibrary(libraryPath);
+    const { reads, signature } = makeChangingSignature();
+    let definitionReads = 0;
+    const definitions = {
+      get sum_8_i32() {
+        definitionReads++;
+        return signature;
+      },
+    };
+
+    try {
+      const { sum_8_i32: fn } = lib.getFunctions(definitions);
+      assert.strictEqual(fn(1, 2, 3, 4, 5, 6, 7, 8), 36);
+      assert.strictEqual(definitionReads, 1);
+      assert.deepStrictEqual(reads, { arguments: 1, return: 1 });
+    } finally {
+      lib.close();
+    }
+  }
+});
+
 test('getFunction caches signatures consistently', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
 
