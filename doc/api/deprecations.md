@@ -4646,6 +4646,23 @@ underlying stream are emitted from `req`. On the write-side you can use
 `res.writableFinished` to confirm whether the response was written
 successfully before the response closed.
 
+### DEP0208: `Timeout.prototype[Symbol.dispose]()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64615
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Calling `timeout[Symbol.dispose]()` is deprecated. The web platform
+[`setTimeout()`][] and [`setInterval()`][] APIs return a number, which cannot
+implement `Symbol.dispose`. Prefer [`clearTimeout()`][] instead to cancel a
+timeout. This deprecation does not apply to [`Immediate`][] objects returned by
+[`setImmediate()`][].
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4668,6 +4685,7 @@ successfully before the response closed.
 [`Decipheriv`]: crypto.md#class-decipheriv
 [`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+[`Immediate`]: timers.md#class-immediate
 [`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
@@ -4763,6 +4781,7 @@ successfully before the response closed.
 [`response.writableEnded`]: http.md#responsewritableended
 [`response.writableFinished`]: http.md#responsewritablefinished
 [`script.createCachedData()`]: vm.md#scriptcreatecacheddata
+[`setImmediate()`]: timers.md#setimmediatecallback-args
 [`setInterval()`]: timers.md#setintervalcallback-delay-args
 [`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`socket.bufferSize`]: net.md#socketbuffersize
