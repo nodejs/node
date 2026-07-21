@@ -318,6 +318,11 @@ const customTypesMap = {
   'TextDecoderStream':
     'webstreams.html#class-textdecoderstream',
 
+  'Shareable': 'stream_iter.html#interface-shareable',
+  'Share': 'stream_iter.html#class-share',
+  'SyncShareable': 'stream_iter.html#interface-syncshareable',
+  'SyncShare': 'stream_iter.html#class-syncshare',
+
   'FormData': 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
   'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
   'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
