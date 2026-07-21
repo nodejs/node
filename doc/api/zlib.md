@@ -801,7 +801,7 @@ These advanced options are available for controlling decompression:
 <!-- YAML
 added: v0.11.1
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
   - version:
@@ -852,7 +852,7 @@ information.
 <!-- YAML
 added: v11.7.0
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
   - version:
@@ -1099,7 +1099,7 @@ added:
   - v23.8.0
   - v22.15.0
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
 -->
