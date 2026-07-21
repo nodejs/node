@@ -36,6 +36,7 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
 ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
 NODE_TEST_PATTERN = re.compile(r"('|`|\")node:test\1")
+RLIMIT_AS_PATTERN = re.compile(r"//\s+RLIMIT_AS:\s*(\d+)")
 
 class SimpleTestCase(test.TestCase):
 
@@ -98,6 +99,10 @@ class SimpleTestCase(test.TestCase):
         print(': Skipping as node was compiled without crypto support')
       else:
         result += flags
+
+    rlimit_as_match = RLIMIT_AS_PATTERN.search(source)
+    if rlimit_as_match:
+      self.max_virtual_memory = int(rlimit_as_match.group(1))
 
     if self.context.use_error_reporter and NODE_TEST_PATTERN.search(source):
       result += ['--test-reporter=./test/common/test-error-reporter.js',
@@ -188,16 +193,4 @@ class AbortTestConfiguration(SimpleTestConfiguration):
          current_path, path, arch, mode)
     for tst in result:
       tst.disable_core_files = True
-    return result
-
-class WasmAllocationTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=None):
-    super(WasmAllocationTestConfiguration, self).__init__(context, root, section,
-                                                          additional)
-
-  def ListTests(self, current_path, path, arch, mode):
-    result = super(WasmAllocationTestConfiguration, self).ListTests(
-         current_path, path, arch, mode)
-    for tst in result:
-      tst.max_virtual_memory = 5 * 1024 * 1024 * 1024 # 5GB
     return result
