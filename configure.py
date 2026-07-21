@@ -1434,6 +1434,48 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
+def get_openssl_macros(o):
+  """Extract OpenSSL preprocessor macros from the configured headers."""
+
+  # Use the C compiler to extract preprocessor macros from OpenSSL headers.
+  # crypto.h is included because BoringSSL declares OPENSSL_IS_BORINGSSL there.
+  args = ['-E', '-dM',
+          '-include', 'openssl/opensslv.h',
+          '-include', 'openssl/crypto.h',
+          '-']
+  if not options.shared_openssl:
+    args = ['-I', 'deps/openssl/openssl/include'] + args
+  elif options.shared_openssl_includes:
+    args = ['-I', options.shared_openssl_includes] + args
+  else:
+    for dir in o['include_dirs']:
+      args = ['-I', dir] + args
+
+  proc = subprocess.Popen(
+    shlex.split(CC) + args,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+  )
+  with proc:
+    proc.stdin.write(b'\n')
+    out = to_utf8(proc.communicate()[0])
+
+  if proc.returncode != 0:
+    warn('Failed to extract OpenSSL macros from headers')
+    return {}
+
+  macros = {}
+  for line in out.split('\n'):
+    if line.startswith('#define OPENSSL_'):
+      parts = line.split()
+      if len(parts) >= 2:
+        macro_name = parts[1]
+        macro_value = parts[2] if len(parts) >= 3 else '1'
+        macros[macro_name] = macro_value
+
+  return macros
+
 def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
@@ -1443,39 +1485,7 @@ def get_openssl_version(o):
   """
 
   try:
-    # Use the C compiler to extract preprocessor macros from opensslv.h
-    args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
-    if not options.shared_openssl:
-      args = ['-I', 'deps/openssl/openssl/include'] + args
-    elif options.shared_openssl_includes:
-      args = ['-I', options.shared_openssl_includes] + args
-    else:
-      for dir in o['include_dirs']:
-        args = ['-I', dir] + args
-
-    proc = subprocess.Popen(
-      shlex.split(CC) + args,
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE
-    )
-    with proc:
-      proc.stdin.write(b'\n')
-      out = to_utf8(proc.communicate()[0])
-
-    if proc.returncode != 0:
-      warn('Failed to extract OpenSSL version from opensslv.h header')
-      return 0
-
-    # Parse the macro definitions
-    macros = {}
-    for line in out.split('\n'):
-      if line.startswith('#define OPENSSL_VERSION_'):
-        parts = line.split()
-        if len(parts) >= 3:
-          macro_name = parts[1]
-          macro_value = parts[2]
-          macros[macro_name] = macro_value
+    macros = get_openssl_macros(o)
 
     # Extract version components
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
@@ -1504,6 +1514,13 @@ def get_openssl_version(o):
   except (OSError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
+
+def get_openssl_is_boringssl(o):
+  try:
+    return b('OPENSSL_IS_BORINGSSL' in get_openssl_macros(o))
+  except (OSError, ValueError, subprocess.SubprocessError) as e:
+    warn(f'Failed to determine whether OpenSSL headers are BoringSSL: {e}')
+    return 'false'
 
 def get_cargo_version(cargo):
   try:
@@ -2309,6 +2326,7 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
+  o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
 
 def configure_lief(o):
   if options.without_lief:
