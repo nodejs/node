@@ -547,7 +547,7 @@ close the `FileHandle` automatically. User code must still call the
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
 -->
@@ -1535,7 +1535,7 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version:
@@ -4017,7 +4017,7 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version: v18.0.0
@@ -6242,7 +6242,7 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: REPLACEME
+  - version: v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version: v7.6.0
