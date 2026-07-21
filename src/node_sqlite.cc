@@ -88,6 +88,17 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
     }                                                                          \
   } while (0)
 
+#define RESET_OR_THROW(isolate, db, stmt, ret)                                 \
+  CHECK_ERROR_OR_THROW((isolate), (db), sqlite3_reset((stmt)), SQLITE_OK, (ret))
+
+// Surface deferred SQLite errors that sqlite3_reset() returns from the prior
+// sqlite3_step(). Disables the safety-net reset guard via |needs_reset|.
+#define RESET_AND_CHECK(isolate, db, stmt, needs_reset, ret)                   \
+  do {                                                                         \
+    (needs_reset) = false;                                                     \
+    RESET_OR_THROW((isolate), (db), (stmt), (ret));                            \
+  } while (0)
+
 #define THROW_AND_RETURN_ON_BAD_STATE(env, condition, msg)                     \
   do {                                                                         \
     if ((condition)) {                                                         \
@@ -2912,9 +2923,17 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
                                                  bool use_big_ints) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
-  sqlite3_step(stmt);
-  int r = sqlite3_reset(stmt);
-  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
+  bool needs_reset = true;
+  auto reset = OnScopeLeave([&]() {
+    if (needs_reset) sqlite3_reset(stmt);
+  });
+
+  int step_r = sqlite3_step(stmt);
+  if (step_r != SQLITE_DONE && step_r != SQLITE_ROW) {
+    THROW_ERR_SQLITE_ERROR(isolate, db);
+    return MaybeLocal<Object>();
+  }
+  RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Object>());
 
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
@@ -2988,10 +3007,16 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
                                                 bool use_big_ints) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt); });
+  bool needs_reset = true;
+  auto reset = OnScopeLeave([&]() {
+    if (needs_reset) sqlite3_reset(stmt);
+  });
 
   int r = sqlite3_step(stmt);
-  if (r == SQLITE_DONE) return scope.Escape(Undefined(isolate));
+  if (r == SQLITE_DONE) {
+    RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Value>());
+    return scope.Escape(Undefined(isolate));
+  }
   if (r != SQLITE_ROW) {
     THROW_ERR_SQLITE_ERROR(isolate, db);
     return MaybeLocal<Value>();
@@ -2999,7 +3024,8 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
 
   int num_cols = sqlite3_column_count(stmt);
   if (num_cols == 0) {
-    return Undefined(isolate);
+    RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Value>());
+    return scope.Escape(Undefined(isolate));
   }
 
   LocalVector<Value> row_values(isolate);
@@ -3008,9 +3034,9 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
     return MaybeLocal<Value>();
   }
 
+  Local<Value> result;
   if (return_arrays) {
-    return scope.Escape(
-        Array::New(isolate, row_values.data(), row_values.size()));
+    result = Array::New(isolate, row_values.data(), row_values.size());
   } else {
     LocalVector<Name> keys(isolate);
     keys.reserve(num_cols);
@@ -3023,9 +3049,12 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
     }
 
     DCHECK_EQ(keys.size(), row_values.size());
-    return scope.Escape(Object::New(
-        isolate, Null(isolate), keys.data(), row_values.data(), num_cols));
+    result = Object::New(
+        isolate, Null(isolate), keys.data(), row_values.data(), num_cols);
   }
+
+  RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Value>());
+  return scope.Escape(result);
 }
 
 void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
@@ -3042,8 +3071,10 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-
+  bool needs_reset = true;
+  auto reset = OnScopeLeave([&]() {
+    if (needs_reset) sqlite3_reset(stmt->statement_);
+  });
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
@@ -3051,6 +3082,8 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
+    RESET_AND_CHECK(
+        isolate, stmt->db_.get(), stmt->statement_, needs_reset, void());
     args.GetReturnValue().Set(result);
   }
 }
@@ -3489,7 +3522,10 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
+  bool needs_reset = true;
+  auto reset = OnScopeLeave([&]() {
+    if (needs_reset) sqlite3_reset(stmt->statement_);
+  });
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
@@ -3497,6 +3533,8 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->return_arrays_,
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
+    RESET_AND_CHECK(
+        isolate, stmt->db_.get(), stmt->statement_, needs_reset, void());
     args.GetReturnValue().Set(result);
   }
 }
@@ -3721,7 +3759,10 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
-    sqlite3_reset(iter->stmt_->statement_);
+    RESET_OR_THROW(env->isolate(),
+                   iter->stmt_->db_.get(),
+                   iter->stmt_->statement_,
+                   void());
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
     Local<Object> result;
     if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
@@ -3773,7 +3814,8 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
 
-  sqlite3_reset(iter->stmt_->statement_);
+  RESET_OR_THROW(
+      isolate, iter->stmt_->db_.get(), iter->stmt_->statement_, void());
   iter->done_ = true;
 
   auto iter_template = getLazyIterTemplate(env);
