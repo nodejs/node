@@ -63,6 +63,27 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
+    // A directory argument is searched for the default test files within it,
+    // both bare and with a trailing separator.
+    // Refs: https://github.com/nodejs/node/issues/64555
+    for (const dir of ['matching-patterns', 'matching-patterns/']) {
+      const args = ['--test', '--test-reporter=tap',
+                    '--no-experimental-strip-types',
+                    `--test-isolation=${isolation}`, dir];
+      const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+      assert.strictEqual(child.status, 0);
+      assert.strictEqual(child.signal, null);
+      assert.strictEqual(child.stderr.toString(), '');
+      const stdout = child.stdout.toString();
+
+      assert.match(stdout, /ok 1 - this should pass/);
+      assert.match(stdout, /ok 2 - this should pass/);
+      assert.match(stdout, /ok 3 - this should pass/);
+    }
+  }
+
+  {
     // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
     const args = ['--test', '--test-reporter=tap', '--no-warnings',
                   '--experimental-strip-types', `--test-isolation=${isolation}`];
