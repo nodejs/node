@@ -5,6 +5,7 @@
 #ifndef V8_BASE_MEMCOPY_H_
 #define V8_BASE_MEMCOPY_H_
 
+#include <climits>
 #include <stdlib.h>
 
 #include <atomic>
