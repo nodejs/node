@@ -919,6 +919,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 const module = new vm.SourceTextModule(
   'Object.getPrototypeOf(import.meta.prop).secret = secret;',
   {
+    context: contextifiedObject,
     initializeImportMeta(meta) {
       // Note: this object is created in the top context. As such,
       // Object.getPrototypeOf(import.meta.prop) points to the
@@ -937,7 +938,7 @@ await module.evaluate();
 // To fix this problem, replace
 //     meta.prop = {};
 // above with
-//     meta.prop = vm.runInContext('{}', contextifiedObject);
+//     meta.prop = vm.runInContext('({})', contextifiedObject);
 ```
 
 ```cjs
@@ -947,6 +948,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   const module = new vm.SourceTextModule(
     'Object.getPrototypeOf(import.meta.prop).secret = secret;',
     {
+      context: contextifiedObject,
       initializeImportMeta(meta) {
         // Note: this object is created in the top context. As such,
         // Object.getPrototypeOf(import.meta.prop) points to the
@@ -964,7 +966,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // To fix this problem, replace
   //     meta.prop = {};
   // above with
-  //     meta.prop = vm.runInContext('{}', contextifiedObject);
+  //     meta.prop = vm.runInContext('({})', contextifiedObject);
 })();
 ```
 
