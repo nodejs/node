@@ -242,6 +242,11 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
   ares_status_t               status = ARES_SUCCESS;
   ares_bool_t                 result = ARES_FALSE;
   int                         family = hints->ai_family;
+
+  if (name == NULL) {
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
   if (family == AF_INET || family == AF_INET6 || family == AF_UNSPEC) {
     /* It only looks like an IP address if it's all numbers and dots. */
     size_t      numdots = 0;
@@ -268,6 +273,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
       if (result) {
         status = ares_append_ai_node(AF_INET, port, 0, &addr4, &ai->nodes);
         if (status != ARES_SUCCESS) {
+          ares_freeaddrinfo(ai);
           callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
           return ARES_TRUE;                    /* LCOV_EXCL_LINE: OutOfMemory */
         }
@@ -282,6 +288,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
     if (result) {
       status = ares_append_ai_node(AF_INET6, port, 0, &addr6, &ai->nodes);
       if (status != ARES_SUCCESS) {
+        ares_freeaddrinfo(ai);
         callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
         return ARES_TRUE;                    /* LCOV_EXCL_LINE: OutOfMemory */
       }
@@ -575,21 +582,55 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
   /* at this point we keep on waiting for the next query to finish */
 }
 
-static ares_bool_t numeric_service_to_port(const char *service,
-                                           unsigned short *port)
+/* Per POSIX getaddrinfo(), when no node/hostname is provided the returned
+ * addresses are synthesized from the service: the wildcard address when
+ * ARES_AI_PASSIVE is set (suitable for bind()ing a listening socket),
+ * otherwise the loopback address (suitable for connect()ing to a peer on the
+ * local host). */
+static ares_status_t
+  ares_append_nulladdr(unsigned short                    port,
+                       const struct ares_addrinfo_hints *hints,
+                       struct ares_addrinfo             *ai)
 {
-  char *end;
-  unsigned long val;
+  int                        family  = hints->ai_family;
+  ares_bool_t                passive = ARES_FALSE;
+  ares_status_t              status;
+  struct ares_addrinfo_node *node;
 
-  errno = 0;
-  val   = strtoul(service, &end, 10);
-
-  if (errno == 0 && *end == '\0' && val <= 65535) {
-    *port = (unsigned short)val;
-    return ARES_TRUE;
+  if (hints->ai_flags & ARES_AI_PASSIVE) {
+    passive = ARES_TRUE;
   }
 
-  return ARES_FALSE;
+  if (family == AF_INET6 || family == AF_UNSPEC) {
+    struct ares_in6_addr addr6;
+    memset(&addr6, 0, sizeof(addr6)); /* wildcard "::" */
+    if (!passive) {
+      ares_inet_pton(AF_INET6, "::1", &addr6);
+    }
+    status = ares_append_ai_node(AF_INET6, port, 0, &addr6, &ai->nodes);
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  if (family == AF_INET || family == AF_UNSPEC) {
+    struct in_addr addr4;
+    memset(&addr4, 0, sizeof(addr4)); /* wildcard "0.0.0.0" */
+    if (!passive) {
+      ares_inet_pton(AF_INET, "127.0.0.1", &addr4);
+    }
+    status = ares_append_ai_node(AF_INET, port, 0, &addr4, &ai->nodes);
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  for (node = ai->nodes; node != NULL; node = node->ai_next) {
+    node->ai_socktype = hints->ai_socktype;
+    node->ai_protocol = hints->ai_protocol;
+  }
+
+  return ARES_SUCCESS;
 }
 
 static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
@@ -616,6 +657,13 @@ static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
     return;
   }
 
+  /* POSIX getaddrinfo() requires that at least one of node (name) or service
+   * be provided. */
+  if (name == NULL && service == NULL) {
+    callback(arg, ARES_ENOTFOUND, 0, NULL);
+    return;
+  }
+
   if (ares_is_onion_domain(name)) {
     callback(arg, ARES_ENOTFOUND, 0, NULL);
     return;
@@ -623,14 +671,14 @@ static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
 
   if (service) {
     if (hints->ai_flags & ARES_AI_NUMERICSERV) {
-      if (!numeric_service_to_port(service, &port)) {
+      if (!ares_parse_port(service, &port, ARES_TRUE)) {
         callback(arg, ARES_ESERVICE, 0, NULL);
         return;
       }
     } else {
       port = lookup_service(service, 0);
       if (!port) {
-        if (!numeric_service_to_port(service, &port)) {
+        if (!ares_parse_port(service, &port, ARES_TRUE)) {
           callback(arg, ARES_ESERVICE, 0, NULL);
           return;
         }
@@ -641,6 +689,19 @@ static void ares_getaddrinfo_int(ares_channel_t *channel, const char *name,
   ai = ares_malloc_zero(sizeof(*ai));
   if (!ai) {
     callback(arg, ARES_ENOMEM, 0, NULL);
+    return;
+  }
+
+  /* No node/hostname was provided (service-only lookup): synthesize wildcard
+   * or loopback addresses from the resolved port instead of issuing a query. */
+  if (name == NULL) {
+    status = ares_append_nulladdr(port, hints, ai);
+    if (status != ARES_SUCCESS) {
+      ares_freeaddrinfo(ai);               /* LCOV_EXCL_LINE: OutOfMemory */
+      callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+      return;                              /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+    callback(arg, ARES_SUCCESS, 0, ai);
     return;
   }
 

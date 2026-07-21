@@ -3419,7 +3419,7 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendant of a `node_modules` directory.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
@@ -3559,6 +3559,22 @@ added: v18.1.0
 
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
+
+<a id="ERR_WORKER_HANDLE_NOT_TRANSFERABLE"></a>
+
+### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+via a `worker_threads` `postMessage()` call while it was not in a transferable
+state, for example because it had already started reading or had buffered data.
+
+<a id="ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED"></a>
+
+### `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+on a platform where moving the underlying handle between event loops is not
+supported (currently Windows).
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 

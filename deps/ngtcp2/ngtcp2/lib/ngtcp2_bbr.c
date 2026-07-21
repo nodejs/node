@@ -289,9 +289,8 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
 static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                         ngtcp2_tstamp initial_ts) {
-  ngtcp2_window_filter_init(&bbr->max_bw_filter, NGTCP2_BBR_MAX_BW_FILTERLEN);
-  ngtcp2_window_filter_init(&bbr->extra_acked_filter,
-                            NGTCP2_BBR_EXTRA_ACKED_FILTERLEN);
+  ngtcp2_wf_init(&bbr->max_bw_filter, NGTCP2_BBR_MAX_BW_FILTERLEN);
+  ngtcp2_wf_init(&bbr->extra_acked_filter, NGTCP2_BBR_EXTRA_ACKED_FILTERLEN);
 
   bbr->min_rtt =
     cstat->first_rtt_sample_ts == UINT64_MAX ? UINT64_MAX : cstat->smoothed_rtt;
@@ -590,10 +589,10 @@ static void bbr_update_max_bw(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat,
 
   if (cstat->delivery_rate_sec && (cstat->delivery_rate_sec >= bbr->max_bw ||
                                    !bbr->rst->rs.is_app_limited)) {
-    ngtcp2_window_filter_update(&bbr->max_bw_filter, cstat->delivery_rate_sec,
-                                bbr->cycle_count);
+    ngtcp2_wf_update(&bbr->max_bw_filter, cstat->delivery_rate_sec,
+                     bbr->cycle_count);
 
-    bbr->max_bw = ngtcp2_window_filter_get_best(&bbr->max_bw_filter);
+    bbr->max_bw = ngtcp2_wf_get_best(&bbr->max_bw_filter);
   }
 }
 
@@ -667,15 +666,14 @@ static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
   }
 
   if (bbr->full_bw_reached) {
-    bbr->extra_acked_filter.window_length = NGTCP2_BBR_EXTRA_ACKED_FILTERLEN;
+    bbr->extra_acked_filter.win = NGTCP2_BBR_EXTRA_ACKED_FILTERLEN;
   } else {
-    bbr->extra_acked_filter.window_length = 1;
+    bbr->extra_acked_filter.win = 1;
   }
 
-  ngtcp2_window_filter_update(&bbr->extra_acked_filter, extra,
-                              bbr->round_count);
+  ngtcp2_wf_update(&bbr->extra_acked_filter, extra, bbr->round_count);
 
-  bbr->extra_acked = ngtcp2_window_filter_get_best(&bbr->extra_acked_filter);
+  bbr->extra_acked = ngtcp2_wf_get_best(&bbr->extra_acked_filter);
 }
 
 static void bbr_enter_drain(ngtcp2_cc_bbr *bbr) {

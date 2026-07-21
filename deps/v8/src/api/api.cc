@@ -1613,6 +1613,8 @@ i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
   obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
   obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+  obj->set_has_dont_delete_property(
+      flags & PropertyHandlerFlags::kHasDontDeleteProperty);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));

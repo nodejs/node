@@ -171,6 +171,24 @@ to install it locally into the node_modules folder in that other place.
 
 Then go into the node-repl, and try using require("my-thing") to bring in your module's main module.
 
+#### Catching undeclared ("phantom") dependencies
+
+Under the default hoisted `node_modules` layout, your package can `import` a dependency it never declared and still resolve it.
+A transitive dependency hoisted alongside it, or your workspace root's `node_modules`, happens to satisfy the `import`.
+That undeclared ("phantom") dependency passes your own build silently, then fails for anyone who installs your package on its own.
+
+We recommend developing your package under [`install-strategy=linked`](/using-npm/config#install-strategy).
+The isolated layout only exposes a package's *declared* dependencies, so an `import` of an undeclared package fails for you during development instead of resolving by accident, shipping broken, and failing for your users:
+
+```bash
+npm install --install-strategy=linked
+npm test
+```
+
+> **Note:** This doesn't catch every case.
+> A dependency that's still satisfied at your build by a `devDependency` or by your workspace root's `node_modules` can resolve fine for you and still be missing for whoever installs your package.
+> So treat it as one check, not a guarantee, alongside auditing the dependencies your published package actually uses.
+
 ### Create a User Account
 
 Create a user with the adduser command.

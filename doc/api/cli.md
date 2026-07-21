@@ -1996,14 +1996,6 @@ node --max-old-space-size-percentage=50 index.js
 node --max-old-space-size-percentage=75 index.js
 ```
 
-### `--napi-modules`
-
-<!-- YAML
-added: v7.10.0
--->
-
-This option is a no-op. It is kept for compatibility.
-
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
@@ -2695,6 +2687,9 @@ The following environment variables are set when running a script with `--run`:
   `--run` is used to run `test`, the value of this variable will be `test`.
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
+
+Environment variables loaded from a file with [`--env-file`][] are not applied
+to the command executed by `--run`.
 
 ### `--secure-heap-min=n`
 
@@ -3397,8 +3392,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
 When both are set, `--use-env-proxy` takes precedence.
@@ -3839,7 +3839,6 @@ one is included in the list below.
 * `--localstorage-file`
 * `--max-http-header-size`
 * `--max-old-space-size-percentage`
-* `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-async-context-frame`
@@ -4081,8 +4080,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
@@ -4389,6 +4393,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 <!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
+[Built-in Proxy Support]: http.md#built-in-proxy-support
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
 [CommonJS module]: modules.md

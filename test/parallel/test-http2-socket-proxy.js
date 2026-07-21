@@ -52,7 +52,8 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert(inspectedTimersList.includes('      _idleNext: [Timeout]'));
   assert(!inspectedTimersList.includes('       _idleNext: [Timeout]'));
 
-  assert.throws(() => socket.destroy, errMsg);
+  assert.strictEqual(typeof socket.destroy, 'function');
+
   assert.throws(() => socket.emit, errMsg);
   assert.throws(() => socket.end, errMsg);
   assert.throws(() => socket.pause, errMsg);
@@ -63,7 +64,6 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert.throws(() => socket.setKeepAlive, errMsg);
   assert.throws(() => socket.setNoDelay, errMsg);
 
-  assert.throws(() => (socket.destroy = undefined), errMsg);
   assert.throws(() => (socket.emit = undefined), errMsg);
   assert.throws(() => (socket.end = undefined), errMsg);
   assert.throws(() => (socket.pause = undefined), errMsg);

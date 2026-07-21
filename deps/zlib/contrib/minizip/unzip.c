@@ -1439,6 +1439,8 @@ local int unz64local_CheckCurrentFileCoherencyHeader(unz64_s* s, uInt* piSizeVar
 */
     if (unz64local_getShort(&s->z_filefunc, s->filestream,&uFlags) != UNZ_OK)
         err=UNZ_ERRNO;
+    else if ((err==UNZ_OK) && ((uFlags & 1) != (s->cur_file_info.flag & 1)))
+        err=UNZ_BADZIPFILE; /* LFH/CD encryption flag mismatch */
 
     if (unz64local_getShort(&s->z_filefunc, s->filestream,&uData) != UNZ_OK)
         err=UNZ_ERRNO;

@@ -267,6 +267,9 @@ class Stream final : public AsyncWrap,
   // to be created.
   bool is_pending() const;
 
+  // True if the stream is already destroyed.
+  bool is_destroyed() const;
+
   // True if we've completely sent all outbound data for this stream.
   // Importantly, this does not necessarily mean that we are completely
   // done with the outbound data. We may still be waiting on outbound
@@ -340,6 +343,17 @@ class Stream final : public AsyncWrap,
   void ReceiveData(const uint8_t* data, size_t len, ReceiveDataFlags flags);
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
+
+  // Sends a reset stream to the peer to tell it we will not be sending any
+  // more data for this stream. This has the effect of shutting down the
+  // writable side of the stream for this peer. Any data that is held in the
+  // outbound queue will be dropped. The stream may still be readable.
+  void DoStreamReset(error_code code);
+
+  // Tells the peer to stop sending data for this stream. This has the effect
+  // of shutting down the readable side of the stream for this peer. Any data
+  // that has already been received is still readable.
+  void SendStopSending(error_code code);
 
   // Currently, only HTTP/3 streams support headers. These methods are here
   // to support that. They are not used when using any other QUIC application.

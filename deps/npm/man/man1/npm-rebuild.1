@@ -1,4 +1,4 @@
-.TH "NPM-REBUILD" "1" "June 2026" "NPM@11.17.0" ""
+.TH "NPM-REBUILD" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-rebuild\fR - Rebuild a package
 .SS "Synopsis"
@@ -127,6 +127,8 @@ Type: Boolean
 If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
 .P
 Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.P
+Optional dependencies that cannot be installed on the current platform or engine (a non-matching \fBos\fR, \fBcpu\fR, or \fBlibc\fR) are not flagged, because their install scripts never run.
 .SS "\fBdangerously-allow-all-scripts\fR"
 .RS 0
 .IP \(bu 4

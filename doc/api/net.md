@@ -305,6 +305,11 @@ added: v0.1.90
 
 This class is used to create a TCP or [IPC][] server.
 
+A listening TCP `net.Server` can be transferred to a worker thread by listing it
+in the `transferList` of a [`worker_threads`][] `postMessage()` call. This moves
+the underlying listening socket to the receiving thread, where it resumes
+accepting connections. See [Transferring TCP handles to other threads][].
+
 ### `new net.Server([options][, connectionListener])`
 
 * `options` {Object} See
@@ -750,6 +755,41 @@ It can also be created by Node.js and passed to the user when a connection
 is received. For example, it is passed to the listeners of a
 [`'connection'`][] event emitted on a [`net.Server`][], so the user can use
 it to interact with the client.
+
+### Transferring TCP handles to other threads
+
+A connected TCP `net.Socket` can be moved to another thread by listing it in the
+`transferList` of a [`worker_threads`][] `postMessage()` call. After the
+transfer, the source socket is destroyed on the sending thread (further use
+fails with `ERR_STREAM_DESTROYED` rather than silently dropping data), and the
+socket continues to work on the receiving thread. This makes it possible to
+accept connections on one thread and distribute them across a pool of worker
+threads, for example to build a `node:cluster`-like model on top of worker
+threads.
+
+The socket must be a freshly accepted or created TCP connection: it must still
+be attached to a live handle, must not be connecting or destroyed, and must not
+have started reading or have buffered data. Otherwise `postMessage()` throws
+`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. Only TCP sockets are supported, and only
+on Unix-like platforms; on Windows `postMessage()` throws
+`ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`.
+
+```cjs
+const net = require('node:net');
+const { Worker } = require('node:worker_threads');
+
+// worker.js receives `{ socket }` messages and handles each connection.
+const worker = new Worker('./worker.js');
+
+const server = net.createServer((socket) => {
+  // Hand the freshly accepted connection off to the worker thread.
+  worker.postMessage({ socket }, [socket]);
+});
+server.listen(8000);
+```
+
+A listening [`net.Server`][] can be transferred the same way, which moves the
+listening socket itself (and its pending accept queue) to the receiving thread.
 
 ### `new net.Socket([options])`
 
@@ -1360,6 +1400,17 @@ added: v0.5.10
 The numeric representation of the remote port. For example, `80` or `21`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
 
+### `socket.server`
+
+<!-- YAML
+added: v0.3.4
+-->
+
+* Type: {net.Server|null}
+
+Reference to the server that accepted the socket. This is `null` for sockets
+that were not accepted by a server.
+
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
@@ -1631,10 +1682,11 @@ added: v0.5.0
 
 This property represents the state of the connection as a string.
 
-* If the stream is connecting `socket.readyState` is `opening`.
-* If the stream is readable and writable, it is `open`.
-* If the stream is readable and not writable, it is `readOnly`.
-* If the stream is not readable and writable, it is `writeOnly`.
+* If the socket is connecting, `socket.readyState` is `opening`.
+* If the socket is readable and writable, it is `open`.
+* If the socket is readable and not writable, it is `readOnly`.
+* If the socket is not readable and writable, it is `writeOnly`.
+* Otherwise, it is `closed`.
 
 ## Class: `net.BoundSocket`
 
@@ -1650,6 +1702,11 @@ over the local egress port/IP, via `bind(2)` semantics.
 Adoption transfers ownership of the socket; afterwards `address()` and `close()`
 throw [`ERR_SOCKET_HANDLE_ADOPTED`][]. A handle that is never adopted must be
 closed to avoid leaking the socket.
+
+When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
+issued synchronously, so [`socket.localAddress`][] is resolved once
+[`socket.connect()`][] returns. Connection failures are still reported via a
+deferred `'error'` event.
 
 ```mjs
 import net from 'node:net';
@@ -2188,6 +2245,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
 [RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
 [Readable Stream]: stream.md#class-streamreadable
+[Transferring TCP handles to other threads]: #transferring-tcp-handles-to-other-threads
 [`'close'`]: #event-close
 [`'connect'`]: #event-connect
 [`'connection'`]: #event-connection
@@ -2235,6 +2293,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.connecting`]: #socketconnecting
 [`socket.destroy()`]: #socketdestroyerror
 [`socket.end()`]: #socketenddata-encoding-callback
+[`socket.localAddress`]: #socketlocaladdress
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
@@ -2244,6 +2303,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`worker_threads`]: worker_threads.md
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.end()`]: stream.md#writableendchunk-encoding-callback
