@@ -445,7 +445,7 @@ Treat commits that introduce new core modules with extra care.
 
 New modules must only be added with the `node:` prefix, as `semver-minor`.
 
-When adding a "sub-module", e.g. a promise varient of an existing API (e.g.
+When adding a "sub-module", e.g. a promise variant of an existing API (e.g.
 `node:inspector/promises`) that is available without the `node:` prefix, making
 the sub-module available without the prefix is possible behind a runtime flag,
 or as a `semver-major` change.
