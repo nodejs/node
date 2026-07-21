@@ -168,10 +168,8 @@ async function testShareDropOldest() {
 }
 
 async function testShareDropNewest() {
-  // With drop-newest and a stalled consumer, the async path allows the
-  // buffer to grow beyond highWaterMark (the "drop" applies to the
-  // backpressure signal, not the buffer contents). Both consumers
-  // ultimately see all items.
+  // With drop-newest and a stalled consumer, upstream results are discarded
+  // once the buffer reaches highWaterMark.
   async function* source() {
     for (let i = 0; i < 4; i++) {
       yield [new TextEncoder().encode(`${i}`)];
@@ -181,25 +179,24 @@ async function testShareDropNewest() {
   const fast = shared.pull();
   const slow = shared.pull();
 
-  // Fast consumer reads all items
+  // The fast consumer fills the buffer, then drives the source to completion.
   const fastItems = [];
   for await (const batch of fast) {
     for (const chunk of batch) {
       fastItems.push(new TextDecoder().decode(chunk));
     }
   }
-  assert.strictEqual(fastItems.length, 4);
+  assert.deepStrictEqual(fastItems, ['0', '1']);
+  assert.strictEqual(shared.bufferSize, 2);
 
-  // Slow consumer also sees all items (buffer grew past hwm)
+  // The stalled consumer sees the buffered items, but not the dropped results.
   const slowItems = [];
   for await (const batch of slow) {
     for (const chunk of batch) {
       slowItems.push(new TextDecoder().decode(chunk));
     }
   }
-  assert.strictEqual(slowItems.length, 4);
-  assert.strictEqual(slowItems[0], '0');
-  assert.strictEqual(slowItems[3], '3');
+  assert.deepStrictEqual(slowItems, ['0', '1']);
 }
 
 // =============================================================================
