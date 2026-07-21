@@ -391,6 +391,8 @@ For information about the governance of the Node.js project, see
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/mcollina)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
+* [MikeMcC399](https://github.com/MikeMcC399) -
+  **Mike McCready** <<66998419+MikeMcC399@users.noreply.github.com>> (he/him)
 * [MoLow](https://github.com/MoLow) -
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [MrJithil](https://github.com/MrJithil) -
