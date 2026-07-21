@@ -162,6 +162,34 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
+    // A directory argument recursively runs the test files inside it, the same
+    // as running from that directory. Both the bare and trailing-slash forms
+    // are supported. Refs: https://github.com/nodejs/node/issues/64555
+    for (const dir of ['default-behavior', 'default-behavior/']) {
+      const args = [
+        '--test',
+        '--test-reporter=tap',
+        `--test-isolation=${isolation}`,
+        dir,
+      ];
+      const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+      assert.strictEqual(child.stderr.toString(), '');
+      const stdout = child.stdout.toString();
+      assert.match(stdout, /ok 1 - this should pass/);
+      assert.match(stdout, /not ok 2 - this should fail/);
+      assert.match(stdout, /ok 3 - subdir.+subdir_test\.js/);
+      assert.match(stdout, /ok 4 - this should pass/);
+      assert.match(stdout, /ok 5 - this should be skipped/);
+      assert.match(stdout, /ok 6 - this should be executed/);
+      // node_modules is still excluded when a directory is expanded.
+      assert.doesNotMatch(stdout, /test-nm\.js/);
+      assert.strictEqual(child.status, 1);
+      assert.strictEqual(child.signal, null);
+    }
+  }
+
+  {
     // Test combined stream outputs
     const args = [
       '--test',
