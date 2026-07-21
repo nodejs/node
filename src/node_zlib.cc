@@ -358,6 +358,7 @@ class ZstdDecompressContext final : public ZstdContext {
   // Streaming-related, should be available for all compression libraries:
   void Close();
   void DoThreadPoolWork();
+  CompressionError GetErrorInfo() const;
   CompressionError ResetStream();
 
   // Zstd specific:
@@ -375,6 +376,7 @@ class ZstdDecompressContext final : public ZstdContext {
 
  private:
   DeleteFnPtr<ZSTD_DCtx, ZstdDecompressContext::FreeZstd> dctx_;
+  bool frame_complete_ = false;
 };
 
 class CompressionStreamMemoryOwner {
@@ -1717,6 +1719,8 @@ void ZstdDecompressContext::Close() {
 
 CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,
                                              std::string_view dictionary) {
+  frame_complete_ = false;
+
 #ifdef NODE_BUNDLED_ZSTD
   ZSTD_customMem custom_mem = {
       CompressionStreamMemoryOwner::AllocForBrotli,
@@ -1752,12 +1756,37 @@ CompressionError ZstdDecompressContext::ResetStream() {
 }
 
 void ZstdDecompressContext::DoThreadPoolWork() {
+  // The JavaScript processing loop retries with an empty input buffer when the
+  // previous call filled the output buffer. Avoid interpreting that retry as
+  // the beginning of a new, incomplete frame.
+  if (frame_complete_ && input_.size == 0) {
+    return;
+  }
+
   size_t const ret = ZSTD_decompressStream(dctx_.get(), &output_, &input_);
   if (ZSTD_isError(ret)) {
+    frame_complete_ = false;
     error_ = ZSTD_getErrorCode(ret);
     error_code_string_ = ZstdStrerror(error_);
     error_string_ = ZSTD_getErrorString(error_);
+  } else {
+    frame_complete_ = ret == 0;
   }
+}
+
+CompressionError ZstdDecompressContext::GetErrorInfo() const {
+  CompressionError error = ZstdContext::GetErrorInfo();
+  if (error.IsError()) {
+    return error;
+  }
+
+  if (flush_ == ZSTD_e_end && !frame_complete_ && input_.pos == input_.size &&
+      output_.pos < output_.size) {
+    return CompressionError(
+        "unexpected end of file", "Z_BUF_ERROR", Z_BUF_ERROR);
+  }
+
+  return {};
 }
 
 template <typename Stream>
