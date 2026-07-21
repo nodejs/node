@@ -412,14 +412,15 @@ if (!isLinux) {
 // Filesystem bind errors surface synchronously in the constructor. A missing
 // parent directory yields EACCES (libuv maps the kernel's ENOENT to EACCES for
 // cross-platform parity), and an over-long path yields EINVAL (uv_pipe_bind is
-// called with UV_PIPE_NO_TRUNCATE).
+// called with UV_PIPE_NO_TRUNCATE). The path must exceed sun_path on every
+// platform, which is 1023 bytes on AIX.
 if (!common.isWindows) {
   assert.throws(
     () => new net.BoundSocket({ path: `${common.PIPE}-nope/child.sock` }),
     { code: 'EACCES', syscall: 'bind' });
 
   assert.throws(
-    () => new net.BoundSocket({ path: `${common.PIPE}-${'x'.repeat(200)}` }),
+    () => new net.BoundSocket({ path: `${common.PIPE}-${'x'.repeat(2000)}` }),
     { code: 'EINVAL', syscall: 'bind' });
 }
 
