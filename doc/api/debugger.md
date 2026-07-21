@@ -236,7 +236,7 @@ debug>
 added:
   - v26.1.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64328
     description: Add per-probe `--cond <expr>` option to only record a hit when the
         condition is truthy at the probe location.

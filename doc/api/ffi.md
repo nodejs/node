@@ -718,7 +718,7 @@ Using stale pointers can cause memory corruption or process crashes.
 ## `ffi.getCurrentEventLoop()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Returns: {bigint}

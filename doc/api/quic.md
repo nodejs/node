@@ -2919,7 +2919,7 @@ certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 #### `sessionOptions.certificateCompression`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in

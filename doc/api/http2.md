@@ -723,7 +723,7 @@ registered as a listener on the `'timeout'` event.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64427
     description: Calling `destroy` no longer throws and instead destroys the
                  `Http2Session`.
