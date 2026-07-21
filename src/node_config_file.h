@@ -30,7 +30,8 @@ class ConfigReader {
   ParseResult ParseConfig(const std::string_view& config_path);
 
   std::optional<std::string_view> GetDataFromArgs(
-      const std::vector<std::string>& args);
+      std::vector<std::string>* args);
+  bool HasInvalidDefaultConfigFileArgument() const;
 
   std::string GetNodeOptions();
   const std::vector<std::string>& GetNamespaceFlags() const;
@@ -53,6 +54,7 @@ class ConfigReader {
 
   std::vector<std::string> node_options_;
   std::vector<std::string> namespace_options_;
+  bool invalid_default_config_file_argument_ = false;
 
   // Cache for fast lookup of environment options
   std::unordered_map<std::string, options_parser::OptionMappingDetails>

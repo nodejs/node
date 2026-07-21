@@ -15,8 +15,10 @@ const runner = path.join(fixtureDir, 'runner.mjs');
 describe('test runner flag propagation', () => {
   describe('via command line', () => {
     const flagPropagationTests = [
-      ['--experimental-config-file', 'node.config.json', ''],
-      ['--experimental-default-config-file', '', false],
+      ['--experimental-config-file=node.config.json', '', '', '--experimental-config-file',
+       'should not propagate --experimental-config-file to child tests'],
+      ['--experimental-default-config-file', '', '', '--experimental-config-file',
+       'should not propagate --experimental-default-config-file to child tests'],
       ['--env-file', '.env', '.env'],
       ['--env-file-if-exists', '.env', '.env'],
       ['--test-concurrency', '2', '2'],
@@ -32,8 +34,11 @@ describe('test runner flag propagation', () => {
       ['--require', './index.js', './index.js'],
     ];
 
-    for (const [flagName, testValue, expectedValue] of flagPropagationTests) {
-      const testDescription = `should propagate ${flagName} to child tests as expected`;
+    for (const [flagName,
+                testValue,
+                expectedValue,
+                propagatedFlag = flagName,
+                testDescription = `should propagate ${flagName} to child tests as expected`] of flagPropagationTests) {
 
       it(testDescription, () => {
         const args = [
@@ -45,7 +50,7 @@ describe('test runner flag propagation', () => {
           // Use the runner fixture
           runner,
           // Pass parameters to the fixture
-          `--flag=${flagName}`,
+          `--flag=${propagatedFlag}`,
           `--expected=${expectedValue}`,
           `--description="${testDescription}"`,
         ].filter(Boolean);
@@ -68,19 +73,19 @@ describe('test runner flag propagation', () => {
 
   describe('via config file', () => {
     const configFilePropagationTests = [
-      ['--test-concurrency', 2, 2, 'testRunner'],
-      ['--test-timeout', 5000, 5000, 'testRunner'],
-      ['--test-coverage-branches', 100, 100, 'testRunner'],
-      ['--test-coverage-functions', 100, 100, 'testRunner'],
-      ['--test-coverage-lines', 100, 100, 'testRunner'],
-      ['--experimental-test-coverage', true, false, 'testRunner'],
-      ['--test-coverage-exclude', 'test/**', 'test/**', 'testRunner'],
-      ['--test-coverage-include', 'src/**', 'src/**', 'testRunner'],
-      ['--test-update-snapshots', true, true, 'testRunner'],
-      ['--test-concurrency', 3, 3, 'testRunner'],
-      ['--test-timeout', 2500, 2500, 'testRunner'],
-      ['--test-coverage-branches', 90, 90, 'testRunner'],
-      ['--test-coverage-functions', 85, 85, 'testRunner'],
+      ['--test-concurrency', 2, 2, 'test'],
+      ['--test-timeout', 5000, 5000, 'test'],
+      ['--test-coverage-branches', 100, 100, 'test'],
+      ['--test-coverage-functions', 100, 100, 'test'],
+      ['--test-coverage-lines', 100, 100, 'test'],
+      ['--experimental-test-coverage', true, false, 'test'],
+      ['--test-coverage-exclude', 'test/**', 'test/**', 'test'],
+      ['--test-coverage-include', 'src/**', 'src/**', 'test'],
+      ['--test-update-snapshots', true, true, 'test'],
+      ['--test-concurrency', 3, 3, 'test'],
+      ['--test-timeout', 2500, 2500, 'test'],
+      ['--test-coverage-branches', 90, 90, 'test'],
+      ['--test-coverage-functions', 85, 85, 'test'],
     ];
 
     for (const [flagName, configValue, expectedValue, namespace] of configFilePropagationTests) {

@@ -51,7 +51,6 @@ const {
   createReadStream,
   createWriteStream,
 } = require('node:fs');
-const process = require('node:process');
 const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream');
 
@@ -92,7 +91,6 @@ const {
   createReadStream,
   createWriteStream,
 } = require('node:fs');
-const process = require('node:process');
 const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream/promises');
 
@@ -803,6 +801,9 @@ These advanced options are available for controlling decompression:
 <!-- YAML
 added: v0.11.1
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/64023
+    description: The `rejectGarbageAfterEnd` option was added.
   - version:
     - v14.5.0
     - v12.19.0
@@ -838,6 +839,10 @@ ignored by the decompression classes.
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
+  trailing input is detected after the end of the compressed stream. This
+  includes unreadable bytes and, when decompressing gzip, additional gzip
+  members following the first member. **Default:** `false`
 
 See the [`deflateInit2` and `inflateInit2`][] documentation for more
 information.
@@ -847,6 +852,9 @@ information.
 <!-- YAML
 added: v11.7.0
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/64023
+    description: The `rejectGarbageAfterEnd` option was added.
   - version:
     - v14.5.0
     - v12.19.0
@@ -865,6 +873,8 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
+* `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
+  input remains after the first complete compressed stream. **Default:** `false`
 
 For example:
 
@@ -1088,6 +1098,10 @@ the inflate and deflate algorithms.
 added:
   - v23.8.0
   - v22.15.0
+changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/64023
+    description: The `rejectGarbageAfterEnd` option was added.
 -->
 
 <!--type=misc-->
@@ -1104,6 +1118,8 @@ Each Zstd-based class takes an `options` object. All options are optional.
 * `dictionary` {Buffer} Optional dictionary used to
   improve compression efficiency when compressing or decompressing data that
   shares common patterns with the dictionary.
+* `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
+  input remains after the first complete compressed stream. **Default:** `false`
 
 For example:
 

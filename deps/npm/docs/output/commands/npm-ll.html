@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-ll----11160">
+<h1 id="----npm-ll----11170">
     <span>npm-ll</span>
-    <span class="version">@11.16.0</span>
+    <span class="version">@11.17.0</span>
 </h1>
 <span class="description">List installed packages</span>
 </header>
@@ -211,9 +211,10 @@ alias: la
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.</p>
+<p>Show or act on all packages, not just the ones your project directly depends
+on. For <code>npm outdated</code> and <code>npm ls</code> this lists every outdated or installed
+package. For <code>npm approve-scripts</code> and <code>npm deny-scripts</code> it selects every
+package with pending install scripts.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>

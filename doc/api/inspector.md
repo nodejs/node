@@ -415,8 +415,8 @@ changes:
     description: The API is exposed in the worker threads.
 -->
 
-Attempts to close all remaining connections, blocking the event loop until all
-are closed. Once all connections are closed, deactivates the inspector.
+Deactivates the inspector. If there are active connections, they are forcibly
+terminated. Blocks until the inspector server has fully stopped.
 
 ### `inspector.console`
 

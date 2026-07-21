@@ -201,6 +201,7 @@ const customTypesMap = {
   'require': 'modules.html#requireid',
 
   'Handle': 'net.html#serverlistenhandle-backlog-callback',
+  'net.BoundSocket': 'net.html#class-netboundsocket',
   'net.BlockList': 'net.html#class-netblocklist',
   'net.Server': 'net.html#class-netserver',
   'net.Socket': 'net.html#class-netsocket',
@@ -212,8 +213,8 @@ const customTypesMap = {
   'os.constants.dlopen': 'os.html#dlopen-constants',
 
   'Histogram': 'perf_hooks.html#class-histogram',
-  'IntervalHistogram':
-     'perf_hooks.html#class-intervalhistogram-extends-histogram',
+  'ELDHistogram':
+     'perf_hooks.html#class-eldhistogram-extends-histogram',
   'RecordableHistogram':
      'perf_hooks.html#class-recordablehistogram-extends-histogram',
   'PerformanceEntry': 'perf_hooks.html#class-performanceentry',
@@ -252,6 +253,8 @@ const customTypesMap = {
   'Timer': 'timers.html#timers',
 
   'TestsStream': 'test.html#class-testsstream',
+  'TestContext': 'test.html#class-testcontext',
+  'SuiteContext': 'test.html#class-suitecontext',
 
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',

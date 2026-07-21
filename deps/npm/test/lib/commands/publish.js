@@ -1624,3 +1624,37 @@ t.test('oidc token exchange - provenance', (t) => {
 
   t.end()
 })
+
+t.test('passes script-shell config to lifecycle hooks', async t => {
+  const CAPTURED = []
+  const { npm, registry } = await loadNpmWithRegistry(t, {
+    config: {
+      ...auth,
+      'script-shell': '/bin/bash',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        scripts: {
+          prepublishOnly: 'exit 0',
+          publish: 'exit 0',
+          postpublish: 'exit 0',
+        },
+      }),
+    },
+    mocks: {
+      '@npmcli/run-script': async (opts) => {
+        CAPTURED.push(opts)
+      },
+    },
+  })
+
+  registry.publish(pkg, {})
+  await npm.exec('publish', [])
+
+  for (const event of ['prepublishOnly', 'publish', 'postpublish']) {
+    const rs = CAPTURED.find(r => r.event === event)
+    t.ok(rs, `ran ${event}`)
+    t.equal(rs?.scriptShell, '/bin/bash', `${event} receives scriptShell`)
+  }
+})

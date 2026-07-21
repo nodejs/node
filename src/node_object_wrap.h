@@ -22,9 +22,8 @@
 #ifndef SRC_NODE_OBJECT_WRAP_H_
 #define SRC_NODE_OBJECT_WRAP_H_
 
-#include "v8.h"
 #include <cassert>
-
+#include "node.h"
 
 namespace node {
 
@@ -32,10 +31,12 @@ class ObjectWrap {
  public:
   ObjectWrap() {
     refs_ = 0;
+    AddCleanupHook();
   }
 
 
   virtual ~ObjectWrap() {
+    RemoveCleanupHook();
     if (persistent().IsEmpty())
       return;
     persistent().ClearWeak();
@@ -122,6 +123,16 @@ class ObjectWrap {
     wrap->handle_.Reset();
     delete wrap;
   }
+
+  void AddCleanupHook() {
+    AddEnvironmentCleanupHook(v8::Isolate::GetCurrent(), CleanupHook, this);
+  }
+
+  void RemoveCleanupHook() {
+    RemoveEnvironmentCleanupHook(v8::Isolate::GetCurrent(), CleanupHook, this);
+  }
+
+  static void CleanupHook(void* arg) { delete static_cast<ObjectWrap*>(arg); }
 
   // NOLINTNEXTLINE(runtime/v8_persistent)
   v8::Persistent<v8::Object> handle_;

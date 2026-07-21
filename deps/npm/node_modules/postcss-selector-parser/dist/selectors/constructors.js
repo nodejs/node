@@ -1,65 +1,43 @@
 "use strict";
-
-exports.__esModule = true;
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.universal = exports.tag = exports.string = exports.selector = exports.root = exports.pseudo = exports.nesting = exports.id = exports.comment = exports.combinator = exports.className = exports.attribute = void 0;
-var _attribute = _interopRequireDefault(require("./attribute"));
-var _className = _interopRequireDefault(require("./className"));
-var _combinator = _interopRequireDefault(require("./combinator"));
-var _comment = _interopRequireDefault(require("./comment"));
-var _id = _interopRequireDefault(require("./id"));
-var _nesting = _interopRequireDefault(require("./nesting"));
-var _pseudo = _interopRequireDefault(require("./pseudo"));
-var _root = _interopRequireDefault(require("./root"));
-var _selector = _interopRequireDefault(require("./selector"));
-var _string = _interopRequireDefault(require("./string"));
-var _tag = _interopRequireDefault(require("./tag"));
-var _universal = _interopRequireDefault(require("./universal"));
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-var attribute = function attribute(opts) {
-  return new _attribute["default"](opts);
-};
+var attribute_1 = __importDefault(require("./attribute"));
+var className_1 = __importDefault(require("./className"));
+var combinator_1 = __importDefault(require("./combinator"));
+var comment_1 = __importDefault(require("./comment"));
+var id_1 = __importDefault(require("./id"));
+var nesting_1 = __importDefault(require("./nesting"));
+var pseudo_1 = __importDefault(require("./pseudo"));
+var root_1 = __importDefault(require("./root"));
+var selector_1 = __importDefault(require("./selector"));
+var string_1 = __importDefault(require("./string"));
+var tag_1 = __importDefault(require("./tag"));
+var universal_1 = __importDefault(require("./universal"));
+var attribute = function (opts) { return new attribute_1.default(opts); };
 exports.attribute = attribute;
-var className = function className(opts) {
-  return new _className["default"](opts);
-};
+var className = function (opts) { return new className_1.default(opts); };
 exports.className = className;
-var combinator = function combinator(opts) {
-  return new _combinator["default"](opts);
-};
+var combinator = function (opts) { return new combinator_1.default(opts); };
 exports.combinator = combinator;
-var comment = function comment(opts) {
-  return new _comment["default"](opts);
-};
+var comment = function (opts) { return new comment_1.default(opts); };
 exports.comment = comment;
-var id = function id(opts) {
-  return new _id["default"](opts);
-};
+var id = function (opts) { return new id_1.default(opts); };
 exports.id = id;
-var nesting = function nesting(opts) {
-  return new _nesting["default"](opts);
-};
+var nesting = function (opts) { return new nesting_1.default(opts); };
 exports.nesting = nesting;
-var pseudo = function pseudo(opts) {
-  return new _pseudo["default"](opts);
-};
+var pseudo = function (opts) { return new pseudo_1.default(opts); };
 exports.pseudo = pseudo;
-var root = function root(opts) {
-  return new _root["default"](opts);
-};
+var root = function (opts) { return new root_1.default(opts); };
 exports.root = root;
-var selector = function selector(opts) {
-  return new _selector["default"](opts);
-};
+var selector = function (opts) { return new selector_1.default(opts); };
 exports.selector = selector;
-var string = function string(opts) {
-  return new _string["default"](opts);
-};
+var string = function (opts) { return new string_1.default(opts); };
 exports.string = string;
-var tag = function tag(opts) {
-  return new _tag["default"](opts);
-};
+var tag = function (opts) { return new tag_1.default(opts); };
 exports.tag = tag;
-var universal = function universal(opts) {
-  return new _universal["default"](opts);
-};
+var universal = function (opts) { return new universal_1.default(opts); };
 exports.universal = universal;
+//# sourceMappingURL=constructors.js.map

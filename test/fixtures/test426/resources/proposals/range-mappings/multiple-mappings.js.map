@@ -2,7 +2,7 @@
   "version": 3,
   "names": [],
   "sources": ["multiple-mappings-original.js"],
-  "sourcesContent": ["\"Hello World\";  function f() {   }  "],
-  "mappings": ";CAAA,aAAa,EAAG,iBAAoB;A",
-  "rangeMappings": ";BC;"
+  "sourcesContent": ["\"Hello World\";   function f() {   };  6"],
+  "mappings": ";CAAA,aAAa,EAAI,kBAAkB,EAAG;",
+  "rangeMappings": ";AC;"
 }

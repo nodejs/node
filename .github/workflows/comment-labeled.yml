@@ -30,7 +30,7 @@ jobs:
         env:
           NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
+        run: gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$STALE_MESSAGE"
 
   fast-track:
     permissions:
@@ -41,7 +41,8 @@ jobs:
       - name: Request Fast-Track
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$FAST_TRACK_MESSAGE"
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$FAST_TRACK_MESSAGE"
 
   notable-change:
     permissions:
@@ -52,4 +53,5 @@ jobs:
       - name: Add notable change description
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$NOTABLE_CHANGE_MESSAGE"
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$NOTABLE_CHANGE_MESSAGE"

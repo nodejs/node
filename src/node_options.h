@@ -126,7 +126,7 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
-  bool experimental_addon_modules = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_addon_modules = true;
   bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
   bool experimental_sqlite = HAVE_SQLITE;
@@ -137,6 +137,7 @@ class EnvironmentOptions : public Options {
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
+  bool experimental_import_text = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
@@ -214,6 +215,7 @@ class EnvironmentOptions : public Options {
   std::string test_isolation = "process";
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
@@ -273,7 +275,6 @@ class EnvironmentOptions : public Options {
   bool report_exclude_env = false;
   bool report_exclude_network = false;
   std::string experimental_config_file_path;
-  bool experimental_default_config_file = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -427,7 +428,7 @@ std::vector<std::string> MapAvailableNamespaces();
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
-  V(kTestRunnerNamespace, "testRunner")                                        \
+  V(kTestRunnerNamespace, "test")                                              \
   V(kWatchNamespace, "watch")                                                  \
   V(kPermissionNamespace, "permission")
 

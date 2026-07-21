@@ -23,18 +23,29 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
           fetch-depth: 2
       - name: Lint release commit title format
+        id: commit-message-parse
         run: |
-          EXPECTED_TITLE='^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}, Version [[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+ (\(Current|'.+' \(LTS)\)$'
+          VERSION=$(${CXX:-cc} -E -dM src/node_version.h | awk '
+            $2 == "NODE_MAJOR_VERSION"  { maj = $3 }
+            $2 == "NODE_MINOR_VERSION"  { min = $3 }
+            $2 == "NODE_PATCH_VERSION"  { pat = $3 }
+            $2 == "NODE_VERSION_LTS_CODENAME" { gsub(/^"|"$/, "'"'"'",$3); lts = $3 }
+            END { if (maj) print maj "\\." min "\\." pat " " (lts != "'"''"'" ? lts " \\(LTS" : "\\(Current" ) "\\)" }
+          ')
+          MAJOR=${VERSION%%\\.*}
+          EXPECTED_TITLE='^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}, Version '"$VERSION"'$'
           echo "Expected commit title format: $EXPECTED_TITLE"
           COMMIT_SUBJECT="$(git --no-pager log -1 --format=%s)"
-          echo "Actual: $ACTUAL"
+          echo "Actual: $COMMIT_SUBJECT"
           echo "$COMMIT_SUBJECT" | grep -q -E "$EXPECTED_TITLE"
-          echo "COMMIT_SUBJECT=$COMMIT_SUBJECT" >> "$GITHUB_ENV"
+
+          echo "COMMIT_SUBJECT=$COMMIT_SUBJECT" >> "$GITHUB_OUTPUT"
+          echo "MAJOR=$MAJOR" >> "$GITHUB_OUTPUT"
       - name: Lint release commit message trailers
         run: |
           EXPECTED_TRAILER="^$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/[[:digit:]]+\$"
@@ -54,8 +65,6 @@ jobs:
           SKIP_XZ=1 make release-only
       - name: Lint release commit content
         run: |
-          MAJOR="$(awk '/^#define NODE_MAJOR_VERSION / { print $3 }' src/node_version.h)"
-
           echo "Checking for expected files in the release commit:"
           missing_expected=
           for expected in CHANGELOG.md src/node_version.h doc/changelogs/; do
@@ -81,7 +90,6 @@ jobs:
         run: |
           EXPECTED_CHANGELOG_TITLE_INTRO="## $COMMIT_SUBJECT, @"
           echo "Expected CHANGELOG section title: $EXPECTED_CHANGELOG_TITLE_INTRO"
-          MAJOR="$(awk '/^#define NODE_MAJOR_VERSION / { print $3 }' src/node_version.h)"
           CHANGELOG_PATH="doc/changelogs/CHANGELOG_V${MAJOR}.md"
           CHANGELOG_TITLE="$(grep "$EXPECTED_CHANGELOG_TITLE_INTRO" "$CHANGELOG_PATH")"
           echo "Actual: $CHANGELOG_TITLE"
@@ -106,4 +114,6 @@ jobs:
           done
         shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
         env:
+          COMMIT_SUBJECT: ${{ steps.commit-message-parse.outputs.COMMIT_SUBJECT }}
+          MAJOR: ${{ steps.commit-message-parse.outputs.MAJOR }}
           GH_TOKEN: ${{ github.token }}

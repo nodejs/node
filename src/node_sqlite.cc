@@ -941,6 +941,19 @@ bool DatabaseSync::Open() {
     return false;
   }
 
+  // sqlite3_open_v2() assigns a database handle even when it fails. Such a
+  // handle is in a "sick" state and may only be used to retrieve the error
+  // and must then be released with sqlite3_close(). Close and reset the
+  // handle on any failure below so that a failed open() does not leave the
+  // database in an open state.
+  bool opened = false;
+  auto reset_connection_on_failure = OnScopeLeave([&]() {
+    if (!opened && connection_ != nullptr) {
+      sqlite3_close_v2(connection_);
+      connection_ = nullptr;
+    }
+  });
+
   // TODO(cjihrig): Support additional flags.
   int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
@@ -1003,6 +1016,7 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
+  opened = true;
   return true;
 }
 
@@ -2254,6 +2268,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Local<Function> conflictFunc;
+  Local<Function> filterFunc;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -2276,8 +2292,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
             "The \"options.onConflict\" argument must be a function.");
         return;
       }
-      Local<Function> conflictFunc = conflictValue.As<Function>();
-      context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
+      conflictFunc = conflictValue.As<Function>();
+      context.conflictCallback = [env, &conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
         Local<Value> result =
@@ -2313,10 +2329,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<Function> filterFunc = filterValue.As<Function>();
+      filterFunc = filterValue.As<Function>();
 
       context.filterCallback =
-          [env, db, filterFunc](std::string_view item) -> bool {
+          [env, db, &filterFunc](std::string_view item) -> bool {
         // If there was an error in the previous call to the filter's
         // callback, we skip calling it again.
         if (db->ignore_next_sqlite_error_) {

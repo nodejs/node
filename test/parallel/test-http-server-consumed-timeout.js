@@ -58,7 +58,8 @@ function runTest(timeoutDuration) {
   server.listen(0, common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
-      method: 'POST'
+      method: 'POST',
+      agent: false,
     }, () => {
       let lastIntervalTimestamp = Date.now();
       const interval = setInterval(() => {

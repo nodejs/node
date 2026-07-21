@@ -523,3 +523,34 @@ t.test('test linked installed as symlinks', async t => {
 
   t.matchSnapshot(await printLinks(), 'linked package should not be installed')
 })
+
+t.test('link threads allowScripts policy through to arborist', async t => {
+  const capturedOpts = []
+  const FakeArborist = function (opts) {
+    capturedOpts.push(opts)
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+  }
+  FakeArborist.prototype.loadActual = async () => ({ isLink: false, children: new Map() })
+  FakeArborist.prototype.reify = async () => {}
+
+  const mock = await mockNpm(t, {
+    command: 'link',
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await mock.npm.exec('link', ['canvas'])
+  // the local Arborist is the last one constructed in linkInstall
+  const localOpts = capturedOpts[capturedOpts.length - 1]
+  t.strictSame(localOpts.allowScripts, { canvas: true },
+    'local arborist opts.allowScripts populated from package.json')
+})

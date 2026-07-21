@@ -497,7 +497,7 @@ const key = await crypto.subtle.deriveKey(
   ['encrypt', 'decrypt'],
 );
 const plaintext = 'Hello, world!';
-const iv = crypto.getRandomValues(new Uint8Array(16));
+const iv = crypto.getRandomValues(new Uint8Array(12));
 const encrypted = await crypto.subtle.encrypt(
   { name: encryptionAlg, iv },
   key,
@@ -848,7 +848,7 @@ The algorithms currently supported include:
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
 
-### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, usages)`
+### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v24.7.0
@@ -861,7 +861,7 @@ added: v24.7.0
 * `ciphertext` {ArrayBuffer|TypedArray|DataView|Buffer}
 * `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
-* `usages` {string\[]} See [Key usages][].
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {CryptoKey} upon success.
 
 A message recipient uses their asymmetric private key to decrypt an
@@ -959,7 +959,7 @@ The algorithms currently supported include:
 * `'X25519'`
 * `'X448'`[^secure-curves]
 
-### `subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, extractable, keyUsages)`
+### `subtle.deriveKey(algorithm, baseKey, derivedKeyType, extractable, keyUsages)`
 
 <!-- YAML
 added: v15.0.0
@@ -978,7 +978,7 @@ changes:
 
 * `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|Argon2Params}
 * `baseKey` {CryptoKey}
-* `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
+* `derivedKeyType` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
@@ -987,11 +987,11 @@ changes:
 
 Using the method and parameters specified in `algorithm`, and the keying
 material provided by `baseKey`, this method attempts to generate
-a new {CryptoKey} based on the method and parameters in `derivedKeyAlgorithm`.
+a new {CryptoKey} based on the method and parameters in `derivedKeyType`.
 
 Calling this method is equivalent to calling [`subtle.deriveBits()`][] to
 generate raw keying material, then passing the result into the
-[`subtle.importKey()`][] method using the `derivedKeyAlgorithm`, `extractable`, and
+[`subtle.importKey()`][] method using the `derivedKeyType`, `extractable`, and
 `keyUsages` parameters as input.
 
 The algorithms currently supported include:
@@ -1070,7 +1070,7 @@ The algorithms currently supported include:
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
 
-### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, usages)`
+### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v24.7.0
@@ -1082,7 +1082,7 @@ added: v24.7.0
 * `encapsulationKey` {CryptoKey}
 * `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
-* `usages` {string\[]} See [Key usages][].
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {EncapsulatedKey} upon success.
 
 Uses a message recipient's asymmetric public key to encrypt a temporary symmetric key.
@@ -1414,7 +1414,7 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
 
-### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
+### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgorithm, unwrappedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v15.0.0
@@ -1434,8 +1434,8 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
-* `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
+* `unwrapAlgorithm` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
+* `unwrappedKeyAlgorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1447,8 +1447,8 @@ In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. This method attempts to decrypt a wrapped
 key and create a {CryptoKey} instance. It is equivalent to calling
 [`subtle.decrypt()`][] first on the encrypted key data (using the `wrappedKey`,
-`unwrapAlgo`, and `unwrappingKey` arguments as input) then passing the results
-to the [`subtle.importKey()`][] method using the `unwrappedKeyAlgo`,
+`unwrapAlgorithm`, and `unwrappingKey` arguments as input) then passing the results
+to the [`subtle.importKey()`][] method using the `unwrappedKeyAlgorithm`,
 `extractable`, and `keyUsages` arguments as inputs. If successful, the returned
 promise is resolved with a {CryptoKey} object.
 
@@ -1536,7 +1536,7 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
 
-### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
+### `subtle.wrapKey(format, key, wrappingKey, wrapAlgorithm)`
 
 <!-- YAML
 added: v15.0.0
@@ -1555,7 +1555,7 @@ changes:
   `'raw-public'`[^modern-algos], or `'raw-seed'`[^modern-algos].
 * `key` {CryptoKey}
 * `wrappingKey` {CryptoKey}
-* `wrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
+* `wrapAlgorithm` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -1563,10 +1563,10 @@ changes:
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. This method exports the keying material into
 the format identified by `format`, then encrypts it using the method and
-parameters specified by `wrapAlgo` and the keying material provided by
+parameters specified by `wrapAlgorithm` and the keying material provided by
 `wrappingKey`. It is the equivalent to calling [`subtle.exportKey()`][] using
 `format` and `key` as the arguments, then passing the result to the
-[`subtle.encrypt()`][] method using `wrappingKey` and `wrapAlgo` as inputs. If
+[`subtle.encrypt()`][] method using `wrappingKey` and `wrapAlgorithm` as inputs. If
 successful, the returned promise will be resolved with an {ArrayBuffer}
 containing the encrypted key data.
 
@@ -1924,26 +1924,39 @@ added: v24.15.0
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Named cSHAKE variants are now accepted.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `functionName` member represents the function name, used by NIST to define
-functions based on cSHAKE.
-The Node.js Web Crypto API implementation only supports zero-length functionName
-which is equivalent to not providing functionName at all.
+The `functionName` member represents the NIST function-name byte string used to
+domain-separate functions built on top of cSHAKE. Accepted values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* the ASCII byte sequence `'KMAC'`
+* the ASCII byte sequence `'TupleHash'`
+* the ASCII byte sequence `'ParallelHash'`
 
 #### `cShakeParams.customization`
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63988
+    description: Non-empty customization is now supported.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `customization` member represents the customization string.
-The Node.js Web Crypto API implementation only supports zero-length customization
-which is equivalent to not providing customization at all.
+The `customization` member represents the customization data. Accepted
+values are:
+
+* empty or `undefined`, in which case cSHAKE is equivalent to plain SHAKE
+* up to 512 bytes of arbitrary data
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -2472,9 +2485,7 @@ added: v24.8.0
 added: v24.15.0
 -->
 
-* Type: {number}
-
-The length of the output in bytes. This must be a positive integer.
+* Type: {number} represents the requested output length in bits.
 
 #### `kmacParams.customization`
 
@@ -2794,19 +2805,19 @@ added: v24.18.0
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/
 [`SubtleCrypto.supports()`]: #static-method-subtlecryptosupportsoperation-algorithm-lengthoradditionalalgorithm
 [`subtle.decapsulateBits()`]: #subtledecapsulatebitsdecapsulationalgorithm-decapsulationkey-ciphertext
-[`subtle.decapsulateKey()`]: #subtledecapsulatekeydecapsulationalgorithm-decapsulationkey-ciphertext-sharedkeyalgorithm-extractable-usages
+[`subtle.decapsulateKey()`]: #subtledecapsulatekeydecapsulationalgorithm-decapsulationkey-ciphertext-sharedkeyalgorithm-extractable-keyusages
 [`subtle.decrypt()`]: #subtledecryptalgorithm-key-data
 [`subtle.deriveBits()`]: #subtlederivebitsalgorithm-basekey-length
-[`subtle.deriveKey()`]: #subtlederivekeyalgorithm-basekey-derivedkeyalgorithm-extractable-keyusages
+[`subtle.deriveKey()`]: #subtlederivekeyalgorithm-basekey-derivedkeytype-extractable-keyusages
 [`subtle.digest()`]: #subtledigestalgorithm-data
 [`subtle.encapsulateBits()`]: #subtleencapsulatebitsencapsulationalgorithm-encapsulationkey
-[`subtle.encapsulateKey()`]: #subtleencapsulatekeyencapsulationalgorithm-encapsulationkey-sharedkeyalgorithm-extractable-usages
+[`subtle.encapsulateKey()`]: #subtleencapsulatekeyencapsulationalgorithm-encapsulationkey-sharedkeyalgorithm-extractable-keyusages
 [`subtle.encrypt()`]: #subtleencryptalgorithm-key-data
 [`subtle.exportKey()`]: #subtleexportkeyformat-key
 [`subtle.generateKey()`]: #subtlegeneratekeyalgorithm-extractable-keyusages
 [`subtle.getPublicKey()`]: #subtlegetpublickeykey-keyusages
 [`subtle.importKey()`]: #subtleimportkeyformat-keydata-algorithm-extractable-keyusages
 [`subtle.sign()`]: #subtlesignalgorithm-key-data
-[`subtle.unwrapKey()`]: #subtleunwrapkeyformat-wrappedkey-unwrappingkey-unwrapalgo-unwrappedkeyalgo-extractable-keyusages
+[`subtle.unwrapKey()`]: #subtleunwrapkeyformat-wrappedkey-unwrappingkey-unwrapalgorithm-unwrappedkeyalgorithm-extractable-keyusages
 [`subtle.verify()`]: #subtleverifyalgorithm-key-signature-data
-[`subtle.wrapKey()`]: #subtlewrapkeyformat-key-wrappingkey-wrapalgo
+[`subtle.wrapKey()`]: #subtlewrapkeyformat-key-wrappingkey-wrapalgorithm

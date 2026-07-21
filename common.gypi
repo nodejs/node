@@ -14,6 +14,7 @@
     'enable_pgo_use%': '0',
     'clang_profile_lib%': '',
     'python%': 'python',
+    'emulator%': [],
 
     'node_shared%': 'false',
     'node_enable_experimentals%': 'false',
@@ -40,7 +41,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.50',
+    'v8_embedder_string': '-node.51',
 
     ##### V8 defaults for Node.js #####
 

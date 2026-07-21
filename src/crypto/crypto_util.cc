@@ -344,6 +344,30 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   return *this;
 }
 
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes) {
+  CHECK_NOT_NULL(bytes);
+  const size_t length_bytes = NumBitsToBytes(length_bits);
+  CHECK_LE(length_bytes, bytes->size());
+
+  if (bytes->allocated_data_ == nullptr || bytes->size() != length_bytes) {
+    auto data = DataPointer::Alloc(length_bytes);
+    if (length_bytes > 0) {
+      CHECK_NOT_NULL(data.get());
+      memcpy(data.get(), bytes->data(), length_bytes);
+    }
+    *bytes = ByteSource::Allocated(data.release());
+  }
+
+  const size_t remainder_bits = length_bits % CHAR_BIT;
+  if (remainder_bits != 0) {
+    auto* data = static_cast<unsigned char*>(bytes->allocated_data_);
+    CHECK_NOT_NULL(data);
+    const unsigned char mask =
+        static_cast<unsigned char>(0xff << (CHAR_BIT - remainder_bits));
+    data[length_bytes - 1] &= mask;
+  }
+}
+
 std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
     Environment* env) {
   // It's ok for allocated_data_ to be nullptr but

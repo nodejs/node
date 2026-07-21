@@ -229,7 +229,8 @@ GTEST_API_ bool ExitedUnsuccessfully(int exit_status);
       goto GTEST_CONCAT_TOKEN_(gtest_label_, __LINE__);                        \
     }                                                                          \
     if (gtest_dt != nullptr) {                                                 \
-      std::unique_ptr< ::testing::internal::DeathTest> gtest_dt_ptr(gtest_dt); \
+      const std::unique_ptr< ::testing::internal::DeathTest> gtest_dt_ptr(     \
+          gtest_dt);                                                           \
       switch (gtest_dt->AssumeRole()) {                                        \
         case ::testing::internal::DeathTest::OVERSEE_TEST:                     \
           if (!gtest_dt->Passed(predicate(gtest_dt->Wait()))) {                \

@@ -2,7 +2,7 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
-const { existsSync } = require('node:fs');
+const { existsSync, mkdirSync } = require('node:fs');
 const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
@@ -307,6 +307,42 @@ suite('DatabaseSync.prototype.open()', () => {
       message: /database is already open/,
     });
     t.assert.strictEqual(db.isOpen, true);
+  });
+
+  test('does not leave the database open after a failed open', (t) => {
+    // Regression test for https://github.com/nodejs/node/issues/63831
+    const dbDir = join(tmpdir.path, `database-dir-${cnt++}`);
+    const dbPath = join(dbDir, 'failed-open.db');
+    using db = new DatabaseSync(dbPath, { open: false });
+
+    // The directory does not exist, so opening the database fails.
+    t.assert.throws(() => {
+      db.open();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /unable to open database file/,
+    });
+    t.assert.strictEqual(db.isOpen, false);
+
+    // The connection must not be usable after a failed open.
+    t.assert.throws(() => {
+      db.exec('SELECT 1');
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+    t.assert.throws(() => {
+      db.function('fn', () => {});
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+
+    // The database can be opened once the underlying problem is resolved.
+    mkdirSync(dbDir);
+    t.assert.strictEqual(db.open(), undefined);
+    t.assert.strictEqual(db.isOpen, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
   });
 });
 

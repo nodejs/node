@@ -352,6 +352,7 @@
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
   V(thread_name_string, "threadName")                                          \
+  V(tls_group_string, "TLSGroup")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
   V(time_to_first_byte_string, "timeToFirstByte")                              \
@@ -417,6 +418,7 @@
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
+  V(iterationhistogram_constructor_template, v8::FunctionTemplate)             \
   V(iter_template, v8::DictionaryTemplate)                                     \
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \

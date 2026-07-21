@@ -884,6 +884,21 @@ To make sure the package `@npm/foo` is always installed as version `1.0.0` no ma
 }
 ```
 
+Override values can use any specifier that npm accepts for dependencies, including
+an exact version, a semver range, a dist-tag, or a replacement specifier such as
+`npm:`, `file:`, or a Git URL.
+
+For example, if you only need to enforce a minimum patched release instead of one
+exact version, you can use a semver range:
+
+```json
+{
+  "overrides": {
+    "@npm/foo": "^1.0.0"
+  }
+}
+```
+
 The above is a short hand notation, the full object form can be used to allow overriding a package itself as well as a child of the package.
 This will cause `@npm/foo` to always be `1.0.0` while also making `@npm/bar` at any depth beyond `@npm/foo` also `1.0.0`:
 

@@ -55,8 +55,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
-      '--experimental-config-file',
-      configFile,
+      `--experimental-config-file=${configFile}`,
       fixtureFile,
     ]);
 
@@ -76,8 +75,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
       '--no-warnings',
       '--expose-internals',
       '--stack-trace-limit=512',
-      '--experimental-config-file',
-      configFile,
+      `--experimental-config-file=${configFile}`,
       fixtureFile,
     ]);
 

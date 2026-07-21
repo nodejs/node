@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -12,10 +13,15 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { getCryptoKeyHandle } = require('internal/crypto/keys');
 const { KeyObject } = crypto;
 const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/ml-kem')();
+
+function getCryptoKeyData(key) {
+  return getCryptoKeyHandle(key).export();
+}
 
 async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }) {
   const [
@@ -64,6 +70,19 @@ async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }
   assert(encapsulated2.sharedKey instanceof CryptoKey);
   assert.strictEqual(encapsulated2.sharedKey.algorithm.name, 'HMAC');
   assert.strictEqual(encapsulated2.sharedKey.extractable, false);
+
+  const encapsulated3 = await subtle.encapsulateKey(
+    { name },
+    publicKey,
+    { name: 'HMAC', hash: 'SHA-256', length: 255 },
+    false,
+    ['sign', 'verify']
+  );
+
+  assert.strictEqual(encapsulated3.sharedKey.algorithm.name, 'HMAC');
+  assert.strictEqual(encapsulated3.sharedKey.algorithm.length, 255);
+  assert.strictEqual(getCryptoKeyData(encapsulated3.sharedKey).length, 32);
+  assert.strictEqual(getCryptoKeyData(encapsulated3.sharedKey)[31] & 0b00000001, 0);
 
   // Test failure when using wrong key type
   await assert.rejects(
@@ -158,6 +177,19 @@ async function testDecapsulateKey({ name, publicKeyPem, privateKeyPem, results }
   const originalKeyData = KeyObject.from(encapsulated.sharedKey).export();
   const decapsulatedKeyData = KeyObject.from(decapsulatedKey).export();
   assert(originalKeyData.equals(decapsulatedKeyData));
+
+  const decapsulatedHmac = await subtle.decapsulateKey(
+    { name },
+    privateKey,
+    encapsulated.ciphertext,
+    { name: 'HMAC', hash: 'SHA-256', length: 255 },
+    false,
+    ['sign', 'verify']
+  );
+  assert.strictEqual(decapsulatedHmac.algorithm.name, 'HMAC');
+  assert.strictEqual(decapsulatedHmac.algorithm.length, 255);
+  assert.strictEqual(getCryptoKeyData(decapsulatedHmac).length, 32);
+  assert.strictEqual(getCryptoKeyData(decapsulatedHmac)[31] & 0b00000001, 0);
 
   // Test with test vector ciphertext and expected shared key
   const vectorDecapsulatedKey = await subtle.decapsulateKey(

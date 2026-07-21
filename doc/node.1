@@ -42,7 +42,7 @@
 .
 .Nm node
 .Cm inspect
-.Op Fl e Ar string | Ar script.js | Fl | Ar <host>:<port>
+.Op Ar <program-entry-point> | Fl e Ar string | Ar <host>:<port>
 .Ar ...
 .
 .Nm node
@@ -169,14 +169,81 @@ Interpret the entry point as a URL.
 .It Fl -experimental-addon-modules
 Enable experimental addon module support.
 .
-.It Fl -experimental-config-file
-Specifies the configuration file to load.
+.It Fl -experimental-config-file , Fl -experimental-config-file Ns = Ns Ar config , Fl -experimental-default-config-file
+If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
+in the current working directory.
+To specify a custom path, use the \fB--experimental-config-file=\fR\fBpath\fR form.
+The space-separated \fB--experimental-config-file path\fR form is not supported.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
+in the \fB$schema\fR must be replaced with the version of Node.js you are using.
+.Bd -literal
+{
+  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "nodeOptions": {
+    "import": [
+      "amaro/strip"
+    ],
+    "watch-path": "src",
+    "watch-preserve-output": true
+  },
+  "testRunner": {
+    "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
+  }
+}
+.Ed
+The configuration file supports namespace-specific options:
+.Bl -bullet
+.It
+The \fBnodeOptions\fR field contains CLI flags that are allowed in \fBNODE_OPTIONS\fR.
+.It
+Namespace fields like \fBtestRunner\fR contain configuration specific to that subsystem.
+.El
+No-op flags are not supported.
+Not all V8 flags are currently supported.
+It is possible to use the official JSON schema
+to validate the configuration file, which may vary depending on the Node.js version.
+Each key in the configuration file corresponds to a flag that can be passed
+as a command-line argument. The value of the key is the value that would be
+passed to the flag.
+For example, the configuration file above is equivalent to
+the following command-line arguments:
+.Bd -literal
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
+.Ed
+The priority in configuration is as follows:
+.Bl -bullet
+.It
+NODE_OPTIONS and command-line options
+.It
+Dotenv NODE_OPTIONS
+.It
+Configuration file
+.El
+Values in the configuration file will not override the values in the environment
+variables, command-line options, or the \fBNODE_OPTIONS\fR env file parsed by the
+\fB--env-file\fR flag.
+Keys cannot be duplicated within the same or different namespaces.
+The configuration parser will throw an error if the configuration file contains
+unknown keys or keys that cannot be used in a namespace.
+Node.js will not sanitize or perform validation on the user-provided configuration,
+so \fBNEVER\fR use untrusted configuration files.
 .
 .It Fl -experimental-default-config-file
-Enable support for automatically loading node.config.json.
+This flag is an alias for \fB--experimental-config-file\fR without an argument.
+If present, Node.js will look for a
+\fBnode.config.json\fR file in the current working directory and load it as a
+configuration file.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
+.
+.It Fl -experimental-import-text
+Enable experimental support for importing modules with \fBwith { type: 'text' }\fR.
 .
 .It Fl -experimental-loader Ns = Ns Ar module
 Specify the
@@ -218,6 +285,10 @@ Disable support for loading ECMAScript modules with require().
 .
 .It Fl -no-strip-types
 Disable type-stripping for TypeScript files.
+.
+.It Fl -experimental-test-tag-filter Ar tag
+Run only tests whose tag set contains \fItag\fR. May be specified multiple
+times; tests must contain every filter to run.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.

@@ -4,6 +4,7 @@ const npa = require('npm-package-arg')
 const pkgJson = require('@npmcli/package-json')
 const semver = require('semver')
 const reifyFinish = require('../utils/reify-finish.js')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Link extends ArboristWorkspaceCmd {
@@ -115,11 +116,13 @@ class Link extends ArboristWorkspaceCmd {
       )
     // create a new arborist instance for the local prefix and
     // reify all the pending names as symlinks there
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const localArb = new Arborist({
       ...this.npm.flatOptions,
       prune: false,
       path: this.npm.prefix,
       save,
+      allowScripts: allowScriptsPolicy,
     })
     await localArb.reify({
       ...this.npm.flatOptions,
@@ -128,6 +131,7 @@ class Link extends ArboristWorkspaceCmd {
       add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
       save,
       workspaces: this.workspaceNames,
+      allowScripts: allowScriptsPolicy,
     })
 
     await reifyFinish(this.npm, localArb)

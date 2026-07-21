@@ -487,6 +487,39 @@ t.test('prints unreviewed install scripts summary', async t => {
   t.match(warn, /npm approve-scripts --allow-scripts-pending/)
 })
 
+t.test('global install suggests --allow-scripts, not approve-scripts', async t => {
+  const mockReifyWithExtras = async (t, reify, extras, config = {}) => {
+    const mock = await mockNpm(t, { config })
+    reifyOutput(mock.npm, reify, extras)
+    mock.npm.finish()
+    return mock
+  }
+
+  const baseReify = {
+    actualTree: { name: 'host', inventory: { has: () => false } },
+    diff: { children: [] },
+  }
+
+  const unreviewedScripts = [
+    {
+      node: { packageName: 'canvas', name: 'canvas', version: '2.11.0', path: '/x/canvas' },
+      scripts: { install: 'node-gyp rebuild' },
+    },
+    {
+      node: { packageName: 'sharp', name: 'sharp', version: '0.33.2', path: '/x/sharp' },
+      scripts: { preinstall: 'pre', postinstall: 'post' },
+    },
+  ]
+
+  const mock = await mockReifyWithExtras(t, baseReify, { unreviewedScripts }, { global: true })
+  const warn = mock.logs.warn.byTitle('allow-scripts').join('\n')
+  t.match(warn, /2 packages have install scripts not yet covered/)
+  t.match(warn, /canvas@2\.11\.0 \(install: node-gyp rebuild\)/)
+  t.match(warn, /npm install -g --allow-scripts=canvas,sharp/)
+  t.match(warn, /npm config set allow-scripts=canvas,sharp/)
+  t.notMatch(warn, /approve-scripts/)
+})
+
 t.test('single unreviewed script uses singular wording', async t => {
   const mockReifyWithExtras = async (t, reify, extras) => {
     const mock = await mockNpm(t, {})

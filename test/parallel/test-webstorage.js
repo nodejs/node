@@ -51,6 +51,28 @@ test('Storage instances cannot be created in userland', async () => {
   assert.match(cp.stderr, /Error: Illegal constructor/);
 });
 
+test('calling "length" getter on invalid this throws', async () => {
+  const cp = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-webstorage', '-e', `(${function() {
+      // eslint-disable-next-line node-core/must-call-assert
+      assert.throws(() => Storage.prototype.length, TypeError);
+      const { get } = Object.getOwnPropertyDescriptor(Storage.prototype, 'length');
+      for (const thisArg of [null, undefined, 1n, -0, NaN, true, false, '', [], {}, Symbol()]) {
+        // eslint-disable-next-line node-core/must-call-assert
+        assert.throws(() => get.call(thisArg), TypeError);
+      }
+    }})();`,
+  ]);
+
+  assert.deepStrictEqual(cp, {
+    code: 0,
+    signal: null,
+    stdout: '',
+    stderr: '',
+  });
+});
+
 test('sessionStorage is not persisted', async () => {
   let cp = await spawnPromisified(process.execPath, [
     '--experimental-webstorage', '-pe', 'sessionStorage.foo = "barbaz"',

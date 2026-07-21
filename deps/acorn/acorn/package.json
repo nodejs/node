@@ -16,14 +16,14 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "8.16.0",
+  "version": "8.17.0",
   "engines": {
     "node": ">=0.4.0"
   },
   "maintainers": [
     {
       "name": "Marijn Haverbeke",
-      "email": "marijnh@gmail.com",
+      "email": "marijn@haverbeke.berlin",
       "web": "https://marijnhaverbeke.nl"
     },
     {

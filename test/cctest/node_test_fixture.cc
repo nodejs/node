@@ -12,10 +12,8 @@ node::IsolateData* EnvironmentTestFixture::isolate_data_ = nullptr;
 
 void NodeTestEnvironment::SetUp() {
   NodeZeroIsolateTestFixture::tracing_agent =
-      std::make_unique<node::tracing::Agent>();
-  node::tracing::TraceEventHelper::SetAgent(
-      NodeZeroIsolateTestFixture::tracing_agent.get());
-  node::tracing::TracingController* tracing_controller =
+      node::tracing::Agent::CreateDefault();
+  v8::TracingController* tracing_controller =
       NodeZeroIsolateTestFixture::tracing_agent->GetTracingController();
   static constexpr int kV8ThreadPoolSize = 4;
   NodeZeroIsolateTestFixture::platform.reset(

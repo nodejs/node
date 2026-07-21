@@ -43,7 +43,7 @@
 #if OPENSSL_WITH_KEM
 #include "crypto/crypto_kem.h"
 #endif
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 #include "crypto/crypto_kmac.h"
 #endif
 #include "crypto/crypto_keygen.h"

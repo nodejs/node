@@ -2,6 +2,17 @@
 
 <!--introduced_in=v10.5.0-->
 
+<!-- YAML
+added: v10.5.0
+changes:
+  - version: v12.11.0
+    pr-url: https://github.com/nodejs/node/pull/29512
+    description: This API is no longer experimental.
+  - version: v11.7.0
+    pr-url: https://github.com/nodejs/node/pull/25361
+    description: This API is no longer behind the `--experimental-worker` CLI flag.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/worker_threads.js -->
@@ -14,8 +25,6 @@ import worker_threads from 'node:worker_threads';
 ```
 
 ```cjs
-'use strict';
-
 const worker_threads = require('node:worker_threads');
 ```
 
@@ -57,8 +66,6 @@ export default function parseJSAsync(script) {
 ```
 
 ```cjs
-'use strict';
-
 const {
   Worker,
   isMainThread,
@@ -141,8 +148,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const {
   Worker,
   isMainThread,
@@ -182,8 +187,6 @@ console.log(isInternalThread);  // true
 
 ```cjs
 // loader.js
-'use strict';
-
 const { isInternalThread } = require('node:worker_threads');
 console.log(isInternalThread);  // true
 ```
@@ -196,8 +199,6 @@ console.log(isInternalThread);  // false
 
 ```cjs
 // main.js
-'use strict';
-
 const { isInternalThread } = require('node:worker_threads');
 console.log(isInternalThread);  // false
 ```
@@ -225,8 +226,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const { Worker, isMainThread } = require('node:worker_threads');
 
 if (isMainThread) {
@@ -288,8 +287,6 @@ console.log(typedArray2);
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel, markAsUntransferable } = require('node:worker_threads');
 
 const pooledBuffer = new ArrayBuffer(8);
@@ -339,8 +336,6 @@ isMarkedAsUntransferable(pooledBuffer);  // Returns true.
 ```
 
 ```cjs
-'use strict';
-
 const { markAsUntransferable, isMarkedAsUntransferable } = require('node:worker_threads');
 
 const pooledBuffer = new ArrayBuffer(8);
@@ -384,8 +379,6 @@ try {
 ```
 
 ```cjs
-'use strict';
-
 const { markAsUncloneable } = require('node:worker_threads');
 
 const anyObject = { foo: 'bar' };
@@ -460,8 +453,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 if (isMainThread) {
@@ -553,9 +544,6 @@ channel.onmessage = channel.close;
 ```
 
 ```cjs
-'use strict';
-
-const process = require('node:process');
 const {
   postMessageToThread,
   threadId,
@@ -621,8 +609,6 @@ console.log(receiveMessageOnPort(port2));
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel, receiveMessageOnPort } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 port1.postMessage({ hello: 'world' });
@@ -678,8 +664,6 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```
 
 ```cjs
-'use strict';
-
 const { Worker, SHARE_ENV } = require('node:worker_threads');
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
   .once('exit', () => {
@@ -757,8 +741,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const { Worker, isMainThread, workerData } = require('node:worker_threads');
 
 if (isMainThread) {
@@ -826,8 +808,6 @@ import { locks } from 'node:worker_threads';
 ```
 
 ```cjs
-'use strict';
-
 const { locks } = require('node:worker_threads');
 ```
 
@@ -866,8 +846,6 @@ await locks.request('my_resource', async (lock) => {
 ```
 
 ```cjs
-'use strict';
-
 const { locks } = require('node:worker_threads');
 
 locks.request('my_resource', async (lock) => {
@@ -901,8 +879,6 @@ for (const pending of snapshot.pending) {
 ```
 
 ```cjs
-'use strict';
-
 const { locks } = require('node:worker_threads');
 
 locks.query().then((snapshot) => {
@@ -952,8 +928,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const {
   isMainThread,
   BroadcastChannel,
@@ -1062,8 +1036,6 @@ port2.postMessage({ foo: 'bar' });
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel } = require('node:worker_threads');
 
 const { port1, port2 } = new MessageChannel();
@@ -1117,8 +1089,6 @@ port1.close();
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
@@ -1252,8 +1222,6 @@ port2.postMessage(circularData);
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
@@ -1303,8 +1271,6 @@ port2.postMessage({ port: otherChannel.port1 }, [ otherChannel.port1 ]);
 ```
 
 ```cjs
-'use strict';
-
 const { MessageChannel } = require('node:worker_threads');
 const { port1, port2 } = new MessageChannel();
 
@@ -1560,8 +1526,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const assert = require('node:assert');
 const {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort,
@@ -1881,8 +1845,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const { Worker, isMainThread, parentPort } = require('node:worker_threads');
 
 if (isMainThread) {
@@ -2168,8 +2130,6 @@ if (isMainThread) {
 ```
 
 ```cjs
-'use strict';
-
 const {
   Worker,
   isMainThread,

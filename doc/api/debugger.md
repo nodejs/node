@@ -235,6 +235,21 @@ debug>
 <!-- YAML
 added:
   - v24.16.0
+changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63704
+    description: Add per-probe `--max-hit <n>` option to limit evaluated hits and finish
+        with a `completed` terminal event as soon as any probe reaches its limit.
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63437
+    description: Add `probe_failure` terminal `error` event for inspector-side mid-session
+        failures, and `error.details` for additional context on per-hit and terminal errors.
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63286
+    description: JSON report schema bumped to v2. Probe `target` is now
+        `{ suffix, line, column? }` instead of an array. Each "hit" event carries a
+        `location` field reporting the actual evaluation location.  When the probe does not
+        specify a column, it binds to the first executable column instead of defaulting to 1.
 -->
 
 > Stability: 1 - Experimental
@@ -253,18 +268,25 @@ printf-style debugging without having to modify the application code and
 clean up afterwards. It also supports structured JSON output for tool use.
 
 ```console
-$ node inspect --probe <file>:<line>[:<col>] --expr <expr>
-              [--probe <file>:<line>[:<col>] --expr <expr> ...]
+$ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>]
+              [--probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>] ...]
               [--json] [--preview] [--timeout=<ms>] [--port=<port>]
               [--] [<node-option> ...] <script> [<script-args> ...]
 ```
 
 * `--probe <file>:<line>[:<col>]`: Source location of the probe. When execution
   reaches the location, the provided expressions are evaluated and printed in
-  the output. Line and column numbers are 1-based. When omitted, column defaults to 1.
+  the output. `<file>` matches the URL suffix of the script to probe.
+  `<line>` and `<col>` numbers are 1-based. When `<col>` is omitted, the probe
+  binds to the first executable column on the line.
 * `--expr <expr>`: JavaScript expression to evaluate whenever execution reaches
   the location specified by the preceding `--probe`.
   Must immediately follow the `--probe` it belongs to.
+* `--max-hit <n>`: An optional per-probe limit on the number of times the probe
+  can be hit. When not specified, there's no hit limit. When any probe reaches
+  its hit limit, the probing process will detach and report the results. The process
+  being probed will continue to run. If any other probe is never reached by the time
+  the session ends, it will be reported as a missed probe.
 * `--timeout=<ms>`: A global wall-clock deadline for the entire probe session.
   The default is `30000`. This can be used to probe a long-running application
   that can be terminated externally.
@@ -279,6 +301,10 @@ Additional rules about the `--probe` and `--expr` arguments:
 
 * `--probe <file>:<line>[:<col>]` and `--expr <expr>` are strict pairs. Each
   `--probe` must be followed immediately by exactly one `--expr`.
+* `--max-hit <n>` is an optional per-probe option that applies to the most recent
+  `--probe`/`--expr` pair. It may not appear before the first `--probe` or
+  between a `--probe` and its matching `--expr`, and may be given at most once
+  per probe.
 * `--timeout`, `--json`, `--preview`, and `--port` are global probe options
   for the whole probe session. They may appear before or between probe pairs,
   but not between a `--probe` and its matching `--expr`.
@@ -313,12 +339,16 @@ Without `--json`, by default the output is printed in a human-readable text form
 
 ```console
 $ node inspect --probe cli.js:5 --expr 'rss' cli.js
-Hit 1 at cli.js:5
+Hit 1 at file:///path/to/cli.js:5:3
   rss = 54935552
-Hit 2 at cli.js:5
+Hit 2 at file:///path/to/cli.js:5:3
   rss = 55083008
 Completed
 ```
+
+The original `<file>:<line>[:<col>]` passed to `--probe` may be resolved to a different
+location to ensure it's pausable, or it can match multiple loaded scripts, so the actual
+evaluation location helps disambiguate the results.
 
 Primitive results are printed directly, while objects and arrays use Chrome
 DevTools Protocol preview data when available. Other non-primitive values
@@ -331,16 +361,25 @@ When `--json` is used, the output shape looks like this:
 
 ```console
 $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
-{"v":1,"probes":[{"expr":"rss","target":["cli.js",5]}],"results":[{"probe":0,"event":"hit","hit":1,"result":{"type":"number","value":55443456,"description":"55443456"}},{"probe":0,"event":"hit","hit":2,"result":{"type":"number","value":55574528,"description":"55574528"}},{"event":"completed"}]}
+{"v":2,"probes":[{"expr":"rss","target":{"suffix":"cli.js","line":5}}],"results":[{"probe":0,"event":"hit","hit":1,"location":{"url":"file:///path/to/cli.js","line":5,"column":3},"result":{"type":"number","value":55443456,"description":"55443456"}},{"probe":0,"event":"hit","hit":2,"location":{"url":"file:///path/to/cli.js","line":5,"column":3},"result":{"type":"number","value":55574528,"description":"55574528"}},{"event":"completed"}]}
 ```
 
 ```json
 {
-  "v": 1, // Probe JSON schema version.
+  "v": 2, // Probe JSON schema version.
   "probes": [
     {
       "expr": "rss", // The expression paired with --probe.
-      "target": ["cli.js", 5] // [file, line] or [file, line, col].
+      "target": {
+        // The user's probe specification. `suffix` is the raw <file> passed
+        // to --probe and is matched as a path-separator-anchored suffix
+        // against every loaded script's URL. `column` is present only if the
+        // user supplied `:col`. The actual evaluation location may differ
+        // from the target and will be reported in each hit's `location` field.
+        "suffix": "cli.js",
+        "line": 5
+      }
+      // `maxHit` is present only when the probe was given a --max-hit limit.
     }
   ],
   "results": [
@@ -348,17 +387,29 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
       "probe": 0, // Index into probes[].
       "event": "hit", // Hit events are recorded in observation order.
       "hit": 1, // 1-based hit count for this probe.
+      "location": {
+        // The actual location where the execution is paused to evaluate
+        // the expression of the probe. This may differ from the probe's
+        // target due to pausability adjustments or multiple matches.
+        "url": "file:///path/to/cli.js",
+        "line": 5,
+        "column": 3
+      },
       "result": {
         "type": "number",
         "value": 55443456,
         "description": "55443456"
       }
-      // If the expression throws, "error" is present instead of "result".
+      // If the probe expression throws, fails, or never completes, the entry
+      // carries an `error` field instead of `result` with the shape
+      // `{ message: string, details?: object }`. The `message` and `details`
+      // content is informational only and may change between releases.
     },
     {
       "probe": 0,
       "event": "hit",
       "hit": 2,
+      "location": { "url": "file:///path/to/cli.js", "line": 5, "column": 3 },
       "result": {
         "type": "number",
         "value": 55574528,
@@ -384,8 +435,19 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
       //      "error": {
       //       "code": "probe_target_exit",
       //       "exitCode": 1,
-      //       "stderr": "[Error: boom]",
+      //       "stderr": "Error: boom",
       //       "message": "Target exited with code 1 before probes: app.js:10"
+      //      }
+      //    }
+      // 5. {
+      //      "event": "error",
+      //      "pending": [1],
+      //      "error": {
+      //       "code": "probe_failure",
+      //       "probe": 0,
+      //       "stderr": "...",
+      //       "message": "Target process exited during probe evaluation before probes: app.js:12. If the failure repeats, review the probe expression.",
+      //       "details": { "lastCdpMethod": "Debugger.evaluateOnCallFrame" }
       //      }
       //    }
     }
@@ -393,15 +455,20 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
 }
 ```
 
-### Output and exit codes from the probed process
+### Output and exit codes
 
 Probe mode only prints the final probe report to stdout, and otherwise silences
 stdout/stderr from the child process. When the probing session ends,
-`node inspect` typically exits with code `0` and prints a final report to
-stdout. If the child process exits with a non-zero code before the
-probe session ends, the final report records a terminal `error` event along
-with the exit code and captured child stderr. The probing process itself
-still exits with code `0` in this case.
+the probing process typically exits with code `0` and prints a final report to
+stdout. If the child process exits with a non-zero code before the probe
+session ends, or the probe session cannot complete for another reason, the
+final report records a terminal `error` event.
+
+When `error.code` is `'probe_failure'` or `'probe_timeout'`, the probing process
+exits with a non-zero code, indicating recorded hits may be incomplete.
+In this case, `error.message` will contain recovery hints, and `error.probe`,
+when present, is an index into the report's `probes` array that identifies
+the possible culprit probe on a best-effort basis to help guide debugging.
 
 Invalid arguments and fatal launch or connect failures may cause the
 probing process to exit with a non-zero code and print an error message
@@ -427,9 +494,9 @@ $ node inspect --probe app.js:4 --expr 'x' --probe app.js:4 --expr 'y' -- app.js
 Prints
 
 ```text
-Hit 1 at app.js:4
+Hit 1 at file:///path/to/app.js:4:1
   x = {x: 42}
-Hit 1 at app.js:4
+Hit 1 at file:///path/to/app.js:4:1
   y = {y: 35}
 Completed
 ```
@@ -441,7 +508,7 @@ $ node inspect --probe app.js:4 --expr 'x' --probe app.js:4 --expr 'y' --json --
 Prints
 
 ```json
-{"v":1,"probes":[{"expr":"x","target":["app.js",4]},{"expr":"y","target":["app.js",4]}],"results":[{"probe":0,"event":"hit","hit":1,"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"x","type":"number","value":"42"}]}}},{"probe":1,"event":"hit","hit":1,"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"y","type":"number","value":"35"}]}}},{"event":"completed"}]}
+{"v":2,"probes":[{"expr":"x","target":{"suffix":"app.js","line":4}},{"expr":"y","target":{"suffix":"app.js","line":4}}],"results":[{"probe":0,"event":"hit","hit":1,"location":{"url":"file:///path/to/app.js","line":4,"column":1},"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"x","type":"number","value":"42"}]}}},{"probe":1,"event":"hit","hit":1,"location":{"url":"file:///path/to/app.js","line":4,"column":1},"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"y","type":"number","value":"35"}]}}},{"event":"completed"}]}
 ```
 
 ### Selecting the probe location
@@ -459,7 +526,7 @@ console.log(x);      // line 3
 
 ```console
 $ node inspect --probe app.js:1 --expr 'x' app.js
-Hit 1 at app.js:1
+Hit 1 at file:///path/to/app.js:1:1
   [error] x = ReferenceError: Cannot access 'x' from debugger
   ...
 Completed
@@ -469,13 +536,16 @@ Instead, probe at a location where the variable is already initialized:
 
 ```console
 $ node inspect --probe app.js:3 --expr 'x' app.js
-Hit 1 at app.js:3
+Hit 1 at file:///path/to/app.js:3:1
   x = 42
 Completed
 ```
 
-Probe paths are matched against loaded script URLs by basename, similar to how
-native debuggers typically match breakpoints. Given:
+The `<file>` argument is matched as a path suffix of every loaded
+script URL, anchored on a path separator. Passing only a basename
+matches every loaded script with that basename, similar to how native
+debuggers typically match breakpoints, while passing a partial path
+narrows the match. Given:
 
 ```text
 project/
@@ -484,7 +554,10 @@ project/
 ```
 
 `--probe utils.js:10` binds to _both_ files and produces one hit per match.
-To disambiguate, specify a fuller path that only matches the intended file:
+Each hit carries its own `location` field identifying where the expression
+was actually executed, so consumers can attribute the result to one of the
+two files accurately. To disambiguate at bind time, specify a fuller path
+that only matches the intended file:
 
 ```console
 $ node inspect --probe src/utils.js:10 --expr 'x' main.js   # matches only src/utils.js

@@ -90,11 +90,17 @@ using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 ```
 
 Examples of these being used are pervasive through the `src/crypto` code.
+
+`HMACCtxPointer` is a dedicated HMAC state wrapper rather than a plain
+`DeleteFnPtr` alias. On OpenSSL 3 and later it owns the provider-backed
+`EVP_MAC`/`EVP_MAC_CTX` state. On OpenSSL 1.1.1 and BoringSSL it owns the
+legacy `HMAC_CTX` state. HMAC call sites should use `HMACCtxPointer::New()`,
+`init()`, `update()`, and `digest()`/`digestInto()` so the backend selection
+stays contained in ncrypto.
 
 ### `ByteSource`
 

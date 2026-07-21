@@ -22,6 +22,10 @@
 #include <string>
 #include <vector>
 
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L && !defined(OPENSSL_NO_COMP_ALG)
+#define NODE_OPENSSL_HAS_CERT_COMP 1
+#endif
+
 namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the
@@ -38,6 +42,11 @@ constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;
 constexpr size_t kSizeOf_HMAC_CTX = 32;
 constexpr size_t kSizeOf_SSL_CTX = 240;
 constexpr size_t kSizeOf_X509 = 128;
+
+template <typename T>
+constexpr T NumBitsToBytes(T bits) {
+  return (bits / CHAR_BIT) + ((CHAR_BIT - 1 + (bits % CHAR_BIT)) / CHAR_BIT);
+}
 
 bool ProcessFipsOptions();
 
@@ -227,6 +236,8 @@ class ByteSource final {
       Environment* env, v8::Local<v8::Value> value);
 
  private:
+  friend void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
+
   const void* data_ = nullptr;
   void* allocated_data_ = nullptr;
   size_t size_ = 0;
@@ -234,6 +245,8 @@ class ByteSource final {
   ByteSource(const void* data, void* allocated_data, size_t size)
       : data_(data), allocated_data_(allocated_data), size_(size) {}
 };
+
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
 
 enum CryptoJobMode { kCryptoJobAsync, kCryptoJobSync, kCryptoJobWebCrypto };
 

@@ -478,6 +478,82 @@ Test name patterns do not change the set of files that the test runner executes.
 If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
 tests must satisfy **both** requirements in order to be executed.
 
+## Test tags
+
+<!-- YAML
+added: v24.19.0
+-->
+
+> Stability: 1.0 - Early development
+
+Tags annotate tests and suites with arbitrary string labels. The
+[`--experimental-test-tag-filter`][] CLI flag (or the `testTagFilters`
+option on [`run()`][]) selects tests whose tag set contains every
+provided filter value.
+
+Tags are an alternative to encoding metadata into test names. They are
+useful for cross-cutting axes such as subsystem, speed bucket, flakiness,
+or environment, where a name pattern would be brittle.
+
+### Authoring tagged tests
+
+Pass a `tags` array on any of `test()`, `it()`, `suite()`, or `describe()`.
+Tags inherit from a suite to its child tests by union—a test inside a
+suite tagged `['db']` that declares its own `tags: ['integration']`
+effectively has both tags.
+
+```mjs
+import { describe, it } from 'node:test';
+
+describe('database', { tags: ['db'] }, () => {
+  it('reads a row');                                            // tags: ['db']
+  it('writes a row', { tags: ['integration'] });                // tags: ['db', 'integration']
+  it('reconnects after disconnect', { tags: ['flaky'] });       // tags: ['db', 'flaky']
+});
+```
+
+```cjs
+const { describe, it } = require('node:test');
+
+describe('database', { tags: ['db'] }, () => {
+  it('reads a row');                                            // tags: ['db']
+  it('writes a row', { tags: ['integration'] });                // tags: ['db', 'integration']
+  it('reconnects after disconnect', { tags: ['flaky'] });       // tags: ['db', 'flaky']
+});
+```
+
+Tag values must be non-empty strings. Tags are matched case-insensitively;
+the canonical form is lowercase. Duplicates within a single `tags` array
+are collapsed on the lowercased form, preserving the first-seen
+declaration order.
+
+Hooks (`before`, `after`, `beforeEach`, `afterEach`) do not declare their
+own tags. They run as part of their owning suite, which carries the
+suite's tags.
+
+### Filtering by tag
+
+Each [`--experimental-test-tag-filter`][] value is a literal tag name. A
+test runs only when its tag set contains that name. The flag may be
+specified more than once; tests must match **every** filter to run. The
+same applies to the `testTagFilters` array on [`run()`][]. Filters are
+case-insensitive and AND'd with [`--test-name-pattern`][],
+[`--test-skip-pattern`][], and `.only` filtering.
+
+Untagged tests are excluded under any non-empty filter, since the filter
+requires the tag to be present.
+
+### Reading tags from inside a test
+
+The [`TestContext`][] object exposes the test's tags as a frozen array
+through [`context.tags`][], so tests can branch on their own metadata.
+
+### Errors
+
+A tag value that violates the validation rules above throws
+`ERR_INVALID_ARG_VALUE` at the registration site, before any test runs.
+A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`.
+
 ## Extraneous asynchronous activity
 
 Once a test function finishes executing, the results are reported as quickly
@@ -749,6 +825,8 @@ test runner functionality:
 
 * `--test` - Prevented to avoid recursive test execution
 * `--experimental-test-coverage` - Managed by the test runner
+* `--experimental-test-tag-filter` - Filter values are validated by the parent
+  process and re-emitted to child processes
 * `--watch` - Watch mode is handled at the parent level
 * `--experimental-default-config-file` - Config file loading is handled by the parent
 * `--test-reporter` - Reporting is managed by the parent process
@@ -850,7 +928,6 @@ test('spies on a function', () => {
 ```
 
 ```cjs
-'use strict';
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 
@@ -1168,7 +1245,7 @@ test('setTime does not execute timers', (context) => {
 const assert = require('node:assert');
 const { test } = require('node:test');
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -1180,7 +1257,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -1568,6 +1648,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63221
+    description: Added the `testTagFilters` option.
   - version: v24.14.0
     pr-url: https://github.com/nodejs/node/pull/61367
     description: Add the `env` option.
@@ -1654,6 +1737,10 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
+  * `testTagFilters` {string|string\[]} A tag name, or an array of tag names,
+    used to filter tests by their declared tags. Tests must contain every
+    listed tag to run. Equivalent to passing [`--experimental-test-tag-filter`][]
+    on the command line. See [Test tags][]. **Default:** `undefined`.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
@@ -1797,6 +1884,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63221
+    description: Added the `tags` option.
   - version:
     - v20.2.0
     - v18.17.0
@@ -1840,6 +1930,10 @@ changes:
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
+  * `tags` {string\[]} An array of string labels associated with the test.
+    Used together with [`--experimental-test-tag-filter`][] to filter which
+    tests run. Tags inherit from suites to nested tests by union. See
+    [Test tags][]. **Default:** `[]`.
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
@@ -2631,8 +2725,8 @@ test('mocks a builtin module in both module systems', async (t) => {
   // cursorTo() is an export of the original 'node:readline' module.
   assert.strictEqual(esmImpl.cursorTo, undefined);
   assert.strictEqual(cjsImpl.cursorTo, undefined);
-  assert.strictEqual(esmImpl.fn(), 42);
-  assert.strictEqual(cjsImpl.fn(), 42);
+  assert.strictEqual(esmImpl.foo(), 42);
+  assert.strictEqual(cjsImpl.foo(), 42);
 
   mock.restore();
 
@@ -2642,8 +2736,8 @@ test('mocks a builtin module in both module systems', async (t) => {
 
   assert.strictEqual(typeof esmImpl.cursorTo, 'function');
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
-  assert.strictEqual(esmImpl.fn, undefined);
-  assert.strictEqual(cjsImpl.fn, undefined);
+  assert.strictEqual(esmImpl.foo, undefined);
+  assert.strictEqual(cjsImpl.foo, undefined);
 });
 ```
 
@@ -3336,6 +3430,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63435
+    description: Added `parentId` to test events that carry a `testId`.
   - version:
     - v20.0.0
     - v19.9.0
@@ -3423,6 +3520,12 @@ Emitted when code coverage is enabled and all tests have completed.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3446,6 +3549,12 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3487,6 +3596,12 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3513,6 +3628,12 @@ Emitted when a test is enqueued for execution.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3570,6 +3691,12 @@ since the parent runner only knows about file-level tests. When using
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3609,6 +3736,12 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
+  * `tags` {string\[]} The flattened lowercased tags declared on the test
+    and its ancestor suites, in declaration order. Empty for untagged tests.
+    See [Test tags][].
   * `testId` {number} A numeric identifier for this test instance, unique
     within the test file's process. Consistent across all events for the same
     test instance, enabling reliable correlation in custom reporters.
@@ -3672,6 +3805,44 @@ Emitted when no more tests are queued for execution in watch mode.
 ### Event: `'test:watch:restarted'`
 
 Emitted when one or more tests are restarted due to a file change in watch mode.
+
+## `getTestContext()`
+
+<!-- YAML
+added: v24.19.0
+-->
+
+* Returns: {TestContext|SuiteContext|undefined}
+
+Returns the [`TestContext`][] or [`SuiteContext`][] object associated with the
+currently executing test or suite, or `undefined` if called outside of a test or
+suite. This function can be used to access context information from within the
+test or suite function or any async operations within them.
+
+```mjs
+import { getTestContext } from 'node:test';
+
+test('example test', async () => {
+  const ctx = getTestContext();
+  console.log(`Running test: ${ctx.name}`);
+});
+
+describe('example suite', () => {
+  const ctx = getTestContext();
+  console.log(`Running suite: ${ctx.name}`);
+});
+```
+
+When called from a test, returns a [`TestContext`][].
+When called from a suite, returns a [`SuiteContext`][].
+
+If called from outside a test or suite (e.g., at the top level of a module or in
+a setTimeout callback after execution has completed), this function returns
+`undefined`.
+
+When called from within a hook (before, beforeEach, after, afterEach), this
+function returns the context of the test or suite that the hook is associated
+with.
 
 ## Test instrumentation and OpenTelemetry
 
@@ -4074,6 +4245,20 @@ The attempt number of the test. This value is zero-based, so the first attempt i
 the second attempt is `1`, and so on. This property is useful in conjunction with the
 `--test-rerun-failures` option to determine which attempt the test is currently running.
 
+### `context.tags`
+
+<!-- YAML
+added: v24.19.0
+-->
+
+> Stability: 1.0 - Early development
+
+* Type: {string\[]}
+
+A frozen array of the test's flattened lowercased tags, in declaration
+order, including any tags inherited from ancestor suites. Empty when the
+test has no tags. See [Test tags][].
+
 ### `context.workerId`
 
 <!-- YAML
@@ -4289,6 +4474,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
+  - version: v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63221
+    description: Added the `tags` option.
   - version:
     - v18.8.0
     - v16.18.0
@@ -4319,6 +4507,10 @@ changes:
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
+  * `tags` {string\[]} An array of string labels associated with the subtest.
+    Used together with [`--experimental-test-tag-filter`][] to filter which
+    tests run. Tags inherit from the parent test or suite by union. See
+    [Test tags][]. **Default:** `[]`.
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
@@ -4467,8 +4659,10 @@ test.describe('my suite', (suite) => {
 ```
 
 [TAP]: https://testanything.org/
+[Test tags]: #test-tags
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
+[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filtertag
 [`--import`]: cli.md#--importmodule
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
@@ -4494,6 +4688,7 @@ test.describe('my suite', (suite) => {
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.skip`]: #contextskipmessage
+[`context.tags`]: #contexttags
 [`context.todo`]: #contexttodomessage
 [`describe()`]: #describename-options-fn
 [`diagnostics_channel`]: diagnostics_channel.md
@@ -4503,7 +4698,7 @@ test.describe('my suite', (suite) => {
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
-[configuration files]: cli.md#--experimental-config-fileconfig
+[configuration files]: cli.md#--experimental-config-filepath---experimental-config-file
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [module customization hooks]: module.md#customization-hooks

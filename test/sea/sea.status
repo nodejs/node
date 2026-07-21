@@ -20,6 +20,11 @@ test-build-sea*: SKIP
 test-single-executable-application*: SKIP
 test-build-sea*: SKIP
 
+[$system==linux && $arch==arm && $mode==debug]
+# https://github.com/nodejs/node/issues/63749
+test-single-executable-application*: PASS, FLAKY
+test-build-sea*: PASS, FLAKY
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/49630
 test-single-executable-application-snapshot: PASS, FLAKY

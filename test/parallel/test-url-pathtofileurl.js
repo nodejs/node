@@ -22,11 +22,63 @@ const url = require('url');
 }
 
 {
-  assert.throws(() => {
-    url.pathToFileURL('\\\\exa mple\\share\\file.txt', { windows: true });
-  }, {
-    code: 'ERR_INVALID_URL',
-  });
+  const forbiddenHostnameChars = [
+    '\\\\exa mple\\share\\file.txt',
+    '\\\\host name\\share\\file.txt',   // space
+    '\\\\host@name\\share\\file.txt',   // at sign
+    '\\\\host:name\\share\\file.txt',   // colon
+    '\\\\host[name\\share\\file.txt',   // left bracket
+    '\\\\host]name\\share\\file.txt',   // right bracket
+  ];
+  for (const path of forbiddenHostnameChars) {
+    assert.throws(() => {
+      url.pathToFileURL(path, { windows: true });
+    }, {
+      code: 'ERR_INVALID_URL',
+    }, `pathToFileURL('${path}') should throw ERR_INVALID_URL`);
+  }
+}
+
+{
+  const hostnameStateTerminatorTestCases = [
+    {
+      path: '\\\\host#name\\share\\file.txt',
+      expected: 'file://host/share/file.txt',
+    },
+    {
+      path: '\\\\host?name\\share\\file.txt',
+      expected: 'file://host/share/file.txt',
+    },
+    {
+      path: '\\\\host/name\\share\\file.txt',
+      expected: 'file://host/share/file.txt',
+    },
+  ];
+  for (const { path, expected } of hostnameStateTerminatorTestCases) {
+    const actual = url.pathToFileURL(path, { windows: true }).href;
+    assert.strictEqual(actual, expected);
+  }
+}
+
+{
+  const ignoredHostnameCodePointTestCases = [
+    {
+      path: '\\\\host\nname\\share\\file.txt',
+      expected: 'file://hostname/share/file.txt',
+    },
+    {
+      path: '\\\\host\rname\\share\\file.txt',
+      expected: 'file://hostname/share/file.txt',
+    },
+    {
+      path: '\\\\host\tname\\share\\file.txt',
+      expected: 'file://hostname/share/file.txt',
+    },
+  ];
+  for (const { path, expected } of ignoredHostnameCodePointTestCases) {
+    const actual = url.pathToFileURL(path, { windows: true }).href;
+    assert.strictEqual(actual, expected);
+  }
 }
 
 {

@@ -124,23 +124,32 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
-### Experimental features behind compile-time flags
+### Experimental features behind compile-time flags and V8 flags
 
 Node.js includes certain experimental features that are only available when
 Node.js is compiled with specific flags. These features are intended for
 development, debugging, or testing purposes and are not enabled in official
 releases.
 
+Node.js may also expose V8 features that are controlled by V8 command-line flags
+(e.g., `--js-staging`, `--max_old_space_size`). These flags
+enable or modify V8-level JavaScript engine behavior that is not part of the
+ECMAScript specification that Node.js implements and is not part of the
+Node.js documented API surface.
+
 * Security vulnerabilities that only affect features behind compile-time flags
-  will **not** be accepted as valid security issues.
+  or V8 flags will **not** be accepted as valid security issues.
 * Any issues with these features will be treated as normal bugs.
-* No CVEs will be issued for issues that only affect compile-time flag features.
-* Bug bounty rewards are not available for compile-time flag feature issues.
+* No CVEs will be issued for issues that only affect compile-time flag or V8 flag features.
+* Bug bounty rewards are not available for compile-time flag or V8 flag feature issues.
 
 This policy recognizes that experimental features behind compile-time flags
 are not ready for public consumption and may have incomplete implementations,
 missing security hardening, or other limitations that make them unsuitable
-for production use.
+for production use. Similarly, V8 flags expose internal V8 engine options that
+are not part of the Node.js documented API surface, are not enabled by
+default in production builds, and may have incomplete implementations or
+missing security hardening.
 
 ### What constitutes a vulnerability
 
@@ -276,6 +285,22 @@ the community they pose.
 
 ### Examples of non-vulnerabilities
 
+#### Defense-in-depth issues
+
+* Bugs whose fixes would only improve resilience after another security
+  boundary has already failed, or reduce the impact of an issue outside the
+  Node.js threat model, are considered defense-in-depth issues.
+* Defense-in-depth issues are never treated as Node.js security vulnerabilities,
+  do not receive CVEs, and are handled as regular bugs or hardening improvements.
+
+#### Malicious protocol peers
+
+* Node.js treats data from remote network peers as untrusted, and bugs in
+  parsers or protocol implementations may be security vulnerabilities.
+* Node.js treats data from HTTP/1.1 keep-alive connections as trusted, meaning that a Node.js
+  client consuming unsolicited or misordered responses within the same HTTP/1.1 connection
+  reuse lifecycle are generally not considered Node.js vulnerabilities.
+
 #### Malicious Third-Party Modules (CWE-1357)
 
 * Code is trusted by Node.js. Therefore any scenario that requires a malicious
@@ -373,6 +398,21 @@ the community they pose.
   denial-of-service vulnerabilities in Node.js. It is the application's
   responsibility to properly handle errors by attaching appropriate
   `'error'` event listeners to EventEmitters that may emit errors.
+
+#### Exceptions Thrown by Application Callbacks (CWE-248)
+
+* Node.js trusts the application code it is asked to run, including callbacks
+  that are invoked by Node.js APIs. If an application callback throws an
+  uncaught exception, any resulting crash is not considered a vulnerability in
+  Node.js.
+* For example, [CVE-2026-21637](https://www.cve.org/CVERecord?id=CVE-2026-21637)
+  was triaged as a Node.js vulnerability, but scenarios that require TLS
+  callbacks such as `ALPNCallback`, `SNICallback`, or `pskCallback` to throw
+  are outside the Node.js threat model. Future reports of similar issues,
+  where the crash depends on application callbacks throwing uncaught
+  exceptions, will not be treated as Node.js vulnerabilities. It is the
+  application's responsibility to handle unexpected callback input and report
+  errors without throwing uncaught exceptions.
 
 #### Permission Model Boundaries (`--permission`)
 
@@ -517,6 +557,7 @@ In addition, these individuals have access:
 * [cjihrig](https://github.com/cjihrig) **Colin Ihrig**
 * [joesepi](https://github.com/joesepi) - **Joe Sepi**
 * [juanarbol](https://github.com/juanarbol) **Juan Jose Arboleda**
+* [sxa](https://github.com/sxa) - **Stewart X Addison**
 * [ulisesgascon](https://github.com/ulisesgascon) **Ulises Gascón**
 * [vdeturckheim](https://github.com/vdeturckheim) - **Vladimir de Turckheim**
 
@@ -531,6 +572,7 @@ the Node.js program on HackerOne.
 * [@anonrig](https://github.com/anonrig) - Yagiz Nizipli
 * [@bengl](https://github.com/bengl) - Bryan English
 * [@benjamingr](https://github.com/benjamingr) - Benjamin Gruenbaum
+* [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
 * [@bmeck](https://github.com/bmeck) - Bradley Farias
 * [@bnoordhuis](https://github.com/bnoordhuis) - Ben Noordhuis
 * [@BridgeAR](https://github.com/BridgeAR) - Ruben Bridgewater
@@ -553,6 +595,7 @@ the Node.js program on HackerOne.
 * [@ruyadorno](https://github.com/ruyadorno) - Ruy Adorno
 * [@santigimeno](https://github.com/santigimeno) - Santiago Gimeno
 * [@ShogunPanda](https://github.com/ShogunPanda) - Paolo Insogna
+* [@sxa](https://github.com/sxa) - Stewart X Addison
 * [@targos](https://github.com/targos) - Michaël Zasso
 * [@tniessen](https://github.com/tniessen) - Tobias Nießen
 * [@UlisesGascon](https://github.com/UlisesGascon) - Ulises Gascón

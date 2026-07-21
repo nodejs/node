@@ -9,6 +9,7 @@ const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const semver = require('semver')
 const npmFetch = require('npm-registry-fetch')
+const { isReleaseAgeExcluded } = require('./release-age-exclude.js')
 
 // handle results for parsed query asts, results are stored in a map that has a
 // key that points to each ast selector node and stores the resulting array of
@@ -889,8 +890,9 @@ const getPackageVersions = async (name, opts) => {
   let candidates = Object.keys(packument.versions).sort(semver.compare)
 
   // if the packument has a time property, and the user passed a before flag, then
-  // we filter this list down to only those versions that existed before the specified date
-  if (packument.time && opts.before) {
+  // we filter this list down to only those versions that existed before the specified date.
+  // packages matching `min-release-age-exclude` are exempt from this filter.
+  if (packument.time && opts.before && !isReleaseAgeExcluded(name, opts.minReleaseAgeExclude)) {
     candidates = candidates.filter((version) => {
       // this version isn't found in the times at all, drop it
       if (!packument.time[version]) {

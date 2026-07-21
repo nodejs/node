@@ -35,6 +35,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   inflate(&stream, Z_NO_FLUSH);
+
+  z_stream copy;
+  inflateCopy(&copy, &stream);
+  inflateEnd(&copy);
+
   inflateEnd(&stream);
 
   return 0;

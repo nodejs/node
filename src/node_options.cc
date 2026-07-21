@@ -614,6 +614,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-import-text",
+            "experimental support for importing source as text with import "
+            "attributes",
+            &EnvironmentOptions::experimental_import_text,
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
             &EnvironmentOptions::experimental_import_meta_resolve,
@@ -851,11 +856,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
   AddOption("--experimental-config-file",
-            "set config file from supplied file",
-            &EnvironmentOptions::experimental_config_file_path);
-  AddOption("--experimental-default-config-file",
-            "set config file from default config file",
-            &EnvironmentOptions::experimental_default_config_file);
+            "set config file path",
+            &EnvironmentOptions::experimental_config_file_path,
+            kDisallowedInEnvvar);
+  AddAlias("--experimental-default-config-file", "--experimental-config-file");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
@@ -953,6 +957,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
             kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-tag-filter",
+            "run tests matching the given tag filter expression",
+            &EnvironmentOptions::experimental_test_tag_filter,
+            kDisallowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",

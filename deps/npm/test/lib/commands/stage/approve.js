@@ -27,6 +27,7 @@ t.test('throws usageError without stage-id', async t => {
   })
   await t.rejects(npm.exec('stage', ['approve']), {
     code: 'EUSAGE',
+    message: /npm stage approve <stage-id>/,
   })
 })
 
