@@ -249,7 +249,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   // Try the generated Fast API path first. If metadata creation rejects the
   // signature, fall back to SharedBuffer for supported scalar shapes, then to
   // the generic libffi invoker.
-  info->fast_metadata = CreateFastFFIMetadata(*fn);
+  std::shared_ptr<FFIFunction> fast_fn = CloneWithRawPointerArgNames(fn);
+  info->fast_metadata = CreateFastFFIMetadata(*fast_fn);
   bool use_fast_api = info->fast_metadata != nullptr;
   bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
