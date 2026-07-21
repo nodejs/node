@@ -414,6 +414,10 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
 void Blob::Reader::SetWakeup(const FunctionCallbackInfo<Value>& args) {
   Blob::Reader* reader;
   ASSIGN_OR_RETURN_UNWRAP(&reader, args.This());
+  if (args[0]->IsUndefined()) {
+    reader->wakeup_.Reset();
+    return;
+  }
   CHECK(args[0]->IsFunction());
   reader->wakeup_.Reset(args.GetIsolate(), args[0].As<Function>());
 }
