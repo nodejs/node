@@ -444,7 +444,9 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
 
   std::string_view new_value_view = new_value.ToStringView();
   auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
-  CHECK(out);
+  if (!out) {
+    return args.GetReturnValue().Set(false);
+  }
 
   bool result{true};
 
