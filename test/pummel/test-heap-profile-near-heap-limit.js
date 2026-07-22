@@ -25,6 +25,7 @@ const child = spawnSync(process.execPath, [
   cwd: tmpdir.path,
   env,
 });
+// Surface the V8 abort trace when the assertions below fail.
 console.log(child.stdout.toString());
 console.log(child.stderr.toString());
 assert.strictEqual(child.status, 0);

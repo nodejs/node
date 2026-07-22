@@ -1064,9 +1064,10 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
-  inline void AddHeapProfileNearHeapLimitCallback(uint32_t max_extensions,
-                                              size_t extension_size,
-                                              v8::Local<v8::Function> callback);
+  inline void AddHeapProfileNearHeapLimitCallback(
+      uint32_t max_extensions,
+      size_t extension_size,
+      v8::Local<v8::Function> callback);
   inline void RemoveHeapProfileNearHeapLimitCallback();
 
   v8::CpuProfilingResult StartCpuProfile(const CpuProfileOptions& options);

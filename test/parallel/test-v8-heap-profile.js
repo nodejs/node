@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const v8 = require('v8');
 
 assert.throws(() => v8.startHeapProfile('bad'), {

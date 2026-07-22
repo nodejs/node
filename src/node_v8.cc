@@ -217,8 +217,8 @@ void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(extension_size, 0);
 
   env->AddHeapProfileNearHeapLimitCallback(max_extensions,
-                                       static_cast<size_t>(extension_size),
-                                       args[2].As<v8::Function>());
+                                           static_cast<size_t>(extension_size),
+                                           args[2].As<v8::Function>());
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {

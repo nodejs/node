@@ -11,8 +11,8 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
-#include "node_profiling.h"
 #include "node_process-inl.h"
+#include "node_profiling.h"
 #include "node_shadow_realm.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
@@ -2113,24 +2113,20 @@ size_t Environment::NearHeapLimitCallback(void* data,
   auto* env = static_cast<Environment*>(data);
   size_t new_limit = current_heap_limit;
   if (env->heapsnapshot_near_heap_limit_callback_added_) {
-    new_limit = std::max(
-        new_limit,
-        HeapSnapshotNearHeapLimitCallback(
-            data, current_heap_limit, initial_heap_limit));
+    new_limit = std::max(new_limit,
+                         HeapSnapshotNearHeapLimitCallback(
+                             data, current_heap_limit, initial_heap_limit));
   }
   if (env->heap_profile_near_heap_limit_callback_added_) {
-    new_limit = std::max(
-        new_limit,
-        HeapProfileNearHeapLimitCallback(
-            data, current_heap_limit, initial_heap_limit));
+    new_limit = std::max(new_limit,
+                         HeapProfileNearHeapLimitCallback(
+                             data, current_heap_limit, initial_heap_limit));
   }
   return new_limit;
 }
 
 size_t Environment::HeapSnapshotNearHeapLimitCallback(
-    void* data,
-    size_t current_heap_limit,
-    size_t initial_heap_limit) {
+    void* data, size_t current_heap_limit, size_t initial_heap_limit) {
   auto* env = static_cast<Environment*>(data);
 
   Debug(env,
@@ -2257,9 +2253,8 @@ size_t Environment::HeapSnapshotNearHeapLimitCallback(
   return new_limit;
 }
 
-size_t Environment::HeapProfileNearHeapLimitCallback(void* data,
-                                                     size_t current_heap_limit,
-                                                     size_t initial_heap_limit) {
+size_t Environment::HeapProfileNearHeapLimitCallback(
+    void* data, size_t current_heap_limit, size_t initial_heap_limit) {
   auto* env = static_cast<Environment*>(data);
   const size_t extension = env->heap_profile_near_heap_limit_extension_size_;
   const uint32_t max = env->heap_profile_near_heap_limit_max_extensions_;
@@ -2276,9 +2271,8 @@ size_t Environment::HeapProfileNearHeapLimitCallback(void* data,
   }
 
   env->is_in_heap_profile_near_heap_limit_callback_ = true;
-  auto reset_in_callback = OnScopeLeave([env]() {
-    env->is_in_heap_profile_near_heap_limit_callback_ = false;
-  });
+  auto reset_in_callback = OnScopeLeave(
+      [env]() { env->is_in_heap_profile_near_heap_limit_callback_ = false; });
 
   // If the sampler is not running there is nothing to deliver; let V8 abort.
   std::ostringstream out_stream;
@@ -2330,20 +2324,10 @@ void Environment::DeliverHeapProfileNearHeapLimit(Environment* env) {
   v8::Local<v8::Function> callback =
       env->heap_profile_near_heap_limit_callback_.Get(isolate);
   v8::Local<v8::Value> arg;
-  if (!v8::String::NewFromUtf8(isolate,
-                               payload.data(),
-                               v8::NewStringType::kNormal,
-                               static_cast<int>(payload.size()))
-           .ToLocal(&arg)) {
-    return;
-  }
+  if (!ToV8Value(context, payload, isolate).ToLocal(&arg)) return;
   v8::Local<v8::Value> argv[] = {arg};
-  USE(node::MakeCallback(isolate,
-                         context->Global(),
-                         callback,
-                         arraysize(argv),
-                         argv,
-                         {0, 0}));
+  USE(node::MakeCallback(
+      isolate, context->Global(), callback, arraysize(argv), argv, {0, 0}));
 }
 
 inline size_t Environment::SelfSize() const {
