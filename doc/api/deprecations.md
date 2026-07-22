@@ -4231,6 +4231,9 @@ npx codemod@latest @nodejs/repl-builtin-modules
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60658
+    description: End-of-Life.
   - version:
       - v24.2.0
       - v22.17.0
@@ -4239,7 +4242,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
@@ -4564,7 +4567,7 @@ The `module.register()` API provides off-thread async hooks for customizing ES m
 the `module.registerHooks()` API provides similar hooks that are synchronous, in-thread, and
 work for all types of modules.
 Supporting async hooks has proven to be complex, involving worker threads orchestration, and there are issues
-that have proven unresolveable. See [caveats of asynchronous customization hooks][]. Please migrate to
+that have proven unresolvable. See [caveats of asynchronous customization hooks][]. Please migrate to
 `module.registerHooks()` as soon as possible as `module.register()` will be
 removed in a future version of Node.js.
 

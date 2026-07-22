@@ -36,16 +36,18 @@ const server = http.Server(common.mustCall((req, res) => {
   }));
 }, 2));
 
+let port;
 server.listen(0, common.mustCall(async () => {
+  port = server.address().port;
   await Promise.all([
     makeRequest({
-      port: server.address().port,
+      port,
       path: '/',
       method: 'POST',
       data: expected
     }),
     makeRequest({
-      port: server.address().port,
+      port,
       path: '/',
       method: 'POST',
       data: expected
@@ -63,14 +65,17 @@ process.on('exit', () => {
     assert.strictEqual(typeof entry.duration, 'number');
     if (entry.name === 'HttpClient') {
       numberOfHttpClients++;
+      // The reported URL must include the port when it is non-default.
+      // Refs: https://github.com/nodejs/node/issues/59625
+      assert.strictEqual(entry.detail.req.url, `http://localhost:${port}/`);
     } else if (entry.name === 'HttpRequest') {
       numberOfHttpRequests++;
+      assert.strictEqual(entry.detail.req.url, '/');
     }
-    assert.strictEqual(typeof entry.detail.req.method, 'string');
-    assert.strictEqual(typeof entry.detail.req.url, 'string');
+    assert.strictEqual(entry.detail.req.method, 'POST');
     assert.strictEqual(typeof entry.detail.req.headers, 'object');
-    assert.strictEqual(typeof entry.detail.res.statusCode, 'number');
-    assert.strictEqual(typeof entry.detail.res.statusMessage, 'string');
+    assert.strictEqual(entry.detail.res.statusCode, 200);
+    assert.strictEqual(entry.detail.res.statusMessage, 'OK');
     assert.strictEqual(typeof entry.detail.res.headers, 'object');
   }
   assert.strictEqual(numberOfHttpClients, 2);

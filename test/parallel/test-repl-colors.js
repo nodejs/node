@@ -1,9 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const { Duplex } = require('stream');
 const { inspect } = require('util');
 const assert = require('assert');
 const { REPLServer } = require('repl');
+
+common.skipIfInspectorDisabled();
 
 let output = '';
 

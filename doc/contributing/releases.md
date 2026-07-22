@@ -40,7 +40,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 ## Who can make a release?
 
 There is a distinction between individuals who can "prepare" a release by
-adding the commits to the branches in GitHub and those who can "publish" the
+adding the commits to the branches in GitHub and those who can "promote" the
 releases to nodejs.org.
 
 Individuals who are Members of the
@@ -49,12 +49,12 @@ Individuals who are Members of the
 releases including creating the proposal branches which will be discussed
 later in this document.
 
-Authorization to publish releases is given by the Node.js TSC. This is
-required to publish a release after it has been prepared. If you are working
+Authorization to promote releases is given by the Node.js TSC. This is
+required to promote a release after it has been prepared. If you are working
 on preparing a release for the first time you will be able to do most of the
 steps as a member of the backporters team and have someone else who is
 already onboarded promote the release on your behalf. Once authorized by the
-TSC as a releaser, an individual will require the following to publish
+TSC as a releaser, an individual will require the following to promote
 releases themselves:
 
 ### 1. Jenkins release access
@@ -156,7 +156,7 @@ should be listed in the Node.js GitHub README.md file.
 > enforced by the Node.js project.
 > Run: `git config commit.gpgsign true` inside the `node` folder or use the
 > `-S` flag on your git operations (The examples in this document will
-> include `-S` expliticlty)
+> include `-S` explicitly)
 
 While GitHub allows signing individual commits using an ssh key,
 that is not covered here as this will not allow you to sign releases, so you

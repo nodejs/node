@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (C) 2012, 2013, 2018, 2021, 2022  Anthony Green
+   ffi.c - Copyright (C) 2012, 2013, 2018, 2021, 2022, 2026  Anthony Green
 
    Moxie Foreign Function Interface
 
@@ -129,10 +129,10 @@ void ffi_call(ffi_cif *cif,
 {
   extended_cif ecif;
   ffi_type **arg_types = cif->arg_types;
+  void **avalue_copy = NULL;
   int i, nargs = cif->nargs;
 
   ecif.cif = cif;
-  ecif.avalue = avalue;
 
   /* If the return value is a struct and we don't have a return	*/
   /* value address then we need to make one		        */
@@ -146,7 +146,8 @@ void ffi_call(ffi_cif *cif,
     ecif.rvalue = rvalue;
 
   /* If we have any large structure arguments, make a copy so we are passing
-     by value.  */
+     by value.  The pointer array is cloned first: the caller owns avalue[]
+     and may reuse it for another call, so it must not be modified.  */
   for (i = 0; i < nargs; i++)
     {
       ffi_type *at = arg_types[i];
@@ -154,10 +155,17 @@ void ffi_call(ffi_cif *cif,
       if (at->type == FFI_TYPE_STRUCT) /*  && size > 4) All struct args?? */
         {
           char *argcopy = alloca (size);
+          if (avalue_copy == NULL)
+            {
+              avalue_copy = alloca (nargs * sizeof (void *));
+              memcpy (avalue_copy, avalue, nargs * sizeof (void *));
+              avalue = avalue_copy;
+            }
           memcpy (argcopy, avalue[i], size);
           avalue[i] = argcopy;
         }
     }
+  ecif.avalue = avalue;
 
   switch (cif->abi)
     {

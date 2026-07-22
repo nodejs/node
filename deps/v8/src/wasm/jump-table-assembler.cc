@@ -114,6 +114,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
+  intptr_t displacement = target - (pc_ + kJumpTableSlotEntryMarkerSize +
+                                    MacroAssembler::kIntraSegmentJmpInstrSize);
+  if (!is_int32(displacement)) return false;
+
 #ifdef V8_ENABLE_CET_IBT
   uint32_t endbr_insn = 0xfa1e0ff3;
   uint32_t nop = 0x00401f0f;
@@ -122,11 +126,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   emit<uint32_t>(nop, kRelaxedStore);
 #endif
 
-  intptr_t displacement =
-      target - (pc_ + MacroAssembler::kIntraSegmentJmpInstrSize);
-  if (!is_int32(displacement)) return false;
-
-  uint8_t inst[kJumpTableSlotSize] = {
+  uint8_t inst[8] = {
       0xe9, 0,    0,    0, 0,  // near_jmp displacement
       0xcc, 0xcc, 0xcc,        // int3 * 3
   };

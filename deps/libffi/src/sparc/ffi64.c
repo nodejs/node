@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (c) 2011, 2013 Anthony Green
+   ffi.c - Copyright (c) 2011, 2013, 2026 Anthony Green
            Copyright (c) 1996, 2003-2004, 2007-2008 Red Hat, Inc.
 
    SPARC Foreign Function Interface
@@ -429,6 +429,7 @@ ffi_call_int(ffi_cif *cif, void (*fn)(void), void *rvalue,
   size_t bytes = cif->bytes;
   size_t i, nargs = cif->nargs;
   ffi_type **arg_types = cif->arg_types;
+  void **avalue_copy = NULL;
 
   FFI_ASSERT (cif->abi == FFI_V9);
 
@@ -436,7 +437,8 @@ ffi_call_int(ffi_cif *cif, void (*fn)(void), void *rvalue,
     bytes += FFI_ALIGN (cif->rtype->size, 16);
 
   /* If we have any large structure arguments, make a copy so we are passing
-     by value.  */
+     by value.  The pointer array is cloned first: the caller owns avalue[]
+     and may reuse it for another call, so it must not be modified.  */
   for (i = 0; i < nargs; i++)
     {
       ffi_type *at = arg_types[i];
@@ -444,10 +446,16 @@ ffi_call_int(ffi_cif *cif, void (*fn)(void), void *rvalue,
       if (at->type == FFI_TYPE_STRUCT && size > 4)
         {
           char *argcopy = alloca (size);
+          if (avalue_copy == NULL)
+            {
+              avalue_copy = alloca (nargs * sizeof (void *));
+              memcpy (avalue_copy, avalue, nargs * sizeof (void *));
+              avalue = avalue_copy;
+            }
           memcpy (argcopy, avalue[i], size);
           avalue[i] = argcopy;
         }
-    }  
+    }
   
   ffi_call_v9(cif, fn, rvalue, avalue, -bytes, closure);
 }

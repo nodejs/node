@@ -137,8 +137,12 @@ To avoid this, servers should use compact certificate chains:
   large RSA intermediates. The choice of CA directly affects handshake latency.
 
 Certificate compression ([RFC 8879][]) can also address this issue by
-compressing the certificate chain during the handshake. However, Node.js does
-not currently support TLS certificate compression.
+compressing the certificate chain during the handshake, often keeping the
+server's Certificate message within the amplification limit and avoiding the
+extra round trip. Certificate compression is opt-in via the
+[`certificateCompression`][] TLS option and is disabled by default. When
+enabled, it applies to both the server's certificate and, for mutual TLS,
+the client's certificate.
 
 ### Rate limiting
 
@@ -2918,6 +2922,34 @@ added: v23.8.0
 The TLS certificates to use for client sessions. For server sessions,
 certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 
+#### `sessionOptions.certificateCompression`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in
+  preference order.
+
+Enables TLS certificate compression ([RFC 8879][]) for this session. When
+omitted, certificate compression is disabled.
+
+On the server side, the certificate chain is compressed using the first
+listed algorithm that the client advertises support for. On the client side,
+the listed algorithms are advertised to the server so that the server may
+compress its certificate. When client authentication is in use, the option
+also controls compression of the client's certificate.
+
+Compressing the certificate chain is especially useful for QUIC because it
+reduces the size of the server's first flight, which is bounded by the
+anti-amplification limit (see [Certificate size and handshake
+performance][]). Certificate compression requires TLS 1.3, which QUIC always
+uses.
+
+At most three algorithms may be specified. The option is silently ignored if
+Node.js was built against a shared OpenSSL that lacks certificate compression
+support.
+
 #### `sessionOptions.ciphers`
 
 <!-- YAML
@@ -4427,6 +4459,7 @@ throughput issues caused by flow control.
 
 [Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
+[Certificate size and handshake performance]: #certificate-size-and-handshake-performance
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
@@ -4456,6 +4489,7 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`certificateCompression`]: #sessionoptionscertificatecompression
 [`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost

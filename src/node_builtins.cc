@@ -130,8 +130,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #endif  // !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
 
 #if !HAVE_OPENSSL
-        "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "crypto", "crypto/promises", "https", "http2", "tls",
+        "internal/tls/parse-cert-string", "internal/tls/common",
         "internal/tls/wrap", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
@@ -562,7 +562,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       std::unordered_set(eager_builtins.begin(), eager_builtins.end());
 
   for (const auto& id : ids) {
-    // Eagerly compile primordials/boostrap/main scripts during code cache
+    // Eagerly compile primordials/bootstrap/main scripts during code cache
     // generation.
     if (id.starts_with(primordial_prefix) || id.starts_with(bootstrap_prefix) ||
         id.starts_with(main_prefix)) {

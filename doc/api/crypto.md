@@ -73,38 +73,48 @@ try {
 
 ## Asymmetric key types
 
-The following table lists the asymmetric key types recognized by the
-[`KeyObject`][] API and the export/import formats supported for each key type.
+The following lists group the asymmetric key types recognized by the
+[`KeyObject`][] API by the complete set of formats supported for importing and
+exporting each type.
 
-| Key Type                           | Description        | OID                     | `'pem'` | `'der'` | `'jwk'` | `'raw-public'` | `'raw-private'` | `'raw-seed'` |
-| ---------------------------------- | ------------------ | ----------------------- | ------- | ------- | ------- | -------------- | --------------- | ------------ |
-| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1    | ✔       | ✔       |         |                |                 |              |
-| `'dsa'`                            | DSA                | 1.2.840.10040.4.1       | ✔       | ✔       |         |                |                 |              |
-| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1       | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ed25519'`                        | Ed25519            | 1.3.101.112             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ed448'`                          | Ed448              | 1.3.101.113             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   | ✔       | ✔       |         |                |                 |              |
-| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    | ✔       | ✔       | ✔       |                |                 |              |
-| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'x25519'`                         | X25519             | 1.3.101.110             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'x448'`                           | X448               | 1.3.101.111             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+**Formats:** `'pem'`, `'der'`
+
+* **`'dh'` (Diffie-Hellman)** — OID `1.2.840.113549.1.3.1`
+* **`'dsa'`** — OID `1.2.840.10040.4.1`
+* **`'rsa-pss'`** — OID `1.2.840.113549.1.1.10`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`
+
+* **`'rsa'`** — OID `1.2.840.113549.1.1.1`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`, `'raw-public'`, `'raw-private'`
+
+* **`'ec'` (Elliptic curve)** — OID `1.2.840.10045.2.1`
+* **`'ed25519'`** — OID `1.3.101.112`
+* **`'ed448'`** — OID `1.3.101.113`
+* **`'slh-dsa-sha2-128f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.21`
+* **`'slh-dsa-sha2-128s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.20`
+* **`'slh-dsa-sha2-192f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.23`
+* **`'slh-dsa-sha2-192s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.22`
+* **`'slh-dsa-sha2-256f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.25`
+* **`'slh-dsa-sha2-256s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.24`
+* **`'slh-dsa-shake-128f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.27`
+* **`'slh-dsa-shake-128s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.26`
+* **`'slh-dsa-shake-192f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.29`
+* **`'slh-dsa-shake-192s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.28`
+* **`'slh-dsa-shake-256f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.31`
+* **`'slh-dsa-shake-256s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.30`
+* **`'x25519'`** — OID `1.3.101.110`
+* **`'x448'`** — OID `1.3.101.111`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`, `'raw-public'`, `'raw-seed'`
+
+* **`'ml-dsa-44'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.17`
+* **`'ml-dsa-65'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.18`
+* **`'ml-dsa-87'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.19`
+* **`'ml-kem-512'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.1`
+* **`'ml-kem-768'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.2`
+* **`'ml-kem-1024'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.3`
 
 ### Key formats
 
@@ -2665,8 +2675,10 @@ Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
 
 If `privateKey` is not a [`KeyObject`][], this function behaves as if
-`privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
-object, the following additional properties can be passed:
+`privateKey` had been passed to [`crypto.createPrivateKey()`][]. When
+`privateKey` is a string, `ArrayBuffer`, [`Buffer`][], `TypedArray`, or
+`DataView`, it must contain PEM-encoded key material. If it is an object, the
+following additional properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the generated signature. It can be one of the following:
@@ -2799,8 +2811,10 @@ changes:
 Verifies the provided data using the given `key` and `signature`.
 
 If `key` is not a [`KeyObject`][], this function behaves as if
-`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
-object, the following additional properties can be passed:
+`key` had been passed to [`crypto.createPublicKey()`][]. When `key` is a string,
+`ArrayBuffer`, [`Buffer`][], `TypedArray`, or `DataView`, it must contain
+PEM-encoded key material. If it is an object, the following additional
+properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the signature. It can be one of the following:
@@ -3791,6 +3805,8 @@ using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 specifies the desired output length in bytes. It is required for XOF hash
 functions without a default output length.
+
+When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -6209,8 +6225,10 @@ dependent upon the key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPrivateKey()`][]. When `key` is a string, `ArrayBuffer`,
+[`Buffer`][], `TypedArray`, or `DataView`, it must contain PEM-encoded key
+material. If it is an object, the following additional properties can be
+passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the generated signature. It can be one of the following:
@@ -6349,8 +6367,10 @@ key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPublicKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPublicKey()`][]. When `key` is a string, `ArrayBuffer`,
+[`Buffer`][], `TypedArray`, or `DataView`, it must contain PEM-encoded key
+material. If it is an object, the following additional properties can be
+passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the signature. It can be one of the following:
@@ -7000,6 +7020,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
+[`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
 [`crypto.privateEncrypt()`]: #cryptoprivateencryptprivatekey-buffer
 [`crypto.publicDecrypt()`]: #cryptopublicdecryptkey-buffer

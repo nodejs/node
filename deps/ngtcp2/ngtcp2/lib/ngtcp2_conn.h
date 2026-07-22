@@ -308,6 +308,11 @@ typedef struct ngtcp2_early_transport_params {
   uint64_t max_datagram_frame_size;
 } ngtcp2_early_transport_params;
 
+typedef struct ngtcp2_frame_counts {
+  size_t crypto;
+  size_t stream;
+} ngtcp2_frame_counts;
+
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
 
@@ -644,6 +649,7 @@ struct ngtcp2_conn {
      confirmed.  For server, it is confirmed when completed. */
   ngtcp2_tstamp handshake_confirmed_ts;
   ngtcp2_pcg32 pcg;
+  ngtcp2_frame_counts frame_counts;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;

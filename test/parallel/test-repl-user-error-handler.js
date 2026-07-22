@@ -7,10 +7,12 @@ const { once } = require('node:events');
 const test = require('node:test');
 const { spawn } = require('node:child_process');
 
+common.skipIfInspectorDisabled();
+
 function* generateCases() {
   for (const async of [false, true]) {
     for (const handleErrorReturn of ['ignore', 'print', 'unhandled', 'badvalue']) {
-      if (handleErrorReturn === 'badvalue' && async) {
+      if (handleErrorReturn === 'badvalue') {
         // Handled through a separate test using a child process
         continue;
       }
@@ -39,19 +41,20 @@ for (const { async, handleErrorReturn } of generateCases()) {
     }
 
     const repl = start(options);
+
+    let outputString = '';
+    options.output.on('data', (chunk) => { outputString += chunk; });
+
     const inputString = async ?
       'setImmediate(() => { throw new Error("testerror") })\n42\n' :
       'throw new Error("testerror")\n42\n';
-    if (handleErrorReturn === 'badvalue') {
-      assert.throws(() => options.input.end(inputString), /ERR_INVALID_STATE/);
-      return;
-    }
     options.input.end(inputString);
 
     await once(repl, 'handled-error');
     assert.strictEqual(err.message, 'testerror');
-    const outputString = options.output.read();
-    assert.match(outputString, /42/);
+    while (!/42/.test(outputString)) {
+      await once(options.output, 'data');
+    }
 
     if (handleErrorReturn === 'print') {
       assert.match(outputString, /testerror/);

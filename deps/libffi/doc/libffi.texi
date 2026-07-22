@@ -18,7 +18,7 @@
 This manual is for libffi, a portable foreign function interface
 library.
 
-Copyright @copyright{} 2008--2025 Anthony Green and Red Hat, Inc.
+Copyright @copyright{} 2008--2026 Anthony Green and Red Hat, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -118,6 +118,7 @@ values passed between the two languages.
 * Simple Example::              A simple example.
 * Types::                       libffi type descriptions.
 * Multiple ABIs::               Different passing styles on one platform.
+* Reusable Call Plans::         Building a call plan once and reusing it.
 * The Closure API::             Writing a generic function.
 * Closure Example::             A closure example.
 * Thread Safety::               Thread safety.
@@ -213,6 +214,11 @@ to ensure this.  If @var{cif} declares that the function returns
 @code{void} (using @code{ffi_type_void}), then @var{rvalue} is
 ignored.
 
+@var{rvalue} may also be @code{NULL}, in which case the call is
+performed and the return value is discarded.  This works for any
+return type, including structures returned in memory; @code{libffi}
+supplies internal scratch space for the callee when needed.
+
 In most situations, @code{libffi} will handle promotion according to
 the ABI.  However, for historical reasons, there is a special case
 with return values that must be handled by your code.  In particular,
@@ -226,7 +232,9 @@ full @code{ffi_arg} into the return value.
 @var{avalues} is a vector of @code{void *} pointers that point to the
 memory locations holding the argument values for a call.  If @var{cif}
 declares that the function has no arguments (i.e., @var{nargs} was 0),
-then @var{avalues} is ignored.
+then @var{avalues} is ignored.  @code{ffi_call} does not modify the
+vector or the argument values it points to, so both may be reused for
+subsequent calls.
 
 Note that while the return value must be register-sized, arguments
 should exactly match their declared type.  For example, if an argument
@@ -805,6 +813,45 @@ functions.
 necessarily platform-specific.
 
 @c FIXME: document the platforms
+
+@node Reusable Call Plans
+@section Reusable Call Plans
+
+When the same signature is called many times -- as language bindings
+typically do -- you can build a @dfn{call plan} once and reuse it, so
+that each call avoids the work @code{ffi_call} would otherwise repeat
+on every invocation.  A plan is an opaque, caller-owned object built
+from a prepared @code{ffi_cif}.
+
+@findex ffi_call_plan_alloc
+@defun {ffi_call_plan *} ffi_call_plan_alloc (ffi_cif *@var{cif})
+Builds and returns a reusable plan for the signature described by
+@var{cif}, which must already have been prepared with
+@code{ffi_prep_cif}.  The plan does not copy @var{cif}; @var{cif} must
+remain valid for as long as the plan is used.
+
+Returns @code{NULL} only when memory cannot be allocated.  A signature
+for which no accelerated path exists is still valid: the returned plan
+simply falls back to @code{ffi_call} when it is invoked.
+@end defun
+
+@findex ffi_call_plan_invoke
+@defun void ffi_call_plan_invoke (ffi_call_plan *@var{plan}, void *@var{fn}, void *@var{rvalue}, void **@var{avalues})
+Calls @var{fn} using @var{plan}.  The @var{fn}, @var{rvalue}, and
+@var{avalues} arguments have exactly the same meaning as for
+@code{ffi_call} (@pxref{The Basics}), including the rule that integral
+return values narrower than a register are widened to @code{ffi_arg}.
+
+A plan is immutable once built, so a single plan may be invoked
+concurrently from multiple threads without additional locking.
+@end defun
+
+@findex ffi_call_plan_free
+@defun void ffi_call_plan_free (ffi_call_plan *@var{plan})
+Releases a plan returned by @code{ffi_call_plan_alloc}.  Passing
+@code{NULL} is harmless.  The @code{ffi_cif} the plan was built from is
+not affected.
+@end defun
 
 @node The Closure API
 @section The Closure API

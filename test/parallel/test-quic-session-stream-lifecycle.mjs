@@ -90,6 +90,8 @@ clientSession.destroy();
 strictEqual(clientSession.destroyed, true);
 strictEqual(clientSession.endpoint, null);
 strictEqual(clientSession.stats.isConnected, false);
+strictEqual(typeof clientSession.stats.cwnd, 'bigint');
+strictEqual(typeof clientSession.stats.streamsIdleTimedOut, 'bigint');
 
 strictEqual(stream.destroyed, true);
 

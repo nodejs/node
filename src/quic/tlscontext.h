@@ -192,6 +192,16 @@ class TLSContext final : public MemoryRetainer,
     // The list of TLS groups to use for this session.
     std::string groups = DEFAULT_GROUPS;
 
+    // TLS certificate compression (RFC 8879) preference, packed by the JS
+    // layer as (length | alg0<<8 | alg1<<16 | alg2<<24). Algorithm IDs match
+    // OpenSSL's TLSEXT_comp_cert_zlib (1), _brotli (2), _zstd (3). A value of
+    // 0 means certificate compression is disabled (the default). Certificate
+    // compression is particularly valuable for QUIC because it reduces the
+    // size of the server's Certificate message, which is otherwise likely to
+    // exceed the anti-amplification limit and force an extra handshake round
+    // trip. JavaScript option name "certificateCompression".
+    uint32_t certificate_compression = 0;
+
     // When true, enables keylog output for the session.
     bool keylog = false;
 

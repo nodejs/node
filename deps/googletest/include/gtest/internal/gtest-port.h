@@ -2411,9 +2411,7 @@ using StringView = ::std::string_view;
 #define GTEST_INTERNAL_HAS_STRING_VIEW 0
 #endif
 
-#if (defined(__cpp_lib_three_way_comparison) || \
-     (GTEST_INTERNAL_HAS_INCLUDE(<compare>) &&  \
-      GTEST_INTERNAL_CPLUSPLUS_LANG >= 201907L))
+#if defined(__cpp_lib_three_way_comparison)
 #define GTEST_INTERNAL_HAS_COMPARE_LIB 1
 #else
 #define GTEST_INTERNAL_HAS_COMPARE_LIB 0

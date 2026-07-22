@@ -8,7 +8,7 @@ import fixtures from '../common/fixtures.js';
 
 // See https://github.com/nodejs/node/pull/48409
 if (isInsideDirWithUnusualChars) {
-  skip('Test is borken in directories with unusual characters');
+  skip('Test is broken in directories with unusual characters');
 }
 
 tmpdir.refresh();

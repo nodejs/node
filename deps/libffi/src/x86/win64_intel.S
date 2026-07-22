@@ -237,7 +237,7 @@ ffi_closure_win64_2 LABEL near
 	cfi_endproc
 	C(ffi_closure_win64) endp
 
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif
 _text ends

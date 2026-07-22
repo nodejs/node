@@ -768,12 +768,6 @@ An operation outside the bounds of a `Buffer` was attempted.
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
 
-<a id="ERR_CANNOT_WATCH_SIGINT"></a>
-
-### `ERR_CANNOT_WATCH_SIGINT`
-
-Node.js was unable to watch for the `SIGINT` signal.
-
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 
 ### `ERR_CHILD_CLOSED_BEFORE_REPLY`
@@ -2144,13 +2138,6 @@ An invalid `options.protocol` was passed to `http.request()`.
 Both `breakEvalOnSigint` and `eval` options were set in the [`REPL`][] config,
 which is not supported.
 
-<a id="ERR_INVALID_REPL_INPUT"></a>
-
-### `ERR_INVALID_REPL_INPUT`
-
-The input may not be used in the [`REPL`][]. The conditions under which this
-error is used are described in the [`REPL`][] documentation.
-
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 
 ### `ERR_INVALID_RETURN_PROPERTY`
@@ -3441,7 +3428,7 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendant of a `node_modules` directory.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
@@ -3581,6 +3568,22 @@ added: v18.1.0
 
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
+
+<a id="ERR_WORKER_HANDLE_NOT_TRANSFERABLE"></a>
+
+### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+via a `worker_threads` `postMessage()` call while it was not in a transferable
+state, for example because it had already started reading or had buffered data.
+
+<a id="ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED"></a>
+
+### `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+on a platform where moving the underlying handle between event loops is not
+supported (currently Windows).
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 

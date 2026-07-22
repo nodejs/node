@@ -93,8 +93,24 @@ const EVP_MD* GetDigestCtxMd(const EVP_MD_CTX* ctx) {
 }
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
+using ASN1StringPointer = DeleteFnPtr<ASN1_STRING, ASN1_STRING_free>;
 using OSSLParamBldPointer = DeleteFnPtr<OSSL_PARAM_BLD, OSSL_PARAM_BLD_free>;
-using OSSLParamPointer = DeleteFnPtr<OSSL_PARAM, OSSL_PARAM_free>;
+using RsaPssParamsPointer = DeleteFnPtr<RSA_PSS_PARAMS, RSA_PSS_PARAMS_free>;
+using X509AlgorPointer = DeleteFnPtr<X509_ALGOR, X509_ALGOR_free>;
+using X509PubkeyPointer = DeleteFnPtr<X509_PUBKEY, X509_PUBKEY_free>;
+struct OSSLParamDeleter {
+  void operator()(OSSL_PARAM* params) const {
+    if (params == nullptr) return;
+    for (OSSL_PARAM* param = params; param->key != nullptr; param++) {
+      if (param->data != nullptr && param->data_type != OSSL_PARAM_UTF8_PTR &&
+          param->data_type != OSSL_PARAM_OCTET_PTR) {
+        OPENSSL_cleanse(param->data, param->data_size);
+      }
+    }
+    OSSL_PARAM_free(params);
+  }
+};
+using OSSLParamPointer = std::unique_ptr<OSSL_PARAM, OSSLParamDeleter>;
 struct OpenSSLBufferDeleter {
   void operator()(unsigned char* pointer) const { OPENSSL_free(pointer); }
 };
@@ -106,9 +122,8 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-bool GetPKeyBnParam(const EVP_PKEY* pkey,
-                    const char* name,
-                    DeleteFnPtr<BIGNUM, BN_free>* out) {
+template <typename Pointer>
+bool GetPKeyBnParam(const EVP_PKEY* pkey, const char* name, Pointer* out) {
   BIGNUM* bn = nullptr;
   if (pkey == nullptr) return false;
   if (EVP_PKEY_get_bn_param(pkey, name, &bn) == 1) {
@@ -135,9 +150,10 @@ bool GetPKeyBnParam(const EVP_PKEY* pkey,
   return true;
 }
 
+template <typename Pointer>
 bool GetOptionalPKeyBnParam(const EVP_PKEY* pkey,
                             const char* name,
-                            DeleteFnPtr<BIGNUM, BN_free>* out) {
+                            Pointer* out) {
   BIGNUM* bn = nullptr;
   if (pkey == nullptr) {
     out->reset();
@@ -273,9 +289,11 @@ bool GetDhParams(const EVP_PKEY* pkey,
 
 bool GetDhKeys(const EVP_PKEY* pkey,
                DeleteFnPtr<BIGNUM, BN_free>* pub,
-               DeleteFnPtr<BIGNUM, BN_free>* priv) {
-  return GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PUB_KEY, pub) &&
-         GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PRIV_KEY, priv);
+               DeleteFnPtr<BIGNUM, BN_clear_free>* priv) {
+  return (pub == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PUB_KEY, pub)) &&
+         (priv == nullptr ||
+          GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_PRIV_KEY, priv));
 }
 #endif
 
@@ -483,9 +501,12 @@ Buffer<void> DataPointer::release() {
 }
 
 DataPointer DataPointer::resize(size_t len) {
-  size_t actual_len = std::min(len_, len);
+  const size_t actual_len = std::min(len_, len);
+  if (actual_len == len_) return std::move(*this);
+
   auto buf = release();
-  if (actual_len == len_) return DataPointer(buf.data, actual_len);
+  if (actual_len == 0) return DataPointer(buf.data, actual_len);
+
   buf.data = OPENSSL_realloc(buf.data, actual_len);
   buf.len = actual_len;
   return DataPointer(buf);
@@ -2287,8 +2308,7 @@ DataPointer DHPointer::getPublicKey() const {
   if (!dh_) return {};
 
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return {};
+  if (!GetDhKeys(dh_.get(), &pub_key, nullptr)) return {};
   return BignumPointer::Encode(pub_key.get());
 #else
   const BIGNUM* pub_key;
@@ -2303,9 +2323,8 @@ DataPointer DHPointer::getPrivateKey() const {
   if (pvt_key_) return pvt_key_.encode();
   if (!dh_) return {};
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return {};
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return {};
   return BignumPointer::Encode(pvt_key.get());
 #else
   const BIGNUM* pvt_key;
@@ -2320,9 +2339,8 @@ bool DHPointer::hasPrivateKey() const {
   if (pvt_key_) return true;
   if (!dh_) return false;
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) return false;
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return false;
   return pvt_key != nullptr;
 #else
   const BIGNUM* pvt_key = nullptr;
@@ -2358,7 +2376,7 @@ DataPointer DHPointer::generateKeys() {
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
   if (!GetDhParams(dh_.get(), &p, &g) ||
       !GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
     return {};
@@ -2493,9 +2511,8 @@ bool DHPointer::setPublicKey(BignumPointer&& key) {
     return true;
   }
 
-  DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
+  DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
+  if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) {
     return false;
   }
   EVPKeyPointer pkey;
@@ -2532,8 +2549,7 @@ bool DHPointer::setPrivateKey(BignumPointer&& key) {
   }
 
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
-  DeleteFnPtr<BIGNUM, BN_free> pvt_key;
-  if (!GetDhKeys(dh_.get(), &pub_key, &pvt_key)) {
+  if (!GetDhKeys(dh_.get(), &pub_key, nullptr)) {
     return false;
   }
   EVPKeyPointer pkey;
@@ -3525,12 +3541,13 @@ bool WriteEncryptedTraditionalPEM(BIO* bio,
   size_t der_len = 0;
   OSSLEncoderCtxPointer ctx(OSSL_ENCODER_CTX_new_for_pkey(
       pkey, OSSL_KEYMGMT_SELECT_KEYPAIR, "DER", "pkcs1", nullptr));
-  if (!ctx || OSSL_ENCODER_to_data(ctx.get(), &der, &der_len) != 1) {
-    return false;
-  }
+  if (!ctx) return false;
 
-  OpenSSLBufferPointer der_storage(der);
-  DERView der_view{der_storage.get(), der_len};
+  const int result = OSSL_ENCODER_to_data(ctx.get(), &der, &der_len);
+  DataPointer der_storage(der, der_len);
+  if (result != 1) return false;
+
+  DERView der_view{der_storage.get<const unsigned char>(), der_len};
   return PEM_ASN1_write_bio(
              WriteDERView,
              PEM_STRING_RSA,
@@ -4959,7 +4976,7 @@ bool ECKeyPointer::generate() {
   if (EVP_PKEY_keygen(ctx.get(), &raw) != 1) return false;
   EVPKeyPointer pkey(raw);
 
-  DeleteFnPtr<BIGNUM, BN_free> priv;
+  DeleteFnPtr<BIGNUM, BN_clear_free> priv;
   if (!GetPKeyBnParam(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, &priv)) {
     return false;
   }
@@ -5674,6 +5691,66 @@ bool ReadRsaPssParams(const EVP_PKEY* pkey, Rsa::PssParams* params) {
 
   return true;
 }
+
+bool SetRsaPssHashAlgorithm(X509_ALGOR** out, const Digest& digest) {
+  if (EVP_MD_is_a(digest.get(), "SHA1")) return true;
+
+  X509AlgorPointer algorithm(X509_ALGOR_new());
+  if (!algorithm) return false;
+  X509_ALGOR_set_md(algorithm.get(), digest.get());
+  *out = algorithm.release();
+  return true;
+}
+
+bool SetRsaPssMaskGenAlgorithm(X509_ALGOR** out, const Digest& digest) {
+  if (EVP_MD_is_a(digest.get(), "SHA1")) return true;
+
+  X509AlgorPointer hash_algorithm(X509_ALGOR_new());
+  if (!hash_algorithm) return false;
+  X509_ALGOR_set_md(hash_algorithm.get(), digest.get());
+
+  ASN1StringPointer hash_algorithm_der(ASN1_item_pack(
+      hash_algorithm.get(), ASN1_ITEM_rptr(X509_ALGOR), nullptr));
+  if (!hash_algorithm_der) return false;
+
+  X509AlgorPointer algorithm(X509_ALGOR_new());
+  if (!algorithm || X509_ALGOR_set0(algorithm.get(),
+                                    OBJ_nid2obj(NID_mgf1),
+                                    V_ASN1_SEQUENCE,
+                                    hash_algorithm_der.get()) != 1) {
+    return false;
+  }
+  hash_algorithm_der.release();
+  *out = algorithm.release();
+  return true;
+}
+
+ASN1StringPointer EncodeRsaPssParams(const Rsa::PssParams& params) {
+  const Digest digest = Digest::FromName(params.digest.data());
+  if (!digest) return {};
+
+  const Digest mgf1_digest = params.mgf1_digest
+                                 ? Digest::FromName(params.mgf1_digest->data())
+                                 : digest;
+  if (!mgf1_digest) return {};
+
+  RsaPssParamsPointer pss(RSA_PSS_PARAMS_new());
+  if (!pss || !SetRsaPssHashAlgorithm(&pss->hashAlgorithm, digest) ||
+      !SetRsaPssMaskGenAlgorithm(&pss->maskGenAlgorithm, mgf1_digest)) {
+    return {};
+  }
+
+  if (params.salt_length != 20) {
+    pss->saltLength = ASN1_INTEGER_new();
+    if (pss->saltLength == nullptr ||
+        ASN1_INTEGER_set_int64(pss->saltLength, params.salt_length) != 1) {
+      return {};
+    }
+  }
+
+  return ASN1StringPointer(
+      ASN1_item_pack(pss.get(), ASN1_ITEM_rptr(RSA_PSS_PARAMS), nullptr));
+}
 }  // namespace
 
 Rsa::Rsa() : rsa_(false) {}
@@ -5681,16 +5758,19 @@ Rsa::Rsa() : rsa_(false) {}
 Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
   const int type = EVPKeyPointer::id(pkey);
   if (type != EVP_PKEY_RSA && type != EVP_PKEY_RSA_PSS) return;
+  rsa_pss_ = type == EVP_PKEY_RSA_PSS;
   if (!GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_N, &n_) ||
       !GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_E, &e_)) {
     return;
   }
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_D, &d_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq_);
-  GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_);
+  if (!GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_D, &d_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq_) ||
+      !GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_)) {
+    return;
+  }
 
   if (type == EVP_PKEY_RSA_PSS) {
     MarkPopErrorOnReturn pop_errors;
@@ -5774,7 +5854,35 @@ BIOPointer Rsa::derPublicKey() const {
   if (!bio) return {};
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(*this);
-  if (!pkey || i2d_PUBKEY_bio(bio.get(), pkey.get()) != 1) return {};
+  if (!pkey) return {};
+  if (!rsa_pss_) {
+    if (i2d_PUBKEY_bio(bio.get(), pkey.get()) != 1) return {};
+    return bio;
+  }
+
+  X509_PUBKEY* raw_pubkey = nullptr;
+  const int result = X509_PUBKEY_set(&raw_pubkey, pkey.get());
+  X509PubkeyPointer pubkey(raw_pubkey);
+  if (result != 1) return {};
+
+  int parameter_type = V_ASN1_UNDEF;
+  ASN1StringPointer parameters;
+  if (pss_params_) {
+    parameters = EncodeRsaPssParams(*pss_params_);
+    if (!parameters) return {};
+    parameter_type = V_ASN1_SEQUENCE;
+  }
+
+  if (X509_PUBKEY_set0_param(pubkey.get(),
+                             OBJ_nid2obj(NID_rsaEncryption),
+                             parameter_type,
+                             parameters.get(),
+                             nullptr,
+                             0) != 1) {
+    return {};
+  }
+  parameters.release();
+  if (i2d_X509_PUBKEY_bio(bio.get(), pubkey.get()) != 1) return {};
 #else
   if (rsa_ == nullptr || i2d_RSA_PUBKEY_bio(bio.get(), rsa_) != 1) return {};
 #endif

@@ -1,9 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+
+common.skipIfInspectorDisabled();
 
 const result = spawnSync(process.execPath, ['-i', '--input-type=module']);
 

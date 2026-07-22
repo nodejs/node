@@ -237,6 +237,10 @@ added:
   - v26.1.0
   - v24.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64328
+    description: Add per-probe `--cond <expr>` option to only record a hit when the
+        condition is truthy at the probe location.
   - version: v26.4.0
     pr-url: https://github.com/nodejs/node/pull/63704
     description: Add per-probe `--max-hit <n>` option to limit evaluated hits and finish
@@ -269,8 +273,8 @@ printf-style debugging without having to modify the application code and
 clean up afterwards. It also supports structured JSON output for tool use.
 
 ```console
-$ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>]
-              [--probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>] ...]
+$ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--cond <expr>] [--max-hit <n>]
+              [--probe <file>:<line>[:<col>] --expr <expr> [--cond <expr>] [--max-hit <n>] ...]
               [--json] [--preview] [--timeout=<ms>] [--port=<port>]
               [--] [<node-option> ...] <script> [<script-args> ...]
 ```
@@ -283,6 +287,9 @@ $ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>]
 * `--expr <expr>`: JavaScript expression to evaluate whenever execution reaches
   the location specified by the preceding `--probe`.
   Must immediately follow the `--probe` it belongs to.
+* `--cond <expr>`: An optional condition for the probe location. The probe only
+  records a hit when `<expr>` is truthy at the location. A condition that throws
+  is treated as false.
 * `--max-hit <n>`: An optional per-probe limit on the number of times the probe
   can be hit. When not specified, there's no hit limit. When any probe reaches
   its hit limit, the probing process will detach and report the results. The process
@@ -298,14 +305,17 @@ $ node inspect --probe <file>:<line>[:<col>] --expr <expr> [--max-hit <n>]
   will listen. Defaults to `0`, which requests a random port.
 * `--` is optional unless the child needs its own Node.js flags.
 
-Additional rules about the `--probe` and `--expr` arguments:
+Additional rules about the composition of the options:
 
 * `--probe <file>:<line>[:<col>]` and `--expr <expr>` are strict pairs. Each
   `--probe` must be followed immediately by exactly one `--expr`.
-* `--max-hit <n>` is an optional per-probe option that applies to the most recent
-  `--probe`/`--expr` pair. It may not appear before the first `--probe` or
-  between a `--probe` and its matching `--expr`, and may be given at most once
-  per probe.
+* `--cond <expr>` and `--max-hit <n>` are optional modifiers written _after_ the
+  `--probe`/`--expr` pair they apply to, each at most once per pair. They may not
+  appear before the first `--probe` or between a `--probe` and its matching
+  `--expr`.
+* `--max-hit` scopes to the `--probe`/`--expr` pair it follows, so pairs
+  sharing a location may set different limits. `--cond` scopes to the whole
+  location, probes sharing a location must share one condition (or none).
 * `--timeout`, `--json`, `--preview`, and `--port` are global probe options
   for the whole probe session. They may appear before or between probe pairs,
   but not between a `--probe` and its matching `--expr`.
@@ -380,6 +390,7 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
         "suffix": "cli.js",
         "line": 5
       }
+      // `condition` is present only when the probe was given a --cond expression.
       // `maxHit` is present only when the probe was given a --max-hit limit.
     }
   ],
@@ -481,6 +492,10 @@ When multiple `--probe`/`--expr` pairs share the same `--probe`, the
 expressions will be evaluated on the same pause in the order they appear
 on the command line.
 
+For each location, there can only be at most one `--cond` (or none).
+Multiple `--probe`/`--expr` pairs with conflicting conditions
+at the same location will be rejected at launch time.
+
 ```js
 // app.js
 const x = { x: 42 };       // line 2
@@ -563,6 +578,37 @@ that only matches the intended file:
 ```console
 $ node inspect --probe src/utils.js:10 --expr 'x' main.js   # matches only src/utils.js
 ```
+
+### Probe examples
+
+#### Probing a variable conditionally
+
+```js
+// app.js
+let total = 0;
+for (let i = 0; i < 10; i++) {
+  total += i;  // line 4
+}
+```
+
+```console
+$ out/Release/node inspect --probe app.js:4 --expr 'total' \
+                           --cond 'i % 3 === 0' app.js
+```
+
+```text
+Hit 1 at file:///path/to/app.js:3:3
+  total = 0
+Hit 2 at file:///path/to/app.js:3:3
+  total = 3
+Hit 3 at file:///path/to/app.js:3:3
+  total = 15
+Hit 4 at file:///path/to/app.js:3:3
+  total = 36
+Completed
+```
+
+<!-- TODO(joyeecheung): add more examples for different options -->
 
 ## Advanced usage
 
