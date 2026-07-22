@@ -20,76 +20,82 @@ process.chdir(fixtures.fixturesDir);
 const repl = require('repl');
 const { startNewREPLServer } = require('../common/repl');
 
-const { replServer, input } = startNewREPLServer();
-
 // Tab complete provides built in libs for import()
-replServer.complete('import(\'', common.mustSucceed((data) => {
-  publicUnprefixedModules.forEach((lib) => {
-    assert(
-      data[0].includes(lib) && data[0].includes(`node:${lib}`),
-      `${lib} not found`,
-    );
-  });
-  const newModule = 'foobar';
-  assert(!builtinModules.includes(newModule));
-  repl.builtinModules.push(newModule);
-  replServer.complete('import(\'', common.mustSucceed(([modules]) => {
-    assert.strictEqual(data[0].length + 1, modules.length);
-    assert(modules.includes(newModule) &&
-      !modules.includes(`node:${newModule}`));
-  }));
-}));
-
-replServer.complete("import\t( 'n", common.mustSucceed((data) => {
-  assert.strictEqual(data.length, 2);
-  assert.strictEqual(data[1], 'n');
-  const completions = data[0];
-  // import(...) completions include `node:` URL modules:
-  let lastIndex = -1;
-
-  publicUnprefixedModules.forEach((lib, index) => {
-    lastIndex = completions.indexOf(`node:${lib}`);
-    assert.notStrictEqual(lastIndex, -1);
-  });
-  assert.strictEqual(completions[lastIndex + 1], '');
-  // There is only one Node.js module that starts with n:
-  assert.strictEqual(completions[lastIndex + 2], 'net');
-  assert.strictEqual(completions[lastIndex + 3], '');
-  // It's possible to pick up non-core modules too
-  for (const completion of completions.slice(lastIndex + 4)) {
-    assert.match(completion, /^n/);
-  }
-}));
-
 {
+  const { replServer } = startNewREPLServer();
+
+  replServer.complete('import(\'', common.mustSucceed((data) => {
+    publicUnprefixedModules.forEach((lib) => {
+      assert(
+        data[0].includes(lib) && data[0].includes(`node:${lib}`),
+        `${lib} not found`,
+      );
+    });
+    const newModule = 'foobar';
+    assert(!builtinModules.includes(newModule));
+    repl.builtinModules.push(newModule);
+    replServer.complete('import(\'', common.mustSucceed(([modules]) => {
+      assert.strictEqual(data[0].length + 1, modules.length);
+      assert(modules.includes(newModule) &&
+        !modules.includes(`node:${newModule}`));
+    }));
+  }));
+}
+
+// Completions should handle whitespace after the import() call's opening bracket
+{
+  const { replServer } = startNewREPLServer();
+
+  replServer.complete("import\t( 'n", common.mustSucceed((data) => {
+    assert.strictEqual(data.length, 2);
+    assert.strictEqual(data[1], 'n');
+    const completions = data[0];
+    // import(...) completions include `node:` URL modules:
+    let lastIndex = -1;
+
+    publicUnprefixedModules.forEach((lib, index) => {
+      lastIndex = completions.indexOf(`node:${lib}`);
+      assert.notStrictEqual(lastIndex, -1);
+    });
+    assert.strictEqual(completions[lastIndex + 1], '');
+    // There is only one Node.js module that starts with n:
+    assert.strictEqual(completions[lastIndex + 2], 'net');
+    assert.strictEqual(completions[lastIndex + 3], '');
+    // It's possible to pick up non-core modules too
+    for (const completion of completions.slice(lastIndex + 4)) {
+      assert.match(completion, /^n/);
+    }
+  }));
+}
+
+// Completion should handle all types of quotation marks in import calls and not be greedy in case the quotation ends
+{
+  const { replServer } = startNewREPLServer();
+
   const expected = ['@nodejsscope', '@nodejsscope/'];
-  // Import calls should handle all types of quotation marks.
   for (const quotationMark of ["'", '"', '`']) {
-    input.run(['.clear']);
     replServer.complete('import(`@nodejs', common.mustSucceed((data) => {
       assert.deepStrictEqual(data, [expected, '@nodejs']);
     }));
 
-    input.run(['.clear']);
-    // Completions should not be greedy in case the quotation ends.
     replServer.complete(`import(${quotationMark}@nodejsscope${quotationMark}`, common.mustSucceed((data) => {
       assert.deepStrictEqual(data, [[], undefined]);
     }));
   }
 }
 
+// Completions should find modules
 {
-  input.run(['.clear']);
-  // Completions should find modules and handle whitespace after the opening
-  // bracket.
+  const { replServer } = startNewREPLServer();
+
   replServer.complete('import \t("no_ind', common.mustSucceed((data) => {
     assert.deepStrictEqual(data, [['no_index', 'no_index/'], 'no_ind']);
   }));
 }
 
-// Test tab completion for import() relative to the current directory
+// Completion for import() relative to the current directory
 {
-  input.run(['.clear']);
+  const { replServer } = startNewREPLServer();
 
   const cwd = process.cwd();
   process.chdir(__dirname);
