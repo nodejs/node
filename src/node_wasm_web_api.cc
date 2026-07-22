@@ -44,6 +44,7 @@ Local<Function> WasmStreamingObject::Initialize(Environment* env) {
 void WasmStreamingObject::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
+  registry->Register(SetURL);
   registry->Register(Push);
   registry->Register(Finish);
   registry->Register(Abort);
