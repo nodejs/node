@@ -15,8 +15,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace node {
-namespace tracing {
+namespace node::tracing {
 
 // Consumes trace data produced by a PerfettoSessionReader. All methods run on
 // the agent's dedicated background tracing thread (the loop passed to
@@ -139,8 +138,7 @@ class PerfettoTracingAgent final : public Agent {
   std::optional<AgentWriterHandle> tracing_file_writer_;
 };
 
-}  // namespace tracing
-}  // namespace node
+}  // namespace node::tracing
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

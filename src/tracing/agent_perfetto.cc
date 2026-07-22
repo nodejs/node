@@ -22,8 +22,8 @@ constexpr uint64_t kReadPeriodMs = 5000;
 constexpr uint64_t kMaxFileSizeBytes = 64 * 1024 * 1024;  // 64 MiB
 
 void replace_substring(std::string* target,
-                       const std::string& search,
-                       const std::string& insert) {
+                       std::string_view search,
+                       std::string_view insert) {
   size_t pos = target->find(search);
   for (; pos != std::string::npos; pos = target->find(search, pos)) {
     target->replace(pos, search.size(), insert);
