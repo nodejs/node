@@ -2,7 +2,7 @@
 
 // Test: peer STOP_SENDING transitions writer to errored state.
 // After the server calls stopSending(), the client's writer should
-// become errored — desiredSize is null, writeSync returns false.
+// become errored — canWrite is null, writeSync returns false.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
