@@ -915,16 +915,49 @@ inline bool Environment::report_exclude_env() const {
 
 inline void Environment::AddHeapSnapshotNearHeapLimitCallback() {
   DCHECK(!heapsnapshot_near_heap_limit_callback_added_);
+  const bool was_registered = heap_profile_near_heap_limit_callback_added_;
   heapsnapshot_near_heap_limit_callback_added_ = true;
-  isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback, this);
+  if (!was_registered) {
+    isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                       this);
+  }
 }
 
 inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
     size_t heap_limit) {
   DCHECK(heapsnapshot_near_heap_limit_callback_added_);
   heapsnapshot_near_heap_limit_callback_added_ = false;
-  isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                        heap_limit);
+  if (!heap_profile_near_heap_limit_callback_added_) {
+    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                          heap_limit);
+  }
+}
+
+inline void Environment::AddHeapProfileNearHeapLimitCallback(
+    uint32_t max_extensions,
+    size_t extension_size,
+    v8::Local<v8::Function> callback) {
+  DCHECK(!heap_profile_near_heap_limit_callback_added_);
+  const bool was_registered = heapsnapshot_near_heap_limit_callback_added_;
+  heap_profile_near_heap_limit_max_extensions_ = max_extensions;
+  heap_profile_near_heap_limit_extension_size_ = extension_size;
+  heap_profile_near_heap_limit_extensions_used_ = 0;
+  heap_profile_near_heap_limit_callback_.Reset(isolate_, callback);
+  heap_profile_near_heap_limit_callback_added_ = true;
+  if (!was_registered) {
+    isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                       this);
+  }
+}
+
+inline void Environment::RemoveHeapProfileNearHeapLimitCallback() {
+  DCHECK(heap_profile_near_heap_limit_callback_added_);
+  heap_profile_near_heap_limit_callback_added_ = false;
+  heap_profile_near_heap_limit_callback_.Reset();
+  if (!heapsnapshot_near_heap_limit_callback_added_) {
+    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                          0);
+  }
 }
 
 }  // namespace node
