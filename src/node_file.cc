@@ -1785,9 +1785,9 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
             error == std::errc::too_many_files_open ||
             error == std::errc::too_many_files_open_in_system ||
             error == std::errc::directory_not_empty ||
-  #ifdef _WIN32
+#ifdef _WIN32
             error == std::errc::permission_denied ||
-  #endif
+#endif
             error == std::errc::operation_not_permitted);
   };
 
@@ -1808,8 +1808,10 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
 
     if (retryDelay > 0) {
 #ifdef _WIN32
+      // No conversion needed: Sleep() takes milliseconds.
       Sleep(i * retryDelay);
 #else
+      // sleep() takes seconds, so convert the millisecond delay.
       sleep(i * retryDelay / 1000);
 #endif
     }
