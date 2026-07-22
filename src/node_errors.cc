@@ -401,8 +401,8 @@ void DefaultAbortHandler() {
   DumpJavaScriptBacktrace(stderr);
   fflush(stderr);
 }
-// Constant-initialized, so this is valid from load time, safe even for a CHECK()
-// during early startup, before any SetAbortHandler call.
+// Constant-initialized, so this is valid from load time, safe even for a
+// CHECK() during early startup, before any SetAbortHandler call.
 AbortHandler g_abort_handler = DefaultAbortHandler;
 }  // namespace
 
