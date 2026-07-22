@@ -257,3 +257,47 @@ TEST_F(DiagnosticsChannelTest, JSChannelVisibleFromCpp) {
   EXPECT_TRUE(js_has_subs->IsTrue());
   EXPECT_TRUE(ch->HasSubscribers());
 }
+
+// Native channels grow the shared subscriber storage past its initial
+// capacity without losing the state of channels that were already linked.
+// Updating the first and last channels after growth also verifies that JS uses
+// the replacement buffer instead of a stale cached reference.
+TEST_F(DiagnosticsChannelTest, NativeChannelsGrowSubscriberStorage) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv};
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "globalThis.__dc = require('diagnostics_channel');"
+      "globalThis.__firstSubscriber = () => {};"
+      "globalThis.__dc.subscribe('test:cctest:grow:0', "
+      "                          globalThis.__firstSubscriber);");
+
+  Channel* first = Channel::Get(*env, "test:cctest:grow:0");
+  ASSERT_NE(first, nullptr);
+  ASSERT_TRUE(first->HasSubscribers());
+
+  Channel* last = nullptr;
+  for (size_t i = 1; i <= 1024; i++) {
+    std::string name = "test:cctest:grow:" + std::to_string(i);
+    last = Channel::Get(*env, name.c_str());
+    ASSERT_NE(last, nullptr);
+  }
+
+  RunJS(isolate_,
+        "globalThis.__dc.unsubscribe('test:cctest:grow:0', "
+        "                            globalThis.__firstSubscriber);");
+  EXPECT_FALSE(first->HasSubscribers());
+
+  RunJS(isolate_,
+        "globalThis.__lastSubscriber = () => {};"
+        "globalThis.__dc.subscribe('test:cctest:grow:1024', "
+        "                          globalThis.__lastSubscriber);");
+  EXPECT_TRUE(last->HasSubscribers());
+}
