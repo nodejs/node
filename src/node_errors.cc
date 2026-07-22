@@ -393,6 +393,26 @@ void AppendExceptionLine(Environment* env,
             .FromMaybe(false));
 }
 
+namespace {
+// Default handler: reproduces previous ABORT() output (native + JS backtrace to
+// stderr). Termination is NOT done here. The ABORT() macro backstops it.
+void DefaultAbortHandler() {
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
+  fflush(stderr);
+}
+// Constant-initialized, so this is valid from load time, safe even for a CHECK()
+// during early startup, before any SetAbortHandler call.
+AbortHandler g_abort_handler = DefaultAbortHandler;
+}  // namespace
+
+void SetAbortHandler(AbortHandler handler) {
+  g_abort_handler = handler ? handler : DefaultAbortHandler;
+}
+AbortHandler GetAbortHandler() {
+  return g_abort_handler;
+}
+
 void Assert(const AssertionInfo& info) {
   std::string name = GetHumanReadableProcessName();
 

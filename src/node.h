@@ -844,6 +844,16 @@ NODE_EXTERN void SetProcessExitHandler(
     std::function<void(Environment*, int)>&& handler);
 NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
 
+// Sets a process-global handler invoked when Node.js programmatically aborts
+// (the ABORT() macro: failed CHECK/DCHECK, UNREACHABLE(), node::Assert(), and
+// OnFatalError()). The handler may return, in which case Node.js still
+// terminates the process (via abort()/_exit), or it may terminate the
+// process itself. The default handler writes the native and JavaScript
+// backtraces to stderr. Passing nullptr restores the default handler. This is
+// process-global and may be invoked before any Isolate or Environment exists.
+using AbortHandler = void (*)();
+NODE_EXTERN void SetAbortHandler(AbortHandler handler);
+
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 NODE_EXTERN IsolateData* GetEnvironmentIsolateData(Environment* env);

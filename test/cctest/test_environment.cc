@@ -1201,3 +1201,43 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithESModule) {
   printf("Frame: %s\n", *frame_str);
   EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
 }
+
+namespace {
+void CustomAbortHandlerForContractTest() {}
+
+bool abort_handler_dispatch_flag = false;
+void AbortHandlerThatSetsDispatchFlag() {
+  abort_handler_dispatch_flag = true;
+}
+}  // namespace
+
+TEST(AbortHandlerTest, DefaultIsNonNullAndSetAbortHandlerRoundTrips) {
+  node::AbortHandler old = node::GetAbortHandler();
+
+  // There should always be a non-null default handler installed.
+  EXPECT_NE(node::GetAbortHandler(), nullptr);
+
+  node::SetAbortHandler(CustomAbortHandlerForContractTest);
+  EXPECT_EQ(node::GetAbortHandler(), CustomAbortHandlerForContractTest);
+
+  node::SetAbortHandler(nullptr);
+  EXPECT_NE(node::GetAbortHandler(), nullptr);
+  EXPECT_NE(node::GetAbortHandler(), CustomAbortHandlerForContractTest);
+
+  node::SetAbortHandler(old);
+}
+
+TEST(AbortHandlerTest, InstalledHandlerIsInvokedWhenCalled) {
+  node::AbortHandler old = node::GetAbortHandler();
+  abort_handler_dispatch_flag = false;
+
+  node::SetAbortHandler(AbortHandlerThatSetsDispatchFlag);
+  node::AbortHandler h = node::GetAbortHandler();
+  // Fail cleanly (instead of crashing on a null call) if the handler wasn't
+  // actually installed.
+  ASSERT_NE(h, nullptr);
+  h();
+  EXPECT_TRUE(abort_handler_dispatch_flag);
+
+  node::SetAbortHandler(old);
+}

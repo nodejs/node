@@ -126,6 +126,9 @@ void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 void DumpNativeBacktrace(FILE* fp);
 void DumpJavaScriptBacktrace(FILE* fp);
 
+// Returns the currently installed abort handler which is never null.
+AbortHandler GetAbortHandler();
+
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
 #define ABORT_NO_BACKTRACE() _exit(static_cast<int>(node::ExitCode::kAbort))
@@ -142,9 +145,7 @@ void DumpJavaScriptBacktrace(FILE* fp);
 // backtrace is correct.
 #define ABORT()                                                                \
   do {                                                                         \
-    node::DumpNativeBacktrace(stderr);                                         \
-    node::DumpJavaScriptBacktrace(stderr);                                     \
-    fflush(stderr);                                                            \
+    node::GetAbortHandler()();                                                 \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
