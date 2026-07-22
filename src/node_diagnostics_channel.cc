@@ -16,6 +16,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -28,8 +29,10 @@ BindingData::BindingData(Realm* realm,
                          Local<Object> wrap,
                          InternalFieldInfo* info)
     : SnapshotableObject(realm, wrap, type_int),
-      subscribers_(
-          realm->isolate(), kMaxChannels, MAYBE_FIELD_PTR(info, subscribers)) {
+      subscribers_(realm->isolate(),
+                   info == nullptr ? kInitialChannelCapacity
+                                   : info->subscribers_capacity,
+                   MAYBE_FIELD_PTR(info, subscribers)) {
   if (info == nullptr) {
     wrap->Set(realm->context(),
               FIXED_ONE_BYTE_STRING(realm->isolate(), "subscribers"),
@@ -50,23 +53,18 @@ uint32_t BindingData::GetOrCreateChannelIndex(const std::string& name) {
   if (it != channel_indices_.end()) {
     return it->second;
   }
-  CHECK_LT(next_channel_index_, kMaxChannels);
+  if (next_channel_index_ == subscribers_.Length()) {
+    subscribers_.reserve(subscribers_.Length() * 2);
+    object()
+        ->Set(realm()->context(),
+              FIXED_ONE_BYTE_STRING(realm()->isolate(), "subscribers"),
+              subscribers_.GetJSArray())
+        .Check();
+    subscribers_.MakeWeak();
+  }
   uint32_t index = next_channel_index_++;
   channel_indices_.emplace(name, index);
   return index;
-}
-
-void BindingData::GetOrCreateChannelIndex(
-    const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  BindingData* binding = realm->GetBindingData<BindingData>();
-  CHECK_NOT_NULL(binding);
-
-  CHECK(args[0]->IsString());
-  Utf8Value name(realm->isolate(), args[0]);
-
-  uint32_t index = binding->GetOrCreateChannelIndex(*name);
-  args.GetReturnValue().Set(index);
 }
 
 void BindingData::LinkNativeChannel(const FunctionCallbackInfo<Value>& args) {
@@ -85,10 +83,11 @@ void BindingData::LinkNativeChannel(const FunctionCallbackInfo<Value>& args) {
       Local<String> name =
           String::NewFromUtf8(isolate, channel_ptr->name_.c_str())
               .ToLocalChecked();
-      Local<Value> argv[] = {name};
+      Local<Value> argv[] = {
+          name, Integer::NewFromUnsigned(isolate, channel_ptr->index_)};
       Local<Value> result;
       if (binding->link_callback_.Get(isolate)
-              ->Call(context, v8::Undefined(isolate), 1, argv)
+              ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)
               .ToLocal(&result) &&
           result->IsObject()) {
         channel_ptr->Link(isolate, result.As<Object>());
@@ -102,6 +101,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
   DCHECK_NULL(internal_field_info_);
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->subscribers = subscribers_.Serialize(context, creator);
+  internal_field_info_->subscribers_capacity = subscribers_.Length();
   link_callback_.Reset();
   channel_wrap_template_.Reset();
   channels_.clear();
@@ -130,8 +130,6 @@ void BindingData::Deserialize(Local<Context> context,
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(
-      isolate, target, "getOrCreateChannelIndex", GetOrCreateChannelIndex);
   SetMethod(isolate, target, "linkNativeChannel", LinkNativeChannel);
 }
 
@@ -146,7 +144,6 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
 
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(GetOrCreateChannelIndex);
   registry->Register(LinkNativeChannel);
 }
 
@@ -226,10 +223,10 @@ Channel* Channel::Get(Environment* env, const char* name) {
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
     Local<String> js_name = String::NewFromUtf8(isolate, name).ToLocalChecked();
-    Local<Value> argv[] = {js_name};
+    Local<Value> argv[] = {js_name, Integer::NewFromUnsigned(isolate, index)};
     Local<Value> result;
     if (binding->link_callback_.Get(isolate)
-            ->Call(context, v8::Undefined(isolate), 1, argv)
+            ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)
             .ToLocal(&result) &&
         result->IsObject()) {
       channel->Link(isolate, result.As<Object>());
