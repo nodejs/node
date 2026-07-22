@@ -205,6 +205,37 @@ function testEmptyInput() {
 }
 
 // =============================================================================
+// Dictionary tests
+// =============================================================================
+
+function testDictionaryAcceptsArrayBufferAndView() {
+  const dict =
+    Buffer.from('the quick brown fox jumps over the lazy dog '.repeat(4));
+  const inputBuf = Buffer.from(dict);
+  const arrayBufferDict = dict.buffer.slice(
+    dict.byteOffset, dict.byteOffset + dict.byteLength);
+  const dataViewDict = new DataView(arrayBufferDict);
+
+  for (const [compress, decompress] of [
+    [compressBrotliSync, decompressBrotliSync],
+    [compressZstdSync, decompressZstdSync],
+  ]) {
+    const withBuffer = bytesSync(
+      pullSync(fromSync(inputBuf), compress({ dictionary: dict }))).byteLength;
+
+    for (const dictionary of [arrayBufferDict, dataViewDict]) {
+      const size = bytesSync(
+        pullSync(fromSync(inputBuf), compress({ dictionary }))).byteLength;
+      assert.strictEqual(size, withBuffer);
+
+      const result = roundTripBytes(inputBuf, compress({ dictionary }),
+                                    decompress({ dictionary }));
+      assert.deepStrictEqual(result, inputBuf);
+    }
+  }
+}
+
+// =============================================================================
 // Run all tests
 // =============================================================================
 
@@ -223,5 +254,6 @@ testBrotliWithOptions();
 testMixedStatelessAndStateful();
 testEarlyExit();
 testEmptyInput();
+testDictionaryAcceptsArrayBufferAndView();
 
 common.mustCall()();
