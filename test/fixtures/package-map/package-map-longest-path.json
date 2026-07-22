@@ -1,0 +1,16 @@
+{
+  "packages": {
+    "root": {
+      "url": "./root",
+      "dependencies": {"inner": "inner"}
+    },
+    "inner": {
+      "url": "./root/node_modules/inner",
+      "dependencies": {"dep-a": "dep-a"}
+    },
+    "dep-a": {
+      "url": "./dep-a",
+      "dependencies": {}
+    }
+  }
+}

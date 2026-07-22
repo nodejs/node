@@ -89,6 +89,36 @@ using v8::Symbol;
 using v8::UnboundScript;
 using v8::Value;
 
+// This is a helper function mediates deleted v8::PropertyDescriptor copy/move.
+// The `Fn` receives a mutable reference of a stack allocated
+// PropertyDescriptor, copied from the passed in const reference of
+// PropertyDescriptor.
+template <typename Fn>
+auto WithPropertyDescriptorCopied(Isolate* isolate,
+                                  const PropertyDescriptor& desc,
+                                  Fn&& callback) {
+  auto apply_attrs = [&](PropertyDescriptor& d) {
+    if (desc.has_enumerable()) d.set_enumerable(desc.enumerable());
+    if (desc.has_configurable()) d.set_configurable(desc.configurable());
+    return callback(d);
+  };
+  if (desc.has_get() || desc.has_set()) {
+    PropertyDescriptor d(
+        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
+        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
+    return apply_attrs(d);
+  } else if (desc.has_value()) {
+    if (desc.has_writable()) {
+      PropertyDescriptor d(desc.value(), desc.writable());
+      return apply_attrs(d);
+    }
+    PropertyDescriptor d(desc.value());
+    return apply_attrs(d);
+  }
+  PropertyDescriptor d;
+  return apply_attrs(d);
+}
+
 // The vm module executes code in a sandboxed environment with a different
 // global object than the rest of the code. This is achieved by applying
 // every call that changes or queries a property on the global `this` in the
@@ -170,16 +200,18 @@ void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
   Local<ObjectTemplate> global_object_template =
       global_func_template->InstanceTemplate();
 
-  NamedPropertyHandlerConfiguration config(
-      PropertyGetterCallback,
-      PropertySetterCallback,
-      PropertyQueryCallback,
-      PropertyDeleterCallback,
-      PropertyEnumeratorCallback,
-      PropertyDefinerCallback,
-      PropertyDescriptorCallback,
-      {},
-      PropertyHandlerFlags::kHasNoSideEffect);
+  PropertyHandlerFlags flags = static_cast<PropertyHandlerFlags>(
+      static_cast<int>(PropertyHandlerFlags::kHasNoSideEffect) |
+      static_cast<int>(PropertyHandlerFlags::kHasDontDeleteProperty));
+  NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
+                                           PropertySetterCallback,
+                                           PropertyQueryCallback,
+                                           PropertyDeleterCallback,
+                                           PropertyEnumeratorCallback,
+                                           PropertyDefinerCallback,
+                                           PropertyDescriptorCallback,
+                                           {},
+                                           flags);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
@@ -190,7 +222,7 @@ void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
       IndexedPropertyDefinerCallback,
       IndexedPropertyDescriptorCallback,
       {},
-      PropertyHandlerFlags::kHasNoSideEffect);
+      flags);
 
   global_object_template->SetHandler(config);
   global_object_template->SetHandler(indexed_config);
@@ -493,13 +525,13 @@ Intercepted ContextifyContext::PropertyQueryCallback(
 
   PropertyAttribute attr;
 
-  Maybe<bool> maybe_has = sandbox->HasRealNamedProperty(context, property);
+  Maybe<bool> maybe_has = sandbox->HasOwnProperty(context, property);
   if (maybe_has.IsNothing()) {
     return Intercepted::kNo;
   } else if (maybe_has.FromJust()) {
-    Maybe<PropertyAttribute> maybe_attr =
-        sandbox->GetRealNamedPropertyAttributes(context, property);
-    if (!maybe_attr.To(&attr)) {
+    Maybe<bool> maybe_attr =
+        sandbox->GetPropertyAttributes(context, property, &attr);
+    if (!maybe_attr.FromMaybe(false)) {
       return Intercepted::kNo;
     }
     args.GetReturnValue().Set(attr);
@@ -600,38 +632,8 @@ Intercepted ContextifyContext::PropertySetterCallback(
     return Intercepted::kNo;
   }
 
-  // V8 comment: As long as the context is not detached the contextual accesses
-  // are the same as regular accesses to `context->Global()`s data property.
-  // The only difference is that after detaching `args.Holder()` will
-  // become a new identity and will no longer be equal to `context->Global()`.
-  // TODO(Node.js): revise the code below as the "contextual"-ness of the
-  // store is not actually relevant here. Also, new variable declaration is
-  // reported by V8 via PropertyDefinerCallback.
   bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
 
-  /*
-    // true for x = 5
-    // false for this.x = 5
-    // false for Object.defineProperty(this, 'foo', ...)
-    // false for vmResult.x = 5 where vmResult = vm.runInContext();
-
-    bool is_contextual_store = ctx->global_proxy() != args.This();
-
-    // Indicator to not return before setting (undeclared) function declarations
-    // on the sandbox in strict mode, i.e. args.ShouldThrowOnError() = true.
-    // True for 'function f() {}', 'this.f = function() {}',
-    // 'var f = function()'.
-    // In effect only for 'function f() {}' because
-    // var f = function(), is_declared = true
-    // this.f = function() {}, is_contextual_store = false.
-    bool is_function = value->IsFunction();
-
-    bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
-    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
-        !is_function) {
-      return Intercepted::kNo;
-    }
-  */
   if (!is_declared && property->IsSymbol()) {
     return Intercepted::kNo;
   }
@@ -722,42 +724,13 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
-  auto define_prop_on_sandbox =
-      [&] (PropertyDescriptor* desc_for_sandbox) {
-        if (desc.has_enumerable()) {
-          desc_for_sandbox->set_enumerable(desc.enumerable());
-        }
-        if (desc.has_configurable()) {
-          desc_for_sandbox->set_configurable(desc.configurable());
-        }
-        // Set the property on the sandbox.
-        USE(sandbox->DefineProperty(context, property, *desc_for_sandbox));
-      };
+  auto result =
+      WithPropertyDescriptorCopied(isolate, desc, [&](PropertyDescriptor& d) {
+        return sandbox->DefineProperty(context, property, d);
+      });
 
-  if (desc.has_get() || desc.has_set()) {
-    PropertyDescriptor desc_for_sandbox(
-        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
-        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
-
-    define_prop_on_sandbox(&desc_for_sandbox);
-    // TODO(https://github.com/nodejs/node/issues/52634): this should return
-    // kYes to behave according to the expected semantics.
-    return Intercepted::kNo;
-  } else {
-    Local<Value> value =
-        desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
-
-    if (desc.has_writable()) {
-      PropertyDescriptor desc_for_sandbox(value, desc.writable());
-      define_prop_on_sandbox(&desc_for_sandbox);
-    } else {
-      PropertyDescriptor desc_for_sandbox(value);
-      define_prop_on_sandbox(&desc_for_sandbox);
-    }
-    // TODO(https://github.com/nodejs/node/issues/52634): this should return
-    // kYes to behave according to the expected semantics.
-    return Intercepted::kNo;
-  }
+  if (result.FromMaybe(false)) return Intercepted::kYes;
+  return Intercepted::kNo;
 }
 
 // static
@@ -2003,19 +1976,32 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  int ret = SigintWatchdogHelper::GetInstance()->Start();
-  args.GetReturnValue().Set(ret == 0);
-}
+// Runs the JavaScript function passed as the first argument with a
+// `SigintWatchdog` active, so that a SIGINT received while the function is
+// executing terminates execution.
+static void RunInterruptible(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  CHECK(args[0]->IsFunction());
+  Local<Function> fn = args[0].As<Function>();
 
-static void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
-  bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
-  args.GetReturnValue().Set(had_pending_signals);
-}
+  bool received_signal = false;
+  TryCatchScope try_catch(env);
+  {
+    SigintWatchdog swd(isolate, &received_signal);
+    USE(fn->Call(env->context(), Undefined(isolate), 0, nullptr));
+  }
 
-static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
-  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
-  args.GetReturnValue().Set(ret);
+  // Convert the termination exception into a recoverable state.
+  if (received_signal) {
+    isolate->CancelTerminateExecution();
+  } else if (try_catch.HasCaught()) {
+    // A genuine exception (not a watchdog-triggered termination); propagate it.
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
+    return;
+  }
+
+  args.GetReturnValue().Set(received_signal);
 }
 
 static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
@@ -2049,11 +2035,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   ContextifyFunction::CreatePerIsolateProperties(isolate_data, target);
 
-  SetMethod(isolate, target, "startSigintWatchdog", StartSigintWatchdog);
-  SetMethod(isolate, target, "stopSigintWatchdog", StopSigintWatchdog);
-  // Used in tests.
-  SetMethodNoSideEffect(
-      isolate, target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+  SetMethod(isolate, target, "runInterruptible", RunInterruptible);
 
   SetMethod(isolate, target, "measureMemory", MeasureMemory);
   SetMethod(isolate,
@@ -2103,9 +2085,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   ContextifyFunction::RegisterExternalReferences(registry);
 
   registry->Register(CompileFunctionForCJSLoader);
-  registry->Register(StartSigintWatchdog);
-  registry->Register(StopSigintWatchdog);
-  registry->Register(WatchdogHasPendingSigint);
+  registry->Register(RunInterruptible);
   registry->Register(MeasureMemory);
   registry->Register(ContainsModuleSyntax);
 }

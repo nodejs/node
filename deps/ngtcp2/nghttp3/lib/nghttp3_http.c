@@ -36,11 +36,8 @@
 #include "nghttp3_macro.h"
 #include "nghttp3_conv.h"
 #include "nghttp3_unreachable.h"
+#include "nghttp3_str.h"
 #include "sfparse/sfparse.h"
-
-static uint8_t downcase(uint8_t c) {
-  return 'A' <= c && c <= 'Z' ? (uint8_t)(c - 'A' + 'a') : c;
-}
 
 /*
  * memieq returns 1 if the data pointed by |a| of length |n| equals to
@@ -52,7 +49,7 @@ static int memieq(const void *a, const void *b, size_t n) {
   const uint8_t *aa = a, *bb = b;
 
   for (i = 0; i < n; ++i) {
-    if (aa[i] != downcase(bb[i])) {
+    if (aa[i] != nghttp3_downcase_byte(bb[i])) {
       return 0;
     }
   }
@@ -62,27 +59,39 @@ static int memieq(const void *a, const void *b, size_t n) {
 #define lstrieq(A, B, N)                                                       \
   (nghttp3_strlen_lit((A)) == (N) && memieq((A), (B), (N)))
 
+static int32_t parse_status_code(const uint8_t *s, size_t len) {
+  if (len != 3 || '1' > s[0] || s[0] > '9' || '0' > s[1] || s[1] > '9' ||
+      '0' > s[2] || s[2] > '9') {
+    return -1;
+  }
+
+  return (s[0] - '0') * 100 + (s[1] - '0') * 10 + (s[2] - '0');
+}
+
 static int64_t parse_uint(const uint8_t *s, size_t len) {
-  int64_t n = 0;
+  uint64_t n = 0;
+  uint32_t c;
   size_t i;
+
   if (len == 0) {
     return -1;
   }
+
   for (i = 0; i < len; ++i) {
-    if ('0' <= s[i] && s[i] <= '9') {
-      if (n > (int64_t)NGHTTP3_MAX_VARINT / 10) {
-        return -1;
-      }
-      n *= 10;
-      if (n > (int64_t)NGHTTP3_MAX_VARINT - (s[i] - '0')) {
-        return -1;
-      }
-      n += s[i] - '0';
-      continue;
+    if ('0' > s[i] || s[i] > '9') {
+      return -1;
     }
-    return -1;
+
+    c = s[i] - '0';
+
+    if (n > (NGHTTP3_MAX_VARINT - c) / 10) {
+      return -1;
+    }
+
+    n = n * 10 + c;
   }
-  return n;
+
+  return (int64_t)n;
 }
 
 static int check_pseudo_header(nghttp3_http_state *http,
@@ -94,7 +103,7 @@ static int check_pseudo_header(nghttp3_http_state *http,
   return 1;
 }
 
-static int expect_response_body(nghttp3_http_state *http) {
+static int expect_response_body(const nghttp3_http_state *http) {
   return (http->flags & NGHTTP3_HTTP_FLAG_METH_HEAD) == 0 &&
          http->status_code / 100 != 1 && http->status_code != 304 &&
          http->status_code != 204;
@@ -105,7 +114,7 @@ static int expect_response_body(nghttp3_http_state *http) {
    :path header field value must start with "/".  This function must
    be called after ":method" header field was received.  This function
    returns nonzero if path is valid.*/
-static int check_path_flags(nghttp3_http_state *http) {
+static int check_path_flags(const nghttp3_http_state *http) {
   return (http->flags & NGHTTP3_HTTP_FLAG_SCHEME_HTTP) == 0 ||
          ((http->flags & NGHTTP3_HTTP_FLAG_PATH_REGULAR) ||
           ((http->flags & NGHTTP3_HTTP_FLAG_METH_OPTIONS) &&
@@ -275,26 +284,26 @@ static const int8_t VALID_PATH_CHARS[256] = {
   ['u'] = 1,  ['v'] = 1,  ['w'] = 1,  ['x'] = 1,  ['y'] = 1,  ['z'] = 1,
   ['{'] = 1,  ['|'] = 1,  ['}'] = 1,  ['~'] = 1,  [0x80] = 1, [0x81] = 1,
   [0x82] = 1, [0x83] = 1, [0x84] = 1, [0x85] = 1, [0x86] = 1, [0x87] = 1,
-  [0x88] = 1, [0x89] = 1, [0x8a] = 1, [0x8b] = 1, [0x8c] = 1, [0x8d] = 1,
-  [0x8e] = 1, [0x8f] = 1, [0x90] = 1, [0x91] = 1, [0x92] = 1, [0x93] = 1,
+  [0x88] = 1, [0x89] = 1, [0x8A] = 1, [0x8B] = 1, [0x8C] = 1, [0x8D] = 1,
+  [0x8E] = 1, [0x8F] = 1, [0x90] = 1, [0x91] = 1, [0x92] = 1, [0x93] = 1,
   [0x94] = 1, [0x95] = 1, [0x96] = 1, [0x97] = 1, [0x98] = 1, [0x99] = 1,
-  [0x9a] = 1, [0x9b] = 1, [0x9c] = 1, [0x9d] = 1, [0x9e] = 1, [0x9f] = 1,
-  [0xa0] = 1, [0xa1] = 1, [0xa2] = 1, [0xa3] = 1, [0xa4] = 1, [0xa5] = 1,
-  [0xa6] = 1, [0xa7] = 1, [0xa8] = 1, [0xa9] = 1, [0xaa] = 1, [0xab] = 1,
-  [0xac] = 1, [0xad] = 1, [0xae] = 1, [0xaf] = 1, [0xb0] = 1, [0xb1] = 1,
-  [0xb2] = 1, [0xb3] = 1, [0xb4] = 1, [0xb5] = 1, [0xb6] = 1, [0xb7] = 1,
-  [0xb8] = 1, [0xb9] = 1, [0xba] = 1, [0xbb] = 1, [0xbc] = 1, [0xbd] = 1,
-  [0xbe] = 1, [0xbf] = 1, [0xc0] = 1, [0xc1] = 1, [0xc2] = 1, [0xc3] = 1,
-  [0xc4] = 1, [0xc5] = 1, [0xc6] = 1, [0xc7] = 1, [0xc8] = 1, [0xc9] = 1,
-  [0xca] = 1, [0xcb] = 1, [0xcc] = 1, [0xcd] = 1, [0xce] = 1, [0xcf] = 1,
-  [0xd0] = 1, [0xd1] = 1, [0xd2] = 1, [0xd3] = 1, [0xd4] = 1, [0xd5] = 1,
-  [0xd6] = 1, [0xd7] = 1, [0xd8] = 1, [0xd9] = 1, [0xda] = 1, [0xdb] = 1,
-  [0xdc] = 1, [0xdd] = 1, [0xde] = 1, [0xdf] = 1, [0xe0] = 1, [0xe1] = 1,
-  [0xe2] = 1, [0xe3] = 1, [0xe4] = 1, [0xe5] = 1, [0xe6] = 1, [0xe7] = 1,
-  [0xe8] = 1, [0xe9] = 1, [0xea] = 1, [0xeb] = 1, [0xec] = 1, [0xed] = 1,
-  [0xee] = 1, [0xef] = 1, [0xf0] = 1, [0xf1] = 1, [0xf2] = 1, [0xf3] = 1,
-  [0xf4] = 1, [0xf5] = 1, [0xf6] = 1, [0xf7] = 1, [0xf8] = 1, [0xf9] = 1,
-  [0xfa] = 1, [0xfb] = 1, [0xfc] = 1, [0xfd] = 1, [0xfe] = 1, [0xff] = 1,
+  [0x9A] = 1, [0x9B] = 1, [0x9C] = 1, [0x9D] = 1, [0x9E] = 1, [0x9F] = 1,
+  [0xA0] = 1, [0xA1] = 1, [0xA2] = 1, [0xA3] = 1, [0xA4] = 1, [0xA5] = 1,
+  [0xA6] = 1, [0xA7] = 1, [0xA8] = 1, [0xA9] = 1, [0xAA] = 1, [0xAB] = 1,
+  [0xAC] = 1, [0xAD] = 1, [0xAE] = 1, [0xAF] = 1, [0xB0] = 1, [0xB1] = 1,
+  [0xB2] = 1, [0xB3] = 1, [0xB4] = 1, [0xB5] = 1, [0xB6] = 1, [0xB7] = 1,
+  [0xB8] = 1, [0xB9] = 1, [0xBA] = 1, [0xBB] = 1, [0xBC] = 1, [0xBD] = 1,
+  [0xBE] = 1, [0xBF] = 1, [0xC0] = 1, [0xC1] = 1, [0xC2] = 1, [0xC3] = 1,
+  [0xC4] = 1, [0xC5] = 1, [0xC6] = 1, [0xC7] = 1, [0xC8] = 1, [0xC9] = 1,
+  [0xCA] = 1, [0xCB] = 1, [0xCC] = 1, [0xCD] = 1, [0xCE] = 1, [0xCF] = 1,
+  [0xD0] = 1, [0xD1] = 1, [0xD2] = 1, [0xD3] = 1, [0xD4] = 1, [0xD5] = 1,
+  [0xD6] = 1, [0xD7] = 1, [0xD8] = 1, [0xD9] = 1, [0xDA] = 1, [0xDB] = 1,
+  [0xDC] = 1, [0xDD] = 1, [0xDE] = 1, [0xDF] = 1, [0xE0] = 1, [0xE1] = 1,
+  [0xE2] = 1, [0xE3] = 1, [0xE4] = 1, [0xE5] = 1, [0xE6] = 1, [0xE7] = 1,
+  [0xE8] = 1, [0xE9] = 1, [0xEA] = 1, [0xEB] = 1, [0xEC] = 1, [0xED] = 1,
+  [0xEE] = 1, [0xEF] = 1, [0xF0] = 1, [0xF1] = 1, [0xF2] = 1, [0xF3] = 1,
+  [0xF4] = 1, [0xF5] = 1, [0xF6] = 1, [0xF7] = 1, [0xF8] = 1, [0xF9] = 1,
+  [0xFA] = 1, [0xFB] = 1, [0xFC] = 1, [0xFD] = 1, [0xFE] = 1, [0xFF] = 1,
 };
 
 static int check_path(const uint8_t *value, size_t len) {
@@ -308,7 +317,7 @@ static int check_path(const uint8_t *value, size_t len) {
 }
 
 static int http_request_on_header(nghttp3_http_state *http,
-                                  nghttp3_qpack_nv *nv, int trailers,
+                                  const nghttp3_qpack_nv *nv, int trailers,
                                   int connect_protocol) {
   nghttp3_pri pri;
 
@@ -452,15 +461,14 @@ static int http_request_on_header(nghttp3_http_state *http,
 }
 
 static int http_response_on_header(nghttp3_http_state *http,
-                                   nghttp3_qpack_nv *nv, int trailers) {
+                                   const nghttp3_qpack_nv *nv, int trailers) {
   switch (nv->token) {
   case NGHTTP3_QPACK_TOKEN__STATUS: {
-    if (!check_pseudo_header(http, nv, NGHTTP3_HTTP_FLAG__STATUS) ||
-        nv->value->len != 3) {
+    if (!check_pseudo_header(http, nv, NGHTTP3_HTTP_FLAG__STATUS)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
-    http->status_code = (int16_t)parse_uint(nv->value->base, nv->value->len);
-    if (http->status_code < 100 || http->status_code == 101) {
+    http->status_code = parse_status_code(nv->value->base, nv->value->len);
+    if (http->status_code == -1 || http->status_code == 101) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
     break;
@@ -527,7 +535,7 @@ static int http_response_on_header(nghttp3_http_state *http,
 
 static int http_check_nonempty_header_name(const uint8_t *name, size_t len);
 
-int nghttp3_http_on_header(nghttp3_http_state *http, nghttp3_qpack_nv *nv,
+int nghttp3_http_on_header(nghttp3_http_state *http, const nghttp3_qpack_nv *nv,
                            int request, int trailers, int connect_protocol) {
   if (nv->name->len == 0) {
     http->flags |= NGHTTP3_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED;
@@ -577,10 +585,13 @@ int nghttp3_http_on_request_headers(nghttp3_http_state *http) {
          (NGHTTP3_HTTP_FLAG__AUTHORITY | NGHTTP3_HTTP_FLAG_HOST)) == 0) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
-    if ((http->flags & NGHTTP3_HTTP_FLAG__PROTOCOL) &&
-        ((http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT) == 0 ||
-         (http->flags & NGHTTP3_HTTP_FLAG__AUTHORITY) == 0)) {
-      return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
+    if (http->flags & NGHTTP3_HTTP_FLAG__PROTOCOL) {
+      if ((http->flags & NGHTTP3_HTTP_FLAG_METH_CONNECT) == 0 ||
+          (http->flags & NGHTTP3_HTTP_FLAG__AUTHORITY) == 0) {
+        return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
+      }
+
+      http->content_length = -1;
     }
     if (!check_path_flags(http)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
@@ -615,7 +626,7 @@ int nghttp3_http_on_response_headers(nghttp3_http_state *http) {
   return 0;
 }
 
-int nghttp3_http_on_remote_end_stream(nghttp3_stream *stream) {
+int nghttp3_http_on_remote_end_stream(const nghttp3_stream *stream) {
   if ((stream->rx.http.flags & NGHTTP3_HTTP_FLAG_EXPECT_FINAL_RESPONSE) ||
       (stream->rx.http.content_length != -1 &&
        stream->rx.http.content_length != stream->rx.http.recv_content_length)) {
@@ -690,7 +701,7 @@ int nghttp3_check_header_name(const uint8_t *name, size_t len) {
     --len;
   }
   for (last = name + len; name != last; ++name) {
-    if (!VALID_HD_NAME_CHARS[*name]) {
+    if (VALID_HD_NAME_CHARS[*name] != 1) {
       return 0;
     }
   }
@@ -733,36 +744,36 @@ static const int8_t VALID_HD_VALUE_CHARS[256] = {
   ['s'] = 1,  ['t'] = 1,  ['u'] = 1,  ['v'] = 1,  ['w'] = 1,  ['x'] = 1,
   ['y'] = 1,  ['z'] = 1,  ['{'] = 1,  ['|'] = 1,  ['}'] = 1,  ['~'] = 1,
   [0x80] = 1, [0x81] = 1, [0x82] = 1, [0x83] = 1, [0x84] = 1, [0x85] = 1,
-  [0x86] = 1, [0x87] = 1, [0x88] = 1, [0x89] = 1, [0x8a] = 1, [0x8b] = 1,
-  [0x8c] = 1, [0x8d] = 1, [0x8e] = 1, [0x8f] = 1, [0x90] = 1, [0x91] = 1,
+  [0x86] = 1, [0x87] = 1, [0x88] = 1, [0x89] = 1, [0x8A] = 1, [0x8B] = 1,
+  [0x8C] = 1, [0x8D] = 1, [0x8E] = 1, [0x8F] = 1, [0x90] = 1, [0x91] = 1,
   [0x92] = 1, [0x93] = 1, [0x94] = 1, [0x95] = 1, [0x96] = 1, [0x97] = 1,
-  [0x98] = 1, [0x99] = 1, [0x9a] = 1, [0x9b] = 1, [0x9c] = 1, [0x9d] = 1,
-  [0x9e] = 1, [0x9f] = 1, [0xa0] = 1, [0xa1] = 1, [0xa2] = 1, [0xa3] = 1,
-  [0xa4] = 1, [0xa5] = 1, [0xa6] = 1, [0xa7] = 1, [0xa8] = 1, [0xa9] = 1,
-  [0xaa] = 1, [0xab] = 1, [0xac] = 1, [0xad] = 1, [0xae] = 1, [0xaf] = 1,
-  [0xb0] = 1, [0xb1] = 1, [0xb2] = 1, [0xb3] = 1, [0xb4] = 1, [0xb5] = 1,
-  [0xb6] = 1, [0xb7] = 1, [0xb8] = 1, [0xb9] = 1, [0xba] = 1, [0xbb] = 1,
-  [0xbc] = 1, [0xbd] = 1, [0xbe] = 1, [0xbf] = 1, [0xc0] = 1, [0xc1] = 1,
-  [0xc2] = 1, [0xc3] = 1, [0xc4] = 1, [0xc5] = 1, [0xc6] = 1, [0xc7] = 1,
-  [0xc8] = 1, [0xc9] = 1, [0xca] = 1, [0xcb] = 1, [0xcc] = 1, [0xcd] = 1,
-  [0xce] = 1, [0xcf] = 1, [0xd0] = 1, [0xd1] = 1, [0xd2] = 1, [0xd3] = 1,
-  [0xd4] = 1, [0xd5] = 1, [0xd6] = 1, [0xd7] = 1, [0xd8] = 1, [0xd9] = 1,
-  [0xda] = 1, [0xdb] = 1, [0xdc] = 1, [0xdd] = 1, [0xde] = 1, [0xdf] = 1,
-  [0xe0] = 1, [0xe1] = 1, [0xe2] = 1, [0xe3] = 1, [0xe4] = 1, [0xe5] = 1,
-  [0xe6] = 1, [0xe7] = 1, [0xe8] = 1, [0xe9] = 1, [0xea] = 1, [0xeb] = 1,
-  [0xec] = 1, [0xed] = 1, [0xee] = 1, [0xef] = 1, [0xf0] = 1, [0xf1] = 1,
-  [0xf2] = 1, [0xf3] = 1, [0xf4] = 1, [0xf5] = 1, [0xf6] = 1, [0xf7] = 1,
-  [0xf8] = 1, [0xf9] = 1, [0xfa] = 1, [0xfb] = 1, [0xfc] = 1, [0xfd] = 1,
-  [0xfe] = 1, [0xff] = 1,
+  [0x98] = 1, [0x99] = 1, [0x9A] = 1, [0x9B] = 1, [0x9C] = 1, [0x9D] = 1,
+  [0x9E] = 1, [0x9F] = 1, [0xA0] = 1, [0xA1] = 1, [0xA2] = 1, [0xA3] = 1,
+  [0xA4] = 1, [0xA5] = 1, [0xA6] = 1, [0xA7] = 1, [0xA8] = 1, [0xA9] = 1,
+  [0xAA] = 1, [0xAB] = 1, [0xAC] = 1, [0xAD] = 1, [0xAE] = 1, [0xAF] = 1,
+  [0xB0] = 1, [0xB1] = 1, [0xB2] = 1, [0xB3] = 1, [0xB4] = 1, [0xB5] = 1,
+  [0xB6] = 1, [0xB7] = 1, [0xB8] = 1, [0xB9] = 1, [0xBA] = 1, [0xBB] = 1,
+  [0xBC] = 1, [0xBD] = 1, [0xBE] = 1, [0xBF] = 1, [0xC0] = 1, [0xC1] = 1,
+  [0xC2] = 1, [0xC3] = 1, [0xC4] = 1, [0xC5] = 1, [0xC6] = 1, [0xC7] = 1,
+  [0xC8] = 1, [0xC9] = 1, [0xCA] = 1, [0xCB] = 1, [0xCC] = 1, [0xCD] = 1,
+  [0xCE] = 1, [0xCF] = 1, [0xD0] = 1, [0xD1] = 1, [0xD2] = 1, [0xD3] = 1,
+  [0xD4] = 1, [0xD5] = 1, [0xD6] = 1, [0xD7] = 1, [0xD8] = 1, [0xD9] = 1,
+  [0xDA] = 1, [0xDB] = 1, [0xDC] = 1, [0xDD] = 1, [0xDE] = 1, [0xDF] = 1,
+  [0xE0] = 1, [0xE1] = 1, [0xE2] = 1, [0xE3] = 1, [0xE4] = 1, [0xE5] = 1,
+  [0xE6] = 1, [0xE7] = 1, [0xE8] = 1, [0xE9] = 1, [0xEA] = 1, [0xEB] = 1,
+  [0xEC] = 1, [0xED] = 1, [0xEE] = 1, [0xEF] = 1, [0xF0] = 1, [0xF1] = 1,
+  [0xF2] = 1, [0xF3] = 1, [0xF4] = 1, [0xF5] = 1, [0xF6] = 1, [0xF7] = 1,
+  [0xF8] = 1, [0xF9] = 1, [0xFA] = 1, [0xFB] = 1, [0xFC] = 1, [0xFD] = 1,
+  [0xFE] = 1, [0xFF] = 1,
 };
 
 #ifdef __AVX2__
 static int contains_bad_header_value_char_avx2(const uint8_t *first,
                                                const uint8_t *last) {
   const __m256i ctll = _mm256_set1_epi8(0x00 - 1);
-  const __m256i ctlr = _mm256_set1_epi8(0x1f + 1);
+  const __m256i ctlr = _mm256_set1_epi8(0x1F + 1);
   const __m256i ht = _mm256_set1_epi8('\t');
-  const __m256i del = _mm256_set1_epi8(0x7f);
+  const __m256i del = _mm256_set1_epi8(0x7F);
   __m256i s, x;
   uint32_t m;
 
@@ -809,7 +820,7 @@ int nghttp3_check_header_value(const uint8_t *value, size_t len) {
 
 #ifdef __AVX2__
   if (len >= 32) {
-    last32 = value + (len & ~0x1fu);
+    last32 = value + (len & ~(size_t)0x1FU);
     if (contains_bad_header_value_char_avx2(value, last32)) {
       return 0;
     }

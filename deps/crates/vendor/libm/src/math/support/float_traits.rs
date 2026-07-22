@@ -6,6 +6,7 @@ use super::int_traits::{CastFrom, Int, MinInt};
 
 /// Trait for some basic operations on floats
 // #[allow(dead_code)]
+#[allow(dead_code)] // Some constants are only used with tests
 pub trait Float:
     Copy
     + fmt::Debug
@@ -189,6 +190,15 @@ pub trait Float:
             Self::ONE.copysign(self)
         }
     }
+
+    /// Make a best-effort attempt to canonicalize the number. Note that this is allowed
+    /// to be a nop and does not always quiet sNaNs.
+    fn canonicalize(self) -> Self {
+        // FIXME: LLVM often removes this. We should determine whether we can remove the operation,
+        // or switch to something based on `llvm.canonicalize` (which has crashes,
+        // <https://github.com/llvm/llvm-project/issues/32650>).
+        self * Self::ONE
+    }
 }
 
 /// Access the associated `Int` type from a float (helper to avoid ambiguous associated types).
@@ -279,7 +289,10 @@ macro_rules! float_impl {
                 cfg_if! {
                     // fma is not yet available in `core`
                     if #[cfg(intrinsics_enabled)] {
-                        unsafe{ core::intrinsics::$fma_intrinsic(self, y, z) }
+                        // FIXME(msrv,bench): once our benchmark rustc version is above the
+                        // 2022-09-23 nightly, this can be removed.
+                        #[allow(unused_unsafe)]
+                        unsafe { core::intrinsics::$fma_intrinsic(self, y, z) }
                     } else {
                         super::super::$fma_fn(self, y, z)
                     }
@@ -353,6 +366,7 @@ pub const fn f32_from_bits(bits: u32) -> f32 {
 }
 
 /// `f32::to_bits`
+#[allow(dead_code)] // workaround for false positive RUST-144060
 #[allow(unnecessary_transmutes)] // lint appears in newer versions of Rust
 pub const fn f32_to_bits(x: f32) -> u32 {
     // SAFETY: POD cast with no preconditions
@@ -367,6 +381,7 @@ pub const fn f64_from_bits(bits: u64) -> f64 {
 }
 
 /// `f64::to_bits`
+#[allow(dead_code)] // workaround for false positive RUST-144060
 #[allow(unnecessary_transmutes)] // lint appears in newer versions of Rust
 pub const fn f64_to_bits(x: f64) -> u64 {
     // SAFETY: POD cast with no preconditions

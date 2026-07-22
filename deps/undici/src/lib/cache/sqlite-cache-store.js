@@ -173,6 +173,7 @@ module.exports = class SqliteCacheStore {
         headers = ?,
         etag = ?,
         cacheControlDirectives = ?,
+        vary = ?,
         cachedAt = ?,
         staleAt = ?
       WHERE
@@ -216,7 +217,7 @@ module.exports = class SqliteCacheStore {
           SELECT
             id
           FROM cacheInterceptorV${VERSION}
-          ORDER BY cachedAt DESC
+          ORDER BY cachedAt ASC
           LIMIT ?
         )
       `)
@@ -278,12 +279,12 @@ module.exports = class SqliteCacheStore {
         value.headers ? JSON.stringify(value.headers) : null,
         value.etag ? value.etag : null,
         value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
+        value.vary ? JSON.stringify(value.vary) : null,
         value.cachedAt,
         value.staleAt,
         existingValue.id
       )
     } else {
-      this.#prune()
       // New response, let's insert it
       this.#insertValueQuery.run(
         url,
@@ -299,6 +300,7 @@ module.exports = class SqliteCacheStore {
         value.cachedAt,
         value.staleAt
       )
+      this.#prune()
     }
   }
 
@@ -323,7 +325,7 @@ module.exports = class SqliteCacheStore {
       write (chunk, encoding, callback) {
         size += chunk.byteLength
 
-        if (size < store.#maxEntrySize) {
+        if (size <= store.#maxEntrySize) {
           body.push(chunk)
         } else {
           this.destroy()
@@ -409,7 +411,7 @@ module.exports = class SqliteCacheStore {
     const now = Date.now()
     for (const value of values) {
       if (now >= value.deleteAt && !canBeExpired) {
-        return undefined
+        continue
       }
 
       let matches = true

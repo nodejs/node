@@ -111,15 +111,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 # define NODE_DEPRECATED(message, declarator) declarator
 #else  // NODE_WANT_INTERNALS
-# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __attribute__((deprecated(message))) declarator
-# elif defined(_MSC_VER)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __declspec(deprecated) declarator
-# else
-#  define NODE_DEPRECATED(message, declarator) declarator
-# endif
+#define NODE_DEPRECATED(message, declarator) [[deprecated(message)]] declarator
 #endif
 
 // Forward-declare libuv loop
@@ -563,6 +555,8 @@ NODE_EXTERN v8::Isolate* NewIsolate(
     const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
+// Call `RegisterContext` after the context been created to register
+// the context with Node.js specific setups like the inspector.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Isolate* isolate,
     v8::Local<v8::ObjectTemplate> object_template =
@@ -571,6 +565,18 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
 NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
+
+// Associate the context with the given Environment. This registers the context
+// as known to Node.js, makes it available to the inspector. This also registers
+// Node.js promise hooks on the context.
+NODE_EXTERN void RegisterContext(Environment* env,
+                                 v8::Local<v8::Context> context,
+                                 std::string_view name = "",
+                                 std::string_view origin = "");
+// Unregister the context. Call this when the embedder finished all work with
+// this context.
+NODE_EXTERN void UnregisterContext(Environment* env,
+                                   v8::Local<v8::Context> context);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
@@ -684,17 +690,8 @@ NODE_EXTERN Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
     ThreadId thread_id = {} /* allocates a thread id automatically */,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
-
-NODE_EXTERN Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    v8::Local<v8::Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
-    std::string_view thread_name);
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {},
+    std::string_view thread_name = {});
 
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.

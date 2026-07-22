@@ -46,34 +46,43 @@ function parseAddress (address) {
  */
 function parseIPv6 (address) {
   const buffer = Buffer.alloc(16)
-  const parts = address.split(':')
-  let partIndex = 0
-  let bufferIndex = 0
+  let normalizedAddress = address
+
+  // Expand an embedded IPv4 tail into the last two IPv6 groups.
+  if (address.includes('.')) {
+    const lastColonIndex = address.lastIndexOf(':')
+    const ipv4Part = address.slice(lastColonIndex + 1)
+
+    if (net.isIPv4(ipv4Part)) {
+      const octets = ipv4Part.split('.').map(Number)
+      const high = ((octets[0] << 8) | octets[1]).toString(16)
+      const low = ((octets[2] << 8) | octets[3]).toString(16)
+      normalizedAddress = `${address.slice(0, lastColonIndex)}:${high}:${low}`
+    }
+  }
 
   // Handle compressed notation (::)
-  const doubleColonIndex = address.indexOf('::')
+  const doubleColonIndex = normalizedAddress.indexOf('::')
   if (doubleColonIndex !== -1) {
-    // Count non-empty parts
-    const nonEmptyParts = parts.filter(p => p.length > 0).length
-    const skipParts = 8 - nonEmptyParts
+    const before = normalizedAddress.slice(0, doubleColonIndex)
+    const after = normalizedAddress.slice(doubleColonIndex + 2)
+    const beforeParts = before === '' ? [] : before.split(':')
+    const afterParts = after === '' ? [] : after.split(':')
 
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === '' && i === doubleColonIndex / 3) {
-        // Skip empty parts for ::
-        bufferIndex += skipParts * 2
-      } else if (parts[i] !== '') {
-        const value = parseInt(parts[i], 16)
-        buffer.writeUInt16BE(value, bufferIndex)
-        bufferIndex += 2
-      }
+    let bufferIndex = 0
+    for (const part of beforeParts) {
+      buffer.writeUInt16BE(parseInt(part, 16), bufferIndex)
+      bufferIndex += 2
+    }
+    bufferIndex = 16 - afterParts.length * 2
+    for (const part of afterParts) {
+      buffer.writeUInt16BE(parseInt(part, 16), bufferIndex)
+      bufferIndex += 2
     }
   } else {
-    // No compression, parse normally
-    for (const part of parts) {
-      if (part === '') continue
-      const value = parseInt(part, 16)
-      buffer.writeUInt16BE(value, partIndex * 2)
-      partIndex++
+    const parts = normalizedAddress.split(':')
+    for (let i = 0; i < parts.length; i++) {
+      buffer.writeUInt16BE(parseInt(parts[i], 16), i * 2)
     }
   }
 

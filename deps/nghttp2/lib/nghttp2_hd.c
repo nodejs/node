@@ -35,9 +35,10 @@
 /* Make scalar initialization form of nghttp2_hd_entry */
 #define MAKE_STATIC_ENT(N, V, T, H)                                            \
   {                                                                            \
-    {NULL, NULL, (uint8_t *)(N), sizeof((N)) - 1, -1},                         \
-    {NULL, NULL, (uint8_t *)(V), sizeof((V)) - 1, -1},                         \
-    {(uint8_t *)(N), (uint8_t *)(V), sizeof((N)) - 1, sizeof((V)) - 1, 0},     \
+    {NULL, NULL, (uint8_t *)(N), nghttp2_strlen_lit((N)), -1},                 \
+    {NULL, NULL, (uint8_t *)(V), nghttp2_strlen_lit((V)), -1},                 \
+    {(uint8_t *)(N), (uint8_t *)(V), nghttp2_strlen_lit((N)),                  \
+     nghttp2_strlen_lit((V)), 0},                                              \
     T,                                                                         \
     H,                                                                         \
   }
@@ -2058,8 +2059,9 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
 
         inflater->state = NGHTTP2_HD_STATE_NEWNAME_READ_NAMEHUFF;
 
-        rv =
-          nghttp2_rcbuf_new(&inflater->namercbuf, inflater->left * 2 + 1, mem);
+        rv = nghttp2_rcbuf_new(
+          &inflater->namercbuf,
+          nghttp2_huff_estimate_decode_length(inflater->left) + 1, mem);
       } else {
         inflater->state = NGHTTP2_HD_STATE_NEWNAME_READ_NAME;
         rv = nghttp2_rcbuf_new(&inflater->namercbuf, inflater->left + 1, mem);
@@ -2143,8 +2145,9 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
 
         inflater->state = NGHTTP2_HD_STATE_READ_VALUEHUFF;
 
-        rv =
-          nghttp2_rcbuf_new(&inflater->valuercbuf, inflater->left * 2 + 1, mem);
+        rv = nghttp2_rcbuf_new(
+          &inflater->valuercbuf,
+          nghttp2_huff_estimate_decode_length(inflater->left) + 1, mem);
       } else {
         inflater->state = NGHTTP2_HD_STATE_READ_VALUE;
 

@@ -6,8 +6,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const {
@@ -34,7 +34,15 @@ for (const [asymmetricKeyType, sigLen] of [
     private_priv_only: fixtures.readKey(getKeyFileName(asymmetricKeyType, 'private_priv_only'), 'ascii'),
   };
 
-  for (const privateKey of [keys.private, keys.private_seed_only, keys.private_priv_only]) {
+  for (const [privateKey, seedOnly] of [
+    [keys.private, false],
+    [keys.private_seed_only, true],
+    [keys.private_priv_only, false],
+  ]) {
+    if (process.features.openssl_is_boringssl && !seedOnly) {
+      common.printSkipMessage('Skipping unsupported private key format test');
+      continue;
+    }
     for (const data of [randomBytes(0), randomBytes(1), randomBytes(32), randomBytes(128), randomBytes(1024)]) {
       // sync
       {
@@ -44,10 +52,12 @@ for (const [asymmetricKeyType, sigLen] of [
         assert.strictEqual(verify(undefined, data, keys.public, Buffer.alloc(sigLen)), false);
         assert.strictEqual(verify(undefined, data, keys.public, signature), true);
         assert.strictEqual(verify(undefined, data, privateKey, signature), true);
-        assert.throws(() => sign('sha256', data, privateKey), { code: 'ERR_OSSL_INVALID_DIGEST' });
+        const code = process.features.openssl_is_boringssl ?
+          'ERR_OSSL_EVP_COMMAND_NOT_SUPPORTED' : 'ERR_OSSL_INVALID_DIGEST';
+        assert.throws(() => sign('sha256', data, privateKey), { code });
         assert.throws(
           () => verify('sha256', data, keys.public, Buffer.alloc(sigLen)),
-          { code: 'ERR_OSSL_INVALID_DIGEST' });
+          { code });
       }
 
       // async
@@ -62,8 +72,9 @@ for (const [asymmetricKeyType, sigLen] of [
           }));
         }));
 
-        sign('sha256', data, privateKey, common.expectsError(/invalid digest/));
-        verify('sha256', data, keys.public, Buffer.alloc(sigLen), common.expectsError(/invalid digest/));
+        const message = process.features.openssl_is_boringssl ? /COMMAND_NOT_SUPPORTED/ : /invalid digest/;
+        sign('sha256', data, privateKey, common.expectsError(message));
+        verify('sha256', data, keys.public, Buffer.alloc(sigLen), common.expectsError(message));
       }
     }
   }

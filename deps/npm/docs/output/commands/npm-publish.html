@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-publish----11121">
+<h1 id="----npm-publish----11180">
     <span>npm-publish</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Publish a package</span>
 </header>
@@ -279,7 +279,7 @@ the package submitted to the registry.</p>
 <ul>
 <li>Default: 'public' for new packages, existing packages it will not change the
 current level</li>
-<li>Type: null, "restricted", or "public"</li>
+<li>Type: null, "restricted", "public", or "private"</li>
 </ul>
 <p>If you do not want your scoped package to be publicly viewable (and
 installable) set <code>--access=restricted</code>.</p>
@@ -287,6 +287,7 @@ installable) set <code>--access=restricted</code>.</p>
 <p>Note: This defaults to not changing the current access level for existing
 packages. Specifying a value of <code>restricted</code> or <code>public</code> during publish will
 change the access for an existing package the same way that <code>npm access set status</code> would.</p>
+<p>The value <code>private</code> is an alias for <code>restricted</code>.</p>
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>

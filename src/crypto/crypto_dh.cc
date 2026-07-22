@@ -89,6 +89,26 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>());
 }
 
+void PutDhError(int reason) {
+#ifdef OPENSSL_IS_BORINGSSL
+  OPENSSL_PUT_ERROR(DH, reason);
+#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_DH, reason);
+#else
+  ERR_put_error(ERR_LIB_DH, 0, reason, __FILE__, __LINE__);
+#endif
+}
+
+#if defined(OPENSSL_IS_BORINGSSL) || !NCRYPTO_USE_OPENSSL3_PROVIDER
+void PutBnError(int reason) {
+#ifdef OPENSSL_IS_BORINGSSL
+  OPENSSL_PUT_ERROR(BN, reason);
+#else
+  ERR_put_error(ERR_LIB_BN, 0, reason, __FILE__, __LINE__);
+#endif
+}
+#endif
+
 void DiffieHellmanGroup(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
@@ -115,12 +135,12 @@ void New(const FunctionCallbackInfo<Value>& args) {
     if (bits < 2) {
 #ifndef OPENSSL_IS_BORINGSSL
 #if OPENSSL_VERSION_MAJOR >= 3
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_MODULUS_TOO_SMALL, __FILE__, __LINE__);
+      PutDhError(DH_R_MODULUS_TOO_SMALL);
 #else
-      ERR_put_error(ERR_LIB_BN, 0, BN_R_BITS_TOO_SMALL, __FILE__, __LINE__);
+      PutBnError(BN_R_BITS_TOO_SMALL);
 #endif  // OPENSSL_VERSION_MAJOR >= 3
 #else   // OPENSSL_IS_BORINGSSL
-      OPENSSL_PUT_ERROR(BN, BN_R_BITS_TOO_SMALL);
+      PutBnError(BN_R_BITS_TOO_SMALL);
 #endif  // OPENSSL_IS_BORINGSSL
       return ThrowCryptoError(env, ERR_get_error(), "Invalid prime length");
     }
@@ -134,11 +154,7 @@ void New(const FunctionCallbackInfo<Value>& args) {
     }
     int32_t generator = args[1].As<Int32>()->Value();
     if (generator < 2) {
-#ifndef OPENSSL_IS_BORINGSSL
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
-#else
-      OPENSSL_PUT_ERROR(DH, DH_R_BAD_GENERATOR);
-#endif
+      PutDhError(DH_R_BAD_GENERATOR);
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
 
@@ -167,20 +183,12 @@ void New(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsInt32()) {
     int32_t generator = args[1].As<Int32>()->Value();
     if (generator < 2) {
-#ifndef OPENSSL_IS_BORINGSSL
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
-#else
-      OPENSSL_PUT_ERROR(DH, DH_R_BAD_GENERATOR);
-#endif
+      PutDhError(DH_R_BAD_GENERATOR);
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
     bn_g = BignumPointer::New();
     if (!bn_g.setWord(generator)) {
-#ifndef OPENSSL_IS_BORINGSSL
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
-#else
-      OPENSSL_PUT_ERROR(DH, DH_R_BAD_GENERATOR);
-#endif
+      PutDhError(DH_R_BAD_GENERATOR);
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
   } else {
@@ -189,22 +197,21 @@ void New(const FunctionCallbackInfo<Value>& args) {
       return THROW_ERR_OUT_OF_RANGE(env, "generator is too big");
     bn_g = BignumPointer(reinterpret_cast<uint8_t*>(arg1.data()), arg1.size());
     if (!bn_g) {
-#ifndef OPENSSL_IS_BORINGSSL
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
-#else
-      OPENSSL_PUT_ERROR(DH, DH_R_BAD_GENERATOR);
-#endif
+      PutDhError(DH_R_BAD_GENERATOR);
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
-    if (bn_g.getWord() < 2) {
-#ifndef OPENSSL_IS_BORINGSSL
-      ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
-#else
-      OPENSSL_PUT_ERROR(DH, DH_R_BAD_GENERATOR);
-#endif
+    if (bn_g.getWord().has_value() && bn_g.getWord().value() < 2) {
+      PutDhError(DH_R_BAD_GENERATOR);
       return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
   }
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (BN_num_bits(bn_p.get()) >= 512 && BN_cmp(bn_g.get(), bn_p.get()) >= 0) {
+    PutDhError(DH_R_BAD_GENERATOR);
+    return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+  }
+#endif
 
   auto dh = DHPointer::New(std::move(bn_p), std::move(bn_g));
   if (!dh) {
@@ -309,17 +316,24 @@ void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   BignumPointer key(key_buf.data(), key_buf.size());
 
   switch (dh.checkPublicKey(key)) {
-    case DHPointer::CheckPublicKeyResult::INVALID:
-      // Fall-through
     case DHPointer::CheckPublicKeyResult::CHECK_FAILED:
       return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env,
                                               "Unspecified validation error");
+#ifndef OPENSSL_IS_BORINGSSL
     case DHPointer::CheckPublicKeyResult::TOO_SMALL:
       return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too small");
     case DHPointer::CheckPublicKeyResult::TOO_LARGE:
       return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too large");
+#endif
+    case DHPointer::CheckPublicKeyResult::INVALID:
+      return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env, "Supplied key is invalid");
     case DHPointer::CheckPublicKeyResult::NONE:
       break;
+  }
+
+  if (!dh.hasPrivateKey()) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "Cannot compute shared secret without a private key");
   }
 
   auto dp = dh.computeSecret(key);
@@ -447,10 +461,9 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     if (!dh) return {};
 
     key_params = EVPKeyPointer::NewDH(std::move(dh));
-  } else if (std::get_if<int>(&params->params.prime)) {
+  } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
     auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
 #ifndef OPENSSL_IS_BORINGSSL
-    int* prime_size = std::get_if<int>(&params->params.prime);
     if (!param_ctx.initForParamgen() ||
         !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
       return {};

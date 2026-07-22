@@ -32,9 +32,28 @@ const setResponseHeaders = (res) => {
 
 const kTimeout = 1000;
 const kDelta = 200;
+const kDefaultResponseHeaders = {
+  'server': 'node',
+  'etag': '12345',
+  'set-cookie': 'key1=value1\nkey2=value2',
+  'x-header2': 'value1, value2',
+};
+
+function getDefaultResponseExpect(url) {
+  return {
+    url,
+    mimeType: 'text/plain',
+    charset: 'utf-8',
+    responseHeaders: kDefaultResponseHeaders,
+  };
+}
+
+function getPathName(req) {
+  return new URL(req.url, `http://${req.headers.host}`).pathname;
+}
 
 const handleRequest = (req, res) => {
-  const path = req.url;
+  const path = getPathName(req);
   switch (path) {
     case '/hello-world':
       setResponseHeaders(res);
@@ -46,6 +65,22 @@ const handleRequest = (req, res) => {
         res.end('hello world\n');
       }, kTimeout);
       break;
+    case '/echo-post': {
+      const chunks = [];
+      req.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      req.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          method: req.method,
+          body,
+        }));
+      });
+      break;
+    }
     default:
       assert.fail(`Unexpected path: ${path}`);
   }
@@ -77,7 +112,7 @@ function verifyRequestWillBeSent({ method, params }, expect) {
 
   assert.ok(params.requestId.startsWith('node-network-event-'));
   assert.strictEqual(params.request.url, expect.url);
-  assert.strictEqual(params.request.method, 'GET');
+  assert.strictEqual(params.request.method, expect.method ?? 'GET');
   assert.strictEqual(typeof params.request.headers, 'object');
   assert.strictEqual(params.request.headers['accept-language'], 'en-US');
   assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
@@ -103,12 +138,20 @@ function verifyResponseReceived({ method, params }, expect) {
   assert.strictEqual(params.response.statusText, 'OK');
   assert.strictEqual(params.response.url, expect.url);
   assert.strictEqual(typeof params.response.headers, 'object');
-  assert.strictEqual(params.response.headers.server, 'node');
-  assert.strictEqual(params.response.headers.etag, '12345');
-  assert.strictEqual(params.response.headers['set-cookie'], 'key1=value1\nkey2=value2');
-  assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
-  assert.strictEqual(params.response.mimeType, 'text/plain');
-  assert.strictEqual(params.response.charset, 'utf-8');
+  if (expect.responseHeaders?.server) {
+    assert.strictEqual(params.response.headers.server, expect.responseHeaders.server);
+  }
+  if (expect.responseHeaders?.etag) {
+    assert.strictEqual(params.response.headers.etag, expect.responseHeaders.etag);
+  }
+  if (expect.responseHeaders?.['set-cookie']) {
+    assert.strictEqual(params.response.headers['set-cookie'], expect.responseHeaders['set-cookie']);
+  }
+  if (expect.responseHeaders?.['x-header2']) {
+    assert.strictEqual(params.response.headers['x-header2'], expect.responseHeaders['x-header2']);
+  }
+  assert.strictEqual(params.response.mimeType, expect.mimeType);
+  assert.strictEqual(params.response.charset, expect.charset);
 
   return params;
 }
@@ -151,16 +194,45 @@ function verifyHttpResponse(response) {
   }));
 }
 
-async function testHttpGet() {
-  const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
+function drainHttpResponse(response) {
+  response.resume();
+}
+
+function createRequestTracker(url, responseExpect, requestExpect = {}) {
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url }));
+    .then(([event]) => verifyRequestWillBeSent(event, {
+      url,
+      method: requestExpect.method,
+    }));
 
   const responseReceivedFuture = once(session, 'Network.responseReceived')
-    .then(([event]) => verifyResponseReceived(event, { url }));
+    .then(([event]) => verifyResponseReceived(event, responseExpect));
 
   const loadingFinishedFuture = once(session, 'Network.loadingFinished')
     .then(([event]) => verifyLoadingFinished(event));
+
+  return {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  };
+}
+
+async function assertResponseBody(responseReceived, expectedBody, expectedBase64Encoded = false) {
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, expectedBase64Encoded);
+  assert.strictEqual(responseBody.body, expectedBody);
+}
+
+async function testHttpGet() {
+  const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
 
   http.get({
     host: '127.0.0.1',
@@ -175,24 +247,83 @@ async function testHttpGet() {
 
   const delta = (loadingFinished.timestamp - responseReceived.timestamp) * 1000;
   assert.ok(delta > kDelta);
+  await assertResponseBody(responseReceived, '\nhello world\n');
+}
 
-  const responseBody = await session.post('Network.getResponseBody', {
-    requestId: responseReceived.requestId,
+async function testHttpGetWithAbsoluteUrlPath() {
+  const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
+
+  http.get({
+    host: '127.0.0.1',
+    port: httpServer.address().port,
+    path: url,
+    headers: requestHeaders,
+  }, common.mustCall(verifyHttpResponse));
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  const loadingFinished = await loadingFinishedFuture;
+
+  const delta = (loadingFinished.timestamp - responseReceived.timestamp) * 1000;
+  assert.ok(delta > kDelta);
+  await assertResponseBody(responseReceived, '\nhello world\n');
+}
+
+async function testHttpPostWithAbsoluteUrlPath() {
+  const requestBody = JSON.stringify({ title: 'foo', type: 'post' });
+  const url = `http://127.0.0.1:${httpServer.address().port}/echo-post`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, {
+    url,
+    mimeType: 'application/json',
+    charset: 'utf-8',
+  }, {
+    method: 'POST',
   });
-  assert.strictEqual(responseBody.base64Encoded, false);
-  assert.strictEqual(responseBody.body, '\nhello world\n');
+
+  const responsePromise = new Promise((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1',
+      port: httpServer.address().port,
+      path: url,
+      method: 'POST',
+      headers: {
+        ...requestHeaders,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(requestBody),
+      },
+    }, resolve);
+    req.on('error', reject);
+    req.end(requestBody);
+  });
+
+  const response = await responsePromise;
+  drainHttpResponse(response);
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  await loadingFinishedFuture;
+  await assertResponseBody(responseReceived, JSON.stringify({
+    method: 'POST',
+    body: requestBody,
+  }));
 }
 
 async function testHttpsGet() {
   const url = `https://127.0.0.1:${httpsServer.address().port}/hello-world`;
-  const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url }));
-
-  const responseReceivedFuture = once(session, 'Network.responseReceived')
-    .then(([event]) => verifyResponseReceived(event, { url }));
-
-  const loadingFinishedFuture = once(session, 'Network.loadingFinished')
-    .then(([event]) => verifyLoadingFinished(event));
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
 
   https.get({
     host: '127.0.0.1',
@@ -208,12 +339,7 @@ async function testHttpsGet() {
 
   const delta = (loadingFinished.timestamp - responseReceived.timestamp) * 1000;
   assert.ok(delta > kDelta);
-
-  const responseBody = await session.post('Network.getResponseBody', {
-    requestId: responseReceived.requestId,
-  });
-  assert.strictEqual(responseBody.base64Encoded, false);
-  assert.strictEqual(responseBody.body, '\nhello world\n');
+  await assertResponseBody(responseReceived, '\nhello world\n');
 }
 
 async function testHttpError() {
@@ -256,6 +382,10 @@ async function testHttpsError() {
 
 const testNetworkInspection = async () => {
   await testHttpGet();
+  session.removeAllListeners();
+  await testHttpGetWithAbsoluteUrlPath();
+  session.removeAllListeners();
+  await testHttpPostWithAbsoluteUrlPath();
   session.removeAllListeners();
   await testHttpsGet();
   session.removeAllListeners();

@@ -317,12 +317,8 @@ For information about the governance of the Node.js project, see
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [dario-piotrowicz](https://github.com/dario-piotrowicz) -
   **Dario Piotrowicz** <<dario.piotrowicz@gmail.com>> (he/him)
-* [debadree25](https://github.com/debadree25) -
-  **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [deokjinkim](https://github.com/deokjinkim) -
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
-* [edsadr](https://github.com/edsadr) -
-  **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
 * [ErickWendel](https://github.com/ErickWendel) -
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
@@ -365,8 +361,6 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [jazelly](https://github.com/jazelly) -
   **Jason Zhang** <<xzha4350@gmail.com>> (he/him)
-* [JonasBa](https://github.com/JonasBa) -
-  **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [juanarbol](https://github.com/juanarbol) -
@@ -397,6 +391,8 @@ For information about the governance of the Node.js project, see
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/mcollina)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
+* [MikeMcC399](https://github.com/MikeMcC399) -
+  **Mike McCready** <<66998419+MikeMcC399@users.noreply.github.com>> (he/him)
 * [MoLow](https://github.com/MoLow) -
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [MrJithil](https://github.com/MrJithil) -
@@ -409,8 +405,6 @@ For information about the governance of the Node.js project, see
   **Tim Perry** <<pimterry@gmail.com>> (he/him)
 * [pmarchini](https://github.com/pmarchini) -
   **Pietro Marchini** <<pietro.marchini94@gmail.com>> (he/him)
-* [puskin](https://github.com/puskin) -
-  **Giovanni Bucci** <<github@puskin.it>> (he/him)
 * [Qard](https://github.com/Qard) -
   **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
@@ -453,8 +447,6 @@ For information about the governance of the Node.js project, see
   **Vladimir Morozov** <<vmorozov@microsoft.com>> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
-* [zcbenz](https://github.com/zcbenz) -
-  **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
 * [ZYSzys](https://github.com/ZYSzys) -
   **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
 
@@ -509,6 +501,8 @@ For information about the governance of the Node.js project, see
   **David Cai** <<davidcai1993@yahoo.com>> (he/him)
 * [davisjam](https://github.com/davisjam) -
   **Jamie Davis** <<davisjam@vt.edu>> (he/him)
+* [debadree25](https://github.com/debadree25) -
+  **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [devnexen](https://github.com/devnexen) -
   **David Carlier** <<devnexen@gmail.com>>
 * [devsnek](https://github.com/devsnek) -
@@ -519,6 +513,8 @@ For information about the governance of the Node.js project, see
   **Xu Meng** <<dmabupt@gmail.com>> (he/him)
 * [dnlup](https://github.com/dnlup) -
   **dnlup** <<dnlup.dev@gmail.com>>
+* [edsadr](https://github.com/edsadr) -
+  **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
   **Robert Jefe Lindstaedt** <<robert.lindstaedt@gmail.com>>
 * [estliberitas](https://github.com/estliberitas) -
@@ -573,6 +569,8 @@ For information about the governance of the Node.js project, see
   **João Reis** <<reis@janeasystems.com>>
 * [joesepi](https://github.com/joesepi) -
   **Joe Sepi** <<sepi@joesepi.com>> (he/him)
+* [JonasBa](https://github.com/JonasBa) -
+  **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joshgav](https://github.com/joshgav) -
   **Josh Gavant** <<josh.gavant@outlook.com>>
 * [julianduque](https://github.com/julianduque) -
@@ -655,6 +653,8 @@ For information about the governance of the Node.js project, see
   **Prince John Wesley** <<princejohnwesley@gmail.com>>
 * [psmarshall](https://github.com/psmarshall) -
   **Peter Marshall** <<petermarshall@chromium.org>> (he/him)
+* [puskin](https://github.com/puskin) -
+  **Giovanni Bucci** <<github@puskin.it>> (he/him)
 * [puzpuzpuz](https://github.com/puzpuzpuz) -
   **Andrey Pechkurov** <<apechkurov@gmail.com>> (he/him)
 * [refack](https://github.com/refack) -
@@ -733,6 +733,8 @@ For information about the governance of the Node.js project, see
   **Yorkie Liu** <<yorkiefixer@gmail.com>>
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
   **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
+* [zcbenz](https://github.com/zcbenz) -
+  **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
 
 </details>
 
@@ -745,38 +747,24 @@ maintaining the Node.js project.
 
 * [1ilsang](https://github.com/1ilsang) -
   **Sangchul Lee** <<1ilsang.dev@gmail.com>> (he/him)
-* [atlowChemi](https://github.com/atlowChemi) -
-  **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [bjohansebas](https://github.com/bjohansebas) -
   **Sebastian Beltran** <<bjohansebas@gmail.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
   **Brian Muenzenmeyer** <<brian.muenzenmeyer@gmail.com>> (he/him)
-* [CanadaHonk](https://github.com/CanadaHonk) -
-  **Oliver Medhurst** <<honk@goose.icu>> (they/them)
-* [daeyeon](https://github.com/daeyeon) -
-  **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [efekrskl](https://github.com/efekrskl) -
   **Efe Karasakal** <<hi@efe.dev>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
-* [gurgunday](https://github.com/gurgunday) -
-  **Gürgün Dayıoğlu** <<hey@gurgun.day>>
 * [haramj](https://github.com/haramj) -
   **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
-* [KevinEady](https://github.com/KevinEady) -
-  **Kevin Eady** <<kevin.c.eady@gmail.com>> (he/him)
-* [marsonya](https://github.com/marsonya) -
-  **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [milesguicent](https://github.com/milesguicent) -
   **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
-* [RaisinTen](https://github.com/RaisinTen) -
-  **Darshan Sen** <<raisinten@gmail.com>> (he/him)
 
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
@@ -799,6 +787,8 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Ruy Adorno** <<ruyadorno@hotmail.com>>
   `108F52B48DB57BB0CC439B2997B01419BD92F80A`
+* **Stewart X Addison** <<sxa@ibm.com>>
+  `655F3B5C1FB3FA8D1A0CA6BDE4A7D232B936D2FD`
 * **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>>
   `A363A499291CBBC940DD62E41F10027AF002F8B0`
 
@@ -816,6 +806,7 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4 # Rafael Gonzaga
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C # Richard Lau
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B01419BD92F80A # Ruy Adorno
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 655F3B5C1FB3FA8D1A0CA6BDE4A7D232B936D2FD # Stewart X Addison
 gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0 # Ulises Gascón
 ```
 

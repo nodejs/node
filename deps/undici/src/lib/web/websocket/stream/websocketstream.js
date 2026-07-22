@@ -1,6 +1,7 @@
 'use strict'
 
-const { environmentSettingsObject } = require('../../fetch/util')
+const { addAbortListener } = require('node:events')
+const { environmentSettingsObject, readableStreamClose } = require('../../fetch/util')
 const { states, opcodes, sentCloseFrameState } = require('../constants')
 const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
@@ -132,7 +133,7 @@ class WebSocketStream {
       }
 
       // 8.3. Add the following abort steps to signal :
-      signal.addEventListener('abort', () => {
+      addAbortListener(signal, () => {
         // 8.3.1. If the WebSocket connection is not yet established : [WSP]
         if (!isEstablished(this.#handler.readyState)) {
           // 8.3.1.1. Fail the WebSocket connection .
@@ -148,7 +149,7 @@ class WebSocketStream {
           // Set this 's handshake aborted to true.
           this.#handshakeAborted = true
         }
-      }, { once: true })
+      })
     }
 
     // 9.  Let client be this 's relevant settings object .
@@ -257,7 +258,14 @@ class WebSocketStream {
   #onConnectionEstablished (response, parsedExtensions) {
     this.#handler.socket = response.socket
 
-    const parser = new ByteParser(this.#handler, parsedExtensions)
+    // Get options from dispatcher options
+    const maxFragments = this.#handler.controller.dispatcher?.webSocketOptions?.maxFragments
+    const maxPayloadSize = this.#handler.controller.dispatcher?.webSocketOptions?.maxPayloadSize
+
+    const parser = new ByteParser(this.#handler, parsedExtensions, {
+      maxFragments,
+      maxPayloadSize
+    })
     parser.on('drain', () => this.#handler.onParserDrain())
     parser.on('error', (err) => this.#handler.onParserError(err))
 
@@ -331,7 +339,7 @@ class WebSocketStream {
       try {
         chunk = utf8Decode(data)
       } catch {
-        failWebsocketConnection(this.#handler, 'Received invalid UTF-8 in text frame.')
+        failWebsocketConnection(this.#handler, 1007, 'Received invalid UTF-8 in text frame.')
         return
       }
     } else if (type === opcodes.BINARY) {
@@ -385,7 +393,7 @@ class WebSocketStream {
     // 6. If the connection was closed cleanly ,
     if (wasClean) {
       // 6.1. Close stream ’s readable stream .
-      this.#readableStreamController.close()
+      readableStreamClose(this.#readableStreamController)
 
       // 6.2. Error stream ’s writable stream with an " InvalidStateError " DOMException indicating that a closed WebSocketStream cannot be written to.
       if (!this.#writableStream.locked) {

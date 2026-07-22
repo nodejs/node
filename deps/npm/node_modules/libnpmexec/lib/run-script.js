@@ -19,7 +19,9 @@ const run = async ({
   // necessary for preventing bash/cmd keywords from overriding
   if (!isWindowsShell) {
     if (args.length > 0) {
-      args[0] = '"' + args[0] + '"'
+      // single-quote so shell metacharacters in the executable name are taken
+      // literally; double quotes still expand $(), backticks, $var and "
+      args[0] = `'${args[0].replace(/'/g, `'\\''`)}'`
     }
   }
 

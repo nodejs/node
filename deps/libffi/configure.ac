@@ -2,11 +2,17 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.68])
 
-AC_INIT([libffi],[3.5.2],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.7.1],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
-FFI_VERSION_STRING="3.5.2"
-FFI_VERSION_NUMBER=30502
+dnl Derive the version macros from AC_INIT so they cannot drift when the
+dnl release version is bumped.  FFI_VERSION_NUMBER encodes X.Y.Z as
+dnl X*10000 + Y*100 + Z, ignoring any non-numeric suffix (e.g. -rc0).
+FFI_VERSION_STRING="AC_PACKAGE_VERSION"
+ffi_version_major=`echo "AC_PACKAGE_VERSION" | cut -d. -f1`
+ffi_version_minor=`echo "AC_PACKAGE_VERSION" | cut -d. -f2 | sed 's/[[^0-9]].*//'`
+ffi_version_micro=`echo "AC_PACKAGE_VERSION" | cut -d. -f3 | sed 's/[[^0-9]].*//'`
+FFI_VERSION_NUMBER=`expr ${ffi_version_major:-0} \* 10000 + ${ffi_version_minor:-0} \* 100 + ${ffi_version_micro:-0}`
 AC_SUBST(FFI_VERSION_STRING)
 AC_SUBST(FFI_VERSION_NUMBER)
 
@@ -119,6 +125,10 @@ fi
 AC_SUBST(HAVE_LONG_DOUBLE)
 AC_SUBST(HAVE_LONG_DOUBLE_VARIANT)
 
+AC_CHECK_TYPE(__int128_t,
+	      AC_DEFINE(HAVE_INT128, 1,
+			[Define if __int128_t and __uint128_t are supported.]))
+
 AC_C_BIGENDIAN
 
 GCC_AS_CFI_PSEUDO_OP
@@ -190,6 +200,13 @@ case "$TARGET" in
     fi
     CFLAGS="$CFLAGS -sMEMORY64=$WASM64_MEMORY64"
     ;;
+  LOONGARCH64)
+    CFLAGS="$CFLAGS -mcmodel=medium"
+    ;;
+  LOONGARCH32)
+    # No special for LoongArch32 now.
+    ;;
+
 esac
 
 AC_CACHE_CHECK([whether compiler supports pointer authentication],
@@ -392,7 +409,8 @@ case "$target" in
        fi
      ;;
      *arm*-*-linux-* | aarch64*-*-linux-* | i*86-*-linux-* | x86_64-*-linux-* \
-     | loongarch*-*-linux-* | s390x*-linux-* | powerpc*-linux-*)
+     | loongarch*-*-linux-* | s390x*-linux-* | powerpc*-linux-* \
+     | riscv*-linux-*)
        AC_DEFINE(FFI_EXEC_STATIC_TRAMP, 1,
                  [Define this if you want statically defined trampolines])
      ;;

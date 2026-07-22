@@ -8,8 +8,6 @@ common.expectWarning({
   DeprecationWarning: [
     ['crypto.Hash constructor is deprecated.',
      'DEP0179'],
-    ['Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
-     'DEP0198'],
   ]
 });
 
@@ -192,16 +190,29 @@ assert.throws(
 
 // Test XOF hash functions and the outputLength option.
 if (!process.features.openssl_is_boringssl) {
-  // Default outputLengths.
-  assert.strictEqual(crypto.createHash('shake128').digest('hex'),
+  const invalidXofLength = {
+    code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
+    name: 'Error',
+    message: /not XOF or invalid length/,
+  };
+
+  assert.throws(() => crypto.createHash('shake128'), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake128', null), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake256'), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake256', {}), invalidXofLength);
+
+  assert.strictEqual(crypto.createHash('shake128', { outputLength: 16 })
+                           .digest('hex'),
                      '7f9c2ba4e88f827d616045507605853e');
-  assert.strictEqual(crypto.createHash('shake128', null).digest('hex'),
-                     '7f9c2ba4e88f827d616045507605853e');
-  assert.strictEqual(crypto.createHash('shake256').digest('hex'),
+  assert.strictEqual(crypto.createHash('shake256', { outputLength: 32 })
+                           .digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
-  assert.strictEqual(crypto.createHash('shake256', { outputLength: 0 })
-                           .copy()  // Default outputLength.
+  const shake256 = crypto.createHash('shake256', { outputLength: 0 });
+  assert.throws(() => shake256.copy(), invalidXofLength);
+  assert.throws(() => shake256.copy(null), invalidXofLength);
+  assert.throws(() => shake256.copy({}), invalidXofLength);
+  assert.strictEqual(shake256.copy({ outputLength: 32 })
                            .digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
@@ -269,6 +280,8 @@ if (!process.features.openssl_is_boringssl) {
     assert.throws(() => crypto.createHash('sha256', { outputLength }),
                   { code: 'ERR_OUT_OF_RANGE' });
   }
+} else {
+  common.printSkipMessage('Skipping unsupported XOF hash test cases');
 }
 
 {

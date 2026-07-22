@@ -31,12 +31,44 @@ async function testFromSyncSubBatching() {
   assert.strictEqual(totalChunks, 200);
 }
 
+// fromSync: generic sync iterables of Uint8Array use bounded batches
+async function testFromSyncIterableSubBatching() {
+  function* gen() {
+    for (let i = 0; i < 200; i++) {
+      yield new Uint8Array([i & 0xFF]);
+    }
+  }
+  const batches = [];
+  for (const batch of fromSync(gen())) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 2);
+  assert.strictEqual(batches[0].length, 128);
+  assert.strictEqual(batches[1].length, 72);
+}
+
 // from: Uint8Array[] with > 128 elements triggers sub-batching (async)
 async function testFromAsyncSubBatching() {
   const bigBatch = Array.from({ length: 200 },
                               (_, i) => new Uint8Array([i & 0xFF]));
   const batches = [];
   for await (const batch of from(bigBatch)) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 2);
+  assert.strictEqual(batches[0].length, 128);
+  assert.strictEqual(batches[1].length, 72);
+}
+
+// from: sync iterables use bounded batches instead of one unbounded batch
+async function testFromAsyncSyncIterableSubBatching() {
+  function* gen() {
+    for (let i = 0; i < 200; i++) {
+      yield new Uint8Array([i & 0xFF]);
+    }
+  }
+  const batches = [];
+  for await (const batch of from(gen())) {
     batches.push(batch);
   }
   assert.strictEqual(batches.length, 2);
@@ -133,7 +165,9 @@ async function testFromSyncInvalidYield() {
 
 Promise.all([
   testFromSyncSubBatching(),
+  testFromSyncIterableSubBatching(),
   testFromAsyncSubBatching(),
+  testFromAsyncSyncIterableSubBatching(),
   testFromSubBatchingBoundary(),
   testFromSubBatchingBoundaryPlus1(),
   testFromSyncDataViewInGenerator(),

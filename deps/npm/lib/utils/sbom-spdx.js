@@ -48,11 +48,23 @@ const spdxOutput = ({ npm, nodes, packageType }) => {
     }
     seen.add(node)
 
+    // A node can have multiple outgoing edges resolving to the same
+    // `name@version` of the same edge type (e.g. via npm aliases), which
+    // would produce identical relationship triples. Dedupe per source node.
+    const seenRels = new Set()
     const rels = [...node.edgesOut.values()]
       // Filter out edges that are linking to nodes not in the list
       .filter(edge => nodes.find(n => n === edge.to))
       .map(edge => toSpdxRelationship(node, edge))
       .filter(rel => rel)
+      .filter(rel => {
+        const key = `${rel.spdxElementId}|${rel.relatedSpdxElement}|${rel.relationshipType}`
+        if (seenRels.has(key)) {
+          return false
+        }
+        seenRels.add(key)
+        return true
+      })
 
     relationships.push(...rels)
   }
@@ -97,7 +109,7 @@ const toSpdxItem = (node, { packageType }) => {
   // Calculate purl from package spec
   let spec = npa(node.pkgid)
   spec = (spec.type === 'alias') ? spec.subSpec : spec
-  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
+  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${encodeURIComponent(node.resolved)}` : '')
 
   /* For workspace nodes, use the location from their linkNode */
   let location = node.location

@@ -30,6 +30,12 @@ const net = require('net');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 
+if (process.features.openssl_is_boringssl &&
+    tls.DEFAULT_MAX_VERSION !== 'TLSv1.2') {
+  require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
+  return;
+}
+
 const keys = crypto.randomBytes(48);
 const serverLog = [];
 const ticketLog = [];

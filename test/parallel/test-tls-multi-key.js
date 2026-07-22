@@ -27,6 +27,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').assertMultiKeyUnsupported();
+  return;
+}
+
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -102,7 +102,9 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
          * iteration we're on.
          */
         EVP_ASYM_CIPHER_free(cipher);
+        cipher = NULL;
         EVP_KEYMGMT_free(tmp_keymgmt);
+        tmp_keymgmt = NULL;
 
         switch (iter) {
         case 1:

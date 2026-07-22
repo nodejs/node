@@ -5,7 +5,7 @@ const { EOL } = require('node:os')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const pkgJson = require('@npmcli/package-json')
 const { defaults, definitions, nerfDarts, proxyEnv } = require('@npmcli/config/lib/definitions')
-const { log, output } = require('proc-log')
+const { log, output, input } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
 const { redact } = require('@npmcli/redact')
 
@@ -266,7 +266,7 @@ ${defData}
 `.split('\n').join(EOL)
     await mkdir(dirname(file), { recursive: true })
     await writeFile(file, tmpData, 'utf8')
-    await new Promise((res, rej) => {
+    await input.start(() => new Promise((res, rej) => {
       const [bin, ...args] = e.split(/\s+/)
       const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
       editor.on('exit', (code) => {
@@ -275,7 +275,7 @@ ${defData}
         }
         return res()
       })
-    })
+    }))
   }
 
   async fix () {

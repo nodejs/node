@@ -1,4 +1,6 @@
 const reifyOutput = require('./reify-output.js')
+const checkAllowScripts = require('./check-allow-scripts.js')
+const warnWorkspaceAllowScripts = require('./warn-workspace-allow-scripts.js')
 const ini = require('ini')
 const { writeFile } = require('node:fs/promises')
 const { resolve } = require('node:path')
@@ -15,7 +17,9 @@ const reifyFinish = async (npm, arb) => {
       }
     }
   }
-  reifyOutput(npm, arb)
+  warnWorkspaceAllowScripts(arb.actualTree)
+  const unreviewedScripts = await checkAllowScripts({ arb, npm })
+  reifyOutput(npm, arb, { unreviewedScripts })
 }
 
 module.exports = reifyFinish

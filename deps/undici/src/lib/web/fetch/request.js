@@ -97,6 +97,13 @@ class Request {
 
   #state
 
+  /**
+   * Removes the `abort` listener that makes this request's signal follow the
+   * passed signal. `null` when no such listener was registered.
+   * @type {(() => void) | null}
+   */
+  #abortCleanup = null
+
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = undefined) {
     webidl.util.markAsUncloneable(this)
@@ -436,12 +443,23 @@ class Request {
           setMaxListeners(1500, signal)
         }
 
-        util.addAbortListener(signal, abort)
+        const removeAbortListener = util.addAbortListener(signal, abort)
         // The third argument must be a registry key to be unregistered.
         // Without it, you cannot unregister.
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
         // abort is used as the unregister key. (because it is unique)
         requestFinalizer.register(ac, { signal, abort }, abort)
+
+        // Allow the listener to be removed deterministically once the fetch
+        // that owns this request has settled, instead of relying solely on the
+        // FinalizationRegistry (i.e. garbage collection). Reusing a single
+        // signal across many requests would otherwise leak listeners.
+        // See https://github.com/nodejs/undici/issues/5285
+        this.#abortCleanup = () => {
+          requestFinalizer.unregister(abort)
+          removeAbortListener()
+          this.#abortCleanup = null
+        }
       }
     }
 
@@ -868,15 +886,25 @@ class Request {
   static setRequestState (request, newState) {
     request.#state = newState
   }
+
+  /**
+   * Removes the `abort` listener that makes this request's signal follow the
+   * signal passed to its constructor, if any. Idempotent.
+   * @param {Request} request
+   */
+  static removeRequestAbortListener (request) {
+    request.#abortCleanup?.()
+  }
 }
 
-const { setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState } = Request
+const { setRequestSignal, getRequestDispatcher, setRequestDispatcher, setRequestHeaders, getRequestState, setRequestState, removeRequestAbortListener } = Request
 Reflect.deleteProperty(Request, 'setRequestSignal')
 Reflect.deleteProperty(Request, 'getRequestDispatcher')
 Reflect.deleteProperty(Request, 'setRequestDispatcher')
 Reflect.deleteProperty(Request, 'setRequestHeaders')
 Reflect.deleteProperty(Request, 'getRequestState')
 Reflect.deleteProperty(Request, 'setRequestState')
+Reflect.deleteProperty(Request, 'removeRequestAbortListener')
 
 mixinBody(Request, getRequestState)
 
@@ -902,6 +930,7 @@ function makeRequest (init) {
     referrerPolicy: init.referrerPolicy ?? '',
     mode: init.mode ?? 'no-cors',
     useCORSPreflightFlag: init.useCORSPreflightFlag ?? false,
+    // TODO: is this credentials mode? https://fetch.spec.whatwg.org/#concept-request-credentials-mode
     credentials: init.credentials ?? 'same-origin',
     useCredentials: init.useCredentials ?? false,
     cache: init.cache ?? 'default',
@@ -1111,5 +1140,6 @@ module.exports = {
   fromInnerRequest,
   cloneRequest,
   getRequestDispatcher,
-  getRequestState
+  getRequestState,
+  removeRequestAbortListener
 }

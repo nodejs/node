@@ -26,7 +26,6 @@
 
 #include <cstring>
 #include <cassert>
-#include <iostream>
 #include <fstream>
 #include <limits>
 #include <algorithm>
@@ -38,23 +37,16 @@
 #include "server_base.h"
 #include "template.h"
 
-namespace {
-auto _ = [] {
-  if (ngtcp2_crypto_ossl_init() != 0) {
-    assert(0);
-    abort();
-  }
-
-  return 0;
-}();
-} // namespace
-
 extern Config config;
+
+TLSServerContext::TLSServerContext() { ngtcp2_crypto_ossl_init(); }
 
 TLSServerContext::~TLSServerContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);
   }
+
+  ngtcp2_crypto_ossl_free();
 }
 
 SSL_CTX *TLSServerContext::get_native_handle() const { return ssl_ctx_; }
@@ -67,7 +59,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -106,7 +98,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -149,7 +141,7 @@ namespace {
 int gen_ticket_cb(SSL *ssl, void *arg) {
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
-  auto ver = htonl(ngtcp2_conn_get_negotiated_version(h->conn()));
+  auto ver = htonl(ngtcp2_conn_get_negotiated_version2(h->conn()));
 
   if (!SSL_SESSION_set1_ticket_appdata(SSL_get0_session(ssl), &ver,
                                        sizeof(ver))) {
@@ -192,7 +184,7 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
 
-  if (ngtcp2_conn_get_client_chosen_version(h->conn()) != ntohl(ver)) {
+  if (ngtcp2_conn_get_client_chosen_version2(h->conn()) != ntohl(ver)) {
     switch (status) {
     case SSL_TICKET_SUCCESS:
       return SSL_TICKET_RETURN_IGNORE;
@@ -215,7 +207,7 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
 std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
                                                   const char *cert_file,
                                                   AppProtocol app_proto) {
-  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+  static constexpr unsigned char sid_ctx[] = "ngtcp2 server";
 
   ssl_ctx_ = SSL_CTX_new(TLS_server_method());
   if (!ssl_ctx_) {

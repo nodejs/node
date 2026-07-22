@@ -9,13 +9,13 @@ on:
 env:
   CLOSE_MESSAGE: >
     This {0} has been automatically closed after 30 days of inactivity
-    following its stale status (no activity for a total of 240 days).
+    following its stale status (no activity for a total of 120 days).
 
     If this is still relevant, feel free to reopen it or leave a comment
     with additional details so we can continue the discussion.
 
   WARN_MESSAGE: >
-    This {0} has been marked as stale due to 210 days of inactivity.
+    This {0} has been marked as stale due to 90 days of inactivity.
 
     It will be automatically closed in 30 days if no further activity occurs.
     If this is still relevant, please leave a comment or update it to keep it open.
@@ -29,13 +29,14 @@ jobs:
     permissions:
       issues: write  # for actions/stale to close stale issues
       pull-requests: write  # for actions/stale to close stale PRs
+      actions: write  # for actions/stale to cache stale saved state
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899  # v10.3.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-stale: 210
+          days-before-stale: 90
           days-before-close: 30
           stale-issue-label: stale
           exempt-issue-labels: never-stale, confirmed-bug
@@ -46,5 +47,5 @@ jobs:
           close-pr-message: ${{ format(env.CLOSE_MESSAGE, 'pull request') }}
           stale-pr-message: ${{ format(env.WARN_MESSAGE, 'pull request') }}
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
-          operations-per-run: 500
+          operations-per-run: 2500
           remove-stale-when-updated: true

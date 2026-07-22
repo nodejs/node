@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-version----11121">
+<h1 id="----npm-version----11180">
     <span>npm-version</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Bump a package version</span>
 </header>
@@ -367,6 +367,7 @@ Again, scripts should explicitly add generated files to the commit using <code>g
 <li>Run the <code>postversion</code> script.
 Use it to clean up the file system or automatically push the commit and/or tag.</li>
 </ol>
+<p>For the <code>preversion</code>, <code>version</code> and <code>postversion</code> scripts, npm also sets the <a href="../using-npm/scripts#environment.html">environment variables</a> <code>npm_old_version</code> and <code>npm_new_version</code>.</p>
 <p>Take the following example:</p>
 <pre><code class="language-json">{
   "scripts": {

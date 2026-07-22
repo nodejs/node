@@ -16,6 +16,7 @@ struct HKDFConfig final : public MemoryRetainer {
   size_t length;
   ncrypto::Digest digest;
   KeyObjectData key;
+  ByteSource key_data;
   ByteSource salt;
   ByteSource info;
 

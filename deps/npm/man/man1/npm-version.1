@@ -1,4 +1,4 @@
-.TH "NPM-VERSION" "1" "March 2026" "NPM@11.12.1" ""
+.TH "NPM-VERSION" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-version\fR - Bump a package version
 .SS "Synopsis"
@@ -226,6 +226,8 @@ Commit and tag.
 Run the \fBpostversion\fR script. Use it to clean up the file system or automatically push the commit and/or tag.
 .RE 0
 
+.P
+For the \fBpreversion\fR, \fBversion\fR and \fBpostversion\fR scripts, npm also sets the \fBenvironment variables\fR \fI\(la/using-npm/scripts#environment\(ra\fR \fBnpm_old_version\fR and \fBnpm_new_version\fR.
 .P
 Take the following example:
 .P

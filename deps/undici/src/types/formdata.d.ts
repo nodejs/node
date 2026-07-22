@@ -4,12 +4,6 @@
 import { File } from 'node:buffer'
 import { SpecIterableIterator } from './fetch'
 
-declare module 'node:buffer' {
-  interface File {
-    readonly [Symbol.toStringTag]: string
-  }
-}
-
 /**
  * A `string` or `File` that represents a single value from a set of `FormData` key-value pairs.
  */

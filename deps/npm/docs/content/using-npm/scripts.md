@@ -290,6 +290,13 @@ For example, if you had `{"name":"foo", "version":"1.2.5"}` in your package.json
 
 See [`package.json`](/configuring-npm/package-json) for more on package configs.
 
+#### versioning variables
+
+For versioning scripts (`preversion`, `version`, `postversion`), npm sets these environment variables:
+
+* `npm_old_version` - The version before being bumped
+* `npm_new_version` – The version after being bumped
+
 #### current lifecycle event
 
 Lastly, the `npm_lifecycle_event` environment variable is set to whichever stage of the cycle is being executed.

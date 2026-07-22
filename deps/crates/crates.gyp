@@ -2,6 +2,7 @@
   'variables': {
     'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
+    'temporal_capi_dir': 'temporal_capi',
     'cargo_rust_target%': '',
   },
   'conditions': [
@@ -12,11 +13,16 @@
       'conditions': [
         ['cargo_rust_target!=""', {
           'variables': {
+            'cargo_build_flags': ['--target', '<(cargo_rust_target)'],
+          }
+        }],
+        ['OS=="win"', {
+          'variables': {
             'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/$(Platform)/release/node_crates.lib',
           },
         }, {
           'variables': {
-            'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/release/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
+            'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/<(cargo_rust_target)/release/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
           },
         }],
       ],
@@ -25,13 +31,13 @@
         'cargo_build_flags': [],
       },
       'conditions': [
-        ['cargo_rust_target!=""', {
+        ['OS=="win"', {
           'variables': {
             'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/$(Platform)/debug/node_crates.lib',
           },
         }, {
           'variables': {
-            'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/debug/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
+            'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/<(cargo_rust_target)/debug/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
           },
         }],
       ],
@@ -62,7 +68,7 @@
         ],
       },
       'conditions': [
-        ['cargo_rust_target!=""', {
+        ['OS=="win"', {
           'actions': [
             {
               'action_name': 'cargo_build',
@@ -115,7 +121,7 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(cargo_vendor_dir)/temporal_capi/bindings/cpp',
+          '<(cargo_vendor_dir)/<(temporal_capi_dir)/bindings/cpp',
         ],
       },
     },

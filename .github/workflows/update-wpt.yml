@@ -27,7 +27,7 @@ jobs:
         subsystem: ${{ fromJSON(github.event.inputs.subsystems || '["url", "urlpattern", "WebCryptoAPI"]') }}
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
@@ -52,6 +52,14 @@ jobs:
       - name: Update WPT for subsystem ${{ matrix.subsystem }}
         run: |
           git node wpt "$SUBSYSTEM"
+          # TODO: Remove this workaround after @node-core/utils stops
+          # regenerating test/fixtures/wpt/README.md for every subsystem
+          # update.
+          # git node wpt currently rewrites test/fixtures/wpt/README.md with a
+          # generated summary for every subsystem update. versions.json is the
+          # authoritative metadata, and keeping the README stable avoids
+          # conflicts between concurrent WPT update PRs.
+          git restore test/fixtures/wpt/README.md
         env:
           SUBSYSTEM: ${{ matrix.subsystem }}
 
@@ -68,7 +76,7 @@ jobs:
           SUBSYSTEM: ${{ matrix.subsystem }}
 
       - name: Open or update PR for the subsystem update
-        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
         with:
           # The create-or-update-pull-request-action matches the branch name by prefix,
           # which is why we need to add the -wpt suffix. If we dont do that, we risk matching wrong PRs,

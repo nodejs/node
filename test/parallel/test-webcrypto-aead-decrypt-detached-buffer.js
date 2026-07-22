@@ -29,14 +29,11 @@ async function test(algorithmName, keyLength, ivLength, format = 'raw') {
 
 const tests = [
   test('AES-GCM', 32, 12),
+  test('ChaCha20-Poly1305', 32, 12, 'raw-secret'),
 ];
 
 if (hasOpenSSL(3)) {
   tests.push(test('AES-OCB', 32, 12, 'raw-secret'));
-}
-
-if (!process.features.openssl_is_boringssl) {
-  tests.push(test('ChaCha20-Poly1305', 32, 12, 'raw-secret'));
 }
 
 Promise.all(tests).then(common.mustCall());

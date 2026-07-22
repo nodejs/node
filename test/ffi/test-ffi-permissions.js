@@ -71,6 +71,10 @@ test('permission model blocks ffi memory and helper APIs', () => {
   }, denied);
 
   assert.throws(() => {
+    ffi.getCurrentEventLoop();
+  }, denied);
+
+  assert.throws(() => {
     ffi.dlclose({ close() {} });
   }, denied);
 });

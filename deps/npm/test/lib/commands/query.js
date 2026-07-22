@@ -160,6 +160,61 @@ t.test('linked node', async t => {
   t.matchSnapshot(joinedOutput(), 'should return linked node res')
 })
 
+t.test('linked strategy reports logical location, not store backing path', async t => {
+  /* linked layout: nopt (direct) symlinked to its store key, abbrev a transitive dep of nopt */
+  const linkedDir = {
+    prefixDir: {
+      node_modules: {
+        nopt: t.fixture('symlink', '.store/nopt-hash/node_modules/nopt'),
+        '.store': {
+          'nopt-hash': {
+            node_modules: {
+              nopt: {
+                'package.json': JSON.stringify({
+                  name: 'nopt',
+                  version: '7.2.1',
+                  dependencies: { abbrev: '^2.0.0' },
+                }),
+              },
+              abbrev: t.fixture('symlink', '../../abbrev-hash/node_modules/abbrev'),
+            },
+          },
+          'abbrev-hash': {
+            node_modules: {
+              abbrev: {
+                'package.json': JSON.stringify({ name: 'abbrev', version: '2.0.0' }),
+              },
+            },
+          },
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'project',
+        version: '1.0.0',
+        dependencies: { nopt: '^7.0.0' },
+      }),
+    },
+  }
+
+  await t.test(':root > * reports the logical link location', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, linkedDir)
+    await npm.exec('query', [':root > *'])
+    const res = JSON.parse(joinedOutput())
+    t.equal(res.length, 1, 'returns a single result, not the store node duplicate')
+    t.equal(res[0].location, 'node_modules/nopt', 'reports the logical location')
+    t.match(res[0].realpath, /\.store/, 'realpath still resolves to the store')
+  })
+
+  await t.test(':root * keeps direct deps logical and transitive deps canonical', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, linkedDir)
+    await npm.exec('query', [':root *'])
+    const byName = Object.fromEntries(JSON.parse(joinedOutput()).map(n => [n.name, n.location]))
+    t.equal(byName.nopt, 'node_modules/nopt', 'direct dep keeps its logical location')
+    t.equal(byName.abbrev, 'node_modules/.store/abbrev-hash/node_modules/abbrev',
+      'transitive dep reports its canonical store key, not a consumer symlink')
+  })
+})
+
 t.test('global', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
@@ -433,4 +488,25 @@ t.test('missing', async t => {
   })
   await npm.exec('query', [':missing'])
   t.matchSnapshot(joinedOutput(), 'should return missing node')
+})
+
+t.test('linked strategy surfaces undeclared workspaces', async t => {
+  // npm/cli#9618: undeclared workspaces are not symlinked into root node_modules under linked, but must remain visible to `npm query`.
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { 'install-strategy': 'linked' },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['packages/*'],
+      }),
+      packages: {
+        a: { 'package.json': JSON.stringify({ name: 'a', version: '1.0.0' }) },
+        b: { 'package.json': JSON.stringify({ name: 'b', version: '1.0.0' }) },
+      },
+    },
+  })
+  await npm.exec('query', [':root > *'])
+  const names = JSON.parse(joinedOutput()).map(n => n.name).sort()
+  t.same(names, ['a', 'b'], 'both undeclared workspaces are listed')
 })

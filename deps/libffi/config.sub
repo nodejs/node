@@ -1,10 +1,10 @@
 #! /bin/sh
 # Configuration validation subroutine script.
-#   Copyright 1992-2024 Free Software Foundation, Inc.
+#   Copyright 1992-2022 Free Software Foundation, Inc.
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2024-01-01'
+timestamp='2022-01-03'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -76,13 +76,13 @@ Report bugs and patches to <config-patches@gnu.org>."
 version="\
 GNU config.sub ($timestamp)
 
-Copyright 1992-2024 Free Software Foundation, Inc.
+Copyright 1992-2022 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 
 help="
-Try '$me --help' for more information."
+Try \`$me --help' for more information."
 
 # Parse command line
 while test $# -gt 0 ; do
@@ -130,7 +130,7 @@ IFS=$saved_IFS
 # Separate into logical components for further validation
 case $1 in
 	*-*-*-*-*)
-		echo "Invalid configuration '$1': more than four components" >&2
+		echo Invalid configuration \`"$1"\': more than four components >&2
 		exit 1
 		;;
 	*-*-*-*)
@@ -145,8 +145,7 @@ case $1 in
 			nto-qnx* | linux-* | uclinux-uclibc* \
 			| uclinux-gnu* | kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* \
 			| netbsd*-eabi* | kopensolaris*-gnu* | cloudabi*-eabi* \
-			| storm-chaos* | os2-emx* | rtmk-nova* | managarm-* \
-			| windows-* )
+			| storm-chaos* | os2-emx* | rtmk-nova*)
 				basic_machine=$field1
 				basic_os=$maybe_os
 				;;
@@ -944,7 +943,7 @@ $basic_machine
 EOF
 		IFS=$saved_IFS
 		;;
-	# We use 'pc' rather than 'unknown'
+	# We use `pc' rather than `unknown'
 	# because (1) that's what they normally are, and
 	# (2) the word "unknown" tends to confuse beginning users.
 	i*86 | x86_64)
@@ -1076,7 +1075,7 @@ case $cpu-$vendor in
 	pentium-* | p5-* | k5-* | k6-* | nexgen-* | viac3-*)
 		cpu=i586
 		;;
-	pentiumpro-* | p6-* | 6x86-* | athlon-* | athlon_*-*)
+	pentiumpro-* | p6-* | 6x86-* | athlon-* | athalon_*-*)
 		cpu=i686
 		;;
 	pentiumii-* | pentium2-* | pentiumiii-* | pentium3-*)
@@ -1127,7 +1126,7 @@ case $cpu-$vendor in
 	xscale-* | xscalee[bl]-*)
 		cpu=`echo "$cpu" | sed 's/^xscale/arm/'`
 		;;
-	arm64-* | arm64_32-* | aarch64le-*)
+	arm64-* | aarch64le-*)
 		cpu=aarch64
 		;;
 
@@ -1181,7 +1180,7 @@ case $cpu-$vendor in
 		case $cpu in
 			1750a | 580 \
 			| a29k \
-			| aarch64 | aarch64_be | aarch64c | arm64ec \
+			| aarch64 | aarch64_be \
 			| abacus \
 			| alpha | alphaev[4-8] | alphaev56 | alphaev6[78] \
 			| alpha64 | alpha64ev[4-8] | alpha64ev56 | alpha64ev6[78] \
@@ -1200,29 +1199,50 @@ case $cpu-$vendor in
 			| d10v | d30v | dlx | dsp16xx \
 			| e2k | elxsi | epiphany \
 			| f30[01] | f700 | fido | fr30 | frv | ft32 | fx80 \
-			| javascript \
 			| h8300 | h8500 \
 			| hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
 			| hexagon \
 			| i370 | i*86 | i860 | i960 | ia16 | ia64 \
 			| ip2k | iq2000 \
 			| k1om \
-			| kvx \
 			| le32 | le64 \
 			| lm32 \
-			| loongarch32 | loongarch64 \
+			| loongarch32 | loongarch64 | loongarchx32 \
 			| m32c | m32r | m32rle \
 			| m5200 | m68000 | m680[012346]0 | m68360 | m683?2 | m68k \
 			| m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x \
 			| m88110 | m88k | maxq | mb | mcore | mep | metag \
 			| microblaze | microblazeel \
-			| mips* \
+			| mips | mipsbe | mipseb | mipsel | mipsle \
+			| mips16 \
+			| mips64 | mips64eb | mips64el \
+			| mips64octeon | mips64octeonel \
+			| mips64orion | mips64orionel \
+			| mips64r5900 | mips64r5900el \
+			| mips64vr | mips64vrel \
+			| mips64vr4100 | mips64vr4100el \
+			| mips64vr4300 | mips64vr4300el \
+			| mips64vr5000 | mips64vr5000el \
+			| mips64vr5900 | mips64vr5900el \
+			| mipsisa32 | mipsisa32el \
+			| mipsisa32r2 | mipsisa32r2el \
+			| mipsisa32r3 | mipsisa32r3el \
+			| mipsisa32r5 | mipsisa32r5el \
+			| mipsisa32r6 | mipsisa32r6el \
+			| mipsisa64 | mipsisa64el \
+			| mipsisa64r2 | mipsisa64r2el \
+			| mipsisa64r3 | mipsisa64r3el \
+			| mipsisa64r5 | mipsisa64r5el \
+			| mipsisa64r6 | mipsisa64r6el \
+			| mipsisa64sb1 | mipsisa64sb1el \
+			| mipsisa64sr71k | mipsisa64sr71kel \
+			| mipsr5900 | mipsr5900el \
+			| mipstx39 | mipstx39el \
 			| mmix \
 			| mn10200 | mn10300 \
 			| moxie \
 			| mt \
 			| msp430 \
-			| nanomips* \
 			| nds32 | nds32le | nds32be \
 			| nfp \
 			| nios | nios2 | nios2eb | nios2el \
@@ -1254,7 +1274,6 @@ case $cpu-$vendor in
 			| ubicom32 \
 			| v70 | v850 | v850e | v850e1 | v850es | v850e2 | v850e2v3 \
 			| vax \
-			| vc4 \
 			| visium \
 			| w65 \
 			| wasm32 | wasm64 \
@@ -1266,7 +1285,7 @@ case $cpu-$vendor in
 				;;
 
 			*)
-				echo "Invalid configuration '$1': machine '$cpu-$vendor' not recognized" 1>&2
+				echo Invalid configuration \`"$1"\': machine \`"$cpu-$vendor"\' not recognized 1>&2
 				exit 1
 				;;
 		esac
@@ -1287,12 +1306,11 @@ esac
 
 # Decode manufacturer-specific aliases for certain operating systems.
 
-if test x"$basic_os" != x
+if test x$basic_os != x
 then
 
 # First recognize some ad-hoc cases, or perhaps split kernel-os, or else just
 # set os.
-obj=
 case $basic_os in
 	gnu/linux*)
 		kernel=linux
@@ -1322,10 +1340,6 @@ EOF
 	linux*)
 		kernel=linux
 		os=`echo "$basic_os" | sed -e 's|linux|gnu|'`
-		;;
-	managarm*)
-		kernel=managarm
-		os=`echo "$basic_os" | sed -e 's|managarm|mlibc|'`
 		;;
 	*)
 		kernel=
@@ -1492,15 +1506,9 @@ case $os in
 			os=eabi
 			;;
 		    *)
-			os=
-			obj=elf
+			os=elf
 			;;
 		esac
-		;;
-	aout* | coff* | elf* | pe*)
-		# These are machine code file formats, not OSes
-		obj=$os
-		os=
 		;;
 	*)
 		# No normalization, but not necessarily accepted, that comes below.
@@ -1520,15 +1528,12 @@ else
 # system, and we'll never get to this point.
 
 kernel=
-obj=
 case $cpu-$vendor in
 	score-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	spu-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	*-acorn)
 		os=riscix1.2
@@ -1538,35 +1543,28 @@ case $cpu-$vendor in
 		os=gnu
 		;;
 	arm*-semi)
-		os=
-		obj=aout
+		os=aout
 		;;
 	c4x-* | tic4x-*)
-		os=
-		obj=coff
+		os=coff
 		;;
 	c8051-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	clipper-intergraph)
 		os=clix
 		;;
 	hexagon-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	tic54x-*)
-		os=
-		obj=coff
+		os=coff
 		;;
 	tic55x-*)
-		os=
-		obj=coff
+		os=coff
 		;;
 	tic6x-*)
-		os=
-		obj=coff
+		os=coff
 		;;
 	# This must come before the *-dec entry.
 	pdp10-*)
@@ -1588,24 +1586,19 @@ case $cpu-$vendor in
 		os=sunos3
 		;;
 	m68*-cisco)
-		os=
-		obj=aout
+		os=aout
 		;;
 	mep-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	mips*-cisco)
-		os=
-		obj=elf
+		os=elf
 		;;
-	mips*-*|nanomips*-*)
-		os=
-		obj=elf
+	mips*-*)
+		os=elf
 		;;
 	or32-*)
-		os=
-		obj=coff
+		os=coff
 		;;
 	*-tti)	# must be before sparc entry or we get the wrong os.
 		os=sysv3
@@ -1614,8 +1607,7 @@ case $cpu-$vendor in
 		os=sunos4.1.1
 		;;
 	pru-*)
-		os=
-		obj=elf
+		os=elf
 		;;
 	*-be)
 		os=beos
@@ -1696,12 +1688,10 @@ case $cpu-$vendor in
 		os=uxpv
 		;;
 	*-rom68k)
-		os=
-		obj=coff
+		os=coff
 		;;
 	*-*bug)
-		os=
-		obj=coff
+		os=coff
 		;;
 	*-apple)
 		os=macos
@@ -1719,20 +1709,16 @@ esac
 
 fi
 
-# Now, validate our (potentially fixed-up) individual pieces (OS, OBJ).
-
+# Now, validate our (potentially fixed-up) OS.
 case $os in
 	# Sometimes we do "kernel-libc", so those need to count as OSes.
-	llvm* | musl* | newlib* | relibc* | uclibc*)
+	musl* | newlib* | relibc* | uclibc*)
 		;;
 	# Likewise for "kernel-abi"
 	eabi* | gnueabi*)
 		;;
 	# VxWorks passes extra cpu info in the 4th filed.
 	simlinux | simwindows | spe)
-		;;
-	# See `case $cpu-$os` validation below
-	ghcjs)
 		;;
 	# Now accept the basic system types.
 	# The portable systems comes first.
@@ -1742,7 +1728,7 @@ case $os in
 	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
 	     | sym* |  plan9* | psp* | sim* | xray* | os68k* | v88r* \
 	     | hiux* | abug | nacl* | netware* | windows* \
-	     | os9* | macos* | osx* | ios* | tvos* | watchos* \
+	     | os9* | macos* | osx* | ios* \
 	     | mpw* | magic* | mmixware* | mon960* | lnews* \
 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
 	     | aos* | aros* | cloudabi* | sortix* | twizzler* \
@@ -1751,11 +1737,11 @@ case $os in
 	     | mirbsd* | netbsd* | dicos* | openedition* | ose* \
 	     | bitrig* | openbsd* | secbsd* | solidbsd* | libertybsd* | os108* \
 	     | ekkobsd* | freebsd* | riscix* | lynxos* | os400* \
-	     | bosx* | nextstep* | cxux* | oabi* \
-	     | ptx* | ecoff* | winnt* | domain* | vsta* \
+	     | bosx* | nextstep* | cxux* | aout* | elf* | oabi* \
+	     | ptx* | coff* | ecoff* | winnt* | domain* | vsta* \
 	     | udi* | lites* | ieee* | go32* | aux* | hcos* \
 	     | chorusrdb* | cegcc* | glidix* | serenity* \
-	     | cygwin* | msys* | moss* | proelf* | rtems* \
+	     | cygwin* | msys* | pe* | moss* | proelf* | rtems* \
 	     | midipix* | mingw32* | mingw64* | mint* \
 	     | uxpv* | beos* | mpeix* | udk* | moxiebox* \
 	     | interix* | uwin* | mks* | rhapsody* | darwin* \
@@ -1768,118 +1754,49 @@ case $os in
 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
-	     | fiwix* | mlibc* | cos* | mbr* | ironclad* )
+	     | fiwix* )
 		;;
 	# This one is extra strict with allowed versions
 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
 		# Don't forget version if it is 3.2v4 or newer.
 		;;
-	# This refers to builds using the UEFI calling convention
-	# (which depends on the architecture) and PE file format.
-	# Note that this is both a different calling convention and
-	# different file format than that of GNU-EFI
-	# (x86_64-w64-mingw32).
-	uefi)
-		;;
 	none)
 		;;
-	kernel* | msvc* )
-		# Restricted further below
-		;;
-	'')
-		if test x"$obj" = x
-		then
-			echo "Invalid configuration '$1': Blank OS only allowed with explicit machine code file format" 1>&2
-		fi
-		;;
 	*)
-		echo "Invalid configuration '$1': OS '$os' not recognized" 1>&2
-		exit 1
-		;;
-esac
-
-case $obj in
-	aout* | coff* | elf* | pe*)
-		;;
-	'')
-		# empty is fine
-		;;
-	*)
-		echo "Invalid configuration '$1': Machine code format '$obj' not recognized" 1>&2
-		exit 1
-		;;
-esac
-
-# Here we handle the constraint that a (synthetic) cpu and os are
-# valid only in combination with each other and nowhere else.
-case $cpu-$os in
-	# The "javascript-unknown-ghcjs" triple is used by GHC; we
-	# accept it here in order to tolerate that, but reject any
-	# variations.
-	javascript-ghcjs)
-		;;
-	javascript-* | *-ghcjs)
-		echo "Invalid configuration '$1': cpu '$cpu' is not valid with os '$os$obj'" 1>&2
+		echo Invalid configuration \`"$1"\': OS \`"$os"\' not recognized 1>&2
 		exit 1
 		;;
 esac
 
 # As a final step for OS-related things, validate the OS-kernel combination
 # (given a valid OS), if there is a kernel.
-case $kernel-$os-$obj in
-	linux-gnu*- | linux-android*- | linux-dietlibc*- | linux-llvm*- \
-		    | linux-mlibc*- | linux-musl*- | linux-newlib*- \
-		    | linux-relibc*- | linux-uclibc*- )
+case $kernel-$os in
+	linux-gnu* | linux-dietlibc* | linux-android* | linux-newlib* \
+		   | linux-musl* | linux-relibc* | linux-uclibc* )
 		;;
-	uclinux-uclibc*- )
+	uclinux-uclibc* )
 		;;
-	managarm-mlibc*- | managarm-kernel*- )
-		;;
-	windows*-msvc*-)
-		;;
-	-dietlibc*- | -llvm*- | -mlibc*- | -musl*- | -newlib*- | -relibc*- \
-		    | -uclibc*- )
+	-dietlibc* | -newlib* | -musl* | -relibc* | -uclibc* )
 		# These are just libc implementations, not actual OSes, and thus
 		# require a kernel.
-		echo "Invalid configuration '$1': libc '$os' needs explicit kernel." 1>&2
+		echo "Invalid configuration \`$1': libc \`$os' needs explicit kernel." 1>&2
 		exit 1
 		;;
-	-kernel*- )
-		echo "Invalid configuration '$1': '$os' needs explicit kernel." 1>&2
-		exit 1
+	kfreebsd*-gnu* | kopensolaris*-gnu*)
 		;;
-	*-kernel*- )
-		echo "Invalid configuration '$1': '$kernel' does not support '$os'." 1>&2
-		exit 1
+	vxworks-simlinux | vxworks-simwindows | vxworks-spe)
 		;;
-	*-msvc*- )
-		echo "Invalid configuration '$1': '$os' needs 'windows'." 1>&2
-		exit 1
+	nto-qnx*)
 		;;
-	kfreebsd*-gnu*- | kopensolaris*-gnu*-)
+	os2-emx)
 		;;
-	vxworks-simlinux- | vxworks-simwindows- | vxworks-spe-)
+	*-eabi* | *-gnueabi*)
 		;;
-	nto-qnx*-)
-		;;
-	os2-emx-)
-		;;
-	ios*-simulator* | tvos*-simulator* | watchos*-simulator*)
-		;;	
-	*-eabi*- | *-gnueabi*-)
-		;;
-	none--*)
-		# None (no kernel, i.e. freestanding / bare metal),
-		# can be paired with an machine code file format
-		;;
-	-*-)
+	-*)
 		# Blank kernel with real OS is always fine.
 		;;
-	--*)
-		# Blank kernel and OS with real machine code file format is always fine.
-		;;
-	*-*-*)
-		echo "Invalid configuration '$1': Kernel '$kernel' not known to work with OS '$os'." 1>&2
+	*-*)
+		echo "Invalid configuration \`$1': Kernel \`$kernel' not known to work with OS \`$os'." 1>&2
 		exit 1
 		;;
 esac
@@ -1962,7 +1879,7 @@ case $vendor in
 		;;
 esac
 
-echo "$cpu-$vendor${kernel:+-$kernel}${os:+-$os}${obj:+-$obj}"
+echo "$cpu-$vendor-${kernel:+$kernel-}$os"
 exit
 
 # Local variables:

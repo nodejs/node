@@ -432,7 +432,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
+  SSL *ssl = ngtcp2_conn_get_tls_native_handle2(conn);
   int rv;
   int err;
 
@@ -444,7 +444,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     return -1;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
   retry:
     rv = SSL_do_handshake(ssl);
     if (rv <= 0) {
@@ -456,7 +456,7 @@ int ngtcp2_crypto_read_write_crypto_data(
       case SSL_ERROR_SSL:
         return -1;
       case SSL_ERROR_EARLY_DATA_REJECTED:
-        assert(!ngtcp2_conn_is_server(conn));
+        assert(!ngtcp2_conn_is_server2(conn));
 
         SSL_reset_early_data_reject(ssl);
 

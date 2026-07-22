@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 2012, 2014, 2018  Anthony Green
+   ffitarget.h - Copyright (c) 2012, 2014, 2018, 2026  Anthony Green
                  Copyright (c) 1996-2003, 2010  Red Hat, Inc.
                  Copyright (C) 2008  Free Software Foundation, Inc.
 
@@ -41,9 +41,6 @@
 
 #if defined (X86_64) && defined (__i386__)
 #undef X86_64
-#warning ******************************************************
-#warning ********** X86 IS DEFINED ****************************
-#warning ******************************************************
 #define X86
 #endif
 
@@ -55,6 +52,10 @@
 #define FFI_TARGET_SPECIFIC_STACK_SPACE_ALLOCATION
 #ifndef _MSC_VER
 #define FFI_TARGET_HAS_COMPLEX_TYPE
+#endif
+
+#ifdef X86_64
+#define FFI_TARGET_HAS_INT128
 #endif
 
 /* ---- Generic type definitions ----------------------------------------- */

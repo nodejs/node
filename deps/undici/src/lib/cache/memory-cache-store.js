@@ -138,7 +138,7 @@ class MemoryCacheStore extends EventEmitter {
 
         entry.size += chunk.byteLength
 
-        if (entry.size >= store.#maxEntrySize) {
+        if (entry.size > store.#maxEntrySize) {
           this.destroy()
         } else {
           entry.body.push(chunk)

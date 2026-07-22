@@ -53,8 +53,6 @@ try {
 }
 ```
 
-<!-- eslint-enable no-global-assign -->
-
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
 _before_ any attempt to load the module is made (using, for instance,
@@ -75,38 +73,48 @@ try {
 
 ## Asymmetric key types
 
-The following table lists the asymmetric key types recognized by the
-[`KeyObject`][] API and the export/import formats supported for each key type.
+The following lists group the asymmetric key types recognized by the
+[`KeyObject`][] API by the complete set of formats supported for importing and
+exporting each type.
 
-| Key Type                           | Description        | OID                     | `'pem'` | `'der'` | `'jwk'` | `'raw-public'` | `'raw-private'` | `'raw-seed'` |
-| ---------------------------------- | ------------------ | ----------------------- | ------- | ------- | ------- | -------------- | --------------- | ------------ |
-| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1    | ✔       | ✔       |         |                |                 |              |
-| `'dsa'`                            | DSA                | 1.2.840.10040.4.1       | ✔       | ✔       |         |                |                 |              |
-| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1       | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ed25519'`                        | Ed25519            | 1.3.101.112             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ed448'`                          | Ed448              | 1.3.101.113             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   | ✔       | ✔       |         |                |                 |              |
-| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    | ✔       | ✔       | ✔       |                |                 |              |
-| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'x25519'`                         | X25519             | 1.3.101.110             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
-| `'x448'`                           | X448               | 1.3.101.111             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+**Formats:** `'pem'`, `'der'`
+
+* **`'dh'` (Diffie-Hellman)** — OID `1.2.840.113549.1.3.1`
+* **`'dsa'`** — OID `1.2.840.10040.4.1`
+* **`'rsa-pss'`** — OID `1.2.840.113549.1.1.10`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`
+
+* **`'rsa'`** — OID `1.2.840.113549.1.1.1`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`, `'raw-public'`, `'raw-private'`
+
+* **`'ec'` (Elliptic curve)** — OID `1.2.840.10045.2.1`
+* **`'ed25519'`** — OID `1.3.101.112`
+* **`'ed448'`** — OID `1.3.101.113`
+* **`'slh-dsa-sha2-128f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.21`
+* **`'slh-dsa-sha2-128s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.20`
+* **`'slh-dsa-sha2-192f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.23`
+* **`'slh-dsa-sha2-192s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.22`
+* **`'slh-dsa-sha2-256f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.25`
+* **`'slh-dsa-sha2-256s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.24`
+* **`'slh-dsa-shake-128f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.27`
+* **`'slh-dsa-shake-128s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.26`
+* **`'slh-dsa-shake-192f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.29`
+* **`'slh-dsa-shake-192s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.28`
+* **`'slh-dsa-shake-256f'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.31`
+* **`'slh-dsa-shake-256s'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.30`
+* **`'x25519'`** — OID `1.3.101.110`
+* **`'x448'`** — OID `1.3.101.111`
+
+**Formats:** `'pem'`, `'der'`, `'jwk'`, `'raw-public'`, `'raw-seed'`
+
+* **`'ml-dsa-44'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.17`
+* **`'ml-dsa-65'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.18`
+* **`'ml-dsa-87'`[^openssl35]** — OID `2.16.840.1.101.3.4.3.19`
+* **`'ml-kem-512'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.1`
+* **`'ml-kem-768'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.2`
+* **`'ml-kem-1024'`[^openssl35]** — OID `2.16.840.1.101.3.4.4.3`
 
 ### Key formats
 
@@ -1193,7 +1201,7 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61084
     description: Using GCM tag lengths other than 128 bits without specifying
                  the `authTagLength` option when creating `decipher` is not
@@ -2259,6 +2267,10 @@ be listed in the `transferList` argument.
 added: v15.0.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a non-extractable CryptoKey as `key` is no longer
+                 supported.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a non-extractable CryptoKey as `key` is deprecated.
 -->
@@ -2266,11 +2278,11 @@ changes:
 * `key` {CryptoKey}
 * Returns: {KeyObject}
 
-Returns the underlying {KeyObject} of a {CryptoKey}. The returned {KeyObject}
-does not retain any of the restrictions imposed by the Web Crypto API on the
-original {CryptoKey}, such as the allowed key usages, the algorithm or hash
-algorithm bindings, and the extractability flag. In particular, the underlying
-key material of the returned {KeyObject} can always be exported.
+Returns a {KeyObject} representation of the underlying key material of an
+extractable {CryptoKey}.
+The returned {KeyObject} does not retain any of the restrictions imposed by
+the Web Crypto API on the original {CryptoKey}, such as the allowed key usages,
+the algorithm or hash algorithm bindings.
 
 ```mjs
 const { KeyObject } = await import('node:crypto');
@@ -2399,11 +2411,13 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62178
     description: ML-KEM and ML-DSA private key `'pkcs8'` export now
                  uses seed-only format by default when a seed is
@@ -2624,6 +2638,9 @@ console.log(verify.verify(publicKey, signature));
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The privateKey can also be an ArrayBuffer and CryptoKey.
@@ -2645,7 +2662,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
   * `dsaEncoding` {string}
   * `padding` {integer}
   * `saltLength` {integer}
@@ -2658,8 +2675,10 @@ Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
 
 If `privateKey` is not a [`KeyObject`][], this function behaves as if
-`privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
-object, the following additional properties can be passed:
+`privateKey` had been passed to [`crypto.createPrivateKey()`][]. When
+`privateKey` is a string, `ArrayBuffer`, [`Buffer`][], `TypedArray`, or
+`DataView`, it must contain PEM-encoded key material. If it is an object, the
+following additional properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the generated signature. It can be one of the following:
@@ -2754,6 +2773,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer and CryptoKey.
@@ -2775,7 +2797,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
   * `dsaEncoding` {string}
   * `padding` {integer}
   * `saltLength` {integer}
@@ -2789,8 +2811,10 @@ changes:
 Verifies the provided data using the given `key` and `signature`.
 
 If `key` is not a [`KeyObject`][], this function behaves as if
-`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
-object, the following additional properties can be passed:
+`key` had been passed to [`crypto.createPublicKey()`][]. When `key` is a string,
+`ArrayBuffer`, [`Buffer`][], `TypedArray`, or `DataView`, it must contain
+PEM-encoded key material. If it is an object, the following additional
+properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the signature. It can be one of the following:
@@ -3310,8 +3334,6 @@ Does not perform any other validation checks on the certificate.
 added: v24.7.0
 -->
 
-> Stability: 1.2 - Release candidate
-
 * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * `parameters` {Object}
   * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
@@ -3395,8 +3417,6 @@ argon2('argon2id', parameters, (err, derivedKey) => {
 <!-- YAML
 added: v24.7.0
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * `parameters` {Object}
@@ -3537,6 +3557,9 @@ operations. The specific constants currently defined are described in
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version:
@@ -3572,7 +3595,7 @@ changes:
 -->
 
 * `algorithm` {string}
-* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Cipheriv}
@@ -3614,6 +3637,9 @@ given IV will be.
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version:
@@ -3645,7 +3671,7 @@ changes:
 -->
 
 * `algorithm` {string}
-* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Decipheriv}
@@ -3761,6 +3787,10 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -3773,7 +3803,10 @@ changes:
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
-can be used to specify the desired output length in bytes.
+specifies the desired output length in bytes. It is required for XOF hash
+functions without a default output length.
+
+When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -3840,6 +3873,9 @@ input.on('readable', () => {
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v15.0.0
@@ -3853,7 +3889,7 @@ changes:
 -->
 
 * `algorithm` {string}
-* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `options` {Object} [`stream.transform` options][]
   * `encoding` {string} The string encoding to use when `key` is a string.
 * Returns: {Hmac}
@@ -3933,10 +3969,15 @@ input.on('readable', () => {
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v24.15.0
@@ -3988,10 +4029,15 @@ of the passphrase is limited to 1024 bytes.
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM and SLH-DSA
                  key types.
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v24.15.0
@@ -4121,8 +4167,6 @@ algorithm names.
 added: v24.7.0
 -->
 
-> Stability: 1.2 - Release candidate
-
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Private Key
 * `ciphertext` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `callback` {Function}
@@ -4156,7 +4200,9 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v26.1.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62527
     description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
@@ -4189,8 +4235,6 @@ If the `callback` function is provided this function uses libuv's threadpool.
 <!-- YAML
 added: v24.7.0
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Public Key
 * `callback` {Function}
@@ -4874,6 +4918,10 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version:
      - v25.5.0
      - v24.13.1
@@ -4894,7 +4942,8 @@ changes:
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
   * `outputLength` {number} For XOF hash functions such as 'shake256',
-    the outputLength option can be used to specify the desired output length in bytes.
+    specifies the desired output length in bytes. This option is required for
+    XOF hash functions without a default output length.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than
@@ -5222,6 +5271,9 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version:
       - v21.6.2
       - v20.11.1
@@ -5248,7 +5300,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
   * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
     **Default:** `'sha1'`
   * `oaepLabel` {string|ArrayBuffer|Buffer|TypedArray|DataView} The label to
@@ -5280,6 +5332,9 @@ attempting to use `RSA_PKCS1_PADDING` will fail.
 <!-- YAML
 added: v1.1.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `privateKey` is no longer supported.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key
@@ -5293,8 +5348,8 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
     A PEM encoded private key.
   * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} An optional
     passphrase for the private key.
@@ -5321,6 +5376,9 @@ object, the `padding` property can be passed. Otherwise, this function uses
 <!-- YAML
 added: v1.1.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key
@@ -5334,7 +5392,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
   * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} An optional
     passphrase for the private key.
   * `padding` {crypto.constants} An optional padding value defined in
@@ -5363,6 +5421,9 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key
@@ -5382,9 +5443,9 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-    A PEM encoded public or private key, {KeyObject}, or {CryptoKey}.
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+    A PEM encoded public or private key, or {KeyObject}.
   * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
     **Default:** `'sha1'`
   * `oaepLabel` {string|ArrayBuffer|Buffer|TypedArray|DataView} The label to
@@ -5852,7 +5913,9 @@ cryptographic pseudorandom number generator.
 ### `crypto.randomUUIDv7([options])`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `options` {Object}
@@ -6057,6 +6120,9 @@ added: v15.6.0
 <!-- YAML
 added: v0.11.11
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: Runtime deprecation.
   - version:
     - v22.4.0
     - v20.16.0
@@ -6064,11 +6130,14 @@ changes:
     description: Custom engine support in OpenSSL 3 is deprecated.
 -->
 
+> Stability: 0 - Deprecated
+
 * `engine` {string}
 * `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
-Support for custom engines in OpenSSL is deprecated from OpenSSL 3.
+Use of this API is deprecated because custom engine support has been deprecated
+since OpenSSL 3.
 
 `engine` could be either an id or a path to the engine's shared library.
 
@@ -6105,6 +6174,11 @@ Throws an error if FIPS mode is not available.
 added: v12.0.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6134,8 +6208,8 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string | null | undefined}
-* `data` {ArrayBuffer|Buffer|TypedArray|DataView}
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `callback` {Function}
   * `err` {Error}
   * `signature` {Buffer}
@@ -6151,8 +6225,10 @@ dependent upon the key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPrivateKey()`][]. When `key` is a string, `ArrayBuffer`,
+[`Buffer`][], `TypedArray`, or `DataView`, it must contain PEM-encoded key
+material. If it is an object, the following additional properties can be
+passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the generated signature. It can be one of the following:
@@ -6234,6 +6310,11 @@ not introduce timing vulnerabilities.
 added: v12.0.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6266,9 +6347,9 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|null|undefined}
-* `data` {ArrayBuffer| Buffer|TypedArray|DataView}
-* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-* `signature` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `signature` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView}
 * `callback` {Function}
   * `err` {Error}
   * `result` {boolean}
@@ -6286,8 +6367,10 @@ key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPublicKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPublicKey()`][]. When `key` is a string, `ArrayBuffer`,
+[`Buffer`][], `TypedArray`, or `DataView`, it must contain PEM-encoded key
+material. If it is an object, the following additional properties can be
+passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the signature. It can be one of the following:
@@ -6659,7 +6742,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS</code></td>
-    <td>Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability
+    <td>Instructs OpenSSL to disable an SSL 3.0/TLS 1.0 vulnerability
     workaround added in OpenSSL 0.9.6d.</td>
   </tr>
   <tr>
@@ -6937,6 +7020,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
+[`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
 [`crypto.privateEncrypt()`]: #cryptoprivateencryptprivatekey-buffer
 [`crypto.publicDecrypt()`]: #cryptopublicdecryptkey-buffer

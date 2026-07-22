@@ -56,27 +56,81 @@
 #define nghttp3_max_def(SUFFIX, T)                                             \
   static inline T nghttp3_max_##SUFFIX(T a, T b) { return a < b ? b : a; }
 
-nghttp3_max_def(int8, int8_t)
-nghttp3_max_def(int16, int16_t)
-nghttp3_max_def(int32, int32_t)
-nghttp3_max_def(int64, int64_t)
-nghttp3_max_def(uint8, uint8_t)
-nghttp3_max_def(uint16, uint16_t)
-nghttp3_max_def(uint32, uint32_t)
-nghttp3_max_def(uint64, uint64_t)
-nghttp3_max_def(size, size_t)
+nghttp3_max_def(long_long_int, long long int)
+nghttp3_max_def(long_int, long int)
+nghttp3_max_def(int, int)
+nghttp3_max_def(short_int, short int)
+nghttp3_max_def(signed_char, signed char)
+nghttp3_max_def(char, char)
+nghttp3_max_def(unsigned_long_long_int, unsigned long long int)
+nghttp3_max_def(unsigned_long_int, unsigned long int)
+nghttp3_max_def(unsigned_int, unsigned int)
+nghttp3_max_def(unsigned_short_int, unsigned short int)
+nghttp3_max_def(unsigned_char, unsigned char)
+
+#define nghttp3_max(A, B)                                                      \
+  _Generic((A),                                                                \
+    long long int: nghttp3_max_long_long_int,                                  \
+    long int: nghttp3_max_long_int,                                            \
+    int: _Generic((B),                                                         \
+      long long int: nghttp3_max_long_long_int,                                \
+      long int: nghttp3_max_long_int,                                          \
+      int: nghttp3_max_int,                                                    \
+      short int: nghttp3_max_short_int,                                        \
+      signed char: nghttp3_max_signed_char,                                    \
+      char: nghttp3_max_char,                                                  \
+      unsigned long long int: nghttp3_max_unsigned_long_long_int,              \
+      unsigned long int: nghttp3_max_unsigned_long_int,                        \
+      unsigned int: nghttp3_max_unsigned_int,                                  \
+      unsigned short int: nghttp3_max_unsigned_short_int,                      \
+      unsigned char: nghttp3_max_unsigned_char),                               \
+    short int: nghttp3_max_short_int,                                          \
+    signed char: nghttp3_max_signed_char,                                      \
+    char: nghttp3_max_char,                                                    \
+    unsigned long long int: nghttp3_max_unsigned_long_long_int,                \
+    unsigned long int: nghttp3_max_unsigned_long_int,                          \
+    unsigned int: nghttp3_max_unsigned_int,                                    \
+    unsigned short int: nghttp3_max_unsigned_short_int,                        \
+    unsigned char: nghttp3_max_unsigned_char)((A), (B))
 
 #define nghttp3_min_def(SUFFIX, T)                                             \
   static inline T nghttp3_min_##SUFFIX(T a, T b) { return a < b ? a : b; }
 
-nghttp3_min_def(int8, int8_t)
-nghttp3_min_def(int16, int16_t)
-nghttp3_min_def(int32, int32_t)
-nghttp3_min_def(int64, int64_t)
-nghttp3_min_def(uint8, uint8_t)
-nghttp3_min_def(uint16, uint16_t)
-nghttp3_min_def(uint32, uint32_t)
-nghttp3_min_def(uint64, uint64_t)
-nghttp3_min_def(size, size_t)
+nghttp3_min_def(long_long_int, long long int)
+nghttp3_min_def(long_int, long int)
+nghttp3_min_def(int, int)
+nghttp3_min_def(short_int, short int)
+nghttp3_min_def(signed_char, signed char)
+nghttp3_min_def(char, char)
+nghttp3_min_def(unsigned_long_long_int, unsigned long long int)
+nghttp3_min_def(unsigned_long_int, unsigned long int)
+nghttp3_min_def(unsigned_int, unsigned int)
+nghttp3_min_def(unsigned_short_int, unsigned short int)
+nghttp3_min_def(unsigned_char, unsigned char)
+
+#define nghttp3_min(A, B)                                                      \
+  _Generic((A),                                                                \
+    long long int: nghttp3_min_long_long_int,                                  \
+    long int: nghttp3_min_long_int,                                            \
+    int: _Generic((B),                                                         \
+      long long int: nghttp3_min_long_long_int,                                \
+      long int: nghttp3_min_long_int,                                          \
+      int: nghttp3_min_int,                                                    \
+      short int: nghttp3_min_short_int,                                        \
+      signed char: nghttp3_min_signed_char,                                    \
+      char: nghttp3_min_char,                                                  \
+      unsigned long long int: nghttp3_min_unsigned_long_long_int,              \
+      unsigned long int: nghttp3_min_unsigned_long_int,                        \
+      unsigned int: nghttp3_min_unsigned_int,                                  \
+      unsigned short int: nghttp3_min_unsigned_short_int,                      \
+      unsigned char: nghttp3_min_unsigned_char),                               \
+    short int: nghttp3_min_short_int,                                          \
+    signed char: nghttp3_min_signed_char,                                      \
+    char: nghttp3_min_char,                                                    \
+    unsigned long long int: nghttp3_min_unsigned_long_long_int,                \
+    unsigned long int: nghttp3_min_unsigned_long_int,                          \
+    unsigned int: nghttp3_min_unsigned_int,                                    \
+    unsigned short int: nghttp3_min_unsigned_short_int,                        \
+    unsigned char: nghttp3_min_unsigned_char)((A), (B))
 
 #endif /* !defined(NGHTTP3_MACRO_H) */

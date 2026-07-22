@@ -375,6 +375,8 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \
           "wasm::WebAssemblyExceptionGetArg")                                  \
   IF_WASM(V, wasm_WebAssemblyExceptionIs, "wasm::WebAssemblyExceptionIs")      \
+  IF_WASM(V, wasm_WebAssemblyExceptionGetStack,                                \
+          "wasm::WebAssemblyExceptionGetStack")                                \
   IF_WASM(V, wasm_WebAssemblyGlobal, "wasm::WebAssemblyGlobal")                \
   IF_WASM(V, wasm_WebAssemblyGlobalGetValue,                                   \
           "wasm::WebAssemblyGlobalGetValue")                                   \

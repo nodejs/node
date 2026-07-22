@@ -69,7 +69,7 @@
 #define NO_RECVMMSG
 #endif
 #if defined(_AIX)
-/* Force fallback to sndmsg and recvmsg */
+/* AIX header files don't properly expose sendmmsg/recvmmsg declarations */
 #undef NO_RECVMMSG
 #define NO_RECVMMSG
 #endif

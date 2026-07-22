@@ -12,7 +12,7 @@ Note: This command is unaware of workspaces.
 
 Before using npm trust commands, ensure the following requirements are met:
 
-* **npm version**: `npm@11.10.0` or above is required. Use `npm install -g npm@^11.10.0` to update if needed.
+* **npm version**: `npm@11.15.0` or above is required. Use `npm install -g npm@^11.15.0` to update if needed.
 * **Write permissions on the package**: You must have write access to the package you're configuring.
 * **2FA enabled on account**: Two-factor authentication must be enabled at the account level. Even if it's not currently enabled, you must enable it to use trust commands.
 * **Supported authentication methods**: Granular Access Tokens (GAT) with the bypass 2FA option are not supported. Legacy basic auth (username and password) credentials will not work for trust commands or endpoints.
@@ -27,6 +27,17 @@ For a comprehensive overview of trusted publishing, see the [npm trusted publish
 The `[package]` argument specifies the package name. If omitted, npm will use the name from the `package.json` in the current directory.
 
 Each trust relationship has its own set of configuration options and flags based on the OIDC claims provided by that provider. OIDC claims come from the CI/CD provider and include information such as repository name, workflow file, or environment. Since each provider's claims differ, the available flags and configuration keys are not universal—npm matches the claims supported by each provider's OIDC configuration. For specific details on which claims and flags are supported for a given provider, use `npm trust <provider> --help`.
+
+### Permissions
+
+When creating a trust relationship, you must specify at least one permission flag to indicate which operations the trusted publisher is allowed to perform:
+
+* `--allow-publish`: Allows the trusted publisher to run `npm publish` for the package.
+* `--allow-stage-publish`: Allows the trusted publisher to run `npm stage` for the package. The alias `--allow-staged-publish` is also accepted.
+
+At least one of these flags is required when creating a trust configuration. You can specify both to grant both permissions.
+
+### Provider Options
 
 The required options depend on the CI/CD provider you're configuring. Detailed information about each option is available in the [managing trusted publisher configurations](https://docs.npmjs.com/trusted-publishers#managing-trusted-publisher-configurations) section of the npm documentation. If a provider is repository-based and the option is not provided, npm will use the `repository.url` field from your `package.json`, if available.
 
@@ -53,7 +64,7 @@ Create a trusted relationship between a package and GitHub Actions
 #### Synopsis
 
 ```bash
-npm trust github [package] --file [--repo|--repository] [--env|--environment] [-y|--yes]
+npm trust github [package] --file [--repo|--repository] [--env|--environment] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 ```
 
 #### Flags
@@ -63,6 +74,8 @@ npm trust github [package] --file [--repo|--repository] [--env|--environment] [-
 | `--file` | null | String (required) | Name of workflow file within a repositories .GitHub folder (must end in yaml, yml) |
 | `--repository`, `--repo` | null | String | Name of the repository in the format owner/repo |
 | `--environment`, `--env` | null | String | CI environment name |
+| `--allow-publish` | false | Boolean | Allow npm publish for this trusted publisher configuration |
+| `--allow-stage-publish`, `--allow-staged-publish` | false | Boolean | Allow npm stage publish for this trusted publisher configuration |
 | `--dry-run` | false | Boolean | Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, `install`,       `update`, `dedupe`, `uninstall`, as well as `pack` and       `publish`.        Note: This is NOT honored by other network related commands, eg       `dist-tags`, `owner`, etc. |
 | `--json` | false | Boolean | Whether or not to output JSON data, rather than the normal output.        * In `npm pkg set` it enables parsing set values with JSON.parse()       before saving them to your `package.json`.        Not supported by all npm commands. |
 | `--registry` | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
@@ -75,7 +88,7 @@ Create a trusted relationship between a package and GitLab CI/CD
 #### Synopsis
 
 ```bash
-npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--environment] [-y|--yes]
+npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--environment] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 ```
 
 #### Flags
@@ -85,6 +98,8 @@ npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--envir
 | `--file` | null | String (required) | Name of pipeline file (e.g., .gitlab-ci.yml) |
 | `--project` | null | String | Name of the project in the format group/project or group/subgroup/project |
 | `--environment`, `--env` | null | String | CI environment name |
+| `--allow-publish` | false | Boolean | Allow npm publish for this trusted publisher configuration |
+| `--allow-stage-publish`, `--allow-staged-publish` | false | Boolean | Allow npm stage publish for this trusted publisher configuration |
 | `--dry-run` | false | Boolean | Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, `install`,       `update`, `dedupe`, `uninstall`, as well as `pack` and       `publish`.        Note: This is NOT honored by other network related commands, eg       `dist-tags`, `owner`, etc. |
 | `--json` | false | Boolean | Whether or not to output JSON data, rather than the normal output.        * In `npm pkg set` it enables parsing set values with JSON.parse()       before saving them to your `package.json`.        Not supported by all npm commands. |
 | `--registry` | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
@@ -97,7 +112,7 @@ Create a trusted relationship between a package and CircleCI
 #### Synopsis
 
 ```bash
-npm trust circleci [package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [-y|--yes]
+npm trust circleci [package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 ```
 
 #### Flags
@@ -109,6 +124,8 @@ npm trust circleci [package] --org-id <uuid> --project-id <uuid> --pipeline-defi
 | `--pipeline-definition-id` | null | String (required) | CircleCI pipeline definition UUID |
 | `--vcs-origin` | null | String (required) | CircleCI repository origin in format 'provider/owner/repo' |
 | `--context-id` | null | null or String (can be set multiple times) | CircleCI context UUID to match |
+| `--allow-publish` | false | Boolean | Allow npm publish for this trusted publisher configuration |
+| `--allow-stage-publish`, `--allow-staged-publish` | false | Boolean | Allow npm stage publish for this trusted publisher configuration |
 | `--dry-run` | false | Boolean | Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, `install`,       `update`, `dedupe`, `uninstall`, as well as `pack` and       `publish`.        Note: This is NOT honored by other network related commands, eg       `dist-tags`, `owner`, etc. |
 | `--json` | false | Boolean | Whether or not to output JSON data, rather than the normal output.        * In `npm pkg set` it enables parsing set values with JSON.parse()       before saving them to your `package.json`.        Not supported by all npm commands. |
 | `--registry` | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |

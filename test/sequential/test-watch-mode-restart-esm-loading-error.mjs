@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { createInterface } from 'node:readline';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -112,23 +113,27 @@ try {
 
   // Update file with syntax error
   const syntaxErrorContent = `console.log('hello, wor`;
+  const failedRestart = restart(common.platformTimeout(10_000));
   writeFileSync(file, syntaxErrorContent);
-
+  await sleep(common.platformTimeout(1000));
   // Wait for the failed restart
-  const { stderr: stderr2, stdout: stdout2 } = await restart();
+  const { stderr: stderr2, stdout: stdout2 } = await failedRestart;
   assert.match(stderr2, /SyntaxError: Invalid or unexpected token/);
   assert.deepStrictEqual(stdout2, [
+    `Change detected in ${inspect(file)}`,
     `Restarting ${inspect(file)}`,
     `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
   ]);
 
+  const successfulRestart = restart(common.platformTimeout(10_000));
   writeFileSync(file, `console.log('hello again, world');`);
-
-  const { stderr: stderr3, stdout: stdout3 } = await restart();
+  await sleep(common.platformTimeout(1000));
+  const { stderr: stderr3, stdout: stdout3 } = await successfulRestart;
 
   // Verify it recovered and ran successfully
   assert.strictEqual(stderr3, '');
   assert.deepStrictEqual(stdout3, [
+    `Change detected in ${inspect(file)}`,
     `Restarting ${inspect(file)}`,
     'hello again, world',
     `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,

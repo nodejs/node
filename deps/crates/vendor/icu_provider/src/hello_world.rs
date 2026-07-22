@@ -155,7 +155,6 @@ impl HelloWorldProvider {
 
 impl DataProvider<HelloWorldV1> for HelloWorldProvider {
     fn load(&self, req: DataRequest) -> Result<DataResponse<HelloWorldV1>, DataError> {
-        #[allow(clippy::indexing_slicing)] // binary_search
         let data = Self::DATA
             .iter()
             .find(|(l, a, _)| {
@@ -224,7 +223,7 @@ impl DynamicDataProvider<BufferMarker> for HelloWorldJsonProvider {
                 buffer_format: Some(icu_provider::buf::BufferFormat::Json),
                 ..result.metadata
             },
-            #[allow(clippy::unwrap_used)] // HelloWorld::serialize is infallible
+            #[expect(clippy::unwrap_used)] // HelloWorld::serialize is infallible
             payload: DataPayload::from_owned_buffer(
                 serde_json::to_string(result.payload.get())
                     .unwrap()
@@ -236,8 +235,8 @@ impl DynamicDataProvider<BufferMarker> for HelloWorldJsonProvider {
 }
 
 impl IterableDataProvider<HelloWorldV1> for HelloWorldProvider {
-    fn iter_ids(&self) -> Result<BTreeSet<DataIdentifierCow>, DataError> {
-        #[allow(clippy::unwrap_used)] // hello-world
+    fn iter_ids(&self) -> Result<BTreeSet<DataIdentifierCow<'_>>, DataError> {
+        #[expect(clippy::unwrap_used)] // hello-world
         Ok(Self::DATA
             .iter()
             .map(|(l, a, _)| {
@@ -326,7 +325,6 @@ impl HelloWorldFormatter {
     }
 
     /// Formats a hello world message, returning a [`FormattedHelloWorld`].
-    #[allow(clippy::needless_lifetimes)] // documentary example
     pub fn format<'l>(&'l self) -> FormattedHelloWorld<'l> {
         FormattedHelloWorld {
             data: self.data.get(),
@@ -344,8 +342,8 @@ impl Writeable for FormattedHelloWorld<'_> {
         self.data.message.write_to(sink)
     }
 
-    fn write_to_string(&self) -> Cow<str> {
-        self.data.message.clone()
+    fn writeable_borrow(&self) -> Option<&str> {
+        self.data.message.writeable_borrow()
     }
 
     fn writeable_length_hint(&self) -> writeable::LengthHint {

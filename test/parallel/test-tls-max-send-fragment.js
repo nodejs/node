@@ -60,9 +60,15 @@ const server = tls.createServer({
 
   assert.throws(() => c.setMaxSendFragment(Symbol()), { name: 'TypeError' });
 
-  // Lower and upper limits.
-  assert(!c.setMaxSendFragment(511));
-  assert(!c.setMaxSendFragment(16385));
+  // OpenSSL enforces Node's documented fragment size range. BoringSSL accepts
+  // both out-of-range values and reports success, so assert that difference
+  // explicitly instead of using a truthiness shortcut.
+  const acceptsOutOfRangeFragmentSize =
+    process.features.openssl_is_boringssl;
+  assert.strictEqual(c.setMaxSendFragment(511),
+                     acceptsOutOfRangeFragmentSize);
+  assert.strictEqual(c.setMaxSendFragment(16385),
+                     acceptsOutOfRangeFragmentSize);
 
   // Correct fragment size.
   assert(c.setMaxSendFragment(maxChunk));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -213,6 +213,7 @@ void ossl_curve448_scalar_halve(curve448_scalar_t out, const curve448_scalar_t a
     c448_dword_t chain = 0;
     unsigned int i;
 
+    mask = value_barrier_c448(mask);
     for (i = 0; i < C448_SCALAR_LIMBS; i++) {
         chain = (chain + a->limb[i]) + (sc_p->limb[i] & mask);
         out->limb[i] = (c448_word_t)chain;

@@ -1,99 +1,297 @@
-# Class: BalancedPool
+# BalancedPool
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v4.8.0-->
+<!--type=module-->
+<!-- source_link=lib/dispatcher/balanced-pool.js -->
 
-A pool of [Pool](/docs/docs/api/Pool.md) instances connected to multiple upstreams.
+> Stability: 2 - Stable
 
-Requests are not guaranteed to be dispatched in order of invocation.
+A `BalancedPool` distributes requests across a set of {Pool} instances, each
+connected to a different upstream. It uses a weighted round-robin algorithm:
+every upstream starts with the same weight, and the weight is adjusted up on
+successful connections and down on connection errors, so that healthy upstreams
+receive a larger share of traffic.
 
-## `new BalancedPool(upstreams [, options])`
+Requests are not guaranteed to be dispatched in the order they are issued.
 
-Arguments:
+```mjs
+import { BalancedPool } from 'undici'
 
-* **upstreams** `URL | string | string[]` - It should only include the **protocol, hostname, and port**.
-* **options** `BalancedPoolOptions` (optional)
+const pool = new BalancedPool([
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+])
 
-### Parameter: `BalancedPoolOptions`
+const { statusCode, body } = await pool.request({
+  path: '/',
+  method: 'GET',
+})
+console.log('response received', statusCode)
+for await (const chunk of body) {
+  console.log('data', chunk.toString())
+}
+```
 
-Extends: [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions)
+## Class: `BalancedPool`
 
-* **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Pool(origin, opts)`
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+-->
 
-The `PoolOptions` are passed to each of the `Pool` instances being created.
-## Instance Properties
+* Extends: {Dispatcher}
 
-### `BalancedPool.upstreams`
+A pool of {Pool} instances connected to multiple upstreams.
 
-Returns an array of upstreams that were previously added.
+### `new BalancedPool(upstreams[, options])`
 
-### `BalancedPool.closed`
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.15.0
+    pr-url: https://github.com/nodejs/undici/pull/1237
+    description: Added the `factory` option.
+-->
 
-Implements [Client.closed](/docs/docs/api/Client.md#clientclosed)
+* `upstreams` {URL|string|URL[]|string[]} One or more upstream origins. Each
+  value should only include the **protocol, hostname, and port**. **Default:**
+  `[]`.
+* `options` {BalancedPoolOptions} (optional)
 
-### `BalancedPool.destroyed`
+The options passed to the constructor are forwarded to every {Pool} instance
+that is created for an upstream.
 
-Implements [Client.destroyed](/docs/docs/api/Client.md#clientdestroyed)
+#### Parameter: `BalancedPoolOptions`
 
-### `Pool.stats`
+Extends: {PoolOptions}
 
-Returns [`PoolStats`](/docs/docs/api/PoolStats.md) instance for this pool.
+In addition to all {PoolOptions}, the following options are supported:
 
-## Instance Methods
+* `factory` {Function} A function used to create the {Pool} instance for each
+  upstream. **Default:** `(origin, opts) => new Pool(origin, opts)`.
+  * `origin` {URL|string} The upstream origin.
+  * `opts` {Object} The options object derived from the constructor options.
+  * Returns: {Dispatcher}
+* `maxWeightPerServer` {number} The maximum weight any single upstream can
+  reach. Successful connections increase an upstream's weight up to this value.
+  **Default:** `100`.
+* `errorPenalty` {number} The amount by which an upstream's weight is decreased
+  on a connection error and increased on a successful connection. **Default:**
+  `15`.
 
-### `BalancedPool.addUpstream(upstream)`
+### `balancedPool.addUpstream(upstream)`
 
-Add an upstream.
+<!-- YAML
+added: v4.8.0
+-->
 
-Arguments:
+* `upstream` {URL|string} The upstream origin to add. It should only include the
+  **protocol, hostname, and port**.
+* Returns: {BalancedPool} The `BalancedPool` instance, for chaining.
 
-* **upstream** `string` - It should only include the **protocol, hostname, and port**.
+Adds an upstream. If an open, non-destroyed upstream with the same origin is
+already present, the call is a no-op.
 
-### `BalancedPool.removeUpstream(upstream)`
+### `balancedPool.removeUpstream(upstream)`
 
-Removes an upstream that was previously added.
+<!-- YAML
+added: v4.8.0
+-->
 
-### `BalancedPool.close([callback])`
+* `upstream` {URL|string} The upstream origin to remove. It should only include
+  the **protocol, hostname, and port**.
+* Returns: {BalancedPool} The `BalancedPool` instance, for chaining.
 
-Implements [`Dispatcher.close([callback])`](/docs/docs/api/Dispatcher.md#dispatcherclosecallback-promise).
+Removes an upstream that was previously added. If no matching upstream is found,
+the call is a no-op.
 
-### `BalancedPool.destroy([error, callback])`
+### `balancedPool.getUpstream(upstream)`
 
-Implements [`Dispatcher.destroy([error, callback])`](/docs/docs/api/Dispatcher.md#dispatcherdestroyerror-callback-promise).
+<!-- YAML
+added: v7.17.0
+-->
 
-### `BalancedPool.connect(options[, callback])`
+* `upstream` {URL|string} The upstream origin to look up. It should only include
+  the **protocol, hostname, and port**.
+* Returns: {Pool|undefined} The {Pool} instance managing the given upstream, or
+  `undefined` if it is not present.
 
-See [`Dispatcher.connect(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback).
+Returns the {Pool} instance for the given upstream origin, if it is open and not
+destroyed.
 
-### `BalancedPool.dispatch(options, handlers)`
+### `balancedPool.upstreams`
 
-Implements [`Dispatcher.dispatch(options, handlers)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler).
+<!-- YAML
+added: v4.8.0
+-->
 
-### `BalancedPool.pipeline(options, handler)`
+* Type: {string[]} The origins of the upstreams that are currently open and not
+  destroyed.
 
-See [`Dispatcher.pipeline(options, handler)`](/docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler).
+### `balancedPool.closed`
 
-### `BalancedPool.request(options[, callback])`
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+-->
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+* Type: {boolean} `true` after `balancedPool.close()` has been called.
 
-### `BalancedPool.stream(options, factory[, callback])`
+Implements [`client.closed`][].
 
-See [`Dispatcher.stream(options, factory[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback).
+### `balancedPool.destroyed`
 
-### `BalancedPool.upgrade(options[, callback])`
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+-->
 
-See [`Dispatcher.upgrade(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback).
+* Type: {boolean} `true` after `balancedPool.destroy()` has been called, or after
+  `balancedPool.close()` has been called and the shutdown has completed.
 
-## Instance Events
+Implements [`client.destroyed`][].
+
+### `balancedPool.stats`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+* Type: {PoolStats}
+
+Returns a {PoolStats} instance aggregating the statistics of the underlying
+pools.
+
+### `balancedPool.close([callback])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+Implements [`Dispatcher.close([callback])`][].
+
+### `balancedPool.destroy([error[, callback]])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+Implements [`Dispatcher.destroy([error, callback])`][].
+
+### `balancedPool.connect(options[, callback])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+See [`Dispatcher.connect(options[, callback])`][].
+
+### `balancedPool.dispatch(options, handlers)`
+
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+-->
+
+Implements [`Dispatcher.dispatch(options, handler)`][].
+
+### `balancedPool.pipeline(options, handler)`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+See [`Dispatcher.pipeline(options, handler)`][].
+
+### `balancedPool.request(options[, callback])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+See [`Dispatcher.request(options[, callback])`][].
+
+### `balancedPool.stream(options, factory[, callback])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+See [`Dispatcher.stream(options, factory[, callback])`][].
+
+### `balancedPool.upgrade(options[, callback])`
+
+<!-- YAML
+added: v4.8.0
+-->
+
+See [`Dispatcher.upgrade(options[, callback])`][].
 
 ### Event: `'connect'`
 
-See [Dispatcher Event: `'connect'`](/docs/docs/api/Dispatcher.md#event-connect).
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+  - version: v5.8.0
+    pr-url: https://github.com/nodejs/undici/pull/1069
+    description: Adopted weighted round-robin selection across upstreams.
+-->
+
+See [Dispatcher Event: `'connect'`][].
 
 ### Event: `'disconnect'`
 
-See [Dispatcher Event: `'disconnect'`](/docs/docs/api/Dispatcher.md#event-disconnect).
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+  - version: v5.8.0
+    pr-url: https://github.com/nodejs/undici/pull/1069
+    description: Adopted weighted round-robin selection across upstreams.
+-->
+
+See [Dispatcher Event: `'disconnect'`][].
 
 ### Event: `'drain'`
 
-See [Dispatcher Event: `'drain'`](/docs/docs/api/Dispatcher.md#event-drain).
+<!-- YAML
+added: v4.8.0
+changes:
+  - version: v4.10.4
+    pr-url: https://github.com/nodejs/undici/pull/1114
+    description: Introduced the `BalancedPool` class.
+-->
+
+See [Dispatcher Event: `'drain'`][].
+
+[Dispatcher Event: `'connect'`]: Dispatcher.md#event-connect
+[Dispatcher Event: `'disconnect'`]: Dispatcher.md#event-disconnect
+[Dispatcher Event: `'drain'`]: Dispatcher.md#event-drain
+[`Dispatcher.close([callback])`]: Dispatcher.md#dispatcherclosecallback-promise
+[`Dispatcher.connect(options[, callback])`]: Dispatcher.md#dispatcherconnectoptions-callback
+[`Dispatcher.destroy([error, callback])`]: Dispatcher.md#dispatcherdestroyerror-callback-promise
+[`Dispatcher.dispatch(options, handler)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`Dispatcher.pipeline(options, handler)`]: Dispatcher.md#dispatcherpipelineoptions-handler
+[`Dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`Dispatcher.stream(options, factory[, callback])`]: Dispatcher.md#dispatcherstreamoptions-factory-callback
+[`Dispatcher.upgrade(options[, callback])`]: Dispatcher.md#dispatcherupgradeoptions-callback
+[`client.closed`]: Client.md#clientclosed
+[`client.destroyed`]: Client.md#clientdestroyed

@@ -104,15 +104,15 @@ int nghttp2_hd_huff_encode(nghttp2_bufs *bufs, const uint8_t *src,
 }
 
 void nghttp2_hd_huff_decode_context_init(nghttp2_hd_huff_decode_context *ctx) {
-  ctx->fstate = NGHTTP2_HUFF_ACCEPTED;
+  ctx->fstate = 0;
+  ctx->flags = NGHTTP2_HUFF_ACCEPTED;
 }
 
 nghttp2_ssize nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
                                      nghttp2_buf *buf, const uint8_t *src,
                                      size_t srclen, int final) {
   const uint8_t *end = src + srclen;
-  nghttp2_huff_decode node = {ctx->fstate, 0};
-  const nghttp2_huff_decode *t = &node;
+  nghttp2_huff_decode t = {ctx->fstate, ctx->flags, 0};
   uint8_t c;
 
   /* We use the decoding algorithm described in
@@ -121,20 +121,21 @@ nghttp2_ssize nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
       - https://github.com/nghttp2/nghttp2/files/15141264/Prefix.pdf */
   for (; src != end;) {
     c = *src++;
-    t = &huff_decode_table[t->fstate & 0x1ff][c >> 4];
-    if (t->fstate & NGHTTP2_HUFF_SYM) {
-      *buf->last++ = t->sym;
+    t = huff_decode_table[t.fstate][c >> 4];
+    if (t.flags & NGHTTP2_HUFF_SYM) {
+      *buf->last++ = t.sym;
     }
 
-    t = &huff_decode_table[t->fstate & 0x1ff][c & 0xf];
-    if (t->fstate & NGHTTP2_HUFF_SYM) {
-      *buf->last++ = t->sym;
+    t = huff_decode_table[t.fstate][c & 0xf];
+    if (t.flags & NGHTTP2_HUFF_SYM) {
+      *buf->last++ = t.sym;
     }
   }
 
-  ctx->fstate = t->fstate;
+  ctx->fstate = t.fstate;
+  ctx->flags = t.flags;
 
-  if (final && !(ctx->fstate & NGHTTP2_HUFF_ACCEPTED)) {
+  if (final && !(ctx->flags & NGHTTP2_HUFF_ACCEPTED)) {
     return NGHTTP2_ERR_HEADER_COMP;
   }
 

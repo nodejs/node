@@ -6,7 +6,7 @@
 const standardAlgorithms = {
   // Asymmetric algorithms
   'RSASSA-PKCS1-v1_5': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: {
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 2048,
@@ -17,7 +17,7 @@ const standardAlgorithms = {
     signParams: { name: 'RSASSA-PKCS1-v1_5' },
   },
   'RSA-PSS': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: {
       name: 'RSA-PSS',
       modulusLength: 2048,
@@ -28,7 +28,7 @@ const standardAlgorithms = {
     signParams: { name: 'RSA-PSS', saltLength: 32 },
   },
   'RSA-OAEP': {
-    operations: ['generateKey', 'importKey', 'encrypt', 'decrypt'],
+    operations: ['generateKey', 'importKey', 'encrypt', 'decrypt', 'getPublicKey'],
     keyGenParams: {
       name: 'RSA-OAEP',
       modulusLength: 2048,
@@ -39,13 +39,13 @@ const standardAlgorithms = {
     encryptParams: { name: 'RSA-OAEP' },
   },
   ECDSA: {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: { name: 'ECDSA', namedCurve: 'P-256' },
     importParams: { name: 'ECDSA', namedCurve: 'P-256' },
     signParams: { name: 'ECDSA', hash: 'SHA-256' },
   },
   ECDH: {
-    operations: ['generateKey', 'importKey', 'deriveBits'],
+    operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: { name: 'ECDH', namedCurve: 'P-256' },
     importParams: { name: 'ECDH', namedCurve: 'P-256' },
     deriveBitsParams: {
@@ -58,12 +58,12 @@ const standardAlgorithms = {
     },
   },
   Ed25519: {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: null,
     signParams: { name: 'Ed25519' },
   },
   X25519: {
-    operations: ['generateKey', 'importKey', 'deriveBits'],
+    operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: null,
     deriveBitsParams: {
       name: 'X25519',
@@ -152,6 +152,7 @@ const operations = [
   'decrypt',
   'deriveBits',
   'digest',
+  'getPublicKey',
 ];
 
 // Test that supports method exists and is a static method
@@ -268,6 +269,137 @@ test(() => {
     }),
     'Invalid hash parameter should return false'
   );
+  assert_false(
+      SubtleCrypto.supports(
+          'encrypt', {name: 'AES-CBC', iv: new Uint8Array(10)}),
+      'Invalid IV for AES-CBC should return false');
+  assert_false(
+      SubtleCrypto.supports('encrypt', {
+        name: 'AES-CTR',
+        counter: new Uint8Array(10),
+        length: 128,
+      }),
+      'Invalid IV for AES-CTR should return false');
+  assert_false(
+      SubtleCrypto.supports('encrypt', {
+        name: 'AES-CTR',
+        counter: new Uint8Array(16),
+        length: 0,
+      }),
+      'Invalid length=0 for AES-CTR should return false');
+  assert_false(
+      SubtleCrypto.supports('encrypt', {
+        name: 'AES-CTR',
+        counter: new Uint8Array(16),
+        length: 129,
+      }),
+      'Invalid length=129 for AES-CTR should return false');
+  assert_false(
+      SubtleCrypto.supports('encrypt', {
+        name: 'AES-GCM',
+        iv: new Uint8Array(16),
+        tagLength: 100,
+      }),
+      'Invalid tag length for AES-GCM should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {name: 'ECDH', namedCurve: 'P-51'}),
+      'Invalid curve for ECDH should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'HKDF',
+            hash: 'SHA-25',
+            salt: new Uint8Array(16),
+            info: new Uint8Array(0),
+          },
+          8),
+      'Invalid hash for HKDF should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new Uint8Array(16),
+            info: new Uint8Array(0),
+          },
+          11),
+      'Invalid length for HKDF should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new Uint8Array(16),
+            info: new Uint8Array(0),
+          }),
+      'null length for HKDF should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {
+        name: 'HMAC',
+        hash: 'SHA-25',
+      }),
+      'Invalid hash for HMAC should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 0,
+      }),
+      'Invalid length for HMAC should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'PBKDF2',
+            hash: 'SHA-25',
+            salt: new Uint8Array(16),
+            iterations: 100000,
+          },
+          8),
+      'Invalid hash for PBKDF2 should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'PBKDF2',
+            hash: 'SHA-256',
+            salt: new Uint8Array(16),
+            iterations: 100000,
+          },
+          11),
+      'Invalid length for PBKDF2 should return false');
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveBits', {
+            name: 'PBKDF2',
+            hash: 'SHA-256',
+            salt: new Uint8Array(16),
+            iterations: 100000,
+          }),
+      'null length for PBKDF2 should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {
+        name: 'RSASSA-PKCS1-v1_5',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: 'SHA-56',
+      }),
+      'Invalid hash for RSA PKCS1 should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {
+        name: 'RSA-PSS',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: 'SHA-56',
+      }),
+      'Invalid hash for RSA PSS should return false');
+  assert_false(
+      SubtleCrypto.supports('generateKey', {
+        name: 'RSA-OAEP',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: 'SHA-26',
+      }),
+      'Invalid hash for RSA OAEP should return false');
+
 }, 'supports returns false for algorithm objects with invalid parameters');
 
 // Test some specific combinations that should work
@@ -393,5 +525,50 @@ test(() => {
     'HMAC digest should fail'
   );
 }, 'Invalid algorithm and operation combinations fail');
+
+// Test supports for deriveKey op
+test(() => {
+  assert_true(
+      SubtleCrypto.supports(
+          'deriveKey', {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new Uint8Array(16),
+            info: new Uint8Array(0),
+          },
+          {name: 'HMAC', hash: 'SHA-256'}),
+
+      'deriveKey HKDF-HMAC should pass');
+}, 'deriveKey tests');
+
+promise_test(async (t) => {
+  let keypair = await crypto.subtle.generateKey(
+      {
+        name: 'X25519',
+      },
+      false, ['deriveKey', 'deriveBits']);
+
+  assert_true(
+      SubtleCrypto.supports(
+          'deriveKey', {
+            name: 'X25519',
+            public: keypair.publicKey,
+          },
+          {name: 'AES-GCM', length: 256}),
+
+      'deriveKey X25519-AES-GCM-256 should pass');
+
+  assert_false(
+      SubtleCrypto.supports(
+          'deriveKey', {
+            name: 'X25519',
+            public: keypair.publicKey,
+          },
+          {name: 'HMAC', hash: 'SHA-256'}),
+
+      'deriveKey X25519-HMAC-SHA-256 should fail');
+}, 'deriveKey promise tests');
+
+
 
 done();

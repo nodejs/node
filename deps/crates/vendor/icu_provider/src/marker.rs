@@ -246,7 +246,7 @@ impl DataMarkerIdHash {
 ///    such that truncation would be required in order to fit into a u32, partially reducing
 ///    the benefit of a cryptographically secure algorithm
 // The indexing operations in this function have been reviewed in detail and won't panic.
-#[allow(clippy::indexing_slicing)]
+#[expect(clippy::indexing_slicing)]
 const fn fxhash_32(bytes: &[u8]) -> u32 {
     // This code is adapted from https://github.com/rust-lang/rustc-hash,
     // whose license text is reproduced below.
@@ -350,7 +350,7 @@ impl Ord for DataMarkerId {
 impl PartialOrd for DataMarkerId {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.hash.cmp(&other.hash))
+        Some(self.cmp(other))
     }
 }
 
@@ -440,11 +440,14 @@ pub struct DataMarkerInfo {
     /// attributes during provider export.
     #[cfg(feature = "export")]
     pub attributes_domain: &'static str,
+    /// Whether to create constants for each data struct in baked data.
+    #[cfg(feature = "export")]
+    pub expose_baked_consts: bool,
 }
 
 impl PartialOrd for DataMarkerInfo {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 
@@ -470,6 +473,8 @@ impl DataMarkerInfo {
             has_checksum: false,
             #[cfg(feature = "export")]
             attributes_domain: "",
+            #[cfg(feature = "export")]
+            expose_baked_consts: false,
         }
     }
 
@@ -576,7 +581,6 @@ macro_rules! data_marker {
                 let mut info = const { $crate::DataMarkerInfo::from_id(
                      match $crate::marker::DataMarkerId::from_name(stringify!($name)) {
                         Ok(path) => path,
-                        #[allow(clippy::panic)] // Const context
                         Err(_) => panic!(concat!("Invalid marker name: ", stringify!($name))),
                 })};
                 $(

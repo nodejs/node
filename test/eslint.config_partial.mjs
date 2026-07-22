@@ -162,6 +162,7 @@ export default [
       'node-core/require-common-first': 'error',
       'node-core/no-duplicate-requires': 'off',
       'node-core/must-call-assert': 'error',
+      'node-core/prefer-abort-signal-abort': 'error',
     },
   },
   {

@@ -73,18 +73,23 @@ void ossl_synchronize_rcu(CRYPTO_RCU_LOCK *lock)
     }
 }
 
-int ossl_rcu_call(CRYPTO_RCU_LOCK *lock, rcu_cb_fn cb, void *data)
+CRYPTO_RCU_CB_ITEM *ossl_rcu_cb_item_new(void)
 {
-    struct rcu_cb_item *new = OPENSSL_zalloc(sizeof(*new));
+    return OPENSSL_zalloc(sizeof(CRYPTO_RCU_CB_ITEM));
+}
 
-    if (new == NULL)
-        return 0;
+void ossl_rcu_cb_item_free(CRYPTO_RCU_CB_ITEM *item)
+{
+    OPENSSL_free(item);
+}
 
-    new->fn = cb;
-    new->data = data;
-    new->next = lock->cb_items;
-    lock->cb_items = new;
-    return 1;
+void ossl_rcu_call(CRYPTO_RCU_LOCK *lock, CRYPTO_RCU_CB_ITEM *item,
+    rcu_cb_fn cb, void *data)
+{
+    item->fn = cb;
+    item->data = data;
+    item->next = lock->cb_items;
+    lock->cb_items = item;
 }
 
 void *ossl_rcu_uptr_deref(void **p)
@@ -162,14 +167,9 @@ struct thread_local_storage_entry {
 
 static struct thread_local_storage_entry thread_local_storage[OPENSSL_CRYPTO_THREAD_LOCAL_KEY_MAX];
 
-int CRYPTO_THREAD_init_local(CRYPTO_THREAD_LOCAL *key, void (*cleanup)(void *))
+int ossl_thread_init_local(CRYPTO_THREAD_LOCAL *key, void (*cleanup)(void *))
 {
     int entry_idx = 0;
-
-#ifndef FIPS_MODULE
-    if (!ossl_init_thread())
-        return 0;
-#endif
 
     for (entry_idx = 0; entry_idx < OPENSSL_CRYPTO_THREAD_LOCAL_KEY_MAX; entry_idx++) {
         if (!thread_local_storage[entry_idx].used)

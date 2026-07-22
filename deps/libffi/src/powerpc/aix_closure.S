@@ -174,12 +174,12 @@ LCFI..1:
 
 	/* look up the proper starting point in table  */
 	/* by using return type as offset */
-	lhz	r3, 10(r3)	/* load type from return type */
 	ld	r4, LC..60(2)	/* get address of jump table */
 	sldi	r3, r3, 4	/* now multiply return type by 16 */
 	ld	r0, 240+16(r1)	/* load return address */
 	add	r3, r3, r4	/* add contents of table to table address */
 	mtctr	r3
+	mtlr	r0
 	bctr			/* jump to it */
 
 /* Each fragment must be exactly 16 bytes long (4 instructions).
@@ -187,96 +187,78 @@ LCFI..1:
 	.align 4
 
 L..60:
-/* case FFI_TYPE_VOID */
-	mtlr r0
+/* case PPC_LD_NONE */
+	addi r1, r1, 240
+	blr
+	nop
+	nop
+
+/* case PPC_LD_R3 */
+	ld r3, 112+0(r1)
 	addi r1, r1, 240
 	blr
 	nop
 
-/* case FFI_TYPE_INT */
-	lwa r3, 112+4(r1)
-	mtlr r0
+/* case PPC_LD_R3R4 */
+	ld r3, 112+0(r1)
+	ld r4, 112+8(r1)
 	addi r1, r1, 240
 	blr
 
-/* case FFI_TYPE_FLOAT */
+/* case PPC_LD_F32 */
 	lfs f1, 112+0(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_DOUBLE */
-	lfd f1, 112+0(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_LONGDOUBLE */
-	lfd f1, 112+0(r1)
-	mtlr r0
-	lfd f2, 112+8(r1)
-	b L..finish
-
-/* case FFI_TYPE_UINT8 */
-	lbz r3, 112+7(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_SINT8 */
-	lbz r3, 112+7(r1)
-	mtlr r0
-	extsb r3, r3
-	b L..finish
-
-/* case FFI_TYPE_UINT16 */
-	lhz r3, 112+6(r1)
-	mtlr r0
-L..finish:
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_SINT16 */
-	lha r3, 112+6(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_UINT32 */
-	lwz r3, 112+4(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_SINT32 */
-	lwa r3, 112+4(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_UINT64 */
-	ld r3, 112+0(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_SINT64 */
-	ld r3, 112+0(r1)
-	mtlr r0
-	addi r1, r1, 240
-	blr
-
-/* case FFI_TYPE_STRUCT */
-	mtlr r0
 	addi r1, r1, 240
 	blr
 	nop
 
-/* case FFI_TYPE_POINTER */
-	ld r3, 112+0(r1)
-	mtlr r0
+/* case PPC_LD_F64 */
+	lfd f1, 112+0(r1)
 	addi r1, r1, 240
 	blr
+	nop
+
+/* case PPC_LD_F128 */
+	lfd f1, 112+0(r1)
+	lfd f2, 112+8(r1)
+	addi r1, r1, 240
+	blr
+
+/* case PPC_LD_U8 */
+	lbz r3, 112+7(r1)
+	addi r1, r1, 240
+	blr
+	nop
+
+/* case PPC_LD_S8 */
+	lbz r3, 112+7(r1)
+	extsb r3, r3
+	addi r1, r1, 240
+	blr
+
+/* case PPC_LD_U16 */
+	lhz r3, 112+6(r1)
+	addi r1, r1, 240
+	blr
+	nop
+
+/* case PPC_LD_S16 */
+	lha r3, 112+6(r1)
+	addi r1, r1, 240
+	blr
+	nop
+
+/* case PPC_LD_U32 */
+	lwz r3, 112+4(r1)
+	addi r1, r1, 240
+	blr
+	nop
+
+/* case PPC_LD_S32 */
+	lwa r3, 112+4(r1)
+	addi r1, r1, 240
+	blr
+	nop
+
 LFE..0:
 
 #else /* ! __64BIT__ */
@@ -355,12 +337,12 @@ LCFI..1:
 
 	/* look up the proper starting point in table  */
 	/* by using return type as offset */
-	lhz	r3, 6(r3)	/* load type from return type */
 	lwz	r4, LC..60(2)	/* get address of jump table */
 	slwi	r3, r3, 4	/* now multiply return type by 16 */
 	lwz	r0, 176+8(r1)	/* load return address */
 	add	r3, r3, r4	/* add contents of table to table address */
 	mtctr	r3
+	mtlr	r0
 	bctr			/* jump to it */
 
 /* Each fragment must be exactly 16 bytes long (4 instructions).
@@ -368,96 +350,66 @@ LCFI..1:
 	.align 4
 
 L..60:
-/* case FFI_TYPE_VOID */
-	mtlr r0
+/* case PPC_LD_NONE */
+	addi r1, r1, 176
+	blr
+	nop
+	nop
+
+/* case PPC_LD_R3 */
+	lwz r3, 56+0(r1)
 	addi r1, r1, 176
 	blr
 	nop
 
-/* case FFI_TYPE_INT */
+/* case PPC_LD_R3R4 */
 	lwz r3, 56+0(r1)
-	mtlr r0
+	lwz r4, 56+4(r1)
 	addi r1, r1, 176
 	blr
 
-/* case FFI_TYPE_FLOAT */
+/* case PPC_LD_F32 */
 	lfs f1, 56+0(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_DOUBLE */
-	lfd f1, 56+0(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_LONGDOUBLE */
-	lfd f1, 56+0(r1)
-	mtlr r0
-	lfd f2, 56+8(r1)
-	b L..finish
-
-/* case FFI_TYPE_UINT8 */
-	lbz r3, 56+3(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_SINT8 */
-	lbz r3, 56+3(r1)
-	mtlr r0
-	extsb r3, r3
-	b L..finish
-
-/* case FFI_TYPE_UINT16 */
-	lhz r3, 56+2(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_SINT16 */
-	lha r3, 56+2(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_UINT32 */
-	lwz r3, 56+0(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_SINT32 */
-	lwz r3, 56+0(r1)
-	mtlr r0
-	addi r1, r1, 176
-	blr
-
-/* case FFI_TYPE_UINT64 */
-	lwz r3, 56+0(r1)
-	mtlr r0
-	lwz r4, 56+4(r1)
-	b L..finish
-
-/* case FFI_TYPE_SINT64 */
-	lwz r3, 56+0(r1)
-	mtlr r0
-	lwz r4, 56+4(r1)
-	b L..finish
-
-/* case FFI_TYPE_STRUCT */
-	mtlr r0
 	addi r1, r1, 176
 	blr
 	nop
 
-/* case FFI_TYPE_POINTER */
-	lwz r3, 56+0(r1)
-	mtlr r0
-L..finish:
+/* case PPC_LD_F64 */
+	lfd f1, 56+0(r1)
 	addi r1, r1, 176
 	blr
+	nop
+
+/* case PPC_LD_F128 */
+	lfd f1, 56+0(r1)
+	lfd f2, 56+8(r1)
+	addi r1, r1, 176
+	blr
+
+/* case PPC_LD_U8 */
+	lbz r3, 56+3(r1)
+	addi r1, r1, 176
+	blr
+	nop
+
+/* case PPC_LD_S8 */
+	lbz r3, 56+3(r1)
+	extsb r3, r3
+	addi r1, r1, 176
+	blr
+
+/* case PPC_LD_U16 */
+	lhz r3, 56+2(r1)
+	addi r1, r1, 176
+	blr
+	nop
+
+/* case PPC_LD_S16 */
+	lha r3, 56+2(r1)
+	addi r1, r1, 176
+	blr
+	nop
+
 LFE..0:
 #endif
 	.ef __LINE__

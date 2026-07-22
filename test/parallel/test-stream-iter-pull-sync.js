@@ -127,6 +127,20 @@ function testPullSyncStatelessTransformFlush() {
   assert.strictEqual(data, 'data-TRAILER');
 }
 
+// Consecutive stateless transforms each receive a final flush signal after
+// upstream flush output has been processed.
+function testPullSyncConsecutiveStatelessTransformFlush() {
+  const enc = new TextEncoder();
+  const addAOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-A')] : chunks);
+  const addBOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-B')] : chunks);
+
+  const data = new TextDecoder().decode(bytesSync(
+    pullSync(fromSync('x'), addAOnFlush, addBOnFlush)));
+  assert.strictEqual(data, 'x-A-B');
+}
+
 // Stateless transform flush error propagates
 function testPullSyncStatelessTransformFlushError() {
   const badFlush = (chunks) => {
@@ -173,6 +187,7 @@ Promise.all([
   testPullSyncStatelessTransformError(),
   testPullSyncStatefulTransformError(),
   testPullSyncStatelessTransformFlush(),
+  testPullSyncConsecutiveStatelessTransformFlush(),
   testPullSyncStatelessTransformFlushError(),
   testPullSyncInvalidTransform(),
 ]).then(common.mustCall());

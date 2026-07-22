@@ -83,63 +83,26 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
                                                 std::string_view name,
                                                 Local<Object> signature) {
   Local<Context> context = env->context();
-  Local<String> returns_key = env->returns_string();
   Local<String> return_key = env->return_string();
-  Local<String> result_key = env->result_string();
-  Local<String> parameters_key = env->parameters_string();
   Local<String> arguments_key = env->arguments_string();
 
-  bool has_returns;
   bool has_return;
-  bool has_result;
-  bool has_parameters;
   bool has_arguments;
 
-  ffi_type* return_type;
-  std::vector<ffi_type*> args;
-
-  if (!signature->Has(context, returns_key).To(&has_returns) ||
-      !signature->Has(context, return_key).To(&has_return) ||
-      !signature->Has(context, result_key).To(&has_result) ||
-      !signature->Has(context, parameters_key).To(&has_parameters) ||
+  if (!signature->Has(context, return_key).To(&has_return) ||
       !signature->Has(context, arguments_key).To(&has_arguments)) {
     return {};
   }
 
-  if (has_returns + has_return + has_result > 1) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        "Function signature of %s"
-        " must have either 'returns', 'return' or 'result' "
-        "property",
-        name);
-    return {};
-  }
-
-  if (has_arguments && has_parameters) {
-    THROW_ERR_INVALID_ARG_VALUE(env,
-                                "Function signature of %s"
-                                " must have either 'parameters' or 'arguments' "
-                                "property",
-                                name);
-    return {};
-  }
-
-  return_type = &ffi_type_void;
+  ffi_type* return_type = &ffi_type_void;
+  std::vector<ffi_type*> args;
+  std::string return_type_name = "void";
+  std::vector<std::string> arg_type_names;
 
   Isolate* isolate = env->isolate();
-  if (has_returns || has_return || has_result) {
-    Local<String> return_type_key;
-    if (has_returns) {
-      return_type_key = returns_key;
-    } else if (has_return) {
-      return_type_key = return_key;
-    } else {
-      return_type_key = result_key;
-    }
-
+  if (has_return) {
     Local<Value> return_type_val;
-    if (!signature->Get(context, return_type_key).ToLocal(&return_type_val)) {
+    if (!signature->Get(context, return_key).ToLocal(&return_type_val)) {
       return {};
     }
 
@@ -159,12 +122,12 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     if (!ToFFIType(env, return_type_str.ToStringView()).To(&return_type)) {
       return {};
     }
+    return_type_name = return_type_str.ToString();
   }
 
-  if (has_arguments || has_parameters) {
+  if (has_arguments) {
     Local<Value> arguments_val;
-    if (!signature->Get(context, has_arguments ? arguments_key : parameters_key)
-             .ToLocal(&arguments_val)) {
+    if (!signature->Get(context, arguments_key).ToLocal(&arguments_val)) {
       return {};
     }
 
@@ -201,12 +164,25 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       if (!ToFFIType(env, arg_str.ToStringView()).To(&arg_type)) {
         return {};
       }
+      if (arg_type == &ffi_type_void) {
+        THROW_ERR_INVALID_ARG_VALUE(
+            env,
+            "Argument %u of function %s must not be 'void'; "
+            "use an empty array for no-argument functions",
+            i,
+            name);
+        return {};
+      }
 
       args.push_back(arg_type);
+      arg_type_names.emplace_back(arg_str.ToString());
     }
   }
 
-  return Just(FunctionSignature{return_type, std::move(args)});
+  return Just(FunctionSignature{return_type,
+                                std::move(args),
+                                std::move(return_type_name),
+                                std::move(arg_type_names)});
 }
 
 bool SignaturesMatch(const FFIFunction& fn,
@@ -223,6 +199,354 @@ bool SignaturesMatch(const FFIFunction& fn,
   }
 
   return true;
+}
+
+namespace {
+
+bool IsFastCallEligibleFFIType(ffi_type* type) {
+  // Accept all numeric types, pointer, and void (void OK as return only).
+  // Rejects struct types (not yet supported in fast-call path).
+  return type == &ffi_type_void || type == &ffi_type_sint8 ||
+         type == &ffi_type_uint8 || type == &ffi_type_sint16 ||
+         type == &ffi_type_uint16 || type == &ffi_type_sint32 ||
+         type == &ffi_type_uint32 || type == &ffi_type_sint64 ||
+         type == &ffi_type_uint64 || type == &ffi_type_float ||
+         type == &ffi_type_double || type == &ffi_type_pointer;
+}
+
+bool IsFunctionTypeName(const std::string& name) {
+  return name == "function";
+}
+
+// Check if an FFI type occupies a floating-point register.
+bool IsFFITypeFloat(ffi_type* type) {
+  return type == &ffi_type_float || type == &ffi_type_double;
+}
+
+// Check if an FFI type name maps to a kBuffer (kV8Value) argument in the
+// fast-call path, which consumes an extra GP register for the helper call.
+bool IsBufferTypeName(const std::string& name) {
+  return name == "buffer" || name == "arraybuffer";
+}
+
+}  // namespace
+
+bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
+  static const char* dummy = "";
+  if (out_reason == nullptr) out_reason = &dummy;
+
+    // Check that a platform stub emitter exists for the current ABI.
+    // Stub emitters cover AArch64, x86_64 SysV, and Win64 x64. Other platforms
+    // fall back to libffi.
+#if !defined(__aarch64__) && !defined(_M_ARM64) && !defined(__x86_64__) &&     \
+    !defined(_M_X64) && !defined(__powerpc64__) && !defined(__ppc64__) &&      \
+    !defined(__PPC64__) && !defined(__loongarch64) &&                          \
+    !(defined(__riscv) && __riscv_xlen == 64) && !defined(__s390x__)
+  *out_reason = "no platform stub emitter";
+  return false;
+#endif
+
+  // Check return type eligibility.
+  if (!IsFastCallEligibleFFIType(fn.return_type)) {
+    *out_reason = "unsupported return type";
+    return false;
+  }
+  if (IsFunctionTypeName(fn.return_type_name)) {
+    *out_reason = "return type is function";
+    return false;
+  }
+
+  // V8's fast-call lowering caps the C-side arg count. With HasReceiver=kNo
+  // there's no implicit receiver in the count, so this is the user-arg cap.
+  // V8's hard limit is 8 args; signatures over that fall back to libffi.
+  if (fn.args.size() > 8) {
+    *out_reason = "argument count exceeds V8 fast-call cap";
+    return false;
+  }
+
+  // Per-ABI register caps for arguments that must be passed in registers.
+  // If an arg can't fit in a register, it goes on the stack — which the
+  // current trampoline generators don't support.
+  // `args` and `arg_type_names` are read in lockstep below. A malformed
+  // FFIFunction with mismatched lengths would otherwise index out of bounds,
+  // so reject it here rather than relying on callers to pre-validate.
+  if (fn.args.size() != fn.arg_type_names.size()) {
+    *out_reason = "argument type name count mismatch";
+    return false;
+  }
+
+  size_t gp_count = 0;
+  size_t fp_count = 0;
+  bool has_buffer_arg = false;
+  for (size_t i = 0; i < fn.args.size(); ++i) {
+    ffi_type* t = fn.args[i];
+    const std::string& name = fn.arg_type_names[i];
+
+    if (!IsFastCallEligibleFFIType(t)) {
+      *out_reason = "unsupported arg type";
+      return false;
+    }
+    // `void` is fine as a return type but has no register slot, so it cannot
+    // appear in `args`.
+    if (t == &ffi_type_void) {
+      *out_reason = "void cannot be an argument type";
+      return false;
+    }
+    if (IsFunctionTypeName(name)) {
+      *out_reason = "arg is function";
+      return false;
+    }
+
+    // `buffer`/`arraybuffer` args arrive as kV8Value in the V8 fast-call
+    // signature, consuming an extra GP register for the helper call.
+    if (IsBufferTypeName(name)) {
+      has_buffer_arg = true;
+    }
+
+    // Count register classes used by each argument.
+    if (IsFFITypeFloat(t)) {
+      fp_count++;
+    } else {
+      gp_count++;
+    }
+  }
+
+  // Platform-specific register pressure limits.
+#if defined(__aarch64__) || defined(_M_ARM64)
+  // AArch64: 8 FP registers (v0-v7) + up to 7 GP registers per trampoline
+  // constraint (the 8th GP slot is consumed by the helper call for buffer
+  // args). Buffer args and float args can't coexist — the helper call would
+  // clobber FP state.
+  const size_t effective_gp = gp_count + (has_buffer_arg ? 1 : 0);
+  if (has_buffer_arg && fp_count != 0) {
+    *out_reason = "buffer and float args cannot coexist on AArch64";
+    return false;
+  }
+  if (effective_gp > 7 || fp_count > 8) {
+    *out_reason = "argument count exceeds AArch64 register limit";
+    return false;
+  }
+#elif defined(_M_X64)
+  // Win64 x64 uses positional integer/FP registers. The current emitter handles
+  // only the register-only scalar subset: receiver plus up to three public
+  // arguments. Buffer-shaped arguments require FastApiCallbackOptions and a C++
+  // helper call, which is left to fallback until the Win64 emitter grows stack
+  // and helper support.
+  if (has_buffer_arg) {
+    *out_reason = "buffer args are not yet supported on Win64 x64";
+    return false;
+  }
+  if (fn.args.size() > 3) {
+    *out_reason = "argument count exceeds Win64 x64 register-only limit";
+    return false;
+  }
+  if (fp_count > 3 || gp_count > 3) {
+    *out_reason = "argument count exceeds Win64 x64 register-only limit";
+    return false;
+  }
+#elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__)
+#if defined(_AIX) ||                                                           \
+    !(defined(__LITTLE_ENDIAN__) ||                                            \
+      (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+  *out_reason = "no PPC64BE fast-call trampoline emitter";
+  return false;
+#else
+  // PPC64LE ELFv2: r3 is occupied by V8's receiver, leaving r4..r10 for
+  // incoming user GP arguments. FP arguments use FPRs and are not shifted by
+  // the receiver slot. The first PPC64LE emitter is scalar-only and
+  // tail-branches to the target, so narrow return normalization and buffer
+  // helper calls fall back.
+  if (has_buffer_arg) {
+    *out_reason = "buffer args are not yet supported on PPC64LE";
+    return false;
+  }
+  if (fn.return_type == &ffi_type_sint8 || fn.return_type == &ffi_type_uint8 ||
+      fn.return_type == &ffi_type_sint16 ||
+      fn.return_type == &ffi_type_uint16) {
+    *out_reason = "narrow returns are not yet supported on PPC64LE";
+    return false;
+  }
+  if (gp_count > 7 || fp_count > 8) {
+    *out_reason = "argument count exceeds PPC64LE register limit";
+    return false;
+  }
+#endif
+#elif defined(__loongarch64)
+  // LoongArch64: a0 is occupied by V8's receiver, leaving a1..a7 for incoming
+  // user GP arguments. FP arguments are already in fa0..fa7. The current
+  // emitter is scalar-only and tail-branches to the target, so narrow returns
+  // and buffer helper calls fall back.
+  if (has_buffer_arg) {
+    *out_reason = "buffer args are not yet supported on LoongArch64";
+    return false;
+  }
+  if (fn.return_type == &ffi_type_sint8 || fn.return_type == &ffi_type_uint8 ||
+      fn.return_type == &ffi_type_sint16 ||
+      fn.return_type == &ffi_type_uint16) {
+    *out_reason = "narrow returns are not yet supported on LoongArch64";
+    return false;
+  }
+  if (gp_count > 7 || fp_count > 8) {
+    *out_reason = "argument count exceeds LoongArch64 register limit";
+    return false;
+  }
+#elif defined(__riscv) && __riscv_xlen == 64
+  // RISC-V LP64D: a0 is occupied by V8's receiver, leaving a1..a7 for incoming
+  // user GP arguments. FP arguments are already in fa0..fa7. The current
+  // emitter is scalar-only and tail-branches to the target, so narrow returns
+  // and buffer helper calls fall back.
+  if (has_buffer_arg) {
+    *out_reason = "buffer args are not yet supported on RISC-V 64";
+    return false;
+  }
+  if (fn.return_type == &ffi_type_sint8 || fn.return_type == &ffi_type_uint8 ||
+      fn.return_type == &ffi_type_sint16 ||
+      fn.return_type == &ffi_type_uint16) {
+    *out_reason = "narrow returns are not yet supported on RISC-V 64";
+    return false;
+  }
+  if (gp_count > 7 || fp_count > 8) {
+    *out_reason = "argument count exceeds RISC-V 64 register limit";
+    return false;
+  }
+#elif defined(__s390x__)
+  // Linux s390x: r2 is occupied by V8's receiver, leaving r3..r6 for incoming
+  // user GP arguments. FP arguments are already in f0, f2, f4, and f6. The
+  // current emitter is scalar-only and tail-branches to the target, so narrow
+  // returns and buffer helper calls fall back.
+  if (has_buffer_arg) {
+    *out_reason = "buffer args are not yet supported on s390x";
+    return false;
+  }
+  if (fn.return_type == &ffi_type_sint8 || fn.return_type == &ffi_type_uint8 ||
+      fn.return_type == &ffi_type_sint16 ||
+      fn.return_type == &ffi_type_uint16) {
+    *out_reason = "narrow returns are not yet supported on s390x";
+    return false;
+  }
+  if (gp_count > 4 || fp_count > 4) {
+    *out_reason = "argument count exceeds s390x register limit";
+    return false;
+  }
+#elif defined(__x86_64__)
+  // x86_64 SysV: the V8 receiver occupies rdi, leaving rsi, rdx, rcx, r8, r9
+  // (5 incoming GP slots); scalar signatures can load one more user GP arg
+  // from the caller stack, for an effective cap of 6 GP. FP args use
+  // xmm0-xmm7. Buffer args spill the whole incoming GP window through a C++
+  // helper, so they cannot coexist with FP args and stay register-only
+  // (incoming GP = gp + 1 must fit in the 5 incoming registers, i.e. <= 4 GP
+  // when a buffer is present). These rules mirror the constraints enforced by
+  // node_ffi_create_fast_trampoline in src/ffi/platforms/x64.cc.
+  if (has_buffer_arg && fp_count != 0) {
+    *out_reason = "buffer and float args cannot coexist on x86_64 SysV";
+    return false;
+  }
+  const size_t incoming_gp = gp_count + (has_buffer_arg ? 1 : 0);
+  const size_t max_incoming_gp = has_buffer_arg ? 5 : 6;
+  if (incoming_gp > max_incoming_gp || fp_count > 8) {
+    *out_reason = "argument count exceeds x86_64 SysV register limit";
+    return false;
+  }
+#endif  // __x86_64__
+
+  *out_reason = "";
+  return true;
+}
+
+bool IsSBEligibleFFIType(ffi_type* type) {
+  return type == &ffi_type_void || type == &ffi_type_sint8 ||
+         type == &ffi_type_uint8 || type == &ffi_type_sint16 ||
+         type == &ffi_type_uint16 || type == &ffi_type_sint32 ||
+         type == &ffi_type_uint32 || type == &ffi_type_sint64 ||
+         type == &ffi_type_uint64 || type == &ffi_type_float ||
+         type == &ffi_type_double || type == &ffi_type_pointer;
+}
+
+bool IsSBEligibleSignature(const FFIFunction& fn) {
+  // The JS wrapper writes and reads the shared buffer little-endian while
+  // the C++ side uses memcpy in host order. On big-endian hosts these
+  // disagree, so the fast path is disabled there.
+  if constexpr (IsBigEndian()) {
+    return false;
+  }
+  // Zero-argument functions gain nothing from the shared-buffer path
+  // (no argument packing to skip) and measurably lose on tight native
+  // calls like `uv_os_getpid` due to the wrapper's fixed overhead.
+  if (fn.args.empty()) return false;
+  if (!IsSBEligibleFFIType(fn.return_type)) return false;
+  for (ffi_type* arg : fn.args) {
+    if (!IsSBEligibleFFIType(arg)) return false;
+  }
+  return true;
+}
+
+bool SignatureHasPointerArgs(const FFIFunction& fn) {
+  for (ffi_type* arg : fn.args) {
+    if (arg == &ffi_type_pointer) return true;
+  }
+  return false;
+}
+
+void ReadFFIArgFromBuffer(ffi_type* type,
+                          const uint8_t* buffer,
+                          size_t offset,
+                          void* out) {
+  CHECK(IsSBEligibleFFIType(type));
+  CHECK_LE(type->size, sizeof(uint64_t));
+  // memcpy avoids the strict-aliasing violation that a direct typed load
+  // from the raw uint8_t buffer would incur.
+  const uint8_t* src = buffer + offset;
+  std::memcpy(out, src, type->size);
+}
+
+void WriteFFIReturnToBuffer(ffi_type* type,
+                            const void* result,
+                            uint8_t* buffer,
+                            size_t offset) {
+  CHECK(IsSBEligibleFFIType(type));
+  uint8_t* dst = buffer + offset;
+  std::memset(dst, 0, 8);
+
+  if (type == &ffi_type_void) {
+    return;
+  }
+
+  // libffi promotes small integer return values to ffi_arg size, so these
+  // branches read as ffi_arg or ffi_sarg and then truncate back down.
+  if (type == &ffi_type_sint8) {
+    int8_t tmp = static_cast<int8_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint8) {
+    uint8_t tmp = static_cast<uint8_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_sint16) {
+    int16_t tmp = static_cast<int16_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint16) {
+    uint16_t tmp = static_cast<uint16_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_sint32) {
+    int32_t tmp = static_cast<int32_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint32) {
+    uint32_t tmp = static_cast<uint32_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+
+  // Remaining SB-eligible types (sint64, uint64, float, double, pointer)
+  // are not promoted by libffi and can be copied as-is.
+  std::memcpy(dst, result, type->size);
 }
 
 v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
@@ -263,6 +587,10 @@ v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
   }
 }
 
+// The JS fast path in lib/internal/ffi-shared-buffer.js mirrors the
+// validation below. `writeNumericArg` matches the numeric branches and
+// `writePointerArg` matches the pointer-BigInt branch. Error codes and
+// messages must stay identical across all three sites.
 Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
                                          unsigned int index,
                                          ffi_type* type,
@@ -363,8 +691,8 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
     if (arg->IsNullOrUndefined()) {
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
     } else if (arg->IsString()) {
-      // This will handled in Invoke so that we can free the copied string after
-      // the call
+      // String arguments are handled in Invoke so the UTF-8 copy can be
+      // freed after the call.
       return Just(FFIArgumentCategory::String);
     } else if (arg->IsArrayBufferView()) {
       // Pointer-like ArrayBufferView arguments borrow backing-store memory
@@ -453,12 +781,11 @@ Local<Value> ToJSArgument(Isolate* isolate, ffi_type* type, void* data) {
   } else if (type == &ffi_type_double) {
     ret = Number::New(isolate, *static_cast<double*>(data));
   } else if (type == &ffi_type_pointer) {
-    // All others are treated as pointer (and thus bigint), the user will use
-    // other helpers to convert
+    // Pointers surface as BigInt. Callers decode them further with the
+    // ffi helpers.
     ret = BigInt::NewFromUnsigned(
         isolate, reinterpret_cast<uint64_t>(*static_cast<void**>(data)));
   } else {
-    // For anything else, return undefined to avoid problems
     ret = Undefined(isolate);
   }
 
@@ -563,7 +890,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<int32_t*>(ret) = static_cast<int32_t>(value);
+    *static_cast<ffi_sarg*>(ret) = static_cast<ffi_sarg>(value);
   } else if (type == &ffi_type_uint32) {
     uint64_t value;
 
@@ -571,7 +898,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<uint32_t*>(ret) = static_cast<uint32_t>(value);
+    *static_cast<ffi_arg*>(ret) = static_cast<ffi_arg>(value);
   } else if (type == &ffi_type_sint64) {
     bool lossless;
 
@@ -621,7 +948,9 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
 
       *static_cast<uint64_t*>(ret) = pointer;
     } else {
-      // Note that strings, buffer or ArrayBuffer are ignored
+      // Strings, Buffers, and ArrayBuffers are not accepted as pointer
+      // return values from a JS callback. The slot is zeroed before the
+      // false return so the caller sees a defined null pointer.
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
       return false;
     }

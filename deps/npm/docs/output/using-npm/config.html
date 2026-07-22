@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----config----11121">
+<h1 id="----config----11180">
     <span>Config</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">About npm configuration</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#bypass-2fa"><code>bypass-2fa</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#cpu"><code>cpu</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#expect-result-count"><code>expect-result-count</code></a></li><li><a href="#expect-results"><code>expect-results</code></a></li><li><a href="#expires"><code>expires</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-attestations"><code>include-attestations</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-private"><code>init-private</code></a></li><li><a href="#init-type"><code>init-type</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#install-links"><code>install-links</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#libc"><code>libc</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#lockfile-version"><code>lockfile-version</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-dir"><code>logs-dir</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li><li><a href="#name"><code>name</code></a></li><li><a href="#node-gyp"><code>node-gyp</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#omit-lockfile-registry-resolved"><code>omit-lockfile-registry-resolved</code></a></li><li><a href="#orgs"><code>orgs</code></a></li><li><a href="#orgs-permission"><code>orgs-permission</code></a></li><li><a href="#os"><code>os</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#packages"><code>packages</code></a></li><li><a href="#packages-all"><code>packages-all</code></a></li><li><a href="#packages-and-scopes-permission"><code>packages-and-scopes-permission</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#password"><code>password</code></a></li><li><a href="#prefer-dedupe"><code>prefer-dedupe</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#provenance"><code>provenance</code></a></li><li><a href="#provenance-file"><code>provenance-file</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#replace-registry-host"><code>replace-registry-host</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#sbom-format"><code>sbom-format</code></a></li><li><a href="#sbom-type"><code>sbom-type</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#scopes"><code>scopes</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#token-description"><code>token-description</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-directory"><code>allow-directory</code></a></li><li><a href="#allow-file"><code>allow-file</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#allow-remote"><code>allow-remote</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#allow-scripts"><code>allow-scripts</code></a></li><li><a href="#allow-scripts-pending"><code>allow-scripts-pending</code></a></li><li><a href="#allow-scripts-pin"><code>allow-scripts-pin</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#bypass-2fa"><code>bypass-2fa</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#cpu"><code>cpu</code></a></li><li><a href="#dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#expect-result-count"><code>expect-result-count</code></a></li><li><a href="#expect-results"><code>expect-results</code></a></li><li><a href="#expires"><code>expires</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-attestations"><code>include-attestations</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-private"><code>init-private</code></a></li><li><a href="#init-type"><code>init-type</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#install-links"><code>install-links</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#libc"><code>libc</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#lockfile-version"><code>lockfile-version</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-dir"><code>logs-dir</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#min-release-age"><code>min-release-age</code></a></li><li><a href="#min-release-age-exclude"><code>min-release-age-exclude</code></a></li><li><a href="#name"><code>name</code></a></li><li><a href="#node-gyp"><code>node-gyp</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#omit-lockfile-registry-resolved"><code>omit-lockfile-registry-resolved</code></a></li><li><a href="#orgs"><code>orgs</code></a></li><li><a href="#orgs-permission"><code>orgs-permission</code></a></li><li><a href="#os"><code>os</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#packages"><code>packages</code></a></li><li><a href="#packages-all"><code>packages-all</code></a></li><li><a href="#packages-and-scopes-permission"><code>packages-and-scopes-permission</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#password"><code>password</code></a></li><li><a href="#prefer-dedupe"><code>prefer-dedupe</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#provenance"><code>provenance</code></a></li><li><a href="#provenance-file"><code>provenance-file</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#replace-registry-host"><code>replace-registry-host</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#sbom-format"><code>sbom-format</code></a></li><li><a href="#sbom-type"><code>sbom-type</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#scopes"><code>scopes</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-allow-scripts"><code>strict-allow-scripts</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#token-description"><code>token-description</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -307,7 +307,7 @@ safer to use a registry-provided authentication bearer token stored in the
 <ul>
 <li>Default: 'public' for new packages, existing packages it will not change the
 current level</li>
-<li>Type: null, "restricted", or "public"</li>
+<li>Type: null, "restricted", "public", or "private"</li>
 </ul>
 <p>If you do not want your scoped package to be publicly viewable (and
 installable) set <code>--access=restricted</code>.</p>
@@ -315,14 +315,44 @@ installable) set <code>--access=restricted</code>.</p>
 <p>Note: This defaults to not changing the current access level for existing
 packages. Specifying a value of <code>restricted</code> or <code>public</code> during publish will
 change the access for an existing package the same way that <code>npm access set status</code> would.</p>
+<p>The value <code>private</code> is an alias for <code>restricted</code>.</p>
 <h4 id="all"><code>all</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.</p>
+<p>Show or act on all packages, not just the ones your project directly depends
+on. For <code>npm outdated</code> and <code>npm ls</code> this lists every outdated or installed
+package. For <code>npm approve-scripts</code> and <code>npm deny-scripts</code> it selects every
+package with pending install scripts.</p>
+<h4 id="allow-directory"><code>allow-directory</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to install dependencies from directories. That
+is, dependencies that point to a directory instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any directories to be installed. <code>none</code> prevents any
+directories from being installed. <code>root</code> only allows directories defined in
+your project's package.json to be installed. Also allows directory
+dependencies to be used for other commands like <code>npm view</code></p>
+<h4 id="allow-file"><code>allow-file</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to install dependencies from tarball files. That
+is, dependencies that point to a local tarball file instead of a version or
+semver range. Please note that this could leave your tree incomplete and
+some packages may not function as intended or designed. Changing this
+setting will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any tarball file to be installed. <code>none</code> prevents any tarball
+file from being installed. <code>root</code> only allows tarball files defined in your
+project's package.json to be installed. Also allows tarball file
+dependencies to be used for other commands like <code>npm view</code></p>
 <h4 id="allow-git"><code>allow-git</code></h4>
 <ul>
 <li>Default: "all"</li>
@@ -331,11 +361,26 @@ upon by the current project.</p>
 <p>Limits the ability for npm to fetch dependencies from git references. That
 is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
-packages may not function as intended or designed.</p>
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
 <p><code>all</code> allows any git dependencies to be fetched and installed. <code>none</code>
 prevents any git dependencies from being fetched and installed. <code>root</code> only
 allows git dependencies defined in your project's package.json to be fetched
-installed. Also allows git dependencies to be fetched for other commands
+and installed. Also allows git dependencies to be fetched for other commands
+like <code>npm view</code></p>
+<h4 id="allow-remote"><code>allow-remote</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to fetch dependencies from urls. That is,
+dependencies that point to a tarball url instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any url to be installed. <code>none</code> prevents any url from being
+installed. <code>root</code> only allows urls defined in your project's package.json to
+be installed. Also allows url dependencies to be used for other commands
 like <code>npm view</code></p>
 <h4 id="allow-same-version"><code>allow-same-version</code></h4>
 <ul>
@@ -344,6 +389,40 @@ like <code>npm view</code></p>
 </ul>
 <p>Prevents throwing an error when <code>npm version</code> is used to set the new version
 to the same value as the current version.</p>
+<h4 id="allow-scripts"><code>allow-scripts</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Comma-separated list of packages whose install-time lifecycle scripts
+(<code>preinstall</code>, <code>install</code>, <code>postinstall</code>, and <code>prepare</code> for non-registry
+dependencies) are allowed to run.</p>
+<p>This setting is intended for one-off and global contexts: <code>npm exec</code>, <code>npx</code>,
+and <code>npm install -g</code>, where no project <code>package.json</code> is involved. For
+team-wide policy in a project, use the <code>allowScripts</code> field in
+<code>package.json</code> (which also supports explicit denials), or configure it in
+<code>.npmrc</code>. Passing <code>--allow-scripts</code> on the command line during a
+project-scoped <code>npm install</code>, <code>ci</code>, <code>update</code>, or <code>rebuild</code> is an error.</p>
+<p>Each name is matched against a dependency's resolved identity, not against
+the package's self-reported name. <code>--ignore-scripts</code> and
+<code>--dangerously-allow-all-scripts</code> both override this setting.</p>
+<h4 id="allow-scripts-pending"><code>allow-scripts-pending</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>List packages with install scripts that are not yet covered by the
+<code>allowScripts</code> policy, without modifying <code>package.json</code>. Only meaningful for
+<code>npm approve-scripts</code>.</p>
+<h4 id="allow-scripts-pin"><code>allow-scripts-pin</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Write pinned (<code>pkg@version</code>) entries when approving install scripts. Set to
+<code>false</code> to write name-only entries that allow any version. Has no effect on
+<code>npm deny-scripts</code>, which always writes name-only entries regardless of this
+setting.</p>
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -380,7 +459,15 @@ command will error.</p>
 <code>--before</code> filter, the most recent version less than or equal to that tag
 will be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though
 <code>latest</code> is <code>2.0</code>.</p>
-<p>This config cannot be used with: <code>min-release-age</code></p>
+<p>If <code>before</code> and <code>min-release-age</code> are both set in the same source, <code>before</code>
+wins (an explicit absolute date overrides a relative window). Across
+sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
+global), so a higher-priority source can always relax or override a
+lower-priority one.</p>
+<p>As with <code>min-release-age</code>, when this cutoff blocks a fix that <code>npm audit fix</code> would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -476,6 +563,15 @@ true, then only prints color codes for tty file descriptors.</p>
 </ul>
 <p>Override CPU architecture of native modules to install. Acceptable values
 are same as <code>cpu</code> field of package.json, which comes from <code>process.arch</code>.</p>
+<h4 id="dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If <code>true</code>, bypass the <code>allowScripts</code> policy entirely and run every
+dependency install script regardless of whether it was approved or denied.
+Intended as a migration escape hatch only; its use is strongly discouraged.
+<code>--ignore-scripts</code> still takes precedence over this setting.</p>
 <h4 id="depth"><code>depth</code></h4>
 <ul>
 <li>Default: <code>Infinity</code> if <code>--all</code> is set; otherwise, <code>0</code></li>
@@ -854,8 +950,15 @@ workspaces.</p>
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.</p>
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.</p>
+<p>We recommend that package authors use <code>--install-strategy=linked</code> during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+<code>import</code> of a package that was never added to <code>package.json</code> can fail
+instead of resolving by accident and shipping broken. See <a href="../using-npm/developers#catching-undeclared-phantom-dependencies.html">Catching
+undeclared ("phantom")
+dependencies</a>.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -990,8 +1093,39 @@ available more than the given number of days ago will be installed. If there
 are no versions available for the current set of dependencies, the command
 will error.</p>
 <p>This flag is a complement to <code>before</code>, which accepts an exact date instead
-of a relative number of days.</p>
-<p>This config cannot be used with: <code>before</code></p>
+of a relative number of days. The two may coexist (e.g. <code>min-release-age</code> in
+your <code>.npmrc</code> is preserved when npm internally spawns a sub-process with
+<code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
+apply, <code>before</code> wins within a single source and across sources the standard
+precedence rules apply.</p>
+<p>When this window stops <code>npm audit fix</code> from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+<code>min-release-age-exclude</code>, or relax <code>min-release-age</code> or <code>before</code>.</p>
+<p>Packages whose names match <code>min-release-age-exclude</code> are exempt from this
+filter.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="min-release-age-exclude"><code>min-release-age-exclude</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>A list of package names or <code>minimatch</code> glob patterns that are exempt from
+the <code>min-release-age</code> (and <code>before</code>) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.</p>
+<p>For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:</p>
+<pre><code>min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+</code></pre>
+<p>Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so <code>@myorg/*</code> matches <code>@myorg/shared-utils</code>.</p>
+<p>Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="name"><code>name</code></h4>
 <ul>
@@ -1251,7 +1385,13 @@ configured registry.</p>
 registry (<a href="https://registry.npmjs.org">https://registry.npmjs.org</a>) to the configured registry. If set to
 "never", then use the registry value. If set to "always", then replace the
 registry host with the configured host every time.</p>
-<p>You may also specify a bare hostname (e.g., "registry.npmjs.org").</p>
+<p>You may also specify a bare hostname (e.g., "registry.npmjs.org") to only
+replace URLs coming from that host.</p>
+<p>You may also specify a full URL including a path (e.g.,
+"<a href="https://old-registry.example.com/npm/path">https://old-registry.example.com/npm/path</a>"). In that case, resolved URLs
+whose host and path begin with that prefix will have the entire prefix
+replaced with the configured registry URL (host and path), without
+duplicating path segments.</p>
 <h4 id="save"><code>save</code></h4>
 <ul>
 <li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
@@ -1419,6 +1559,21 @@ this to work properly.</p>
 <code>-s</code> to add a signature.</p>
 <p>Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.</p>
+<h4 id="strict-allow-scripts"><code>strict-allow-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If <code>true</code>, turn the install-script policy from a warning into a hard error:
+any dependency with install scripts not covered by <code>allowScripts</code> will fail
+the install instead of running with a notice.</p>
+<p>Dependencies explicitly denied with <code>false</code> in <code>allowScripts</code> are always
+silently skipped; this setting only affects unreviewed entries.
+<code>--ignore-scripts</code> and <code>--dangerously-allow-all-scripts</code> both override this
+setting.</p>
+<p>Optional dependencies that cannot be installed on the current platform or
+engine (a non-matching <code>os</code>, <code>cpu</code>, or <code>libc</code>) are not flagged, because
+their install scripts never run.</p>
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>

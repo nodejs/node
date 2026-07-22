@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "March 2026" "NPM@11.12.1" ""
+.TH "SCRIPTS" "7" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBScripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -382,6 +382,16 @@ For example, if you had \fB{"name":"foo", "version":"1.2.5"}\fR in your package.
 \fBNote:\fR In npm 7 and later, most package.json fields are no longer provided as environment variables. Scripts that need access to other package.json fields should read the package.json file directly. The \fBnpm_package_json\fR environment variable provides the path to the file for this purpose.
 .P
 See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more on package configs.
+.SS "versioning variables"
+.P
+For versioning scripts (\fBpreversion\fR, \fBversion\fR, \fBpostversion\fR), npm sets these environment variables:
+.RS 0
+.IP \(bu 4
+\fBnpm_old_version\fR - The version before being bumped
+.IP \(bu 4
+\fBnpm_new_version\fR \[en] The version after being bumped
+.RE 0
+
 .SS "current lifecycle event"
 .P
 Lastly, the \fBnpm_lifecycle_event\fR environment variable is set to whichever stage of the cycle is being executed. So, you could have a single script used for different parts of the process which switches based on what's currently happening.

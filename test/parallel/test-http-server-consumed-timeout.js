@@ -7,7 +7,7 @@ const http = require('http');
 
 const durationBetweenIntervals = [];
 let timeoutTooShort = false;
-const TIMEOUT = common.platformTimeout(200);
+const TIMEOUT = common.platformTimeout(1000);
 const INTERVAL = Math.floor(TIMEOUT / 8);
 
 runTest(TIMEOUT);
@@ -58,7 +58,8 @@ function runTest(timeoutDuration) {
   server.listen(0, common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
-      method: 'POST'
+      method: 'POST',
+      agent: false,
     }, () => {
       let lastIntervalTimestamp = Date.now();
       const interval = setInterval(() => {

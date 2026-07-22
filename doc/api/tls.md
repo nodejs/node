@@ -131,7 +131,8 @@ the character "E" appended to the traditional abbreviations):
 
 Perfect forward secrecy using ECDHE is enabled by default. The `ecdhCurve`
 option can be used when creating a TLS server to customize the list of supported
-ECDH curves to use. See [`tls.createServer()`][] for more info.
+ECDH curves for TLSv1.2 and below, and the list of supported TLS groups for
+TLSv1.3. See [`tls.createServer()`][] for more info.
 
 DHE is disabled by default but can be enabled alongside ECDHE by setting the
 `dhparam` option to `'auto'`. Custom DHE parameters are also supported but
@@ -740,12 +741,9 @@ server. If `tlsSocket.authorized` is `false`, then `socket.authorizationError`
 is set to describe how authorization failed. Depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
-The `tlsSocket.alpnProtocol` property is a string that contains the selected
-ALPN protocol. When ALPN has no selected protocol because the client or the
-server did not send an ALPN extension, `tlsSocket.alpnProtocol` equals `false`.
-
-The `tlsSocket.servername` property is a string containing the server name
-requested via SNI.
+The [`tls.TLSSocket.servername`][] and [`tls.TLSSocket.alpnProtocol`][]
+properties can be used to check which server name was requested, and which
+protocol was negotiated.
 
 ### Event: `'tlsClientError'`
 
@@ -1042,6 +1040,18 @@ Returns the bound `address`, the address `family` name, and `port` of the
 underlying socket as reported by the operating system:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
+### `tlsSocket.alpnProtocol`
+
+<!-- YAML
+added: v6.0.0
+-->
+
+* Type: {string|boolean|null}
+
+The negotiated ALPN protocol. This is `null` before the handshake completes.
+Once the handshake completes, it settles as either the negotiated protocol
+name, or `false` if the peers did not negotiate an ALPN protocol.
+
 ### `tlsSocket.authorizationError`
 
 <!-- YAML
@@ -1196,12 +1206,19 @@ added: v5.0.0
 
 * Returns: {Object}
 
-Returns an object representing the type, name, and size of parameter of
-an ephemeral key exchange in [perfect forward secrecy][] on a client
-connection. It returns an empty object when the key exchange is not
-ephemeral. As this is only supported on a client socket; `null` is returned
-if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
-`name` property is available only when type is `'ECDH'`.
+Returns an object describing ephemeral key agreement in [perfect forward
+secrecy][] on a client connection. It returns an empty object when the key
+agreement is not ephemeral. As this is only supported on a client socket;
+`null` is returned if called on a server socket. The supported types are `'DH'`,
+`'ECDH'`, and `'TLSGroup'`. For `'DH'` and `'ECDH'`, the object describes peer
+temporary key parameters. For `'TLSGroup'`, the object identifies the negotiated
+TLS Supported Group used for key agreement when a peer temporary key object is
+not available.
+
+The `name` property is available only when type is `'ECDH'` or `'TLSGroup'`. The
+`size` property is not available when type is `'TLSGroup'`. For `'TLSGroup'`,
+`name` is the negotiated TLS Supported Group name. Standardized TLS group names
+and code points are listed in the [IANA TLS Supported Groups registry][].
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
@@ -1212,7 +1229,7 @@ added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that has been
-  sent to the socket as part of a SSL/TLS handshake, or `undefined` if
+  sent to the socket as part of an SSL/TLS handshake, or `undefined` if
   no `Finished` message has been sent yet.
 
 As the `Finished` messages are message digests of the complete handshake
@@ -1355,7 +1372,7 @@ added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that is expected
-  or has actually been received from the socket as part of a SSL/TLS handshake,
+  or has actually been received from the socket as part of an SSL/TLS handshake,
   or `undefined` if there is no `Finished` message so far.
 
 As the `Finished` messages are message digests of the complete handshake
@@ -1561,6 +1578,18 @@ When running as the server, the socket will be destroyed with an error after
 
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
+
+### `tlsSocket.servername`
+
+<!-- YAML
+added: v0.11.3
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the socket. This is
+`null` before the handshake completes. Once the handshake completes it settles
+as either the host name string, or `false` if SNI was not used.
 
 ### `tlsSocket.setKeyCert(context)`
 
@@ -1895,6 +1924,13 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: The `clientCertEngine`, `privateKeyEngine` and
+                 `privateKeyIdentifier` options are runtime deprecated.
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/62217
+    description: The `certificateCompression` option has been added.
   - version:
     - v22.9.0
     - v20.18.0
@@ -1988,6 +2024,12 @@ changes:
     the same order as their private keys in `key`. If the intermediate
     certificates are not provided, the peer will not be able to validate the
     certificate, and the handshake will fail.
+  * `certificateCompression` {string\[]} An array of supported certificate
+    compression algorithm names, in preference order. Supported values are
+    `'zlib'`, `'brotli'`, and `'zstd'`. When set, enables TLS certificate
+    compression ([RFC 8879][]) which compresses certificates during the TLS
+    handshake, reducing handshake size. Only effective with TLSv1.3.
+    **Default:** `[]` (disabled).
   * `sigalgs` {string} Colon-separated list of supported signature algorithms.
     The list can contain digest algorithms (`SHA256`, `MD5` etc.), public key
     algorithms (`RSA-PSS`, `ECDSA` etc.), combination of both (e.g
@@ -2006,12 +2048,16 @@ changes:
     required for non-ECDHE [perfect forward secrecy][]. If omitted or invalid,
     the parameters are silently discarded and DHE ciphers will not be available.
     [ECDHE][]-based [perfect forward secrecy][] will still be available.
-  * `ecdhCurve` {string} A string describing a named curve or a colon separated
-    list of curve NIDs or names, for example `P-521:P-384:P-256`, to use for
-    ECDH key agreement. Set to `auto` to select the
-    curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
-    available curve names. On recent releases, `openssl ecparam -list_curves`
-    will also display the name and description of each available elliptic curve.
+  * `ecdhCurve` {string} A string describing a named curve, TLS group, or
+    colon-separated list of named curves or TLS groups to use for key agreement,
+    for example `P-521:P-384:P-256`, `X25519`, or `X25519MLKEM768`. The
+    historical name of this option refers to ECDH key agreement in TLSv1.2 and
+    below. In TLSv1.3, this option configures the TLS Supported Groups and
+    key share groups offered or accepted by the TLS stack. Set to `auto` to
+    select the group automatically. Use [`crypto.getCurves()`][] to obtain a
+    list of available elliptic curve names. For TLS group names, use
+    `openssl list -tls-groups` or consult the [IANA TLS Supported Groups
+    registry][].
     **Default:** [`tls.DEFAULT_ECDH_CURVE`][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
     preferences instead of the client's. When `true`, causes
@@ -2104,6 +2150,9 @@ permissible, use 2048 bits or larger for stronger security.
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: The `clientCertEngine` option is runtime deprecated.
   - version:
     - v22.4.0
     - v20.16.0
@@ -2199,7 +2248,7 @@ changes:
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
-The `ticketKeys` options is automatically shared between `node:cluster` module
+The `ticketKeys` option is automatically shared between `node:cluster` module
 workers.
 
 The following illustrates a simple echo server:
@@ -2293,7 +2342,7 @@ The certificates will be deduplicated before being set as the default.
 
 This function only affects the current Node.js thread. Previous
 sessions cached by the HTTPS agent won't be affected by this change, so
-this method should be called before any unwanted cachable TLS connections are
+this method should be called before any unwanted cacheable TLS connections are
 made.
 
 To use system CA certificates as the default:
@@ -2378,6 +2427,25 @@ TLSv1.2 and below.
 console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ```
 
+## `tls.getCertificateCompressionAlgorithms()`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+* Returns: {string\[]}
+
+Returns an array with the names of the RFC 8879 certificate compression
+algorithms supported by the current OpenSSL build, suitable for use in the
+`certificateCompression` option of [`tls.createSecureContext()`][]. Possible
+values include `'zlib'`, `'brotli'`, and `'zstd'`.
+
+The array is empty when certificate compression is unavailable.
+
+```js
+console.log(tls.getCertificateCompressionAlgorithms()); // ['zlib', 'brotli', 'zstd']
+```
+
 ## `tls.rootCertificates`
 
 <!-- YAML
@@ -2407,9 +2475,9 @@ changes:
     description: Default value changed to `'auto'`.
 -->
 
-The default curve name to use for ECDH key agreement in a tls server. The
-default value is `'auto'`. See [`tls.createSecureContext()`][] for further
-information.
+The default named curve or TLS group list to use for key agreement in a TLS
+server. The default value is `'auto'`. See [`tls.createSecureContext()`][] for
+further information.
 
 ## `tls.DEFAULT_MAX_VERSION`
 
@@ -2457,6 +2525,7 @@ added: v0.11.3
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
+[IANA TLS Supported Groups registry]: https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
 [Modifying the default TLS cipher suite]: #modifying-the-default-tls-cipher-suite
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
@@ -2469,6 +2538,7 @@ added: v0.11.3
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
+[RFC 8879]: https://tools.ietf.org/html/rfc8879
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
 [Session Resumption]: #session-resumption
 [Stream]: stream.md#stream
@@ -2504,11 +2574,13 @@ added: v0.11.3
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
 [`tls.Server`]: #class-tlsserver
+[`tls.TLSSocket.alpnProtocol`]: #tlssocketalpnprotocol
 [`tls.TLSSocket.enableTrace()`]: #tlssocketenabletrace
 [`tls.TLSSocket.getPeerCertificate()`]: #tlssocketgetpeercertificatedetailed
 [`tls.TLSSocket.getProtocol()`]: #tlssocketgetprotocol
 [`tls.TLSSocket.getSession()`]: #tlssocketgetsession
 [`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
+[`tls.TLSSocket.servername`]: #tlssocketservername
 [`tls.TLSSocket`]: #class-tlstlssocket
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions

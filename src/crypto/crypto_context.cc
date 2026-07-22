@@ -12,12 +12,12 @@
 #include "util.h"
 #include "v8.h"
 
-#include <openssl/x509.h>
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+#include <openssl/comp.h>
+#endif
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
+#include <openssl/x509.h>
 #ifdef __APPLE__
 #include <Security/Security.h>
 #endif
@@ -31,7 +31,6 @@
 
 namespace node {
 
-using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
@@ -369,7 +368,10 @@ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
     CFStringRef policy_oid = reinterpret_cast<CFStringRef>(
         const_cast<void*>(CFDictionaryGetValue(policy_dict, kSecPolicyOid)));
 
-    if (!CFEqual(policy_oid, kSecPolicyAppleSSL)) {
+    bool matches_ssl = CFEqual(policy_oid, kSecPolicyAppleSSL);
+    CFRelease(policy_dict);
+
+    if (!matches_ssl) {
       return TrustStatus::UNSPECIFIED;
     }
   }
@@ -386,35 +388,44 @@ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
                           &trust_settings_result)) {
       return TrustStatus::UNSPECIFIED;
     }
+  }
 
-    if (trust_settings_result == kSecTrustSettingsResultDeny) {
-      return TrustStatus::DISTRUSTED;
-    }
+  // When kSecTrustSettingsResult is absent from the trust dict,
+  // Apple docs specify kSecTrustSettingsResultTrustRoot as the default.
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/trust/headers/SecTrustSettings.h#L119-L122
+  // This is also enforced at write time for self-signed certs get TrustRoot,
+  // and non-self-signed certs cannot have an empty settings,
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/sec/Security/SecTrustStore.c#L196-L207
 
-    // This is a bit of a hack: if the cert is self-issued allow either
-    // kSecTrustSettingsResultTrustRoot or kSecTrustSettingsResultTrustAsRoot on
-    // the basis that SecTrustSetTrustSettings should not allow creating an
-    // invalid trust record in the first place. (The spec is that
-    // kSecTrustSettingsResultTrustRoot can only be applied to root(self-signed)
-    // certs and kSecTrustSettingsResultTrustAsRoot is used for other certs.)
-    // This hack avoids having to check the signature on the cert which is slow
-    // if using the platform APIs, and may require supporting MD5 signature
-    // algorithms on some older OSX versions or locally added roots, which is
-    // undesirable in the built-in signature verifier.
-    if (is_self_issued) {
-      return trust_settings_result == kSecTrustSettingsResultTrustRoot ||
-                     trust_settings_result == kSecTrustSettingsResultTrustAsRoot
-                 ? TrustStatus::TRUSTED
-                 : TrustStatus::UNSPECIFIED;
-    }
+  if (trust_settings_result == kSecTrustSettingsResultDeny) {
+    return TrustStatus::DISTRUSTED;
+  }
 
-    // kSecTrustSettingsResultTrustAsRoot can only be applied to non-root certs.
-    return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+  // From
+  // https://source.chromium.org/chromium/chromium/src/+/main:net/cert/internal/trust_store_mac.cc;l=144-146
+  // This is a bit of a hack: if the cert is self-issued allow either
+  // kSecTrustSettingsResultTrustRoot or kSecTrustSettingsResultTrustAsRoot on
+  // the basis that SecTrustSetTrustSettings should not allow creating an
+  // invalid trust record in the first place. (The spec is that
+  // kSecTrustSettingsResultTrustRoot can only be applied to root(self-signed)
+  // certs and kSecTrustSettingsResultTrustAsRoot is used for other certs.)
+  // This hack avoids having to check the signature on the cert which is slow
+  // if using the platform APIs, and may require supporting MD5 signature
+  // algorithms on some older OSX versions or locally added roots, which is
+  // undesirable in the built-in signature verifier.
+  if (is_self_issued) {
+    return (trust_settings_result == kSecTrustSettingsResultTrustRoot ||
+            trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
                ? TrustStatus::TRUSTED
                : TrustStatus::UNSPECIFIED;
   }
 
-  return TrustStatus::UNSPECIFIED;
+  // kSecTrustSettingsResultTrustAsRoot can only be applied to non-root certs.
+  return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+             ? TrustStatus::TRUSTED
+             : TrustStatus::UNSPECIFIED;
 }
 
 TrustStatus IsTrustSettingsTrustedForPolicy(CFArrayRef trust_settings,
@@ -447,6 +458,17 @@ bool IsCertificateTrustValid(SecCertificateRef ref) {
       CFArrayCreateMutable(nullptr, 1, &kCFTypeArrayCallBacks);
   CFArraySetValueAtIndex(subj_certs, 0, ref);
 
+  // SecTrustEvaluateWithError is used to check whether an individual
+  // certificate is trusted by the system — not to validate it for a
+  // specific role (server, intermediate, etc.). We just need a minimal
+  // policy that guarantees the certificate can be chained to a known
+  // trust anchor while filtering out irrelevant certificates.
+  //
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/sec/Security/SecPolicy.c#L1855-L1890
+  // SecPolicyCreateSSL (both mark EKU optional):
+  //   server=true  -> BasicX509 + serverAuth + anyExtendedKeyUsage + SGC
+  //   server=false -> BasicX509 + clientAuth + anyExtendedKeyUsage
   SecPolicyRef policy = SecPolicyCreateSSL(false, nullptr);
   OSStatus ortn =
       SecTrustCreateWithCertificates(subj_certs, policy, &sec_trust);
@@ -516,6 +538,21 @@ bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
   return false;
 }
 
+// Checks if a certificate has expired.
+// Returns true if the certificate's notAfter date is in the past.
+static bool IsCertificateExpired(X509* cert) {
+  // X509_cmp_current_time returns:
+  // -1 if the time is in the past (expired)
+  //  0 if there was an error
+  //  1 if the time is in the future (not yet expired)
+  const ASN1_TIME* not_after = X509_get0_notAfter(cert);
+  if (not_after == nullptr) {
+    return false;
+  }
+  int cmp = X509_cmp_current_time(not_after);
+  return cmp < 0;
+}
+
 void ReadMacOSKeychainCertificates(
     std::vector<X509*>* system_root_certificates_X509) {
   CFTypeRef search_keys[] = {kSecClass, kSecMatchLimit, kSecReturnRef};
@@ -543,6 +580,10 @@ void ReadMacOSKeychainCertificates(
 
   CFIndex count = CFArrayGetCount(curr_anchors);
 
+  // Track seen certificates to detect duplicates (same cert in multiple
+  // keychains).
+  std::set<X509*, X509Less> seen_certs;
+
   for (int i = 0; i < count; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(curr_anchors, i)));
@@ -568,11 +609,28 @@ void ReadMacOSKeychainCertificates(
     }
 
     bool is_valid = IsCertificateTrustedForPolicy(cert, cert_ref);
-    if (is_valid) {
-      system_root_certificates_X509->emplace_back(cert);
-    } else {
+    if (!is_valid) {
       X509_free(cert);
+      continue;
     }
+
+    // Skip duplicate certificates.
+    auto [it, inserted] = seen_certs.insert(cert);
+    if (!inserted) {
+      X509_free(cert);
+      continue;
+    }
+
+    // Skip expired certificates.
+    if (IsCertificateExpired(cert)) {
+      per_process::Debug(DebugCategory::CRYPTO,
+                         "Skipping expired system certificate\n");
+      seen_certs.erase(it);
+      X509_free(cert);
+      continue;
+    }
+
+    system_root_certificates_X509->emplace_back(cert);
   }
   CFRelease(curr_anchors);
 }
@@ -1319,6 +1377,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setOptions", SetOptions);
     SetProtoMethod(isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
     SetProtoMethod(isolate, tmpl, "setSessionTimeout", SetSessionTimeout);
+    SetProtoMethod(
+        isolate, tmpl, "setCertificateCompression", SetCertificateCompression);
     SetProtoMethod(isolate, tmpl, "close", Close);
     SetProtoMethod(isolate, tmpl, "loadPKCS12", LoadPKCS12);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
@@ -1383,6 +1443,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
             target,
             "startLoadingCertificatesOffThread",
             StartLoadingCertificatesOffThread);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getCertificateCompressionAlgorithms",
+                        GetCertificateCompressionAlgorithms);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1407,6 +1471,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(SetOptions);
   registry->Register(SetSessionIdContext);
   registry->Register(SetSessionTimeout);
+  registry->Register(SetCertificateCompression);
   registry->Register(Close);
   registry->Register(LoadPKCS12);
   registry->Register(SetTicketKeys);
@@ -1428,6 +1493,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(ResetRootCertStore);
   registry->Register(GetUserRootCertificates);
   registry->Register(StartLoadingCertificatesOffThread);
+  registry->Register(GetCertificateCompressionAlgorithms);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -1565,6 +1631,14 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   env->external_memory_accounter()->Increase(env->isolate(), kExternalSize);
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
+  // OpenSSL populates cert_comp_prefs with all available algorithms by
+  // default when compression libraries are linked. Clear them so that
+  // certificate compression (RFC 8879) is always opt-in for now, via
+  // the certificateCompression option.
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  SSL_CTX_set1_cert_comp_preference(sc->ctx_.get(), nullptr, 0);
+#endif
+
   // Disable SSLv2 in the case when method == TLS_method() and the
   // cipher list contains SSLv2 ciphers (not the default, should be rare.)
   // The bundled OpenSSL doesn't have SSLv2 support but the system OpenSSL may.
@@ -1599,7 +1673,12 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  SSL_CTX_set_tlsext_ticket_key_evp_cb(sc->ctx_.get(),
+                                       TicketCompatibilityCallback);
+#else
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
+#endif
 }
 
 SSLPointer SecureContext::CreateSSL() {
@@ -1928,8 +2007,13 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   // true to this function instead of the original string. Any other string
   // value will be interpreted as custom DH parameters below.
   if (args[0]->IsTrue()) {
+#ifdef SSL_CTX_set_dh_auto
     CHECK(SSL_CTX_set_dh_auto(sc->ctx_.get(), true));
     return;
+#else
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env, "Automatic DH parameter selection is not supported");
+#endif
   }
 
   DHPointer dh;
@@ -1938,17 +2022,22 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     if (!bio)
       return;
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
+    if (params && params.id() == EVP_PKEY_DH) dh.reset(params.release());
+#else
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
+#endif
   }
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   // TODO(tniessen): don't silently discard invalid dhparam.
+  // TODO(panva): In a semver-major, reject non-DH parameter PEMs instead of
+  // silently treating them as absent.
   if (!dh)
     return;
 
-  const BIGNUM* p;
-  DH_get0_pqg(dh.get(), &p, nullptr, nullptr);
-  const int size = BignumPointer::GetBitCount(p);
+  const int size = dh.getPrimeBits();
   if (size < 1024) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env, "DH parameter is less than 1024 bits");
@@ -1957,10 +2046,18 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  EVPKeyPointer dh_pkey(dh.release());
+  if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
+#else
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
+#endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  dh_pkey.release();
+#endif
 }
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
@@ -2065,6 +2162,100 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   int32_t sessionTimeout = args[0].As<Int32>()->Value();
   CHECK_GE(sessionTimeout, 0);
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
+}
+
+void SecureContext::SetCertificateCompression(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  Environment* env = sc->env();
+
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsUint32());
+
+  // Cert compression requires TLS 1.3:
+  long max_proto =  // NOLINT(runtime/int)
+      SSL_CTX_get_max_proto_version(sc->ctx_.get());
+  if (max_proto != 0 && max_proto < TLS1_3_VERSION) {
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "certificateCompression requires a TLS protocol range that includes "
+        "TLSv1.3");
+  }
+
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  // JS packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a single Uint32.
+  // IDs match TLSEXT_comp_cert_zlib (1), _brotli (2), _zstd (3).
+  uint32_t packed = args[0].As<v8::Uint32>()->Value();
+  size_t len = packed & 0xff;
+
+  // TLSEXT_comp_cert_limit is the limit for a zero-terminated algs array,
+  // total number of available algs is one fewer.
+  constexpr size_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+  if (len == 0 || len > kMaxCompAlgs) {
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "certificateCompression must specify fewer than %d algorithms",
+        static_cast<int>(kMaxCompAlgs));
+  }
+
+  int algs[kMaxCompAlgs];
+  for (size_t i = 0; i < len; i++) {
+    algs[i] = (packed >> (8 * (i + 1))) & 0xff;
+  }
+  if (!SSL_CTX_set1_cert_comp_preference(
+          sc->ctx_.get(), algs, static_cast<size_t>(len))) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to set certificate compression preference");
+  }
+
+  // Pre-compress the loaded certificate(s) for all supported algorithms.
+  // Returns 0 when no certificate is loaded (e.g. client-only context) or
+  // when compression did not reduce size - both are non-fatal.
+  constexpr int kCompressAllAlgs = 0;
+  SSL_CTX_compress_certs(sc->ctx_.get(), kCompressAllAlgs);
+
+  // Store preferences for propagation during SNI context switches.
+  memcpy(sc->cert_comp_prefs_, algs, sizeof(int) * len);
+  sc->cert_comp_prefs_len_ = len;
+
+  // Cache pre-compressed cert data for SNI context switches.
+  // setSniContext uses SSL_use_certificate which doesn't carry comp_cert data,
+  // so we extract it here and re-apply via SSL_set1_compressed_cert later.
+  sc->compressed_certs_.clear();
+  for (size_t i = 0; i < len; i++) {
+    unsigned char* data = nullptr;
+    size_t orig_len = 0;
+    size_t comp_len =
+        SSL_CTX_get1_compressed_cert(sc->ctx_.get(), algs[i], &data, &orig_len);
+    ncrypto::DataPointer comp(data, comp_len);
+    if (comp_len > 0 && data != nullptr) {
+      sc->compressed_certs_.push_back(
+          {algs[i],
+           std::vector<unsigned char>(data, data + comp_len),
+           orig_len});
+    }
+  }
+#else
+  return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+      env, "Certificate compression is not supported by this OpenSSL build");
+#endif
+}
+
+void SecureContext::GetCertificateCompressionAlgorithms(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  LocalVector<Value> algs(env->isolate());
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  if (BIO_f_zlib() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zlib"));
+  if (BIO_f_brotli() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "brotli"));
+  if (BIO_f_zstd() != nullptr)
+    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zstd"));
+#endif
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), algs.data(), algs.size()));
 }
 
 void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
@@ -2227,7 +2418,7 @@ void SecureContext::SetClientCertEngine(
   }
 
   // Note that this takes another reference to `engine`.
-  if (!SSL_CTX_set_client_cert_engine(sc->ctx_.get(), engine.get()))
+  if (!engine.setClientCertEngine(sc->ctx_.get()))
     return ThrowCryptoError(env, ERR_get_error());
   sc->client_cert_engine_provided_ = true;
 }
@@ -2272,14 +2463,43 @@ void SecureContext::EnableTicketKeyCallback(
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
+#else
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
+#endif
 }
+
+namespace {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+bool InitTicketHmac(EVP_MAC_CTX* hctx,
+                    const unsigned char* key,
+                    size_t key_len) {
+  const char* md_name = EVP_MD_get0_name(Digest::SHA256);
+  if (md_name == nullptr) return false;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(
+          OSSL_MAC_PARAM_DIGEST, const_cast<char*>(md_name), 0),
+      OSSL_PARAM_construct_end(),
+  };
+  return EVP_MAC_init(hctx, key, key_len, params) == 1;
+}
+#else
+bool InitTicketHmac(HMAC_CTX* hctx, const unsigned char* key, size_t key_len) {
+  return HMAC_Init_ex(hctx, key, key_len, Digest::SHA256, nullptr) == 1;
+}
+#endif
+}  // namespace
 
 int SecureContext::TicketKeyCallback(SSL* ssl,
                                      unsigned char* name,
                                      unsigned char* iv,
                                      EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                     EVP_MAC_CTX* hctx,
+#else
                                      HMAC_CTX* hctx,
+#endif
                                      int enc) {
   static const int kTicketPartSize = 16;
 
@@ -2352,8 +2572,9 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   }
 
   ArrayBufferViewContents<unsigned char> hmac_buf(hmac);
-  HMAC_Init_ex(
-      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr);
+  if (!InitTicketHmac(hctx, hmac_buf.data(), hmac_buf.length())) {
+    return -1;
+  }
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
@@ -2369,7 +2590,11 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
                                                EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                               EVP_MAC_CTX* hctx,
+#else
                                                HMAC_CTX* hctx,
+#endif
                                                int enc) {
   SecureContext* sc = static_cast<SecureContext*>(
       SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
@@ -2379,11 +2604,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
             ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
-        HMAC_Init_ex(hctx,
-                     sc->ticket_key_hmac_,
-                     sizeof(sc->ticket_key_hmac_),
-                     Digest::SHA256,
-                     nullptr) <= 0) {
+        !InitTicketHmac(
+            hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
       return -1;
     }
     return 1;
@@ -2396,11 +2618,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (EVP_DecryptInit_ex(
           ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
-      HMAC_Init_ex(hctx,
-                   sc->ticket_key_hmac_,
-                   sizeof(sc->ticket_key_hmac_),
-                   Digest::SHA256,
-                   nullptr) <= 0) {
+      !InitTicketHmac(
+          hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
     return -1;
   }
   return 1;

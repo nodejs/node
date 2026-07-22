@@ -38,7 +38,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <nghttp3/nghttp3.h>
 
 #include <ev.h>
 
@@ -48,6 +47,14 @@
 #include "network.h"
 #include "shared.h"
 #include "template.h"
+
+#ifdef WITH_EXAMPLE_HTTP3_PROTO_CODEC
+#  include "http3_client_proto_codec.h"
+#endif // WITH_EXAMPLE_HTTP3_PROTO_CODEC
+
+#ifdef WITH_EXAMPLE_HQ_PROTO_CODEC
+#  include "hq_client_proto_codec.h"
+#endif // WITH_EXAMPLE_HQ_PROTO_CODEC
 
 using namespace ngtcp2;
 
@@ -60,6 +67,10 @@ struct Stream {
   Request req;
   int64_t stream_id;
   int fd{-1};
+#ifdef WITH_EXAMPLE_HQ_PROTO_CODEC
+  std::string rawreqbuf;
+  std::span<const uint8_t> reqbuf;
+#endif // WITH_EXAMPLE_HQ_PROTO_CODEC
 };
 
 class Client;
@@ -130,23 +141,15 @@ public:
 
   void set_remote_addr(const ngtcp2_addr &remote_addr);
 
-  std::expected<void, Error> setup_httpconn();
-  std::expected<void, Error> submit_http_request(const Stream *stream);
+  std::expected<void, Error> setup_codec();
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
   std::expected<void, Error> acked_stream_data_offset(int64_t stream_id,
                                                       uint64_t datalen);
-  void http_consume(int64_t stream_id, size_t nconsumed);
-  void http_write_data(int64_t stream_id, std::span<const uint8_t> data);
   std::expected<void, Error> on_stream_reset(int64_t stream_id);
   std::expected<void, Error> on_stream_stop_sending(int64_t stream_id);
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
-  std::expected<void, Error> stop_sending(int64_t stream_id,
-                                          uint64_t app_error_code);
-  std::expected<void, Error> reset_stream(int64_t stream_id,
-                                          uint64_t app_error_code);
-  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
@@ -162,6 +165,8 @@ public:
 
   bool should_exit() const;
 
+  Stream *find_stream(int64_t stream_id) const;
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
@@ -174,7 +179,7 @@ private:
   struct ev_loop *loop_;
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   std::vector<uint32_t> offered_versions_;
-  nghttp3_conn *httpconn_{};
+  std::unique_ptr<ProtoCodec> proto_codec_;
   // addr_ is the server host address.
   const char *addr_{};
   // port_ is the server port.

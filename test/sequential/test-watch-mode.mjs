@@ -23,6 +23,10 @@ function restart(file, content = readFileSync(file)) {
   return () => clearInterval(timer);
 }
 
+function changeDetected(file) {
+  return `Change detected in ${inspect(file)}`;
+}
+
 let tmpFiles = 0;
 function createTmpFile(content = 'console.log("running");', ext = '.js', basename = tmpdir.path) {
   const file = path.join(basename, `${tmpFiles++}${ext}`);
@@ -171,6 +175,23 @@ async function failWriteSucceed({ file, watchedFile }) {
 tmpdir.refresh();
 
 describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
+  it('should exit when terminated after the watched process has completed', async () => {
+    const file = createTmpFile();
+    const child = spawn(execPath, ['--watch', '--no-warnings', file], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+
+    for await (const line of createInterface({ input: child.stdout })) {
+      if (line.includes('Completed running')) {
+        break;
+      }
+    }
+
+    child.kill();
+    await once(child, 'exit');
+  });
+
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
@@ -181,6 +202,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -195,6 +217,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -216,6 +239,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value2',
         `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
@@ -241,6 +265,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value1',
         'ENV2: newValue',
@@ -267,6 +292,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
+        changeDetected(envFile),
         `Restarting ${inspect(jsFile)}`,
         'ENV: value1',
         'ENV2: newValue',
@@ -310,6 +336,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: fails\r?\n/);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -329,6 +356,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -355,6 +383,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -379,6 +408,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
@@ -394,6 +424,7 @@ console.log("don't show me");`);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
     ]);
@@ -411,6 +442,7 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dependency),
       `Restarting ${inspect(file)}`,
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -429,6 +461,7 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(dependency),
       `Restarting ${inspect(file)}`,
       '{}',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -443,9 +476,11 @@ console.log(dependency);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -466,6 +501,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       random,
       `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(`${file} --random ${random}`)}`,
       random,
       `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
@@ -483,6 +519,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -503,6 +540,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -552,6 +590,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -567,6 +606,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -598,6 +638,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -630,6 +671,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -662,6 +704,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -694,6 +737,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -710,6 +754,7 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -735,6 +780,7 @@ console.log(values.random);
       'hello',
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
@@ -815,6 +861,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(lines, [
       'running',
       'Received: first message',
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       'Received: second message',
@@ -835,6 +882,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -857,6 +905,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(watchedFile),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
@@ -885,6 +934,7 @@ process.on('message', (message) => {
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      changeDetected(file),
       `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,

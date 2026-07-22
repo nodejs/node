@@ -182,7 +182,7 @@ deprecated:
  - v25.9.0
  - v24.15.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation (DEP0205).
   - version:
@@ -257,7 +257,7 @@ added:
   - v23.2.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61803
     description: Removed `transform` and `sourceMap` options.
 -->
@@ -366,13 +366,13 @@ changes:
 
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
 method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
-whenever Node.js compiles a CommonJS, a ECMAScript Module, or a TypeScript module, it will
+whenever Node.js compiles a CommonJS, an ECMAScript Module, or a TypeScript module, it will
 use on-disk [V8 code cache][] persisted in the specified directory to speed up the compilation.
 This may slow down the first load of a module graph, but subsequent loads of the same module
 graph may get a significant speedup if the contents of the modules do not change.
 
 To clean up the generated compile cache on disk, simply remove the cache directory. The cache
-directory will be recreated the next time the same directory is used for for compile cache
+directory will be recreated the next time the same directory is used for compile cache
 storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
 under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
 [`module.enableCompileCache()`][] without specifying the `directory`, Node.js will use
@@ -534,7 +534,7 @@ For general use cases, it's recommended to call `module.enableCompileCache()` wi
 specifying the `options.directory`, so that the directory can be overridden by the
 `NODE_COMPILE_CACHE` environment variable when necessary.
 
-Since compile cache is supposed to be a optimization that is not mission critical, this
+Since compile cache is supposed to be an optimization that is not mission critical, this
 method is designed to not throw any exception when the compile cache cannot be enabled.
 Instead, it will return an object containing an error message in the `message` field to
 aid debugging. If compile cache is enabled successfully, the `directory` field in the
@@ -1020,7 +1020,7 @@ function load(url, context, nextLoad) {
   };
 }
 
-registerHooks({ resolve });
+registerHooks({ load });
 ```
 
 In a more advanced scenario, this can also be used to transform an unsupported
@@ -1128,8 +1128,6 @@ export async function load(url, context, nextLoad) {
 Unlike synchronous hooks, the asynchronous hooks would not run for these modules loaded in the file
 that calls `register()`:
 
-<!-- eslint-disable no-restricted-globals -->
-
 ```mjs
 // register-hooks.js
 import { register, createRequire } from 'node:module';
@@ -1137,11 +1135,9 @@ register('./hooks.mjs', import.meta.url);
 
 // Asynchronous hooks does not affect modules loaded via custom require()
 // functions created by module.createRequire().
-const userRequire = createRequire(__filename);
+const userRequire = createRequire(import.meta.filename);
 userRequire('./my-app-2.cjs');  // Hooks won't affect this
 ```
-
-<!-- eslint-enable no-restricted-globals -->
 
 ```cjs
 // register-hooks.js
@@ -1966,9 +1962,19 @@ generated code.
 
 #### `sourceMap.payload`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62830
+    description: The object is frozen.
+-->
+
 * Returns: {Object}
 
 Getter for the payload used to construct the [`SourceMap`][] instance.
+
+The returned object is frozen with [`Object.freeze()`][], and the same
+reference is returned on every access. Do not mutate the returned object.
 
 #### `sourceMap.findEntry(lineOffset, columnOffset)`
 
@@ -2054,6 +2060,7 @@ returned object contains the following keys:
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
+[`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`SourceMap`]: #class-modulesourcemap
 [`initialize`]: #initialize
 [`module.constants.compileCacheStatus`]: #moduleconstantscompilecachestatus

@@ -90,11 +90,19 @@ server.listen(0, common.mustCall(() => {
     0,
     common.mustCall(() => {
       const client = h2.connect(`http://localhost:${server.address().port}`);
-      client.on('error', common.mustNotCall());
+      // The server sends oversized headers that cause a compression error on
+      // the client side, so nghttp2 internally terminates the client session.
+      client.on('error', common.expectsError({
+        code: 'ERR_HTTP2_ERROR',
+        name: 'Error',
+      }));
 
       const req = client.request();
       req.on('response', common.mustNotCall());
-      req.on('error', common.mustNotCall());
+      req.on('error', common.expectsError({
+        code: 'ERR_HTTP2_ERROR',
+        name: 'Error',
+      }));
       req.end();
     }),
   );

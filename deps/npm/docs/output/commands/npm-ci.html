@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-ci----11121">
+<h1 id="----npm-ci----11180">
     <span>npm-ci</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Clean install a project</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#allow-directory"><code>allow-directory</code></a></li><li><a href="#allow-file"><code>allow-file</code></a></li><li><a href="#allow-git"><code>allow-git</code></a></li><li><a href="#allow-remote"><code>allow-remote</code></a></li><li><a href="#allow-scripts"><code>allow-scripts</code></a></li><li><a href="#strict-allow-scripts"><code>strict-allow-scripts</code></a></li><li><a href="#dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -251,8 +251,15 @@ cache:
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.</p>
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.</p>
+<p>We recommend that package authors use <code>--install-strategy=linked</code> during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+<code>import</code> of a package that was never added to <code>package.json</code> can fail
+instead of resolving by accident and shipping broken. See <a href="../using-npm/developers#catching-undeclared-phantom-dependencies.html">Catching
+undeclared ("phantom")
+dependencies</a>.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
@@ -333,6 +340,34 @@ but can be useful for debugging.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still
 run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
 run any pre- or post-scripts.</p>
+<h4 id="allow-directory"><code>allow-directory</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to install dependencies from directories. That
+is, dependencies that point to a directory instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any directories to be installed. <code>none</code> prevents any
+directories from being installed. <code>root</code> only allows directories defined in
+your project's package.json to be installed. Also allows directory
+dependencies to be used for other commands like <code>npm view</code></p>
+<h4 id="allow-file"><code>allow-file</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to install dependencies from tarball files. That
+is, dependencies that point to a local tarball file instead of a version or
+semver range. Please note that this could leave your tree incomplete and
+some packages may not function as intended or designed. Changing this
+setting will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any tarball file to be installed. <code>none</code> prevents any tarball
+file from being installed. <code>root</code> only allows tarball files defined in your
+project's package.json to be installed. Also allows tarball file
+dependencies to be used for other commands like <code>npm view</code></p>
 <h4 id="allow-git"><code>allow-git</code></h4>
 <ul>
 <li>Default: "all"</li>
@@ -341,12 +376,68 @@ run any pre- or post-scripts.</p>
 <p>Limits the ability for npm to fetch dependencies from git references. That
 is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
-packages may not function as intended or designed.</p>
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
 <p><code>all</code> allows any git dependencies to be fetched and installed. <code>none</code>
 prevents any git dependencies from being fetched and installed. <code>root</code> only
 allows git dependencies defined in your project's package.json to be fetched
-installed. Also allows git dependencies to be fetched for other commands
+and installed. Also allows git dependencies to be fetched for other commands
 like <code>npm view</code></p>
+<h4 id="allow-remote"><code>allow-remote</code></h4>
+<ul>
+<li>Default: "all"</li>
+<li>Type: "all", "none", or "root"</li>
+</ul>
+<p>Limits the ability for npm to fetch dependencies from urls. That is,
+dependencies that point to a tarball url instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.</p>
+<p><code>all</code> allows any url to be installed. <code>none</code> prevents any url from being
+installed. <code>root</code> only allows urls defined in your project's package.json to
+be installed. Also allows url dependencies to be used for other commands
+like <code>npm view</code></p>
+<h4 id="allow-scripts"><code>allow-scripts</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Comma-separated list of packages whose install-time lifecycle scripts
+(<code>preinstall</code>, <code>install</code>, <code>postinstall</code>, and <code>prepare</code> for non-registry
+dependencies) are allowed to run.</p>
+<p>This setting is intended for one-off and global contexts: <code>npm exec</code>, <code>npx</code>,
+and <code>npm install -g</code>, where no project <code>package.json</code> is involved. For
+team-wide policy in a project, use the <code>allowScripts</code> field in
+<code>package.json</code> (which also supports explicit denials), or configure it in
+<code>.npmrc</code>. Passing <code>--allow-scripts</code> on the command line during a
+project-scoped <code>npm install</code>, <code>ci</code>, <code>update</code>, or <code>rebuild</code> is an error.</p>
+<p>Each name is matched against a dependency's resolved identity, not against
+the package's self-reported name. <code>--ignore-scripts</code> and
+<code>--dangerously-allow-all-scripts</code> both override this setting.</p>
+<h4 id="strict-allow-scripts"><code>strict-allow-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If <code>true</code>, turn the install-script policy from a warning into a hard error:
+any dependency with install scripts not covered by <code>allowScripts</code> will fail
+the install instead of running with a notice.</p>
+<p>Dependencies explicitly denied with <code>false</code> in <code>allowScripts</code> are always
+silently skipped; this setting only affects unreviewed entries.
+<code>--ignore-scripts</code> and <code>--dangerously-allow-all-scripts</code> both override this
+setting.</p>
+<p>Optional dependencies that cannot be installed on the current platform or
+engine (a non-matching <code>os</code>, <code>cpu</code>, or <code>libc</code>) are not flagged, because
+their install scripts never run.</p>
+<h4 id="dangerously-allow-all-scripts"><code>dangerously-allow-all-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If <code>true</code>, bypass the <code>allowScripts</code> policy entirely and run every
+dependency install script regardless of whether it was approved or denied.
+Intended as a migration escape hatch only; its use is strongly discouraged.
+<code>--ignore-scripts</code> still takes precedence over this setting.</p>
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>

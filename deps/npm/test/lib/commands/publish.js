@@ -742,6 +742,27 @@ t.test('restricted access', async t => {
   t.matchSnapshot(logs.notice)
 })
 
+t.test('private access', async t => {
+  const packageJson = {
+    name: '@npm/test-package',
+    version: '1.0.0',
+  }
+  const { npm, joinedOutput, logs, registry } = await loadNpmWithRegistry(t, {
+    config: {
+      ...auth,
+      access: 'private',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify(packageJson, null, 2),
+    },
+    authorization: token,
+  })
+  registry.publish('@npm/test-package', { packageJson, access: 'restricted' })
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+  t.matchSnapshot(logs.notice)
+})
+
 t.test('public access', async t => {
   const { npm, joinedOutput, logs, registry } = await loadNpmWithRegistry(t, {
     config: {
@@ -1602,4 +1623,38 @@ t.test('oidc token exchange - provenance', (t) => {
   })
 
   t.end()
+})
+
+t.test('passes script-shell config to lifecycle hooks', async t => {
+  const CAPTURED = []
+  const { npm, registry } = await loadNpmWithRegistry(t, {
+    config: {
+      ...auth,
+      'script-shell': '/bin/bash',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        scripts: {
+          prepublishOnly: 'exit 0',
+          publish: 'exit 0',
+          postpublish: 'exit 0',
+        },
+      }),
+    },
+    mocks: {
+      '@npmcli/run-script': async (opts) => {
+        CAPTURED.push(opts)
+      },
+    },
+  })
+
+  registry.publish(pkg, {})
+  await npm.exec('publish', [])
+
+  for (const event of ['prepublishOnly', 'publish', 'postpublish']) {
+    const rs = CAPTURED.find(r => r.event === event)
+    t.ok(rs, `ran ${event}`)
+    t.equal(rs?.scriptShell, '/bin/bash', `${event} receives scriptShell`)
+  }
 })

@@ -27,7 +27,7 @@ const runSnapshotExecArgs = ['arg3', 'arg4'];
 
 tmpdir.refresh();
 
-// Build the snapshot with the vm-creating code in serialized main funciton.
+// Build the snapshot with the vm-creating code in serialized main function.
 spawnSyncAndExitWithoutError(
   embedtest,
   ['--', ...buildSnapshotExecArgs, ...snapshotBlobArgs, '--embedder-snapshot-create'],

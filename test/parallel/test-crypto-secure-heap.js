@@ -13,6 +13,10 @@ if (common.isASan) {
   common.skip('ASan does not play well with secure heap allocations');
 }
 
+if (process.features.openssl_is_boringssl) {
+  common.skip('BoringSSL does not support secure heap');
+}
+
 const assert = require('assert');
 const { fork } = require('child_process');
 const fixtures = require('../common/fixtures');

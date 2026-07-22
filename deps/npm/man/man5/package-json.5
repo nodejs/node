@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "March 2026" "NPM@11.12.1" ""
+.TH "PACKAGE.JSON" "5" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -917,6 +917,20 @@ To make sure the package \fB@npm/foo\fR is always installed as version \fB1.0.0\
 {
   "overrides": {
     "@npm/foo": "1.0.0"
+  }
+}
+.fi
+.RE
+.P
+Override values can use any specifier that npm accepts for dependencies, including an exact version, a semver range, a dist-tag, or a replacement specifier such as \fBnpm:\fR, \fBfile:\fR, or a Git URL.
+.P
+For example, if you only need to enforce a minimum patched release instead of one exact version, you can use a semver range:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "@npm/foo": "^1.0.0"
   }
 }
 .fi

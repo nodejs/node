@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
 });
 
 const { lib, functions } = ffi.dlopen(null, {
-  uv_os_getpid: { result: 'i32', parameters: [] },
+  uv_os_getpid: { return: 'i32', arguments: [] },
 });
 
 const getpid = functions.uv_os_getpid;

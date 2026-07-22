@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -222,8 +222,9 @@ static int slh_dsa_sign(void *vctx, unsigned char *sig, size_t *siglen,
         ctx->context_string, ctx->context_string_len,
         opt_rand, ctx->msg_encode,
         sig, siglen, sigsize);
-    if (opt_rand != add_rand)
-        OPENSSL_cleanse(opt_rand, n);
+    /* Only cleanse the temporary buffer generated for this signature. */
+    if (opt_rand == add_rand)
+        OPENSSL_cleanse(add_rand, sizeof(add_rand));
     return ret;
 }
 

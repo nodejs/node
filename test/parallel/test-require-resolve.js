@@ -64,6 +64,8 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     if (mod === 'node:quic') return;
     // TODO: Remove once node:ffi is no longer flagged
     if (mod === 'node:ffi') return;
+    // Remove once node:vfs is no longer flagged
+    if (mod === 'node:vfs') return;
     if (mod === 'node:sqlite' && !common.hasSQLite) return;
     assert.strictEqual(require.resolve.paths(mod), null);
     if (!mod.startsWith('node:')) {

@@ -90,7 +90,7 @@ void print_secrets(std::span<const uint8_t> secret,
 void print_hp_mask(std::span<const uint8_t> mask,
                    std::span<const uint8_t> sample);
 
-void log_printf(void *user_data, const char *fmt, ...);
+void log_write(void *user_data, char *msg, size_t len);
 
 void path_validation(const ngtcp2_path *path,
                      ngtcp2_path_validation_result res);

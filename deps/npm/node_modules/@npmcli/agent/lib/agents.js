@@ -203,4 +203,56 @@ module.exports = class Agent extends AgentBase {
 
     return super.addRequest(request, options)
   }
+
+  // When connect() rejects, agent-base removes only its placeholder socket, so Node never drains this.requests[name] and requests queued past maxSockets hang forever.
+  // On a failure we dispatch the next queued request ourselves.
+  // See npm/cli#9386 and TooTallNate/proxy-agents#427.
+  createSocket (req, options, cb) {
+    super.createSocket(req, options, (err, socket) => {
+      if (err) {
+        this.#drainPendingRequests(req, options)
+      }
+      cb(err, socket)
+    })
+  }
+
+  // Dispatch the next request queued behind maxSockets, reusing the slot the failed connection freed.
+  #drainPendingRequests (failedReq, options) {
+    const name = this.getName(options)
+    const queue = this.requests[name]
+    if (!queue || queue.length === 0) {
+      return
+    }
+
+    // Node's removeSocket() picks a queued request without shifting it off, so drop the failed one to avoid dispatching it twice.
+    const failedIndex = queue.indexOf(failedReq)
+    if (failedIndex !== -1) {
+      queue.splice(failedIndex, 1)
+    }
+    if (queue.length === 0) {
+      delete this.requests[name]
+      return
+    }
+
+    // Safety belt: only dispatch if a socket slot is genuinely free.
+    const socketCount = this.sockets[name] ? this.sockets[name].length : 0
+    if (socketCount >= this.maxSockets || this.totalSocketCount >= this.maxTotalSockets) {
+      return
+    }
+
+    const nextReq = queue.shift()
+    if (queue.length === 0) {
+      delete this.requests[name]
+    }
+
+    // All queued requests share this origin, so the failed request's options suit the next one.
+    // createSocket() recurses here if this connection also fails, draining the whole queue.
+    this.createSocket(nextReq, options, (err, socket) => {
+      if (err) {
+        nextReq.onSocket(null, err)
+      } else {
+        nextReq.onSocket(socket)
+      }
+    })
+  }
 }

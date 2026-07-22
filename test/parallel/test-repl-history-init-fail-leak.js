@@ -7,6 +7,8 @@ const path = require('path');
 const { ReplHistory } = require('internal/repl/history');
 const assert = require('assert');
 
+common.skipIfInspectorDisabled();
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 

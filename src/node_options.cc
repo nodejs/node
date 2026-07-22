@@ -524,7 +524,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-print-required-tla",
             "Print pending top-level await. If --require-module "
             "is true, evaluate asynchronous graphs loaded by `require()` but "
-            "do not run the microtasks, in order to to find and print "
+            "do not run the microtasks, in order to find and print "
             "top-level await in the graph",
             &EnvironmentOptions::print_required_tla,
             kAllowedInEnvvar);
@@ -610,6 +610,19 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
             kAllowedInEnvvar);
+  AddOption("--experimental-dtls",
+#if HAVE_DTLS
+            "experimental DTLS support",
+            &EnvironmentOptions::experimental_dtls,
+#else
+            "" /* undocumented when no-op */,
+            NoOp{},
+#endif
+            kAllowedInEnvvar);
+  AddOption("--experimental-vfs",
+            "experimental node:vfs module",
+            &EnvironmentOptions::experimental_vfs,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
@@ -643,6 +656,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-import-text",
+            "experimental support for importing source as text with import "
+            "attributes",
+            &EnvironmentOptions::experimental_import_text,
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
             &EnvironmentOptions::experimental_import_meta_resolve,
@@ -712,11 +730,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
-  AddOption("--experimental-repl-await",
-            "experimental await keyword support in REPL",
-            &EnvironmentOptions::experimental_repl_await,
-            kAllowedInEnvvar,
-            true);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
@@ -904,6 +917,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_config_file_path,
             kDisallowedInEnvvar);
   AddAlias("--experimental-default-config-file", "--experimental-config-file");
+  AddOption("--experimental-package-map",
+            "use the specified file for package map resolution",
+            &EnvironmentOptions::experimental_package_map_path,
+            kAllowedInEnvvar);
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
@@ -1001,6 +1018,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
             kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-tag-filter",
+            "run tests matching the given tag filter expression",
+            &EnvironmentOptions::experimental_test_tag_filter,
+            kDisallowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",

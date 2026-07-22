@@ -144,11 +144,13 @@ static int PBMAC1_PBKDF2_HMAC(OSSL_LIB_CTX *ctx, const char *propq,
     }
     pbkdf2_salt = pbkdf2_param->salt->value.octet_string;
 
-    /* RFC 9579 specifies missing key length as invalid */
+    /* RFC 9879 specifies missing key length as invalid */
     if (pbkdf2_param->keylength != NULL)
         keylen = ASN1_INTEGER_get(pbkdf2_param->keylength);
-    if (keylen <= 0 || keylen > EVP_MAX_MD_SIZE) {
-        ERR_raise(ERR_LIB_PKCS12, PKCS12_R_PARSE_ERROR);
+    /* RFC 9879 specifies too short key length as untrustworthy too */
+    if (keylen < 20 || keylen > EVP_MAX_MD_SIZE) {
+        ERR_raise_data(ERR_LIB_PKCS12, PKCS12_R_PARSE_ERROR,
+            "Invalid Key length (%d is not in the range 20..64)", keylen);
         goto err;
     }
 

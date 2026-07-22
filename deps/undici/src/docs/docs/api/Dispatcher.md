@@ -1,34 +1,61 @@
 # Dispatcher
 
-Extends: `events.EventEmitter`
+<!--introduced_in=v4.0.0-->
 
-Dispatcher is the core API used to dispatch requests.
+<!--type=module-->
 
-Requests are not guaranteed to be dispatched in order of invocation.
+<!-- source_link=lib/dispatcher/dispatcher.js -->
 
-## Instance Methods
+> Stability: 2 - Stable
 
-### `Dispatcher.close([callback]): Promise`
+`Dispatcher` is the core abstraction used to dispatch HTTP requests in undici.
+It extends [`EventEmitter`][] and defines the low-level [`dispatch()`][] contract
+along with the higher-level [`request()`][], [`stream()`][], [`pipeline()`][],
+[`connect()`][], and [`upgrade()`][] methods that every concrete dispatcher
+provides.
 
-Closes the dispatcher and gracefully waits for enqueued requests to complete before resolving.
+`Dispatcher` itself is abstract: its [`dispatch()`][], [`close()`][], and
+[`destroy()`][] methods throw `Error: not implemented`. Concrete dispatchers such
+as [`Client`][], [`Pool`][], [`BalancedPool`][], and [`Agent`][] implement the
+contract and are what application code instantiates. Requests are not guaranteed
+to be dispatched in the order in which they are invoked.
 
-Arguments:
+```mjs
+import { Dispatcher, Agent } from 'undici'
 
-* **callback** `(error: Error | null, data: null) => void` (optional)
-
-Returns: `void | Promise<null>` - Only returns a `Promise` if no `callback` argument was passed
-
-```js
-dispatcher.close() // -> Promise
-dispatcher.close(() => {}) // -> void
+const dispatcher = new Agent()
+console.log(dispatcher instanceof Dispatcher) // true
 ```
 
-#### Example - Request resolves before Client closes
+## Class: `Dispatcher`
 
-```js
-import { createServer } from 'http'
+<!-- YAML
+added: v4.0.0
+-->
+
+* Extends: {EventEmitter}
+
+Base dispatcher class. Concrete dispatchers extend it and implement the
+[`dispatch()`][] method on which the other request helpers are built.
+
+### `dispatcher.close([callback])`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* `callback` {Function} (optional) Invoked once the dispatcher is closed.
+  * `error` {Error|null}
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with `void` once the dispatcher is closed.
+
+Closes the dispatcher and gracefully waits for enqueued requests to complete
+before resolving or invoking `callback`.
+
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end('undici')
@@ -39,10 +66,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const { body } = await client.request({
-      path: '/',
-      method: 'GET'
-  })
+  const { body } = await client.request({ path: '/', method: 'GET' })
   body.setEncoding('utf8')
   body.on('data', console.log)
 } catch (error) {}
@@ -53,40 +77,41 @@ console.log('Client closed')
 server.close()
 ```
 
-### `Dispatcher.connect(options[, callback])`
+### `dispatcher.connect(options[, callback])`
 
-Starts two-way communications with the requested resource using [HTTP CONNECT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT).
+<!-- YAML
+added: v4.0.0
+-->
 
-Arguments:
+* `options` {Object}
+  * `origin` {string|URL} The origin to connect to.
+  * `path` {string} The request path.
+  * `headers` {UndiciHeaders} Request headers. **Default:** `null`.
+  * `signal` {AbortSignal|EventEmitter|null} A signal used to abort the request.
+    **Default:** `null`.
+  * `opaque` {any} An opaque value passed through to the returned `ConnectData`.
+  * `responseHeaders` {string|null} Set to `'raw'` to return the response headers
+    as a raw array instead of an object. **Default:** `null`.
+* `callback` {Function} (optional) Invoked when the connection is established.
+  * `error` {Error|null}
+  * `data` {Object}
+    * `statusCode` {number}
+    * `headers` {Object} The response headers.
+    * `socket` {Duplex} The established socket.
+    * `opaque` {any} The `opaque` value passed in `options`.
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with the `data` object described above.
 
-* **options** `ConnectOptions`
-* **callback** `(err: Error | null, data: ConnectData | null) => void` (optional)
+Starts two-way communications with the requested resource using the
+[HTTP `CONNECT`][] method.
 
-Returns: `void | Promise<ConnectData>` - Only returns a `Promise` if no `callback` argument was passed
-
-#### Parameter: `ConnectOptions`
-
-* **path** `string`
-* **headers** `UndiciHeaders` (optional) - Default: `null`
-* **signal** `AbortSignal | events.EventEmitter | null` (optional) - Default: `null`
-* **opaque** `unknown` (optional) - This argument parameter is passed through to `ConnectData`
-
-#### Parameter: `ConnectData`
-
-* **statusCode** `number`
-* **headers** `Record<string, string | string[] | undefined>`
-* **socket** `stream.Duplex`
-* **opaque** `unknown`
-
-#### Example - Connect request with echo
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
-  throw Error('should never get here')
+  throw new Error('should never get here')
 }).listen()
 
 server.on('connect', (req, socket, head) => {
@@ -107,9 +132,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const { socket } = await client.connect({
-    path: '/'
-  })
+  const { socket } = await client.connect({ path: '/' })
   const wanted = 'Body'
   let data = ''
   socket.on('data', d => { data += d })
@@ -120,35 +143,39 @@ try {
   })
   socket.write(wanted)
   socket.end()
-} catch (error) { }
+} catch (error) {}
 ```
 
-### `Dispatcher.destroy([error, callback]): Promise`
+### `dispatcher.destroy([error[, callback]])`
 
-Destroy the dispatcher abruptly with the given error. All the pending and running requests will be asynchronously aborted and error. Since this operation is asynchronously dispatched there might still be some progress on dispatched requests.
+<!-- YAML
+added: v4.0.0
+-->
 
-Both arguments are optional; the method can be called in four different ways:
+* `error` {Error|null} (optional) The error with which pending requests are
+  rejected. **Default:** `null`.
+* `callback` {Function} (optional) Invoked once the socket is closed.
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with `void` once the dispatcher is destroyed.
 
-Arguments:
+Destroys the dispatcher abruptly with the given `error`. All pending and running
+requests are asynchronously aborted and rejected. Because the operation is
+dispatched asynchronously, dispatched requests may still make some progress
+before being aborted.
 
-* **error** `Error | null` (optional)
-* **callback** `(error: Error | null, data: null) => void` (optional)
+Both arguments are optional, so the method can be called in four ways:
 
-Returns: `void | Promise<void>` - Only returns a `Promise` if no `callback` argument was passed
-
-```js
+```mjs
 dispatcher.destroy() // -> Promise
 dispatcher.destroy(new Error()) // -> Promise
 dispatcher.destroy(() => {}) // -> void
 dispatcher.destroy(new Error(), () => {}) // -> void
 ```
 
-#### Example - Request is aborted when Client is destroyed
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end()
@@ -159,10 +186,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const request = client.request({
-    path: '/',
-    method: 'GET'
-  })
+  const request = client.request({ path: '/', method: 'GET' })
   client.destroy()
     .then(() => {
       console.log('Client destroyed')
@@ -174,85 +198,107 @@ try {
 }
 ```
 
-### `Dispatcher.dispatch(options, handler)`
+### `dispatcher.dispatch(options, handler)`
 
-This is the low level API which all the preceding APIs are implemented on top of.
-This API is expected to evolve through semver-major versions and is less stable than the preceding higher level APIs.
-It is primarily intended for library developers who implement higher level APIs on top of this.
+<!-- YAML
+added: v4.0.0
+-->
 
-Arguments:
+* `options` {Object}
+  * `origin` {string|URL} (optional) The origin to dispatch the request to.
+  * `path` {string} The request path.
+  * `method` {string} The HTTP method, e.g. `'GET'` or `'POST'`.
+  * `body` {string|Buffer|Uint8Array|Readable|FormData|null} The request body.
+    **Default:** `null`.
+  * `headers` {UndiciHeaders} Request headers. **Default:** `null`.
+  * `query` {Object} Query string parameters embedded into the request URL. Both
+    keys and values are encoded with `encodeURIComponent`. **Default:** `null`.
+  * `idempotent` {boolean} Whether the request can be safely retried. If `false`,
+    the request is not sent until all preceding requests in the pipeline have
+    completed. **Default:** `true` when `method` is `'HEAD'` or `'GET'`.
+  * `blocking` {boolean} Whether the response is expected to block the pipeline.
+    When `true`, further pipelining on the same connection is avoided until
+    headers have been received. **Default:** `method !== 'HEAD'`.
+  * `typeOfService` {number|null} The IP Type of Service (ToS) value for the
+    request socket. Must be an integer between `0` and `255`. **Default:** `0`.
+  * `upgrade` {boolean|string|null} Upgrades the request, e.g. to `'Websocket'`.
+    **Default:** `null`, or the request method when it is `'CONNECT'`.
+  * `headersTimeout` {number|null} The time, in milliseconds, the parser waits to
+    receive the complete HTTP headers. Defaults to 300 seconds.
+  * `bodyTimeout` {number|null} The time, in milliseconds, after which the request
+    times out while receiving body data. Monitors the time between body chunks.
+    Use `0` to disable it entirely. Defaults to 300 seconds.
+  * `reset` {boolean} Whether the request should establish a keep-alive
+    connection. **Default:** `false`.
+  * `expectContinue` {boolean} For HTTP/2, appends the `expect: 100-continue`
+    header and halts the request body until a `100 Continue` is received from the
+    remote server. **Default:** `false`.
+* `handler` {Object} A set of callbacks invoked over the request lifecycle.
+  * `onRequestStart` {Function} Invoked before the request is dispatched on the
+    socket. May be invoked multiple times when the request is retried.
+    * `controller` {DispatchController}
+    * `context` {any}
+  * `onRequestUpgrade` {Function} (optional) Invoked when the request is upgraded.
+    Required when `options.upgrade` is set or `options.method` is `'CONNECT'`.
+    * `controller` {DispatchController}
+    * `statusCode` {number}
+    * `headers` {Object}
+    * `socket` {Duplex}
+  * `onResponseStart` {Function} (optional) Invoked when the status code and
+    headers have been received. May be invoked multiple times for 1xx
+    informational responses. Not used for `upgrade` requests.
+    * `controller` {DispatchController}
+    * `statusCode` {number}
+    * `headers` {Object}
+    * `statusMessage` {string} (optional)
+  * `onResponseData` {Function} (optional) Invoked when response payload data is
+    received. Not used for `upgrade` requests.
+    * `controller` {DispatchController}
+    * `chunk` {Buffer}
+  * `onResponseEnd` {Function} (optional) Invoked when the response payload and
+    trailers have been received and the request has completed. Not used for
+    `upgrade` requests.
+    * `controller` {DispatchController}
+    * `trailers` {Object}
+  * `onResponseError` {Function} (optional) Invoked when an error occurs. Must not
+    throw.
+    * `controller` {DispatchController}
+    * `error` {Error}
+  * `onResponseStarted` {Function} (optional) Invoked when the response is
+    received, before headers have been read.
+  * `onBodySent` {Function} (optional) Invoked when a chunk of the request body is
+    sent. May be invoked multiple times for chunked requests.
+    * `chunk` {Buffer}
+  * `onRequestSent` {Function} (optional) Invoked after the request body is fully
+    sent.
+* Returns: {boolean} `false` when the dispatcher is busy and further `dispatch()`
+  calls will make no progress until the [`'drain'`][] event is emitted.
 
-* **options** `DispatchOptions`
-* **handler** `DispatchHandler`
+This is the low-level API on which all the higher-level methods are built. This
+API is expected to evolve through semver-major versions and is less stable than
+the higher-level methods. It is primarily intended for library developers who
+implement higher-level APIs on top of it.
 
-Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls won't make any progress until the `'drain'` event has been emitted.
+The `controller` passed to each handler is a `DispatchController` with the
+following shape:
 
-#### Parameter: `DispatchOptions`
+* `aborted` {boolean} Whether the request has been aborted.
+* `paused` {boolean} Whether the request is paused.
+* `reason` {Error|null} The reason the request was aborted, if any.
+* `rawHeaders` {Buffer[]|string[]|Object|null} The raw response headers,
+  preserving duplicates and casing.
+* `rawTrailers` {Buffer[]|string[]|Object|null} The raw response trailers.
+* `abort(reason)` Aborts the request with the given `reason`.
+* `pause()` Pauses the response stream.
+* `resume()` Resumes the response stream.
 
-* **origin** `string | URL`
-* **path** `string`
-* **method** `string`
-* **reset** `boolean` (optional) - Default: `false` - If `false`, the request will attempt to create a long-living connection by sending the `connection: keep-alive` header,otherwise will attempt to close it immediately after response by sending `connection: close` within the request and closing the socket afterwards.
-* **body** `string | Buffer | Uint8Array | stream.Readable | Iterable | AsyncIterable | null` (optional) - Default: `null`
-* **headers** `UndiciHeaders` (optional) - Default: `null`.
-* **query** `Record<string, any> | null` (optional) - Default: `null` - Query string params to be embedded in the request URL. Note that both keys and values of query are encoded using `encodeURIComponent`. If for some reason you need to send them unencoded, embed query params into path directly instead.
-* **idempotent** `boolean` (optional) - Default: `true` if `method` is `'HEAD'` or `'GET'` - Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline has completed.
-* **blocking** `boolean` (optional) - Default: `method !== 'HEAD'` - Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received.
-* **upgrade** `string | null` (optional) - Default: `null` - Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`.
-* **bodyTimeout** `number | null` (optional) - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 300 seconds.
-* **headersTimeout** `number | null` (optional) - The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 300 seconds.
-* **expectContinue** `boolean` (optional) - Default: `false` - For H2, it appends the expect: 100-continue header, and halts the request body until a 100-continue is received from the remote server
+Call `controller.pause()` and `controller.resume()` to apply backpressure rather
+than returning `false` from a handler.
 
-#### Parameter: `DispatchHandler`
-
-* **onRequestStart** `(controller: DispatchController, context: object) => void` - Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails.
-* **onRequestUpgrade** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string[]>, socket: Duplex) => void` (optional) - Invoked when request is upgraded. Required if `DispatchOptions.upgrade` is defined or `DispatchOptions.method === 'CONNECT'`.
-* **onResponseStart** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string []>, statusMessage?: string) => void` - Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. Not required for `upgrade` requests. Any return value is ignored.
-* **onResponseData** `(controller: DispatchController, chunk: Buffer) => void` - Invoked when response payload data is received. Not required for `upgrade` requests.
-* **onResponseEnd** `(controller: DispatchController, trailers: Record<string, string | string[]>) => void` - Invoked when response payload and trailers have been received and the request has completed. Not required for `upgrade` requests.
-* **onResponseError** `(controller: DispatchController, error: Error) => void` - Invoked when an error has occurred. May not throw.
-
-#### Migration from legacy handler API
-
-If you were previously using `onConnect/onHeaders/onData/onComplete/onError`, switch to the new callbacks:
-
-- `onConnect(abort)` → `onRequestStart(controller)` and call `controller.abort(reason)`
-- `onHeaders(status, rawHeaders, resume, statusText)` → `onResponseStart(controller, status, headers, statusText)`
-- `onData(chunk)` → `onResponseData(controller, chunk)`
-- `onComplete(trailers)` → `onResponseEnd(controller, trailers)`
-- `onError(err)` → `onResponseError(controller, err)`
-- `onUpgrade(status, rawHeaders, socket)` → `onRequestUpgrade(controller, status, headers, socket)`
-
-To access raw header arrays (for preserving duplicates/casing), read them from the controller:
-
-- `controller.rawHeaders` for response headers
-- `controller.rawTrailers` for trailers
-
-Pause/resume now uses the controller:
-
-- Call `controller.pause()` and `controller.resume()` instead of returning `false` from handlers.
-
-#### Compatibility notes
-
-Undici now stores the global dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
-This avoids conflicts with runtimes (such as Node.js built-in `fetch`) that still rely on the legacy dispatcher handler interface.
-
-`setGlobalDispatcher()` also mirrors the configured dispatcher to `Symbol.for('undici.globalDispatcher.1')` using a `Dispatcher1Wrapper`, so Node's built-in `fetch` can keep using the legacy handler contract.
-
-If you need to expose a new dispatcher/agent to legacy v1 handler consumers (`onConnect/onHeaders/onData/onComplete/onError/onUpgrade`), use `Dispatcher1Wrapper`:
-
-```js
-import { Agent, Dispatcher1Wrapper } from 'undici'
-
-const legacyCompatibleDispatcher = new Dispatcher1Wrapper(new Agent())
-```
-
-#### Example 1 - Dispatch GET request
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end('Hello, World!')
@@ -267,9 +313,7 @@ const data = []
 client.dispatch({
   path: '/',
   method: 'GET',
-  headers: {
-    'x-foo': 'bar'
-  }
+  headers: { 'x-foo': 'bar' }
 }, {
   onRequestStart: () => {
     console.log('Connected!')
@@ -278,158 +322,52 @@ client.dispatch({
     console.error(error)
   },
   onResponseStart: (_controller, statusCode, headers) => {
-    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
+    console.log(`statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
   },
   onResponseData: (_controller, chunk) => {
-    console.log('onResponseData: chunk received')
     data.push(chunk)
   },
   onResponseEnd: (_controller, trailers) => {
-    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
-    const res = Buffer.concat(data).toString('utf8')
-    console.log(`Data: ${res}`)
+    console.log(`trailers: ${JSON.stringify(trailers)}`)
+    console.log(`Data: ${Buffer.concat(data).toString('utf8')}`)
     client.close()
     server.close()
   }
 })
 ```
 
-#### Example 2 - Dispatch Upgrade Request
+### `dispatcher.pipeline(options, handler)`
 
-```js
-import { createServer } from 'http'
+<!-- YAML
+added: v4.0.0
+-->
+
+* `options` {Object} Accepts every field of [`dispatcher.request()`][]'s
+  `options`, plus:
+  * `objectMode` {boolean} Set to `true` when `handler` returns an object stream.
+    **Default:** `false`.
+* `handler` {Function} Returns a `Readable` from which the result is read.
+  * `data` {Object}
+    * `statusCode` {number}
+    * `headers` {Object} The response headers.
+    * `opaque` {any} The `opaque` value passed in `options`.
+    * `body` {Readable} The response body.
+    * `context` {Object}
+  * Returns: {Readable}
+* Returns: {Duplex} A duplex stream that writes to the request and reads from the
+  response.
+
+For easy use with [`stream.pipeline()`][]. The `handler` should return a
+`Readable` from which the result is read. Usually it returns the `body` directly,
+unless a transformation is needed based on, for example, `headers` or
+`statusCode`. The `handler` should validate the response and save any required
+state; if there is an error, it should be thrown.
+
+```mjs
+import { Readable, Writable, PassThrough, pipeline } from 'node:stream'
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
-
-const server = createServer((request, response) => {
-  response.end()
-}).listen()
-
-await once(server, 'listening')
-
-server.on('upgrade', (request, socket, head) => {
-  console.log('Node.js Server - upgrade event')
-  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n')
-  socket.write('Upgrade: WebSocket\r\n')
-  socket.write('Connection: Upgrade\r\n')
-  socket.write('\r\n')
-  socket.end()
-})
-
-const client = new Client(`http://localhost:${server.address().port}`)
-
-client.dispatch({
-  path: '/',
-  method: 'GET',
-  upgrade: 'websocket'
-}, {
-  onRequestStart: () => {
-    console.log('Undici Client - onRequestStart')
-  },
-  onResponseError: () => {
-    console.log('onResponseError') // shouldn't print
-  },
-  onRequestUpgrade: (_controller, statusCode, headers, socket) => {
-    console.log('Undici Client - onRequestUpgrade')
-    console.log(`onRequestUpgrade Headers: ${JSON.stringify(headers)}`)
-    socket.on('data', buffer => {
-      console.log(buffer.toString('utf8'))
-    })
-    socket.on('end', () => {
-      client.close()
-      server.close()
-    })
-    socket.end()
-  }
-})
-```
-
-#### Example 3 - Dispatch POST request
-
-```js
-import { createServer } from 'http'
-import { Client } from 'undici'
-import { once } from 'events'
-
-const server = createServer((request, response) => {
-  request.on('data', (data) => {
-    console.log(`Request Data: ${data.toString('utf8')}`)
-    const body = JSON.parse(data)
-    body.message = 'World'
-    response.end(JSON.stringify(body))
-  })
-}).listen()
-
-await once(server, 'listening')
-
-const client = new Client(`http://localhost:${server.address().port}`)
-
-const data = []
-
-client.dispatch({
-  path: '/',
-  method: 'POST',
-  headers: {
-    'content-type': 'application/json'
-  },
-  body: JSON.stringify({ message: 'Hello' })
-}, {
-  onRequestStart: () => {
-    console.log('Connected!')
-  },
-  onResponseError: (_controller, error) => {
-    console.error(error)
-  },
-  onResponseStart: (_controller, statusCode, headers) => {
-    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
-  },
-  onResponseData: (_controller, chunk) => {
-    console.log('onResponseData: chunk received')
-    data.push(chunk)
-  },
-  onResponseEnd: (_controller, trailers) => {
-    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
-    const res = Buffer.concat(data).toString('utf8')
-    console.log(`Response Data: ${res}`)
-    client.close()
-    server.close()
-  }
-})
-```
-
-### `Dispatcher.pipeline(options, handler)`
-
-For easy use with [stream.pipeline](https://nodejs.org/api/stream.html#streampipelinesource-transforms-destination-options). The `handler` argument should return a `Readable` from which the result will be read. Usually it should just return the `body` argument unless some kind of transformation needs to be performed based on e.g. `headers` or `statusCode`. The `handler` should validate the response and save any required state. If there is an error, it should be thrown. The function returns a `Duplex` which writes to the request and reads from the response.
-
-Arguments:
-
-* **options** `PipelineOptions`
-* **handler** `(data: PipelineHandlerData) => stream.Readable`
-
-Returns: `stream.Duplex`
-
-#### Parameter: PipelineOptions
-
-Extends: [`RequestOptions`](/docs/docs/api/Dispatcher.md#parameter-requestoptions)
-
-* **objectMode** `boolean` (optional) - Default: `false` - Set to `true` if the `handler` will return an object stream.
-
-#### Parameter: PipelineHandlerData
-
-* **statusCode** `number`
-* **headers** `Record<string, string | string[] | undefined>`
-* **opaque** `unknown`
-* **body** `stream.Readable`
-* **context** `object`
-* **onInfo** `({statusCode: number, headers: Record<string, string | string[]>}) => void | null` (optional) - Default: `null` - Callback collecting all the info headers (HTTP 100-199) received.
-
-#### Example 1 - Pipeline Echo
-
-```js
-import { Readable, Writable, PassThrough, pipeline } from 'stream'
-import { createServer } from 'http'
-import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   request.pipe(response)
@@ -448,10 +386,7 @@ pipeline(
       this.push(null)
     }
   }),
-  client.pipeline({
-    path: '/',
-    method: 'GET'
-  }, ({ statusCode, headers, body }) => {
+  client.pipeline({ path: '/', method: 'GET' }, ({ statusCode, headers, body }) => {
     console.log(`response received ${statusCode}`)
     console.log('headers', headers)
     return pipeline(body, new PassThrough(), () => {})
@@ -470,79 +405,72 @@ pipeline(
     if (error) {
       console.error(error)
     }
-
     client.close()
     server.close()
   }
 )
 ```
 
-### `Dispatcher.request(options[, callback])`
+### `dispatcher.request(options[, callback])`
 
-Performs a HTTP request.
+<!-- YAML
+added: v4.0.0
+-->
 
-Non-idempotent requests will not be pipelined in order
-to avoid indirect failures.
+* `options` {Object} Accepts every field of [`dispatcher.dispatch()`][]'s
+  `options`, plus:
+  * `opaque` {any} A value passed through to the returned response data.
+    **Default:** `null`.
+  * `signal` {AbortSignal|EventEmitter|null} A signal used to abort the request.
+    **Default:** `null`.
+  * `onInfo` {Function|null} Invoked for each informational (1xx) response
+    received. **Default:** `null`.
+    * `info` {Object}
+      * `statusCode` {number}
+      * `headers` {Object}
+  * `responseHeaders` {string|null} Set to `'raw'` to return the response headers
+    as a raw array. **Default:** `null`.
+  * `highWaterMark` {number} The high water mark of the response body stream.
+    **Default:** `65536` (64 KiB).
+* `callback` {Function} (optional) Invoked when the response is received.
+  * `error` {Error|null}
+  * `data` {Object}
+    * `statusCode` {number}
+    * `statusText` {string} The status message, e.g. `'OK'` or `'Not Found'`.
+    * `headers` {Object} The response headers. All keys are lower-cased.
+    * `body` {Readable} The response body, which also implements the
+      [body mixin][] from the Fetch Standard.
+    * `trailers` {Object} Starts out empty and is mutated to contain the trailers
+      after `body` emits `'end'`.
+    * `opaque` {any} The `opaque` value passed in `options`.
+    * `context` {Object}
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with the `data` object described above.
 
-Idempotent requests will be automatically retried if
-they fail due to indirect failure from the request
-at the head of the pipeline. This does not apply to
-idempotent requests with a stream request body.
+Performs an HTTP request. `options.method` must not be `'CONNECT'`.
 
-All response bodies must always be fully consumed or destroyed.
+Non-idempotent requests are not pipelined, to avoid indirect failures. Idempotent
+requests are automatically retried if they fail due to an indirect failure from
+the request at the head of the pipeline; this does not apply to idempotent
+requests with a stream request body. All response bodies must always be fully
+consumed or destroyed.
 
-Arguments:
+The `body` exposes the following [body mixin][] methods and properties:
+[`.arrayBuffer()`][], [`.blob()`][], [`.bytes()`][], [`.json()`][],
+[`.text()`][], `body`, and `bodyUsed`. A body cannot be consumed twice; for
+example, calling `text()` after `json()` throws a `TypeError`. The body also
+provides `dump({ limit })`, which discards up to `limit` bytes (default
+`131072`) without destroying the socket.
 
-* **options** `RequestOptions`
-* **callback** `(error: Error | null, data: ResponseData) => void` (optional)
+The body is always a `Readable`, even when empty. Deserializing an empty body
+with `json()` throws. To guard against this, verify the status code is not `204`
+and the `content-type` header starts with `application/json` before calling
+`json()`.
 
-Returns: `void | Promise<ResponseData>` - Only returns a `Promise` if no `callback` argument was passed.
-
-#### Parameter: `RequestOptions`
-
-Extends: [`DispatchOptions`](/docs/docs/api/Dispatcher.md#parameter-dispatchoptions)
-
-* **opaque** `unknown` (optional) - Default: `null` - Used for passing through context to `ResponseData`.
-* **signal** `AbortSignal | events.EventEmitter | null` (optional) - Default: `null`.
-* **onInfo** `({statusCode: number, headers: Record<string, string | string[]>}) => void | null` (optional) - Default: `null` - Callback collecting all the info headers (HTTP 100-199) received.
-
-The `RequestOptions.method` property should not be value `'CONNECT'`.
-
-#### Parameter: `ResponseData`
-
-* **statusCode** `number`
-* **statusText** `string` - The status message from the response (e.g., "OK", "Not Found").
-* **headers** `Record<string, string | string[]>` - Note that all header keys are lower-cased, e.g. `content-type`.
-* **body** `stream.Readable` which also implements [the body mixin from the Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
-* **trailers** `Record<string, string>` - This object starts out
-  as empty and will be mutated to contain trailers after `body` has emitted `'end'`.
-* **opaque** `unknown`
-* **context** `object`
-
-`body` contains the following additional [body mixin](https://fetch.spec.whatwg.org/#body-mixin) methods and properties:
-
-* [`.arrayBuffer()`](https://fetch.spec.whatwg.org/#dom-body-arraybuffer)
-* [`.blob()`](https://fetch.spec.whatwg.org/#dom-body-blob)
-* [`.bytes()`](https://fetch.spec.whatwg.org/#dom-body-bytes)
-* [`.json()`](https://fetch.spec.whatwg.org/#dom-body-json)
-* [`.text()`](https://fetch.spec.whatwg.org/#dom-body-text)
-* `body`
-* `bodyUsed`
-
-`body` can not be consumed twice. For example, calling `text()` after `json()` throws `TypeError`.
-
-`body` contains the following additional extensions:
-
-- `dump({ limit: Integer })`, dump the response by reading up to `limit` bytes without killing the socket (optional) - Default: 131072.
-
-Note that body will still be a `Readable` even if it is empty, but attempting to deserialize it with `json()` will result in an exception. Recommended way to ensure there is a body to deserialize is to check if status code is not 204, and `content-type` header starts with `application/json`.
-
-#### Example 1 - Basic GET Request
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.end('Hello, World!')
@@ -573,107 +501,28 @@ try {
 }
 ```
 
-#### Example 2 - Aborting a request
+A request can be aborted with an `AbortSignal`, with any `EventEmitter` that
+emits an `'abort'` event, or by destroying the response body:
 
-> Node.js v15+ is required to run this example
-
-```js
-import { createServer } from 'http'
+```mjs
 import { Client } from 'undici'
-import { once } from 'events'
 
-const server = createServer((request, response) => {
-  response.end('Hello, World!')
-}).listen()
-
-await once(server, 'listening')
-
-const client = new Client(`http://localhost:${server.address().port}`)
+const client = new Client('http://localhost:3000')
 const abortController = new AbortController()
 
 try {
-  client.request({
-    path: '/',
-    method: 'GET',
-    signal: abortController.signal
-  })
+  client.request({ path: '/', method: 'GET', signal: abortController.signal })
 } catch (error) {
-  console.error(error) // should print an RequestAbortedError
-  client.close()
-  server.close()
+  console.error(error) // RequestAbortedError
 }
 
 abortController.abort()
 ```
 
-Alternatively, any `EventEmitter` that emits an `'abort'` event may be used as an abort controller:
+When the response body is conditionally read, always fully consume it otherwise:
 
-```js
-import { createServer } from 'http'
-import { Client } from 'undici'
-import EventEmitter, { once } from 'events'
-
-const server = createServer((request, response) => {
-  response.end('Hello, World!')
-}).listen()
-
-await once(server, 'listening')
-
-const client = new Client(`http://localhost:${server.address().port}`)
-const ee = new EventEmitter()
-
-try {
-  client.request({
-    path: '/',
-    method: 'GET',
-    signal: ee
-  })
-} catch (error) {
-  console.error(error) // should print an RequestAbortedError
-  client.close()
-  server.close()
-}
-
-ee.emit('abort')
-```
-
-Destroying the request or response body will have the same effect.
-
-```js
-import { createServer } from 'http'
-import { Client } from 'undici'
-import { once } from 'events'
-
-const server = createServer((request, response) => {
-  response.end('Hello, World!')
-}).listen()
-
-await once(server, 'listening')
-
-const client = new Client(`http://localhost:${server.address().port}`)
-
-try {
-  const { body } = await client.request({
-    path: '/',
-    method: 'GET'
-  })
-  body.destroy()
-} catch (error) {
-  console.error(error) // should print an RequestAbortedError
-  client.close()
-  server.close()
-}
-```
-
-#### Example 3 - Conditionally reading the body
-
-Remember to fully consume the body even in the case when it is not read.
-
-```js
-const { body, statusCode } = await client.request({
-  path: '/',
-  method: 'GET'
-})
+```mjs
+const { body, statusCode } = await client.request({ path: '/', method: 'GET' })
 
 if (statusCode === 200) {
   return await body.arrayBuffer()
@@ -684,40 +533,42 @@ await body.dump()
 return null
 ```
 
-### `Dispatcher.stream(options, factory[, callback])`
+### `dispatcher.stream(options, factory[, callback])`
 
-A faster version of `Dispatcher.request`. This method expects the second argument `factory` to return a [`stream.Writable`](https://nodejs.org/api/stream.html#stream_class_stream_writable) stream which the response will be written to. This improves performance by avoiding creating an intermediate [`stream.Readable`](https://nodejs.org/api/stream.html#stream_readable_streams) stream when the user expects to directly pipe the response body to a [`stream.Writable`](https://nodejs.org/api/stream.html#stream_class_stream_writable) stream.
+<!-- YAML
+added: v4.0.0
+-->
 
-As demonstrated in [Example 1 - Basic GET stream request](/docs/docs/api/Dispatcher.md#example-1-basic-get-stream-request), it is recommended to use the `option.opaque` property to avoid creating a closure for the `factory` method. This pattern works well with Node.js Web Frameworks such as [Fastify](https://fastify.io). See [Example 2 - Stream to Fastify Response](/docs/docs/api/Dispatch.md#example-2-stream-to-fastify-response) for more details.
+* `options` {Object} Accepts the same fields as [`dispatcher.request()`][]'s
+  `options`.
+* `factory` {Function} Returns the `Writable` to which the response is written.
+  * `data` {Object}
+    * `statusCode` {number}
+    * `headers` {Object} The response headers.
+    * `opaque` {any} The `opaque` value passed in `options`.
+    * `context` {Object}
+  * Returns: {Writable}
+* `callback` {Function} (optional) Invoked when the request has completed.
+  * `error` {Error|null}
+  * `data` {Object}
+    * `opaque` {any} The `opaque` value passed in `options`.
+    * `trailers` {Object}
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with the `data` object described above.
 
-Arguments:
+A faster version of [`dispatcher.request()`][]. The `factory` returns a
+[`Writable`][] to which the response is written, which avoids creating an
+intermediate [`Readable`][] when the caller intends to pipe the response body
+directly to a `Writable`.
 
-* **options** `RequestOptions`
-* **factory** `(data: StreamFactoryData) => stream.Writable`
-* **callback** `(error: Error | null, data: StreamData) => void` (optional)
+Use `options.opaque` to avoid creating a closure for the `factory` method. This
+pattern works well with Node.js web frameworks such as [Fastify][].
 
-Returns: `void | Promise<StreamData>` - Only returns a `Promise` if no `callback` argument was passed
-
-#### Parameter: `StreamFactoryData`
-
-* **statusCode** `number`
-* **headers** `Record<string, string | string[] | undefined>`
-* **opaque** `unknown`
-* **onInfo** `({statusCode: number, headers: Record<string, string | string[]>}) => void | null` (optional) - Default: `null` - Callback collecting all the info headers (HTTP 100-199) received.
-
-#### Parameter: `StreamData`
-
-* **opaque** `unknown`
-* **trailers** `Record<string, string>`
-* **context** `object`
-
-#### Example 1 - Basic GET stream request
-
-```js
-import { createServer } from 'http'
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
-import { Writable } from 'stream'
+import { once } from 'node:events'
+import { Writable } from 'node:stream'
 
 const server = createServer((request, response) => {
   response.end('Hello, World!')
@@ -754,95 +605,38 @@ try {
 }
 ```
 
-#### Example 2 - Stream to Fastify Response
+### `dispatcher.upgrade(options[, callback])`
 
-In this example, a (fake) request is made to the fastify server using `fastify.inject()`. This request then executes the fastify route handler which makes a subsequent request to the raw Node.js http server using `undici.dispatcher.stream()`. The fastify response is passed to the `opaque` option so that undici can tap into the underlying writable stream using `response.raw`. This methodology demonstrates how one could use undici and fastify together to create fast-as-possible requests from one backend server to another.
+<!-- YAML
+added: v4.0.0
+-->
 
-```js
-import { createServer } from 'http'
+* `options` {Object}
+  * `path` {string} The request path.
+  * `method` {string} The HTTP method. **Default:** `'GET'`.
+  * `headers` {UndiciHeaders} Request headers. **Default:** `null`.
+  * `protocol` {string} A comma-separated list of protocols, in descending
+    preference order. **Default:** `'Websocket'`.
+  * `signal` {AbortSignal|EventEmitter|null} A signal used to abort the request.
+    **Default:** `null`.
+  * `responseHeaders` {string|null} Set to `'raw'` to return the response headers
+    as a raw array. **Default:** `null`.
+* `callback` {Function} (optional) Invoked when the upgrade completes.
+  * `error` {Error|null}
+  * `data` {Object}
+    * `headers` {Object} The response headers.
+    * `socket` {Duplex} The upgraded socket.
+    * `opaque` {any}
+* Returns: {Promise} A `Promise` is returned only when `callback` is omitted. It
+  resolves with the `data` object described above.
+
+Upgrades to a different protocol. See
+[MDN: Protocol upgrade mechanism][] for more details.
+
+```mjs
+import { createServer } from 'node:http'
 import { Client } from 'undici'
-import { once } from 'events'
-import fastify from 'fastify'
-
-const nodeServer = createServer((request, response) => {
-  response.end('Hello, World! From Node.js HTTP Server')
-}).listen()
-
-await once(nodeServer, 'listening')
-
-console.log('Node Server listening')
-
-const nodeServerUndiciClient = new Client(`http://localhost:${nodeServer.address().port}`)
-
-const fastifyServer = fastify()
-
-fastifyServer.route({
-  url: '/',
-  method: 'GET',
-  handler: (request, response) => {
-    nodeServerUndiciClient.stream({
-      path: '/',
-      method: 'GET',
-      opaque: response
-    }, ({ opaque }) => opaque.raw)
-  }
-})
-
-await fastifyServer.listen()
-
-console.log('Fastify Server listening')
-
-const fastifyServerUndiciClient = new Client(`http://localhost:${fastifyServer.server.address().port}`)
-
-try {
-  const { statusCode, body } = await fastifyServerUndiciClient.request({
-    path: '/',
-    method: 'GET'
-  })
-
-  console.log(`response received ${statusCode}`)
-  body.setEncoding('utf8')
-  body.on('data', console.log)
-
-  nodeServerUndiciClient.close()
-  fastifyServerUndiciClient.close()
-  fastifyServer.close()
-  nodeServer.close()
-} catch (error) { }
-```
-
-### `Dispatcher.upgrade(options[, callback])`
-
-Upgrade to a different protocol. Visit [MDN - HTTP - Protocol upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) for more details.
-
-Arguments:
-
-* **options** `UpgradeOptions`
-
-* **callback** `(error: Error | null, data: UpgradeData) => void` (optional)
-
-Returns: `void | Promise<UpgradeData>` - Only returns a `Promise` if no `callback` argument was passed
-
-#### Parameter: `UpgradeOptions`
-
-* **path** `string`
-* **method** `string` (optional) - Default: `'GET'`
-* **headers** `UndiciHeaders` (optional) - Default: `null`
-* **protocol** `string` (optional) - Default: `'Websocket'` - A string of comma separated protocols, in descending preference order.
-* **signal** `AbortSignal | EventEmitter | null` (optional) - Default: `null`
-
-#### Parameter: `UpgradeData`
-
-* **headers** `http.IncomingHeaders`
-* **socket** `stream.Duplex`
-* **opaque** `unknown`
-
-#### Example 1 - Basic Upgrade Request
-
-```js
-import { createServer } from 'http'
-import { Client } from 'undici'
-import { once } from 'events'
+import { once } from 'node:events'
 
 const server = createServer((request, response) => {
   response.statusCode = 101
@@ -856,9 +650,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const { headers, socket } = await client.upgrade({
-    path: '/',
-  })
+  const { headers, socket } = await client.upgrade({ path: '/' })
   socket.on('end', () => {
     console.log(`upgrade: ${headers.upgrade}`) // upgrade: Websocket
     client.close()
@@ -872,109 +664,62 @@ try {
 }
 ```
 
-### `Dispatcher.compose(interceptors[, interceptor])`
+### `dispatcher.compose(interceptors[, interceptor])`
 
-Compose a new dispatcher from the current dispatcher and the given interceptors.
+<!-- YAML
+added: v6.9.0
+-->
 
-> _Notes_:
-> - The order of the interceptors matters. The last interceptor will be the first to be called.
-> - It is important to note that the `interceptor` function should return a function that follows the `Dispatcher.dispatch` signature.
-> - Any fork of the chain of `interceptors` can lead to unexpected results.
->
-> **Interceptor Stack Visualization:**
-> ```
-> compose([interceptor1, interceptor2, interceptor3])
->
-> Request Flow:
-> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-> │   Request   │───▶│interceptor3 │───▶│interceptor2 │───▶│interceptor1 │───▶│  dispatcher │
-> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    │   .dispatch │
->                           ▲                   ▲                   ▲         └─────────────┘
->                           │                   │                   │                ▲
->                    (called first)      (called second)     (called last)           │
->                                                                                    │
-> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
-> │  Response   │◀───│interceptor3 │◀───│interceptor2 │◀───│interceptor1 │◀─────────┘
-> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
->
-> The interceptors are composed in reverse order due to function composition.
-> ```
+* `interceptors` {Array|Function} An array of interceptor functions, or the first
+  of several interceptors passed as separate arguments.
+* `...interceptor` {Function} Additional interceptors when passed as separate
+  arguments.
+* Returns: {Dispatcher} A new dispatcher that applies the interceptors over the
+  current dispatcher's [`dispatch()`][] method.
 
-Arguments:
+Composes a new dispatcher from the current dispatcher and the given
+interceptors. Each interceptor is a function that takes a `dispatch` method and
+returns a `dispatch`-like function with the same signature
+(`(options, handler)`).
 
-* **interceptors** `Interceptor[interceptor[]]`: It is an array of `Interceptor` functions passed as only argument, or several interceptors passed as separate arguments.
+The order of the interceptors matters: the last interceptor in the chain is the
+first to be called. Forking the chain of interceptors can lead to unexpected
+results.
 
-Returns: `Dispatcher`.
+```text
+compose([interceptor1, interceptor2, interceptor3])
 
-#### Parameter: `Interceptor`
+Request flow:
+Request -> interceptor3 -> interceptor2 -> interceptor1 -> dispatcher.dispatch
+           (called first)  (called second) (called last)
+```
 
-A function that takes a `dispatch` method and returns a `dispatch`-like function.
-
-#### Example 1 - Basic Compose
-
-```js
-const { Client, RedirectHandler } = require('undici')
+```mjs
+import { Client, RedirectHandler } from 'undici'
 
 const redirectInterceptor = dispatch => {
-    return (opts, handler) => {
-      const { maxRedirections } = opts
+  return (opts, handler) => {
+    const { maxRedirections } = opts
 
-      if (!maxRedirections) {
-        return dispatch(opts, handler)
-      }
-
-      const redirectHandler = new RedirectHandler(
-        dispatch,
-        maxRedirections,
-        opts,
-        handler
-      )
-      opts = { ...opts, maxRedirections: 0 } // Stop sub dispatcher from also redirecting.
-      return dispatch(opts, redirectHandler)
+    if (!maxRedirections) {
+      return dispatch(opts, handler)
     }
+
+    const redirectHandler = new RedirectHandler(dispatch, maxRedirections, opts, handler)
+    opts = { ...opts, maxRedirections: 0 } // Stop the sub-dispatcher from also redirecting.
+    return dispatch(opts, redirectHandler)
+  }
 }
 
-const client = new Client('http://localhost:3000')
-  .compose(redirectInterceptor)
+const client = new Client('http://localhost:3000').compose(redirectInterceptor)
 
 await client.request({ path: '/', method: 'GET' })
 ```
 
-#### Example 2 - Chained Compose
+Interceptors can be chained by calling `compose()` repeatedly:
 
-```js
-const { Client, RedirectHandler, RetryHandler } = require('undici')
-
-const redirectInterceptor = dispatch => {
-    return (opts, handler) => {
-      const { maxRedirections } = opts
-
-      if (!maxRedirections) {
-        return dispatch(opts, handler)
-      }
-
-      const redirectHandler = new RedirectHandler(
-        dispatch,
-        maxRedirections,
-        opts,
-        handler
-      )
-      opts = { ...opts, maxRedirections: 0 }
-      return dispatch(opts, redirectHandler)
-    }
-}
-
-const retryInterceptor = dispatch => {
-  return function retryInterceptor (opts, handler) {
-    return dispatch(
-      opts,
-      new RetryHandler(opts, {
-        handler,
-        dispatch
-      })
-    )
-  }
-}
+```mjs
+import { Client } from 'undici'
 
 const client = new Client('http://localhost:3000')
   .compose(redirectInterceptor)
@@ -983,445 +728,94 @@ const client = new Client('http://localhost:3000')
 await client.request({ path: '/', method: 'GET' })
 ```
 
-#### Pre-built interceptors
-
-##### `redirect`
-
-The `redirect` interceptor allows you to customize the way your dispatcher handles redirects.
-
-It accepts the same arguments as the [`RedirectHandler` constructor](/docs/docs/api/RedirectHandler.md).
-
-**Example - Basic Redirect Interceptor**
-
-```js
-const { Client, interceptors } = require("undici");
-const { redirect } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  redirect({ maxRedirections: 3, throwOnMaxRedirect: true })
-);
-client.request({ path: "/" })
-```
-
-##### `retry`
-
-The `retry` interceptor allows you to customize the way your dispatcher handles retries.
-
-It accepts the same arguments as the [`RetryHandler` constructor](/docs/docs/api/RetryHandler.md).
-
-**Example - Basic Redirect Interceptor**
-
-```js
-const { Client, interceptors } = require("undici");
-const { retry } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  retry({
-    maxRetries: 3,
-    minTimeout: 1000,
-    maxTimeout: 10000,
-    timeoutFactor: 2,
-    retryAfter: true,
-  })
-);
-```
-
-##### `dump`
-
-The `dump` interceptor enables you to dump the response body from a request upon a given limit.
-
-**Options**
-- `maxSize` - The maximum size (in bytes) of the response body to dump. If the size of the response's body exceeds this value then the connection will be closed. Default: `1048576`.
-
-> The `Dispatcher#options` also gets extended with the options `dumpMaxSize`, `abortOnDumped`, and `waitForTrailers` which can be used to configure the interceptor at a request-per-request basis.
-
-**Example - Basic Dump Interceptor**
-
-```js
-const { Client, interceptors } = require("undici");
-const { dump } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  dump({
-    maxSize: 1024,
-  })
-);
-
-// or
-client.dispatch(
-  {
-    path: "/",
-    method: "GET",
-    dumpMaxSize: 1024,
-  },
-  handler
-);
-```
-
-##### `dns`
-
-The `dns` interceptor enables you to cache DNS lookups for a given duration, per origin.
-
->It is well suited for scenarios where you want to cache DNS lookups to avoid the overhead of resolving the same domain multiple times
-
-**Options**
-- `maxTTL` - The maximum time-to-live (in milliseconds) of the DNS cache. It should be a positive integer. Default: `10000`.
-  - Set `0` to disable TTL.
-- `maxItems` - The maximum number of items to cache. It should be a positive integer. Default: `Infinity`.
-- `dualStack` - Whether to resolve both IPv4 and IPv6 addresses. Default: `true`.
-  - It will also attempt a happy-eyeballs-like approach to connect to the available addresses in case of a connection failure.
-- `affinity` - Whether to use IPv4 or IPv6 addresses. Default: `4`.
-  - It can be either `4` or `6`.
-  - It will only take effect if `dualStack` is `false`.
-- `lookup: (hostname: string, options: LookupOptions, callback: (err: NodeJS.ErrnoException | null, addresses: DNSInterceptorRecord[]) => void) => void` - Custom lookup function. Default: `dns.lookup`.
-  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dnslookuphostname-options-callback).
-- `pick: (origin: URL, records: DNSInterceptorRecords, affinity: 4 | 6) => DNSInterceptorRecord` - Custom pick function. Default: `RoundRobin`.
-  - The function should return a single record from the records array.
-  - By default a simplified version of Round Robin is used.
-  - The `records` property can be mutated to store the state of the balancing algorithm.
-- `storage: DNSStorage` - Custom storage for resolved DNS records
-
-> The `Dispatcher#options` also gets extended with the options `dns.affinity`, `dns.dualStack`, `dns.lookup` and `dns.pick` which can be used to configure the interceptor at a request-per-request basis.
-
-
-**DNSInterceptorRecord**
-It represents a DNS record.
-- `family` - (`number`) The IP family of the address. It can be either `4` or `6`.
-- `address` - (`string`) The IP address.
-
-**DNSInterceptorOriginRecords**
-It represents a map of DNS IP addresses records for a single origin.
-- `4.ips` - (`DNSInterceptorRecord[] | null`) The IPv4 addresses.
-- `6.ips` - (`DNSInterceptorRecord[] | null`) The IPv6 addresses.
-
-**DNSStorage**
-It represents a storage object for resolved DNS records.
-- `size` - (`number`) current size of the storage.
-- `get` - (`(origin: string) => DNSInterceptorOriginRecords | null`) method to get the records for a given origin.
-- `set` - (`(origin: string, records: DNSInterceptorOriginRecords | null, options: { ttl: number }) => void`) method to set the records for a given origin.
-- `delete` - (`(origin: string) => void`) method to delete records for a given origin.
-- `full` - (`() => boolean`) method to check if the storage is full, if returns `true`, DNS lookup will be skipped in this interceptor and new records will not be stored.
-
-**Example - Basic DNS Interceptor**
-
-```js
-const { Client, interceptors } = require("undici");
-const { dns } = interceptors;
-
-const client = new Agent().compose([
-  dns({ ...opts })
-])
-
-const response = await client.request({
-  origin: `http://localhost:3030`,
-  ...requestOpts
-})
-```
-
-**Example - DNS Interceptor and LRU cache as a storage**
-
-```js
-const { Client, interceptors } = require("undici");
-const QuickLRU = require("quick-lru");
-const { dns } = interceptors;
-
-const lru = new QuickLRU({ maxSize: 100 });
-
-const lruAdapter = {
-  get size() {
-    return lru.size;
-  },
-  get(origin) {
-    return lru.get(origin);
-  },
-  set(origin, records, { ttl }) {
-    lru.set(origin, records, { maxAge: ttl });
-  },
-  delete(origin) {
-    lru.delete(origin);
-  },
-  full() {
-    // For LRU cache, we can always store new records,
-    // old records will be evicted automatically
-    return false;
-  }
-}
-
-const client = new Agent().compose([
-  dns({ storage: lruAdapter })
-])
-
-const response = await client.request({
-  origin: `http://localhost:3030`,
-  ...requestOpts
-})
-```
-
-##### `responseError`
-
-The `responseError` interceptor throws an error for responses with status code errors (>= 400).
-
-**Example**
-
-```js
-const { Client, interceptors } = require("undici");
-const { responseError } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  responseError()
-);
-
-// Will throw a ResponseError for status codes >= 400
-await client.request({
-  method: "GET",
-  path: "/"
-});
-```
-
-##### `decompress`
-
-⚠️ The decompress interceptor is experimental and subject to change.
-
-The `decompress` interceptor automatically decompresses response bodies that are compressed with gzip, deflate, brotli, or zstd compression. It removes the `content-encoding` and `content-length` headers from decompressed responses and supports RFC-9110 compliant multiple encodings.
-
-**Options**
-
-- `skipErrorResponses` - Whether to skip decompression for error responses (status codes >= 400). Default: `true`.
-- `skipStatusCodes` - Array of status codes to skip decompression for. Default: `[204, 304]`.
-
-**Example - Basic Decompress Interceptor**
-
-```js
-const { Client, interceptors } = require("undici");
-const { decompress } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  decompress()
-);
-
-// Automatically decompresses gzip/deflate/brotli/zstd responses
-const response = await client.request({
-  method: "GET",
-  path: "/"
-});
-```
-
-**Example - Custom Options**
-
-```js
-const { Client, interceptors } = require("undici");
-const { decompress } = interceptors;
-
-const client = new Client("http://service.example").compose(
-  decompress({
-    skipErrorResponses: false, // Decompress 5xx responses
-    skipStatusCodes: [204, 304, 201] // Skip these status codes
-  })
-);
-```
-
-**Supported Encodings**
-
-- `gzip` / `x-gzip` - GZIP compression
-- `deflate` / `x-compress` - DEFLATE compression  
-- `br` - Brotli compression
-- `zstd` - Zstandard compression
-- Multiple encodings (e.g., `gzip, deflate`) are supported per RFC-9110
-
-**Behavior**
-
-- Skips decompression for status codes < 200 or >= 400 (configurable)
-- Skips decompression for 204 No Content and 304 Not Modified by default
-- Removes `content-encoding` and `content-length` headers when decompressing
-- Passes through unsupported encodings unchanged
-- Handles case-insensitive encoding names
-- Supports streaming decompression without buffering
-
-##### `Cache Interceptor`
-
-The `cache` interceptor implements client-side response caching as described in
-[RFC9111](https://www.rfc-editor.org/rfc/rfc9111.html).
-
-**Options**
-
-- `store` - The [`CacheStore`](/docs/docs/api/CacheStore.md) to store and retrieve responses from. Default is [`MemoryCacheStore`](/docs/docs/api/CacheStore.md#memorycachestore).
-- `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to cache the response of.
-- `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration and cannot have an heuristic expiry computed. If this isn't present, responses neither with an explicit expiration nor heuristically cacheable will not be cached. Default `undefined`.
-- `type` - The [type of cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#types_of_caches) for Undici to act as. Can be `shared` or `private`. Default `shared`. `private` implies privately cacheable responses will be cached and potentially shared with other users of your application.
-
-**Usage with `fetch`**
-
-```js
-const { Agent, cacheStores, interceptors, setGlobalDispatcher } = require('undici')
-
-const client = new Agent().compose(interceptors.cache({
-  store: new cacheStores.MemoryCacheStore({
-    maxSize: 100 * 1024 * 1024, // 100MB
-    maxCount: 1000,
-    maxEntrySize: 5 * 1024 * 1024 // 5MB
-  })
-}))
-
-setGlobalDispatcher(client)
-
-// First request goes to the network and is cached when cache headers allow it.
-const first = await fetch('https://example.com/data')
-
-// Second request can be served from cache according to RFC9111 rules.
-const second = await fetch('https://example.com/data')
-```
-
-##### `Deduplicate Interceptor`
-
-The `deduplicate` interceptor deduplicates concurrent identical requests. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response. This reduces server load and improves performance.
-
-**Options**
-
-- `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to deduplicate. Default `['GET']`.
-- `skipHeaderNames` - Header names that, if present in a request, will cause the request to skip deduplication entirely. Useful for headers like `idempotency-key` where presence indicates unique processing. Header name matching is case-insensitive. Default `[]`.
-- `excludeHeaderNames` - Header names to exclude from the deduplication key. Requests with different values for these headers will still be deduplicated together. Useful for headers like `x-request-id` that vary per request but shouldn't affect deduplication. Header name matching is case-insensitive. Default `[]`.
-- `maxBufferSize` - Maximum bytes buffered per paused waiting deduplicated handler. If a waiting handler remains paused and exceeds this threshold, it is failed with an abort error to prevent unbounded memory growth. Default `5 * 1024 * 1024`.
-
-**Usage**
-
-```js
-const { Client, interceptors } = require("undici");
-const { deduplicate, cache } = interceptors;
-
-// Deduplicate only
-const client = new Client("http://service.example").compose(
-  deduplicate()
-);
-
-// Deduplicate with caching
-const clientWithCache = new Client("http://service.example").compose(
-  deduplicate(),
-  cache()
-);
-```
-
-Requests are considered identical if they have the same:
-- Origin
-- HTTP method
-- Path
-- Request headers (excluding any headers specified in `excludeHeaderNames`)
-
-All deduplicated requests receive the complete response including status code, headers, and body.
-
-For observability, request deduplication events are published to the `undici:request:pending-requests` [diagnostic channel](/docs/docs/api/DiagnosticsChannel.md#undicirequestpending-requests).
-
-## Instance Events
+For the full list of built-in interceptors provided by undici, see [Interceptors](Interceptors.md).
 
 ### Event: `'connect'`
 
-Parameters:
+<!-- YAML
+added: v4.0.0
+-->
 
-* **origin** `URL`
-* **targets** `Array<Dispatcher>`
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
+
+Emitted when the dispatcher has connected to the origin.
 
 ### Event: `'disconnect'`
 
-Parameters:
+<!-- YAML
+added: v4.0.0
+-->
 
-* **origin** `URL`
-* **targets** `Array<Dispatcher>`
-* **error** `Error`
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
+* `error` {Error}
 
 Emitted when the dispatcher has been disconnected from the origin.
 
-> **Note**: For HTTP/2, this event is also emitted when the dispatcher has received the [GOAWAY Frame](https://webconcepts.info/concepts/http2-frame-type/0x7) with an Error with the message `HTTP/2: "GOAWAY" frame received` and the code `UND_ERR_INFO`.
-> Due to nature of the protocol of using binary frames, it is possible that requests gets hanging as a frame can be received between the `HEADER` and `DATA` frames.
-> It is recommended to handle this event and close the dispatcher to create a new HTTP/2 session.
+For HTTP/2, this event is also emitted when the dispatcher receives a
+[GOAWAY frame][], with an error whose message is `HTTP/2: "GOAWAY" frame received`
+and whose code is `UND_ERR_INFO`. Because of the binary-framing nature of the
+protocol, a request may hang if a frame is received between the `HEADER` and
+`DATA` frames. It is recommended to handle this event and close the dispatcher to
+create a new HTTP/2 session.
 
 ### Event: `'connectionError'`
 
-Parameters:
+<!-- YAML
+added: v4.0.0
+-->
 
-* **origin** `URL`
-* **targets** `Array<Dispatcher>`
-* **error** `Error`
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
+* `error` {Error}
 
-Emitted when dispatcher fails to connect to
-origin.
+Emitted when the dispatcher fails to connect to the origin.
 
 ### Event: `'drain'`
 
-Parameters:
+<!-- YAML
+added: v4.0.0
+-->
 
-* **origin** `URL`
+* `origin` {URL}
 
-Emitted when dispatcher is no longer busy.
+Emitted when the dispatcher is no longer busy and further [`dispatch()`][] calls
+can make progress.
 
-## Parameter: `UndiciHeaders`
+## Pre-built interceptors
 
-* `Record<string, string | string[] | undefined> | string[] | Iterable<[string, string | string[] | undefined]> | null`
+For the full reference of built-in interceptors (`dump`, `retry`, `redirect`,
+`decompress`, `responseError`, `dns`, `cache`, `deduplicate`) and their options,
+see [Interceptors](Interceptors.md).
 
-Header arguments such as `options.headers` in [`Client.dispatch`](/docs/docs/api/Client.md#clientdispatchoptions-handlers) can be specified in three forms:
-* As an object specified by the `Record<string, string | string[] | undefined>` (`IncomingHttpHeaders`) type.
-* As an array of strings. An array representation of a header list must have an even length, or an `InvalidArgumentError` will be thrown.
-* As an iterable that can encompass `Headers`, `Map`, or a custom iterator returning key-value pairs.
-Keys are lowercase and values are not modified.
-
-Undici validates header syntax at the protocol level (for example, invalid header names and invalid control characters in string values), but it does not sanitize untrusted application input. Validate and sanitize any user-provided header names and values before passing them to Undici to prevent header/body injection vulnerabilities.
-
-When using the array header format (`string[]`), Undici processes only indexed elements. Additional properties assigned to the array object are ignored.
-
-Response headers will derive a `host` from the `url` of the [Client](/docs/docs/api/Client.md#class-client) instance if no `host` header was previously specified.
-
-### Example 1 - Object
-
-```js
-{
-  'content-length': '123',
-  'content-type': 'text/plain',
-  connection: 'keep-alive',
-  host: 'mysite.com',
-  accept: '*/*'
-}
-```
-
-### Example 2 - Array
-
-```js
-[
-  'content-length', '123',
-  'content-type', 'text/plain',
-  'connection', 'keep-alive',
-  'host', 'mysite.com',
-  'accept', '*/*'
-]
-```
-
-### Example 3 - Iterable
-
-```js
-new Headers({
-  'content-length': '123',
-  'content-type': 'text/plain',
-  connection: 'keep-alive',
-  host: 'mysite.com',
-  accept: '*/*'
-})
-```
-or
-```js
-new Map([
-  ['content-length', '123'],
-  ['content-type', 'text/plain'],
-  ['connection', 'keep-alive'],
-  ['host', 'mysite.com'],
-  ['accept', '*/*']
-])
-```
-or
-```js
-{
-  *[Symbol.iterator] () {
-    yield ['content-length', '123']
-    yield ['content-type', 'text/plain']
-    yield ['connection', 'keep-alive']
-    yield ['host', 'mysite.com']
-    yield ['accept', '*/*']
-  }
-}
-```
+[Fastify]: https://fastify.dev
+[GOAWAY frame]: https://webconcepts.info/concepts/http2-frame-type/0x7
+[HTTP `CONNECT`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT
+[MDN: Protocol upgrade mechanism]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism
+[`.arrayBuffer()`]: https://fetch.spec.whatwg.org/#dom-body-arraybuffer
+[`.blob()`]: https://fetch.spec.whatwg.org/#dom-body-blob
+[`.bytes()`]: https://fetch.spec.whatwg.org/#dom-body-bytes
+[`.json()`]: https://fetch.spec.whatwg.org/#dom-body-json
+[`.text()`]: https://fetch.spec.whatwg.org/#dom-body-text
+[`'drain'`]: #event-drain
+[`Agent`]: Agent.md#class-agent
+[`BalancedPool`]: BalancedPool.md#class-balancedpool
+[`Client`]: Client.md#class-client
+[`EventEmitter`]: https://nodejs.org/api/events.html#class-eventemitter
+[`Pool`]: Pool.md#class-pool
+[`Readable`]: https://nodejs.org/api/stream.html#class-streamreadable
+[`Writable`]: https://nodejs.org/api/stream.html#class-streamwritable
+[`close()`]: #dispatcherclosecallback
+[`connect()`]: #dispatcherconnectoptions-callback
+[`destroy()`]: #dispatcherdestroyerror-callback
+[`dispatch()`]: #dispatcherdispatchoptions-handler
+[`dispatcher.compose()`]: #dispatchercomposeinterceptors-interceptor
+[`dispatcher.dispatch()`]: #dispatcherdispatchoptions-handler
+[`dispatcher.request()`]: #dispatcherrequestoptions-callback
+[`pipeline()`]: #dispatcherpipelineoptions-handler
+[`request()`]: #dispatcherrequestoptions-callback
+[`stream()`]: #dispatcherstreamoptions-factory-callback
+[`stream.pipeline()`]: https://nodejs.org/api/stream.html#streampipelinesource-transforms-destination-options
+[`upgrade()`]: #dispatcherupgradeoptions-callback
+[body mixin]: https://fetch.spec.whatwg.org/#body-mixin

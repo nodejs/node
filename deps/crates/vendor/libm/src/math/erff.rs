@@ -130,7 +130,7 @@ fn erfc2(mut ix: u32, mut x: f32) -> f32 {
 /// Calculates an approximation to the “error function”, which estimates
 /// the probability that an observation will fall within x standard
 /// deviations of the mean (assuming a normal distribution).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn erff(x: f32) -> f32 {
     let r: f32;
     let s: f32;

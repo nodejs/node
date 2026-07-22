@@ -13,6 +13,7 @@ const {
   RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
+const { kBodyUsed } = require('../core/symbols')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 function noop () {}
@@ -24,6 +25,9 @@ class PipelineRequest extends Readable {
     super({ autoDestroy: true })
 
     this[kResume] = null
+    // Pipeline request bodies come from a live writable side and cannot be
+    // replayed across redirects or retries, even before any bytes are read.
+    this[kBodyUsed] = true
   }
 
   _read () {
@@ -167,7 +171,7 @@ class PipelineHandler extends AsyncResource {
       if (this.onInfo) {
         const rawHeaders = controller?.rawHeaders
         const responseHeaders = this.responseHeaders === 'raw'
-          ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+          ? util.parseRawHeaders(rawHeaders)
           : headers
         this.onInfo({ statusCode, headers: responseHeaders })
       }
@@ -181,7 +185,7 @@ class PipelineHandler extends AsyncResource {
       this.handler = null
       const rawHeaders = controller?.rawHeaders
       const responseHeaders = this.responseHeaders === 'raw'
-        ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+        ? util.parseRawHeaders(rawHeaders)
         : headers
       body = this.runInAsyncScope(handler, null, {
         statusCode,

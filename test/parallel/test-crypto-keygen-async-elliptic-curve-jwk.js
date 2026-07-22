@@ -11,12 +11,11 @@ const {
 
 // Test async elliptic curve key generation with 'jwk' encoding.
 {
-  [
-    'ed25519',
-    'ed448',
-    'x25519',
-    'x448',
-  ].forEach((type) => {
+  for (const type of ['ed25519', 'ed448', 'x25519', 'x448']) {
+    if (process.features.openssl_is_boringssl && type.endsWith('448')) {
+      common.printSkipMessage(`Skipping unsupported ${type} test case`);
+      continue;
+    }
     generateKeyPair(type, {
       publicKeyEncoding: {
         format: 'jwk'
@@ -36,5 +35,5 @@ const {
       assert.strictEqual(publicKey.crv, expectedCrv);
       assert.strictEqual(publicKey.crv, privateKey.crv);
     }));
-  });
+  }
 }

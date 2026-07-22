@@ -220,7 +220,7 @@ that closes when the bucket is full:
 
 * **Pending writes (the hose)** -- writes waiting for slot space. After
   the consumer drains, pending writes are promoted into the now-empty
-  slots and their promises resolve.
+  slots and their promises settle.
 
 How each policy uses these buffers:
 
@@ -416,7 +416,7 @@ if (writer.endSync() < 0) await writer.end();
 writer.fail(err);  // Always synchronous, no fallback needed
 ```
 
-### `writer.desiredSize`
+#### `writer.desiredSize`
 
 * {number|null}
 
@@ -425,16 +425,16 @@ Returns `null` if the writer is closed or the consumer has disconnected.
 
 The value is always non-negative.
 
-### `writer.end([options])`
+#### `writer.end([options])`
 
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this operation. The signal cancels only
     the pending `end()` call; it does not fail the writer itself.
-* Returns: {Promise\<number>} Total bytes written.
+* Returns: {Promise} Fulfills with the total number of bytes written.
 
 Signal that no more data will be written.
 
-### `writer.endSync()`
+#### `writer.endSync()`
 
 * Returns: {number} Total bytes written, or `-1` if the writer is not open.
 
@@ -448,7 +448,7 @@ if (result < 0) {
 }
 ```
 
-### `writer.fail(reason)`
+#### `writer.fail(reason)`
 
 * `reason` {any}
 
@@ -457,17 +457,17 @@ or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
 transition with no async work to perform.
 
-### `writer.write(chunk[, options])`
+#### `writer.write(chunk[, options])`
 
 * `chunk` {Uint8Array|string}
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
     only the pending `write()` call; it does not fail the writer itself.
-* Returns: {Promise\<void>}
+* Returns: {Promise} Fulfills with `undefined` when buffer space is available.
 
-Write a chunk. The promise resolves when buffer space is available.
+Write a chunk.
 
-### `writer.writeSync(chunk)`
+#### `writer.writeSync(chunk)`
 
 * `chunk` {Uint8Array|string}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -475,17 +475,17 @@ Write a chunk. The promise resolves when buffer space is available.
 
 Synchronous write. Does not block; returns `false` if backpressure is active.
 
-### `writer.writev(chunks[, options])`
+#### `writer.writev(chunks[, options])`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
     only the pending `writev()` call; it does not fail the writer itself.
-* Returns: {Promise\<void>}
+* Returns: {Promise}
 
 Write multiple chunks as a single batch.
 
-### `writer.writevSync(chunks)`
+#### `writer.writevSync(chunks)`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -521,7 +521,8 @@ Including the `node:` prefix on the module specifier is optional.
 ### `from(input)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|AsyncIterable|Object}
@@ -561,7 +562,8 @@ run().catch(console.error);
 ### `fromSync(input)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|Object}
@@ -591,7 +593,8 @@ console.log(textSync(fromSync('hello'))); // 'hello'
 ### `pipeTo(source[, ...transforms], writer[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable|Iterable} The data source.
@@ -603,7 +606,7 @@ added: v25.9.0
     the source ends. **Default:** `false`.
   * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
     error. **Default:** `false`.
-* Returns: {Promise\<number>} Total bytes written.
+* Returns: {Promise} Fulfills with the total number of bytes written.
 
 Pipe a source through transforms into a writer. If the writer has a
 `writev(chunks)` method, entire batches are passed in a single call (enabling
@@ -648,7 +651,8 @@ run().catch(console.error);
 ### `pipeToSync(source[, ...transforms], writer[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync data source.
@@ -668,7 +672,8 @@ The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 ### `pull(source[, ...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable|Iterable} The data source.
@@ -739,7 +744,8 @@ ac.abort(); // Pipeline throws AbortError on next iteration
 ### `pullSync(source[, ...transforms])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync data source.
@@ -753,7 +759,8 @@ Synchronous version of [`pull()`][]. All transforms must be synchronous.
 ### `push([...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `...transforms` {Function|Object} Optional transforms applied to the
@@ -817,7 +824,8 @@ The writer returned by `push()` conforms to the \[Writer interface]\[].
 ### `duplex([options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `options` {Object}
@@ -895,7 +903,8 @@ run().catch(console.error);
 ### `array(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -903,14 +912,15 @@ added: v25.9.0
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<Uint8Array\[]>}
+* Returns: {Promise} Fulfills with an array of `Uint8Array` objects.
 
 Collect all chunks as an array of `Uint8Array` values (without concatenating).
 
 ### `arrayBuffer(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -918,14 +928,15 @@ added: v25.9.0
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<ArrayBuffer>}
+* Returns: {Promise} Fulfills with an `ArrayBuffer` object.
 
 Collect all bytes into an `ArrayBuffer`.
 
 ### `arrayBufferSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -939,7 +950,8 @@ Synchronous version of [`arrayBuffer()`][].
 ### `arraySync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -953,7 +965,8 @@ Synchronous version of [`array()`][].
 ### `bytes(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -961,7 +974,7 @@ added: v25.9.0
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<Uint8Array>}
+* Returns: {Promise} Fulfills with an `Uint8Array` object.
 
 Collect all bytes from a stream into a single `Uint8Array`.
 
@@ -986,7 +999,8 @@ run().catch(console.error);
 ### `bytesSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -1000,7 +1014,8 @@ Synchronous version of [`bytes()`][].
 ### `text(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -1009,7 +1024,7 @@ added: v25.9.0
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<string>}
+* Returns: {Promise} Fulfills with a `string`.
 
 Collect all bytes and decode as text.
 
@@ -1032,7 +1047,8 @@ run().catch(console.error);
 ### `textSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -1049,15 +1065,16 @@ Synchronous version of [`text()`][].
 ### `ondrain(drainable)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `drainable` {Object} An object implementing the drainable protocol.
-* Returns: {Promise\<boolean>|null}
+* Returns: {Promise|null}
 
-Wait for a drainable writer's backpressure to clear. Returns a promise that
-resolves to `true` when the writer can accept more data, or `null` if the
-object does not implement the drainable protocol.
+Wait for a drainable writer's backpressure to clear. Returns `null` if
+the object does not implement the drainable protocol, or a promise that
+fulfills with `true` when the writer can accept more data.
 
 ```mjs
 import { push, ondrain, text } from 'node:stream/iter';
@@ -1104,7 +1121,8 @@ run().catch(console.error);
 ### `merge(...sources[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `...sources` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>} Two or more iterables.
@@ -1137,7 +1155,8 @@ run().catch(console.error);
 ### `tap(callback)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `callback` {Function} `(chunks) => void` Called with each batch.
@@ -1176,7 +1195,8 @@ chunks by the tapping callback; but return values are ignored.
 ### `tapSync(callback)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `callback` {Function}
@@ -1189,7 +1209,8 @@ Synchronous version of [`tap()`][].
 ### `broadcast([options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `options` {Object}
@@ -1290,7 +1311,8 @@ Alias for `broadcast.cancel()`.
 ### `Broadcast.from(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `input` {AsyncIterable|Iterable|Broadcastable}
@@ -1303,7 +1325,8 @@ automatically and pushed to all subscribers.
 ### `share(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable} The source to share.
@@ -1384,7 +1407,8 @@ Alias for `share.cancel()`.
 ### `Share.from(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `input` {AsyncIterable|Shareable}
@@ -1396,7 +1420,8 @@ Create a {Share} from an existing source.
 ### `shareSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync source to share.
@@ -1411,7 +1436,8 @@ Synchronous version of [`share()`][].
 ### `SyncShare.fromSync(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * `input` {Iterable|SyncShareable}
@@ -1422,7 +1448,7 @@ added: v25.9.0
 
 Compression and decompression transforms for use with `pull()`, `pullSync()`,
 `pipeTo()`, and `pipeToSync()` are available via the [`node:zlib/iter`][]
-module. See the [`node:zlib/iter` documentation][] for details.
+module. See the [`node:zlib/iter` documentation][`node:zlib/iter`] for details.
 
 ## Classic stream interop
 
@@ -1437,13 +1463,13 @@ directly. The minimum contract is described below for each function.
 ### `fromReadable(readable)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
 
 * `readable` {stream.Readable|Object} A classic Readable stream or any object
-  with `read()` and `on()` methods.
+  with `read()`, `on()`, and `off()` methods.
 * Returns: {AsyncIterable\<Uint8Array\[]>} A stream/iter async iterable source.
 
 Converts a classic Readable stream (or duck-typed equivalent) into a
@@ -1452,8 +1478,8 @@ stream/iter async iterable source that can be passed to [`from()`][],
 
 If the object implements the [`toAsyncStreamable`][] protocol (as
 `stream.Readable` does), that protocol is used. Otherwise, the function
-duck-types on `read()` and `on()` (EventEmitter) and wraps the stream with
-a batched async iterator.
+duck-types on `read()`, `on()`, and `off()` (EventEmitter) and wraps the
+stream with a batched async iterator.
 
 The result is cached per instance -- calling `fromReadable()` twice with the
 same stream returns the same iterable.
@@ -1491,7 +1517,7 @@ run();
 ### `fromWritable(writable[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1517,8 +1543,9 @@ the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
 return `false` or `-1`, deferring to the async path. The per-write
 `options.signal` parameter from the Writer interface is also ignored.
 
-The result is cached per instance -- calling `fromWritable()` twice with the
-same stream returns the same Writer.
+The result is cached per instance and backpressure policy -- calling
+`fromWritable()` twice with the same stream and `backpressure` option returns
+the same Writer.
 
 For duck-typed streams that do not expose `writableHighWaterMark`,
 `writableLength`, or similar properties, sensible defaults are used.
@@ -1555,7 +1582,7 @@ run();
 ### `toReadable(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1597,7 +1624,7 @@ readable.pipe(createWriteStream('output.gz'));
 ### `toReadableSync(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1634,7 +1661,7 @@ console.log(readable.read().toString()); // 'hello world'
 ### `toWritable(writer)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1648,7 +1675,7 @@ Creates a classic [`stream.Writable`][] backed by a stream/iter Writer.
 
 Each `_write()` / `_writev()` call attempts the Writer's synchronous method
 first (`writeSync` / `writevSync`), falling back to the async method if the
-sync path returns `false` or throws. Similarly, `_final()` tries `endSync()`
+sync path returns `false`. Similarly, `_final()` tries `endSync()`
 before `end()`. When the sync path succeeds, the callback is deferred via
 `queueMicrotask` to preserve the async resolution contract.
 
@@ -1767,8 +1794,8 @@ text(consumer).then(console.log); // 'hello'
 * Value: `Symbol.for('Stream.drainableProtocol')`
 
 Implement to make a writer compatible with `ondrain()`. The method should
-return a promise that resolves when backpressure clears, or `null` if no
-backpressure.
+return `null` if no backpressure, or a promise that fulfills with a truthy value
+when backpressure clears.
 
 ```mjs
 import { ondrain } from 'node:stream/iter';
@@ -1974,8 +2001,8 @@ console.log(textSync(consumer)); // 'hello'
 The value must be a function that converts the object into a streamable value.
 When the object is encountered anywhere in the streaming pipeline (as a source
 passed to `from()`, or as a value returned from a transform), this method is
-called to produce the actual data. It may return (or resolve to) any streamable
-value: a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
+called to produce the actual data. It may return any value that resolves to:
+a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
 object.
 
 ```mjs
@@ -2069,8 +2096,7 @@ console.log(textSync(stream)); // 'hello world'
 [`bytes()`]: #bytessource-options
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
-[`node:zlib/iter`]: zlib_iter.md
-[`node:zlib/iter` documentation]: zlib_iter.md
+[`node:zlib/iter`]: zlib.md#iterable-compression
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms-options

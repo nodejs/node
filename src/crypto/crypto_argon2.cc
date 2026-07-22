@@ -1,9 +1,11 @@
 #include "crypto/crypto_argon2.h"
 #include "async_wrap-inl.h"
+#include "base_object-inl.h"
+#include "crypto/crypto_keys.h"
+#include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_WITH_ARGON2
 #include <openssl/core_names.h>
 
 namespace node::crypto {
@@ -20,6 +22,7 @@ using v8::Value;
 
 Argon2Config::Argon2Config(Argon2Config&& other) noexcept
     : mode{other.mode},
+      key{std::move(other.key)},
       pass{std::move(other.pass)},
       salt{std::move(other.salt)},
       secret{std::move(other.secret)},
@@ -37,8 +40,9 @@ Argon2Config& Argon2Config::operator=(Argon2Config&& other) noexcept {
 }
 
 void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
-  if (mode == kCryptoJobAsync) {
-    tracker->TrackFieldWithSize("pass", pass.size());
+  if (key) tracker->TrackField("key", key);
+  if (IsCryptoJobAsync(mode)) {
+    if (!key) tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
     tracker->TrackFieldWithSize("secret", secret.size());
     tracker->TrackFieldWithSize("ad", ad.size());
@@ -60,14 +64,23 @@ Maybe<void> Argon2Traits::AdditionalConfig(
 
   config->mode = mode;
 
-  ArrayBufferOrViewContents<char> pass(args[offset]);
+  CHECK(KeyObjectHandle::HasInstance(env, args[offset]) ||
+        IsAnyBufferSource(args[offset]));  // pass
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
   ArrayBufferOrViewContents<char> secret(args[offset + 6]);
   ArrayBufferOrViewContents<char> ad(args[offset + 7]);
 
-  if (!pass.CheckSizeInt32()) [[unlikely]] {
-    THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<void>();
+  if (KeyObjectHandle::HasInstance(env, args[offset])) {
+    KeyObjectHandle* key;
+    ASSIGN_OR_RETURN_UNWRAP(&key, args[offset], Nothing<void>());
+    config->key = key->Data().addRef();
+  } else {
+    ArrayBufferOrViewContents<char> pass(args[offset]);
+    if (!pass.CheckSizeInt32()) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
+      return Nothing<void>();
+    }
+    config->pass = IsCryptoJobAsync(mode) ? pass.ToCopy() : pass.ToByteSource();
   }
 
   if (!salt.CheckSizeInt32()) [[unlikely]] {
@@ -85,8 +98,7 @@ Maybe<void> Argon2Traits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  const bool isAsync = mode == kCryptoJobAsync;
-  config->pass = isAsync ? pass.ToCopy() : pass.ToByteSource();
+  const bool isAsync = IsCryptoJobAsync(mode);
   config->salt = isAsync ? salt.ToCopy() : salt.ToByteSource();
   config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
@@ -120,7 +132,13 @@ bool Argon2Traits::DeriveBits(Environment* env,
   }
 
   // Both the pass and salt may be zero-length at this point
-  auto dp = ncrypto::argon2(config.pass,
+  const ncrypto::Buffer<const char> pass{
+      .data = config.key ? config.key.GetSymmetricKey()
+                         : config.pass.data<const char>(),
+      .len = config.key ? config.key.GetSymmetricKeySize() : config.pass.size(),
+  };
+
+  auto dp = ncrypto::argon2(pass,
                             config.salt,
                             config.lanes,
                             config.keylen,
@@ -158,5 +176,4 @@ void Argon2::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif
 #endif

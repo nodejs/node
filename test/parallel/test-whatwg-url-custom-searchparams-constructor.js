@@ -28,8 +28,14 @@ function makeIterableFunc(array) {
   let params;
   params = new URLSearchParams(undefined);
   assert.strictEqual(params.toString(), '');
+  // Per WebIDL union resolution, null is coerced to the USVString "null".
+  // Refs: https://url.spec.whatwg.org/#interface-urlsearchparams
   params = new URLSearchParams(null);
-  assert.strictEqual(params.toString(), '');
+  assert.strictEqual(params.toString(), 'null=');
+  params = new URLSearchParams(false);
+  assert.strictEqual(params.toString(), 'false=');
+  params = new URLSearchParams(0);
+  assert.strictEqual(params.toString(), '0=');
   params = new URLSearchParams(
     makeIterableFunc([['key', 'val'], ['key2', 'val2']])
   );

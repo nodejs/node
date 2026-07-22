@@ -40,9 +40,23 @@ const keyDataView = toDataView(keyBuff);
 const certDataView = toDataView(certBuff);
 const caArrDataView = toDataView(caCert);
 
+function filterBoringSSLKeyCertArrayCases(options, setName) {
+  if (!process.features.openssl_is_boringssl)
+    return options;
+
+  // The array-valued cases exercise multi-identity key/cert handling.
+  // BoringSSL may reject those cases with backend key/cert mismatch errors
+  // before the boolean/type validation this test is targeting. Keep the scalar
+  // cases so https.createServer() option type validation is still covered.
+  common.printSkipMessage(
+    `BoringSSL: skipping ${setName} key/cert array cases`);
+  return options.filter(([key, cert]) => !Array.isArray(key) &&
+                                         !Array.isArray(cert));
+}
+
 // Checks to ensure https.createServer doesn't throw an error
 // Format ['key', 'cert']
-[
+const validOptions = [
   [keyBuff, certBuff],
   [false, certBuff],
   [keyBuff, false],
@@ -62,13 +76,16 @@ const caArrDataView = toDataView(caCert);
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false],
-].forEach(([key, cert]) => {
-  https.createServer({ key, cert });
-});
+];
+
+filterBoringSSLKeyCertArrayCases(validOptions, 'valid')
+  .forEach(([key, cert]) => {
+    https.createServer({ key, cert });
+  });
 
 // Checks to ensure https.createServer predictably throws an error
 // Format ['key', 'cert', 'expected message']
-[
+const invalidKeyOptions = [
   [true, certBuff],
   [true, certStr],
   [true, certArrBuff],
@@ -81,7 +98,10 @@ const caArrDataView = toDataView(caCert);
   [[true, keyStr2], [certStr, certStr2], 0],
   [[true, false], [certBuff, certBuff2], 0],
   [true, [certBuff, certBuff2]],
-].forEach(([key, cert, index]) => {
+];
+
+for (const [key, cert, index] of
+  filterBoringSSLKeyCertArrayCases(invalidKeyOptions, 'invalid key')) {
   const val = index === undefined ? key : key[index];
   assert.throws(() => {
     https.createServer({ key, cert });
@@ -92,9 +112,9 @@ const caArrDataView = toDataView(caCert);
              'instance of Buffer, TypedArray, or DataView.' +
              common.invalidArgTypeHelper(val)
   });
-});
+}
 
-[
+const invalidCertOptions = [
   [keyBuff, true],
   [keyStr, true],
   [keyArrBuff, true],
@@ -107,7 +127,10 @@ const caArrDataView = toDataView(caCert);
   [[keyStr, keyStr2], [certStr, true], 1],
   [[keyStr, keyStr2], [true, false], 0],
   [[keyStr, keyStr2], true],
-].forEach(([key, cert, index]) => {
+];
+
+for (const [key, cert, index] of
+  filterBoringSSLKeyCertArrayCases(invalidCertOptions, 'invalid cert')) {
   const val = index === undefined ? cert : cert[index];
   assert.throws(() => {
     https.createServer({ key, cert });
@@ -118,7 +141,7 @@ const caArrDataView = toDataView(caCert);
              'instance of Buffer, TypedArray, or DataView.' +
              common.invalidArgTypeHelper(val)
   });
-});
+}
 
 // Checks to ensure https.createServer works with the CA parameter
 // Format ['key', 'cert', 'ca']

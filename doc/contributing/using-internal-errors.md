@@ -65,17 +65,15 @@ It is possible to create multiple derived
 classes by providing additional arguments. The other ones will be exposed as
 properties of the main class:
 
-<!-- eslint-disable no-unreachable -->
-
 ```js
 E('EXAMPLE_KEY', 'Error message', TypeError, RangeError);
 
 // In another module
+const assert = require('node:assert');
 const { EXAMPLE_KEY } = require('internal/errors').codes;
-// TypeError
-throw new EXAMPLE_KEY();
-// RangeError
-throw new EXAMPLE_KEY.RangeError();
+
+assert.throws(() => { throw new EXAMPLE_KEY(); }, { name: 'TypeError' });
+assert.throws(() => { throw new EXAMPLE_KEY.RangeError(); }, { name: 'RangeError' });
 ```
 
 ## Documenting new errors

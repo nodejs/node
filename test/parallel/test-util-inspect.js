@@ -107,7 +107,7 @@ assert.strictEqual(util.inspect({}), '{}');
 assert.strictEqual(util.inspect({ a: 1 }), '{ a: 1 }');
 assert.strictEqual(util.inspect({ a: function() {} }), '{ a: [Function: a] }');
 assert.strictEqual(util.inspect({ a: () => {} }), '{ a: [Function: a] }');
-// eslint-disable-next-line func-name-matching
+// eslint-disable-next-line node-core/func-name-matching
 assert.strictEqual(util.inspect({ a: async function abc() {} }),
                    '{ a: [AsyncFunction: abc] }');
 assert.strictEqual(util.inspect({ a: async () => {} }),
@@ -3419,6 +3419,21 @@ assert.strictEqual(
 }
 
 {
+  // A node_modules segment that is the last path component (no trailing
+  // separator after the module name) must not send markNodeModules into an
+  // infinite loop that exhausts the heap.
+  // https://github.com/nodejs/node/issues/64011
+  const err = new Error('boom');
+  err.stack = 'Error: boom\n    at /app/node_modules/foo.js:1:1';
+  const out = util.inspect(err, { colors: true });
+  assert.strictEqual(
+    out,
+    'Error: boom\n' +
+      '    at /app/node_modules/\x1B[4mfoo.js:1:1\x1B[24m',
+  );
+}
+
+{
   // Cross platform checks.
   const err = new Error('foo');
   util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
@@ -3793,6 +3808,7 @@ assert.strictEqual(
   assert.strictEqual(util.inspect(NaN), 'NaN');
   assert.strictEqual(util.inspect(Infinity), 'Infinity');
   assert.strictEqual(util.inspect(-Infinity), '-Infinity');
+  assert.strictEqual(util.inspect(-0), '-0');
 
   assert.strictEqual(
     util.inspect(new Float64Array([100_000_000])),
@@ -3824,6 +3840,9 @@ assert.strictEqual(
     '-123_456_789.123_456_78'
   );
 
+  // -0 should be formatted as '-0' even with numericSeparator enabled
+  assert.strictEqual(util.inspect(-0, { numericSeparator: true }), '-0');
+
   // Regression test for https://github.com/nodejs/node/issues/59376
   // numericSeparator should work correctly for negative fractional numbers
   {
@@ -3844,6 +3863,12 @@ assert.strictEqual(
       '-0.123_45'
     );
   }
+
+  // Numbers in scientific notation should not get malformed separators
+  assert.strictEqual(util.inspect(1e-7, { numericSeparator: true }), '1e-7');
+  assert.strictEqual(util.inspect(1.5e-10, { numericSeparator: true }), '1.5e-10');
+  assert.strictEqual(util.inspect(1.23e-100, { numericSeparator: true }), '1.23e-100');
+  assert.strictEqual(util.inspect(1.23456789e-12, { numericSeparator: true }), '1.23456789e-12');
 }
 
 // Regression test for https://github.com/nodejs/node/issues/41244

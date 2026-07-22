@@ -1,10 +1,8 @@
-// Flags: --harmony-temporal
-
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 
-if (!process.config.variables.v8_enable_temporal_support) {
+if (!common.hasTemporal) {
   common.skip('Temporal is not enabled');
 }
 

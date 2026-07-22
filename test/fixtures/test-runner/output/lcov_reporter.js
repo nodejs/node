@@ -3,7 +3,7 @@ require('../../../common');
 const fixtures = require('../../../common/fixtures');
 const spawn = require('node:child_process').spawn;
 
-spawn(
+const child = spawn(
   process.execPath,
   [
     '--no-warnings',
@@ -14,3 +14,16 @@ spawn(
   ],
   { stdio: 'inherit' },
 );
+
+child.on('error', (err) => {
+  throw err;
+});
+
+child.on('exit', (code, signal) => {
+  if (signal) {
+    process.kill(process.pid, signal);
+    return;
+  }
+
+  process.exitCode = code ?? 1;
+});

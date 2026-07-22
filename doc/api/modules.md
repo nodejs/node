@@ -262,8 +262,6 @@ the default export in the `.default` property, similar to the results returned b
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
 desired value using the string name `"module.exports"`.
 
-<!-- eslint-disable @stylistic/js/semi -->
-
 ```mjs
 // point.mjs
 export default class Point {
@@ -273,7 +271,7 @@ export default class Point {
 // `distance` is lost to CommonJS consumers of this module, unless it's
 // added to `Point` as a static property.
 export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
-export { Point as 'module.exports' }
+export { Point as 'module.exports' };
 ```
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
@@ -288,12 +286,10 @@ console.log(distance); // undefined
 ```
 
 Notice in the example above, when the `module.exports` export name is used, named exports
-will be lost to CommonJS consumers. To allow  CommonJS consumers to continue accessing
+will be lost to CommonJS consumers. To allow CommonJS consumers to continue accessing
 named exports, the module can make sure that the default export is an object with the
 named exports attached to it as properties. For example with the example above,
 `distance` can be attached to the default export, the `Point` class, as a static method.
-
-<!-- eslint-disable @stylistic/js/semi -->
 
 ```mjs
 export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
@@ -303,7 +299,7 @@ export default class Point {
   static distance = distance;
 }
 
-export { Point as 'module.exports' }
+export { Point as 'module.exports' };
 ```
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
@@ -321,10 +317,9 @@ graph it `import`s contains top-level `await`,
 [`ERR_REQUIRE_ASYNC_MODULE`][] will be thrown. In this case, users should
 load the asynchronous module using [`import()`][].
 
-If `--experimental-print-required-tla` is enabled, instead of throwing
-`ERR_REQUIRE_ASYNC_MODULE` before evaluation, Node.js will evaluate the
-module, try to locate the top-level awaits, and print their location to
-help users fix them.
+If `--experimental-print-required-tla` is enabled and the error is uncaught,
+Node.js will try to locate the top-level `await`s in the `require()`'d module graph
+and print the locations in the stderr.
 
 If support for loading ES modules using `require()` results in unexpected
 breakage, it can be disabled using `--no-require-module`.
@@ -357,14 +352,17 @@ require(X) from module at path Y
 4. If X begins with '#'
    a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-6. LOAD_NODE_MODULES(X, dirname(Y))
-7. THROW "not found"
+6. If a package map PACKAGE_MAP exists,
+   a. Find the package ID for the package owning Y
+        1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
+   b. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+7. LOAD_NODE_MODULES(X, dirname(Y))
+8. THROW "not found"
 
 MAYBE_DETECT_AND_LOAD(X)
 1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
 2. Else, if the source code of X can be parsed as ECMAScript module using
-  <a href="esm.md#resolver-algorithm-specification">DETECT_MODULE_SYNTAX defined in
-  the ESM resolver</a>,
+  DETECT_MODULE_SYNTAX defined in the ESM resolver,
   a. Load X as an ECMAScript module. STOP.
 3. THROW the SyntaxError from attempting to parse X as CommonJS in 1. STOP.
 
@@ -403,9 +401,11 @@ LOAD_AS_DIRECTORY(X)
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
-1. let DIRS = NODE_MODULES_PATHS(START)
-2. for each DIR in DIRS:
-   a. LOAD_PACKAGE_EXPORTS(X, DIR)
+1. Try to interpret X as a combination of NAME and SUBPATH where the name
+   may have a @scope/ prefix and the subpath begins with a slash (`/`).
+2. let DIRS = NODE_MODULES_PATHS(START)
+3. for each DIR in DIRS:
+   a. LOAD_PACKAGE_EXPORTS(SUBPATH, DIR/NAME)
    b. LOAD_AS_FILE(DIR/X)
    c. LOAD_AS_DIRECTORY(DIR/X)
 
@@ -420,6 +420,25 @@ NODE_MODULES_PATHS(START)
    d. let I = I - 1
 5. return DIRS + GLOBAL_FOLDERS
 
+FIND_PACKAGE_ID(PATH, PACKAGE_MAP)
+1. Find the PACKAGE_ID for the entry whose "path" is a parent directory of PATH
+2. If multiple entries are found, THROW "ambiguous resolution"
+3. If no entry was found, THROW "external file".
+4. return PACKAGE_ID
+
+LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+1. Try to interpret X as a combination of NAME and SUBPATH where the name
+   may have a @scope/ prefix and the subpath begins with a slash (`/`).
+2. Find the package map entry for key PARENT_PACKAGE_ID
+3. Look up NAME in the entry's "dependencies" map.
+4. If NAME is not found, THROW "not found".
+5. Let TARGET be PACKAGE_MAP.packages[dependencies[name]]
+6. Let PACKAGE_PATH be the resolved path of TARGET.
+7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH)
+8. LOAD_AS_FILE(PACKAGE_PATH/SUBPATH)
+9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH)
+10. THROW "not found"
+
 LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
@@ -428,22 +447,18 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 5. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+  CONDITIONS) defined in the ESM resolver.
 6. RESOLVE_ESM_MATCH(MATCH).
 
-LOAD_PACKAGE_EXPORTS(X, DIR)
-1. Try to interpret X as a combination of NAME and SUBPATH where the name
-   may have a @scope/ prefix and the subpath begins with a slash (`/`).
-2. If X does not match this pattern or DIR/NAME/package.json is not a file,
-   return.
-3. Parse DIR/NAME/package.json, and look for "exports" field.
-4. If "exports" is null or undefined, return.
-5. If `--no-require-module` is not enabled
+LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_DIR)
+1. Parse PACKAGE_DIR/package.json, and look for "exports" field.
+2. If "exports" is null or undefined, return.
+3. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
-6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
-7. RESOLVE_ESM_MATCH(MATCH)
+4. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(PACKAGE_DIR), "." + SUBPATH,
+   `package.json` "exports", CONDITIONS) defined in the ESM resolver.
+5. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
@@ -452,7 +467,7 @@ LOAD_PACKAGE_SELF(X, DIR)
 4. If the SCOPE/package.json "name" is not the first segment of X, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
    "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-   <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+   defined in the ESM resolver.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
@@ -461,6 +476,8 @@ RESOLVE_ESM_MATCH(MATCH)
    format. STOP
 3. THROW "not found"
 ```
+
+The "ESM resolver" is defined [in the ESM documentation](esm.md#resolution-and-loading-algorithm).
 
 ## Caching
 
@@ -1116,7 +1133,7 @@ exports = { hello: false };  // Not exported, only available in the module
 When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`:
 
-<!-- eslint-disable func-name-matching -->
+<!-- eslint-disable node-core/func-name-matching -->
 
 ```js
 module.exports = exports = function Constructor() {

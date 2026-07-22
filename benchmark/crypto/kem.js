@@ -24,6 +24,9 @@ if (hasOpenSSL(3, 5)) {
   keyFixtures['ml-kem-512'] = readKeyPair('ml_kem_512_public', 'ml_kem_512_private');
   keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private');
   keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private');
+} else if (process.features.openssl_is_boringssl) {
+  keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private_seed_only');
+  keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private_seed_only');
 }
 if (hasOpenSSL(3, 2)) {
   keyFixtures['p-256'] = readKeyPair('ec_p256_public', 'ec_p256_private');

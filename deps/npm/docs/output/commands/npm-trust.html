@@ -186,16 +186,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-trust----11121">
+<h1 id="----npm-trust----11180">
     <span>npm-trust</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.18.0</span>
 </h1>
 <span class="description">Manage trusted publishing relationships between packages and CI/CD providers</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#description">Description</a></li><li><a href="#bulk-usage">Bulk Usage</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#npm-trust-github"><code>npm trust github</code></a></li><ul><li><a href="#synopsis2">Synopsis</a></li><li><a href="#flags">Flags</a></li></ul><li><a href="#npm-trust-gitlab"><code>npm trust gitlab</code></a></li><ul><li><a href="#synopsis3">Synopsis</a></li><li><a href="#flags2">Flags</a></li></ul><li><a href="#npm-trust-circleci"><code>npm trust circleci</code></a></li><ul><li><a href="#synopsis4">Synopsis</a></li><li><a href="#flags3">Flags</a></li></ul><li><a href="#npm-trust-list"><code>npm trust list</code></a></li><ul><li><a href="#synopsis5">Synopsis</a></li><li><a href="#flags4">Flags</a></li></ul><li><a href="#npm-trust-revoke"><code>npm trust revoke</code></a></li><ul><li><a href="#synopsis6">Synopsis</a></li><li><a href="#flags5">Flags</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#description">Description</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#provider-options">Provider Options</a></li><li><a href="#bulk-usage">Bulk Usage</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#npm-trust-github"><code>npm trust github</code></a></li><ul><li><a href="#synopsis2">Synopsis</a></li><li><a href="#flags">Flags</a></li></ul><li><a href="#npm-trust-gitlab"><code>npm trust gitlab</code></a></li><ul><li><a href="#synopsis3">Synopsis</a></li><li><a href="#flags2">Flags</a></li></ul><li><a href="#npm-trust-circleci"><code>npm trust circleci</code></a></li><ul><li><a href="#synopsis4">Synopsis</a></li><li><a href="#flags3">Flags</a></li></ul><li><a href="#npm-trust-list"><code>npm trust list</code></a></li><ul><li><a href="#synopsis5">Synopsis</a></li><li><a href="#flags4">Flags</a></li></ul><li><a href="#npm-trust-revoke"><code>npm trust revoke</code></a></li><ul><li><a href="#synopsis6">Synopsis</a></li><li><a href="#flags5">Flags</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -203,7 +203,7 @@ npm command-line interface
 <h3 id="prerequisites">Prerequisites</h3>
 <p>Before using npm trust commands, ensure the following requirements are met:</p>
 <ul>
-<li><strong>npm version</strong>: <code>npm@11.10.0</code> or above is required. Use <code>npm install -g npm@^11.10.0</code> to update if needed.</li>
+<li><strong>npm version</strong>: <code>npm@11.15.0</code> or above is required. Use <code>npm install -g npm@^11.15.0</code> to update if needed.</li>
 <li><strong>Write permissions on the package</strong>: You must have write access to the package you're configuring.</li>
 <li><strong>2FA enabled on account</strong>: Two-factor authentication must be enabled at the account level. Even if it's not currently enabled, you must enable it to use trust commands.</li>
 <li><strong>Supported authentication methods</strong>: Granular Access Tokens (GAT) with the bypass 2FA option are not supported. Legacy basic auth (username and password) credentials will not work for trust commands or endpoints.</li>
@@ -214,6 +214,14 @@ npm command-line interface
 <p>For a comprehensive overview of trusted publishing, see the <a href="https://docs.npmjs.com/trusted-publishers">npm trusted publishers documentation</a>.</p>
 <p>The <code>[package]</code> argument specifies the package name. If omitted, npm will use the name from the <code>package.json</code> in the current directory.</p>
 <p>Each trust relationship has its own set of configuration options and flags based on the OIDC claims provided by that provider. OIDC claims come from the CI/CD provider and include information such as repository name, workflow file, or environment. Since each provider's claims differ, the available flags and configuration keys are not universal—npm matches the claims supported by each provider's OIDC configuration. For specific details on which claims and flags are supported for a given provider, use <code>npm trust &lt;provider&gt; --help</code>.</p>
+<h3 id="permissions">Permissions</h3>
+<p>When creating a trust relationship, you must specify at least one permission flag to indicate which operations the trusted publisher is allowed to perform:</p>
+<ul>
+<li><code>--allow-publish</code>: Allows the trusted publisher to run <code>npm publish</code> for the package.</li>
+<li><code>--allow-stage-publish</code>: Allows the trusted publisher to run <code>npm stage</code> for the package. The alias <code>--allow-staged-publish</code> is also accepted.</li>
+</ul>
+<p>At least one of these flags is required when creating a trust configuration. You can specify both to grant both permissions.</p>
+<h3 id="provider-options">Provider Options</h3>
 <p>The required options depend on the CI/CD provider you're configuring. Detailed information about each option is available in the <a href="https://docs.npmjs.com/trusted-publishers#managing-trusted-publisher-configurations">managing trusted publisher configurations</a> section of the npm documentation. If a provider is repository-based and the option is not provided, npm will use the <code>repository.url</code> field from your <code>package.json</code>, if available.</p>
 <p>Currently, the registry only supports one configuration per package. If you attempt to create a new trust relationship when one already exists, it will result in an error. To replace an existing configuration:</p>
 <ol>
@@ -229,7 +237,7 @@ npm command-line interface
 <h3 id="npm-trust-github"><code>npm trust github</code></h3>
 <p>Create a trusted relationship between a package and GitHub Actions</p>
 <h4 id="synopsis2">Synopsis</h4>
-<pre><code class="language-bash">npm trust github [package] --file [--repo|--repository] [--env|--environment] [-y|--yes]
+<pre><code class="language-bash">npm trust github [package] --file [--repo|--repository] [--env|--environment] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 </code></pre>
 <h4 id="flags">Flags</h4>
 <table>
@@ -261,6 +269,18 @@ npm command-line interface
 <td>CI environment name</td>
 </tr>
 <tr>
+<td><code>--allow-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm publish for this trusted publisher configuration</td>
+</tr>
+<tr>
+<td><code>--allow-stage-publish</code>, <code>--allow-staged-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm stage publish for this trusted publisher configuration</td>
+</tr>
+<tr>
 <td><code>--dry-run</code></td>
 <td>false</td>
 <td>Boolean</td>
@@ -289,7 +309,7 @@ npm command-line interface
 <h3 id="npm-trust-gitlab"><code>npm trust gitlab</code></h3>
 <p>Create a trusted relationship between a package and GitLab CI/CD</p>
 <h4 id="synopsis3">Synopsis</h4>
-<pre><code class="language-bash">npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--environment] [-y|--yes]
+<pre><code class="language-bash">npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--environment] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 </code></pre>
 <h4 id="flags2">Flags</h4>
 <table>
@@ -321,6 +341,18 @@ npm command-line interface
 <td>CI environment name</td>
 </tr>
 <tr>
+<td><code>--allow-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm publish for this trusted publisher configuration</td>
+</tr>
+<tr>
+<td><code>--allow-stage-publish</code>, <code>--allow-staged-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm stage publish for this trusted publisher configuration</td>
+</tr>
+<tr>
 <td><code>--dry-run</code></td>
 <td>false</td>
 <td>Boolean</td>
@@ -349,7 +381,7 @@ npm command-line interface
 <h3 id="npm-trust-circleci"><code>npm trust circleci</code></h3>
 <p>Create a trusted relationship between a package and CircleCI</p>
 <h4 id="synopsis4">Synopsis</h4>
-<pre><code class="language-bash">npm trust circleci [package] --org-id &lt;uuid&gt; --project-id &lt;uuid&gt; --pipeline-definition-id &lt;uuid&gt; --vcs-origin &lt;origin&gt; [--context-id &lt;uuid&gt;...] [-y|--yes]
+<pre><code class="language-bash">npm trust circleci [package] --org-id &lt;uuid&gt; --project-id &lt;uuid&gt; --pipeline-definition-id &lt;uuid&gt; --vcs-origin &lt;origin&gt; [--context-id &lt;uuid&gt;...] [--allow-publish] [--allow-stage-publish] [-y|--yes]
 </code></pre>
 <h4 id="flags3">Flags</h4>
 <table>
@@ -391,6 +423,18 @@ npm command-line interface
 <td>null</td>
 <td>null or String (can be set multiple times)</td>
 <td>CircleCI context UUID to match</td>
+</tr>
+<tr>
+<td><code>--allow-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm publish for this trusted publisher configuration</td>
+</tr>
+<tr>
+<td><code>--allow-stage-publish</code>, <code>--allow-staged-publish</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Allow npm stage publish for this trusted publisher configuration</td>
 </tr>
 <tr>
 <td><code>--dry-run</code></td>

@@ -16,7 +16,7 @@ const options = {
 const server = tls.createServer(options, (c) => {
   assert.fail('Should not be called');
 }).on('tlsClientError', common.mustCall((err, c) => {
-  assert.match(err.message, /no suitable signature algorithm/i);
+  assert.match(err.message, /no suitable signature algorithm|NO_CERTIFICATE_SET/i);
   server.close();
 })).listen(0, common.mustCall(() => {
   const c = tls.connect({
@@ -26,9 +26,10 @@ const server = tls.createServer(options, (c) => {
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
-    const expectedErr = hasOpenSSL(4, 0) ?
-      'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
-        'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
+    const expectedErr = process.features.openssl_is_boringssl ?
+      'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR' : hasOpenSSL(4, 0) ?
+        'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
+          'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
     assert.strictEqual(err.code, expectedErr);
   }));
 }));

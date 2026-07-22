@@ -83,6 +83,75 @@ struct HashTraits final {
 
 using HashJob = DeriveBitsJob<HashTraits>;
 
+#if OPENSSL_WITH_EVP_MAC
+enum class CShakeVariant { CSHAKE128, CSHAKE256 };
+
+struct CShakeBytepadInput final {
+  const void* data;
+  size_t byte_length;
+  size_t bit_length;
+};
+
+struct CShakeParams final {
+  CShakeVariant variant;
+  const void* function_name_data;
+  size_t function_name_size;
+  const void* customization_data;
+  size_t customization_size;
+  const CShakeBytepadInput* bytepad_input;
+  const void* input_data;
+  size_t input_size;
+  bool append_output_length;
+  uint32_t length;  // Output length in bits
+};
+
+bool DeriveCShakeBits(const CShakeParams& params, ByteSource* out);
+
+struct CShakeConfig final : public MemoryRetainer {
+  CryptoJobMode mode;
+  ByteSource in;
+  ByteSource function_name;
+  ByteSource customization;
+  CShakeVariant variant;
+  uint32_t length;  // Output length in bits
+
+  CShakeConfig() = default;
+
+  explicit CShakeConfig(CShakeConfig&& other) noexcept;
+
+  CShakeConfig& operator=(CShakeConfig&& other) noexcept;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(CShakeConfig)
+  SET_SELF_SIZE(CShakeConfig)
+};
+
+struct CShakeTraits final {
+  using AdditionalParameters = CShakeConfig;
+  static constexpr const char* JobName = "CShakeJob";
+  static constexpr AsyncWrap::ProviderType Provider =
+      AsyncWrap::PROVIDER_HASHREQUEST;
+
+  static v8::Maybe<void> AdditionalConfig(
+      CryptoJobMode mode,
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int offset,
+      CShakeConfig* params);
+
+  static bool DeriveBits(Environment* env,
+                         const CShakeConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
+
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const CShakeConfig& params,
+                                                ByteSource* out);
+};
+
+using CShakeJob = DeriveBitsJob<CShakeTraits>;
+#endif  // OPENSSL_WITH_EVP_MAC
+
 }  // namespace crypto
 }  // namespace node
 

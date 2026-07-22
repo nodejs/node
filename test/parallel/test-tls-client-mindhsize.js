@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 // OpenSSL has a set of security levels which affect what algorithms
-// are available by default. Different OpenSSL veresions have different
+// are available by default. Different OpenSSL versions have different
 // default security levels and we use this value to adjust what a test
 // expects based on the security level. You can read more in
 // https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_security_level/#default-callback-behaviour
@@ -85,20 +85,24 @@ function testDHE3072() {
   test(3072, false, null);
 }
 
-if (hasOpenSSL(4, 0)) {
-  // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
-  // ignores the server-supplied dhparam in favor of FFDHE-2048. The 3072
-  // success case is therefore replaced by a 2048 success case.
-  testDHE2048(true, () => test(2048, false, null, 2048));
-} else if (secLevel > 1) {
-  // Minimum size for OpenSSL security level 2 and above is 2048 by default
-  testDHE2048(true, testDHE3072);
-} else {
-  testDHE1024();
-}
+if (!process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(4, 0)) {
+    // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
+    // ignores the server-supplied dhparam in favor of FFDHE-2048. The 3072
+    // success case is therefore replaced by a 2048 success case.
+    testDHE2048(true, () => test(2048, false, null, 2048));
+  } else if (secLevel > 1) {
+    // Minimum size for OpenSSL security level 2 and above is 2048 by default
+    testDHE2048(true, testDHE3072);
+  } else {
+    testDHE1024();
+  }
 
-assert.throws(() => test(512, true, common.mustNotCall()),
-              /DH parameter is less than 1024 bits/);
+  assert.throws(() => test(512, true, common.mustNotCall()),
+                /DH parameter is less than 1024 bits/);
+} else {
+  require('../common/boringssl').assertFiniteFieldDheUnsupported();
+}
 
 for (const minDHSize of [0, -1, -Infinity, NaN]) {
   assert.throws(() => {
@@ -118,7 +122,9 @@ for (const minDHSize of [true, false, null, undefined, {}, [], '', '1']) {
   });
 }
 
-process.on('exit', function() {
-  assert.strictEqual(nsuccess, 1);
-  assert.strictEqual(nerror, 1);
-});
+if (!process.features.openssl_is_boringssl) {
+  process.on('exit', function() {
+    assert.strictEqual(nsuccess, 1);
+    assert.strictEqual(nerror, 1);
+  });
+}

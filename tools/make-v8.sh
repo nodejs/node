@@ -35,6 +35,32 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
       GN_COMPILER_OPTS="is_clang=true clang_base_path=\"/usr\" clang_use_chrome_plugins=false treat_warnings_as_errors=false use_custom_libcxx=false clang_version=\"${CLANG_VERSION}\""
       GN_RUST_ARGS="rustc_version=\"${RUST_VERSION}\" rust_sysroot_absolute=\"/usr\" rust_bindgen_root=\"/usr\""
       export RUSTC_BOOTSTRAP=1
+
+      # Filter out options supported in clang >= 20 when using clang 19.
+      if [ "${CLANG_VERSION}" -eq "19" ]; then
+        find build/ \( -name "*.gn" -o -name "*.gni" \) -exec sed -i \
+          -e '/-Wno-nontrivial-memcall/d' {} \;
+      fi
+      # Filter out compiler options not supported by non-nightly clang builds
+      if [ "${CLANG_VERSION}" -ge "19" ]; then
+        find build/ \( -name "*.gn" -o -name "*.gni" \) -exec sed -i \
+          -e '/-Wno-unsafe-buffer-usage-in-static-sized-array/d' \
+          -e '/-Wno-uninitialized-const-pointer/d' \
+          -e '/-Wno-unused-but-set-global/d' \
+          -e '/-fno-lifetime-dse/d' \
+          -e '/-fsanitize-ignore-for-ubsan-feature/d' \
+          -e '/-fdiagnostics-show-inlining-chain/d' {} \;
+      fi
+      # Patch to match libadler/libadler2 based on what is present.
+      LIBADLER=$(basename "$(find "$(rustc --print sysroot)/lib/rustlib/" -type f -name "libadler*")" | cut -d '-' -f 1) || true
+      case "$LIBADLER" in
+        libadler2) sed -i -e 's/"adler"/"adler2"/g' build/rust/std/BUILD.gn
+          ;;
+        libadler) sed -i -e 's/"adler2"/"adler"/g' build/rust/std/BUILD.gn
+          ;;
+        *) echo "Warning: unable to detect libadler/libadler2 (found ${LIBADLER})"
+          ;;
+      esac
       ;;
     *) GN_COMPILER_OPTS="treat_warnings_as_errors=false use_custom_libcxx=false" ;;
   esac

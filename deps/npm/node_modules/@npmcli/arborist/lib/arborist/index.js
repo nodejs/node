@@ -100,8 +100,10 @@ class Arborist extends Base {
       nodeVersion: process.version,
       ...options,
       Arborist: this.constructor,
+      allowScripts: options.allowScripts ?? null,
       binLinks: 'binLinks' in options ? !!options.binLinks : true,
       cache: options.cache || `${homedir()}/.npm/_cacache`,
+      dangerouslyAllowAllScripts: !!options.dangerouslyAllowAllScripts,
       dryRun: !!options.dryRun,
       formatPackageLock: 'formatPackageLock' in options ? !!options.formatPackageLock : true,
       force: !!options.force,
@@ -286,6 +288,16 @@ class Arborist extends Base {
     timeEnd()
     this.finishTracker('audit')
     return ret
+  }
+
+  // Build an ideal tree (or reuse an already-built one) and return the
+  // resulting lockfile contents as a string, without writing to disk.
+  // Useful for callers that want to inspect, diff, or store a lockfile
+  // somewhere other than the project's `package-lock.json`.
+  async lockfileString (options = {}) {
+    await this.buildIdealTree(options)
+
+    return this.idealTree.meta.toString(options)
   }
 
   async dedupe (options = {}) {

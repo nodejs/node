@@ -72,7 +72,7 @@ class SessionTicket::AppData final {
     TICKET_USE_RENEW = SSL_TICKET_RETURN_USE_RENEW,
   };
 
-  explicit AppData(SSL* session);
+  explicit AppData(SSL* ssl, SSL_SESSION* session = nullptr);
   DISALLOW_COPY_AND_MOVE(AppData)
 
   bool Set(const uv_buf_t& data);
@@ -94,11 +94,15 @@ class SessionTicket::AppData final {
   };
 
   static void Collect(SSL* ssl);
-  static Status Extract(SSL* ssl);
+  static Status Extract(SSL* ssl,
+                        SSL_SESSION* session,
+                        Source::Flag flag = Source::Flag::STATUS_NONE);
 
  private:
+  SSL_SESSION* GetSession() const;
   bool set_ = false;
   SSL* ssl_;
+  SSL_SESSION* session_;
 };
 
 }  // namespace node::quic

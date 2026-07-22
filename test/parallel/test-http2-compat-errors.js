@@ -3,16 +3,20 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const h2 = require('http2');
 
-// Errors should not be reported both in Http2ServerRequest
-// and Http2ServerResponse
+// Errors on the underlying stream surface on Http2ServerRequest
 
 let expected = null;
 
 const server = h2.createServer(common.mustCall(function(req, res) {
-  res.stream.on('error', common.mustCall());
-  req.on('error', common.mustNotCall());
+  res.stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expected);
+  }));
+  req.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expected);
+  }));
   res.on('error', common.mustNotCall());
   req.on('aborted', common.mustCall());
   res.on('aborted', common.mustNotCall());

@@ -90,3 +90,36 @@ for (const { algorithm, length, password, params, tag } of vectors) {
     }
   })().then(common.mustCall());
 }
+
+{
+  (async () => {
+    const algorithm = {
+      name: 'Argon2id',
+      memory: 32,
+      passes: 3,
+      parallelism: 4,
+      nonce: Buffer.alloc(16, 0x02),
+    };
+    const key = await subtle.importKey(
+      'raw-secret',
+      Buffer.alloc(32, 0x01),
+      algorithm.name,
+      false,
+      ['deriveBits']);
+
+    const omitted = await subtle.deriveBits(algorithm, key, 256);
+    const explicitEmpty = await subtle.deriveBits({
+      ...algorithm,
+      secretValue: Buffer.alloc(0),
+      associatedData: Buffer.alloc(0),
+    }, key, 256);
+    assert.deepStrictEqual(omitted, explicitEmpty);
+
+    await assert.rejects(
+      subtle.deriveBits({ ...algorithm, passes: 0 }, key, 256),
+      {
+        name: 'OperationError',
+        message: 'passes must be > 0',
+      });
+  })().then(common.mustCall());
+}

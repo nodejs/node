@@ -1,4 +1,5 @@
 const reifyFinish = require('../utils/reify-finish.js')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 // dedupe duplicated packages, or find them in the tree
@@ -14,7 +15,10 @@ class Dedupe extends ArboristWorkspaceCmd {
     'omit',
     'include',
     'ignore-scripts',
+    'allow-directory',
+    'allow-file',
     'allow-git',
+    'allow-remote',
     'audit',
     'bin-links',
     'fund',
@@ -32,6 +36,7 @@ class Dedupe extends ArboristWorkspaceCmd {
     const dryRun = this.npm.config.get('dry-run')
     const where = this.npm.prefix
     const Arborist = require('@npmcli/arborist')
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const opts = {
       ...this.npm.flatOptions,
       path: where,
@@ -41,6 +46,7 @@ class Dedupe extends ArboristWorkspaceCmd {
       // In order to reduce potential confusion we set this to false.
       save: false,
       workspaces: this.workspaceNames,
+      allowScripts: allowScriptsPolicy,
     }
     const arb = new Arborist(opts)
     await arb.dedupe(opts)

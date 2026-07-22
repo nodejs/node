@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (c) 2017, 2022  Anthony Green
+   ffi.c - Copyright (c) 2017, 2022, 2026  Anthony Green
            Copyright (c) 1996, 1998, 1999, 2001, 2007, 2008  Red Hat, Inc.
            Copyright (c) 2002  Ranjit Mathew
            Copyright (c) 2002  Bo Thorsen
@@ -370,7 +370,7 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *rvalue,
 	  size_t za = FFI_ALIGN (z, FFI_SIZEOF_ARG);
 	  size_t align = FFI_SIZEOF_ARG;
 
-	  /* Issue 434: For thiscall and fastcall, if the paramter passed
+	  /* Issue 434: For thiscall and fastcall, if the parameter passed
 	     as 64-bit integer or struct, all following integer parameters
 	     will be passed on stack.  */
 	  if ((cabi == FFI_THISCALL || cabi == FFI_FASTCALL)
@@ -519,7 +519,7 @@ ffi_closure_inner (struct closure_frame *frame, char *stack)
 	  if (t == FFI_TYPE_STRUCT && ty->alignment >= 16)
 	    align = 16;
 
-	  /* Issue 434: For thiscall and fastcall, if the paramter passed
+	  /* Issue 434: For thiscall and fastcall, if the parameter passed
 	     as 64-bit integer or struct, all following integer parameters
 	     will be passed on stack.  */
 	  if ((cabi == FFI_THISCALL || cabi == FFI_FASTCALL)
@@ -554,8 +554,14 @@ ffi_closure_inner (struct closure_frame *frame, char *stack)
       return flags | (cif->bytes << X86_RET_POP_SHIFT);
     case FFI_THISCALL:
     case FFI_FASTCALL:
-      return flags | ((cif->bytes - (narg_reg * FFI_SIZEOF_ARG))
-          << X86_RET_POP_SHIFT);
+      /* The callee must pop exactly the bytes that were passed on the
+	 stack.  Deriving that from cif->bytes minus narg_reg * 4 is wrong
+	 once narg_reg has been force-bumped to 2 (above) for a 64-bit or
+	 struct argument that is itself placed on the stack: the subtraction
+	 then discounts register slots that were never used, under-popping
+	 the stack.  argp has advanced past exactly the stack-resident
+	 arguments (dir == 1 for these ABIs), so use that directly.  */
+      return flags | (((unsigned) (argp - stack)) << X86_RET_POP_SHIFT);
     default:
       return flags;
     }

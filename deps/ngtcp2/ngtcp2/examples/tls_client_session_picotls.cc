@@ -25,7 +25,6 @@
 #include "tls_client_session_picotls.h"
 
 #include <cstring>
-#include <iostream>
 #include <memory>
 
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
@@ -119,11 +118,11 @@ TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
     ptls_set_server_name(cptls_.ptls, remote_addr, strlen(remote_addr));
   }
 
-  if (config.session_file) {
-    auto f = BIO_new_file(config.session_file, "r");
+  if (!config.session_file.empty()) {
+    auto f = BIO_new_file(config.session_file.c_str(), "r");
     if (f == nullptr) {
       std::println(stderr, "Could not read TLS session file {}",
-                   config.session_file);
+                   config.session_file.native());
     } else {
       auto f_d = defer([f] { BIO_free(f); });
 
@@ -133,7 +132,7 @@ TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
 
       if (PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
         std::println(stderr, "Could not read TLS session file {}",
-                     config.session_file);
+                     config.session_file.native());
       } else {
         if ("PICOTLS SESSION PARAMETERS"sv != name) {
           std::println(stderr, "TLS session file contains unexpected name: {}",

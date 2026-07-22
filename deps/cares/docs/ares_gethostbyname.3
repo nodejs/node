@@ -88,7 +88,16 @@ points to a
 containing the name of the host returned by the query.  The callback
 need not and should not attempt to free the memory pointed to by
 .IR hostent ;
-the ares library will free it when the callback returns.  If the query
+the ares library will free it when the callback returns.  The callback
+.B must not
+modify the
+.B struct hostent
+or retain a reference to it after returning; it is owned by c-ares and is only
+valid for the duration of the callback.  The parameter is intentionally not
+declared
+.B const
+solely to preserve API/ABI compatibility with existing applications.
+If the query
 did not complete successfully,
 .I hostent
 will be

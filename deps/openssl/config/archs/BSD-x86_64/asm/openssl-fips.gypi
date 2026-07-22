@@ -371,6 +371,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'AES_ASM',
       'BSAES_ASM',
       'ECP_NISTZ256_ASM',
@@ -396,7 +399,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_BSD-x86_64': [
-      '-pthread',
+      '-lm -pthread',
     ],
     'linker_script': ''
   },

@@ -11,7 +11,7 @@ const {
   getResponseState
 } = require('./response')
 const { HeadersList } = require('./headers')
-const { Request, cloneRequest, getRequestDispatcher, getRequestState } = require('./request')
+const { Request, cloneRequest, getRequestDispatcher, getRequestState, removeRequestAbortListener } = require('./request')
 const zlib = require('node:zlib')
 const {
   makePolicyContainer,
@@ -74,6 +74,35 @@ const defaultUserAgent = typeof __UNDICI_IS_NODE__ !== 'undefined' || typeof esb
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
+
+function appendHeadersListFromResponseHeaders (headersList, headers, rawHeaders) {
+  if (Array.isArray(rawHeaders)) {
+    for (let i = 0; i < rawHeaders.length; i += 2) {
+      const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+      const value = rawHeaders[i + 1]
+
+      if (Array.isArray(value) && !Buffer.isBuffer(value)) {
+        for (const val of value) {
+          headersList.append(nameStr, val.toString('latin1'), true)
+        }
+      } else {
+        headersList.append(nameStr, value.toString('latin1'), true)
+      }
+    }
+
+    return
+  }
+
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        headersList.append(name, `${entry}`, true)
+      }
+    } else {
+      headersList.append(name, `${value}`, true)
+    }
+  }
+}
 
 class Fetch extends EE {
   constructor (dispatcher) {
@@ -179,7 +208,7 @@ function fetch (input, init = undefined) {
   let controller = null
 
   // 11. Add the following abort steps to requestObject’s signal:
-  addAbortListener(
+  const removeAbortListener = addAbortListener(
     requestObject.signal,
     () => {
       // 1. Set locallyAborted to true.
@@ -198,6 +227,15 @@ function fetch (input, init = undefined) {
       abortFetch(p, request, realResponse, requestObject.signal.reason, controller.controller)
     }
   )
+
+  // Remove the `abort` listeners registered above and in the Request
+  // constructor once the fetch has settled. Without this, reusing a single
+  // signal across many requests leaks listeners and Node.js emits a
+  // MaxListenersExceededWarning. See https://github.com/nodejs/undici/issues/5285
+  const cleanupAbortListeners = () => {
+    removeAbortListener()
+    removeRequestAbortListener(requestObject)
+  }
 
   // 12. Let handleFetchDone given response response be to finalize and
   // report timing with response, globalObject, and "fetch".
@@ -223,6 +261,7 @@ function fetch (input, init = undefined) {
       //    deserializedError.
 
       abortFetch(p, request, responseObject, controller.serializedAbortReason, controller.controller)
+      cleanupAbortListeners()
       return
     }
 
@@ -230,6 +269,7 @@ function fetch (input, init = undefined) {
     // and terminate these substeps.
     if (response.type === 'error') {
       p.reject(new TypeError('fetch failed', { cause: response.error }))
+      cleanupAbortListeners()
       return
     }
 
@@ -244,7 +284,10 @@ function fetch (input, init = undefined) {
 
   controller = fetching({
     request,
-    processResponseEndOfBody: handleFetchDone,
+    processResponseEndOfBody: (response) => {
+      handleFetchDone(response)
+      cleanupAbortListeners()
+    },
     processResponse,
     dispatcher: getRequestDispatcher(requestObject), // undici
     // Keep requestObject alive to prevent its AbortController from being GC'd
@@ -1025,7 +1068,7 @@ function fetchFinale (fetchParams, response) {
       let responseStatus = 0
 
       // 7. If fetchParams’s request’s mode is not "navigate" or response’s has-cross-origin-redirects is false:
-      if (fetchParams.request.mode !== 'navigator' || !response.hasCrossOriginRedirects) {
+      if (fetchParams.request.mode !== 'navigate' || !response.hasCrossOriginRedirects) {
         // 1. Set responseStatus to response’s status.
         responseStatus = response.status
 
@@ -1388,7 +1431,16 @@ async function httpNetworkOrCacheFetch (
     // Otherwise:
 
     // 1. Set httpRequest to a clone of request.
-    httpRequest = cloneRequest(request)
+    // Implementations are encouraged to avoid teeing request’s body’s stream
+    // when request’s body’s source is null as only a single body is needed in
+    // that case. E.g., when request’s body’s source is null, redirects and
+    // authentication will end up failing the fetch.
+    if (request.body?.source != null) {
+      httpRequest = cloneRequest(request)
+    } else {
+      httpRequest = cloneRequest({ ...request, body: null })
+      httpRequest.body = request.body
+    }
 
     // 2. Set httpFetchParams to a copy of fetchParams.
     httpFetchParams = { ...fetchParams }
@@ -1428,7 +1480,10 @@ async function httpNetworkOrCacheFetch (
   //    8. If contentLengthHeaderValue is non-null, then append
   //    `Content-Length`/contentLengthHeaderValue to httpRequest’s header
   //    list.
-  if (contentLengthHeaderValue != null) {
+  if (
+    contentLengthHeaderValue != null &&
+    !httpRequest.headersList.contains('content-length', true)
+  ) {
     httpRequest.headersList.append('content-length', contentLengthHeaderValue, true)
   }
 
@@ -1514,7 +1569,7 @@ async function httpNetworkOrCacheFetch (
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
   if (!httpRequest.headersList.contains('accept-encoding', true)) {
     if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
-      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate', true)
+      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate, zstd', true)
     } else {
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate', true)
     }
@@ -2152,6 +2207,8 @@ async function httpNetworkFetch (
           origin: url.origin,
           method: request.method,
           body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
+          // Preserve the serialized fetch body for MockAgent net-connect fallthroughs.
+          __mockAgentBodyForDispatch: body,
           headers: request.headersList.entries,
           maxRedirections: 0,
           upgrade: request.mode === 'websocket' ? 'websocket' : undefined,
@@ -2193,25 +2250,14 @@ async function httpNetworkFetch (
             timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
           },
 
-          onResponseStart (controller, status, _headers, statusText) {
+          onResponseStart (controller, status, headers, statusText) {
             if (status < 200) {
               return
             }
 
             const rawHeaders = controller?.rawHeaders ?? []
             const headersList = new HeadersList()
-
-            for (let i = 0; i < rawHeaders.length; i += 2) {
-              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
-              const value = rawHeaders[i + 1]
-              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
-                for (const val of value) {
-                  headersList.append(nameStr, val.toString('latin1'), true)
-                }
-              } else {
-                headersList.append(nameStr, value.toString('latin1'), true)
-              }
-            }
+            appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
             const location = headersList.get('location', true)
 
             this.body = new Readable({ read: () => controller.resume() })
@@ -2346,7 +2392,7 @@ async function httpNetworkFetch (
             reject(error)
           },
 
-          onRequestUpgrade (controller, status, _headers, socket) {
+          onRequestUpgrade (controller, status, headers, socket) {
             // We need to support 200 for websocket over h2 as per RFC-8441
             // Absence of session means H1
             if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
@@ -2355,18 +2401,7 @@ async function httpNetworkFetch (
 
             const rawHeaders = controller?.rawHeaders ?? []
             const headersList = new HeadersList()
-
-            for (let i = 0; i < rawHeaders.length; i += 2) {
-              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
-              const value = rawHeaders[i + 1]
-              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
-                for (const val of value) {
-                  headersList.append(nameStr, val.toString('latin1'), true)
-                }
-              } else {
-                headersList.append(nameStr, value.toString('latin1'), true)
-              }
-            }
+            appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
 
             resolve({
               status,

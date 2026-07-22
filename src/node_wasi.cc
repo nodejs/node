@@ -234,7 +234,7 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
 template <typename FT, FT F, typename R, typename... Args>
 void WASI::WasiFunction<FT, F, R, Args...>::SetFunction(
     Environment* env, const char* name, Local<FunctionTemplate> tmpl) {
-  auto c_function = CFunction::Make(FastCallback);
+  static auto c_function = CFunction::Make(FastCallback);
   Local<FunctionTemplate> t =
       FunctionTemplate::New(env->isolate(),
                             SlowCallback,

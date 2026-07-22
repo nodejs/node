@@ -125,3 +125,49 @@ for (let i = 1; i < 10; i++) {
   assert.strictEqual(Buffer.byteLength('foo', encoding),
                      Buffer.byteLength('foo', 'utf8'));
 }
+
+// byteLength('utf8') must equal the bytes Buffer.from writes, including
+// unpaired surrogates (3-byte U+FFFD). Large inputs exercise the SIMD path.
+{
+  const HI = '\uD83D'; // Unpaired high surrogate
+  const LO = '\uDE00'; // Unpaired low surrogate
+  const PAIR = '\u{1F600}'; // Valid surrogate pair (4 bytes)
+  const enc = new TextEncoder();
+
+  // Independent UTF-8 byte-length oracle with replacement semantics.
+  const utf8Bytes = (str) => {
+    let n = 0;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c < 0x80) n += 1;
+      else if (c < 0x800) n += 2;
+      else if (c >= 0xD800 && c <= 0xDBFF) {
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xDC00 && next <= 0xDFFF) { n += 4; i++; } else n += 3;
+      } else n += 3; // BMP >= 0x800, incl. unpaired low surrogate
+    }
+    return n;
+  };
+
+  const cases = [
+    'a'.repeat(300) + HI + 'b'.repeat(300), // Unpaired high inside large 2-byte
+    'a'.repeat(300) + LO + 'b'.repeat(300), // Unpaired low inside large 2-byte
+    HI.repeat(200), // many unpaired highs
+    (HI + LO).repeat(200), // Reversed order, still unpaired
+    PAIR.repeat(200), // valid pairs, large
+    '中'.repeat(500), // BMP 3-byte, large
+    'é'.repeat(500), // latin1, large
+    `a中${PAIR}${HI}é`.repeat(100), // mixed, large
+    `A${HI}`, // Tiny, below SIMD threshold
+    HI, // Single unpaired surrogate
+    '',
+  ];
+
+  for (const s of cases) {
+    const ref = enc.encode(s); // WHATWG ground-truth UTF-8 bytes
+    const label = JSON.stringify(s).slice(0, 32);
+    assert.strictEqual(utf8Bytes(s), ref.length, `oracle vs TextEncoder: ${label}`);
+    assert.strictEqual(Buffer.byteLength(s, 'utf8'), ref.length, `byteLength: ${label}`);
+    assert.deepStrictEqual(new Uint8Array(Buffer.from(s, 'utf8')), ref, `bytes: ${label}`);
+  }
+}

@@ -15,7 +15,7 @@ macro_rules! ast_struct {
 
         #[cfg(not(feature = "full"))]
         $(#[$attr])* $pub $struct $name {
-            _noconstruct: ::std::marker::PhantomData<::proc_macro2::Span>,
+            _noconstruct: ::core::marker::PhantomData<::proc_macro2::Span>,
         }
 
         #[cfg(all(not(feature = "full"), feature = "printing"))]

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -46,10 +46,7 @@ ALIGN32 static const BN_ULONG def_xG[P256_LIMBS] = {
 };
 
 ALIGN32 static const BN_ULONG def_yG[P256_LIMBS] = {
-    0x02df32e52139f0a0,
-    0xd0a9877cc62a4740,
-    0x59bdcee36b692153,
-    0xbc3736a2f4f6779c,
+    0x02df32e52139f0a0, 0xd0a9877cc62a4740, 0x59bdcee36b692153, 0xbc3736a2f4f6779c
 };
 #endif
 

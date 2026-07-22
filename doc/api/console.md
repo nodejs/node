@@ -240,9 +240,7 @@ added: v8.3.0
 Maintains an internal counter specific to `label` and outputs to `stdout` the
 number of times `console.count()` has been called with the given `label`.
 
-<!-- eslint-skip -->
-
-```js
+```console
 > console.count()
 default: 1
 undefined
@@ -274,9 +272,7 @@ added: v8.3.0
 
 Resets the internal counter specific to `label`.
 
-<!-- eslint-skip -->
-
-```js
+```console
 > console.count('abc');
 abc: 1
 undefined

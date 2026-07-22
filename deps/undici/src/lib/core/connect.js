@@ -3,7 +3,7 @@
 const net = require('node:net')
 const assert = require('node:assert')
 const util = require('./util')
-const { InvalidArgumentError } = require('./errors')
+const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 
 let tls // include tls conditionally since it is not always available
 
@@ -38,12 +38,28 @@ const SessionCache = class WeakSessionCache {
       return
     }
 
+    if (this._sessionCache.has(sessionKey)) {
+      this._sessionCache.delete(sessionKey)
+    } else if (this._sessionCache.size >= this._maxCachedSessions) {
+      for (const [key, ref] of this._sessionCache) {
+        if (ref.deref() === undefined) {
+          this._sessionCache.delete(key)
+          return
+        }
+      }
+
+      const oldest = this._sessionCache.keys().next()
+      if (!oldest.done) {
+        this._sessionCache.delete(oldest.value)
+      }
+    }
+
     this._sessionCache.set(sessionKey, new WeakRef(session))
     this._sessionRegistry.register(session, sessionKey)
   }
 }
 
-function buildConnector ({ allowH2, useH2c, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
+function buildConnector ({ allowH2, preferH2, useH2c, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
   if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
     throw new InvalidArgumentError('maxCachedSessions must be a positive integer or zero')
   }
@@ -73,7 +89,7 @@ function buildConnector ({ allowH2, useH2c, maxCachedSessions, socketPath, timeo
         servername,
         session,
         localAddress,
-        ALPNProtocols: allowH2 ? ['http/1.1', 'h2'] : ['http/1.1'],
+        ALPNProtocols: allowH2 ? (preferH2 ? ['h2', 'http/1.1'] : ['http/1.1', 'h2']) : ['http/1.1'],
         socket: httpSocket, // upgrade socket connection
         port,
         host: hostname
@@ -126,12 +142,37 @@ function buildConnector ({ allowH2, useH2c, maxCachedSessions, socketPath, timeo
         if (callback) {
           const cb = callback
           callback = null
-          cb(err)
+          cb(maybeNormalizeConnectError(err, this, { timeout, hostname, port }))
         }
       })
 
     return socket
   }
+}
+
+// `net.connect` with `autoSelectFamily` raises an `AggregateError` when every
+// attempted address fails. If any of those failures is a timeout, surface the
+// error as a `ConnectTimeoutError` so callers see the same error regardless of
+// which timer (Node's internal one or undici's `connectTimeout`) wins the race.
+// The original `AggregateError` is preserved on `.cause`.
+function maybeNormalizeConnectError (err, socket, opts) {
+  if (
+    err instanceof AggregateError &&
+    (err.code === 'ETIMEDOUT' || err.errors.some((e) => e != null && e.code === 'ETIMEDOUT'))
+  ) {
+    let message = 'Connect Timeout Error'
+    if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+      message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')},`
+    } else {
+      message += ` (attempted address: ${opts.hostname}:${opts.port},`
+    }
+    message += ` timeout: ${opts.timeout}ms)`
+
+    const wrapped = new ConnectTimeoutError(message)
+    wrapped.cause = err
+    return wrapped
+  }
+  return err
 }
 
 module.exports = buildConnector

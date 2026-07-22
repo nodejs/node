@@ -32,7 +32,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_cc.h"
-#include "ngtcp2_window_filter.h"
+#include "ngtcp2_wf.h"
 
 typedef struct ngtcp2_rst ngtcp2_rst;
 typedef struct ngtcp2_pcg32 ngtcp2_pcg32;
@@ -67,9 +67,9 @@ typedef struct ngtcp2_cc_bbr {
 
   /* max_bw_filter for tracking the maximum recent delivery rate
     samples for estimating max_bw. */
-  ngtcp2_window_filter max_bw_filter;
+  ngtcp2_wf max_bw_filter;
 
-  ngtcp2_window_filter extra_acked_filter;
+  ngtcp2_wf extra_acked_filter;
 
   ngtcp2_duration min_rtt;
   ngtcp2_tstamp min_rtt_stamp;
@@ -133,6 +133,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t round_count_at_recovery;
   uint64_t max_inflight;
   uint64_t bdp;
+  uint64_t drain_start_round;
   int loss_round_start;
   int bw_probe_samples;
   int probe_rtt_expired;

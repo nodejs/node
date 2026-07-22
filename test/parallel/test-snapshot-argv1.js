@@ -50,6 +50,7 @@ require('v8').startupSnapshot.setDeserializeMainFunction(() => {
   const stdout = JSON.parse(child.stdout.toString().trim());
   assert.deepStrictEqual(stdout, [
     process.execPath,
+    process.execPath,
     'argv1',
     'argv2',
   ]);

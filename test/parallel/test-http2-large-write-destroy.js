@@ -34,6 +34,7 @@ server.listen(0, common.mustCall(() => {
   req.end();
   req.resume(); // Otherwise close won't be emitted if there's pending data.
 
+  req.on('error', () => {});
   req.on('close', common.mustCall(() => {
     client.close();
     server.close();

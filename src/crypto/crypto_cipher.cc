@@ -93,6 +93,11 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     // If it is, then the getCipherInfo will succeed with the given
     // values.
     auto ctx = CipherCtxPointer::New();
+    if (!ctx) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to allocate cipher context");
+    }
+
     if (!ctx.init(cipher, true)) {
       return;
     }
@@ -338,7 +343,10 @@ void CipherBase::CommonInit(const char* cipher_type,
   MarkPopErrorOnReturn mark_pop_error_on_return;
   CHECK(!ctx_);
   ctx_ = CipherCtxPointer::New();
-  CHECK(ctx_);
+  if (!ctx_) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env(), "Failed to allocate cipher context");
+  }
 
   if (cipher.isWrapMode()) {
     ctx_.setAllowWrap();
@@ -447,8 +455,10 @@ bool CipherBase::InitAuthenticated(const char* cipher_type,
     // Other modes (CCM, OCB) require an explicit tag length.
     if (ctx_.isGcmMode()) {
       auth_tag_len = EVP_GCM_TLS_TAG_LEN;
+#ifdef EVP_CHACHAPOLY_TLS_TAG_LEN
     } else if (ctx_.isChaCha20Poly1305()) {
       auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
+#endif
     } else {
       THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
           env(), "authTagLength required for %s", cipher_type);
@@ -709,7 +719,7 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       static_cast<size_t>(ctx_.getBlockSize()),
       BackingStoreInitializationMode::kUninitialized);
 
-#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
+#if !OPENSSL_VERSION_PREREQ(3, 0)
   // OpenSSL v1.x doesn't verify the presence of the auth tag so do
   // it ourselves, see https://github.com/nodejs/node/issues/45874.
   if (kind_ == kDecipher && ctx_.isChaCha20Poly1305() &&

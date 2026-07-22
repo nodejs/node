@@ -90,7 +90,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
   socket.close();
 }
 
-// addSourceSpecificMembership with invalid sourceAddress should throw
+// addSourceSpecificMembership with invalid groupAddress should throw
 {
   const socket = setup();
   assert.throws(() => {

@@ -2,7 +2,7 @@ import { URL } from 'node:url'
 import { Duplex, Readable, Writable } from 'node:stream'
 import { EventEmitter } from 'node:events'
 import { Blob } from 'node:buffer'
-import { IncomingHttpHeaders } from './header'
+import { IncomingHttpHeaders, OutgoingHttpHeaders } from './header'
 import BodyReadable from './readable'
 import { FormData } from './formdata'
 import Errors from './errors'
@@ -10,7 +10,7 @@ import { Autocomplete } from './utility'
 
 export default Dispatcher
 
-export type UndiciHeaders = Record<string, string | string[]> | IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null
+export type UndiciHeaders = OutgoingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null
 
 /** Dispatcher is the core API used to dispatch requests. */
 declare class Dispatcher extends EventEmitter {
@@ -121,8 +121,6 @@ declare namespace Dispatcher {
     bodyTimeout?: number | null;
     /** Whether the request should stablish a keep-alive or not. Default `false` */
     reset?: boolean;
-    /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
-    throwOnError?: boolean;
     /** For H2, it appends the expect: 100-continue header, and halts the request body until a 100-continue is received from the remote server */
     expectContinue?: boolean;
   }
@@ -210,8 +208,8 @@ declare namespace Dispatcher {
     get aborted(): boolean
     get paused(): boolean
     get reason(): Error | null
-    rawHeaders?: Buffer[] | string[] | null
-    rawTrailers?: Buffer[] | string[] | null
+    rawHeaders?: Buffer[] | string[] | IncomingHttpHeaders | null
+    rawTrailers?: Buffer[] | string[] | IncomingHttpHeaders | null
     abort(reason: Error): void
     pause(): void
     resume(): void

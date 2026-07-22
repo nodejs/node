@@ -1,6 +1,6 @@
 node:events:<line>
-      throw er; // Unhandled 'error' event
-      ^
+    throw er; // Unhandled 'error' event
+    ^
 
 Error: foo:bar
     at bar (<project-root>/test/fixtures/errors/events_unhandled_error_common_trace.js:9:12)

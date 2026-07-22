@@ -13,19 +13,27 @@ ASM_ARCHS = aix64-gcc-as BSD-x86 BSD-x86_64 \
 darwin64-x86_64-cc darwin-i386-cc darwin64-arm64-cc linux-aarch64 \
 linux-armv4 linux-elf linux-x86_64 \
 linux-ppc64le linux32-s390x linux64-s390x linux64-mips64\
+linux64-riscv64 \
 solaris-x86-gcc solaris64-x86_64-gcc VC-WIN64A VC-WIN32
 
-NO_ASM_ARCHS = VC-WIN64-ARM linux64-riscv64 linux64-loongarch64
+NO_ASM_ARCHS = VC-WIN64-ARM linux64-loongarch64
 
 CC = gcc
 FAKE_GCC = ../config/fake_gcc.pl
 
 CONFIGURE = ./Configure
-# no-comp: against CRIME attack
+# no-tests: test dir is not included or used
 # no-shared: openssl-cli needs static link
 # no-afalgeng: old Linux kernel < 4.0 does not support it
 # enable-ssl-trace: cause the optional SSL_trace API to be built
-COPTS =  no-comp no-shared no-afalgeng enable-ssl-trace enable-fips
+# zlib/brotli/zstd: enable compression libraries for TLS certificate
+#   compression (RFC 8879). Record compression remains disabled at runtime
+#   via SSL_OP_NO_COMPRESSION and sk_SSL_COMP_zero() in crypto_util.cc.
+#   Include paths point to Node's bundled deps (relative to openssl/).
+COPTS =  no-tests no-shared no-afalgeng enable-ssl-trace enable-fips \
+         zlib --with-zlib-include=../../zlib \
+         enable-brotli --with-brotli-include=../../brotli/c/include \
+         enable-zstd --with-zstd-include=../../zstd/lib
 
 # disable platform check in Configure
 NO_WARN_ENV = CONFIGURE_CHECKER_WARN=1

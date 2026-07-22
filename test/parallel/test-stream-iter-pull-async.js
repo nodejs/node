@@ -41,14 +41,11 @@ async function testPullStatefulTransform() {
 }
 
 async function testPullWithAbortSignal() {
-  const ac = new AbortController();
-  ac.abort();
-
   async function* gen() {
     yield [new Uint8Array([1])];
   }
 
-  const result = pull(gen(), { signal: ac.signal });
+  const result = pull(gen(), { signal: AbortSignal.abort() });
   await assert.rejects(
     async () => {
       // eslint-disable-next-line no-unused-vars
@@ -156,6 +153,44 @@ async function testPullSignalAbortMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testPullSignalAbortWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(source, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testPullSignalAbortWithTransformWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(
+    source,
+    (chunks) => chunks,
+    { signal: ac.signal },
+  )[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
 // Pull consumer break (return()) cleans up transform signal
 async function testPullConsumerBreakCleanup() {
   let signalAborted = false;
@@ -231,6 +266,19 @@ async function testPullStatelessTransformFlush() {
   };
   const data = await text(pull(from('data'), withTrailer));
   assert.strictEqual(data, 'data-TRAILER');
+}
+
+// Consecutive stateless transforms each receive a final flush signal after
+// upstream flush output has been processed.
+async function testPullConsecutiveStatelessTransformFlush() {
+  const enc = new TextEncoder();
+  const addAOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-A')] : chunks);
+  const addBOnFlush = (chunks) => (chunks === null ?
+    [enc.encode('-B')] : chunks);
+
+  const data = await text(pull(from('x'), addAOnFlush, addBOnFlush));
+  assert.strictEqual(data, 'x-A-B');
 }
 
 // Stateless transform flush error propagates
@@ -351,12 +399,15 @@ async function testTransformOptionsNotShared() {
     testPullSourceError(),
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
+    testPullSignalAbortWhileSourceNextPending(),
+    testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
     testPullTransformYieldsStrings(),
     testPullStatelessTransformError(),
     testPullStatefulTransformError(),
     testPullStatelessTransformFlush(),
+    testPullConsecutiveStatelessTransformFlush(),
     testPullStatelessTransformFlushError(),
     testPullWithSyncSource(),
     testPullStringSource(),

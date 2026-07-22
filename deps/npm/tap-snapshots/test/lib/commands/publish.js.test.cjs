@@ -87,23 +87,25 @@ Array [
 
 exports[`test/lib/commands/publish.js TAP json > new package json 1`] = `
 {
-  "id": "@npmcli/test-package@1.0.0",
-  "name": "@npmcli/test-package",
-  "version": "1.0.0",
-  "size": "{size}",
-  "unpackedSize": 95,
-  "shasum": "{sha}",
-  "integrity": "{integrity}",
-  "filename": "npmcli-test-package-1.0.0.tgz",
-  "files": [
-    {
-      "path": "package.json",
-      "size": "{size}",
-      "mode": 420
-    }
-  ],
-  "entryCount": 1,
-  "bundled": []
+  "@npmcli/test-package": {
+    "id": "@npmcli/test-package@1.0.0",
+    "name": "@npmcli/test-package",
+    "version": "1.0.0",
+    "size": "{size}",
+    "unpackedSize": 95,
+    "shasum": "{sha}",
+    "integrity": "{integrity}",
+    "filename": "npmcli-test-package-1.0.0.tgz",
+    "files": [
+      {
+        "path": "package.json",
+        "size": "{size}",
+        "mode": 420
+      }
+    ],
+    "entryCount": 1,
+    "bundled": []
+  }
 }
 `
 
@@ -154,6 +156,7 @@ Object {
   "man": Array [
     "man/man1/npm-access.1",
     "man/man1/npm-adduser.1",
+    "man/man1/npm-approve-scripts.1",
     "man/man1/npm-audit.1",
     "man/man1/npm-bugs.1",
     "man/man1/npm-cache.1",
@@ -161,6 +164,7 @@ Object {
     "man/man1/npm-completion.1",
     "man/man1/npm-config.1",
     "man/man1/npm-dedupe.1",
+    "man/man1/npm-deny-scripts.1",
     "man/man1/npm-deprecate.1",
     "man/man1/npm-diff.1",
     "man/man1/npm-dist-tag.1",
@@ -177,6 +181,7 @@ Object {
     "man/man1/npm-help.1",
     "man/man1/npm-init.1",
     "man/man1/npm-install-ci-test.1",
+    "man/man1/npm-install-scripts.1",
     "man/man1/npm-install-test.1",
     "man/man1/npm-install.1",
     "man/man1/npm-link.1",
@@ -204,6 +209,7 @@ Object {
     "man/man1/npm-search.1",
     "man/man1/npm-set.1",
     "man/man1/npm-shrinkwrap.1",
+    "man/man1/npm-stage.1",
     "man/man1/npm-star.1",
     "man/man1/npm-stars.1",
     "man/man1/npm-start.1",
@@ -258,12 +264,34 @@ exports[`test/lib/commands/publish.js TAP no auth dry-run > must match snapshot 
 
 exports[`test/lib/commands/publish.js TAP no auth dry-run > warns about auth being needed 1`] = `
 Array [
-  "This command requires you to be logged in to https://registry.npmjs.org/ (dry-run)",
+  "publish This command requires you to be logged in to https://registry.npmjs.org/ (dry-run)",
 ]
 `
 
 exports[`test/lib/commands/publish.js TAP prioritize CLI flags over publishConfig > new package version 1`] = `
 + @npmcli/test-package@1.0.0
+`
+
+exports[`test/lib/commands/publish.js TAP private access > must match snapshot 1`] = `
+Array [
+  "package: @npm/test-package@1.0.0",
+  "Tarball Contents",
+  "55B package.json",
+  "Tarball Details",
+  "name: @npm/test-package",
+  "version: 1.0.0",
+  "filename: npm-test-package-1.0.0.tgz",
+  "package size: {size}",
+  "unpacked size: 55 B",
+  "shasum: {sha}",
+  "integrity: {integrity}
+  "total files: 1",
+  "Publishing to https://registry.npmjs.org/ with tag latest and restricted access",
+]
+`
+
+exports[`test/lib/commands/publish.js TAP private access > new package version 1`] = `
++ @npm/test-package@1.0.0
 `
 
 exports[`test/lib/commands/publish.js TAP public access > must match snapshot 1`] = `

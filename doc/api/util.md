@@ -76,7 +76,24 @@ wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
 
-```js
+```mjs
+import util from 'node:util';
+
+function fn() {
+  return Promise.reject(null);
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  // When the Promise was rejected with `null` it is wrapped with an Error and
+  // the original value is stored in `reason`.
+  err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
+});
+```
+
+```cjs
+const util = require('node:util');
+
 function fn() {
   return Promise.reject(null);
 }
@@ -489,7 +506,7 @@ corresponding argument. Supported specifiers are:
   `Symbol`.
 * `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
   `Symbol`.
-* `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
+* `%f`: `parseFloat(value)` is used for all values except `Symbol`.
 * `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
   circular references.
 * `%o`: `Object`. A string representation of an object with generic JavaScript
@@ -1563,7 +1580,7 @@ symbol is [registered globally][global symbol registry] and can be
 accessed in any environment as `Symbol.for('nodejs.util.inspect.custom')`.
 
 Using this allows code to be written in a portable fashion, so that the custom
-inspect function is used in an Node.js environment and ignored in the browser.
+inspect function is used in a Node.js environment and ignored in the browser.
 The `util.inspect()` function itself is passed as third argument to the custom
 inspect function to allow further portability.
 
@@ -2531,7 +2548,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/61556
     description: Add support for hexadecimal colors.
   - version:
@@ -2555,7 +2574,7 @@ changes:
 * `format` {string | Array} A text format or an Array
   of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
   or `#RRGGBB` form.
-* `text` {string} The text to to be formatted.
+* `text` {string} The text to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.

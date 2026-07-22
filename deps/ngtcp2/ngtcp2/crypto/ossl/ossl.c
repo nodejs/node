@@ -79,6 +79,60 @@ int ngtcp2_crypto_ossl_init(void) {
   return 0;
 }
 
+void ngtcp2_crypto_ossl_free(void) {
+  if (crypto_hkdf) {
+    EVP_KDF_free(crypto_hkdf);
+    crypto_hkdf = NULL;
+  }
+
+  if (crypto_sha384) {
+    EVP_MD_free(crypto_sha384);
+    crypto_sha384 = NULL;
+  }
+
+  if (crypto_sha256) {
+    EVP_MD_free(crypto_sha256);
+    crypto_sha256 = NULL;
+  }
+
+#ifndef NGTCP2_NO_CHACHA_POLY1305
+  if (crypto_chacha20) {
+    EVP_CIPHER_free(crypto_chacha20);
+    crypto_chacha20 = NULL;
+  }
+
+  if (crypto_chacha20_poly1305) {
+    EVP_CIPHER_free(crypto_chacha20_poly1305);
+    crypto_chacha20_poly1305 = NULL;
+  }
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
+
+  if (crypto_aes_256_ecb) {
+    EVP_CIPHER_free(crypto_aes_256_ecb);
+    crypto_aes_256_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ecb) {
+    EVP_CIPHER_free(crypto_aes_128_ecb);
+    crypto_aes_128_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ccm) {
+    EVP_CIPHER_free(crypto_aes_128_ccm);
+    crypto_aes_128_ccm = NULL;
+  }
+
+  if (crypto_aes_256_gcm) {
+    EVP_CIPHER_free(crypto_aes_256_gcm);
+    crypto_aes_256_gcm = NULL;
+  }
+
+  if (crypto_aes_128_gcm) {
+    EVP_CIPHER_free(crypto_aes_128_gcm);
+    crypto_aes_128_gcm = NULL;
+  }
+}
+
 static const EVP_CIPHER *crypto_aead_aes_128_gcm(void) {
   if (crypto_aes_128_gcm) {
     return crypto_aes_128_gcm;
@@ -440,7 +494,7 @@ static int crypto_ossl_ctx_write_crypto_data(ngtcp2_crypto_ossl_ctx *ossl_ctx,
       left = crypto_buf_left(ossl_ctx->crypto_write);
     }
 
-    n = ngtcp2_min_size((size_t)(end - data), left);
+    n = ngtcp2_min((size_t)(end - data), left);
     crypto_buf_write(ossl_ctx->crypto_write, data, n);
     data += n;
   }
@@ -871,7 +925,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  ngtcp2_crypto_ossl_ctx *ossl_ctx = ngtcp2_conn_get_tls_native_handle(conn);
+  ngtcp2_crypto_ossl_ctx *ossl_ctx = ngtcp2_conn_get_tls_native_handle2(conn);
   SSL *ssl = ossl_ctx->ssl;
   int rv;
   int err;
@@ -881,7 +935,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     return -1;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
     rv = SSL_do_handshake(ssl);
     if (rv <= 0) {
       err = SSL_get_error(ssl, rv);
@@ -1033,7 +1087,7 @@ static int ossl_yield_secret(SSL *ssl, uint32_t ossl_level, int direction,
   }
 
   conn = conn_ref->get_conn(conn_ref);
-  ossl_ctx = ngtcp2_conn_get_tls_native_handle(conn);
+  ossl_ctx = ngtcp2_conn_get_tls_native_handle2(conn);
 
   if (direction) {
     if (ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL, level,
@@ -1067,7 +1121,7 @@ static int ossl_crypto_send(SSL *ssl, const unsigned char *buf, size_t buflen,
   }
 
   conn = conn_ref->get_conn(conn_ref);
-  ossl_ctx = ngtcp2_conn_get_tls_native_handle(conn);
+  ossl_ctx = ngtcp2_conn_get_tls_native_handle2(conn);
 
   rv = ngtcp2_conn_submit_crypto_data(conn, ossl_ctx->tx_level, buf, buflen);
   if (rv != 0) {
@@ -1094,7 +1148,7 @@ static int ossl_crypto_recv_rcd(SSL *ssl, const unsigned char **buf,
   }
 
   conn = conn_ref->get_conn(conn_ref);
-  ossl_ctx = ngtcp2_conn_get_tls_native_handle(conn);
+  ossl_ctx = ngtcp2_conn_get_tls_native_handle2(conn);
 
   crypto_ossl_ctx_read_crypto_data(ossl_ctx, buf, bytes_read);
 
@@ -1116,7 +1170,7 @@ static int ossl_crypto_release_rcd(SSL *ssl, size_t released, void *arg) {
   }
 
   conn = conn_ref->get_conn(conn_ref);
-  ossl_ctx = ngtcp2_conn_get_tls_native_handle(conn);
+  ossl_ctx = ngtcp2_conn_get_tls_native_handle2(conn);
 
   crypto_ossl_ctx_release_crypto_data(ossl_ctx, released);
 

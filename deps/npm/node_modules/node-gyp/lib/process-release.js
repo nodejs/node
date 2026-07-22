@@ -1,9 +1,6 @@
-/* eslint-disable n/no-deprecated-api */
-
 'use strict'
 
 const semver = require('semver')
-const url = require('url')
 const path = require('path')
 const log = require('./log')
 
@@ -74,11 +71,11 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   } else {
     distBaseUrl = 'https://nodejs.org/dist'
   }
-  distBaseUrl += '/v' + version + '/'
+  distBaseUrl = new URL(distBaseUrl + '/v' + version + '/')
 
   // new style, based on process.release so we have a lot of the data we need
   if (defaultRelease && defaultRelease.headersUrl && !overrideDistUrl) {
-    baseUrl = url.resolve(defaultRelease.headersUrl, './')
+    baseUrl = new URL('./', defaultRelease.headersUrl)
     libUrl32 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x86', versionSemver.major)
     libUrl64 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x64', versionSemver.major)
     libUrlArm64 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'arm64', versionSemver.major)
@@ -96,28 +93,28 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
     // have a *-headers.tar.gz file in its dist location, even some frankenstein
     // custom version
     canGetHeaders = semver.satisfies(versionSemver, headersTarballRange)
-    tarballUrl = url.resolve(baseUrl, name + '-v' + version + (canGetHeaders ? '-headers' : '') + '.tar.gz')
+    tarballUrl = new URL(name + '-v' + version + (canGetHeaders ? '-headers' : '') + '.tar.gz', baseUrl).href
   }
 
   return {
     version,
     semver: versionSemver,
     name,
-    baseUrl,
+    baseUrl: baseUrl.href,
     tarballUrl,
-    shasumsUrl: url.resolve(baseUrl, 'SHASUMS256.txt'),
+    shasumsUrl: new URL('SHASUMS256.txt', baseUrl).href,
     versionDir: (name !== 'node' ? name + '-' : '') + version,
     ia32: {
-      libUrl: libUrl32,
-      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrl32).pathname))
+      libUrl: libUrl32.href,
+      libPath: normalizePath(path.relative(baseUrl.pathname, libUrl32.pathname))
     },
     x64: {
-      libUrl: libUrl64,
-      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrl64).pathname))
+      libUrl: libUrl64.href,
+      libPath: normalizePath(path.relative(baseUrl.pathname, libUrl64.pathname))
     },
     arm64: {
-      libUrl: libUrlArm64,
-      libPath: normalizePath(path.relative(new URL(baseUrl).pathname, new URL(libUrlArm64).pathname))
+      libUrl: libUrlArm64.href,
+      libPath: normalizePath(path.relative(baseUrl.pathname, libUrlArm64.pathname))
     }
   }
 }
@@ -127,20 +124,21 @@ function normalizePath (p) {
 }
 
 function resolveLibUrl (name, defaultUrl, arch, versionMajor) {
-  const base = url.resolve(defaultUrl, './')
-  const hasLibUrl = bitsre.test(defaultUrl) || (versionMajor === 3 && bitsreV3.test(defaultUrl))
+  if (!defaultUrl.pathname) defaultUrl = new URL(defaultUrl)
+  const base = new URL('./', defaultUrl)
+  const hasLibUrl = bitsre.test(defaultUrl.pathname) || (versionMajor === 3 && bitsreV3.test(defaultUrl.pathname))
 
   if (!hasLibUrl) {
     // let's assume it's a baseUrl then
     if (versionMajor >= 1) {
-      return url.resolve(base, 'win-' + arch + '/' + name + '.lib')
+      return new URL('win-' + arch + '/' + name + '.lib', base)
     }
     // prior to io.js@1.0.0 32-bit node.lib lives in /, 64-bit lives in /x64/
-    return url.resolve(base, (arch === 'x86' ? '' : arch + '/') + name + '.lib')
+    return new URL((arch === 'x86' ? '' : arch + '/') + name + '.lib', base)
   }
 
   // else we have a proper url to a .lib, just make sure it's the right arch
-  return defaultUrl.replace(versionMajor === 3 ? bitsreV3 : bitsre, '/win-' + arch + '/')
+  return new URL(defaultUrl.pathname.replace(versionMajor === 3 ? bitsreV3 : bitsre, '/win-' + arch + '/'), defaultUrl)
 }
 
 module.exports = processRelease

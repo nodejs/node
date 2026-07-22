@@ -30,8 +30,8 @@
 /// # Example
 ///
 /// ```
+/// use core::iter;
 /// use proc_macro2::{TokenStream, TokenTree};
-/// use std::iter;
 /// use syn::parse::{Parse, ParseStream, Peek, Result};
 /// use syn::punctuated::Punctuated;
 /// use syn::Expr;

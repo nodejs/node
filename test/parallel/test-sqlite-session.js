@@ -232,7 +232,7 @@ suite('conflict resolution', () => {
     const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
-    database2.prepare(insertSql).run(2, 'hello');  // database2 already constains hello
+    database2.prepare(insertSql).run(2, 'hello');  // database2 already contains hello
 
     return {
       database2,
@@ -493,6 +493,27 @@ test('database.applyChangeset() - wrong arguments', (t) => {
   }, {
     name: 'TypeError',
     message: 'The "options.onConflict" argument must be a function.'
+  });
+});
+
+test('database.applyChangeset() - malformed changeset returns SQLITE_CORRUPT', {
+  skip: process.config.variables.node_shared_sqlite ?
+    'requires the bundled SQLite session fix' : false,
+}, (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE t1(a INTEGER PRIMARY KEY, b, c, d)');
+
+  const changeset = Buffer.from(
+    '540401000000743100177e0072286565286565',
+    'hex');
+
+  t.assert.throws(() => {
+    database.applyChangeset(changeset);
+  }, {
+    name: 'Error',
+    message: 'database disk image is malformed',
+    errcode: 11,
+    code: 'ERR_SQLITE_ERROR',
   });
 });
 

@@ -326,6 +326,15 @@ async function checkDigest(name, vectors) {
       else
         algorithm.domainSeparation = rest[0];
     }
+
+    if (isKT && algorithm.customization?.byteLength > 512) {
+      await assert.rejects(subtle.digest(algorithm, input), {
+        name: 'OperationError',
+        message: 'KangarooTwelveParams.customization must be at most 512 bytes',
+      });
+      continue;
+    }
+
     const result = await subtle.digest(algorithm, input);
     assert.deepStrictEqual(
       Buffer.from(result).toString('hex'),

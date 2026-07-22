@@ -26,6 +26,7 @@
 
 #include "async_wrap.h"
 #include "connection_wrap.h"
+#include "node_messaging.h"
 
 namespace node {
 
@@ -61,8 +62,35 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
     }
   }
 
+  // Transfer the underlying socket to another thread via .postMessage(). Within
+  // a single process all threads share the same file descriptor table, so the
+  // transfer dup()s the fd and re-adopts it (uv_tcp_open) in the receiving
+  // event loop. This is the building block for distributing listening sockets
+  // and accepted connections across worker_threads.
+  BaseObject::TransferMode GetTransferMode() const override;
+  std::unique_ptr<worker::TransferData> TransferForMessaging() override;
+
  private:
   typedef uv_tcp_t HandleType;
+
+  class TransferData : public worker::TransferData {
+   public:
+    explicit TransferData(int fd, SocketType type) : fd_(fd), type_(type) {}
+    ~TransferData() override;
+
+    BaseObjectPtr<BaseObject> Deserialize(
+        Environment* env,
+        v8::Local<v8::Context> context,
+        std::unique_ptr<worker::TransferData> self) override;
+
+    SET_NO_MEMORY_INFO()
+    SET_MEMORY_INFO_NAME(TCPWrapTransferData)
+    SET_SELF_SIZE(TransferData)
+
+   private:
+    int fd_;
+    SocketType type_;
+  };
 
   template <typename T,
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
@@ -83,13 +111,16 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   static void Connect6(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <typename T>
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args,
-      std::function<int(const char* ip_address, T* addr)> uv_ip_addr);
+                      int (*uv_ip_addr)(const char* ip_address,
+                                        int port,
+                                        T* addr));
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <typename T>
-  static void Bind(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      int family,
-      std::function<int(const char* ip_address, int port, T* addr)> uv_ip_addr);
+  static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args,
+                   int family,
+                   int (*uv_ip_addr)(const char* ip_address,
+                                     int port,
+                                     T* addr));
   static void Reset(const v8::FunctionCallbackInfo<v8::Value>& args);
   int Reset(v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
 

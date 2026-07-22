@@ -13,7 +13,7 @@ const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
-    response.on('finish', common.mustCall(() => {
+    response.on('close', common.mustCall(() => {
       assert.strictEqual(response.headersSent, false);
       response.setHeader('test', 'value');
       response.removeHeader('test', 'value');
@@ -38,7 +38,8 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(function() {
+    request.on('error', () => {});
+    request.on('close', common.mustCall(function() {
       client.close();
     }));
     request.end();

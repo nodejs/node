@@ -59,8 +59,8 @@ test('ffi bool signatures use uint8 values', () => {
     assert.strictEqual(symbols.logical_not(0), 1);
 
     const boolAdder = lib.getFunction('add_u8', {
-      parameters: ['bool', 'bool'],
-      result: 'bool',
+      arguments: ['bool', 'bool'],
+      return: 'bool',
     });
     assert.strictEqual(boolAdder(1, 0), 1);
     assert.throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
@@ -112,6 +112,47 @@ test('ffi strings and buffers cross the boundary correctly', () => {
   }
 });
 
+test('ffi string signatures convert strings to temporary pointers', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    string_length: { arguments: ['string'], return: 'u64' },
+    safe_strlen: { arguments: ['str'], return: 'i32' },
+  });
+  try {
+    assert.strictEqual(functions.string_length('hello ffi'), 9n);
+    assert.strictEqual(functions.safe_strlen('hello ffi'), 9);
+    assert.strictEqual(functions.safe_strlen(null), -1);
+    assert.strictEqual(functions.safe_strlen(undefined), -1);
+  } finally {
+    lib.close();
+  }
+});
+
+test('ffi buffer and ArrayBuffer signatures pass backing-store pointers', () => {
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['buffer'], return: 'u8' },
+    });
+    try {
+      assert.strictEqual(functions.first_byte(Buffer.from([42, 1])), 42);
+      assert.strictEqual(functions.first_byte(new Uint8Array([43, 1])), 43);
+    } finally {
+      lib.close();
+    }
+  }
+
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['arraybuffer'], return: 'u8' },
+    });
+    try {
+      const ab = new Uint8Array([44, 1]).buffer;
+      assert.strictEqual(functions.first_byte(ab), 44);
+    } finally {
+      lib.close();
+    }
+  }
+});
+
 test('ffi typed array accessors work', () => {
   const { lib, functions: symbols } = getLibrary();
   try {
@@ -148,15 +189,15 @@ test('ffi callbacks can be registered and invoked', () => {
   const { lib, functions: symbols } = getLibrary();
   const seen = [];
   const intCallback = lib.registerCallback(
-    { parameters: ['i32'], result: 'i32' },
+    { arguments: ['i32'], return: 'i32' },
     (value) => value * 2,
   );
   const stringCallback = lib.registerCallback(
-    { parameters: ['pointer'], result: 'void' },
+    { arguments: ['pointer'], return: 'void' },
     (ptr) => seen.push(ffi.toString(ptr)),
   );
   const binaryCallback = lib.registerCallback(
-    { arguments: ['i32', 'i32'], returns: 'i32' },
+    { arguments: ['i32', 'i32'], return: 'i32' },
     (a, b) => a + b,
   );
 
@@ -166,8 +207,8 @@ test('ffi callbacks can be registered and invoked', () => {
     assert.deepStrictEqual(seen, ['hello callback']);
     assert.strictEqual(symbols.call_binary_int_callback(binaryCallback, 19, 23), 42);
 
-    const nullPointerCallback = lib.registerCallback({ result: 'pointer' }, () => null);
-    const undefinedPointerCallback = lib.registerCallback({ result: 'pointer' }, () => undefined);
+    const nullPointerCallback = lib.registerCallback({ return: 'pointer' }, () => null);
+    const undefinedPointerCallback = lib.registerCallback({ return: 'pointer' }, () => undefined);
     try {
       assert.strictEqual(symbols.call_pointer_callback_is_null(nullPointerCallback), 1);
       assert.strictEqual(symbols.call_pointer_callback_is_null(undefinedPointerCallback), 1);
@@ -191,7 +232,7 @@ test('ffi callback ref and unref APIs work', () => {
     called = true;
   });
   const countingCallback = lib.registerCallback(
-    { parameters: ['i32'], result: 'i32' },
+    { arguments: ['i32'], return: 'i32' },
     (value) => {
       values.push(value);
       return 0;
@@ -271,7 +312,7 @@ const ffi = require('node:ffi');
 const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
 const { lib, functions } = ffi.dlopen(libraryPath, fixtureSymbols);
 const callback = lib.registerCallback(
-  { parameters: ['i32'], result: 'i32' },
+  { arguments: ['i32'], return: 'i32' },
   () => (${returnExpression}),
 );
 functions.call_int_callback(callback, 21);`,
@@ -294,7 +335,7 @@ const ffi = require('node:ffi');
 const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
 const { lib, functions } = ffi.dlopen(libraryPath, fixtureSymbols);
 const callback = lib.registerCallback(
-  { parameters: ['i32'], result: 'i32' },
+  { arguments: ['i32'], return: 'i32' },
   () => { ${callbackBody} },
 );
 functions.call_int_callback(callback, 21);`,
@@ -325,7 +366,7 @@ const ffi = require('node:ffi');
 const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
 const { lib } = ffi.dlopen(libraryPath, fixtureSymbols);
 const callback = lib.registerCallback(
-  { parameters: ['i32'], result: 'i32' },
+  { arguments: ['i32'], return: 'i32' },
   (value) => value * 2,
 );
 new Worker(${JSON.stringify(workerSource)}, { eval: true, workerData: callback });`,
@@ -359,7 +400,7 @@ test('ffi unrefCallback releases callback function', async () => {
     let callback = () => 1;
     const ref = new WeakRef(callback);
     const pointer = lib.registerCallback(
-      { parameters: ['i32'], result: 'i32' },
+      { arguments: ['i32'], return: 'i32' },
       callback,
     );
 
@@ -383,7 +424,7 @@ test('ffi unrefCallback zero-fills narrow callback return', async () => {
     let callback = () => 1;
     const ref = new WeakRef(callback);
     const pointer = lib.registerCallback(
-      { parameters: ['i8'], result: 'i8' },
+      { arguments: ['i8'], return: 'i8' },
       callback,
     );
 
@@ -406,7 +447,7 @@ test('ffi refCallback retains callback function', async () => {
   try {
     let callback = () => 1;
     const ref = new WeakRef(callback);
-    const pointer = lib.registerCallback({ result: 'i32' }, callback);
+    const pointer = lib.registerCallback({ return: 'i32' }, callback);
 
     lib.unrefCallback(pointer);
     lib.refCallback(pointer);

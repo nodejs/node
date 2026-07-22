@@ -25,20 +25,20 @@ await checkProxiedFetch({
 shutdown();
 proxy2.close();
 
-// Verify request did NOT go through original proxy, but the overriden one.
+// Verify request did NOT go through original proxy, but the overridden one.
 assert.deepStrictEqual(proxyLogs, []);
 
-// FIXME(undici:4083): undici currently always tunnels the request over
-// CONNECT if proxyTunnel is not explicitly set to false, but what we
-// need is for it to be automatically false for HTTP requests to be
-// consistent with curl.
 const expectedLogs = [{
-  method: 'CONNECT',
-  url: serverHost,
+  method: 'GET',
+  url: requestUrl,
   headers: {
-    'connection': 'close',
     'host': serverHost,
-    'proxy-connection': 'keep-alive',
+    'connection': 'keep-alive',
+    'accept': '*/*',
+    'accept-language': '*',
+    'sec-fetch-mode': 'cors',
+    'user-agent': 'node',
+    'accept-encoding': 'gzip, deflate',
   },
 }];
 assert.deepStrictEqual(proxyLogs2, expectedLogs);

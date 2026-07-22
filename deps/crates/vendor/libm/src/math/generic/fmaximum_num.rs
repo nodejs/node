@@ -4,10 +4,10 @@
 //! Per the spec, returns:
 //! - `x` if `x > y`
 //! - `y` if `y > x`
-//! - Non-NaN if one operand is NaN
-//! - Logic following +0.0 > -0.0
+//! - +0.0 if x and y are zero with opposite signs
 //! - Either `x` or `y` if `x == y` and the signs are the same
-//! - qNaN if either operand is a NaN
+//! - Non-NaN if one operand is NaN
+//! - qNaN if both operands are NaNx
 //!
 //! Excluded from our implementation is sNaN handling.
 
@@ -15,13 +15,15 @@ use crate::support::Float;
 
 #[inline]
 pub fn fmaximum_num<F: Float>(x: F, y: F) -> F {
-    let res =
-        if x.is_nan() || x < y || (x.to_bits() == F::NEG_ZERO.to_bits() && y.is_sign_positive()) {
-            y
-        } else {
-            x
-        };
+    let res = if x > y || y.is_nan() {
+        x
+    } else if y > x || x.is_nan() {
+        y
+    } else if x.is_sign_positive() {
+        x
+    } else {
+        y
+    };
 
-    // Canonicalize
-    res * F::ONE
+    res.canonicalize()
 }

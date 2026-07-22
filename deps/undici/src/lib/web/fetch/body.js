@@ -7,7 +7,7 @@ const {
   fullyReadBody,
   extractMimeType
 } = require('./util')
-const { FormData, setFormDataState } = require('./formdata')
+const { FormData, setFormDataState, getFormDataBoundary } = require('./formdata')
 const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
@@ -16,11 +16,6 @@ const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 const { parseJSONFromBytes } = require('../infra')
 const { utf8DecodeBytes } = require('../../encoding')
-const { runtimeFeatures } = require('../../util/runtime-features.js')
-
-const random = runtimeFeatures.has('crypto')
-  ? require('node:crypto').randomInt
-  : (max) => Math.floor(Math.random() * max)
 
 const textEncoder = new TextEncoder()
 function noop () {}
@@ -106,7 +101,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = webidl.util.getCopyOfBytesHeldByBufferSource(object)
   } else if (webidl.is.FormData(object)) {
-    const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+    const boundary = getFormDataBoundary(object)
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -397,6 +392,49 @@ function bodyMixinMethods (instance, getInternalState) {
       return consumeBody(this, (bytes) => {
         return new Uint8Array(bytes)
       }, instance, getInternalState)
+    },
+
+    textStream () {
+      const this_ = getInternalState(this)
+
+      // 1. If this is unusable, then throw a TypeError.
+      if (bodyUnusable(this_)) {
+        throw new TypeError('Body is unusable: Body has already been read')
+      }
+
+      // 2. If this’s body is null:
+      if (this_.body == null) {
+        // 2.1. Let emptyStream be a new ReadableStream in this’s relevant realm.
+        // 2.2. Set up emptyStream.
+        /** @type {ReadableStreamDefaultController<any>} */
+        let controller
+        const emptyStream = new ReadableStream({
+          start: (c) => {
+            controller = c
+          },
+          pull: () => Promise.resolve(),
+          cancel: () => Promise.resolve()
+        }, {
+          size: () => 1
+        })
+
+        // 2.3. Close emptyStream.
+        controller.close()
+
+        // 2.4. Return emptyStream.
+        return emptyStream
+      }
+
+      // 3. Let stream be this’s body’s stream.
+      /** @type {ReadableStream} */
+      const stream = this_.body.stream
+
+      // 4. Let decoder be a new TextDecoderStream object in this’s relevant realm.
+      // 5. Set up decoder with UTF-8.
+      const decoder = new TextDecoderStream('UTF-8')
+
+      // 6. Return the result of stream, piped through decoder.
+      return stream.pipeThrough(decoder)
     }
   }
 

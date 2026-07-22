@@ -19,6 +19,7 @@ const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
+const babelPluginImportDefer = resolveEslintTool('@babel/plugin-syntax-import-defer');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: regexpPlugin } = await importEslintTool('eslint-plugin-regexp');
 const { default: markdown } = await importEslintTool('@eslint/markdown');
@@ -105,6 +106,7 @@ export default [
         babelOptions: {
           plugins: [
             babelPluginSyntaxImportSource,
+            babelPluginImportDefer,
           ],
         },
         requireConfigFile: false,
@@ -177,7 +179,6 @@ export default [
       'default-case-last': 'error',
       'dot-notation': 'error',
       'eqeqeq': ['error', 'smart'],
-      'func-name-matching': 'error',
       'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
       'no-constant-condition': ['error', { checkLoops: false }],
       'no-constructor-return': 'error',
@@ -389,12 +390,14 @@ export default [
       'node-core/no-duplicate-requires': 'error',
       'node-core/prefer-proto': 'error',
       'node-core/prefer-optional-chaining': 'error',
+      'node-core/func-name-matching': ['error', { considerPropertyDescriptor: true }],
     },
   },
   // #endregion
   // #region markdown config
   {
     files: ['**/*.md'],
+    ignores: ['CLAUDE.md', 'AGENTS.md'],
     plugins: {
       markdown,
     },

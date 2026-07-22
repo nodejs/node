@@ -26,7 +26,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <iostream>
 
 #include "tls_client_context_wolfssl.h"
 #include "client_base.h"
@@ -81,12 +80,12 @@ TLSClientSession::init(bool &early_data_enabled,
   // Just use QUIC v1
   wolfSSL_set_quic_transport_version(ssl_, 0x39);
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
 #ifdef HAVE_SESSION_TICKET
-    auto f = wolfSSL_BIO_new_file(config.session_file, "r");
+    auto f = wolfSSL_BIO_new_file(config.session_file.c_str(), "r");
     if (f == nullptr) {
       std::println(stderr, "Could not open TLS session file {}",
-                   config.session_file);
+                   config.session_file.native());
     } else {
       char *name, *header;
       unsigned char *data;
@@ -96,7 +95,7 @@ TLSClientSession::init(bool &early_data_enabled,
 
       if (wolfSSL_PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
         std::println(stderr, "Could not read TLS session file {}",
-                     config.session_file);
+                     config.session_file.native());
       } else {
         if ("WOLFSSL SESSION PARAMETERS"sv != name) {
           std::println(stderr, "TLS session file contains unexpected name: {}",
@@ -106,12 +105,12 @@ TLSClientSession::init(bool &early_data_enabled,
           session = wolfSSL_d2i_SSL_SESSION(nullptr, &pdata, datalen);
           if (session == nullptr) {
             std::println(stderr, "Could not parse TLS session from file {}",
-                         config.session_file);
+                         config.session_file.native());
           } else {
             auto ret = wolfSSL_set_session(ssl_, session);
             if (ret != WOLFSSL_SUCCESS) {
               std::println(stderr, "Could not install TLS session from file {}",
-                           config.session_file);
+                           config.session_file.native());
             } else {
               if (!config.disable_early_data &&
                   wolfSSL_SESSION_get_max_early_data(session)) {

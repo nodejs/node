@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64', 's390x')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv64')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -116,6 +116,12 @@ parser.add_argument('--dest-cpu',
     dest='dest_cpu',
     choices=valid_arch,
     help=f"CPU architecture to build for ({', '.join(valid_arch)})")
+
+parser.add_argument('--emulator',
+    action='store',
+    dest='emulator',
+    default=None,
+    help='emulator command that can run executables built for the target system')
 
 parser.add_argument('--cross-compiling',
     action='store_true',
@@ -224,6 +230,14 @@ parser.add_argument("--enable-thin-lto",
     default=None,
     help="Enable compiling with thin lto of a binary. This feature is only available "
          "on windows.")
+
+parser.add_argument("--lto-jobs",
+    action="store",
+    dest="lto_jobs",
+    default=None,
+    help="Set the number of parallel LTO code generation jobs during linking. "
+         "Defaults to the number of CPU cores. Lower values reduce peak memory "
+         "usage at the cost of longer link times. Only effective with LTO enabled.")
 
 parser.add_argument("--link-module",
     action="append",
@@ -1065,6 +1079,12 @@ parser.add_argument('--experimental-quic',
     default=None,
     help='build with experimental QUIC support')
 
+parser.add_argument('--experimental-dtls',
+    action='store_true',
+    dest='experimental_dtls',
+    default=None,
+    help='build with experimental DTLS support')
+
 parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -1420,6 +1440,48 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
+def get_openssl_macros(o):
+  """Extract OpenSSL preprocessor macros from the configured headers."""
+
+  # Use the C compiler to extract preprocessor macros from OpenSSL headers.
+  # crypto.h is included because BoringSSL declares OPENSSL_IS_BORINGSSL there.
+  args = ['-E', '-dM',
+          '-include', 'openssl/opensslv.h',
+          '-include', 'openssl/crypto.h',
+          '-']
+  if not options.shared_openssl:
+    args = ['-I', 'deps/openssl/openssl/include'] + args
+  elif options.shared_openssl_includes:
+    args = ['-I', options.shared_openssl_includes] + args
+  else:
+    for dir in o['include_dirs']:
+      args = ['-I', dir] + args
+
+  proc = subprocess.Popen(
+    shlex.split(CC) + args,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+  )
+  with proc:
+    proc.stdin.write(b'\n')
+    out = to_utf8(proc.communicate()[0])
+
+  if proc.returncode != 0:
+    warn('Failed to extract OpenSSL macros from headers')
+    return {}
+
+  macros = {}
+  for line in out.split('\n'):
+    if line.startswith('#define OPENSSL_'):
+      parts = line.split()
+      if len(parts) >= 2:
+        macro_name = parts[1]
+        macro_value = parts[2] if len(parts) >= 3 else '1'
+        macros[macro_name] = macro_value
+
+  return macros
+
 def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
@@ -1429,39 +1491,7 @@ def get_openssl_version(o):
   """
 
   try:
-    # Use the C compiler to extract preprocessor macros from opensslv.h
-    args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
-    if not options.shared_openssl:
-      args = ['-I', 'deps/openssl/openssl/include'] + args
-    elif options.shared_openssl_includes:
-      args = ['-I', options.shared_openssl_includes] + args
-    else:
-      for dir in o['include_dirs']:
-        args = ['-I', dir] + args
-
-    proc = subprocess.Popen(
-      shlex.split(CC) + args,
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE
-    )
-    with proc:
-      proc.stdin.write(b'\n')
-      out = to_utf8(proc.communicate()[0])
-
-    if proc.returncode != 0:
-      warn('Failed to extract OpenSSL version from opensslv.h header')
-      return 0
-
-    # Parse the macro definitions
-    macros = {}
-    for line in out.split('\n'):
-      if line.startswith('#define OPENSSL_VERSION_'):
-        parts = line.split()
-        if len(parts) >= 3:
-          macro_name = parts[1]
-          macro_value = parts[2]
-          macros[macro_name] = macro_value
+    macros = get_openssl_macros(o)
 
     # Extract version components
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
@@ -1490,6 +1520,13 @@ def get_openssl_version(o):
   except (OSError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
+
+def get_openssl_is_boringssl(o):
+  try:
+    return b('OPENSSL_IS_BORINGSSL' in get_openssl_macros(o))
+  except (OSError, ValueError, subprocess.SubprocessError) as e:
+    warn(f'Failed to determine whether OpenSSL headers are BoringSSL: {e}')
+    return 'false'
 
 def get_cargo_version(cargo):
   try:
@@ -1669,12 +1706,6 @@ def is_arch_armv7():
   return cc_macros_cache.get('__ARM_ARCH') == '7'
 
 
-def is_arch_armv6():
-  """Check for ARMv6 instructions"""
-  cc_macros_cache = cc_macros()
-  return cc_macros_cache.get('__ARM_ARCH') == '6'
-
-
 def is_arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
   # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
@@ -1758,7 +1789,7 @@ def configure_arm(o):
     arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
   else:
-    o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
+    o['variables']['arm_version'] = 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
@@ -1810,7 +1841,7 @@ def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node_cctest_sources(o):
-  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+  o['variables']['node_cctest_sources'] = [] + \
     SearchFiles('test/cctest', 'cc') + \
     SearchFiles('test/cctest', 'h')
 
@@ -1855,6 +1886,10 @@ def configure_node(o):
   if flavor == 'win':
     o['variables']['cargo_rust_target'] = \
       'aarch64-pc-windows-msvc' if target_arch == 'arm64' else 'x86_64-pc-windows-msvc'
+  # Always set the Rust target for x64 macOS in case we will be building
+  # under Rosetta 2.
+  if flavor == 'mac' and target_arch == 'x64':
+    o['variables']['cargo_rust_target'] = 'x86_64-apple-darwin'
 
   # Allow overriding the compiler - needed by embedders.
   if options.use_clang:
@@ -1874,10 +1909,6 @@ def configure_node(o):
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
 
   if options.node_snapshot_main is not None:
-    if options.shared:
-      # This should be possible to fix, but we will need to refactor the
-      # libnode target to avoid building it twice.
-      error('--node-snapshot-main is incompatible with --shared')
     if options.without_node_snapshot:
       error('--node-snapshot-main is incompatible with ' +
             '--without-node-snapshot')
@@ -1888,8 +1919,7 @@ def configure_node(o):
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
   else:
-    o['variables']['node_use_node_snapshot'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
 
   # Do not use code cache when Node.js is built for collecting coverage of itself, this allows more
   # precise coverage for the JS built-ins.
@@ -1897,8 +1927,7 @@ def configure_node(o):
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-    o['variables']['node_use_node_code_cache'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_code_cache'] = b(not cross_compiling)
 
   if options.write_snapshot_as_array_literals is not None:
      o['variables']['node_write_snapshot_as_array_literals'] = b(options.write_snapshot_as_array_literals)
@@ -1953,17 +1982,28 @@ def configure_node(o):
     msvc_dir = target_arch  # 'x64' or 'arm64'
 
     vc_tools_dir = os.environ.get('VCToolsInstallDir', '')
-    if vc_tools_dir:
-      clang_profile_lib = os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)
-      if os.path.isfile(clang_profile_lib):
-        o['variables']['clang_profile_lib'] = clang_profile_lib
-      else:
-        raise Exception(
-          f'PGO profile runtime library not found at {clang_profile_lib}. '
-          'Ensure the ClangCL toolset is installed.')
-    else:
+    if not vc_tools_dir:
       raise Exception(
         'VCToolsInstallDir not set. Run from a Visual Studio command prompt.')
+
+    # Primary location: VS2026 and VS2022 x64
+    candidates = [os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)]
+
+    # Secondary location: VS2022 arm64 fallback
+    clang_major = options.clang_cl.split('.', 1)[0]
+    candidates.append(os.path.normpath(os.path.join(
+      vc_tools_dir, '..', '..', 'Llvm', msvc_dir,
+      'lib', 'clang', clang_major, 'lib', 'windows', lib_name)))
+
+    clang_profile_lib = next(
+      (p for p in candidates if os.path.isfile(p)), None)
+    if clang_profile_lib:
+      o['variables']['clang_profile_lib'] = clang_profile_lib
+    else:
+      raise Exception(
+        f'PGO profile runtime library {lib_name} not found. Searched:\n  ' +
+        '\n  '.join(candidates) +
+        '\nEnsure the ClangCL toolset is installed.')
 
   if flavor != 'win' and options.enable_thin_lto:
     raise Exception(
@@ -1997,6 +2037,7 @@ def configure_node(o):
 
   o['variables']['enable_lto'] = b(options.enable_lto)
   o['variables']['enable_thin_lto'] = b(options.enable_thin_lto)
+  o['variables']['lto_jobs'] = options.lto_jobs or ''
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
@@ -2151,7 +2192,7 @@ def configure_v8(o, configs):
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
-                                         flavor != 'zos' and
+                                         flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
@@ -2291,6 +2332,7 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
+  o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
 
 def configure_lief(o):
   if options.without_lief:
@@ -2312,17 +2354,20 @@ def configure_sqlite(o):
   configure_library('sqlite', o, pkgname='sqlite3')
 
 def bundled_ffi_supported(os_name, target_arch):
-  supported = {
-    'freebsd': {'arm', 'arm64', 'x64'},
-    'linux': {'arm', 'arm64', 'x64'},
-    'mac': {'arm64', 'x64'},
-    'win': {'arm64', 'x64'},
-  }
-
   if target_arch == 'x86':
     target_arch = 'ia32'
 
-  return target_arch in supported.get(os_name, set())
+  if target_arch in {'arm', 'arm64', 'ia32', 'x64', 'x86_64',
+                     'riscv64', 'loong64'}:
+    return True
+
+  if target_arch in {'mips', 'mipsel', 'mips64el'}:
+    return os_name in {'freebsd', 'linux', 'openbsd'}
+
+  if target_arch == 'ppc64':
+    return os_name in {'aix', 'freebsd', 'linux', 'mac', 'openbsd'}
+
+  return False
 
 def configure_ffi(o):
   use_ffi = not options.without_ffi
@@ -2350,6 +2395,10 @@ def configure_ffi(o):
 
 def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                      not options.without_ssl)
+
+def configure_dtls(o):
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
                                       not options.without_ssl)
 
 def configure_static(o):
@@ -2810,6 +2859,7 @@ configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_quic(output)
+configure_dtls(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
@@ -2920,6 +2970,14 @@ if flavor == 'win' and python.lower().endswith('.exe'):
 # Always set 'python' variable, otherwise environments that only have python3
 # will fail to run python scripts.
 gyp_args += ['-Dpython=' + python]
+
+if options.emulator is not None:
+  if not options.cross_compiling:
+    # Note that emulator is a list so we have to quote the variable.
+    gyp_args += ['-Demulator=' + shlex.quote(options.emulator)]
+  else:
+    # TODO: perhaps use emulator for tests?
+    warn('The `--emulator` option has no effect when cross-compiling.')
 
 if not options.v8_disable_temporal_support or not options.shared_temporal_capi:
   cargo = os.environ.get('CARGO')

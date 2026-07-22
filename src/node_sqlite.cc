@@ -565,8 +565,10 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
+          Local<Value> exception = try_catch.Exception();
           Finalize();
-          resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
+          resolver->Reject(env()->context(), exception).ToChecked();
+          delete this;
           return;
         }
       }
@@ -585,11 +587,15 @@ class BackupJob : public ThreadPoolWork {
     resolver
         ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
         .ToChecked();
+    delete this;
   }
 
   void Finalize() {
     Cleanup();
-    source_->RemoveBackup(this);
+    if (source_) {
+      source_->RemoveBackup(this);
+      source_.reset();
+    }
   }
 
   void Cleanup() {
@@ -610,28 +616,32 @@ class BackupJob : public ThreadPoolWork {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   Environment* env() const { return env_; }
 
   Environment* env_;
-  DatabaseSync* source_;
+  BaseObjectPtr<DatabaseSync> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
   sqlite3* dest_ = nullptr;
@@ -931,6 +941,19 @@ bool DatabaseSync::Open() {
     return false;
   }
 
+  // sqlite3_open_v2() assigns a database handle even when it fails. Such a
+  // handle is in a "sick" state and may only be used to retrieve the error
+  // and must then be released with sqlite3_close(). Close and reset the
+  // handle on any failure below so that a failed open() does not leave the
+  // database in an open state.
+  bool opened = false;
+  auto reset_connection_on_failure = OnScopeLeave([&]() {
+    if (!opened && connection_ != nullptr) {
+      sqlite3_close_v2(connection_);
+      connection_ = nullptr;
+    }
+  });
+
   // TODO(cjihrig): Support additional flags.
   int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
@@ -993,6 +1016,7 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
+  opened = true;
   return true;
 }
 
@@ -2227,7 +2251,6 @@ static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
 
 static int xFilter(void* pCtx, const char* zTab) {
   auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
-  if (!ctx->filterCallback) return 1;
   return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
@@ -2245,6 +2268,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Local<Function> conflictFunc;
+  Local<Function> filterFunc;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -2267,8 +2292,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
             "The \"options.onConflict\" argument must be a function.");
         return;
       }
-      Local<Function> conflictFunc = conflictValue.As<Function>();
-      context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
+      conflictFunc = conflictValue.As<Function>();
+      context.conflictCallback = [env, &conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
         Local<Value> result =
@@ -2304,10 +2329,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<Function> filterFunc = filterValue.As<Function>();
+      filterFunc = filterValue.As<Function>();
 
       context.filterCallback =
-          [env, db, filterFunc](std::string_view item) -> bool {
+          [env, db, &filterFunc](std::string_view item) -> bool {
         // If there was an error in the previous call to the filter's
         // callback, we skip calling it again.
         if (db->ignore_next_sqlite_error_) {
@@ -2338,7 +2363,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       db->connection_,
       buf.length(),
       const_cast<void*>(static_cast<const void*>(buf.data())),
-      xFilter,
+      context.filterCallback ? xFilter : nullptr,
       xConflict,
       static_cast<void*>(&context));
   if (r == SQLITE_OK) {
@@ -2422,9 +2447,6 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   BufferValue entryPoint(isolate, args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
-  if (*entryPoint == nullptr) {
-    ToNamespacedPath(env, &entryPoint);
-  }
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   char* errmsg = nullptr;
@@ -2843,12 +2865,16 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   int r;
-  int num_cols = sqlite3_column_count(stmt);
+  int num_cols = 0;
   LocalVector<Value> rows(isolate);
   LocalVector<Value> row_values(isolate);
   LocalVector<Name> row_keys(isolate);
 
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if (num_cols == 0) {
+      num_cols = sqlite3_column_count(stmt);
+    }
+
     if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
             .IsNothing()) {
       return MaybeLocal<Value>();

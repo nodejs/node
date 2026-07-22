@@ -1,6 +1,7 @@
 const { log, output, input, META } = require('proc-log')
 const { explain } = require('./explain-eresolve.js')
 const { formatWithOptions } = require('./format')
+const { redactLog } = require('@npmcli/redact')
 
 // This is the general approach to color:
 // Eventually this will be exposed somewhere we can refer to these by name.
@@ -98,14 +99,16 @@ const getArrayOrObject = (items) => {
   return Object.assign({}, ...items.filter(o => isPlainObject(o)))
 }
 
+const redactValue = (obj) => JSON.parse(redactLog(JSON.stringify(obj)))
+
 const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
   const items = []
   // meta also contains the meta object passed to flush
   const errors = metaError ? [metaError] : []
   // index 1 is the meta, 2 is the logged argument
-  for (const [, { [JSON_ERROR_KEY]: error }, obj] of buffer) {
+  for (const [, { [JSON_ERROR_KEY]: error, redact = true }, obj] of buffer) {
     if (obj) {
-      items.push(obj)
+      items.push(redact ? redactValue(obj) : obj)
     }
     if (error) {
       errors.push(error)
@@ -291,7 +294,9 @@ class Display {
         if (this.#json) {
           const json = getJsonBuffer(meta, this.#outputState.buffer)
           if (json) {
-            this.#writeOutput(output.KEYS.standard, meta, JSON.stringify(json, null, 2))
+            // Per-item redaction already applied in getJsonBuffer, skip string-level redaction
+            const jsonMeta = { ...meta, redact: false }
+            this.#writeOutput(output.KEYS.standard, jsonMeta, JSON.stringify(json, null, 2))
           }
         } else {
           this.#outputState.buffer.forEach((item) => this.#writeOutput(...item))

@@ -4,7 +4,7 @@
 // if there's a symlink already, pointing into our pkg, remove it first
 // then create the symlink
 
-const { resolve, dirname } = require('path')
+const { resolve, dirname, sep } = require('path')
 const { lstat, mkdir, readlink, rm, symlink } = require('fs/promises')
 const { log } = require('proc-log')
 const throwSignificant = er => {
@@ -63,7 +63,7 @@ const linkGently = async ({ path, to, from, absFrom, force }) => {
         } // skip it, already set up like we want it.
 
         target = resolve(dirname(to), target)
-        if (target.indexOf(path) === 0 || force) {
+        if (target === path || target.startsWith(path + sep) || force) {
           return rm(to, rmOpts).then(() => CLOBBER)
         }
         // neither skip nor clobber

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -473,10 +473,15 @@ static int ktls_initialise_write_packets(OSSL_RECORD_LAYER *rl,
     wb->type = templates[0].type;
 
     /*
+     * Free any internal buffer allocated during a previous write retry
+     * (see tls_retry_write_records).  App buffers are not ours to free.
+     */
+    if (!TLS_BUFFER_is_app_buffer(wb))
+        OPENSSL_free(TLS_BUFFER_get_buf(wb));
+
+    /*
      * ktls doesn't modify the buffer, but to avoid a warning we need
      * to discard the const qualifier.
-     * This doesn't leak memory because the buffers have never been allocated
-     * with KTLS
      */
     TLS_BUFFER_set_buf(wb, (unsigned char *)templates[0].buf);
     TLS_BUFFER_set_offset(wb, 0);
@@ -547,15 +552,6 @@ static int ktls_alloc_buffers(OSSL_RECORD_LAYER *rl)
     return tls_alloc_buffers(rl);
 }
 
-static int ktls_free_buffers(OSSL_RECORD_LAYER *rl)
-{
-    /* We use the application buffer directly for writing */
-    if (rl->direction == OSSL_RECORD_DIRECTION_WRITE)
-        return 1;
-
-    return tls_free_buffers(rl);
-}
-
 static struct record_functions_st ossl_ktls_funcs = {
     ktls_set_crypto_state,
     ktls_cipher,
@@ -602,5 +598,5 @@ const OSSL_RECORD_METHOD ossl_ktls_record_method = {
     NULL,
     tls_increment_sequence_ctr,
     ktls_alloc_buffers,
-    ktls_free_buffers
+    tls_free_buffers
 };

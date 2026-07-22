@@ -311,9 +311,7 @@ async function testSignalAlreadyAborted() {
     yield [Buffer.from('should not reach')];
   }
 
-  const ac = new AbortController();
-  ac.abort();
-  const readable = toReadable(gen(), { signal: ac.signal });
+  const readable = toReadable(gen(), { signal: AbortSignal.abort() });
 
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
@@ -437,6 +435,21 @@ async function testBackpressureSync() {
   }
 
   assert.strictEqual(chunks.length, 10);
+}
+
+// =============================================================================
+// fromStreamIterSync: backpressure within a batch
+// =============================================================================
+
+async function testBackpressureSyncMultiChunkBatch() {
+  function* gen() {
+    yield [Buffer.from('a'), Buffer.from('b'), Buffer.from('c')];
+  }
+
+  const readable = toReadableSync(gen(), { highWaterMark: 1 });
+  const result = await collect(readable);
+
+  assert.strictEqual(result.toString(), 'abc');
 }
 
 // =============================================================================
@@ -613,6 +626,7 @@ Promise.all([
   testWithTransformAsync(),
   testBasicSync(),
   testBackpressureSync(),
+  testBackpressureSyncMultiChunkBatch(),
   testErrorSync(),
   testDestroySync(),
   testRoundTrip(),

@@ -692,7 +692,7 @@ in the ECMAScript specification.
     work after that. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
-Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
+Evaluate the module and its dependencies. Corresponds to the [Evaluate() concrete method][] field of
 [Cyclic Module Record][]s in the ECMAScript specification.
 
 If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
@@ -919,6 +919,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 const module = new vm.SourceTextModule(
   'Object.getPrototypeOf(import.meta.prop).secret = secret;',
   {
+    context: contextifiedObject,
     initializeImportMeta(meta) {
       // Note: this object is created in the top context. As such,
       // Object.getPrototypeOf(import.meta.prop) points to the
@@ -937,7 +938,7 @@ await module.evaluate();
 // To fix this problem, replace
 //     meta.prop = {};
 // above with
-//     meta.prop = vm.runInContext('{}', contextifiedObject);
+//     meta.prop = vm.runInContext('({})', contextifiedObject);
 ```
 
 ```cjs
@@ -947,6 +948,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   const module = new vm.SourceTextModule(
     'Object.getPrototypeOf(import.meta.prop).secret = secret;',
     {
+      context: contextifiedObject,
       initializeImportMeta(meta) {
         // Note: this object is created in the top context. As such,
         // Object.getPrototypeOf(import.meta.prop) points to the
@@ -964,7 +966,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // To fix this problem, replace
   //     meta.prop = {};
   // above with
-  //     meta.prop = vm.runInContext('{}', contextifiedObject);
+  //     meta.prop = vm.runInContext('({})', contextifiedObject);
 })();
 ```
 
@@ -1103,8 +1105,6 @@ import foo from 'foo';
 import source Foo from 'foo';
 ```
 
-<!-- eslint-enable no-duplicate-imports -->
-
 The `modules` array must contain two references to the same instance, because the two
 module requests are identical but in two phases.
 
@@ -1145,8 +1145,6 @@ import bar from './bar.js';
 import withAttrs from '../with-attrs.ts' with { arbitraryAttr: 'attr-val' };
 import source Module from 'wasm-mod.wasm';
 ```
-
-<!-- eslint-enable no-duplicate-imports -->
 
 The value of the `sourceTextModule.moduleRequests` will be:
 
@@ -2350,7 +2348,7 @@ console.log('OK');
 ```
 
 **Note:** Strictly speaking, in this mode, `node:vm` departs from the letter of
-the ECMAScript specification for [enqueing jobs][], by allowing asynchronous
+the ECMAScript specification for [enqueuing jobs][], by allowing asynchronous
 tasks from different contexts to run in a different order than they were
 enqueued.
 
@@ -2592,7 +2590,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
-[enqueing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
+[enqueuing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

@@ -22,9 +22,13 @@ pub trait DataStore<M: DataMarker>: private::Sealed {
     ) -> Option<DataPayload<M>>;
 
     /// The type returned by the iterator
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     type IterReturn: Iterator<Item = crate::prelude::DataIdentifierCow<'static>>;
     /// Iterate over all data
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     fn iter(&'static self) -> Self::IterReturn;
 }

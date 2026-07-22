@@ -194,7 +194,7 @@ directly through the process arguments.
 ### `--allow-ffi`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1.1 - Active development
@@ -248,7 +248,7 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 * `*` - To allow all `FileSystemRead` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
-  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder2/`
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -290,7 +290,7 @@ The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-write` flags.
-  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder1/`
+  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder2/`
 
 Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
@@ -495,7 +495,7 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-The snapshot currently only supports loding a single entrypoint during the
+The snapshot currently only supports loading a single entrypoint during the
 snapshot building process, which can load built-in modules, but not additional user-land modules.
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
@@ -786,7 +786,7 @@ added:
 - v20.15.0
 changes:
   - version:
-    - REPLACEME
+    - v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62132
     description: Node.js now automatically disables the trap handler when there is not
                  enough virtual memory available at startup to allocate one cage.
@@ -1039,9 +1039,13 @@ It is possible to run code containing inline types unless the
 added:
   - v23.6.0
   - v22.20.0
+changes:
+  - version: v26.5.0
+    pr-url: https://github.com/nodejs/node/pull/64221
+    description: This is enabled by default.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 Enable experimental import support for `.node` addons.
 
@@ -1064,7 +1068,8 @@ The alias `--experimental-default-config-file` is equivalent to
 `--experimental-config-file` without an argument.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. `vX.Y.Z`
-in the `$schema` must be replaced with the version of Node.js you are using.
+in the `$schema` must be replaced with the version of Node.js you are using or
+`latest-vX.x` for the latest version of that major release line.
 
 ```json
 {
@@ -1090,6 +1095,44 @@ The configuration file supports namespace-specific options:
 * The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
 
 * Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
+
+The configuration file can target a specific Node.js major version with
+`nodeVersion`:
+
+```json
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+```
+
+To keep multiple version-specific configurations in the same file, use the
+`configs` array. Node.js will use the first entry whose `nodeVersion` matches
+the current Node.js major version:
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+```
+
+When `configs` is used, the top level may only contain `$schema` and
+`configs`. Each `configs` item must define an integer `nodeVersion` and an
+object `config`. A single top-level config does not require `nodeVersion`, but
+if present it must match the current Node.js major version.
 
 When a namespace is present in the
 configuration file, Node.js automatically enables the corresponding flag
@@ -1143,12 +1186,12 @@ node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolat
 The priority in configuration is as follows:
 
 1. NODE\_OPTIONS and command-line options
-2. Configuration file
-3. Dotenv NODE\_OPTIONS
+2. Dotenv NODE\_OPTIONS
+3. Configuration file
 
 Values in the configuration file will not override the values in the environment
-variables and command-line options, but will override the values in the `NODE_OPTIONS`
-env file parsed by the `--env-file` flag.
+variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
+`--env-file` flag.
 
 Keys cannot be duplicated within the same or different namespaces.
 
@@ -1173,6 +1216,17 @@ If present, Node.js will look for a
 `node.config.json` file in the current working directory and load it as a
 configuration file.
 
+### `--experimental-dtls`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the DTLS protocol. See the
+[dtls documentation][] for details.
+
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -1186,7 +1240,7 @@ Enable exposition of [EventSource Web API][] on the global scope.
 ### `--experimental-ffi`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1215,6 +1269,18 @@ Enable experimental `import.meta.resolve()` parent URL support, which allows
 passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
+
+### `--experimental-import-text`
+
+<!-- YAML
+added:
+  - v26.5.0
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for importing modules with
+`with { type: 'text' }`.
 
 ### `--experimental-inspector-network-resource`
 
@@ -1267,22 +1333,48 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
+### `--experimental-package-map=<path>`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental package map resolution. The `path` argument specifies the
+location of a JSON configuration file that defines package resolution mappings.
+
+```bash
+node --experimental-package-map=./package-map.json app.js
+```
+
+When enabled, bare specifier resolution consults the package map for resolution.
+This allows explicit control over which packages can import which dependencies.
+
+See [Package maps][] for details on the configuration file format and
+resolution algorithm.
+
 ### `--experimental-print-required-tla`
 
 <!-- YAML
 added:
   - v22.0.0
   - v20.17.0
+changes:
+  - version: v26.5.0
+    pr-url: https://github.com/nodejs/node/pull/64154
+    description: Print the top-level awaits without evaluating the modules.
 -->
 
-If the ES module being `require()`'d contains top-level `await`, this flag
-allows Node.js to evaluate the module, try to locate the
-top-level awaits, and print their location to help users find them.
+If the ES module graph cannot be `require()`'d because it contains any top-level `await`,
+this flag allows Node.js to locate and print their locations.
 
 ### `--experimental-quic`
 
 <!-- YAML
-added: v25.0.0
+added:
+ - v25.0.0
+ - v24.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1316,6 +1408,7 @@ Use this flag to enable [ShadowRealm][] support.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1325,7 +1418,8 @@ Enable experimental support for storage inspection
 ### `--experimental-stream-iter`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1372,6 +1466,33 @@ changes:
 Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
+
+### `--experimental-test-tag-filter=<tag>`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+> Stability: 1.0 - Early development
+
+Run only tests whose tag set contains `<tag>`. Tests declare tags via the
+`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
+inherit from suites to nested tests by union. Filtering is
+case-insensitive.
+
+The flag may be specified more than once; tests must contain **every**
+filter value to run. See [Test tags][] for details on declaring and
+inheriting tags.
+
+### `--experimental-vfs`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:vfs`][] module.
 
 ### `--experimental-vm-modules`
 
@@ -1890,14 +2011,6 @@ node --max-old-space-size-percentage=50 index.js
 node --max-old-space-size-percentage=75 index.js
 ```
 
-### `--napi-modules`
-
-<!-- YAML
-added: v7.10.0
--->
-
-This option is a no-op. It is kept for compatibility.
-
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
@@ -1965,14 +2078,6 @@ added: v21.2.0
 > Stability: 1 - Experimental
 
 Disable exposition of [Navigator API][] on the global scope.
-
-### `--no-experimental-repl-await`
-
-<!-- YAML
-added: v16.6.0
--->
-
-Use this flag to disable top-level await in REPL.
 
 ### `--no-experimental-require-module`
 
@@ -2593,6 +2698,9 @@ The following environment variables are set when running a script with `--run`:
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
+Environment variables loaded from a file with [`--env-file`][] are not applied
+to the command executed by `--run`.
+
 ### `--secure-heap-min=n`
 
 <!-- YAML
@@ -2836,7 +2944,9 @@ option set. This flag is not necessary when test isolation is disabled.
 ### `--test-random-seed`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Set the seed used to randomize test execution order. This applies to both test
@@ -2850,7 +2960,9 @@ This flag cannot be used with `--watch` or `--test-rerun-failures`.
 ### `--test-randomize`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Randomize test execution order. This applies to both test file execution order
@@ -3294,8 +3406,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
 When both are set, `--use-env-proxy` takes precedence.
@@ -3696,12 +3813,15 @@ one is included in the list below.
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
+* `--experimental-dtls`
 * `--experimental-eventsource`
 * `--experimental-ffi`
 * `--experimental-import-meta-resolve`
+* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
 * `--experimental-require-module`
@@ -3710,6 +3830,7 @@ one is included in the list below.
 * `--experimental-stream-iter`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
+* `--experimental-vfs`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--force-context-aware`
@@ -3735,13 +3856,11 @@ one is included in the list below.
 * `--localstorage-file`
 * `--max-http-header-size`
 * `--max-old-space-size-percentage`
-* `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-async-context-frame`
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
-* `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
@@ -3977,8 +4096,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
@@ -4285,6 +4409,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 <!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
+[Built-in Proxy Support]: http.md#built-in-proxy-support
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
 [CommonJS module]: modules.md
@@ -4298,11 +4423,13 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[Package maps]: packages.md#package-maps
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://tc39.es/ecma426/
+[Test tags]: test.md#test-tags
 [TypeScript type-stripping]: typescript.md#type-stripping
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
@@ -4351,6 +4478,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
+[`node:vfs`]: vfs.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
@@ -4366,6 +4494,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name

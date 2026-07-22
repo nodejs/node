@@ -548,6 +548,30 @@ static void SetSourceMapCacheGetter(const FunctionCallbackInfo<Value>& args) {
   env->set_source_map_cache_getter(args[0].As<Function>());
 }
 
+static void StartCoverage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "StartCoverage, connection %s nullptr\n",
+        env->coverage_connection() == nullptr ? "==" : "!=");
+
+  if (env->coverage_connection() != nullptr) {
+    return;
+  }
+
+  // The parent of `--test --test-isolation=process` intentionally has no
+  // inspector (see Environment::should_create_inspector); workers handle
+  // coverage themselves. Without an inspector, V8CoverageConnection would
+  // get a null session and crash on the first DispatchMessage.
+  if (!env->should_create_inspector()) {
+    return;
+  }
+
+  env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
+  env->coverage_connection()->Start();
+}
+
 static void TakeCoverage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   V8CoverageConnection* connection = env->coverage_connection();
@@ -601,6 +625,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "setCoverageDirectory", SetCoverageDirectory);
   SetMethod(
       context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
+  SetMethod(context, target, "startCoverage", StartCoverage);
   SetMethod(context, target, "takeCoverage", TakeCoverage);
   SetMethod(context, target, "stopCoverage", StopCoverage);
   SetMethod(context, target, "endCoverage", EndCoverage);
@@ -609,6 +634,7 @@ static void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetCoverageDirectory);
   registry->Register(SetSourceMapCacheGetter);
+  registry->Register(StartCoverage);
   registry->Register(TakeCoverage);
   registry->Register(StopCoverage);
   registry->Register(EndCoverage);

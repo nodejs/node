@@ -27,6 +27,7 @@ using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -155,9 +156,11 @@ bool ExportJWKSecretKey(Environment* env,
                              BASE64URL)
              .ToLocal(&raw) &&
          target
-             ->Set(env->context(), env->jwk_kty_string(), env->jwk_oct_string())
-             .IsJust() &&
-         target->Set(env->context(), env->jwk_k_string(), raw).IsJust();
+             ->DefineOwnProperty(
+                 env->context(), env->jwk_kty_string(), env->jwk_oct_string())
+             .FromMaybe(false) &&
+         target->DefineOwnProperty(env->context(), env->jwk_k_string(), raw)
+             .FromMaybe(false);
 }
 
 KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
@@ -177,7 +180,11 @@ bool ExportJWKAsymmetricKey(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target,
                             bool handleRsaPss) {
-  switch (key.GetAsymmetricKey().id()) {
+  const int id = key.GetAsymmetricKey().id();
+#if OPENSSL_WITH_PQC
+  if (IsPqcKeyId(id)) return ExportJwkPqcKey(env, key, target);
+#endif
+  switch (id) {
     case EVP_PKEY_RSA_PSS: {
       if (handleRsaPss) return ExportJWKRsaKey(env, key, target);
       break;
@@ -187,51 +194,10 @@ bool ExportJWKAsymmetricKey(Environment* env,
     case EVP_PKEY_EC:
       return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
-      // Fall through
     case EVP_PKEY_ED448:
-      // Fall through
     case EVP_PKEY_X25519:
-      // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-      // Fall through
-    case EVP_PKEY_ML_DSA_65:
-      // Fall through
-    case EVP_PKEY_ML_DSA_87:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      // Fall through
-    case EVP_PKEY_ML_KEM_512:
-      // Fall through
-    case EVP_PKEY_ML_KEM_768:
-      // Fall through
-    case EVP_PKEY_ML_KEM_1024:
-      return ExportJwkPqcKey(env, key, target);
-#endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return false;
@@ -306,35 +272,98 @@ int GetNidFromName(const char* name) {
     const char* name;
     int nid;
   } kNameToNid[] = {
-    {"Ed25519", EVP_PKEY_ED25519},
-    {"Ed448", EVP_PKEY_ED448},
-    {"X25519", EVP_PKEY_X25519},
-    {"X448", EVP_PKEY_X448},
-#if OPENSSL_WITH_PQC
-    {"ML-DSA-44", EVP_PKEY_ML_DSA_44},
-    {"ML-DSA-65", EVP_PKEY_ML_DSA_65},
-    {"ML-DSA-87", EVP_PKEY_ML_DSA_87},
-    {"ML-KEM-512", EVP_PKEY_ML_KEM_512},
-    {"ML-KEM-768", EVP_PKEY_ML_KEM_768},
-    {"ML-KEM-1024", EVP_PKEY_ML_KEM_1024},
-    {"SLH-DSA-SHA2-128f", EVP_PKEY_SLH_DSA_SHA2_128F},
-    {"SLH-DSA-SHA2-128s", EVP_PKEY_SLH_DSA_SHA2_128S},
-    {"SLH-DSA-SHA2-192f", EVP_PKEY_SLH_DSA_SHA2_192F},
-    {"SLH-DSA-SHA2-192s", EVP_PKEY_SLH_DSA_SHA2_192S},
-    {"SLH-DSA-SHA2-256f", EVP_PKEY_SLH_DSA_SHA2_256F},
-    {"SLH-DSA-SHA2-256s", EVP_PKEY_SLH_DSA_SHA2_256S},
-    {"SLH-DSA-SHAKE-128f", EVP_PKEY_SLH_DSA_SHAKE_128F},
-    {"SLH-DSA-SHAKE-128s", EVP_PKEY_SLH_DSA_SHAKE_128S},
-    {"SLH-DSA-SHAKE-192f", EVP_PKEY_SLH_DSA_SHAKE_192F},
-    {"SLH-DSA-SHAKE-192s", EVP_PKEY_SLH_DSA_SHAKE_192S},
-    {"SLH-DSA-SHAKE-256f", EVP_PKEY_SLH_DSA_SHAKE_256F},
-    {"SLH-DSA-SHAKE-256s", EVP_PKEY_SLH_DSA_SHAKE_256S},
-#endif
+      {"Ed25519", EVP_PKEY_ED25519},
+      {"Ed448", EVP_PKEY_ED448},
+      {"X25519", EVP_PKEY_X25519},
+      {"X448", EVP_PKEY_X448},
   };
   for (const auto& entry : kNameToNid) {
     if (StringEqualNoCase(name, entry.name)) return entry.nid;
   }
+#if OPENSSL_WITH_PQC
+  return GetPqcNidFromName(name);
+#else
   return NID_undef;
+#endif
+}
+
+bool IsUnavailablePqcKeyType(Environment* env, Local<String> key_type) {
+  return key_type->StringEquals(env->crypto_ml_dsa_44_string()) ||
+         key_type->StringEquals(env->crypto_ml_dsa_65_string()) ||
+         key_type->StringEquals(env->crypto_ml_dsa_87_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_512_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_768_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_1024_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_128f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_128s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_192f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_192s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_256f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_256s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_128f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_128s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_192f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_192s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_256f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_256s_string());
+}
+
+bool IsUnsupportedRawKeyType(Environment* env, Local<String> key_type) {
+  return key_type->StringEquals(env->crypto_rsa_string()) ||
+         key_type->StringEquals(env->crypto_rsa_pss_string()) ||
+         key_type->StringEquals(env->crypto_dsa_string()) ||
+         key_type->StringEquals(env->crypto_dh_string());
+}
+
+void ValidateRawKeyImportFormat(Environment* env,
+                                Local<String> key_type,
+                                const char* key_type_name,
+                                int id,
+                                EVPKeyPointer::PKFormatType format) {
+  auto validate_raw_format =
+      [&](EVPKeyPointer::PKFormatType expected_private_format) {
+        if (format == EVPKeyPointer::PKFormatType::RAW_PUBLIC ||
+            format == expected_private_format) {
+          return;
+        }
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      };
+
+  if (key_type->StringEquals(env->crypto_ec_string())) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+  }
+
+  switch (id) {
+    case EVP_PKEY_X25519:
+    case EVP_PKEY_X448:
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+      return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+    default:
+      break;
+  }
+
+#if OPENSSL_WITH_PQC
+  if (IsPqcSeedKeyId(id)) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_SEED);
+  }
+  if (IsPqcRawPrivateKeyId(id)) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+  }
+#endif
+
+  if (IsUnavailablePqcKeyType(env, key_type)) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
+    return;
+  }
+
+  if (IsUnsupportedRawKeyType(env, key_type)) {
+    THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+    return;
+  }
+
+  THROW_ERR_INVALID_ARG_VALUE(
+      env, "Invalid asymmetricKeyType: %s", key_type_name);
 }
 }  // namespace
 
@@ -356,42 +385,25 @@ bool KeyObjectData::ToEncodedPublicKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
-      auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
-      const auto point = ECKeyPointer::GetPublicKey(ec_key);
-      return ECPointToBuffer(env, group, point, form).ToLocal(out);
-    }
-    switch (pkey.id()) {
-      case EVP_PKEY_ED25519:
-      case EVP_PKEY_ED448:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448:
-#if OPENSSL_WITH_PQC
-      case EVP_PKEY_ML_DSA_44:
-      case EVP_PKEY_ML_DSA_65:
-      case EVP_PKEY_ML_DSA_87:
-      case EVP_PKEY_ML_KEM_512:
-      case EVP_PKEY_ML_KEM_768:
-      case EVP_PKEY_ML_KEM_1024:
-      case EVP_PKEY_SLH_DSA_SHA2_128F:
-      case EVP_PKEY_SLH_DSA_SHA2_128S:
-      case EVP_PKEY_SLH_DSA_SHA2_192F:
-      case EVP_PKEY_SLH_DSA_SHA2_192S:
-      case EVP_PKEY_SLH_DSA_SHA2_256F:
-      case EVP_PKEY_SLH_DSA_SHA2_256S:
-      case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      case EVP_PKEY_SLH_DSA_SHAKE_256S:
-#endif
-        break;
-      default:
+      ECKeyPointer ec_key(pkey);
+      if (!ec_key) {
         THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
         return false;
+      }
+      auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
+      const auto group = ec_key.getGroup();
+      const auto point = ec_key.getPublicKey();
+      return ECPointToBuffer(env, group, point, form).ToLocal(out);
+    }
+    const int id = pkey.id();
+    bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                            id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
+#if OPENSSL_WITH_PQC
+    is_raw_supported = is_raw_supported || IsPqcKeyId(id);
+#endif
+    if (!is_raw_supported) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
     auto raw_data = pkey.rawPublicKey();
     if (!raw_data) {
@@ -422,14 +434,23 @@ bool KeyObjectData::ToEncodedPrivateKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
-      const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
-      CHECK_NOT_NULL(private_key);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
+      ECKeyPointer ec_key(pkey);
+      if (!ec_key) {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+      }
+      const BIGNUM* private_key = ec_key.getPrivateKey();
+      if (private_key == nullptr) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC private key");
+        return false;
+      }
+      const auto group = ec_key.getGroup();
       auto order = BignumPointer::New();
-      CHECK(order);
-      CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+      if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
+        return false;
+      }
       auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
       if (!buf) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -438,29 +459,15 @@ bool KeyObjectData::ToEncodedPrivateKey(
       }
       return Buffer::Copy(env, buf.get<const char>(), buf.size()).ToLocal(out);
     }
-    switch (pkey.id()) {
-      case EVP_PKEY_ED25519:
-      case EVP_PKEY_ED448:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448:
+    const int id = pkey.id();
+    bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                            id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-      case EVP_PKEY_SLH_DSA_SHA2_128F:
-      case EVP_PKEY_SLH_DSA_SHA2_128S:
-      case EVP_PKEY_SLH_DSA_SHA2_192F:
-      case EVP_PKEY_SLH_DSA_SHA2_192S:
-      case EVP_PKEY_SLH_DSA_SHA2_256F:
-      case EVP_PKEY_SLH_DSA_SHA2_256S:
-      case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      case EVP_PKEY_SLH_DSA_SHAKE_256S:
+    is_raw_supported = is_raw_supported || IsPqcRawPrivateKeyId(id);
 #endif
-        break;
-      default:
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
+    if (!is_raw_supported) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
     auto raw_data = pkey.rawPrivateKey();
     if (!raw_data) {
@@ -470,23 +477,13 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
         .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
+#if OPENSSL_WITH_PQC
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
-    switch (pkey.id()) {
-#if OPENSSL_WITH_PQC
-      case EVP_PKEY_ML_DSA_44:
-      case EVP_PKEY_ML_DSA_65:
-      case EVP_PKEY_ML_DSA_87:
-      case EVP_PKEY_ML_KEM_512:
-      case EVP_PKEY_ML_KEM_768:
-      case EVP_PKEY_ML_KEM_1024:
-        break;
-#endif
-      default:
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
+    if (!IsPqcSeedKeyId(pkey.id())) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
-#if OPENSSL_WITH_PQC
     auto raw_data = pkey.rawSeed();
     if (!raw_data) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
@@ -585,6 +582,12 @@ static KeyObjectData ImportRawKey(Environment* env,
     }
   };
 
+  const int id = GetNidFromName(key_type_name);
+  ValidateRawKeyImportFormat(env, key_type, key_type_name, id, format);
+  if (env->isolate()->HasPendingException()) {
+    return {};
+  }
+
   // EC keys
   if (key_type->StringEquals(env->crypto_ec_string())) {
     int curve_nid = ncrypto::Ec::GetCurveIdFromName(named_curve);
@@ -638,11 +641,11 @@ static KeyObjectData ImportRawKey(Environment* env,
       throw_invalid();
       return {};
     }
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
     eckey.release();
+#endif
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
-
-  int id = GetNidFromName(key_type_name);
 
   typedef EVPKeyPointer (*new_key_fn)(
       int, const ncrypto::Buffer<const unsigned char>&);
@@ -655,33 +658,17 @@ static KeyObjectData ImportRawKey(Environment* env,
       fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
                                           : EVPKeyPointer::NewRawPublic;
       break;
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-      fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
-                                          : EVPKeyPointer::NewRawPublic;
-      break;
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
-                                          : EVPKeyPointer::NewRawPublic;
-      break;
-#endif
     default:
+#if OPENSSL_WITH_PQC
+      if (IsPqcKeyId(id)) {
+        if (target_type == kKeyTypePrivate) {
+          fn = IsPqcSeedKeyId(id) ? EVPKeyPointer::NewRawSeed
+                                  : EVPKeyPointer::NewRawPrivate;
+        } else {
+          fn = EVPKeyPointer::NewRawPublic;
+        }
+      }
+#endif
       break;
   }
 
@@ -698,40 +685,6 @@ static KeyObjectData ImportRawKey(Environment* env,
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
 
-  if (key_type->StringEquals(env->crypto_rsa_string()) ||
-      key_type->StringEquals(env->crypto_rsa_pss_string()) ||
-      key_type->StringEquals(env->crypto_dsa_string()) ||
-      key_type->StringEquals(env->crypto_dh_string())) {
-    THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-    return {};
-  }
-
-#if !OPENSSL_WITH_PQC
-  if (key_type->StringEquals(env->crypto_ml_dsa_44_string()) ||
-      key_type->StringEquals(env->crypto_ml_dsa_65_string()) ||
-      key_type->StringEquals(env->crypto_ml_dsa_87_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_512_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_768_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_1024_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_128f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_128s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_192f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_192s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_256f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_256s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_128f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_128s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_192f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_192s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_256f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_256s_string())) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
-    return {};
-  }
-#endif
-
-  THROW_ERR_INVALID_ARG_VALUE(
-      env, "Invalid asymmetricKeyType: %s", key_type_name);
   return {};
 }
 
@@ -1082,6 +1035,7 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
         KeyObjectHandle::kInternalFieldCount);
 
     SetProtoMethod(isolate, templ, "init", Init);
+    SetProtoMethodNoSideEffect(isolate, templ, "getKeyType", GetKeyType);
     SetProtoMethodNoSideEffect(
         isolate, templ, "getSymmetricKeySize", GetSymmetricKeySize);
     SetProtoMethodNoSideEffect(
@@ -1109,6 +1063,7 @@ void KeyObjectHandle::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
   registry->Register(Init);
+  registry->Register(GetKeyType);
   registry->Register(GetSymmetricKeySize);
   registry->Register(GetAsymmetricKeyType);
   registry->Register(CheckEcKeyData);
@@ -1239,6 +1194,14 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void KeyObjectHandle::GetKeyType(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+
+  args.GetReturnValue().Set(
+      Uint32::NewFromUnsigned(args.GetIsolate(), key->Data().GetKeyType()));
+}
+
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* self_handle;
   KeyObjectHandle* arg_handle;
@@ -1328,45 +1291,12 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-      return env()->crypto_ml_dsa_44_string();
-    case EVP_PKEY_ML_DSA_65:
-      return env()->crypto_ml_dsa_65_string();
-    case EVP_PKEY_ML_DSA_87:
-      return env()->crypto_ml_dsa_87_string();
-    case EVP_PKEY_ML_KEM_512:
-      return env()->crypto_ml_kem_512_string();
-    case EVP_PKEY_ML_KEM_768:
-      return env()->crypto_ml_kem_768_string();
-    case EVP_PKEY_ML_KEM_1024:
-      return env()->crypto_ml_kem_1024_string();
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-      return env()->crypto_slh_dsa_sha2_128f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-      return env()->crypto_slh_dsa_sha2_128s_string();
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-      return env()->crypto_slh_dsa_sha2_192f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-      return env()->crypto_slh_dsa_sha2_192s_string();
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-      return env()->crypto_slh_dsa_sha2_256f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-      return env()->crypto_slh_dsa_sha2_256s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      return env()->crypto_slh_dsa_shake_128f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      return env()->crypto_slh_dsa_shake_128s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      return env()->crypto_slh_dsa_shake_192f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      return env()->crypto_slh_dsa_shake_192s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      return env()->crypto_slh_dsa_shake_256f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      return env()->crypto_slh_dsa_shake_256s_string();
-#endif
+    default:
+      return GetPqcAsymmetricKeyType(env(), data_.GetAsymmetricKey().id());
+#else
     default:
       return Undefined(env()->isolate());
+#endif
   }
 }
 
@@ -1475,34 +1405,14 @@ void KeyObjectHandle::RawPublicKey(
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
-    case EVP_PKEY_X25519:
-    case EVP_PKEY_X448:
+  const int id = pkey.id();
+  bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                          id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  is_raw_supported = is_raw_supported || IsPqcKeyId(id);
 #endif
-      break;
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!is_raw_supported) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
   auto raw_data = pkey.rawPublicKey();
@@ -1528,28 +1438,14 @@ void KeyObjectHandle::RawPrivateKey(
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
-    case EVP_PKEY_X25519:
-    case EVP_PKEY_X448:
+  const int id = pkey.id();
+  bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                          id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  is_raw_supported = is_raw_supported || IsPqcRawPrivateKeyId(id);
 #endif
-      break;
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!is_raw_supported) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
   auto raw_data = pkey.rawPrivateKey();
@@ -1578,15 +1474,17 @@ void KeyObjectHandle::ExportECPublicRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
   CHECK(args[0]->IsInt32());
   auto form =
       static_cast<point_conversion_form_t>(args[0].As<Int32>()->Value());
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
-  const auto point = ECKeyPointer::GetPublicKey(ec_key);
+  const auto group = ec_key.getGroup();
+  const auto point = ec_key.getPublicKey();
 
   Local<Object> buf;
   if (!ECPointToBuffer(env, group, point, form).ToLocal(&buf)) return;
@@ -1609,16 +1507,23 @@ void KeyObjectHandle::ExportECPrivateRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
-  const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
-  CHECK_NOT_NULL(private_key);
+  const BIGNUM* private_key = ec_key.getPrivateKey();
+  if (private_key == nullptr) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to get EC private key");
+  }
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
+  const auto group = ec_key.getGroup();
   auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+  if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
+  }
 
   auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
   if (!buf) {
@@ -1638,24 +1543,14 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
+#if OPENSSL_WITH_PQC
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-      break;
-#endif
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!IsPqcSeedKeyId(pkey.id())) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-#if OPENSSL_WITH_PQC
   auto raw_data = pkey.rawSeed();
   if (!raw_data) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
@@ -1664,6 +1559,8 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(
       Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
           .FromMaybe(Local<Value>()));
+#else
+  return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
 #endif
 }
 
@@ -1686,18 +1583,26 @@ void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {
             target,
             "createNativeKeyObjectClass",
             NativeKeyObject::CreateNativeKeyObjectClass);
+  SetMethod(
+      env->context(), target, "getKeyObjectSlots", NativeKeyObject::GetSlots);
 }
 
 void NativeKeyObject::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(NativeKeyObject::CreateNativeKeyObjectClass);
+  registry->Register(NativeKeyObject::GetSlots);
   registry->Register(NativeKeyObject::New);
+}
+
+bool NativeKeyObject::HasInstance(Environment* env, Local<Value> value) {
+  auto t = env->crypto_key_object_constructor_template();
+  return !t.IsEmpty() && t->HasInstance(value);
 }
 
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
+  CHECK(KeyObjectHandle::HasInstance(env, args[0]));
   KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
   CHECK_NOT_NULL(handle);
   new NativeKeyObject(env, args.This(), handle->Data());
@@ -1716,6 +1621,8 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
       NewFunctionTemplate(isolate, NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       NativeKeyObject::kInternalFieldCount);
+  CHECK(env->crypto_key_object_constructor_template().IsEmpty());
+  env->set_crypto_key_object_constructor_template(t);
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor))
@@ -1735,6 +1642,34 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
   if (!ret->Get(env->context(), 3).ToLocal(&ctor)) return;
   env->set_crypto_key_object_private_constructor(ctor.As<Function>());
   args.GetReturnValue().Set(ret);
+}
+
+// Returns the key's native hidden slot tuple as a single Array:
+// [type enum, handle]. JS-side helpers call this once per key to prime
+// a per-instance cache; derived metadata is appended lazily from JS by
+// calling methods on the returned KeyObjectHandle.
+void NativeKeyObject::GetSlots(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  if (!HasInstance(env, args[0])) {
+    THROW_ERR_INVALID_THIS(env, "Value of \"this\" must be of type KeyObject");
+    return;
+  }
+
+  NativeKeyObject* native = Unwrap<NativeKeyObject>(args[0].As<Object>());
+  CHECK_NOT_NULL(native);
+
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, native->handle_data_).ToLocal(&handle)) {
+    return;
+  }
+
+  Isolate* isolate = env->isolate();
+  Local<Value> slots[] = {
+      Uint32::NewFromUnsigned(isolate, native->handle_data_.GetKeyType()),
+      handle,
+  };
+  args.GetReturnValue().Set(Array::New(isolate, slots, arraysize(slots)));
 }
 
 BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
@@ -1776,7 +1711,7 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
   if (!key_ctor->NewInstance(context, 1, &handle).ToLocal(&key))
     return {};
 
-  return BaseObjectPtr<BaseObject>(Unwrap<KeyObjectHandle>(key.As<Object>()));
+  return BaseObjectPtr<BaseObject>(Unwrap<NativeKeyObject>(key.As<Object>()));
 }
 
 BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
@@ -1786,6 +1721,303 @@ BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
 std::unique_ptr<worker::TransferData> NativeKeyObject::CloneForMessaging()
     const {
   return std::make_unique<KeyObjectTransferData>(handle_data_);
+}
+
+void NativeCryptoKey::Initialize(Environment* env, Local<Object> target) {
+  SetMethod(env->context(),
+            target,
+            "createCryptoKeyClass",
+            NativeCryptoKey::CreateCryptoKeyClass);
+  SetMethod(
+      env->context(), target, "getCryptoKeySlots", NativeCryptoKey::GetSlots);
+}
+
+void NativeCryptoKey::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(NativeCryptoKey::CreateCryptoKeyClass);
+  registry->Register(NativeCryptoKey::GetSlots);
+  registry->Register(NativeCryptoKey::New);
+}
+
+namespace {
+// Verifies that `value` is a `NativeCryptoKey` by checking whether it
+// was constructed from the Environment's `NativeCryptoKey` template.
+bool IsNativeCryptoKey(Environment* env, Local<Value> value) {
+  auto t = env->crypto_cryptokey_constructor_template();
+  return !t.IsEmpty() && t->HasInstance(value);
+}
+}  // namespace
+
+bool NativeCryptoKey::HasInstance(Environment* env, Local<Value> value) {
+  return IsNativeCryptoKey(env, value);
+}
+
+MaybeLocal<Value> NativeCryptoKey::Create(Environment* env,
+                                          const KeyObjectData& data,
+                                          Local<Value> algorithm,
+                                          uint32_t usages_mask,
+                                          bool extractable) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  CHECK(algorithm->IsObject());
+
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, data).ToLocal(&handle)) return {};
+
+  if (env->crypto_internal_cryptokey_constructor().IsEmpty()) {
+    Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
+    if (env->builtin_module_require()
+            ->Call(context, Null(isolate), 1, &arg)
+            .IsEmpty()) {
+      return {};
+    }
+  }
+
+  Local<Function> cryptokey_ctor = env->crypto_internal_cryptokey_constructor();
+  CHECK(!cryptokey_ctor.IsEmpty());
+  Local<Value> ctor_args[] = {
+      handle,
+      algorithm,
+      Uint32::NewFromUnsigned(isolate, usages_mask),
+      Boolean::New(isolate, extractable),
+  };
+  return cryptokey_ctor->NewInstance(context, arraysize(ctor_args), ctor_args);
+}
+
+void NativeCryptoKey::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 4);
+  // args[0] is a KeyObjectHandle; we keep its KeyObjectData directly.
+  // args[1] is the algorithm dictionary object.
+  // args[2] is the usages mask.
+  // args[3] is the extractable boolean.
+  //
+  // args[1] is undefined only when called from
+  // CryptoKeyTransferData::Deserialize for a partially-initialized
+  // CryptoKey: algorithm/usages mask/extractable get filled in afterwards
+  // by FinalizeTransferRead before any JS can see the object.
+  //
+  // This constructor is not exposed to user JS - the public CryptoKey
+  // class throws from its constructor and InternalCryptoKey is kept
+  // in a module-closure.
+  CHECK(KeyObjectHandle::HasInstance(env, args[0]));
+  KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  CHECK_NOT_NULL(handle);
+
+  auto* native = new NativeCryptoKey(env, args.This(), handle->Data());
+
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsObject());
+    CHECK(args[2]->IsUint32());
+    CHECK(args[3]->IsBoolean());
+    args.This()->SetInternalField(kAlgorithmField, args[1]);
+    native->usages_mask_ = args[2].As<Uint32>()->Value();
+    native->extractable_ = args[3]->IsTrue();
+  }
+}
+
+void NativeCryptoKey::CreateCryptoKeyClass(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 1);
+  Local<Value> callback = args[0];
+  CHECK(callback->IsFunction());
+
+  Local<FunctionTemplate> t =
+      NewFunctionTemplate(isolate, NativeCryptoKey::New);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      NativeCryptoKey::kInternalFieldCount);
+  CHECK(env->crypto_cryptokey_constructor_template().IsEmpty());
+  env->set_crypto_cryptokey_constructor_template(t);
+
+  Local<Value> ctor;
+  if (!t->GetFunction(env->context()).ToLocal(&ctor)) return;
+
+  Local<Value> recv = Undefined(env->isolate());
+  Local<Value> ret_v;
+  if (!callback.As<Function>()
+           ->Call(env->context(), recv, 1, &ctor)
+           .ToLocal(&ret_v)) {
+    return;
+  }
+  Local<Array> ret = ret_v.As<Array>();
+  Local<Value> internal_ctor_v;
+  if (!ret->Get(env->context(), 1).ToLocal(&internal_ctor_v)) return;
+  CHECK(env->crypto_internal_cryptokey_constructor().IsEmpty());
+  env->set_crypto_internal_cryptokey_constructor(
+      internal_ctor_v.As<Function>());
+  args.GetReturnValue().Set(ret);
+}
+
+// Returns all of the key's internal slot values as a single Array:
+// [type enum, extractable, algorithm, usages mask, handle]. JS-side helpers
+// call this once per key to prime a per-instance cache, so subsequent
+// reads don't need to cross into C++ at all.
+void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  if (!HasInstance(env, args[0])) {
+    THROW_ERR_INVALID_THIS(env, "Value of \"this\" must be of type CryptoKey");
+    return;
+  }
+  Local<Object> obj = args[0].As<Object>();
+  NativeCryptoKey* native = Unwrap<NativeCryptoKey>(obj);
+  CHECK_NOT_NULL(native);
+
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, native->handle_data_).ToLocal(&handle)) {
+    return;
+  }
+
+  Local<Value> algorithm = obj->GetInternalField(kAlgorithmField).As<Value>();
+  CHECK(algorithm->IsObject());
+  Isolate* isolate = env->isolate();
+  Local<Value> slots[] = {
+      Uint32::NewFromUnsigned(isolate, native->handle_data_.GetKeyType()),
+      v8::Boolean::New(isolate, native->extractable_),
+      algorithm,
+      Uint32::NewFromUnsigned(isolate, native->usages_mask_),
+      handle,
+  };
+  args.GetReturnValue().Set(Array::New(isolate, slots, arraysize(slots)));
+}
+
+BaseObject::TransferMode NativeCryptoKey::GetTransferMode() const {
+  return BaseObject::TransferMode::kCloneable;
+}
+
+std::unique_ptr<worker::TransferData> NativeCryptoKey::CloneForMessaging()
+    const {
+  Isolate* isolate = env()->isolate();
+  Local<Object> obj = object();
+  Local<Value> algorithm_v = obj->GetInternalField(kAlgorithmField).As<Value>();
+  CHECK(algorithm_v->IsObject());
+  v8::Global<Object> algorithm_copy(isolate, algorithm_v.As<Object>());
+  return std::make_unique<CryptoKeyTransferData>(
+      handle_data_, std::move(algorithm_copy), usages_mask_, extractable_);
+}
+
+Maybe<void> NativeCryptoKey::FinalizeTransferRead(
+    Local<Context> context, v8::ValueDeserializer* deserializer) {
+  Local<Value> bundle_v;
+  if (!deserializer->ReadValue(context).ToLocal(&bundle_v)) {
+    return Nothing<void>();
+  }
+  CHECK(bundle_v->IsObject());
+  Local<Object> bundle = bundle_v.As<Object>();
+  Isolate* isolate = env()->isolate();
+  Local<Object> obj = object();
+
+  // The partially-initialized object produced by
+  // CryptoKeyTransferData::Deserialize should not have algorithm set yet.
+  CHECK(obj->GetInternalField(kAlgorithmField).As<Value>()->IsUndefined());
+
+  Local<Value> algorithm_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"))
+           .ToLocal(&algorithm_v)) {
+    return Nothing<void>();
+  }
+  CHECK(algorithm_v->IsObject());
+  obj->SetInternalField(kAlgorithmField, algorithm_v);
+
+  Local<Value> usages_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "usages"))
+           .ToLocal(&usages_v)) {
+    return Nothing<void>();
+  }
+  CHECK(usages_v->IsUint32());
+  usages_mask_ = usages_v.As<Uint32>()->Value();
+
+  Local<Value> extractable_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "extractable"))
+           .ToLocal(&extractable_v)) {
+    return Nothing<void>();
+  }
+  CHECK(extractable_v->IsBoolean());
+  extractable_ = extractable_v->IsTrue();
+
+  return v8::JustVoid();
+}
+
+Maybe<bool> NativeCryptoKey::CryptoKeyTransferData::FinalizeTransferWrite(
+    Local<Context> context, v8::ValueSerializer* serializer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  CHECK(!algorithm_.IsEmpty());
+  Local<Object> bundle = Object::New(isolate);
+  Local<Value> algorithm_v = PersistentToLocal::Strong(algorithm_);
+  if (bundle
+          ->Set(
+              context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"), algorithm_v)
+          .IsNothing() ||
+      bundle
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "usages"),
+                Uint32::NewFromUnsigned(isolate, usages_mask_))
+          .IsNothing() ||
+      bundle
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "extractable"),
+                v8::Boolean::New(isolate, extractable_))
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+  auto ret = serializer->WriteValue(context, bundle);
+  algorithm_.Reset();
+  return ret;
+}
+
+BaseObjectPtr<BaseObject> NativeCryptoKey::CryptoKeyTransferData::Deserialize(
+    Environment* env,
+    Local<Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  if (context != env->context()) {
+    THROW_ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE(env);
+    return {};
+  }
+
+  // Reconstruct the KeyObjectHandle for the transferred KeyObjectData.
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, data_).ToLocal(&handle)) return {};
+
+  // Make sure internal/crypto/keys has been loaded so that the
+  // CryptoKey constructor is registered with the Environment.
+  Isolate* isolate = env->isolate();
+  Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
+  if (env->builtin_module_require()
+          ->Call(context, Null(isolate), 1, &arg)
+          .IsEmpty()) {
+    return {};
+  }
+
+  // Construct a partially-initialized InternalCryptoKey; algorithm,
+  // usages mask and extractable are filled in via FinalizeTransferRead.
+  Local<Function> cryptokey_ctor = env->crypto_internal_cryptokey_constructor();
+  CHECK(!cryptokey_ctor.IsEmpty());
+  Local<Value> ctor_args[] = {
+      handle,
+      Undefined(isolate),
+      Undefined(isolate),
+      Undefined(isolate),
+  };
+  Local<Value> cryptokey;
+  if (!cryptokey_ctor->NewInstance(context, 4, ctor_args).ToLocal(&cryptokey)) {
+    return {};
+  }
+
+  return BaseObjectPtr<BaseObject>(
+      Unwrap<NativeCryptoKey>(cryptokey.As<Object>()));
+}
+
+void NativeCryptoKey::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("handle_data", handle_data_);
+}
+
+void NativeCryptoKey::CryptoKeyTransferData::MemoryInfo(
+    MemoryTracker* tracker) const {
+  tracker->TrackField("data", data_);
+  tracker->TrackField("algorithm", algorithm_);
 }
 
 namespace Keys {
@@ -1828,9 +2060,12 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+#if OPENSSL_WITH_PQC_ML_KEM_512
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_512);
+#endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_768);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_1024);
+#if OPENSSL_WITH_PQC_SLH_DSA
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128F);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128S);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192F);
@@ -1843,6 +2078,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192S);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256F);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256S);
+#endif
 #endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);

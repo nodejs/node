@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Blob } = require('buffer');
+const { Blob, File } = require('buffer');
 const { inspect } = require('util');
 const { EOL } = require('os');
 const { kState } = require('internal/webstreams/util');
@@ -155,6 +155,22 @@ assert.throws(() => new Blob({}), {
 
   assert.strictEqual(b.size, 10);
   assert.strictEqual(b.type, '');
+}
+
+{
+  const b = new Blob(['hello']);
+
+  assert.throws(() => b.slice(1n), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'start is a BigInt and cannot be converted to a number.',
+  });
+
+  assert.throws(() => b.slice(0, Symbol()), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'end is a Symbol and cannot be converted to a number.',
+  });
 }
 
 {
@@ -338,8 +354,10 @@ assert.throws(() => new Blob({}), {
   assert(!done);
   setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
-    // it should pull in the next 'hello' which is 5 bytes hence -5.
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // it may have pulled in the next 'hello' which is 5 bytes hence -5.
+    // The ordering of this timer and the stream's setImmediate() pull
+    // continuation can vary across platforms.
+    assert([0, -5].includes(stream[kState].controller.desiredSize));
   }), 0);
 })().then(common.mustCall());
 
@@ -366,7 +384,9 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // Same setImmediate() pull vs. timer race as the non-BYOB case above:
+    // the stream may already have pulled the next 'hello' (5 bytes), hence -5.
+    assert([0, -5].includes(stream[kState].controller.desiredSize));
   }), 0);
 })().then(common.mustCall());
 
@@ -386,6 +406,24 @@ assert.throws(() => new Blob({}), {
 {
   const b = new Blob(['hello\n'], { endings: 'native' });
   assert.strictEqual(b.size, EOL.length + 5);
+
+  // The WHATWG "convert line endings to native" algorithm normalizes every
+  // standalone "\r", "\n", and "\r\n" sequence to the native line ending.
+  // Refs: https://w3c.github.io/FileAPI/#convert-line-endings-to-native
+  (async () => {
+    const cases = [
+      ['a\rb', `a${EOL}b`],
+      ['a\nb', `a${EOL}b`],
+      ['a\r\nb', `a${EOL}b`],
+      ['a\r\rb', `a${EOL}${EOL}b`],
+      ['a\n\rb', `a${EOL}${EOL}b`],
+      ['\r\n\r', `${EOL}${EOL}`],
+    ];
+    for (const [input, expected] of cases) {
+      const blob = new Blob([input], { endings: 'native' });
+      assert.strictEqual(await blob.text(), expected);
+    }
+  })().then(common.mustCall());
 
   [1, {}, 'foo'].forEach((endings) => {
     assert.throws(() => new Blob([], { endings }), {
@@ -507,4 +545,23 @@ assert.throws(() => new Blob({}), {
   } finally {
     Blob.prototype.arrayBuffer = arrayBuffer;
   }
+})().then(common.mustCall());
+
+{
+  assert.strictEqual(typeof Blob.prototype.textStream, 'function');
+  assert.strictEqual(typeof File.prototype.textStream, 'function');
+  assert.strictEqual(File.prototype.textStream, Blob.prototype.textStream);
+}
+
+(async () => {
+  const smiley = Buffer.from('😀', 'utf8');
+  const blob = new Blob(['hello ', smiley.subarray(0, 2), smiley.subarray(2)]);
+  const stream = blob.textStream();
+  assert.ok(stream instanceof ReadableStream);
+  let result = '';
+  for await (const chunk of stream) {
+    assert.strictEqual(typeof chunk, 'string');
+    result += chunk;
+  }
+  assert.strictEqual(result, 'hello 😀');
 })().then(common.mustCall());

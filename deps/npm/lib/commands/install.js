@@ -5,6 +5,8 @@ const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const checks = require('npm-install-checks')
 const reifyFinish = require('../utils/reify-finish.js')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
+const strictAllowScriptsPreflight = require('../utils/strict-allow-scripts-preflight.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Install extends ArboristWorkspaceCmd {
@@ -27,10 +29,17 @@ class Install extends ArboristWorkspaceCmd {
     'package-lock-only',
     'foreground-scripts',
     'ignore-scripts',
+    'allow-directory',
+    'allow-file',
     'allow-git',
+    'allow-remote',
+    'allow-scripts',
+    'strict-allow-scripts',
+    'dangerously-allow-all-scripts',
     'audit',
     'before',
     'min-release-age',
+    'min-release-age-exclude',
     'bin-links',
     'fund',
     'dry-run',
@@ -135,14 +144,17 @@ class Install extends ArboristWorkspaceCmd {
     }
 
     const Arborist = require('@npmcli/arborist')
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const opts = {
       ...this.npm.flatOptions,
       auditLevel: null,
       path: where,
       add: args,
       workspaces: this.workspaceNames,
+      allowScripts: allowScriptsPolicy,
     }
     const arb = new Arborist(opts)
+    await strictAllowScriptsPreflight({ arb, npm: this.npm, idealTreeOpts: opts })
     await arb.reify(opts)
 
     if (!args.length && !isGlobalInstall && !ignoreScripts) {

@@ -12,10 +12,6 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
-
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -32,7 +28,9 @@ using ncrypto::DataPointer;
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
@@ -40,6 +38,7 @@ using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -139,7 +138,7 @@ void InitCryptoOnce() {
 
   OPENSSL_init_ssl(0, settings);
 
-#if OPENSSL_WITH_PQC
+#if OPENSSL_WITH_OPENSSL_PQC
   // Configure all loaded providers to prefer seed-only format for ML-KEM and
   // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
   // seed is not available. The provider encoder reads these parameters at
@@ -380,6 +379,30 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   return *this;
 }
 
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes) {
+  CHECK_NOT_NULL(bytes);
+  const size_t length_bytes = NumBitsToBytes(length_bits);
+  CHECK_LE(length_bytes, bytes->size());
+
+  if (bytes->allocated_data_ == nullptr || bytes->size() != length_bytes) {
+    auto data = DataPointer::Alloc(length_bytes);
+    if (length_bytes > 0) {
+      CHECK_NOT_NULL(data.get());
+      memcpy(data.get(), bytes->data(), length_bytes);
+    }
+    *bytes = ByteSource::Allocated(data.release());
+  }
+
+  const size_t remainder_bits = length_bits % CHAR_BIT;
+  if (remainder_bits != 0) {
+    auto* data = static_cast<unsigned char*>(bytes->allocated_data_);
+    CHECK_NOT_NULL(data);
+    const unsigned char mask =
+        static_cast<unsigned char>(0xff << (CHAR_BIT - remainder_bits));
+    data[length_bytes - 1] &= mask;
+  }
+}
+
 std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
     Environment* env) {
   // It's ok for allocated_data_ to be nullptr but
@@ -479,9 +502,9 @@ ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
 ByteSource ByteSource::FromSecretKeyBytes(
     Environment* env,
     Local<Value> value) {
-  // A key can be passed as a string, buffer or KeyObject with type 'secret'.
-  // If it is a string, we need to convert it to a buffer. We are not doing that
-  // in JS to avoid creating an unprotected copy on the heap.
+  // JS normalizes secret KeyObject/CryptoKey inputs to a KeyObjectHandle.
+  // Strings are converted here instead of in JS to avoid creating an
+  // unprotected copy on the heap.
   return value->IsString() || IsAnyBufferSource(value)
              ? ByteSource::FromStringOrBuffer(env, value)
              : ByteSource::FromSymmetricKeyObjectHandle(value);
@@ -517,7 +540,11 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();
@@ -553,44 +580,51 @@ Maybe<void> Decorate(Environment* env,
         c = ToUpper(c);
     }
 
-#define OSSL_ERROR_CODES_MAP(V)                                               \
-    V(SYS)                                                                    \
-    V(BN)                                                                     \
-    V(RSA)                                                                    \
-    V(DH)                                                                     \
-    V(EVP)                                                                    \
-    V(BUF)                                                                    \
-    V(OBJ)                                                                    \
-    V(PEM)                                                                    \
-    V(DSA)                                                                    \
-    V(X509)                                                                   \
-    V(ASN1)                                                                   \
-    V(CONF)                                                                   \
-    V(CRYPTO)                                                                 \
-    V(EC)                                                                     \
-    V(SSL)                                                                    \
-    V(BIO)                                                                    \
-    V(PKCS7)                                                                  \
-    V(X509V3)                                                                 \
-    V(PKCS12)                                                                 \
-    V(RAND)                                                                   \
-    V(DSO)                                                                    \
-    V(ENGINE)                                                                 \
-    V(OCSP)                                                                   \
-    V(UI)                                                                     \
-    V(COMP)                                                                   \
-    V(ECDSA)                                                                  \
-    V(ECDH)                                                                   \
-    V(OSSL_STORE)                                                             \
-    V(FIPS)                                                                   \
-    V(CMS)                                                                    \
-    V(TS)                                                                     \
-    V(HMAC)                                                                   \
-    V(CT)                                                                     \
-    V(ASYNC)                                                                  \
-    V(KDF)                                                                    \
-    V(SM2)                                                                    \
-    V(USER)                                                                   \
+#ifdef OPENSSL_IS_BORINGSSL
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
+#else
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
+  V(PKCS12)                                                                    \
+  V(DSO)                                                                       \
+  V(OSSL_STORE)                                                                \
+  V(FIPS)                                                                      \
+  V(TS)                                                                        \
+  V(CT)                                                                        \
+  V(ASYNC)                                                                     \
+  V(KDF)                                                                       \
+  V(SM2)
+#endif
+
+#define OSSL_ERROR_CODES_MAP(V)                                                \
+  V(SYS)                                                                       \
+  V(BN)                                                                        \
+  V(RSA)                                                                       \
+  V(DH)                                                                        \
+  V(EVP)                                                                       \
+  V(BUF)                                                                       \
+  V(OBJ)                                                                       \
+  V(PEM)                                                                       \
+  V(DSA)                                                                       \
+  V(X509)                                                                      \
+  V(ASN1)                                                                      \
+  V(CONF)                                                                      \
+  V(CRYPTO)                                                                    \
+  V(EC)                                                                        \
+  V(SSL)                                                                       \
+  V(BIO)                                                                       \
+  V(PKCS7)                                                                     \
+  V(X509V3)                                                                    \
+  V(RAND)                                                                      \
+  V(ENGINE)                                                                    \
+  V(OCSP)                                                                      \
+  V(UI)                                                                        \
+  V(COMP)                                                                      \
+  V(ECDSA)                                                                     \
+  V(ECDH)                                                                      \
+  V(CMS)                                                                       \
+  V(HMAC)                                                                      \
+  V(USER)                                                                      \
+  OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
 
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
@@ -600,6 +634,7 @@ Maybe<void> Decorate(Environment* env,
     }
 #undef V
 #undef OSSL_ERROR_CODES_MAP
+#undef OSSL_ERROR_CODES_MAP_OPENSSL_ONLY
     // Don't generate codes like "ERR_OSSL_SSL_".
     if (lib && strcmp(lib, "SSL_") == 0)
       prefix = "";
@@ -694,15 +729,70 @@ Maybe<void> SetEncodedValue(Environment* env,
   if (!EncodeBignum(env, bn, size).ToLocal(&value)) {
     return Nothing<void>();
   }
-  return target->Set(env->context(), name, value).IsJust() ? JustVoid()
-                                                           : Nothing<void>();
+  return target->DefineOwnProperty(env->context(), name, value).FromMaybe(false)
+             ? JustVoid()
+             : Nothing<void>();
 }
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
-  CHECK_LE(mode, kCryptoJobSync);
+  CHECK_LE(mode, kCryptoJobWebCrypto);
   return static_cast<CryptoJobMode>(mode);
+}
+
+bool IsCryptoJobAsync(CryptoJobMode mode) {
+  return mode == kCryptoJobAsync || mode == kCryptoJobWebCrypto;
+}
+
+MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
+                                          Local<Value> cause) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> per_context_bindings;
+  Local<Value> domexception_ctor;
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
+           .ToLocal(&domexception_ctor)) {
+    return {};
+  }
+  CHECK(domexception_ctor->IsFunction());
+
+  Local<Object> options = Object::New(isolate);
+  if (options
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "name"),
+                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+          .IsNothing() ||
+      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
+          .IsNothing()) {
+    return {};
+  }
+
+  Local<Value> argv[] = {
+      FIXED_ONE_BYTE_STRING(isolate,
+                            "The operation failed for an operation-specific "
+                            "reason"),
+      options,
+  };
+
+  return domexception_ctor.As<Function>()->NewInstance(
+      context, arraysize(argv), argv);
+}
+
+MaybeLocal<Value> ToWebCryptoJobResult(Environment* env, Local<Value> value) {
+  if (value->IsArrayBuffer()) {
+    return value;
+  }
+
+  if (Buffer::HasInstance(value)) {
+    return value.As<ArrayBufferView>()->Buffer();
+  }
+
+  CHECK(value->IsBoolean() || (value->IsObject() && !value->IsArray() &&
+                               !value->IsArrayBufferView()));
+  return value;
 }
 
 namespace {
@@ -728,7 +818,6 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = args[0].As<Uint32>()->Value();
 
   auto data = DataPointer::SecureAlloc(len);
-  CHECK(data.isSecure());
   if (!data) {
     return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
   }
@@ -773,6 +862,7 @@ void Initialize(Environment* env, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+  NODE_DEFINE_CONSTANT(target, kCryptoJobWebCrypto);
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);

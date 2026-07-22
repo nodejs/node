@@ -23,6 +23,17 @@ const dnsPromises = dns.promises;
   assert.throws(() => dnsPromises.lookup(1, {}), err);
 }
 
+{
+  const err = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    name: 'TypeError',
+    message: /The argument 'hostname' must be a string without null bytes\./,
+  };
+
+  assert.throws(() => dns.lookup('127.0.0.1\u0000.allowed.example', {}), err);
+  assert.throws(() => dnsPromises.lookup('127.0.0.1\u0000.allowed.example', {}), err);
+}
+
 // This also verifies different expectWarning notations.
 common.expectWarning({
   // For 'internal/test/binding' module.

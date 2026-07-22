@@ -76,7 +76,7 @@ const toCyclonedxItem = (node, { packageType }) => {
   // Calculate purl from package spec
   let spec = npa(node.pkgid)
   spec = (spec.type === 'alias') ? spec.subSpec : spec
-  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
+  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${encodeURIComponent(node.resolved)}` : '')
 
   if (node.package) {
     const toNormalize = new PackageJson()
@@ -170,13 +170,20 @@ const toCyclonedxItem = (node, { packageType }) => {
 }
 
 const toCyclonedxDependency = (node, nodes) => {
-  return {
-    ref: toCyclonedxID(node),
-    dependsOn: [...node.edgesOut.values()]
+  // A node can have multiple outgoing edges resolving to the same
+  // `name@version` (e.g. via npm aliases like `foo: npm:bar@1` alongside a
+  // direct `bar: ^1` dep), which would produce duplicate entries in
+  // `dependsOn`. CycloneDX 1.5 requires unique items, so dedupe by ref.
+  const dependsOn = [...new Set(
+    [...node.edgesOut.values()]
       // Filter out edges that are linking to nodes not in the list
       .filter(edge => nodes.find(n => n === edge.to))
       .map(edge => toCyclonedxID(edge.to))
-      .filter(id => id),
+      .filter(id => id)
+  )]
+  return {
+    ref: toCyclonedxID(node),
+    dependsOn,
   }
 }
 

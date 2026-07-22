@@ -646,7 +646,6 @@ outside the `main` function has side effects. In general, prefer putting
 the code inside the `main` function if it's more than just declaration.
 
 ```js
-'use strict';
 const common = require('../common.js');
 const { Buffer } = require('node:buffer');
 
@@ -698,8 +697,6 @@ The `bench` object returned by `createBenchmark` implements
 benchmark HTTP servers.
 
 ```js
-'use strict';
-
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {

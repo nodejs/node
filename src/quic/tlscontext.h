@@ -45,12 +45,13 @@ class OSSLContext final {
                   ngtcp2_conn* connection,
                   SSL_CTX* ssl_ctx);
 
-  std::string get_cipher_name() const;
+  std::string_view get_cipher_name() const;
   std::string get_selected_alpn() const;
   std::string_view get_negotiated_group() const;
 
   bool set_alpn_protocols(std::string_view protocols) const;
   bool set_hostname(std::string_view hostname) const;
+  bool set_verify_hostname(std::string_view hostname) const;
   bool set_early_data_enabled() const;
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
@@ -191,6 +192,16 @@ class TLSContext final : public MemoryRetainer,
     // The list of TLS groups to use for this session.
     std::string groups = DEFAULT_GROUPS;
 
+    // TLS certificate compression (RFC 8879) preference, packed by the JS
+    // layer as (length | alg0<<8 | alg1<<16 | alg2<<24). Algorithm IDs match
+    // OpenSSL's TLSEXT_comp_cert_zlib (1), _brotli (2), _zstd (3). A value of
+    // 0 means certificate compression is disabled (the default). Certificate
+    // compression is particularly valuable for QUIC because it reduces the
+    // size of the server's Certificate message, which is otherwise likely to
+    // exceed the anti-amplification limit and force an extra handshake round
+    // trip. JavaScript option name "certificateCompression".
+    uint32_t certificate_compression = 0;
+
     // When true, enables keylog output for the session.
     bool keylog = false;
 
@@ -206,6 +217,21 @@ class TLSContext final : public MemoryRetainer,
     // via the handshake callback for the application to decide.
     // This option is only used by the server side.
     bool reject_unauthorized = true;
+
+    // When true, the client will set SSL_VERIFY_PEER so that OpenSSL
+    // aborts the handshake if the server's certificate fails validation.
+    // This is the "strict" verify_peer mode. When false (the default),
+    // the handshake completes regardless and VerifyPeerIdentity is
+    // called after to surface errors to JS. This option is only used
+    // by the client side.
+    bool verify_peer_strict = false;
+
+    // When true, OpenSSL verifies that the server's certificate matches
+    // the servername (hostname verification via SSL_set1_host). Should
+    // be true for 'strict' and 'auto' verifyPeer modes, false for
+    // 'manual'. Without this, a valid certificate for any domain would
+    // be accepted. This option is only used by the client side.
+    bool verify_hostname = false;
 
     // When true (the default), the server accepts 0-RTT early data
     // from clients with valid session tickets. When false, early data
@@ -240,6 +266,15 @@ class TLSContext final : public MemoryRetainer,
     // Optional certificate revocation lists to use.
     // JavaScript option name "crl"
     std::vector<Store> crl;
+
+    // The port to advertise in ORIGIN frames for this hostname.
+    // Defaults to 443 (the standard HTTPS port). Only relevant for
+    // server-side SNI entries used with HTTP/3.
+    uint16_t port = 443;
+
+    // Whether this hostname should be included in ORIGIN frames.
+    // Only relevant for server-side SNI entries.
+    bool authoritative = true;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(TLSContext::Options)

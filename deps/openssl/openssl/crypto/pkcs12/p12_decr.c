@@ -103,7 +103,7 @@ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
         if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
             if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
                     (int)mac_len, out + outlen)
-                < 0) {
+                <= 0) {
                 OPENSSL_free(out);
                 out = NULL;
                 ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);

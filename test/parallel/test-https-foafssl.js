@@ -56,8 +56,8 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
   cert = req.connection.getPeerCertificate();
 
   assert.strictEqual(cert.subjectaltname, webIdUrl);
-  assert.strictEqual(cert.exponent, exponent);
-  assert.strictEqual(cert.modulus, modulus);
+  assert.strictEqual(cert.exponent.toLowerCase(), exponent.toLowerCase());
+  assert.strictEqual(cert.modulus.toLowerCase(), modulus.toLowerCase());
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body, () => { console.log('stream finished'); });
   console.log('sent response');

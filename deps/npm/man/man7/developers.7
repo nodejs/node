@@ -1,4 +1,4 @@
-.TH "DEVELOPERS" "7" "March 2026" "NPM@11.12.1" ""
+.TH "DEVELOPERS" "7" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBDevelopers\fR - Developer guide
 .SS "Description"
@@ -184,6 +184,23 @@ npm install ../my-package
 to install it locally into the node_modules folder in that other place.
 .P
 Then go into the node-repl, and try using require("my-thing") to bring in your module's main module.
+.SS "Catching undeclared (\"phantom\") dependencies"
+.P
+Under the default hoisted \fBnode_modules\fR layout, your package can \fBimport\fR a dependency it never declared and still resolve it. A transitive dependency hoisted alongside it, or your workspace root's \fBnode_modules\fR, happens to satisfy the \fBimport\fR. That undeclared ("phantom") dependency passes your own build silently, then fails for anyone who installs your package on its own.
+.P
+We recommend developing your package under \fB\[rs]fBinstall-strategy=linked\[rs]fR\fR \fI\(la/using-npm/config#install-strategy\(ra\fR. The isolated layout only exposes a package's \fIdeclared\fR dependencies, so an \fBimport\fR of an undeclared package fails for you during development instead of resolving by accident, shipping broken, and failing for your users:
+.P
+.RS 2
+.nf
+npm install --install-strategy=linked
+npm test
+.fi
+.RE
+.RS 0
+.P
+\fBNote:\fR This doesn't catch every case. A dependency that's still satisfied at your build by a \fBdevDependency\fR or by your workspace root's \fBnode_modules\fR can resolve fine for you and still be missing for whoever installs your package. So treat it as one check, not a guarantee, alongside auditing the dependencies your published package actually uses.
+.RE 0
+
 .SS "Create a User Account"
 .P
 Create a user with the adduser command. It works like this:

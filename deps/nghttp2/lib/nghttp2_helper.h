@@ -61,7 +61,15 @@ nghttp2_min_def(uint32, uint32_t)
 nghttp2_min_def(uint64, uint64_t)
 nghttp2_min_def(size, size_t)
 
-#define lstreq(A, B, N) ((sizeof((A)) - 1) == (N) && memcmp((A), (B), (N)) == 0)
+/*
+ * nghttp2_strlen_lit returns the length of string literal |S|.  This
+ * macro assumes |S| is NULL-terminated string literal.  It must not
+ * be used with pointers.
+ */
+#define nghttp2_strlen_lit(S) (sizeof(S) - 1)
+
+#define lstreq(A, B, N)                                                        \
+  (nghttp2_strlen_lit((A)) == (N) && memcmp((A), (B), (N)) == 0)
 
 #define nghttp2_struct_of(ptr, type, member)                                   \
   ((type *)(void *)((char *)(ptr) - offsetof(type, member)))

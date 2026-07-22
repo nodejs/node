@@ -957,7 +957,7 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++)
-    uv__free(cpu_infos[i].model);
+    uv__free((char*) cpu_infos[i].model);
 
   uv__free(cpu_infos);
 #endif  /* __linux__ */

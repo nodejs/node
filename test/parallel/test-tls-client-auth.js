@@ -111,7 +111,10 @@ if (tls.DEFAULT_MAX_VERSION === 'TLSv1.3') connect({
   // and sends a fatal Alert to the client that the client discovers there has
   // been a fatal error.
   pair.client.conn.once('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED');
+    const expectedErr = process.features.openssl_is_boringssl ?
+      'ERR_SSL_TLSV1_ALERT_CERTIFICATE_REQUIRED' :
+      'ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED';
+    assert.strictEqual(err.code, expectedErr);
     cleanup();
   }));
 }));

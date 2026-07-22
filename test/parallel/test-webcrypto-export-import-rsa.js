@@ -600,6 +600,20 @@ async function testImportJwk(
       extractable,
       publicUsages),
     { name: 'DataError', message: 'Invalid keyData' });
+
+  for (const field of ['p', 'q', 'dp', 'dq', 'qi']) {
+    const jwkMissingCrtField = { ...jwk };
+    delete jwkMissingCrtField[field];
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        jwkMissingCrtField,
+        { name, hash },
+        extractable,
+        privateUsages),
+      { name: 'DataError', message: 'Invalid keyData' },
+      `missing private JWK CRT field ${field}`);
+  }
 }
 
 // combinations to test

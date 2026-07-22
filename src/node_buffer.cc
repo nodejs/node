@@ -567,62 +567,108 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   ArrayBufferViewContents<char> buffer(args[0]);
 
-  if (buffer.length() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  auto buffer_length = buffer.length();
+  const char* data_ptr = buffer.data();
+
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+
+  if (buffer_length == 0) return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer.length(), &end));
-  if (end < start) end = start;
-  THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer_length, &end));
+  if (end <= start) return args.GetReturnValue().SetEmptyString();
+  THROW_AND_RETURN_IF_OOB(Just(end <= buffer_length));
   size_t length = end - start;
 
+  std::unique_ptr<char[]> data_copy;
+  if (view->Buffer()->IsSharedArrayBuffer()) {
+    data_copy = std::make_unique_for_overwrite<char[]>(length);
+    memcpy(data_copy.get(), data_ptr + start, length);
+    data_ptr = data_copy.get();
+    start = 0;
+  }
+
   Local<Value> ret;
-  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+  if (StringBytes::Encode(isolate, data_ptr + start, length, encoding)
           .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
 
-void CopyImpl(Local<Value> source_obj,
-              Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
-  ArrayBufferViewContents<char> source(source_obj);
-  SPREAD_BUFFER_ARG(target_obj, target);
+// Returns the number of bytes actually copied. This is normally |to_copy|, but
+// V8 copies nothing (and returns 0) when the target is backed by a detached or
+// immutable ArrayBuffer.
+size_t CopyImpl(Local<Value> source_obj,
+                Local<Value> target_obj,
+                const size_t target_start,
+                const size_t source_start,
+                const size_t to_copy) {
+  Local<ArrayBufferView> source = source_obj.As<ArrayBufferView>();
+  Local<ArrayBufferView> target = target_obj.As<ArrayBufferView>();
 
-  memmove(target_data + target_start, source.data() + source_start, to_copy);
+  Local<ArrayBuffer> source_ab = source->Buffer();
+  Local<ArrayBuffer> target_ab = target->Buffer();
+
+  const size_t source_offset = source->ByteOffset() + source_start;
+  const size_t target_offset = target->ByteOffset() + target_start;
+
+  // Defer byte-range clamping and detached/immutable handling to V8. When both
+  // sides are backed by a SharedArrayBuffer the relaxed atomic overload is
+  // used, which honors the SharedArrayBuffer memory model. Any other
+  // combination (both regular, or one of each) goes through the ArrayBuffer
+  // overload: it operates on the underlying backing store regardless of
+  // shared-ness, so a plain memmove is performed (matching the historical
+  // behavior for SharedArrayBuffer-backed buffers). The V8 API has no overload
+  // that mixes ArrayBuffer and SharedArrayBuffer, so the two must never be
+  // cross-cast.
+  if (source_ab->IsSharedArrayBuffer() && target_ab->IsSharedArrayBuffer()) {
+    return source_ab.As<SharedArrayBuffer>()->CopyArrayBufferBytes(
+        source_offset,
+        to_copy,
+        target_ab.As<SharedArrayBuffer>(),
+        target_offset);
+  }
+  return source_ab->CopyArrayBufferBytes(
+      source_offset, to_copy, target_ab, target_offset);
 }
 
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  // Byte offsets and lengths can exceed uint32 for buffers larger than 4 GiB,
+  // so they are passed and returned as doubles (exact for integers < 2^53).
+  const size_t target_start =
+      static_cast<size_t>(args[2].As<Number>()->Value());
+  const size_t source_start =
+      static_cast<size_t>(args[3].As<Number>()->Value());
+  const size_t to_copy = static_cast<size_t>(args[4].As<Number>()->Value());
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  const size_t copied =
+      CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
 
-  args.GetReturnValue().Set(to_copy);
+  args.GetReturnValue().Set(static_cast<double>(copied));
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
-                  Local<Value> source_obj,
-                  Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
-                  // NOLINTNEXTLINE(runtime/references)
-                  FastApiCallbackOptions& options) {
+double FastCopy(Local<Value> receiver,
+                Local<Value> source_obj,
+                Local<Value> target_obj,
+                double target_start,
+                double source_start,
+                double to_copy,
+                // NOLINTNEXTLINE(runtime/references)
+                FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.copy");
   HandleScope scope(options.isolate);
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
-
-  return to_copy;
+  return static_cast<double>(CopyImpl(source_obj,
+                                      target_obj,
+                                      static_cast<size_t>(target_start),
+                                      static_cast<size_t>(source_start),
+                                      static_cast<size_t>(to_copy)));
 }
 
 static CFunction fast_copy(CFunction::Make(FastCopy));
@@ -760,10 +806,23 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
 void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
+  Isolate* isolate = args.GetIsolate();
+  Local<String> str = args[0].As<String>();
 
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
-  args.GetReturnValue().Set(static_cast<uint64_t>(result));
+  // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+  if (str->Length() >= 512 && !str->IsOneByte()) {
+    String::ValueView view(isolate, str);
+    if (!view.is_one_byte()) {
+      // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+      size_t result =
+          simdutf::utf8_length_from_utf16_with_replacement(
+              reinterpret_cast<const char16_t*>(view.data16()), view.length())
+              .count;
+      args.GetReturnValue().Set(static_cast<uint64_t>(result));
+      return;
+    }
+  }
+  args.GetReturnValue().Set(static_cast<uint64_t>(str->Utf8LengthV2(isolate)));
 }
 
 uint32_t FastByteLengthUtf8(
@@ -777,6 +836,17 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
+    // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+    if (sourceStr->Length() >= 512 && !sourceStr->IsOneByte()) {
+      String::ValueView view(isolate, sourceStr);
+      if (!view.is_one_byte()) {
+        // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+        return simdutf::utf8_length_from_utf16_with_replacement(
+                   reinterpret_cast<const char16_t*>(view.data16()),
+                   view.length())
+            .count;
+      }
+    }
     return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
@@ -1290,19 +1360,58 @@ void FastSwap64(Local<Value> receiver,
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
 
+struct ValidationResult {
+  bool is_valid;
+  bool was_detached;
+};
+
+static ValidationResult ValidateUtf8(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  bool was_detached = abv.WasDetached();
+  return {!was_detached && simdutf::validate_utf8(abv.data(), abv.length()),
+          was_detached};
+}
+
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  const ValidationResult result = ValidateUtf8(args[0]);
+  if (result.was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));
+  args.GetReturnValue().Set(result.is_valid);
+}
+
+static bool FastIsUtf8(Local<Value> receiver,
+                       Local<Value> value,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isUtf8");
+  HandleScope scope(options.isolate);
+
+  const ValidationResult result = ValidateUtf8(value);
+  if (result.was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result.is_valid;
+}
+
+static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
+
+static ValidationResult ValidateAscii(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  bool was_detached = abv.WasDetached();
+  return {
+      !was_detached &&
+          !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error,
+      was_detached};
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
@@ -1310,16 +1419,33 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  const ValidationResult result = ValidateAscii(args[0]);
+  if (result.was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(
-      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
+  args.GetReturnValue().Set(result.is_valid);
 }
+
+static bool FastIsAscii(Local<Value> receiver,
+                        Local<Value> value,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isAscii");
+  HandleScope scope(options.isolate);
+
+  const ValidationResult result = ValidateAscii(value);
+  if (result.was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result.is_valid;
+}
+
+static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
@@ -1386,7 +1512,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
 // In case of error, a negative value is returned:
 // * -1 indicates a single character remained,
 // * -2 indicates an invalid character,
-// * -3 indicates a possible overflow (i.e., more than 2 GB output).
+// * -3 indicates an unrecognized simdutf error.
 static void Atob(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   Environment* env = Environment::GetCurrent(args);
@@ -1431,7 +1557,7 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(value);
   }
 
-  // Default value is: "possible overflow"
+  // Default value is: "unrecognized simdutf error"
   int32_t error_code = -3;
 
   if (result.error == simdutf::error_code::INVALID_BASE64_CHARACTER) {
@@ -1692,8 +1818,9 @@ void Initialize(Local<Object> target,
   SetFastMethod(context, target, "swap32", Swap32, &fast_swap32);
   SetFastMethod(context, target, "swap64", Swap64, &fast_swap64);
 
-  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
-  SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
+  SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
+  SetFastMethodNoSideEffect(
+      context, target, "isAscii", IsAscii, &fast_is_ascii);
 
   target
       ->Set(context,
@@ -1766,7 +1893,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_swap64);
 
   registry->Register(IsUtf8);
+  registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
+  registry->Register(fast_is_ascii);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);

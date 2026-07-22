@@ -10,7 +10,7 @@
 #include "memory_tracker.h"
 #include "node_external_reference.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KEM
 
 namespace node {
 namespace crypto {
@@ -44,16 +44,30 @@ struct KEMEncapsulateTraits final {
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       KEMConfiguration* params);
+};
 
-  static bool DeriveBits(Environment* env,
-                         const KEMConfiguration& params,
-                         ByteSource* out,
-                         CryptoJobMode mode,
-                         CryptoErrorStore* errors);
+class KEMEncapsulateJob final : public CryptoJob<KEMEncapsulateTraits> {
+ public:
+  using AdditionalParams = KEMEncapsulateTraits::AdditionalParameters;
 
-  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
-                                                const KEMConfiguration& params,
-                                                ByteSource* out);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  KEMEncapsulateJob(Environment* env,
+                    v8::Local<v8::Object> object,
+                    CryptoJobMode mode,
+                    AdditionalParams&& params);
+
+  void DoThreadPoolWork() override;
+  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                           v8::Local<v8::Value>* result) override;
+
+  SET_SELF_SIZE(KEMEncapsulateJob)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+ private:
+  std::optional<ncrypto::KEM::EncapsulateResult> out_;
 };
 
 struct KEMDecapsulateTraits final {
@@ -80,7 +94,6 @@ struct KEMDecapsulateTraits final {
                                                 ByteSource* out);
 };
 
-using KEMEncapsulateJob = DeriveBitsJob<KEMEncapsulateTraits>;
 using KEMDecapsulateJob = DeriveBitsJob<KEMDecapsulateTraits>;
 
 void InitializeKEM(Environment* env, v8::Local<v8::Object> target);

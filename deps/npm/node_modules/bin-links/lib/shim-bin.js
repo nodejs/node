@@ -1,4 +1,4 @@
-const { resolve, dirname } = require('path')
+const { resolve, dirname, sep } = require('path')
 const { lstat } = require('fs/promises')
 const throwNonEnoent = er => {
   if (er.code !== 'ENOENT') {
@@ -64,7 +64,8 @@ const shimBin = ({ path, to, from, absFrom, force }) => {
       return readCmdShim(s)
         .then(target => {
           target = resolve(dirname(to), target)
-          if (target.indexOf(resolve(path)) !== 0) {
+          const base = resolve(path)
+          if (target !== base && !target.startsWith(base + sep)) {
             return failEEXIST({ from, to, path })
           }
           return false

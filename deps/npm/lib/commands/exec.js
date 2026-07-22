@@ -1,5 +1,6 @@
 const { resolve } = require('node:path')
 const libexec = require('libnpmexec')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const BaseCommand = require('../base-cmd.js')
 
 class Exec extends BaseCommand {
@@ -10,6 +11,9 @@ class Exec extends BaseCommand {
     'workspace',
     'workspaces',
     'include-workspace-root',
+    'allow-scripts',
+    'strict-allow-scripts',
+    'dangerously-allow-all-scripts',
   ]
 
   static name = 'exec'
@@ -38,7 +42,7 @@ class Exec extends BaseCommand {
     }
   }
 
-  async callExec (args, { name, locationMsg, runPath } = {}) {
+  async callExec (args, { locationMsg, runPath } = {}) {
     let localBin = this.npm.localBin
     let pkgPath = this.npm.localPrefix
 
@@ -46,8 +50,8 @@ class Exec extends BaseCommand {
     if (!runPath) {
       runPath = process.cwd()
     } else {
-      // We have to consider if the workspace has its own separate versions libnpmexec will walk up to localDir after looking here
-      localBin = resolve(this.npm.localDir, name, 'node_modules', '.bin')
+      // Use the workspace's own node_modules/.bin, not localDir/<name>, since the linked strategy does not symlink workspaces into the root node_modules.
+      localBin = resolve(runPath, 'node_modules', '.bin')
       // We also need to look for `bin` entries in the workspace package.json
       // libnpmexec will NOT look in the project root for the bin entry
       pkgPath = runPath
@@ -74,8 +78,16 @@ class Exec extends BaseCommand {
       throw this.usageError()
     }
 
+    // Resolve the install-script policy from the user/global .npmrc layer
+    // only. The RFC requires exec/npx to ignore any project
+    // package.json#allowScripts; CLI flags still apply.
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm, {
+      skipProjectConfig: true,
+    })
+
     return libexec({
       ...flatOptions,
+      allowScripts: allowScriptsPolicy,
       // we explicitly set packageLockOnly to false because if it's true when we try to install a missing package, we won't actually install it
       packageLockOnly: false,
       // what the user asked to run args[0] is run by default

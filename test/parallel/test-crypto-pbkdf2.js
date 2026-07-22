@@ -110,6 +110,35 @@ for (const iterations of [-1, 0, 2147483648]) {
     });
 });
 
+// `-0` keylen must not abort the process via the native binding's
+// IsInt32() assertion. Behavior of `keylen=0` itself varies by OpenSSL
+// build (bundled returns an empty buffer; some shared OpenSSL builds
+// throw); the requirement here is only that `-0` produces the same
+// outcome as `+0`.
+{
+  let posError;
+  let posResult;
+  try {
+    posResult = crypto.pbkdf2Sync('password', 'salt', 1, 0, 'sha256');
+  } catch (err) {
+    posError = err;
+  }
+  let negError;
+  let negResult;
+  try {
+    negResult = crypto.pbkdf2Sync('password', 'salt', 1, -0, 'sha256');
+  } catch (err) {
+    negError = err;
+  }
+  if (posError !== undefined) {
+    assert.strictEqual(negError?.message, posError.message);
+  } else {
+    assert.deepStrictEqual(negResult, posResult);
+  }
+
+  crypto.pbkdf2('password', 'salt', 1, -0, 'sha256', common.mustCall());
+}
+
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
 crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustSucceed());

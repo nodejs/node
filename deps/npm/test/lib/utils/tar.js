@@ -109,6 +109,20 @@ t.test('should log tarball contents with unicode', async (t) => {
   t.end()
 })
 
+t.test('logTar with json and no key emits bare tarball object', async (t) => {
+  const buffered = []
+  const logTar = tmock(t, '{LIB}/utils/tar.js', {
+    'proc-log': {
+      log: { notice: () => {} },
+      output: { buffer: (data) => buffered.push(data) },
+    },
+  }).logTar
+
+  const tarball = { name: 'my-pkg', version: '1.0.0' }
+  logTar(tarball, { json: true })
+  t.strictSame(buffered, [tarball], 'buffers the bare tarball when key is omitted')
+})
+
 t.test('should getContents of a tarball with only a package.json', async (t) => {
   const testDir = t.testdir({
     'package.json': JSON.stringify({

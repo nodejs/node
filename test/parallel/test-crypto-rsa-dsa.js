@@ -39,10 +39,19 @@ const openssl1DecryptError = {
 
 const decryptError = hasOpenSSL3 ?
   { message: 'error:1C800064:Provider routines::bad decrypt' } :
-  openssl1DecryptError;
+  process.features.openssl_is_boringssl ? {
+    message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
+    code: 'ERR_OSSL_BAD_DECRYPT',
+    reason: 'BAD_DECRYPT',
+    function: 'OPENSSL_internal',
+    library: 'Cipher functions',
+  } :
+    openssl1DecryptError;
 
 const decryptPrivateKeyError = hasOpenSSL3 ? {
   message: 'error:1C800064:Provider routines::bad decrypt',
+} : process.features.openssl_is_boringssl ? {
+  message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
 } : openssl1DecryptError;
 
 function getBufferCopy(buf) {
@@ -325,8 +334,13 @@ function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
 }
 
 test_rsa('RSA_NO_PADDING');
-test_rsa('RSA_PKCS1_PADDING');
 test_rsa('RSA_PKCS1_OAEP_PADDING');
+
+if (!process.features.openssl_is_boringssl) {
+  test_rsa('RSA_PKCS1_PADDING');
+} else {
+  common.printSkipMessage('Skipping unsupported RSA_PKCS1_PADDING test case');
+}
 
 // Test OAEP with different hash functions.
 test_rsa('RSA_PKCS1_OAEP_PADDING', undefined, 'sha1');
@@ -489,7 +503,7 @@ assert.throws(() => {
 //
 // Test DSA signing and verification
 //
-{
+if (!process.features.openssl_is_boringssl) {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
@@ -512,13 +526,15 @@ assert.throws(() => {
   verify2.update(input);
 
   assert.strictEqual(verify2.verify(dsaPubPem, signature2, 'hex'), true);
+} else {
+  common.printSkipMessage('Skipping unsupported DSA test case');
 }
 
 
 //
 // Test DSA signing and verification with PKCS#8 private key
 //
-{
+if (!process.features.openssl_is_boringssl) {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
@@ -531,6 +547,8 @@ assert.throws(() => {
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
+} else {
+  common.printSkipMessage('Skipping unsupported DSA test case');
 }
 
 
@@ -547,7 +565,7 @@ const input = 'I AM THE WALRUS';
   }, decryptPrivateKeyError);
 }
 
-{
+if (!process.features.openssl_is_boringssl) {
   // DSA signatures vary across runs so there is no static string to verify
   // against.
   const sign = crypto.createSign('SHA1');
@@ -559,4 +577,6 @@ const input = 'I AM THE WALRUS';
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
+} else {
+  common.printSkipMessage('Skipping unsupported DSA test case');
 }

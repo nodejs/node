@@ -1,6 +1,6 @@
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
-import { IncomingHttpHeaders } from './header'
+import { OutgoingHttpHeaders } from './header'
 import Pool from './pool'
 
 export default Socks5ProxyAgent
@@ -12,7 +12,7 @@ declare class Socks5ProxyAgent extends Dispatcher {
 declare namespace Socks5ProxyAgent {
   export interface Options extends Pool.Options {
     /** Additional headers to send with the proxy connection */
-    headers?: IncomingHttpHeaders;
+    headers?: OutgoingHttpHeaders;
     /** SOCKS5 proxy username for authentication */
     username?: string;
     /** SOCKS5 proxy password for authentication */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -319,7 +319,7 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
         len++; /* 1 for ending \ */
     }
     len += file_split->dirlen;
-    if (file_split->dir && file_split->file) {
+    if (file_split->dir) {
         len++; /* 1 for ending \ */
     }
     len += file_split->filelen;

@@ -1,4 +1,4 @@
-const { resolve } = require('node:path')
+const { isAbsolute, resolve } = require('node:path')
 // mixin providing the loadVirtual method
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const PackageJson = require('@npmcli/package-json')
@@ -17,6 +17,8 @@ const setWorkspaces = Symbol.for('setWorkspaces')
 
 module.exports = cls => class VirtualLoader extends cls {
   #rootOptionProvided
+  // when true, lockfile entries must stay inside `this.path`
+  #subtreeOnly = false
 
   // public method
   async loadVirtual (options = {}) {
@@ -27,6 +29,8 @@ module.exports = cls => class VirtualLoader extends cls {
     // allow the user to set reify options on the ctor as well.
     // XXX: deprecate separate reify() options object.
     options = { ...this.options, ...options }
+
+    this.#subtreeOnly = !!options.subtreeOnly
 
     if (options.root && options.root.meta) {
       await this.#loadFromShrinkwrap(options.root.meta, options.root)
@@ -166,12 +170,40 @@ module.exports = cls => class VirtualLoader extends cls {
     }
   }
 
+  // throw if the resolved path is outside `base`, only in subtreeOnly mode
+  #assertContained (base, resolvedPath, location) {
+    if (!this.#subtreeOnly) {
+      return
+    }
+    if (isAbsolute(location)) {
+      throw Object.assign(
+        new Error(`invalid lockfile entry: "${location}" must be a relative location`),
+        { code: 'EINVALIDLOCATION', location, base }
+      )
+    }
+    const rel = relpath(base, resolvedPath)
+    if (
+      rel === '..' ||
+      rel.startsWith('../') ||
+      isAbsolute(rel) ||
+      // non-root key that collapses back to base (e.g. 'node_modules/..')
+      (rel === '' && location !== '')
+    ) {
+      throw Object.assign(
+        new Error(`invalid lockfile entry: "${location}" resolves outside of "${base}"`),
+        { code: 'EINVALIDLOCATION', location, base, resolvedPath }
+      )
+    }
+  }
+
   // links is the set of metadata, and nodes is the map of non-Link nodes
   // Set the targets to nodes in the set, if we have them (we might not)
   // XXX build-ideal-tree also has a #resolveLinks, is there overlap?
   async #resolveLinks (links, nodes) {
     for (const [location, meta] of links.entries()) {
       const targetPath = resolve(this.path, meta.resolved)
+      // check before nodes.get so we surface EINVALIDLOCATION instead of EMISSINGTARGET
+      this.#assertContained(this.path, targetPath, meta.resolved || location)
       const targetLoc = relpath(this.path, targetPath)
       const target = nodes.get(targetLoc)
 
@@ -230,6 +262,7 @@ To fix:
   #loadNode (location, sw, loadOverrides) {
     const p = this.virtualTree ? this.virtualTree.realpath : this.path
     const path = resolve(p, location)
+    this.#assertContained(p, path, location)
     // shrinkwrap doesn't include package name unless necessary
     if (!sw.name) {
       sw.name = nameFromFolder(path)
@@ -259,6 +292,7 @@ To fix:
 
   #loadLink (location, targetLoc, target) {
     const path = resolve(this.path, location)
+    this.#assertContained(this.path, path, location)
     const link = new Link({
       installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,

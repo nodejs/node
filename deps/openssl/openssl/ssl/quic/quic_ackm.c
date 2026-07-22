@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -117,6 +117,8 @@ tx_pkt_history_add_actual(struct tx_pkt_history_st *h,
         return 0;
 
     lh_OSSL_ACKM_TX_PKT_insert(h->map, pkt);
+    if (lh_OSSL_ACKM_TX_PKT_error(h->map))
+        return 0;
 
     ossl_list_tx_history_insert_tail(&h->packets, pkt);
     return 1;

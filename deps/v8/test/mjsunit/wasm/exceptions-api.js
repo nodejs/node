@@ -106,13 +106,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let tag = new WebAssembly.Tag({parameters: []});
   let exn = new WebAssembly.Exception(tag, []);
+  assertTrue('stack' in exn);
   assertEquals(undefined, exn.stack);
   exn = new WebAssembly.Exception(tag, [], {traceStack: false});
+  assertTrue('stack' in exn);
   assertEquals(undefined, exn.stack);
   exn = new WebAssembly.Exception(tag, [], {traceStack: true});
   assertTrue(exn.stack.indexOf(arguments.callee.name) > 0);
   assertThrows(() => new WebAssembly.Exception(tag, [], 0), TypeError,
                /Argument 2 is not an object/);
+  // The stack getter may only be used with a receiver that is a
+  // WebAssembly.Exception.
+  let proto = WebAssembly.Exception.prototype;
+  assertThrows(() => proto.stack, TypeError);
 })();
 
 (function TestCatchJSException() {
@@ -318,4 +324,8 @@ function TestGetArgHelper(types_str, types, values) {
   assertSame(obj, instance.exports.test(new WebAssembly.Exception(not_js_tag, [obj])));
   // Don't catch with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
+})();
+
+(function TestExceptionConstructorLength() {
+  assertEquals(2, WebAssembly.Exception.length);
 })();

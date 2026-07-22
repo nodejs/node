@@ -391,6 +391,25 @@ t.test('added packages should be looked up within returned tree', async t => {
 
     t.matchSnapshot(out)
   })
+
+  t.test('linked store package counted though absent from actualTree', async t => {
+    const out = await mockReify(t, {
+      actualTree: {
+        name: 'foo',
+        inventory: {
+          has: () => false,
+        },
+      },
+      diff: {
+        children: [
+          { action: 'ADD', ideal: { path: 'test/baz', name: 'baz', isInStore: true, isLink: false, package: { version: '1.0.0' } } },
+          { action: 'ADD', ideal: { path: 'test/baz-link', name: 'baz', isInStore: false, isLink: true, package: { version: '1.0.0' } } },
+        ],
+      },
+    })
+
+    t.matchSnapshot(out)
+  })
 })
 
 t.test('prints dedupe difference on dry-run', async t => {
@@ -447,4 +466,148 @@ t.test('prints dedupe difference on long', async t => {
   })
 
   t.matchSnapshot(out, 'diff table')
+})
+
+t.test('prints unreviewed install scripts summary', async t => {
+  const mockReifyWithExtras = async (t, reify, extras, { command, ...config } = {}) => {
+    const mock = await mockNpm(t, { command, config })
+    Object.defineProperty(mock.npm, 'command', {
+      get () {
+        return command
+      },
+      enumerable: true,
+    })
+    reifyOutput(mock.npm, reify, extras)
+    mock.npm.finish()
+    return mock
+  }
+
+  const baseReify = {
+    actualTree: { name: 'host', inventory: { has: () => false } },
+    diff: { children: [] },
+  }
+
+  const unreviewedScripts = [
+    {
+      node: { packageName: 'canvas', name: 'canvas', version: '2.11.0', path: '/x/canvas' },
+      scripts: { install: 'node-gyp rebuild' },
+    },
+    {
+      node: { packageName: 'sharp', name: 'sharp', version: '0.33.2', path: '/x/sharp' },
+      scripts: { preinstall: 'pre', postinstall: 'post' },
+    },
+  ]
+
+  const mock = await mockReifyWithExtras(t, baseReify, { unreviewedScripts })
+  const warn = mock.logs.warn.byTitle('allow-scripts').join('\n')
+  t.match(warn, /2 packages have install scripts not yet covered/)
+  t.match(warn, /canvas@2\.11\.0 \(install: node-gyp rebuild\)/)
+  t.match(warn, /sharp@0\.33\.2 \(preinstall: pre; postinstall: post\)/)
+  t.match(warn, /npm install-scripts ls/)
+})
+
+t.test('global install suggests --allow-scripts, not approve-scripts', async t => {
+  const mockReifyWithExtras = async (t, reify, extras, config = {}) => {
+    const mock = await mockNpm(t, { config })
+    reifyOutput(mock.npm, reify, extras)
+    mock.npm.finish()
+    return mock
+  }
+
+  const baseReify = {
+    actualTree: { name: 'host', inventory: { has: () => false } },
+    diff: { children: [] },
+  }
+
+  const unreviewedScripts = [
+    {
+      node: { packageName: 'canvas', name: 'canvas', version: '2.11.0', path: '/x/canvas' },
+      scripts: { install: 'node-gyp rebuild' },
+    },
+    {
+      node: { packageName: 'sharp', name: 'sharp', version: '0.33.2', path: '/x/sharp' },
+      scripts: { preinstall: 'pre', postinstall: 'post' },
+    },
+  ]
+
+  const mock = await mockReifyWithExtras(t, baseReify, { unreviewedScripts }, { global: true })
+  const warn = mock.logs.warn.byTitle('allow-scripts').join('\n')
+  t.match(warn, /2 packages have install scripts not yet covered/)
+  t.match(warn, /canvas@2\.11\.0 \(install: node-gyp rebuild\)/)
+  t.match(warn, /npm install -g --allow-scripts=canvas,sharp/)
+  t.match(warn, /npm config set allow-scripts=canvas,sharp/)
+  t.notMatch(warn, /approve-scripts/)
+})
+
+t.test('single unreviewed script uses singular wording', async t => {
+  const mockReifyWithExtras = async (t, reify, extras) => {
+    const mock = await mockNpm(t, {})
+    reifyOutput(mock.npm, reify, extras)
+    mock.npm.finish()
+    return mock
+  }
+
+  const mock = await mockReifyWithExtras(
+    t,
+    { actualTree: { inventory: { has: () => false } }, diff: { children: [] } },
+    {
+      unreviewedScripts: [{
+        node: { packageName: 'one', name: 'one', version: '1.0.0', path: '/x' },
+        scripts: { install: 'do' },
+      }],
+    }
+  )
+  t.match(mock.logs.warn.byTitle('allow-scripts').join('\n'), /1 package has install scripts/)
+})
+
+t.test('json output includes unreviewedScripts', async t => {
+  const mock = await mockNpm(t, { config: { json: true } })
+  reifyOutput(mock.npm, {
+    actualTree: { inventory: { size: 0 } },
+    diff: null,
+  }, {
+    unreviewedScripts: [{
+      node: { packageName: 'pkg', name: 'pkg', version: '1.0.0', path: '/x' },
+      scripts: { install: 'cmd' },
+    }],
+  })
+  mock.npm.finish()
+  const parsed = JSON.parse(mock.joinedOutput())
+  t.match(parsed.unreviewedScripts, [{
+    name: 'pkg',
+    version: '1.0.0',
+    path: '/x',
+    scripts: { install: 'cmd' },
+  }])
+})
+
+t.test('unreviewed script with node.name only (no packageName) still renders', async t => {
+  const mock = await mockNpm(t, {})
+  reifyOutput(mock.npm, {
+    actualTree: { inventory: { has: () => false } },
+    diff: { children: [] },
+  }, {
+    unreviewedScripts: [{
+      node: { name: 'fallback', path: '/x' }, // no packageName, no version
+      scripts: { install: 'cmd' },
+    }],
+  })
+  mock.npm.finish()
+  t.match(mock.logs.warn.byTitle('allow-scripts').join('\n'), / fallback \(install: cmd\)/)
+})
+
+t.test('json output includes node.name when packageName is missing', async t => {
+  const mock = await mockNpm(t, { config: { json: true } })
+  reifyOutput(mock.npm, {
+    actualTree: { inventory: { size: 0 } },
+    diff: null,
+  }, {
+    unreviewedScripts: [{
+      node: { name: 'fallback', path: '/x' },
+      scripts: { install: 'cmd' },
+    }],
+  })
+  mock.npm.finish()
+  const parsed = JSON.parse(mock.joinedOutput())
+  t.equal(parsed.unreviewedScripts[0].name, 'fallback')
 })

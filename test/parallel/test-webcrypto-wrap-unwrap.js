@@ -39,25 +39,20 @@ const kWrappingData = {
     },
     pair: false
   },
-};
-
-if (!process.features.openssl_is_boringssl) {
-  kWrappingData['AES-KW'] = {
+  'AES-KW': {
     generate: { length: 128 },
     wrap: { },
     pair: false
-  };
-  kWrappingData['ChaCha20-Poly1305'] = {
+  },
+  'ChaCha20-Poly1305': {
     wrap: {
       iv: new Uint8Array(12),
       additionalData: new Uint8Array(16),
       tagLength: 128
     },
     pair: false
-  };
-} else {
-  common.printSkipMessage('Skipping unsupported AES-KW test case');
-}
+  }
+};
 
 if (hasOpenSSL(3)) {
   kWrappingData['AES-OCB'] = {
@@ -181,13 +176,6 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'ChaCha20-Poly1305'
-      },
-      usages: ['encrypt', 'decrypt'],
-      pair: false,
-    },
-    {
-      algorithm: {
         name: 'HMAC',
         length: 128,
         hash: 'SHA-256'
@@ -195,22 +183,24 @@ async function generateKeysToWrap() {
       usages: ['sign', 'verify'],
       pair: false,
     },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    parameters.push({
+    {
       algorithm: {
         name: 'AES-KW',
         length: 128
       },
       usages: ['wrapKey', 'unwrapKey'],
       pair: false,
-    });
-  } else {
-    common.printSkipMessage('Skipping unsupported AES-KW test case');
-  }
+    },
+    {
+      algorithm: {
+        name: 'ChaCha20-Poly1305'
+      },
+      usages: ['encrypt', 'decrypt'],
+      pair: false,
+    },
+  ];
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
       parameters.push({
         algorithm: { name },
@@ -377,6 +367,89 @@ function testWrapping(name, keys) {
     variations.push(...testWrapping(name, keys));
   });
   await Promise.all(variations);
+})().then(common.mustCall());
+
+async function testNonByteLengthWrapUnwrap({
+  key,
+  formats,
+  rawFormat,
+  explicitAlgorithm,
+  implicitAlgorithm,
+}) {
+  const wrappingKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['wrapKey', 'unwrapKey']);
+  const expectedRaw = new Uint8Array(await subtle.exportKey(rawFormat, key));
+
+  for (const [i, format] of formats.entries()) {
+    const wrapAlgorithm = {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12).fill(i),
+    };
+    const wrapped = await subtle.wrapKey(format, key, wrappingKey, wrapAlgorithm);
+
+    // The serialized key material carries bytes, not the requested bit length.
+    const explicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      explicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(explicit.algorithm.length, 9);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, explicit)),
+      expectedRaw);
+
+    const implicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      implicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(implicit.algorithm.length, expectedRaw.byteLength * 8);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, implicit)),
+      expectedRaw);
+  }
+}
+
+(async function() {
+  const hmacAlgorithm = { name: 'HMAC', hash: 'SHA-256' };
+  const hmacKey = await subtle.importKey(
+    'raw',
+    new Uint8Array([0xff, 0xff]),
+    { ...hmacAlgorithm, length: 9 },
+    true,
+    ['sign', 'verify']);
+  await testNonByteLengthWrapUnwrap({
+    key: hmacKey,
+    formats: ['raw', 'jwk'],
+    rawFormat: 'raw',
+    explicitAlgorithm: { ...hmacAlgorithm, length: 9 },
+    implicitAlgorithm: hmacAlgorithm,
+  });
+
+  if (hasOpenSSL(3)) {
+    const kmacAlgorithm = { name: 'KMAC128' };
+    const kmacKey = await subtle.importKey(
+      'raw-secret',
+      new Uint8Array([0xff, 0xff]),
+      { ...kmacAlgorithm, length: 9 },
+      true,
+      ['sign', 'verify']);
+    await testNonByteLengthWrapUnwrap({
+      key: kmacKey,
+      formats: ['raw-secret', 'jwk'],
+      rawFormat: 'raw-secret',
+      explicitAlgorithm: { ...kmacAlgorithm, length: 9 },
+      implicitAlgorithm: kmacAlgorithm,
+    });
+  }
 })().then(common.mustCall());
 
 // Test that wrapKey/unwrapKey validate the wrapping/unwrapping key's

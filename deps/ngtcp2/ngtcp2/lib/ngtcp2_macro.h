@@ -62,27 +62,81 @@
 #define ngtcp2_max_def(SUFFIX, T)                                              \
   static inline T ngtcp2_max_##SUFFIX(T a, T b) { return a < b ? b : a; }
 
-ngtcp2_max_def(int8, int8_t)
-ngtcp2_max_def(int16, int16_t)
-ngtcp2_max_def(int32, int32_t)
-ngtcp2_max_def(int64, int64_t)
-ngtcp2_max_def(uint8, uint8_t)
-ngtcp2_max_def(uint16, uint16_t)
-ngtcp2_max_def(uint32, uint32_t)
-ngtcp2_max_def(uint64, uint64_t)
-ngtcp2_max_def(size, size_t)
+ngtcp2_max_def(long_long_int, long long int)
+ngtcp2_max_def(long_int, long int)
+ngtcp2_max_def(int, int)
+ngtcp2_max_def(short_int, short int)
+ngtcp2_max_def(signed_char, signed char)
+ngtcp2_max_def(char, char)
+ngtcp2_max_def(unsigned_long_long_int, unsigned long long int)
+ngtcp2_max_def(unsigned_long_int, unsigned long int)
+ngtcp2_max_def(unsigned_int, unsigned int)
+ngtcp2_max_def(unsigned_short_int, unsigned short int)
+ngtcp2_max_def(unsigned_char, unsigned char)
+
+#define ngtcp2_max(A, B)                                                       \
+  _Generic((A),                                                                \
+    long long int: ngtcp2_max_long_long_int,                                   \
+    long int: ngtcp2_max_long_int,                                             \
+    int: _Generic((B),                                                         \
+      long long int: ngtcp2_max_long_long_int,                                 \
+      long int: ngtcp2_max_long_int,                                           \
+      int: ngtcp2_max_int,                                                     \
+      short int: ngtcp2_max_short_int,                                         \
+      signed char: ngtcp2_max_signed_char,                                     \
+      char: ngtcp2_max_char,                                                   \
+      unsigned long long int: ngtcp2_max_unsigned_long_long_int,               \
+      unsigned long int: ngtcp2_max_unsigned_long_int,                         \
+      unsigned int: ngtcp2_max_unsigned_int,                                   \
+      unsigned short int: ngtcp2_max_unsigned_short_int,                       \
+      unsigned char: ngtcp2_max_unsigned_char),                                \
+    short int: ngtcp2_max_short_int,                                           \
+    signed char: ngtcp2_max_signed_char,                                       \
+    char: ngtcp2_max_char,                                                     \
+    unsigned long long int: ngtcp2_max_unsigned_long_long_int,                 \
+    unsigned long int: ngtcp2_max_unsigned_long_int,                           \
+    unsigned int: ngtcp2_max_unsigned_int,                                     \
+    unsigned short int: ngtcp2_max_unsigned_short_int,                         \
+    unsigned char: ngtcp2_max_unsigned_char)((A), (B))
 
 #define ngtcp2_min_def(SUFFIX, T)                                              \
   static inline T ngtcp2_min_##SUFFIX(T a, T b) { return a < b ? a : b; }
 
-ngtcp2_min_def(int8, int8_t)
-ngtcp2_min_def(int16, int16_t)
-ngtcp2_min_def(int32, int32_t)
-ngtcp2_min_def(int64, int64_t)
-ngtcp2_min_def(uint8, uint8_t)
-ngtcp2_min_def(uint16, uint16_t)
-ngtcp2_min_def(uint32, uint32_t)
-ngtcp2_min_def(uint64, uint64_t)
-ngtcp2_min_def(size, size_t)
+ngtcp2_min_def(long_long_int, long long int)
+ngtcp2_min_def(long_int, long int)
+ngtcp2_min_def(int, int)
+ngtcp2_min_def(short_int, short int)
+ngtcp2_min_def(signed_char, signed char)
+ngtcp2_min_def(char, char)
+ngtcp2_min_def(unsigned_long_long_int, unsigned long long int)
+ngtcp2_min_def(unsigned_long_int, unsigned long int)
+ngtcp2_min_def(unsigned_int, unsigned int)
+ngtcp2_min_def(unsigned_short_int, unsigned short int)
+ngtcp2_min_def(unsigned_char, unsigned char)
+
+#define ngtcp2_min(A, B)                                                       \
+  _Generic((A),                                                                \
+    long long int: ngtcp2_min_long_long_int,                                   \
+    long int: ngtcp2_min_long_int,                                             \
+    int: _Generic((B),                                                         \
+      long long int: ngtcp2_min_long_long_int,                                 \
+      long int: ngtcp2_min_long_int,                                           \
+      int: ngtcp2_min_int,                                                     \
+      short int: ngtcp2_min_short_int,                                         \
+      signed char: ngtcp2_min_signed_char,                                     \
+      char: ngtcp2_min_char,                                                   \
+      unsigned long long int: ngtcp2_min_unsigned_long_long_int,               \
+      unsigned long int: ngtcp2_min_unsigned_long_int,                         \
+      unsigned int: ngtcp2_min_unsigned_int,                                   \
+      unsigned short int: ngtcp2_min_unsigned_short_int,                       \
+      unsigned char: ngtcp2_min_unsigned_char),                                \
+    short int: ngtcp2_min_short_int,                                           \
+    signed char: ngtcp2_min_signed_char,                                       \
+    char: ngtcp2_min_char,                                                     \
+    unsigned long long int: ngtcp2_min_unsigned_long_long_int,                 \
+    unsigned long int: ngtcp2_min_unsigned_long_int,                           \
+    unsigned int: ngtcp2_min_unsigned_int,                                     \
+    unsigned short int: ngtcp2_min_unsigned_short_int,                         \
+    unsigned char: ngtcp2_min_unsigned_char)((A), (B))
 
 #endif /* !defined(NGTCP2_MACRO_H) */

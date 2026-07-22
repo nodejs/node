@@ -42,6 +42,10 @@
   'wpt/table/type.tentative': [FAIL],
   'wpt/tag/type.tentative': [FAIL],
 
+  # TODO(mliedtke): This requires synchronizing the spec-tests with their newest version.
+  'wpt/exception/constructor.tentative': [FAIL],
+  'exception/constructor.tentative': [FAIL],
+
   # Broken test (forgot to define JS function 'nulls()').
   'table/grow-memory64': [FAIL],
 

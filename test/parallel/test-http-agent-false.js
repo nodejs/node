@@ -35,7 +35,7 @@ const opts = {
 };
 
 // We just want an "error" (no local HTTP server on port 80) or "response"
-// to happen (user happens ot have HTTP server running on port 80).
+// to happen (user happens to have HTTP server running on port 80).
 // As long as the process doesn't crash from a C++ assertion then we're good.
 const req = http.request(opts);
 

@@ -130,8 +130,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #endif  // !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
 
 #if !HAVE_OPENSSL
-        "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "crypto", "crypto/promises", "https", "http2", "tls",
+        "internal/tls/parse-cert-string", "internal/tls/common",
         "internal/tls/wrap", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
@@ -139,12 +139,21 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
-#endif                  // !OPENSSL_NO_QUIC
+#endif  // !OPENSSL_NO_QUIC
+#if HAVE_DTLS
+        "internal/dtls/dtls", "internal/dtls/symbols", "internal/dtls/stats",
+        "internal/dtls/state",
+#endif  // HAVE_DTLS
+#if !HAVE_FFI
+        "internal/ffi-shared-buffer", "internal/ffi/fast-api",
+#endif                  // !HAVE_FFI
+        "dtls",         // Experimental.
         "ffi",          // Experimental.
         "quic",         // Experimental.
         "sqlite",       // Experimental.
         "stream/iter",  // Experimental.
         "sys",          // Deprecated.
+        "vfs",          // Experimental.
         "wasi",         // Experimental.
         "zlib/iter",    // Experimental.
 #if !HAVE_SQLITE
@@ -553,7 +562,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       std::unordered_set(eager_builtins.begin(), eager_builtins.end());
 
   for (const auto& id : ids) {
-    // Eagerly compile primordials/boostrap/main scripts during code cache
+    // Eagerly compile primordials/bootstrap/main scripts during code cache
     // generation.
     if (id.starts_with(primordial_prefix) || id.starts_with(bootstrap_prefix) ||
         id.starts_with(main_prefix)) {

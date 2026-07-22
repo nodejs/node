@@ -2,6 +2,7 @@
 #if HAVE_OPENSSL
 #include "crypto/crypto_util.h"
 #endif  // HAVE_OPENSSL
+#include "env.h"
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -415,24 +416,6 @@ struct InspectorParentHandleImpl : public InspectorParentHandle {
     : impl(std::move(impl)) {}
 };
 #endif
-
-Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    Local<Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
-  return CreateEnvironment(isolate_data,
-                           context,
-                           args,
-                           exec_args,
-                           flags,
-                           thread_id,
-                           std::move(inspector_parent_handle),
-                           {});
-}
 
 Environment* CreateEnvironment(
     IsolateData* isolate_data,
@@ -1051,6 +1034,18 @@ Maybe<bool> InitializeContext(Local<Context> context) {
     return Nothing<bool>();
   }
   return Just(true);
+}
+
+void RegisterContext(Environment* env,
+                     v8::Local<v8::Context> context,
+                     std::string_view name,
+                     std::string_view origin) {
+  ContextInfo info{std::string(name), std::string(origin)};
+  env->AssignToContext(context, nullptr, info);
+}
+
+void UnregisterContext(Environment* env, v8::Local<v8::Context> context) {
+  env->UnassignFromContext(context);
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {

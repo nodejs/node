@@ -1,4 +1,4 @@
-.TH "NPM-PUBLISH" "1" "March 2026" "NPM@11.12.1" ""
+.TH "NPM-PUBLISH" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-publish\fR - Publish a package
 .SS "Synopsis"
@@ -120,7 +120,7 @@ If used in the \fBnpm publish\fR command, this is the tag that will be added to 
 .IP \(bu 4
 Default: 'public' for new packages, existing packages it will not change the current level
 .IP \(bu 4
-Type: null, "restricted", or "public"
+Type: null, "restricted", "public", or "private"
 .RE 0
 
 .P
@@ -130,6 +130,8 @@ Unscoped packages cannot be set to \fBrestricted\fR.
 .P
 Note: This defaults to not changing the current access level for existing packages. Specifying a value of \fBrestricted\fR or \fBpublic\fR during publish will change the access for an existing package the same way that \fBnpm access set
 status\fR would.
+.P
+The value \fBprivate\fR is an alias for \fBrestricted\fR.
 .SS "\fBdry-run\fR"
 .RS 0
 .IP \(bu 4

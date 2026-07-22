@@ -24,6 +24,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
+  return;
+}
+
 const assert = require('assert');
 const tls = require('tls');
 const cluster = require('cluster');

@@ -300,7 +300,7 @@ crypto/param_build_set.c
 crypto/params.c
 crypto/params_dup.c
 crypto/params_from_text.c
-crypto/params_idx.c
+crypto/params_idx.c.in
 crypto/ppccap.c
 crypto/ppccpuid.pl
 crypto/property/defn_cache.c

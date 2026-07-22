@@ -15,6 +15,7 @@ const {
 const { inspect } = require('util');
 
 const { hasOpenSSL3 } = require('../common/crypto');
+const isBoringSSL = process.features.openssl_is_boringssl;
 
 // Test invalid parameter encoding.
 {
@@ -361,13 +362,24 @@ const { hasOpenSSL3 } = require('../common/crypto');
 
   // Test invalid exponents. (caught by OpenSSL)
   for (const publicExponent of [1, 1 + 0x10001]) {
-    generateKeyPair('rsa', {
-      modulusLength: 4096,
-      publicExponent
-    }, common.mustCall((err) => {
-      assert.strictEqual(err.name, 'Error');
-      assert.match(err.message, hasOpenSSL3 ? /exponent/ : /bad e value/);
-    }));
+    if (isBoringSSL) {
+      assert.throws(() => generateKeyPair('rsa', {
+        modulusLength: 4096,
+        publicExponent
+      }, common.mustNotCall()), {
+        name: 'RangeError',
+        code: 'ERR_OUT_OF_RANGE',
+        message: 'publicExponent is invalid',
+      });
+    } else {
+      generateKeyPair('rsa', {
+        modulusLength: 4096,
+        publicExponent
+      }, common.mustCall((err) => {
+        assert.strictEqual(err.name, 'Error');
+        assert.match(err.message, hasOpenSSL3 ? /exponent/ : /bad e value/);
+      }));
+    }
   }
 }
 
@@ -494,16 +506,21 @@ const { hasOpenSSL3 } = require('../common/crypto');
     });
   }));
 
-  generateKeyPair('ec', {
-    namedCurve: 'secp256k1',
-  }, common.mustSucceed((publicKey, privateKey) => {
-    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
-      namedCurve: 'secp256k1'
-    });
-    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
-      namedCurve: 'secp256k1'
-    });
-  }));
+  if (isBoringSSL) {
+    common.printSkipMessage('Skipping secp256k1 keygen test case ' +
+                            'unsupported by BoringSSL');
+  } else {
+    generateKeyPair('ec', {
+      namedCurve: 'secp256k1',
+    }, common.mustSucceed((publicKey, privateKey) => {
+      assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
+        namedCurve: 'secp256k1'
+      });
+      assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
+        namedCurve: 'secp256k1'
+      });
+    }));
+  }
 }
 
 {

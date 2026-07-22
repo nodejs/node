@@ -140,6 +140,14 @@ const { readFileSync } = require('fs');
   assert.notStrictEqual(payload, sourceMap.payload);
   assert.strictEqual(payload.sources[0], sourceMap.payload.sources[0]);
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
+  // The payload and its arrays should be frozen to avoid unnecessary cloning:
+  assert(Object.isFrozen(sourceMap.payload));
+  assert(Object.isFrozen(sourceMap.payload.sources));
+  // The same frozen object is returned on each call:
+  assert.strictEqual(sourceMap.payload, sourceMap.payload);
+  // lineLengths should be frozen and return the same reference each call:
+  assert(Object.isFrozen(sourceMap.lineLengths));
+  assert.strictEqual(sourceMap.lineLengths, sourceMap.lineLengths);
 }
 
 // findEntry() and findOrigin() must return empty object instead of
@@ -178,6 +186,11 @@ const { readFileSync } = require('fs');
   assert.notStrictEqual(payload, sourceMap.payload);
   assert.strictEqual(payload.sources[0], sourceMap.payload.sources[0]);
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
+  // The payload and its arrays should be frozen to avoid unnecessary cloning:
+  assert(Object.isFrozen(sourceMap.payload));
+  assert(Object.isFrozen(sourceMap.payload.sources));
+  // The same frozen object is returned on each call:
+  assert.strictEqual(sourceMap.payload, sourceMap.payload);
 }
 
 // Test various known decodings to ensure decodeVLQ works correctly.

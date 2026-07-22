@@ -339,6 +339,17 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsImmutable() const;
 
   /**
+   * Copy up to |bytes_to_copy| bytes from this ArrayBuffer starting at
+   * position |source_start| to the target ArrayBuffer starting at position
+   * |target_start|. Nothing is copied if the source ArrayBuffer is detached,
+   * or if the target ArrayBuffer is detached or immutable.
+   * Returns the number of bytes actually copied.
+   */
+  size_t CopyArrayBufferBytes(size_t source_start, size_t bytes_to_copy,
+                              Local<ArrayBuffer> target,
+                              size_t target_start) const;
+
+  /**
    * Detaches this ArrayBuffer and all its views (typed arrays).
    * Detaching sets the byte length of the buffer and all typed arrays to zero,
    * preventing JavaScript from ever accessing underlying backing store.
@@ -604,6 +615,16 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * is valid as long as the ArrayBuffer is alive.
    */
   void* Data() const;
+
+  /**
+   * Copy up to |bytes_to_copy| bytes from this SharedArrayBuffer starting at
+   * position |source_start| to the target SharedArrayBuffer starting at
+   * position |target_start|.
+   * Returns the number of bytes actually copied.
+   */
+  size_t CopyArrayBufferBytes(size_t source_start, size_t bytes_to_copy,
+                              Local<SharedArrayBuffer> target,
+                              size_t target_start) const;
 
   V8_INLINE static SharedArrayBuffer* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

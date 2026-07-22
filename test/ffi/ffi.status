@@ -1,3 +1,9 @@
 prefix ffi
 
 [true] # This section applies to all platforms
+
+[$system==solaris] # Also applies to SmartOS
+# Bundled libffi callbacks crash on SmartOS.
+test-ffi-calls: SKIP
+test-ffi-shared-buffer: SKIP
+test-ffi-weakref-calls: SKIP

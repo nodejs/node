@@ -1,274 +1,250 @@
-# Class: Socks5ProxyAgent
+# Socks5ProxyAgent
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v7.23.0-->
+<!--type=module-->
+<!-- source_link=lib/dispatcher/socks5-proxy-agent.js -->
 
-A SOCKS5 proxy wrapper class that implements the Dispatcher API. It enables HTTP requests to be routed through a SOCKS5 proxy server, providing connection tunneling and authentication support.
+> Stability: 1 - Experimental
 
-## `new Socks5ProxyAgent(proxyUrl[, options])`
+A [`Dispatcher`][] implementation that routes requests through a [SOCKS5][]
+proxy server. It tunnels both HTTP and HTTPS traffic over the proxy, supports
+optional username/password authentication, and pools connections per origin so
+that subsequent requests to the same host reuse the established tunnel.
 
-Arguments:
+DNS resolution is delegated to the proxy: target host names are sent to the
+proxy as domain names rather than being resolved locally. For HTTPS targets the
+TLS session is negotiated end-to-end through the tunnel, so the proxy only sees
+encrypted bytes.
 
-* **proxyUrl** `string | URL` (required) - The SOCKS5 proxy server URL. Must use `socks5://` or `socks://` protocol.
-* **options** `Socks5ProxyAgent.Options` (optional) - Additional configuration options.
+Import it from `'undici'`:
 
-Returns: `Socks5ProxyAgent`
+```mjs
+import { Socks5ProxyAgent } from 'undici'
+```
 
-### Parameter: `Socks5ProxyAgent.Options`
+Constructing the agent emits a one-time `ExperimentalWarning`, reflecting the
+experimental status of SOCKS5 support.
 
-Extends: [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions)
+## Class: `Socks5ProxyAgent`
 
-* **headers** `IncomingHttpHeaders` (optional) - Additional headers to send with proxy connections.
-* **username** `string` (optional) - SOCKS5 proxy username for authentication. Can also be provided in the proxy URL.
-* **password** `string` (optional) - SOCKS5 proxy password for authentication. Can also be provided in the proxy URL.
-* **connect** `Function` (optional) - Custom connector function for the proxy connection.
-* **proxyTls** `BuildOptions` (optional) - TLS options for the proxy connection (when using SOCKS5 over TLS).
+<!-- YAML
+added: v7.23.0
+-->
 
-Examples:
+> Stability: 1 - Experimental
 
-```js
+* Extends: {Dispatcher}
+
+Routes dispatched requests through a SOCKS5 proxy. Register an instance as the
+global dispatcher with [`setGlobalDispatcher()`][], or pass it per request via
+the `dispatcher` option.
+
+### `new Socks5ProxyAgent(proxyUrl[, options])`
+
+<!-- YAML
+added: v7.23.0
+-->
+
+> Stability: 1 - Experimental
+
+* `proxyUrl` {string|URL} The SOCKS5 proxy server URL. Must use the `socks5:` or
+  `socks:` protocol. Credentials may be embedded in the URL userinfo (for
+  example `socks5://user:pass@host:1080`).
+* `options` {Object} (optional) Extends {PoolOptions}; the pool options are
+  applied to the per-origin pools created behind the tunnel.
+  * `headers` {Object} Additional headers to send with the proxy connection.
+    **Default:** `{}`.
+  * `username` {string} Username for SOCKS5 authentication. Takes precedence over
+    a username embedded in `proxyUrl`. **Default:** the URL username, if any.
+  * `password` {string} Password for SOCKS5 authentication. Takes precedence over
+    a password embedded in `proxyUrl`. **Default:** the URL password, if any.
+  * `connect` {Function} Custom connector used to open the socket to the proxy.
+    **Default:** a connector built from `proxyTls`.
+  * `proxyTls` {BuildOptions} TLS options for the connection to the proxy itself
+    (SOCKS5 over TLS). When set, the proxy connection is established over TLS and
+    `servername` defaults to the proxy host name.
+  * `requestTls` {BuildOptions} TLS options applied to the end-to-end connection
+    to an HTTPS target through the tunnel, such as `ca`, `cert`, `key`,
+    `rejectUnauthorized`, and `servername`. `servername` defaults to the target
+    host name.
+
+Throws an `InvalidArgumentError` if `proxyUrl` is missing or does not use the
+`socks5:` or `socks:` protocol.
+
+```mjs
 import { Socks5ProxyAgent } from 'undici'
 
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-// or with authentication
-const socks5ProxyWithAuth = new Socks5ProxyAgent('socks5://user:pass@localhost:1080')
-// or with options
-const socks5ProxyWithOptions = new Socks5ProxyAgent('socks5://localhost:1080', {
+// Without authentication.
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
+
+// With credentials in the URL.
+const authAgent = new Socks5ProxyAgent('socks5://user:pass@localhost:1080')
+
+// With credentials and pool options.
+const configuredAgent = new Socks5ProxyAgent('socks5://localhost:1080', {
   username: 'user',
   password: 'pass',
   connections: 10
 })
 ```
 
-#### Example - Basic SOCKS5 Proxy instantiation
+Using the agent as the global dispatcher:
 
-This will instantiate the Socks5ProxyAgent. It will not do anything until registered as the dispatcher to use with requests.
-
-```js
-import { Socks5ProxyAgent } from 'undici'
-
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-```
-
-#### Example - Basic SOCKS5 Proxy Request with global dispatcher
-
-```js
+```mjs
 import { setGlobalDispatcher, request, Socks5ProxyAgent } from 'undici'
 
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-setGlobalDispatcher(socks5Proxy)
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
+setGlobalDispatcher(agent)
 
 const { statusCode, body } = await request('http://localhost:3000/foo')
-
-console.log('response received', statusCode) // response received 200
+console.log('response received', statusCode)
 
 for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
+  console.log('data', data.toString('utf8'))
 }
 ```
 
-#### Example - Basic SOCKS5 Proxy Request with local dispatcher
+Using the agent per request:
 
-```js
-import { Socks5ProxyAgent, request } from 'undici'
+```mjs
+import { request, Socks5ProxyAgent } from 'undici'
 
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo', { dispatcher: socks5Proxy })
-
-console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
-```
-
-#### Example - SOCKS5 Proxy Request with authentication
-
-```js
-import { setGlobalDispatcher, request, Socks5ProxyAgent } from 'undici'
-
-// Authentication via URL
-const socks5Proxy = new Socks5ProxyAgent('socks5://username:password@localhost:1080')
-
-// Or authentication via options
-// const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080', {
-//   username: 'username',
-//   password: 'password'
-// })
-
-setGlobalDispatcher(socks5Proxy)
-
-const { statusCode, body } = await request('http://localhost:3000/foo')
-
-console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
-```
-
-#### Example - SOCKS5 Proxy with HTTPS requests
-
-SOCKS5 proxy supports both HTTP and HTTPS requests through tunneling:
-
-```js
-import { Socks5ProxyAgent, request } from 'undici'
-
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-
-const response = await request('https://api.example.com/data', {
-  dispatcher: socks5Proxy,
-  method: 'GET'
+const { statusCode, body } = await request('http://localhost:3000/foo', {
+  dispatcher: agent
 })
 
-console.log('Response status:', response.statusCode)
-console.log('Response data:', await response.body.json())
+console.log('response received', statusCode)
 ```
 
-#### Example - SOCKS5 Proxy with Fetch
+HTTPS targets are tunnelled and encrypted end-to-end:
 
-```js
-import { Socks5ProxyAgent, fetch } from 'undici'
+```mjs
+import { request, Socks5ProxyAgent } from 'undici'
 
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
+
+const { statusCode, body } = await request('https://api.example.com/data', {
+  dispatcher: agent
+})
+
+console.log('Response status:', statusCode)
+console.log('Response data:', await body.json())
+```
+
+### `socks5ProxyAgent.close()`
+
+<!-- YAML
+added: v7.23.0
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {Promise<void>} Resolves once every per-origin pool has been closed.
+
+Gracefully closes the agent, waiting for all underlying pools and their
+connections to drain and close before resolving.
+
+```mjs
+import { setGlobalDispatcher, Socks5ProxyAgent } from 'undici'
+
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
+setGlobalDispatcher(agent)
+
+// ... make requests ...
+
+await agent.close()
+```
+
+### `socks5ProxyAgent.destroy([err])`
+
+<!-- YAML
+added: v7.23.0
+-->
+
+> Stability: 1 - Experimental
+
+* `err` {Error} (optional) The error to reject in-flight requests with.
+* Returns: {Promise<void>} Resolves once every per-origin pool has been
+  destroyed.
+
+Forcibly destroys the agent and all underlying connections immediately, without
+waiting for in-flight requests to complete.
+
+```mjs
+import { Socks5ProxyAgent } from 'undici'
+
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
+
+await agent.destroy()
+```
+
+### `socks5ProxyAgent.dispatch(options, handlers)`
+
+<!-- YAML
+added: v7.23.0
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {DispatchOptions}
+* `handlers` {DispatchHandler}
+* Returns: {boolean} `false` if the dispatcher is busy and the request should be
+  retried later, otherwise `true`.
+
+Routes a request through the SOCKS5 tunnel. The agent maintains a [`Pool`][] per
+target origin; the first request to a given origin establishes the tunnel and
+upgrades to TLS when the target is HTTPS, and later requests reuse the pool.
+
+This is the lower-level entry point implementing
+[`Dispatcher.dispatch(options, handlers)`][]. Prefer
+[`socks5ProxyAgent.request()`][] for most use cases.
+
+### `socks5ProxyAgent.request(options[, callback])`
+
+<!-- YAML
+added: v7.23.0
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {DispatchOptions}
+* `callback` {Function} (optional)
+* Returns: {Promise|void} A promise resolving to the response when `callback` is
+  omitted.
+
+Performs a request through the SOCKS5 proxy. Inherited from
+[`Dispatcher.request(options[, callback])`][]; see that method for the full set
+of options and the shape of the resolved response.
+
+```mjs
+import { fetch, Socks5ProxyAgent } from 'undici'
+
+const agent = new Socks5ProxyAgent('socks5://localhost:1080')
 
 const response = await fetch('http://localhost:3000/api/users', {
-  dispatcher: socks5Proxy,
-  method: 'GET'
+  dispatcher: agent
 })
 
 console.log('Response status:', response.status)
 console.log('Response data:', await response.text())
 ```
 
-#### Example - Connection Pooling
-
-SOCKS5ProxyWrapper automatically manages connection pooling for better performance:
-
-```js
-import { Socks5ProxyAgent, request } from 'undici'
-
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080', {
-  connections: 10, // Allow up to 10 concurrent connections
-  pipelining: 1    // Enable HTTP/1.1 pipelining
-})
-
-// Multiple requests will reuse connections through the SOCKS5 tunnel
-const responses = await Promise.all([
-  request('http://api.example.com/endpoint1', { dispatcher: socks5Proxy }),
-  request('http://api.example.com/endpoint2', { dispatcher: socks5Proxy }),
-  request('http://api.example.com/endpoint3', { dispatcher: socks5Proxy })
-])
-
-console.log('All requests completed through the same SOCKS5 proxy')
-```
-
-### `Socks5ProxyAgent.close()`
-
-Closes the SOCKS5 proxy wrapper and waits for all underlying pools and connections to close before resolving.
-
-Returns: `Promise<void>`
-
-#### Example - clean up after tests are complete
-
-```js
-import { Socks5ProxyAgent, setGlobalDispatcher } from 'undici'
-
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-setGlobalDispatcher(socks5Proxy)
-
-// ... make requests
-
-await socks5Proxy.close()
-```
-
-### `Socks5ProxyAgent.destroy([err])`
-
-Destroys the SOCKS5 proxy wrapper and all underlying connections immediately.
-
-Arguments:
-* **err** `Error` (optional) - The error that caused the destruction.
-
-Returns: `Promise<void>`
-
-#### Example - force close all connections
-
-```js
-import { Socks5ProxyAgent } from 'undici'
-
-const socks5Proxy = new Socks5ProxyAgent('socks5://localhost:1080')
-
-// Force close all connections
-await socks5Proxy.destroy()
-```
-
-### `Socks5ProxyAgent.dispatch(options, handlers)`
-
-Implements [`Dispatcher.dispatch(options, handlers)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handlers).
-
-### `Socks5ProxyAgent.request(options[, callback])`
-
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
-
 ## Debugging
 
-SOCKS5 proxy connections can be debugged using Node.js diagnostics:
+SOCKS5 proxy activity can be traced with the `undici:socks5-proxy` debug scope:
 
-```sh
-NODE_DEBUG=undici:socks5 node script.js
+```bash
+NODE_DEBUG=undici:socks5-proxy node script.js
 ```
 
-This will output detailed information about the SOCKS5 handshake, authentication, and connection establishment.
+This logs the SOCKS5 handshake, authentication, and tunnel establishment steps.
 
-## SOCKS5 Protocol Support
-
-The Socks5ProxyAgent supports the following SOCKS5 features:
-
-### Authentication Methods
-
-- **No Authentication** (`0x00`) - For public or internal proxies
-- **Username/Password** (`0x02`) - RFC 1929 authentication
-
-### Address Types
-
-- **IPv4** (`0x01`) - Standard IPv4 addresses
-- **Domain Name** (`0x03`) - Domain names (recommended for flexibility)
-- **IPv6** (`0x04`) - IPv6 addresses (full support for standard and compressed notation)
-
-### Commands
-
-- **CONNECT** (`0x01`) - Establish TCP connection (primary use case for HTTP)
-
-### Error Handling
-
-The wrapper handles various SOCKS5 error conditions:
-
-- Connection refused by proxy
-- Authentication failures
-- Network unreachable
-- Host unreachable
-- Unsupported address types or commands
-
-## Performance Considerations
-
-- **Connection Pooling**: Automatically pools connections through the SOCKS5 tunnel for better performance
-- **HTTP/1.1 Pipelining**: Supports pipelining when enabled
-- **DNS Resolution**: Domain names are resolved by the SOCKS5 proxy, reducing local DNS queries
-- **TLS Termination**: HTTPS connections are encrypted end-to-end, with the SOCKS5 proxy only handling the TCP tunnel
-
-## Security Notes
-
-1. **Authentication**: Credentials are sent to the SOCKS5 proxy in plaintext unless using SOCKS5 over TLS
-2. **DNS Leaks**: All DNS resolution happens on the proxy server, preventing DNS leaks
-3. **End-to-end Encryption**: HTTPS traffic remains encrypted between client and final destination
-4. **Connection Security**: Consider using authenticated proxies and secure networks
-
-## Compatibility
-
-- **Protocol**: SOCKS5 (RFC 1928) with Username/Password Authentication (RFC 1929)
-- **Transport**: TCP only (UDP support not implemented)
-- **Node.js**: Compatible with all supported Node.js versions
-- **HTTP Versions**: Works with HTTP/1.1 and HTTP/2 over the tunnel
+[SOCKS5]: https://www.rfc-editor.org/rfc/rfc1928
+[`Dispatcher.dispatch(options, handlers)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`Dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`Pool`]: Pool.md#class-pool
+[`setGlobalDispatcher()`]: Dispatcher.md#setglobaldispatcherdispatcher
+[`socks5ProxyAgent.request()`]: #socks5proxyagentrequestoptions-callback

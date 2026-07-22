@@ -43,7 +43,7 @@ spawnSyncAndAssert(
     stdout(output) {
       assert.deepStrictEqual(JSON.parse(output), {
         originalArgv: [embedtest, '__node_anonymous_main', ...buildSnapshotExecArgs],
-        currentArgv: [embedtest, ...runSnapshotExecArgs],
+        currentArgv: [embedtest, embedtest, ...runSnapshotExecArgs],
       });
       return true;
     },

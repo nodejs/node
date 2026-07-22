@@ -7,37 +7,53 @@ if (!common.hasCrypto) common.skip('missing crypto');
 const assert = require('assert');
 const crypto = require('crypto');
 
+if (process.features.openssl_is_boringssl) {
+  common.skip('BoringSSL does not support XOF hash functions');
+}
+
 // Test XOF hash functions and the outputLength option.
 {
-  // Default outputLengths.
+  const invalidXofLength = {
+    code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
+    name: 'Error',
+    message: /not XOF or invalid length/,
+  };
+
+  assert.throws(() => crypto.hash('shake128', ''), invalidXofLength);
+  assert.throws(() => crypto.hash('shake128', '', 'hex'), invalidXofLength);
+  assert.throws(
+    () => crypto.hash('shake128', '', { outputEncoding: 'buffer' }),
+    invalidXofLength);
+  assert.throws(() => crypto.hash('shake256', ''), invalidXofLength);
+
   assert.strictEqual(
-    crypto.hash('shake128', ''),
+    crypto.hash('shake128', '', { outputLength: 16 }),
     '7f9c2ba4e88f827d616045507605853e'
   );
 
   assert.strictEqual(
-    crypto.hash('shake256', ''),
+    crypto.hash('shake256', '', { outputLength: 32 }),
     '46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f'
   );
 
   // outputEncoding as an option.
   assert.strictEqual(
-    crypto.hash('shake128', '', { outputEncoding: 'base64url' }),
+    crypto.hash('shake128', '', { outputEncoding: 'base64url', outputLength: 16 }),
     'f5wrpOiPgn1hYEVQdgWFPg'
   );
 
   assert.strictEqual(
-    crypto.hash('shake256', '', { outputEncoding: 'base64url' }),
+    crypto.hash('shake256', '', { outputEncoding: 'base64url', outputLength: 32 }),
     'RrndKwuojRMjOz_rdD7rJD_NUupiuBuCtQwnZG7Vdi8'
   );
 
   assert.deepStrictEqual(
-    crypto.hash('shake128', '', { outputEncoding: 'buffer' }),
+    crypto.hash('shake128', '', { outputEncoding: 'buffer', outputLength: 16 }),
     Buffer.from('f5wrpOiPgn1hYEVQdgWFPg', 'base64url')
   );
 
   assert.deepStrictEqual(
-    crypto.hash('shake256', '', { outputEncoding: 'buffer' }),
+    crypto.hash('shake256', '', { outputEncoding: 'buffer', outputLength: 32 }),
     Buffer.from('RrndKwuojRMjOz_rdD7rJD_NUupiuBuCtQwnZG7Vdi8', 'base64url')
   );
 

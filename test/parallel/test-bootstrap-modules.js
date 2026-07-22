@@ -104,6 +104,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule internal/modules/package_map',
   'NativeModule diagnostics_channel',
   'Internal Binding diagnostics_channel',
   'Internal Binding wasm_web_api',
@@ -133,6 +134,8 @@ if (isMainThread) {
     'NativeModule internal/modules/esm/load',
     'NativeModule internal/modules/esm/resolve',
     'NativeModule internal/modules/esm/translators',
+    'NativeModule internal/modules/esm/module_job',
+    'NativeModule internal/modules/esm/module_map',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.

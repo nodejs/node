@@ -10,6 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#include <climits>
 #include <string>
 
 namespace node {
@@ -124,6 +125,18 @@ enum class WebCryptoCipherStatus {
   FAILED
 };
 
+inline bool TryGetIntCipherOutputLength(size_t input_len,
+                                        size_t output_overhead,
+                                        int* output_len) {
+  static constexpr size_t kMaxLength = INT_MAX;
+  if (output_overhead > kMaxLength ||
+      input_len > kMaxLength - output_overhead) {
+    return false;
+  }
+  *output_len = static_cast<int>(input_len + output_overhead);
+  return true;
+}
+
 // CipherJob is a base implementation class for implementations of
 // one-shot sync and async ciphers. It has been added primarily to
 // support the AES and RSA ciphers underlying the WebCrypt API.
@@ -164,13 +177,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     }
 
     new CipherJob<CipherTraits>(
-        env,
-        args.This(),
-        mode,
-        key,
-        cipher_mode,
-        data,
-        std::move(params));
+        env, args.This(), mode, key, cipher_mode, data, std::move(params));
   }
 
   static void Initialize(
@@ -197,7 +204,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
                                 std::move(params)),
         key_(key->Data().addRef()),
         cipher_mode_(cipher_mode),
-        in_(mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource()) {}
+        in_(IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource()) {}
 
   const KeyObjectData& key() const { return key_; }
 
@@ -261,7 +268,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (CryptoJob<CipherTraits>::mode() == kCryptoJobAsync)
+    if (IsCryptoJobAsync(CryptoJob<CipherTraits>::mode()))
       tracker->TrackFieldWithSize("in", in_.size());
     tracker->TrackFieldWithSize("out", out_.size());
     CryptoJob<CipherTraits>::MemoryInfo(tracker);

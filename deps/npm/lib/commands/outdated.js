@@ -4,6 +4,7 @@ const pacote = require('pacote')
 const table = require('text-table')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
+const { isReleaseAgeExcluded } = require('@npmcli/arborist/lib/release-age-exclude.js')
 const { output } = require('proc-log')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
@@ -31,6 +32,8 @@ class Outdated extends ArboristWorkspaceCmd {
     'global',
     'workspace',
     'before',
+    'min-release-age',
+    'min-release-age-exclude',
   ]
 
   #tree
@@ -182,8 +185,14 @@ class Outdated extends ArboristWorkspaceCmd {
     try {
       const packument = await this.#getPackument(spec)
       const expected = alias ? alias.fetchSpec : edge.spec
-      const wanted = pickManifest(packument, expected, this.npm.flatOptions)
-      const latest = pickManifest(packument, '*', this.npm.flatOptions)
+      const { minReleaseAgeExclude } = this.npm.flatOptions
+      // Packages matching `min-release-age-exclude` resolve to their newest
+      // version, so drop the `before` constraint for them.
+      const pickOpts = isReleaseAgeExcluded(packument.name, minReleaseAgeExclude)
+        ? { ...this.npm.flatOptions, before: null }
+        : this.npm.flatOptions
+      const wanted = pickManifest(packument, expected, pickOpts)
+      const latest = pickManifest(packument, '*', pickOpts)
       if (!current || current !== wanted.version || wanted.version !== latest.version) {
         this.#list.push({
           name: alias ? edge.spec.replace('npm', edge.name) : edge.name,
@@ -204,7 +213,7 @@ class Outdated extends ArboristWorkspaceCmd {
     } catch (err) {
       // silently catch and ignore ETARGET, E403 & E404 errors
       // deps are just skipped
-      if (!['ETARGET', 'E404', 'E404'].includes(err.code)) {
+      if (!['ETARGET', 'E403', 'E404'].includes(err.code)) {
         throw err
       }
     }

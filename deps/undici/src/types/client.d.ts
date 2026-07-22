@@ -3,7 +3,7 @@ import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 import TClientStats from './client-stats'
 
-type ClientConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
+type ClientConnectOptions<TOpaque = null> = Omit<Dispatcher.ConnectOptions<TOpaque>, 'origin'>
 
 /**
  * A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
@@ -20,12 +20,12 @@ export class Client extends Dispatcher {
   readonly stats: TClientStats
 
   // Override dispatcher APIs.
-  override connect (
-    options: ClientConnectOptions
-  ): Promise<Dispatcher.ConnectData>
-  override connect (
-    options: ClientConnectOptions,
-    callback: (err: Error | null, data: Dispatcher.ConnectData) => void
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>
+  ): Promise<Dispatcher.ConnectData<TOpaque>>
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>,
+    callback: (err: Error | null, data: Dispatcher.ConnectData<TOpaque>) => void
   ): void
 }
 
@@ -57,7 +57,7 @@ export declare namespace Client {
     keepAliveTimeoutThreshold?: number;
     /** An IPC endpoint, either a Unix domain socket or Windows named pipe. Default: `null`. */
     socketPath?: string;
-    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
+    /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Only enable values greater than `1` when the remote server is trusted. Default: `1`. */
     pipelining?: number;
     /** @deprecated use the connect option instead */
     tls?: never;
@@ -116,6 +116,11 @@ export declare namespace Client {
     bytesRead?: number
   }
   export interface WebSocketOptions {
+    /**
+     * Maximum number of fragments in a message. Set to 0 to disable the limit.
+     * @default 131072
+     */
+    maxFragments?: number;
     /**
      * Maximum allowed payload size in bytes for WebSocket messages.
      * Applied to uncompressed messages, compressed frame payloads, and decompressed (permessage-deflate) messages.

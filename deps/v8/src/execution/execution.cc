@@ -230,18 +230,14 @@ MaybeDirectHandle<Context> NewScriptContext(
     }
 
     if (IsLexicalVariableMode(mode)) {
-      LookupIterator lookup_it(isolate, global_object, name, global_object,
-                               LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Maybe<PropertyAttributes> maybe =
-          JSReceiver::GetPropertyAttributes(&lookup_it);
-      // Can't fail since the we looking up own properties on the global object
-      // skipping interceptors.
-      CHECK(!maybe.IsNothing());
-      if ((maybe.FromJust() & DONT_DELETE) != 0) {
-        // ES#sec-globaldeclarationinstantiation 5.a:
+      Maybe<bool> has_restricted = JSGlobalObject::HasRestrictedGlobalProperty(
+          isolate, global_object, name);
+      if (has_restricted.IsNothing()) return MaybeDirectHandle<Context>();
+      if (has_restricted.FromJust()) {
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 3.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
         // exception.
-        // ES#sec-globaldeclarationinstantiation 5.d:
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 3.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
         isolate->ThrowAt(isolate->factory()->NewSyntaxError(

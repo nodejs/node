@@ -1466,7 +1466,7 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:
-        if (arg <= 0)
+        if (arg <= 0 || arg > EVP_MAX_IV_LENGTH)
             return 0;
 
         if (arg != 12) {

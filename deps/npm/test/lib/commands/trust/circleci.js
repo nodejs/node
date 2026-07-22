@@ -44,6 +44,7 @@ t.test('circleci with all options provided', async t => {
     '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
     '--vcs-origin', 'github.com/owner/repo',
     '--context-id', '123e4567-e89b-12d3-a456-426614174000',
+    '--allow-publish',
   ])
 })
 
@@ -85,6 +86,7 @@ t.test('circleci without optional context-id', async t => {
     '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
     '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
     '--vcs-origin', 'github.com/owner/repo',
+    '--allow-publish',
   ])
 })
 
@@ -128,6 +130,7 @@ t.test('circleci with multiple context-ids', async t => {
     '--vcs-origin', 'github.com/owner/repo',
     '--context-id', '123e4567-e89b-12d3-a456-426614174000',
     '--context-id', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    '--allow-publish',
   ])
 })
 
@@ -152,6 +155,7 @@ t.test('circleci missing required org-id', async t => {
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /org-id is required/ }
   )
@@ -178,6 +182,7 @@ t.test('circleci missing required project-id', async t => {
       '--org-id', '550e8400-e29b-41d4-a716-446655440000',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /project-id is required/ }
   )
@@ -204,6 +209,7 @@ t.test('circleci missing required pipeline-definition-id', async t => {
       '--org-id', '550e8400-e29b-41d4-a716-446655440000',
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--vcs-origin', 'github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /pipeline-definition-id is required/ }
   )
@@ -230,6 +236,7 @@ t.test('circleci missing required vcs-origin', async t => {
       '--org-id', '550e8400-e29b-41d4-a716-446655440000',
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
+      '--allow-publish',
     ]),
     { message: /vcs-origin is required/ }
   )
@@ -257,6 +264,7 @@ t.test('circleci with invalid org-id uuid format', async t => {
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /org-id must be a valid UUID/ }
   )
@@ -284,6 +292,7 @@ t.test('circleci with invalid vcs-origin format', async t => {
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'invalid-format',
+      '--allow-publish',
     ]),
     { message: /vcs-origin must be in format 'provider\/owner\/repo'/ }
   )
@@ -311,6 +320,7 @@ t.test('circleci with vcs-origin containing scheme prefix', async t => {
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'https://github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /vcs-origin must not include a scheme/ }
   )
@@ -336,6 +346,7 @@ t.test('circleci missing package name', async t => {
       '--project-id', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       '--pipeline-definition-id', '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
       '--vcs-origin', 'github.com/owner/repo',
+      '--allow-publish',
     ]),
     { message: /Package name must be specified either as an argument or in package.json file/ }
   )

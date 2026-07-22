@@ -4,6 +4,7 @@
 
 #include "base_object.h"
 #include "ffi.h"
+#include "ffi/fast.h"
 #include "uv.h"
 
 #include <cstdint>
@@ -25,11 +26,39 @@ struct FFIFunction {
   ffi_cif cif;
   std::vector<ffi_type*> args;
   ffi_type* return_type;
+  std::vector<std::string> arg_type_names;
+  std::string return_type_name;
 };
 
-struct FFIFunctionInfo {
+class FFIFunctionInfo final : public BaseObject {
+ public:
+  enum InternalFields {
+    kLibrary = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  FFIFunctionInfo(Environment* env,
+                  v8::Local<v8::Object> object,
+                  std::shared_ptr<FFIFunction> fn,
+                  DynamicLibrary* library);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(FFIFunctionInfo)
+  SET_SELF_SIZE(FFIFunctionInfo)
+
+  static BaseObjectPtr<FFIFunctionInfo> Create(Environment* env,
+                                               std::shared_ptr<FFIFunction> fn,
+                                               DynamicLibrary* library);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+
+ private:
   std::shared_ptr<FFIFunction> fn;
-  v8::Global<v8::Function> self;
+  std::shared_ptr<v8::BackingStore> sb_backing;
+  std::unique_ptr<FastFFIMetadata> fast_metadata;
+  std::unique_ptr<FastFFIMetadata> fast_buffer_metadata;
+
+  friend class DynamicLibrary;
 };
 
 struct FFICallback {
@@ -75,6 +104,7 @@ class DynamicLibrary : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InvokeFunctionSB(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeCallback(ffi_cif* cif,
                              void* ret,
                              void** args,
@@ -112,9 +142,9 @@ class DynamicLibrary : public BaseObject {
       const std::shared_ptr<FFIFunction>& fn);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
+  bool is_closed() const;
 
-  uv_lib_t lib_;
-  void* handle_;
+  uv_lib_t lib_ = {};
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;
@@ -148,6 +178,7 @@ void ToBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ExportBytes(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetRawPointer(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetCurrentEventLoop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node::ffi
 

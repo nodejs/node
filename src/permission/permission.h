@@ -37,9 +37,11 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      node::permission::Permission::ThrowAccessDenied(                         \
-          env__, perm__, resource__);                                          \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
+      if (!env__->permission()->warning_only()) {                              \
+        node::permission::Permission::ThrowAccessDenied(                       \
+            env__, perm__, resource__);                                        \
+        return __VA_ARGS__;                                                    \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -51,9 +53,11 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      node::permission::Permission::AsyncThrowAccessDenied(                    \
-          env__, (wrap), perm__, resource__);                                  \
-      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
+      if (!env__->permission()->warning_only()) {                              \
+        node::permission::Permission::AsyncThrowAccessDenied(                  \
+            env__, (wrap), perm__, resource__);                                \
+        return __VA_ARGS__;                                                    \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -65,14 +69,17 @@ namespace permission {
     const auto resource__ = (resource);                                        \
     if (!env__->permission()->is_granted(env__, perm__, resource__))           \
         [[unlikely]] {                                                         \
-      Local<Value> err_access;                                                 \
-      if (node::permission::CreateAccessDeniedError(env__, perm__, resource__) \
-              .ToLocal(&err_access)) {                                         \
-        args.GetReturnValue().Set(err_access);                                 \
-      } else {                                                                 \
-        args.GetReturnValue().Set(UV_EACCES);                                  \
+      if (!env__->permission()->warning_only()) {                              \
+        Local<Value> err_access;                                               \
+        if (node::permission::CreateAccessDeniedError(                         \
+                env__, perm__, resource__)                                     \
+                .ToLocal(&err_access)) {                                       \
+          args.GetReturnValue().Set(err_access);                               \
+        } else {                                                               \
+          args.GetReturnValue().Set(UV_EACCES);                                \
+        }                                                                      \
+        return __VA_ARGS__;                                                    \
       }                                                                        \
-      return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
 
@@ -118,6 +125,10 @@ class Permission {
   void Apply(Environment* env,
              const std::vector<std::string>& allow,
              PermissionScope scope);
+  // Runtime Call
+  void Drop(Environment* env,
+            PermissionScope scope,
+            const std::string_view& param = "");
   void EnablePermissions();
   void EnableWarningOnly();
 

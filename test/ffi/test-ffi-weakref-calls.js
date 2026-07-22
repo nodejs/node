@@ -15,7 +15,7 @@ test('ffi unrefCallback releases callback function', async (t) => {
   let callback = () => 1;
   const ref = new WeakRef(callback);
   const pointer = lib.registerCallback(
-    { parameters: ['i32'], result: 'i32' },
+    { arguments: ['i32'], return: 'i32' },
     callback,
   );
 
@@ -37,7 +37,7 @@ test('ffi refCallback retains callback function', async (t) => {
 
   let callback = () => 1;
   const ref = new WeakRef(callback);
-  const pointer = lib.registerCallback({ result: 'i32' }, callback);
+  const pointer = lib.registerCallback({ return: 'i32' }, callback);
 
   lib.unrefCallback(pointer);
   lib.refCallback(pointer);

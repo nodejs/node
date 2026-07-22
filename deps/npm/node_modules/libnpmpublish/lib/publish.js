@@ -50,14 +50,19 @@ Remove the 'private' field from the package.json to publish it.`),
     opts
   )
 
-  const res = await npmFetch(spec.escapedName, {
+  const stageRoute = `/-/stage/package/${spec.escapedName}`
+  const res = await npmFetch(opts.stage ? stageRoute : spec.escapedName, {
     ...opts,
-    method: 'PUT',
+    method: opts.stage ? 'POST' : 'PUT',
     body: metadata,
-    ignoreBody: true,
+    ignoreBody: !opts.stage,
   })
   if (transparencyLogUrl) {
     res.transparencyLogUrl = transparencyLogUrl
+  }
+  if (opts.stage) {
+    const json = await res.json()
+    res.stageId = json.stageId
   }
   return res
 }
@@ -86,7 +91,7 @@ const patchManifest = async (_manifest, opts) => {
 }
 
 const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
-  const { access, defaultTag, algorithms, provenance, provenanceFile } = opts
+  const { access, defaultTag, algorithms, provenance, provenanceFile, command = 'publish' } = opts
   const root = {
     _id: manifest.name,
     name: manifest.name,
@@ -141,14 +146,14 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
       provenanceBundle = await generateProvenance([subject], opts)
 
       /* eslint-disable-next-line max-len */
-      log.notice('publish', `Signed provenance statement with source and build information from ${ciInfo.name}`)
+      log.notice(command, `Signed provenance statement with source and build information from ${ciInfo.name}`)
 
       const tlogEntry = provenanceBundle?.verificationMaterial?.tlogEntries[0]
       /* istanbul ignore else */
       if (tlogEntry) {
         transparencyLogUrl = `${TLOG_BASE_URL}?logIndex=${tlogEntry.logIndex}`
         log.notice(
-          'publish',
+          command,
           `Provenance statement published to transparency log: ${transparencyLogUrl}`
         )
       }

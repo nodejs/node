@@ -1,0 +1,114 @@
+name: Stress Test (rebase tested branch on main for cache reuse)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_path:
+        description: Test path or glob (e.g. test/parallel/test-debugger-break.js or "test/parallel/test-debugger-*")
+        required: true
+        type: string
+      os:
+        description: Runner to use
+        required: true
+        default: macos-15
+        type: choice
+        options:
+          - macos-15
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+      repeat:
+        description: Number of times to repeat each test (--repeat)
+        required: true
+        default: '1000'
+        type: string
+      test_jobs:
+        description: Number of jobs to run in parallel (-j).
+        required: true
+        default: '1'
+        type: string
+      test_args:
+        description: Extra args for tools/test.py, space-separated (e.g. "-t 10 --worker")
+        required: false
+        default: ''
+        type: string
+
+env:
+  PYTHON_VERSION: '3.14'
+  XCODE_VERSION: '16.4'
+  CLANG_VERSION: '19'
+  RUSTC_VERSION: '1.83'
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ${{ inputs.os }}
+    env:
+      # Linux builds with clang (matching test-linux.yml), macOS with gcc/g++.
+      CC: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang-19' || 'sccache gcc' }}
+      CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang++-19' || 'sccache g++' }}
+      # Enable sccache - this is okay for a manually-dispatched workflow that is typically used to
+      # test lib-only or test-only deflaking changes. This should be able to pick up cache from
+      # test-linux.yml and test-macos.yml running on the main branch.
+      SCCACHE_GHA_ENABLED: 'true'
+      SCCACHE_IDLE_TIMEOUT: '0'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          path: node
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        if: runner.os == 'Linux'
+        uses: ./node/.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+      - name: Set up Xcode ${{ env.XCODE_VERSION }}
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
+      - name: Set up sccache
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
+        with:
+          version: v0.16.0
+      # This is needed due to https://github.com/nodejs/build/issues/3878
+      - name: Cleanup
+        if: runner.os == 'macOS'
+        run: |
+          echo "::group::Free space before cleanup"
+          df -h
+          echo "::endgroup::"
+          echo "::group::Cleaned Files"
+
+          sudo rm -rf /Users/runner/Library/Android/sdk
+
+          echo "::endgroup::"
+          echo "::group::Free space after cleanup"
+          df -h
+          echo "::endgroup::"
+      - name: Build
+        run: make -C node build-ci -j"$(getconf _NPROCESSORS_ONLN)" V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
+      - name: Stress run ${{ inputs.test_path }} x${{ inputs.repeat }}
+        shell: bash
+        env:
+          REPEAT: ${{ inputs.repeat }}
+          JOBS: ${{ inputs.test_jobs }}
+          TEST_ARGS: ${{ inputs.test_args }}
+          TEST_PATH: ${{ inputs.test_path }}
+        run: |
+          cd node
+          read -ra EXTRA_ARGS <<< "$TEST_ARGS"
+          python3 tools/test.py \
+            --repeat "$REPEAT" \
+            -j "$JOBS" \
+            -p actions \
+            "${EXTRA_ARGS[@]}" \
+            "$TEST_PATH"

@@ -150,8 +150,7 @@ static std::string GetErrorSource(Isolate* isolate,
                          : 0;
   int start = message->GetStartColumn();
   int end = message->GetEndColumn();
-  if (start >= script_start) {
-    CHECK_GE(end, start);
+  if (start >= script_start && end >= script_start) {
     start -= script_start;
     end -= script_start;
   }
@@ -161,8 +160,7 @@ static std::string GetErrorSource(Isolate* isolate,
   CHECK_GT(buf.size(), 0);
   *added_exception_line = true;
 
-  if (start > end ||
-      start < 0 ||
+  if (start > end || start < 0 || end < 0 ||
       static_cast<size_t>(end) > sourceline.size()) {
     return buf;
   }
@@ -1066,7 +1064,12 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
                   filename,
                   message->GetLineNumber(env->context()).FromMaybe(-1),
                   msg);
-      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
+      // Defer the warning to the next event loop iteration. This prevents
+      // crashes when V8 emits warnings during code evaluation with
+      // throwOnSideEffect.
+      env->SetImmediate([warning](Environment* env) {
+        ProcessEmitWarningGeneric(env, warning, "V8");
+      });
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:

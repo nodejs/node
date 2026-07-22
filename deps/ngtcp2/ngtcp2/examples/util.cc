@@ -43,7 +43,6 @@
 #include <cstdlib>
 #include <chrono>
 #include <array>
-#include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <limits>
@@ -58,13 +57,13 @@ namespace ngtcp2 {
 namespace util {
 
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename);
+read_hpke_private_key_pem(const std::filesystem::path &path);
 
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type);
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type);
 
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data);
@@ -270,7 +269,7 @@ std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data) {
   // accept, which is the size of a single full line output + one
   // repeat line marker ("*\n").  If the remaining buffer size is less
   // than that, flush the buffer and reset.
-  constexpr size_t min_space = 79 + 2;
+  constexpr auto min_space = 79UZ + 2UZ;
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
@@ -390,8 +389,8 @@ constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
 std::expected<std::unordered_map<std::string, std::string>, Error>
-read_mime_types(std::string_view filename) {
-  std::ifstream f(filename.data());
+read_mime_types(const std::filesystem::path &filename) {
+  std::ifstream f(filename);
   if (!f) {
     return std::unexpected{Error::IO};
   }
@@ -417,7 +416,9 @@ read_mime_types(std::string_view filename) {
       }
 
       p = std::ranges::find_if(ext, std::ranges::end(line), rws);
-      dest.emplace(std::string{ext, p}, media_type);
+      auto key = "."s;
+      key += std::string{ext, p};
+      dest.emplace(key, media_type);
     }
   }
 
@@ -455,6 +456,10 @@ parse_uint_internal(std::string_view s) {
   for (size_t i = 0; i < s.size(); ++i) {
     auto c = s[i];
     if (!is_digit(c)) {
+      if (i == 0) {
+        return std::unexpected{Error::INVALID_ARGUMENT};
+      }
+
       return {{res, i}};
     }
 
@@ -614,7 +619,7 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 } // namespace
 
 std::expected<std::string, Error> normalize_path(std::string_view path) {
-  constexpr size_t max_path = 1024;
+  constexpr auto max_path = 1024UZ;
 
   if (path.size() > max_path) {
     return std::unexpected{Error::INVALID_ARGUMENT};
@@ -710,30 +715,6 @@ std::expected<int, Error> create_nonblock_socket(int domain, int type,
   return fd;
 }
 
-std::vector<std::string_view> split_str(std::string_view s, char delim) {
-  size_t len = 1;
-  auto last = std::ranges::end(s);
-  std::string_view::const_iterator d;
-  for (auto first = std::ranges::begin(s);
-       (d = std::ranges::find(first, last, delim)) != last;
-       ++len, first = d + 1)
-    ;
-
-  auto list = std::vector<std::string_view>(len);
-
-  len = 0;
-  for (auto first = std::ranges::begin(s);; ++len) {
-    auto stop = std::ranges::find(first, last, delim);
-    // xcode clang does not understand std::string_view{first, stop}.
-    list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
-    if (stop == last) {
-      break;
-    }
-    first = stop + 1;
-  }
-  return list;
-}
-
 std::expected<uint32_t, Error> parse_version(std::string_view s) {
   if (!util::istarts_with(s, "0x"sv)) {
     return std::unexpected{Error::INVALID_ARGUMENT};
@@ -750,25 +731,25 @@ std::expected<uint32_t, Error> parse_version(std::string_view s) {
 }
 
 std::expected<std::vector<uint8_t>, Error>
-read_token(std::string_view filename) {
-  return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
+read_token(const std::filesystem::path &path) {
+  return read_pem(path, "token"sv, "QUIC TOKEN"sv);
 }
 
-std::expected<void, Error> write_token(std::string_view filename,
+std::expected<void, Error> write_token(const std::filesystem::path &path,
                                        std::span<const uint8_t> token) {
-  return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
+  return write_pem(path, "token"sv, "QUIC TOKEN"sv, token);
 }
 
 std::expected<std::vector<uint8_t>, Error>
-read_transport_params(std::string_view filename) {
-  return read_pem(filename, "transport parameters"sv,
+read_transport_params(const std::filesystem::path &path) {
+  return read_pem(path, "transport parameters"sv,
                   "QUIC TRANSPORT PARAMETERS"sv);
 }
 
 std::expected<void, Error>
-write_transport_params(std::string_view filename,
+write_transport_params(const std::filesystem::path &path,
                        std::span<const uint8_t> data) {
-  return write_pem(filename, "transport parameters"sv,
+  return write_pem(path, "transport parameters"sv,
                    "QUIC TRANSPORT PARAMETERS"sv, data);
 }
 
@@ -802,8 +783,9 @@ std::string percent_decode(std::string_view s) {
   return result;
 }
 
-std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path) {
-  auto fd = open(path.data(), O_RDONLY);
+std::expected<std::vector<uint8_t>, Error>
+read_file(const std::filesystem::path &path) {
+  auto fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
     return std::unexpected{Error::IO};
   }
@@ -831,8 +813,8 @@ std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path) {
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
   return std::min(gso_burst == 0
-                    ? ngtcp2_conn_get_send_quantum(conn)
-                    : ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) *
+                    ? ngtcp2_conn_get_send_quantum2(conn)
+                    : ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn) *
                         gso_burst,
                   buflen);
 }
@@ -844,20 +826,60 @@ bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
 }
 
 std::expected<ECHServerConfig, Error>
-read_ech_server_config(std::string_view path) {
+read_ech_server_config(const std::filesystem::path &path) {
   auto pkey = read_hpke_private_key_pem(path);
   if (!pkey) {
     return std::unexpected{pkey.error()};
   }
 
-  auto ech_config = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
-  if (!ech_config) {
-    return std::unexpected{ech_config.error()};
+  auto maybe_ech_config_list = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
+  if (!maybe_ech_config_list) {
+    return std::unexpected{maybe_ech_config_list.error()};
+  }
+
+  auto ech_config_list = std::span{*maybe_ech_config_list};
+  if (ech_config_list.size() < 2) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  auto data = ech_config_list.subspan(2);
+
+  if (auto len =
+        static_cast<size_t>((ech_config_list[0] << 8) + ech_config_list[1]);
+      len != data.size()) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  std::vector<std::vector<uint8_t>> ech_configs;
+
+  for (; !data.empty();) {
+    // version and length, each 2 bytes
+    if (data.size() < 4) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    auto version = (data[0] << 8) + data[1];
+
+    auto conflen = static_cast<size_t>(4 + (data[2] << 8) + data[3]);
+    if (data.size() < conflen) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    if (version == 0xFE0D) {
+      auto conf = data.first(conflen);
+      ech_configs.emplace_back(std::ranges::begin(conf),
+                               std::ranges::end(conf));
+    } else {
+      std::println(stderr, "Skipping the unsupported ECH version {:#x}",
+                   version);
+    }
+
+    data = data.subspan(conflen);
   }
 
   return ECHServerConfig{
     .private_key = std::move(*pkey),
-    .ech_config = std::move(*ech_config),
+    .ech_config_list = std::move(ech_configs),
   };
 }
 
@@ -878,16 +900,17 @@ std::span<uint64_t, 2> generate_siphash_key() {
   return key;
 }
 
-std::string realpath(const char *path) {
-  auto cpath = ::realpath(path, nullptr);
-  if (!cpath) {
-    assert(0);
+std::filesystem::path realpath(const std::filesystem::path &path) {
+  std::error_code ec;
+
+  auto abspath = std::filesystem::canonical(path, ec);
+  if (ec) {
+    std::println(stderr, "Could not get canonical path for {}: {}",
+                 path.native(), ec.message());
     abort();
   }
 
-  auto cpath_d = defer([cpath] { free(cpath); });
-
-  return cpath;
+  return abspath;
 }
 
 } // namespace util

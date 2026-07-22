@@ -1,5 +1,7 @@
 use crate::attr::Attribute;
 use crate::item::Item;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 ast_struct! {
     /// A complete file of Rust source code.
@@ -89,6 +91,7 @@ pub(crate) mod parsing {
     use crate::error::Result;
     use crate::file::File;
     use crate::parse::{Parse, ParseStream};
+    use alloc::vec::Vec;
 
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for File {

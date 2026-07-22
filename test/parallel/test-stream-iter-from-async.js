@@ -49,6 +49,35 @@ async function testFromSyncIterableAsAsync() {
   assert.deepStrictEqual(batches[0][1], new Uint8Array([2]));
 }
 
+async function testFromSyncIterableAwaitsPromiseValues() {
+  const result = await text(from([Promise.resolve('promise-value')]));
+  assert.strictEqual(result, 'promise-value');
+}
+
+async function testFromSyncIterableRejectsNestedAsyncIterable() {
+  async function* asyncGenerator() {
+    yield 'data';
+  }
+
+  await assert.rejects(
+    () => text(from([asyncGenerator()])),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
+async function testFromSyncIterableRejectsNestedToAsyncStreamable() {
+  const obj = {
+    [Symbol.for('Stream.toAsyncStreamable')]() {
+      return 'data';
+    },
+  };
+
+  await assert.rejects(
+    () => text(from([obj])),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+}
+
 async function testFromToAsyncStreamableProtocol() {
   const sym = Symbol.for('Stream.toAsyncStreamable');
   const obj = {
@@ -232,6 +261,9 @@ Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
   testFromSyncIterableAsAsync(),
+  testFromSyncIterableAwaitsPromiseValues(),
+  testFromSyncIterableRejectsNestedAsyncIterable(),
+  testFromSyncIterableRejectsNestedToAsyncStreamable(),
   testFromToAsyncStreamableProtocol(),
   testFromRejectsNonStreamable(),
   testFromEmptyArray(),

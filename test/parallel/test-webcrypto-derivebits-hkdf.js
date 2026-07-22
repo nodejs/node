@@ -24,12 +24,12 @@ const kDerivedKeyTypes = [
   ['HMAC', 256, 'SHA-256', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-384', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-512', 'sign', 'verify'],
+  ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
+  ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
 ];
 
 if (!process.features.openssl_is_boringssl) {
   kDerivedKeyTypes.push(
-    ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
-    ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
     ['HMAC', 256, 'SHA3-256', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-384', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
@@ -628,16 +628,27 @@ async function testWrongKeyType(
 })().then(common.mustCall());
 
 // https://github.com/w3c/webcrypto/pull/380
-{
-  crypto.subtle.importKey('raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']).then((key) => {
-    return crypto.subtle.deriveBits({
-      name: 'HKDF',
-      hash: { name: 'SHA-256' },
-      info: new Uint8Array(0),
-      salt: new Uint8Array(0),
-    }, key, 0);
-  }).then((bits) => {
-    assert.deepStrictEqual(bits, new ArrayBuffer(0));
-  })
-  .then(common.mustCall());
-}
+(async function() {
+  const key = await crypto.subtle.importKey('raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({
+    name: 'HKDF',
+    hash: { name: 'SHA-256' },
+    info: new Uint8Array(0),
+    salt: new Uint8Array(0),
+  }, key, 0);
+  assert.deepStrictEqual(bits, new ArrayBuffer(0));
+})().then(common.mustCall());
+
+// OpenSSL limits info to 1024 bytes
+(async function() {
+  const key = await crypto.subtle.importKey('raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']);
+  await assert.rejects(crypto.subtle.deriveBits({
+    name: 'HKDF',
+    hash: { name: 'SHA-256' },
+    info: new Uint8Array(1025),
+    salt: new Uint8Array(0),
+  }, key, 0), {
+    name: 'OperationError',
+    message: 'algorithm.info must be at most 1024 bytes',
+  });
+})().then(common.mustCall());

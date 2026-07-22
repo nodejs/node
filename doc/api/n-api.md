@@ -2578,7 +2578,9 @@ JavaScript `ArrayBuffer`s are described in
 #### `node_api_create_external_sharedarraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 ```c
@@ -2783,6 +2785,12 @@ Language Specification.
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
+changes:
+  - version:
+    - v26.2.0
+    - v24.18.0
+    pr-url: https://github.com/nodejs/node/pull/62710
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -2797,21 +2805,25 @@ napi_status napi_create_typedarray(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] type`: Scalar datatype of the elements within the `TypedArray`.
 * `[in] length`: Number of elements in the `TypedArray`.
-* `[in] arraybuffer`: `ArrayBuffer` underlying the typed array.
-* `[in] byte_offset`: The byte offset within the `ArrayBuffer` from which to
-  start projecting the `TypedArray`.
+* `[in] arraybuffer`: `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  typed array.
+* `[in] byte_offset`: The byte offset within the `ArrayBuffer` or
+  `SharedArrayBuffer` from which to start projecting the `TypedArray`.
 * `[out] result`: A `napi_value` representing a JavaScript `TypedArray`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `TypedArray` object over an existing
-`ArrayBuffer`. `TypedArray` objects provide an array-like view over an
-underlying data buffer where each element has the same underlying binary scalar
-datatype.
+`ArrayBuffer` or `SharedArrayBuffer`. `TypedArray` objects provide an
+array-like view over an underlying data buffer where each element has the same
+underlying binary scalar datatype.
 
-It's required that `(length * size_of_element) + byte_offset` should
-be <= the size in bytes of the array passed in. If not, a `RangeError` exception
-is raised.
+It is required that `(length * size_of_element) + byte_offset` is less than or
+equal to the size in bytes of the `ArrayBuffer` or `SharedArrayBuffer` passed
+in. If not, a `RangeError` exception is raised.
+
+For element sizes greater than 1, `byte_offset` is required to be a multiple
+of the element size. If not, a `RangeError` exception is raised.
 
 JavaScript `TypedArray` objects are described in
 [Section TypedArray objects][] of the ECMAScript Language Specification.
@@ -3504,7 +3516,8 @@ napi_status napi_get_typedarray_info(napi_env env,
   the `byte_offset` value so that it points to the first element in the
   `TypedArray`. If the length of the array is `0`, this may be `NULL` or
   any other pointer value.
-* `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
+* `[out] arraybuffer`: The `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  `TypedArray`.
 * `[out] byte_offset`: The byte offset within the underlying native array
   at which the first element of the arrays is located. The value for the data
   parameter has already been adjusted so that data points to the first element
@@ -4316,7 +4329,7 @@ napi_status napi_strict_equals(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents the invocation of the Strict Equality algorithm as
-defined in [Section IsStrctEqual][] of the ECMAScript Language Specification.
+defined in [Section IsStrictlyEqual][] of the ECMAScript Language Specification.
 
 ### `napi_detach_arraybuffer`
 
@@ -4623,7 +4636,7 @@ They can be one or more of the following bit flags:
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
 * `napi_default_method`: Like a method in a JS class, the property is
-  configurable and writeable, but not enumerable.
+  configurable and writable, but not enumerable.
 * `napi_default_jsproperty`: Like a property set via assignment in JavaScript,
   the property is writable, enumerable, and configurable.
 
@@ -6973,7 +6986,7 @@ the add-on's file name during loading.
 [Section DefineOwnProperty]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section Function objects]: https://tc39.es/ecma262/#sec-function-objects
 [Section IsArray]: https://tc39.es/ecma262/#sec-isarray
-[Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
+[Section IsStrictlyEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
 [Section SharedArrayBuffer objects]: https://tc39.es/ecma262/#sec-sharedarraybuffer-objects
 [Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean

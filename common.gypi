@@ -14,6 +14,7 @@
     'enable_pgo_use%': '0',
     'clang_profile_lib%': '',
     'python%': 'python',
+    'emulator%': [],
 
     'node_shared%': 'false',
     'node_enable_experimentals%': 'false',
@@ -23,6 +24,7 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'openssl_is_boringssl%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
@@ -40,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.18',
+    'v8_embedder_string': '-node.26',
 
     ##### V8 defaults for Node.js #####
 
@@ -269,6 +271,13 @@
                   },
                   'VCLinkerTool': {
                     'AdditionalOptions': ['-flto=thin'],
+                  },
+                },
+              },],
+              ['(enable_thin_lto=="true" or enable_lto=="true") and lto_jobs!=""', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['/opt:lldltojobs=<(lto_jobs)'],
                   },
                 },
               },],

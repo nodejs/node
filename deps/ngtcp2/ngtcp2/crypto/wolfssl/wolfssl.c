@@ -339,7 +339,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  WOLFSSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
+  WOLFSSL *ssl = ngtcp2_conn_get_tls_native_handle2(conn);
   WOLFSSL_ENCRYPTION_LEVEL level =
     ngtcp2_crypto_wolfssl_from_ngtcp2_encryption_level(encryption_level);
   int rv;
@@ -355,7 +355,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     }
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
     rv = wolfSSL_quic_do_handshake(ssl);
     if (rv <= 0) {
       err = wolfSSL_get_error(ssl, rv);

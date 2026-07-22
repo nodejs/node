@@ -9,9 +9,14 @@ const { join } = require('path');
 
 const events = [];
 
-dc.subscribe('tracing:node.test:start', (data) => events.push({ event: 'start', name: data.name }));
-dc.subscribe('tracing:node.test:end', (data) => events.push({ event: 'end', name: data.name }));
-dc.subscribe('tracing:node.test:error', (data) => events.push({ event: 'error', name: data.name }));
+dc.subscribe('tracing:node.test:start', (data) => events.push({ event: 'start', name: data.name, type: data.type }));
+dc.subscribe('tracing:node.test:end', (data) => events.push({ event: 'end', name: data.name, type: data.type }));
+dc.subscribe('tracing:node.test:error', (data) => events.push({ event: 'error', name: data.name, type: data.type }));
+
+describe('suite end ordering', () => {
+  it('child a', async () => { await new Promise((r) => setTimeout(r, 5)); });
+  it('child b', () => {});
+});
 
 test('passing test fires start and end', async () => {});
 
@@ -54,6 +59,19 @@ process.on('exit', () => {
   const asyncEnd = events.filter((e) => e.event === 'end' && e.name === asyncTestName);
   assert.strictEqual(asyncStart.length, 1);
   assert.strictEqual(asyncEnd.length, 1);
+
+  const suiteNames = new Set(['suite end ordering', 'child a', 'child b']);
+  const suiteSequence = events
+    .filter((e) => suiteNames.has(e.name))
+    .map((e) => `${e.event}:${e.name}`);
+  assert.deepStrictEqual(suiteSequence, [
+    'start:suite end ordering',
+    'start:child a',
+    'end:child a',
+    'start:child b',
+    'end:child b',
+    'end:suite end ordering',
+  ]);
 });
 
 // Test bindStore context propagation
@@ -117,6 +135,26 @@ test('context is available in async operations within test', async () => {
     setTimeout(() => resolve(testStorage.getStore()), 0);
   });
   assert.strictEqual(valueInTimeout, testName);
+});
+
+test('bindStore propagates store to end and error subscribers', async () => {
+  // Spawn a fixture that records `als.getStore()` at end/error publish time so
+  // we can assert subscribers see the bound store, not undefined.
+  const fixturePath = join(__dirname, '../fixtures/test-runner/diagnostics-channel-bindstore-end.js');
+  const result = spawnSync(process.execPath, [fixturePath], { encoding: 'utf8' });
+  // The fixture contains an intentionally failing test, so exit is non-zero.
+  assert.notStrictEqual(result.status, 0);
+  const line = result.stdout.split('\n').find((l) => l.includes('storeAtEnd'));
+  assert.ok(line, `expected storeAtEnd line in stdout:\n${result.stdout}`);
+  const { storeAtEnd, storeAtError } = JSON.parse(line);
+  assert.deepStrictEqual(storeAtEnd, {
+    '<root>': '<root>',
+    'passing test': 'passing test',
+    'failing test': 'failing test',
+  });
+  assert.deepStrictEqual(storeAtError, {
+    'failing test': 'failing test',
+  });
 });
 
 test('error events fire for failing tests in fixture', async () => {

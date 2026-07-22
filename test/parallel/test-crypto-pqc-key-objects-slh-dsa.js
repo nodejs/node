@@ -91,6 +91,12 @@ for (const asymmetricKeyType of [
       key: rawPriv, format: 'raw-private', asymmetricKeyType,
     });
     assert.strictEqual(importedPriv.equals(key), true);
+    assert.throws(() => createPrivateKey({
+      key: rawPriv, format: 'raw-seed', asymmetricKeyType,
+    }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+    assert.throws(() => createPublicKey({
+      key: rawPriv, format: 'raw-seed', asymmetricKeyType,
+    }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
   }
 
   if (!hasOpenSSL(3, 5)) {

@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -9,7 +10,7 @@ const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
-const { KeyObject } = require('crypto');
+const { getCryptoKeyHandle } = require('internal/crypto/keys');
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
@@ -211,8 +212,8 @@ const { KeyObject } = require('crypto');
           assert.strictEqual(derived.algorithm.length, expected);
         } else {
           // KDFs cannot be exportable and do not indicate their length
-          const secretKey = KeyObject.from(derived);
-          assert.strictEqual(secretKey.symmetricKeySize, expected / 8);
+          assert.strictEqual(getCryptoKeyHandle(derived).getSymmetricKeySize(),
+                             expected / 8);
         }
       }
     }
@@ -261,6 +262,43 @@ const { KeyObject } = require('crypto');
         [usage]);
 
       assert.strictEqual(derived.algorithm.length, expected);
+    }
+  })().then(common.mustCall());
+}
+
+if (hasOpenSSL(3)) {
+  (async () => {
+    const derivedKeyAlgorithm = { name: 'KMAC128', length: 0 };
+    const usages = ['sign'];
+    for (const [algorithm, baseKeyAlgorithm] of [
+      [
+        { name: 'HKDF', salt: new Uint8Array(), info: new Uint8Array(), hash: 'SHA-256' },
+        { name: 'HKDF' },
+      ],
+      [
+        { name: 'PBKDF2', salt: new Uint8Array(), hash: 'SHA-256', iterations: 20 },
+        { name: 'PBKDF2' },
+      ],
+    ]) {
+      const baseKey = await subtle.importKey(
+        'raw',
+        new Uint8Array(),
+        baseKeyAlgorithm,
+        false,
+        ['deriveKey']);
+      const derived = await subtle.deriveKey(
+        algorithm,
+        baseKey,
+        derivedKeyAlgorithm,
+        false,
+        usages);
+      assert.strictEqual(derived.algorithm.length, 0);
+
+      const signature = await subtle.sign({
+        name: 'KMAC128',
+        outputLength: 256,
+      }, derived, new Uint8Array());
+      assert.strictEqual(signature.byteLength, 32);
     }
   })().then(common.mustCall());
 }

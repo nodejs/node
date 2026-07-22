@@ -196,7 +196,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
@@ -380,7 +380,8 @@ added: v10.0.0
 #### `filehandle.pull([...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -457,7 +458,8 @@ run().catch(console.error);
 #### `filehandle.pullSync([...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -694,11 +696,17 @@ close the `FileHandle` automatically. User code must still call the
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
 -->
 
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {Promise} Fulfills upon a successful read with the contents of the
   file. If no encoding is specified (using `options.encoding`), the data is
   returned as a {Buffer} object. Otherwise, the data will be a string.
@@ -707,12 +715,50 @@ Asynchronously reads the entire contents of a file.
 
 If `options` is a string, then it specifies the `encoding`.
 
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the operation will
+fail.
+
 The {FileHandle} has to support reading.
 
 If one or more `filehandle.read()` calls are made on a file handle and then a
 `filehandle.readFile()` call is made, the data will be read from the current
 position till the end of the file. It doesn't always read from the beginning
 of the file.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const buf = Buffer.alloc(16384);
+  const contents = await file.readFile({ buffer: buf });
+  console.log(contents); // A view over `buf` containing only the bytes read
+} finally {
+  await file.close();
+}
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const contents = await file.readFile({
+    buffer: (size) => Buffer.alloc(size),
+  });
+  console.log(contents);
+} finally {
+  await file.close();
+}
+```
 
 #### `filehandle.readLines([options])`
 
@@ -778,7 +824,9 @@ Read from a file and write to an array of {ArrayBufferView}s
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/57775
     description: Now accepts an additional `signal` property to allow aborting the operation.
   - version: v10.5.0
@@ -959,7 +1007,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -1012,7 +1060,8 @@ the end of the file.
 #### `filehandle.writer([options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1031,16 +1080,16 @@ added: v25.9.0
     Set this to match the reader's `chunkSize` for optimal `pipeTo()`
     performance. **Default:** `131072` (128 KB).
 * Returns: {Object}
-  * `write(chunk[, options])` {Function} Returns {Promise\<void>}.
+  * `write(chunk[, options])` {Function} Returns {Promise}.
     Accepts `Uint8Array`, `Buffer`, or string (UTF-8 encoded).
     * `chunk` {Buffer|TypedArray|DataView|string}
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, the write
         rejects with `AbortError` without performing I/O.
-  * `writev(chunks[, options])` {Function} Returns {Promise\<void>}. Uses
+  * `writev(chunks[, options])` {Function} Returns {Promise}. Uses
     scatter/gather I/O via a single `writev()` syscall. Accepts mixed
     `Uint8Array`/string arrays.
-    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, the write
         rejects with `AbortError` without performing I/O.
@@ -1052,10 +1101,10 @@ added: v25.9.0
     * `chunk` {Buffer|TypedArray|DataView|string}
   * `writevSync(chunks)` {Function} Returns {boolean}. Synchronous batch
     write. Same fallback semantics as `writeSync()`.
-    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
-  * `end([options])` {Function} Returns {Promise\<number>} total bytes
-    written. Idempotent: returns `totalBytesWritten` if already closed,
-    returns the pending promise if already closing. Rejects if the writer
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
+  * `end([options])` {Function} Returns {Promise}, fulfills with the total
+    number of bytes written. Idempotent: returns `totalBytesWritten` if already
+    closed, returns the pending promise if already closing. Rejects if the writer
     is in an errored state.
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, `end()`
@@ -1189,10 +1238,15 @@ changes:
     - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
+  - version:
+      - v15.14.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/37490
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1202,7 +1256,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 
 If `options` is a string, then it specifies the `encoding`.
 
@@ -1351,7 +1405,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -1758,6 +1814,9 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version:
     - v15.2.0
     - v14.17.0
@@ -1771,6 +1830,8 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {Promise}  Fulfills with the contents of the file.
 
 Asynchronously reads the entire contents of a file.
@@ -1779,6 +1840,11 @@ If no encoding is specified (using `options.encoding`), the data is returned
 as a {Buffer} object. Otherwise, the data will be a string.
 
 If `options` is a string, then it specifies the encoding.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the promise will be
+rejected.
 
 When the `path` is a directory, the behavior of `fsPromises.readFile()` is
 platform-specific. On macOS, Linux, and Windows, the promise will be rejected
@@ -1839,6 +1905,29 @@ Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified {FileHandle} has to support reading.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+
+const buf = Buffer.alloc(16384);
+const contents = await readFile('/path/to/file', { buffer: buf });
+console.log(contents); // A view over `buf` containing only the bytes read
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+
+const contents = await readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+});
+console.log(contents);
+```
 
 ### `fsPromises.readlink(path[, options])`
 
@@ -2181,7 +2270,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -2812,7 +2901,7 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
-    that resolves to `true` or `false` **Default:** `undefined`.
+    that fulfills with `true` or `false`. **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean|Promise} A value that is coercible to `boolean` or
@@ -3472,7 +3561,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -4216,6 +4307,9 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4257,6 +4351,8 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * `callback` {Function}
   * `err` {Error|AggregateError}
   * `data` {string|Buffer}
@@ -4276,6 +4372,11 @@ The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the callback is
+called with an error.
 
 If `options` is a string, then it specifies the encoding:
 
@@ -4324,6 +4425,33 @@ when possible prefer streaming via `fs.createReadStream()`.
 
 Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs';
+
+const buf = Buffer.alloc(16384);
+readFile('/path/to/file', { buffer: buf }, (err, data) => {
+  if (err) throw err;
+  console.log(data); // A view over `buf` containing only the bytes read
+});
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs';
+
+readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+}, (err, data) => {
+  if (err) throw err;
+  console.log(data);
+});
+```
 
 #### File descriptors
 
@@ -4796,7 +4924,11 @@ Stats {
   atime: 2019-06-22T03:37:33.072Z,
   mtime: 2019-06-22T03:36:54.583Z,
   ctime: 2019-06-22T03:37:06.624Z,
-  birthtime: 2019-06-22T03:28:46.937Z
+  birthtime: 2019-06-22T03:28:46.937Z,
+  atimeInstant: 2019-06-22T03:37:33.071963Z,
+  mtimeInstant: 2019-06-22T03:36:54.5833518Z,
+  ctimeInstant: 2019-06-22T03:37:06.6235366Z,
+  birthtimeInstant: 2019-06-22T03:28:46.9372893Z
 }
 false
 Stats {
@@ -4817,7 +4949,11 @@ Stats {
   atime: 2019-06-22T03:36:56.619Z,
   mtime: 2019-06-22T03:36:54.584Z,
   ctime: 2019-06-22T03:36:54.584Z,
-  birthtime: 2019-06-22T03:26:47.711Z
+  birthtime: 2019-06-22T03:26:47.711Z,
+  atimeInstant: 2019-06-22T03:36:56.6188555Z,
+  mtimeInstant: 2019-06-22T03:36:54.584Z,
+  ctimeInstant: 2019-06-22T03:36:54.5838145Z,
+  birthtimeInstant: 2019-06-22T03:26:47.7107478Z
 }
 ```
 
@@ -5075,7 +5211,9 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/61870
     description: Added `throwIfNoEntry` option.
   - version: v19.1.0
@@ -6054,7 +6192,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -6407,6 +6547,9 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: v26.4.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -6420,6 +6563,8 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {string|Buffer}
 
 Returns the contents of the `path`.
@@ -6429,6 +6574,11 @@ this API: [`fs.readFile()`][].
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, an error will be
+thrown.
 
 Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
 `fs.readFileSync()` is platform-specific.
@@ -7522,6 +7672,9 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: v26.2.0
+    pr-url: https://github.com/nodejs/node/pull/60789
+    description: Added `Temporal.Instant` support.
   - version:
     - v22.0.0
     - v20.13.0
@@ -7557,10 +7710,19 @@ Stats {
   mtimeMs: 1318289051000.1,
   ctimeMs: 1318289051000.1,
   birthtimeMs: 1318289051000.1,
+
+  // Instances of Date
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
-  birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
+  birthtime: Mon, 10 Oct 2011 23:24:11 GMT,
+
+  // Instances of Temporal.Instant
+  atimeInstant: 2011-10-10T23:24:11.0001Z,
+  mtimeInstant: 2011-10-10T23:24:11.0001Z,
+  ctimeInstant: 2011-10-10T23:24:11.0001Z,
+  birthtimeInstant: 2011-10-10T23:24:11.0001Z
+}
 ```
 
 `bigint` version:
@@ -7585,10 +7747,19 @@ BigIntStats {
   mtimeNs: 1318289051000000000n,
   ctimeNs: 1318289051000000000n,
   birthtimeNs: 1318289051000000000n,
+
+  // Instances of Date
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
-  birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
+  birthtime: Mon, 10 Oct 2011 23:24:11 GMT,
+
+  // Instances of Temporal.Instant
+  atimeInstant: 2011-10-10T23:24:11Z,
+  mtimeInstant: 2011-10-10T23:24:11Z,
+  ctimeInstant: 2011-10-10T23:24:11Z,
+  birthtimeInstant: 2011-10-10T23:24:11Z
+}
 ```
 
 #### `stats.isBlockDevice()`
@@ -7960,7 +8131,26 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. Multiply by [`statfs.bsize`][]
+to get the number of available bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const availableBytes = stats.bsize * stats.bavail;
+console.log(`Available space: ${availableBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const availableBytes = stats.bsize * stats.bavail;
+  console.log(`Available space: ${availableBytes} bytes`);
+})();
+```
 
 #### `statfs.bfree`
 
@@ -7972,7 +8162,26 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. Multiply by [`statfs.bsize`][] to get the number
+of free bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const freeBytes = stats.bsize * stats.bfree;
+console.log(`Free space: ${freeBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const freeBytes = stats.bsize * stats.bfree;
+  console.log(`Free space: ${freeBytes} bytes`);
+})();
+```
 
 #### `statfs.blocks`
 
@@ -7984,7 +8193,26 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. Multiply by [`statfs.bsize`][] to get the
+total size in bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalBytes = stats.bsize * stats.blocks;
+console.log(`Total space: ${totalBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const totalBytes = stats.bsize * stats.blocks;
+  console.log(`Total space: ${totalBytes} bytes`);
+})();
+```
 
 #### `statfs.bsize`
 
@@ -7996,12 +8224,14 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size in bytes.
 
 #### `statfs.frsize`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {number|bigint}
@@ -8042,7 +8272,11 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. A platform-specific numeric identifier for the type of
+file system. This value corresponds to the `f_type` field returned by
+`statfs(2)` on POSIX systems (for example, `0xEF53` for ext4 on Linux). Its
+meaning is OS-dependent and is not guaranteed to be consistent across
+platforms.
 
 ### Class: `fs.Utf8Stream`
 
@@ -8685,7 +8919,7 @@ rename('/tmp/hello', '/tmp/world', (err) => {
 ```
 
 ```cjs
-const { rename, stat } = require('node:fs/promises');
+const { rename, stat } = require('node:fs');
 
 rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
@@ -9095,6 +9329,7 @@ the file contents.
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
 [`node:stream/iter`]: stream_iter.md
+[`statfs.bsize`]: #statfsbsize
 [`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer
 [`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
 [`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms

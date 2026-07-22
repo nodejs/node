@@ -1,4 +1,4 @@
-const { log, output } = require('proc-log')
+const { log, output, META } = require('proc-log')
 const semver = require('semver')
 const pack = require('libnpmpack')
 const libpub = require('libnpmpublish').publish
@@ -14,11 +14,17 @@ const { getContents, logTar } = require('../utils/tar.js')
 const { flatten } = require('@npmcli/config/lib/definitions')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
-const { oidc } = require('../../lib/utils/oidc.js')
+const { oidc } = require('../utils/oidc.js')
 
 class Publish extends BaseCommand {
   static description = 'Publish a package'
   static name = 'publish'
+  static stage = false
+
+  get isStage () {
+    return this.constructor.stage
+  }
+
   static params = [
     'tag',
     'access',
@@ -60,19 +66,24 @@ class Publish extends BaseCommand {
         if (err.code !== 'EPRIVATE') {
           throw err
         }
-        log.warn('publish', `Skipping workspace ${this.npm.chalk.cyan(name)}, marked as ${this.npm.chalk.bold('private')}`)
+        log.warn(this.#command, `Skipping workspace ${this.npm.chalk.cyan(name)}, marked as ${this.npm.chalk.bold('private')}`)
       }
     }
   }
 
+  get #command () {
+    return this.isStage ? 'stage' : 'publish'
+  }
+
   async #publish (args, { workspace } = {}) {
-    log.verbose('publish', replaceInfo(args))
+    log.verbose(this.#command, replaceInfo(args))
 
     const unicode = this.npm.config.get('unicode')
     const dryRun = this.npm.config.get('dry-run')
     const json = this.npm.config.get('json')
     const defaultTag = this.npm.config.get('tag')
     const ignoreScripts = this.npm.config.get('ignore-scripts')
+    const scriptShell = this.npm.config.get('script-shell') || undefined
     const { silent } = this.npm
 
     if (semver.validRange(defaultTag)) {
@@ -92,6 +103,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
     }
 
@@ -138,7 +150,6 @@ class Publish extends BaseCommand {
     const noCreds = !(creds.token || creds.username || creds.certfile && creds.keyfile)
     const outputRegistry = replaceInfo(registry)
 
-    // if a workspace package is marked private then we skip it
     if (workspace && manifest.private) {
       throw Object.assign(
         new Error(`This package has been marked as private
@@ -150,7 +161,7 @@ class Publish extends BaseCommand {
     if (noCreds) {
       const msg = `This command requires you to be logged in to ${outputRegistry}`
       if (dryRun) {
-        log.warn('', `${msg} (dry-run)`)
+        log.warn(this.#command, `${msg} (dry-run)`)
       } else {
         throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
       }
@@ -171,20 +182,36 @@ class Publish extends BaseCommand {
     }
 
     const access = opts.access === null ? 'default' : opts.access
-    let msg = `Publishing to ${outputRegistry} with tag ${defaultTag} and ${access} access`
+    const verb = this.isStage ? 'Staging' : 'Publishing'
+    let msg = `${verb} to ${outputRegistry} with tag ${defaultTag} and ${access} access`
     if (dryRun) {
       msg = `${msg} (dry-run)`
     }
 
     log.notice('', msg)
 
+    let stageId
     if (!dryRun) {
-      await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
+      if (this.isStage) {
+        // Stage intentionally bypasses otplease — 2FA is deferred to approve/reject
+        const res = await libpub(manifest, tarballData, {
+          ...opts,
+          command: this.#command,
+          stage: true,
+        })
+        stageId = res.stageId
+      } else {
+        await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
+      }
     }
 
     // In json mode we don't log until the publish has completed as this will add it to the output only if completes successfully
     if (json) {
-      logPkg()
+      if (stageId) {
+        pkgContents.stageId = stageId
+      }
+      logTar(pkgContents, {
+        unicode, json, key: pkgContents.name, redact: stageId ? false : undefined })
     }
 
     if (spec.type === 'directory' && !ignoreScripts) {
@@ -193,6 +220,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
 
       await runScript({
@@ -200,11 +228,20 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
     }
 
     if (!json && !silent) {
-      output.standard(`+ ${pkgContents.id}`)
+      if (this.isStage) {
+        const stagedMsg = stageId
+          ? `+ ${pkgContents.id} (staged with id ${stageId})`
+          : `+ ${pkgContents.id} (staged)`
+        output.standard(stagedMsg, { [META]: true, redact: false })
+        log.notice(this.#command, `package ${pkgContents.id} has been staged with tag ${defaultTag}`)
+      } else {
+        output.standard(`+ ${pkgContents.id}`)
+      }
     }
   }
 
@@ -245,8 +282,8 @@ class Publish extends BaseCommand {
       const changes = []
       const pkg = await pkgJson.fix(spec.fetchSpec, { changes })
       if (changes.length && logWarnings) {
-        log.warn('publish', 'npm auto-corrected some errors in your package.json when publishing.  Please run "npm pkg fix" to address these errors.')
-        log.warn('publish', `errors corrected:\n${changes.join('\n')}`)
+        log.warn(this.#command, 'npm auto-corrected some errors in your package.json when publishing.  Please run "npm pkg fix" to address these errors.')
+        log.warn(this.#command, `errors corrected:\n${changes.join('\n')}`)
       }
       // Prepare is the special function for publishing, different than normalize
       const { content } = await pkg.prepare()
@@ -254,7 +291,7 @@ class Publish extends BaseCommand {
     } else {
       manifest = await pacote.manifest(spec, {
         ...opts,
-        fullmetadata: true,
+        fullMetadata: true,
         fullReadJson: true,
       })
     }

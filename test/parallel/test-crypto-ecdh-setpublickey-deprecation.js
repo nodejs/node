@@ -13,7 +13,7 @@ common.expectWarning(
   'DeprecationWarning',
   'ecdh.setPublicKey() is deprecated.', 'DEP0031');
 
-const ec = crypto.createECDH('secp256k1');
+const ec = crypto.createECDH('prime256v1');
 try {
   // This will throw but we don't care about the error,
   // we just want to verify that the deprecation warning

@@ -1,131 +1,213 @@
-# Class: RoundRobinPool
+# RoundRobinPool
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v7.17.0-->
+<!--type=module-->
+<!-- source_link=lib/dispatcher/round-robin-pool.js -->
 
-A pool of [Client](/docs/docs/api/Client.md) instances connected to the same upstream target with round-robin client selection.
+> Stability: 2 - Stable
 
-Unlike [`Pool`](/docs/docs/api/Pool.md), which always selects the first available client, `RoundRobinPool` cycles through clients in a round-robin fashion. This ensures even distribution of requests across all connections, which is particularly useful when the upstream target is behind a load balancer that round-robins TCP connections across multiple backend servers (e.g., Kubernetes Services).
+A pool of [`Client`][] instances connected to the same upstream target that
+selects clients in a round-robin fashion.
 
-Requests are not guaranteed to be dispatched in order of invocation.
+Unlike [`Pool`][], which always reuses the first available client,
+`RoundRobinPool` cycles through its clients so that requests are distributed
+evenly across every open connection. This is useful when the upstream target is
+fronted by a load balancer that distributes TCP connections across multiple
+backend servers (for example, a Kubernetes Service): each connection is pinned
+to a backend by the load balancer, and `RoundRobinPool` spreads requests across
+those connections so every backend receives a comparable share of traffic.
 
-## `new RoundRobinPool(url[, options])`
+Requests are not guaranteed to be dispatched in the order they were invoked.
 
-Arguments:
+```mjs
+import { RoundRobinPool } from 'undici'
 
-* **url** `URL | string` - It should only include the **protocol, hostname, and port**.
-* **options** `RoundRobinPoolOptions` (optional)
+const pool = new RoundRobinPool('http://localhost:3000', { connections: 10 })
+```
 
-### Parameter: `RoundRobinPoolOptions`
+`RoundRobinPool` distributes HTTP requests evenly across TCP connections, not
+across backend servers directly. Even backend distribution therefore depends on
+the load balancer assigning different connections to different backends (for
+example, round-robin, random, or least-connections without client affinity). If
+the load balancer pins all connections from one source to the same backend (for
+example, source-IP affinity or sticky sessions), consider [`BalancedPool`][]
+with the individual backend addresses instead.
 
-Extends: [`ClientOptions`](/docs/docs/api/Client.md#parameter-clientoptions)
+## Class: `RoundRobinPool`
 
-* **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Client(origin, opts)`
-* **connections** `number | null` (optional) - Default: `null` - The number of `Client` instances to create. When set to `null`, the `RoundRobinPool` instance will create an unlimited amount of `Client` instances.
-* **clientTtl** `number | null` (optional) - Default: `null` - The amount of time before a `Client` instance is removed from the `RoundRobinPool` and closed. When set to `null`, `Client` instances will not be removed or closed based on age.
+<!-- YAML
+added: v7.17.0
+-->
 
-## Use Case
+* Extends: {Dispatcher}
 
-`RoundRobinPool` is designed for scenarios where:
+### `new RoundRobinPool(url[, options])`
 
-1. You connect to a single origin (e.g., `http://my-service.namespace.svc`)
-2. That origin is backed by a load balancer distributing TCP connections across multiple servers
-3. You want requests evenly distributed across all backend servers
+<!-- YAML
+added: v7.17.0
+-->
 
-**Example**: In Kubernetes, when using a Service DNS name with multiple Pod replicas, kube-proxy load balances TCP connections. `RoundRobinPool` ensures each connection (and thus each Pod) receives an equal share of requests.
+* `url` {URL|string} The upstream target. It should only include the
+  **protocol, hostname, and port**.
+* `options` {RoundRobinPoolOptions} (optional)
 
-### Important: Backend Distribution Considerations
+#### Parameter: `RoundRobinPoolOptions`
 
-`RoundRobinPool` distributes **HTTP requests** evenly across **TCP connections**. Whether this translates to even backend server distribution depends on the load balancer's behavior:
+Extends: {ClientOptions}
 
-**✓ Works when the load balancer**:
-- Assigns different backends to different TCP connections from the same client
-- Uses algorithms like: round-robin, random, least-connections (without client affinity)
-- Example: Default Kubernetes Services without `sessionAffinity`
+* `factory` {Function} A function used to create the underlying {Client}
+  instances. **Default:** `(origin, opts) => new Client(origin, opts)`.
+  * `origin` {URL}
+  * `opts` {Object}
+  * Returns: {Dispatcher}
+* `connections` {number|null} (optional) The maximum number of {Client}
+  instances to create. When set to `null`, the `RoundRobinPool` instance creates
+  an unlimited number of {Client} instances. **Default:** `null`.
+* `clientTtl` {number|null} (optional) The amount of time, in milliseconds,
+  before a {Client} instance is removed from the `RoundRobinPool` and closed.
+  When set to `null`, {Client} instances are not removed or closed based on age.
+  **Default:** `null`.
 
-**✗ Does NOT work when**:
-- Load balancer has client/source IP affinity (all connections from one IP → same backend)
-- Load balancer uses source-IP-hash or sticky sessions
+`RoundRobinPool` inherits all [`Client`][] options. A [`Client`][] instance is
+created lazily on the first dispatch and additional instances are created on
+demand, up to `connections`, when every existing client is busy.
 
-**How it works:**
-1. `RoundRobinPool` creates N TCP connections to the load balancer endpoint
-2. Load balancer assigns each TCP connection to a backend (per its algorithm)
-3. `RoundRobinPool` cycles HTTP requests across those N connections
-4. Result: Requests distributed proportionally to how the LB distributed the connections
+### `roundRobinPool.closed`
 
-If the load balancer assigns all connections to the same backend (e.g., due to session affinity), `RoundRobinPool` cannot overcome this. In such cases, consider using [`BalancedPool`](/docs/docs/api/BalancedPool.md) with direct backend addresses (e.g., individual pod IPs) instead of a load-balanced endpoint.
+<!-- YAML
+added: v7.17.0
+-->
 
-## Instance Properties
+* Type: {boolean}
 
-### `RoundRobinPool.closed`
+`true` after `roundRobinPool.close()` has been called.
 
-Implements [Client.closed](/docs/docs/api/Client.md#clientclosed)
+### `roundRobinPool.destroyed`
 
-### `RoundRobinPool.destroyed`
+<!-- YAML
+added: v7.17.0
+-->
 
-Implements [Client.destroyed](/docs/docs/api/Client.md#clientdestroyed)
+* Type: {boolean}
 
-### `RoundRobinPool.stats`
+`true` after `roundRobinPool.destroy()` has been called, or after
+`roundRobinPool.close()` has been called and the pool shutdown has completed.
 
-Returns [`PoolStats`](PoolStats.md) instance for this pool.
+### `roundRobinPool.stats`
 
-## Instance Methods
+<!-- YAML
+added: v7.17.0
+-->
 
-### `RoundRobinPool.close([callback])`
+* Type: {PoolStats}
 
-Implements [`Dispatcher.close([callback])`](/docs/docs/api/Dispatcher.md#dispatcherclosecallback-promise).
+Aggregate connection statistics for the pool. See [`PoolStats`][].
 
-### `RoundRobinPool.destroy([error, callback])`
+### `roundRobinPool.close([callback])`
 
-Implements [`Dispatcher.destroy([error, callback])`](/docs/docs/api/Dispatcher.md#dispatcherdestroyerror-callback-promise).
+<!-- YAML
+added: v7.17.0
+-->
 
-### `RoundRobinPool.connect(options[, callback])`
+Closes the pool and gracefully waits for enqueued requests to complete before
+resolving. Implements [`dispatcher.close([callback])`][].
 
-See [`Dispatcher.connect(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback).
+### `roundRobinPool.destroy([error[, callback]])`
 
-### `RoundRobinPool.dispatch(options, handler)`
+<!-- YAML
+added: v7.17.0
+-->
 
-Implements [`Dispatcher.dispatch(options, handler)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler).
+Destroys the pool abruptly. All pending and running requests are aborted with
+the given `error`. Implements [`dispatcher.destroy([error[, callback]])`][].
 
-### `RoundRobinPool.pipeline(options, handler)`
+### `roundRobinPool.connect(options[, callback])`
 
-See [`Dispatcher.pipeline(options, handler)`](/docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler).
+<!-- YAML
+added: v7.17.0
+-->
 
-### `RoundRobinPool.request(options[, callback])`
+Starts two-way communications with the requested resource using
+[HTTP CONNECT][]. See [`dispatcher.connect(options[, callback])`][].
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+### `roundRobinPool.dispatch(options, handler)`
 
-### `RoundRobinPool.stream(options, factory[, callback])`
+<!-- YAML
+added: v7.17.0
+-->
 
-See [`Dispatcher.stream(options, factory[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback).
+Dispatches a request through the next client selected in round-robin order.
+Implements [`dispatcher.dispatch(options, handler)`][].
 
-### `RoundRobinPool.upgrade(options[, callback])`
+### `roundRobinPool.pipeline(options, handler)`
 
-See [`Dispatcher.upgrade(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback).
+<!-- YAML
+added: v7.17.0
+-->
 
-## Instance Events
+For easy use with [`stream.pipeline`][]. See
+[`dispatcher.pipeline(options, handler)`][].
+
+### `roundRobinPool.request(options[, callback])`
+
+<!-- YAML
+added: v7.17.0
+-->
+
+Performs an HTTP request. See [`dispatcher.request(options[, callback])`][].
+
+### `roundRobinPool.stream(options, factory[, callback])`
+
+<!-- YAML
+added: v7.17.0
+-->
+
+A faster version of [`roundRobinPool.request()`][]. See
+[`dispatcher.stream(options, factory[, callback])`][].
+
+### `roundRobinPool.upgrade(options[, callback])`
+
+<!-- YAML
+added: v7.17.0
+-->
+
+Upgrades a connection to a different protocol. See
+[`dispatcher.upgrade(options[, callback])`][].
 
 ### Event: `'connect'`
 
-See [Dispatcher Event: `'connect'`](/docs/docs/api/Dispatcher.md#event-connect).
+<!-- YAML
+added: v7.17.0
+-->
+
+See [Dispatcher Event: `'connect'`][].
 
 ### Event: `'disconnect'`
 
-See [Dispatcher Event: `'disconnect'`](/docs/docs/api/Dispatcher.md#event-disconnect).
+<!-- YAML
+added: v7.17.0
+-->
+
+See [Dispatcher Event: `'disconnect'`][].
 
 ### Event: `'drain'`
 
-See [Dispatcher Event: `'drain'`](/docs/docs/api/Dispatcher.md#event-drain).
+<!-- YAML
+added: v7.17.0
+-->
+
+See [Dispatcher Event: `'drain'`][].
 
 ## Example
 
-```javascript
+```mjs
 import { RoundRobinPool } from 'undici'
 
-const pool = new RoundRobinPool('http://my-service.default.svc.cluster.local', {
+const pool = new RoundRobinPool('http://localhost:3000', {
   connections: 10
 })
 
-// Requests will be distributed evenly across all 10 connections
+// Requests are distributed evenly across all 10 connections.
 for (let i = 0; i < 100; i++) {
   const { body } = await pool.request({
     path: '/api/data',
@@ -137,9 +219,21 @@ for (let i = 0; i < 100; i++) {
 await pool.close()
 ```
 
-## See Also
-
-- [Pool](/docs/docs/api/Pool.md) - Connection pool without round-robin
-- [BalancedPool](/docs/docs/api/BalancedPool.md) - Load balancing across multiple origins
-- [Issue #3648](https://github.com/nodejs/undici/issues/3648) - Original issue describing uneven distribution
-
+[HTTP CONNECT]: https://developer.mozilla.org/docs/Web/HTTP/Methods/CONNECT
+[`BalancedPool`]: BalancedPool.md#class-balancedpool
+[`Client`]: Client.md#class-client
+[`Pool`]: Pool.md#class-pool
+[`PoolStats`]: PoolStats.md#class-poolstats
+[`dispatcher.close([callback])`]: Dispatcher.md#dispatcherclosecallback-promise
+[`dispatcher.connect(options[, callback])`]: Dispatcher.md#dispatcherconnectoptions-callback
+[`dispatcher.destroy([error[, callback]])`]: Dispatcher.md#dispatcherdestroyerror-callback-promise
+[`dispatcher.dispatch(options, handler)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`dispatcher.pipeline(options, handler)`]: Dispatcher.md#dispatcherpipelineoptions-handler
+[`dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`dispatcher.stream(options, factory[, callback])`]: Dispatcher.md#dispatcherstreamoptions-factory-callback
+[`dispatcher.upgrade(options[, callback])`]: Dispatcher.md#dispatcherupgradeoptions-callback
+[`roundRobinPool.request()`]: #roundrobinpoolrequestoptions-callback
+[`stream.pipeline`]: https://nodejs.org/api/stream.html#streampipelinesource-transforms-destination-callback
+[Dispatcher Event: `'connect'`]: Dispatcher.md#event-connect
+[Dispatcher Event: `'disconnect'`]: Dispatcher.md#event-disconnect
+[Dispatcher Event: `'drain'`]: Dispatcher.md#event-drain

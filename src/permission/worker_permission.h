@@ -15,6 +15,9 @@ class WorkerPermission final : public PermissionBase {
   void Apply(Environment* env,
              const std::vector<std::string>& allow,
              PermissionScope scope) override;
+  void Drop(Environment* env,
+            PermissionScope scope,
+            const std::string_view& param = "") override;
   bool is_granted(Environment* env,
                   PermissionScope perm,
                   const std::string_view& param = "") const override;

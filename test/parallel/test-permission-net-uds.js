@@ -9,11 +9,16 @@ if (common.isWindows) {
 }
 
 const assert = require('assert');
+const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
 
+const pipePath = (name) => `/tmp/node-test-${process.pid}-${name}.sock`;
+
+assert.strictEqual(process.permission.has('net'), false);
+
 {
-  const client = net.connect({ path: '/tmp/perm.sock' });
+  const client = net.connect({ path: pipePath('perm') });
   client.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));
@@ -22,7 +27,7 @@ const tls = require('tls');
 }
 
 {
-  const client = tls.connect({ path: '/tmp/perm.sock' });
+  const client = tls.connect({ path: pipePath('perm-tls') });
   client.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));
@@ -31,19 +36,25 @@ const tls = require('tls');
 }
 
 {
+  const path = pipePath('perm-server');
+  const server = net.createServer();
   assert.throws(() => {
-    net.createServer().listen('/tmp/perm-server.sock');
+    server.listen(path);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'Net',
   });
+  assert.strictEqual(fs.existsSync(path), false);
 }
 
 {
+  const path = pipePath('perm-tls-server');
+  const server = tls.createServer();
   assert.throws(() => {
-    tls.createServer().listen('/tmp/perm-tls-server.sock');
+    server.listen(path);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'Net',
   });
+  assert.strictEqual(fs.existsSync(path), false);
 }

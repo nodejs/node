@@ -62,6 +62,13 @@ A couple of options of note:
   containing a [DSSE](https://github.com/secure-systems-lab/dsse)-packaged
   provenance statement.
 
+* `opts.stage` - when `true`, publishes the package to a staging area instead
+  of making it immediately available. The registry response will include a
+  `stageId` (UUID) that can be used to approve or reject the staged version
+  later. Changes the request method to `POST` and the endpoint to
+  `/-/stage/package/<name>`. The returned Response object will have a
+  `stageId` property.
+
 #### <a name="publish"></a> `> libpub.publish(manifest, tarData, [opts]) -> Promise`
 
 Sends the package represented by the `manifest` and `tarData` to the

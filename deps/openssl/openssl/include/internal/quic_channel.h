@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -283,7 +283,6 @@ void ossl_quic_channel_on_new_conn_id(QUIC_CHANNEL *ch,
 
 /* Temporarily exposed during QUIC_PORT transition. */
 int ossl_quic_channel_on_new_conn(QUIC_CHANNEL *ch, const BIO_ADDR *peer,
-    const QUIC_CONN_ID *peer_scid,
     const QUIC_CONN_ID *peer_dcid);
 
 /* For use by QUIC_PORT. You should not need to call this directly. */
@@ -465,9 +464,11 @@ uint64_t ossl_quic_channel_get_max_idle_timeout_peer_request(const QUIC_CHANNEL 
 uint64_t ossl_quic_channel_get_max_idle_timeout_actual(const QUIC_CHANNEL *ch);
 
 int ossl_quic_bind_channel(QUIC_CHANNEL *ch, const BIO_ADDR *peer,
-    const QUIC_CONN_ID *scid, const QUIC_CONN_ID *dcid,
-    const QUIC_CONN_ID *odcid);
+    const QUIC_CONN_ID *dcid, const QUIC_CONN_ID *odcid);
 
+void ossl_ch_reset_rx_state(QUIC_CHANNEL *ch);
+uint64_t ossl_quic_channel_get_path_challenge_count(const QUIC_CHANNEL *ch);
+uint64_t ossl_quic_channel_get_path_response_count(const QUIC_CHANNEL *ch);
 #endif
 
 #endif

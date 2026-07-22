@@ -18,6 +18,12 @@ assert.strictEqual(getCipherInfo('cipher that does not exist'), undefined);
 
 for (const cipher of ciphers) {
   const info = getCipherInfo(cipher);
+  if (process.features.openssl_is_boringssl && !info) {
+    // BoringSSL reports some legacy ciphers in getCiphers() but returns no
+    // info for them (e.g. des-ede3, des-ede3-ecb, rc2-40-cbc).
+    common.printSkipMessage(`Skipping unsupported ${cipher} test case`);
+    continue;
+  }
   assert(info);
   const info2 = getCipherInfo(info.nid);
   assert.deepStrictEqual(info, info2);
@@ -65,10 +71,14 @@ assert(!getCipherInfo('aes-128-ccm', { ivLength: 14 }));
 if (!process.features.openssl_is_boringssl) {
   for (let n = 7; n <= 13; n++)
     assert(getCipherInfo('aes-128-ccm', { ivLength: n }));
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-ccm test cases');
 }
 
 assert(!getCipherInfo('aes-128-ocb', { ivLength: 16 }));
 if (!process.features.openssl_is_boringssl) {
   for (let n = 1; n < 16; n++)
     assert(getCipherInfo('aes-128-ocb', { ivLength: n }));
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-ocb test cases');
 }

@@ -437,6 +437,13 @@ int ossl_quic_stream_map_notify_totally_acked(QUIC_STREAM_MAP *qsm,
 
     case QUIC_SSTREAM_STATE_DATA_SENT:
         qs->send_state = QUIC_SSTREAM_STATE_DATA_RECVD;
+        /*
+         * Remember final size in case  SSL_get_stream_write_state()
+         * gets called.
+         */
+        qs->have_final_size = ossl_quic_sstream_get_final_size(qs->sstream,
+            NULL);
+
         /* We no longer need a QUIC_SSTREAM in this state. */
         ossl_quic_sstream_free(qs->sstream);
         qs->sstream = NULL;

@@ -322,7 +322,7 @@ async function testImportJwk(
         { name, namedCurve },
         extractable,
         publicUsages),
-      { message: 'JWK "crv" does not match the requested algorithm' });
+      { message: crv ? 'JWK "crv" does not match the requested algorithm' : 'Invalid keyData' });
 
     await assert.rejects(
       subtle.importKey(
@@ -331,7 +331,7 @@ async function testImportJwk(
         { name, namedCurve },
         extractable,
         privateUsages),
-      { message: 'JWK "crv" does not match the requested algorithm' });
+      { message: crv ? 'JWK "crv" does not match the requested algorithm' : 'Invalid keyData' });
   }
 
   await assert.rejects(

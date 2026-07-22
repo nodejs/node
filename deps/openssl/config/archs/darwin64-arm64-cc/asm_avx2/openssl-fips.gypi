@@ -355,6 +355,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'BSAES_ASM',
       'ECP_NISTZ256_ASM',
       'ECP_SM2P256_ASM',
@@ -377,7 +380,7 @@
       '-O3 -Wall',
     ],
     'openssl_ex_libs_darwin64-arm64-cc': [
-      '',
+      '-lm',
     ],
     'linker_script': ''
   },

@@ -1,0 +1,79 @@
+{
+  "file": "sub-range-values.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 10,
+          "column": 0
+        },
+        "name": null,
+        "kind": "global",
+        "isStackFrame": false,
+        "variables": [
+          "x",
+          "y"
+        ],
+        "children": []
+      }
+    }
+  ],
+  "ranges": [
+    {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 0,
+        "column": 10
+      },
+      "definitionIndex": 0,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [
+        [
+          {
+            "binding": "x_sub_val1",
+            "from": {
+              "line": 0,
+              "column": 0
+            }
+          },
+          {
+            "binding": null,
+            "from": {
+              "line": 0,
+              "column": 3
+            }
+          },
+          {
+            "binding": "x_sub_val2",
+            "from": {
+              "line": 0,
+              "column": 6
+            }
+          }
+        ],
+        [
+          {
+            "binding": "y_val",
+            "from": {
+              "line": 0,
+              "column": 0
+            }
+          }
+        ]
+      ],
+      "children": []
+    }
+  ]
+}

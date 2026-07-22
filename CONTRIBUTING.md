@@ -1,5 +1,10 @@
 # Contributing to Node.js
 
+> \[!TIP]
+> Contributing for the first time? Please read our
+> [Guide for First-Time Contributors](./doc/contributing/first-contributions.md) for tips
+> and answers to FAQs.
+
 Contributions to Node.js include code, documentation, answering user questions,
 running the project's infrastructure, and advocating for all types of Node.js
 users.
@@ -19,6 +24,7 @@ works.
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
+* [Automation and bots](#automation-and-bots)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## [Code of Conduct](./doc/contributing/code-of-conduct.md)
@@ -45,7 +51,20 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [Setting up your local environment](./doc/contributing/pull-requests.md#setting-up-your-local-environment)
 * [The Process of Making Changes](./doc/contributing/pull-requests.md#the-process-of-making-changes)
 * [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
+* [Large Pull Requests](./doc/contributing/large-pull-requests.md)
 * [Notes](./doc/contributing/pull-requests.md#notes)
+
+## Automation and bots
+
+An automation tool or bot that is not managed by the Node.js project
+must seek explicit authorization by opening an issue with their owner
+in [nodejs/admin](https://github.com/nodejs/admin) before interacting
+with the project.
+
+Interactions (including Issues, Comments, Pull Requests and Reviews) made
+by an automation that was not authorized by Node.js collaborators are
+subject to immediate moderation enforcement on the automation and owner
+without notice.
 
 ## Developer's Certificate of Origin 1.1
 

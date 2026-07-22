@@ -13,7 +13,10 @@ pub trait HostClock {
 
 /// The `HostTimeZone` trait defines the host's time zone.
 pub trait HostTimeZone {
-    fn get_host_time_zone(&self, provider: &impl TimeZoneProvider) -> TemporalResult<TimeZone>;
+    fn get_host_time_zone(
+        &self,
+        provider: &(impl TimeZoneProvider + ?Sized),
+    ) -> TemporalResult<TimeZone>;
 }
 
 /// `HostHooks` marks whether a trait implements the required host hooks with some
@@ -23,7 +26,10 @@ pub trait HostHooks: HostClock + HostTimeZone {
         self.get_host_epoch_nanoseconds()
     }
 
-    fn get_system_time_zone(&self, provider: &impl TimeZoneProvider) -> TemporalResult<TimeZone> {
+    fn get_system_time_zone(
+        &self,
+        provider: &(impl TimeZoneProvider + ?Sized),
+    ) -> TemporalResult<TimeZone> {
         self.get_host_time_zone(provider)
     }
 }
@@ -54,7 +60,7 @@ impl HostClock for EmptyHostSystem {
 }
 
 impl HostTimeZone for EmptyHostSystem {
-    fn get_host_time_zone(&self, _: &impl TimeZoneProvider) -> TemporalResult<TimeZone> {
+    fn get_host_time_zone(&self, _: &(impl TimeZoneProvider + ?Sized)) -> TemporalResult<TimeZone> {
         Ok(TimeZone::from(UtcOffset::default()))
     }
 }

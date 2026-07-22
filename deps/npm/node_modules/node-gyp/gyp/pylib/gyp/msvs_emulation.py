@@ -1174,7 +1174,7 @@ def GenerateEnvironmentFiles(
     meet your requirement (e.g. for custom toolchains), you can pass
     "-G ninja_use_custom_environment_files" to the gyp to suppress file
     generation and use custom environment files prepared by yourself."""
-    archs = ("x86", "x64")
+    archs = ("x86", "x64", "arm64")
     if generator_flags.get("ninja_use_custom_environment_files", 0):
         cl_paths = {}
         for arch in archs:

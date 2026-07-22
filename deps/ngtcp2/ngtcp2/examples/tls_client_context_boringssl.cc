@@ -25,7 +25,6 @@
 #include "tls_client_context_boringssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 
 #include <ngtcp2/ngtcp2_crypto_boringssl.h>
@@ -53,10 +52,10 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
 
   c->ticket_received();
 
-  auto f = BIO_new_file(config.session_file, "w");
+  auto f = BIO_new_file(config.session_file.c_str(), "w");
   if (f == nullptr) {
     std::println(stderr, "Could not write TLS session in {}",
-                 config.session_file);
+                 config.session_file.native());
     return 0;
   }
 
@@ -107,7 +106,7 @@ std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
     }
   }
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
     SSL_CTX_set_session_cache_mode(ssl_ctx_, SSL_SESS_CACHE_CLIENT |
                                                SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);

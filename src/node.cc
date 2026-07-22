@@ -50,6 +50,11 @@
 #if HAVE_OPENSSL
 #include "ncrypto.h"
 #include "node_crypto.h"
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
+// OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
+// non-deprecated OPENSSL_INIT settings API still accepts the flag value.
+#define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
+#endif
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -870,6 +875,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
+  std::string node_options_from_dotenv;
   auto env_files = node::Dotenv::GetDataFromArgs(*argv);
 
   if (!env_files.empty()) {
@@ -896,7 +902,8 @@ static ExitCode InitializeNodeWithArgsInternal(
       }
     }
 
-    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
+    per_process::dotenv_file.AssignNodeOptionsIfAvailable(
+        &node_options_from_dotenv);
   }
 
   std::string node_options_from_config;
@@ -932,8 +939,9 @@ static ExitCode InitializeNodeWithArgsInternal(
       errors->emplace_back("The number of NODE_OPTIONS doesn't match "
                            "the number of flags in the config file");
     }
-    node_options += node_options_from_config;
   }
+
+  node_options = node_options_from_config + node_options_from_dotenv;
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   bool should_parse_node_options =

@@ -2,59 +2,90 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! This module contains types and implementations for the Julian calendar.
-//!
-//! ```rust
-//! use icu::calendar::{cal::Julian, Date};
-//!
-//! let date_iso = Date::try_new_iso(1970, 1, 2)
-//!     .expect("Failed to initialize ISO Date instance.");
-//! let date_julian = Date::new_from_iso(date_iso, Julian);
-//!
-//! assert_eq!(date_julian.era_year().year, 1969);
-//! assert_eq!(date_julian.month().ordinal, 12);
-//! assert_eq!(date_julian.day_of_month().0, 20);
-//! ```
-
-use crate::cal::iso::{Iso, IsoDateInner};
-use crate::calendar_arithmetic::{ArithmeticDate, CalendarArithmetic};
-use crate::error::{year_check, DateError};
-use crate::{types, Calendar, Date, DateDuration, DateDurationUnit, RangeError};
+use crate::calendar_arithmetic::ArithmeticDate;
+use crate::calendar_arithmetic::DateFieldsResolver;
+use crate::error::{DateError, DateFromFieldsError, EcmaReferenceYearError, UnknownEraError};
+use crate::options::DateFromFieldsOptions;
+use crate::options::{DateAddOptions, DateDifferenceOptions};
+use crate::types::DateFields;
+use crate::{types, Calendar, Date, RangeError};
 use calendrical_calculations::helpers::I32CastError;
 use calendrical_calculations::rata_die::RataDie;
 use tinystr::tinystr;
 
-/// The [Julian Calendar]
+/// The [Julian Calendar](https://en.wikipedia.org/wiki/Julian_calendar).
 ///
-/// The [Julian calendar] is a solar calendar that was used commonly historically, with twelve months.
+/// The Julian calendar is a solar calendar that was introduced in the Roman Republic under
+/// Julius Caesar in 45 BCE, and used in Europe and much of the western world until it was
+/// eventually replaced by the more accurate [`Gregorian`](super::Gregorian) calendar.
 ///
-/// This type can be used with [`Date`] to represent dates in this calendar.
+/// This implementation extends proleptically for dates before the calendar's creation.
 ///
-/// [Julian calendar]: https://en.wikipedia.org/wiki/Julian_calendar
+/// While no country uses the Julian calendar as its civil calendar today, it is still
+/// used by eastern Christian churches to determine lithurgical dates like Christmas and
+/// Easter.
 ///
 /// # Era codes
 ///
 /// This calendar uses two era codes: `bce` (alias `bc`), and `ce` (alias `ad`), corresponding to the BCE and CE eras.
 ///
-/// # Month codes
+/// # Months and days
 ///
-/// This calendar supports 12 solar month codes (`"M01" - "M12"`)
+/// The 12 months are called January (`M01`, 31 days), February (`M02`, 28 days),
+/// March (`M03`, 31 days), April (`M04`, 30 days), May (`M05`, 31 days), June (`M06`, 30 days),
+/// July (`M07`, 31 days), August (`M08`, 31 days), September (`M09`, 30 days),
+/// October (`M10`, 31 days), November (`M11`, 30 days), December (`M12`, 31 days).
+///
+/// In leap years (years divisible by 4), February gains a 29th day.
+///
+/// Standard years thus have 365 days, and leap years 366.
+///
+/// # Calendar drift
+///
+/// The Julian calendar has an average year length of 365.25, slightly longer than
+/// the mean solar year, so this calendar drifts 1 day in ~128 years with
+/// respect to the seasons. This significant drift was the reason for its replacement
+/// by the Gregorian calendar. The Julian calendar is currently 14 days ahead of the
+/// Gregorian calendar and the solar year.
+///
+/// # Historical accuracy
+///
+/// Historically, a variety of year reckoning schemes have been used with the Julian
+/// calendar, such as Roman consular years, regnal years, [indictions](
+/// https://en.wikipedia.org/wiki/Indiction), [Anno Mundi](
+/// https://en.wikipedia.org/wiki/Anno_Mundi#Byzantine_era), the [Diocletian era](
+/// https://en.wikipedia.org/wiki/Era_of_the_Martyrs), [Anno Domini](
+/// https://en.wikipedia.org/wiki/Anno_Domini), and the (equivalent) [Common era](
+/// https://en.wikipedia.org/wiki/Common_Era).
+/// The latter, which is used today and by this implementation, has been used by
+/// western European authorities since the early middle ages, however some eastern
+/// European countries/churches have not adopted it until fairly recently, or, in
+/// some cases, are still using a different year reckoning scheme.
+///
+/// Also during the middle ages, [some countries](https://en.wikipedia.org/wiki/New_Year#Historical_European_new_year_dates)
+/// used different dates for the first day of the year, ranging from late December to
+/// late March. Care has to be taken when interpreting year numbers with dates in this
+/// range.
+///
+/// The calendar was used [incorrectly](https://en.wikipedia.org/wiki/Julian_calendar#Leap_year_error)
+/// for a while after adoption, so the first year where the months align with this proleptic
+/// implementation is probably 4 CE.
 #[derive(Copy, Clone, Debug, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 #[allow(clippy::exhaustive_structs)] // this type is stable
 pub struct Julian;
 
 /// The inner date type used for representing [`Date`]s of [`Julian`]. See [`Date`] and [`Julian`] for more details.
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 // The inner date type used for representing Date<Julian>
 pub struct JulianDateInner(pub(crate) ArithmeticDate<Julian>);
 
-impl CalendarArithmetic for Julian {
+impl DateFieldsResolver for Julian {
     type YearInfo = i32;
 
     fn days_in_provided_month(year: i32, month: u8) -> u8 {
         match month {
             4 | 6 | 9 | 11 => 30,
-            2 if Self::provided_year_is_leap(year) => 29,
+            2 if calendrical_calculations::julian::is_leap_year(year) => 29,
             2 => 28,
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
             _ => 0,
@@ -65,20 +96,41 @@ impl CalendarArithmetic for Julian {
         12
     }
 
-    fn provided_year_is_leap(year: i32) -> bool {
-        calendrical_calculations::julian::is_leap_year(year)
-    }
-
-    fn last_month_day_in_provided_year(_year: i32) -> (u8, u8) {
-        (12, 31)
-    }
-
-    fn days_in_provided_year(year: i32) -> u16 {
-        if Self::provided_year_is_leap(year) {
-            366
-        } else {
-            365
+    #[inline]
+    fn year_info_from_era(
+        &self,
+        era: &[u8],
+        era_year: i32,
+    ) -> Result<Self::YearInfo, UnknownEraError> {
+        match era {
+            b"ad" | b"ce" => Ok(era_year),
+            b"bc" | b"bce" => Ok(1 - era_year),
+            _ => Err(UnknownEraError),
         }
+    }
+
+    #[inline]
+    fn year_info_from_extended(&self, extended_year: i32) -> Self::YearInfo {
+        extended_year
+    }
+
+    #[inline]
+    fn reference_year_from_month_day(
+        &self,
+        month_code: types::ValidMonthCode,
+        day: u8,
+    ) -> Result<Self::YearInfo, EcmaReferenceYearError> {
+        let (ordinal_month, false) = month_code.to_tuple() else {
+            return Err(EcmaReferenceYearError::MonthCodeNotInCalendar);
+        };
+        // December 31, 1972 occurs on 12th month, 18th day, 1972 Old Style
+        // Note: 1972 is a leap year
+        let julian_year = if ordinal_month < 12 || (ordinal_month == 12 && day <= 18) {
+            1972
+        } else {
+            1971
+        };
+        Ok(julian_year)
     }
 }
 
@@ -86,6 +138,7 @@ impl crate::cal::scaffold::UnstableSealed for Julian {}
 impl Calendar for Julian {
     type DateInner = JulianDateInner;
     type Year = types::EraYear;
+    type DifferenceError = core::convert::Infallible;
 
     fn from_codes(
         &self,
@@ -94,20 +147,23 @@ impl Calendar for Julian {
         month_code: types::MonthCode,
         day: u8,
     ) -> Result<Self::DateInner, DateError> {
-        let year = match era {
-            Some("ce" | "ad") | None => year_check(year, 1..)?,
-            Some("bce" | "bc") => 1 - year_check(year, 1..)?,
-            Some(_) => return Err(DateError::UnknownEra),
-        };
+        ArithmeticDate::from_codes(era, year, month_code, day, self).map(JulianDateInner)
+    }
 
-        ArithmeticDate::new_from_codes(self, year, month_code, day).map(JulianDateInner)
+    #[cfg(feature = "unstable")]
+    fn from_fields(
+        &self,
+        fields: DateFields,
+        options: DateFromFieldsOptions,
+    ) -> Result<Self::DateInner, DateFromFieldsError> {
+        ArithmeticDate::from_fields(fields, options, self).map(JulianDateInner)
     }
 
     fn from_rata_die(&self, rd: RataDie) -> Self::DateInner {
         JulianDateInner(
             match calendrical_calculations::julian::julian_from_fixed(rd) {
-                Err(I32CastError::BelowMin) => ArithmeticDate::min_date(),
-                Err(I32CastError::AboveMax) => ArithmeticDate::max_date(),
+                Err(I32CastError::BelowMin) => ArithmeticDate::new_unchecked(i32::MIN, 1, 1),
+                Err(I32CastError::AboveMax) => ArithmeticDate::new_unchecked(i32::MAX, 12, 31),
                 Ok((year, month, day)) => ArithmeticDate::new_unchecked(year, month, day),
             },
         )
@@ -117,83 +173,90 @@ impl Calendar for Julian {
         calendrical_calculations::julian::fixed_from_julian(date.0.year, date.0.month, date.0.day)
     }
 
-    fn from_iso(&self, iso: IsoDateInner) -> JulianDateInner {
-        self.from_rata_die(Iso.to_rata_die(&iso))
-    }
-
-    fn to_iso(&self, date: &Self::DateInner) -> IsoDateInner {
-        Iso.from_rata_die(self.to_rata_die(date))
+    fn has_cheap_iso_conversion(&self) -> bool {
+        false
     }
 
     fn months_in_year(&self, date: &Self::DateInner) -> u8 {
-        date.0.months_in_year()
+        Self::months_in_provided_year(date.0.year)
     }
 
     fn days_in_year(&self, date: &Self::DateInner) -> u16 {
-        date.0.days_in_year()
+        if self.is_in_leap_year(date) {
+            366
+        } else {
+            365
+        }
     }
 
     fn days_in_month(&self, date: &Self::DateInner) -> u8 {
-        date.0.days_in_month()
+        Self::days_in_provided_month(date.0.year, date.0.month)
     }
 
-    fn offset_date(&self, date: &mut Self::DateInner, offset: DateDuration<Self>) {
-        date.0.offset_date(offset, &());
+    #[cfg(feature = "unstable")]
+    fn add(
+        &self,
+        date: &Self::DateInner,
+        duration: types::DateDuration,
+        options: DateAddOptions,
+    ) -> Result<Self::DateInner, DateError> {
+        date.0.added(duration, self, options).map(JulianDateInner)
     }
 
-    #[allow(clippy::field_reassign_with_default)]
+    #[cfg(feature = "unstable")]
     fn until(
         &self,
         date1: &Self::DateInner,
         date2: &Self::DateInner,
-        _calendar2: &Self,
-        _largest_unit: DateDurationUnit,
-        _smallest_unit: DateDurationUnit,
-    ) -> DateDuration<Self> {
-        date1.0.until(date2.0, _largest_unit, _smallest_unit)
+        options: DateDifferenceOptions,
+    ) -> Result<types::DateDuration, Self::DifferenceError> {
+        Ok(date1.0.until(&date2.0, self, options))
     }
 
     /// The calendar-specific year represented by `date`
     /// Julian has the same era scheme as Gregorian
     fn year_info(&self, date: &Self::DateInner) -> Self::Year {
-        let extended_year = self.extended_year(date);
+        let extended_year = date.0.year;
         if extended_year > 0 {
             types::EraYear {
                 era: tinystr!(16, "ce"),
                 era_index: Some(1),
                 year: extended_year,
+                extended_year,
                 ambiguity: types::YearAmbiguity::CenturyRequired,
             }
         } else {
             types::EraYear {
                 era: tinystr!(16, "bce"),
                 era_index: Some(0),
-                year: 1_i32.saturating_sub(extended_year),
+                year: 1 - extended_year,
+                extended_year,
                 ambiguity: types::YearAmbiguity::EraAndCenturyRequired,
             }
         }
     }
 
-    fn extended_year(&self, date: &Self::DateInner) -> i32 {
-        date.0.extended_year()
-    }
-
     fn is_in_leap_year(&self, date: &Self::DateInner) -> bool {
-        Self::provided_year_is_leap(date.0.year)
+        calendrical_calculations::julian::is_leap_year(date.0.year)
     }
 
     /// The calendar-specific month represented by `date`
     fn month(&self, date: &Self::DateInner) -> types::MonthInfo {
-        date.0.month()
+        types::MonthInfo::non_lunisolar(date.0.month)
     }
 
     /// The calendar-specific day-of-month represented by `date`
     fn day_of_month(&self, date: &Self::DateInner) -> types::DayOfMonth {
-        date.0.day_of_month()
+        types::DayOfMonth(date.0.day)
     }
 
     fn day_of_year(&self, date: &Self::DateInner) -> types::DayOfYear {
-        date.0.day_of_year()
+        types::DayOfYear(
+            (1..date.0.month)
+                .map(|m| Self::days_in_provided_month(date.0.year, m) as u16)
+                .sum::<u16>()
+                + date.0.day as u16,
+        )
     }
 
     fn debug_name(&self) -> &'static str {
@@ -209,6 +272,11 @@ impl Julian {
     /// Construct a new Julian Calendar
     pub fn new() -> Self {
         Self
+    }
+
+    /// Returns the date of (Orthodox) Easter in the given year.
+    pub fn easter(year: i32) -> Date<Self> {
+        Date::from_rata_die(calendrical_calculations::julian::easter(year), Self)
     }
 }
 
@@ -228,7 +296,7 @@ impl Date<Julian> {
     /// assert_eq!(date_julian.day_of_month().0, 20);
     /// ```
     pub fn try_new_julian(year: i32, month: u8, day: u8) -> Result<Date<Julian>, RangeError> {
-        ArithmeticDate::new_from_ordinals(year, month, day)
+        ArithmeticDate::try_from_ymd(year, month, day)
             .map(JulianDateInner)
             .map(|inner| Date::from_raw(inner, Julian))
     }
@@ -475,19 +543,10 @@ mod test {
     }
 
     #[test]
-    fn test_hebrew_epoch() {
-        assert_eq!(
-            calendrical_calculations::julian::fixed_from_julian_book_version(-3761, 10, 7),
-            RataDie::new(-1373427)
-        );
-    }
-
-    #[test]
     fn test_julian_leap_years() {
-        assert!(Julian::provided_year_is_leap(4));
-        assert!(Julian::provided_year_is_leap(0));
-        assert!(Julian::provided_year_is_leap(-4));
-
+        Date::try_new_julian(4, 2, 29).unwrap();
+        Date::try_new_julian(0, 2, 29).unwrap();
+        Date::try_new_julian(-4, 2, 29).unwrap();
         Date::try_new_julian(2020, 2, 29).unwrap();
     }
 }

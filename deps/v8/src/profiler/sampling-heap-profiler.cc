@@ -312,9 +312,10 @@ SamplingHeapProfiler::BuildSamples() const {
   samples.reserve(samples_.size());
   for (const auto& it : samples_) {
     const Sample* sample = it.second.get();
+    const bool is_live = !sample->global.IsEmpty();
     samples.emplace_back(v8::AllocationProfile::Sample{
         sample->owner->id_, sample->size, ScaleSample(sample->size, 1).count,
-        sample->sample_id});
+        sample->sample_id, is_live});
   }
   return samples;
 }

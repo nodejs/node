@@ -5,6 +5,11 @@ const assert = require('assert');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
+  return;
+}
+
 const https = require('https');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');

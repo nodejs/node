@@ -24,3 +24,19 @@ zlib.zstdCompress(input, { dictionary }, common.mustSucceed((compressed) => {
     assert.strictEqual(decompressed.toString(), input.toString());
   }));
 }));
+
+const baseline = zlib.zstdCompressSync(input, { dictionary }).length;
+
+const arrayBuffer = dictionary.buffer.slice(
+  dictionary.byteOffset, dictionary.byteOffset + dictionary.byteLength);
+const uint8 = new Uint8Array(arrayBuffer);
+const dataView = new DataView(arrayBuffer);
+
+for (const dict of [arrayBuffer, uint8, dataView]) {
+  assert.strictEqual(zlib.zstdCompressSync(input, { dictionary: dict }).length,
+                     baseline);
+
+  const compressed = zlib.zstdCompressSync(input, { dictionary: dict });
+  const decompressed = zlib.zstdDecompressSync(compressed, { dictionary: dict });
+  assert.strictEqual(decompressed.toString(), input.toString());
+}

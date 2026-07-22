@@ -7,6 +7,10 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { modp2buf } = require('../common/crypto');
 
+if (process.features.openssl_is_boringssl) {
+  common.skip('Skipping unsupported Diffie-Hellman tests');
+}
+
 const modp2 = crypto.createDiffieHellmanGroup('modp2');
 
 const views = common.getArrayBufferViews(modp2buf);

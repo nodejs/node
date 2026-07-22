@@ -257,6 +257,17 @@ t.test('single node - from git url', t => {
   t.end()
 })
 
+t.test('git url with special chars is encoded into the vcs_url qualifier', t => {
+  const node = { ...root, type: 'git', resolved: 'https://github.com/foo/bar.git?a=b&c=d#1234' }
+  const res = cyclonedxOutput({ npm, nodes: [node] })
+  const { purl } = res.metadata.component
+  // everything after vcs_url= must be a single percent-encoded value, so the
+  // committish/query can't leak out as an extra purl qualifier or subpath
+  t.equal(purl, 'pkg:npm/root@1.0.0?vcs_url=https%3A%2F%2Fgithub.com%2Ffoo%2Fbar.git%3Fa%3Db%26c%3Dd%231234')
+  t.notMatch(purl.split('vcs_url=')[1], /[#&]/)
+  t.end()
+})
+
 t.test('single node - no package info', t => {
   const node = { ...root, package: undefined }
   const res = cyclonedxOutput({ npm, nodes: [node] })
@@ -287,6 +298,25 @@ t.test('node - with duplicate deps', t => {
     ],
   }
   const res = cyclonedxOutput({ npm, nodes: [node, dep1, dep1] })
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
+t.test('node - with duplicate edges to same dep', t => {
+  // A node can have multiple outgoing edges resolving to the same
+  // `name@version` (e.g. a direct `dep1: ^1` plus an alias
+  // `dep1-aliased: npm:dep1@^1`). The resulting `dependsOn` array must
+  // still contain each ref at most once, since CycloneDX 1.5 requires
+  // unique items.
+  const node = {
+    ...root,
+    edgesOut: [
+      { to: dep1 },
+      { to: dep1 },
+    ],
+  }
+  const res = cyclonedxOutput({ npm, nodes: [node, dep1] })
+  t.same(res.dependencies[0].dependsOn, ['dep1@0.0.1'])
   t.matchSnapshot(JSON.stringify(res))
   t.end()
 })

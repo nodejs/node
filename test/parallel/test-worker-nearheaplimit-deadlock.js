@@ -1,7 +1,9 @@
-// Flags: --no-node-snapshot
+// Flags: --no-node-snapshot --no-maglev
 // With node snapshot the OOM can occur during the deserialization of the
 // context, so disable it since we want the OOM to occur during the creation of
 // the message port.
+// With Maglev, the OOM can occur during compilation instead, so disable it for
+// the same reason.
 'use strict';
 const common = require('../common');
 const assert = require('assert');

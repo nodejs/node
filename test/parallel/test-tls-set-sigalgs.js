@@ -39,9 +39,14 @@ function test(csigalgs, ssigalgs, shared_sigalgs, cerr, serr) {
       assert.ifError(pair.client.err);
       assert(pair.server.conn);
       assert(pair.client.conn);
+      // BoringSSL's OpenSSL-compatible SSL_get_shared_sigalgs() API always
+      // returns zero, so a successful handshake still reports an empty list.
+      const expectedSharedSigalgs = process.features.openssl_is_boringssl ?
+        [] :
+        shared_sigalgs;
       assert.deepStrictEqual(
         pair.server.conn.getSharedSigalgs(),
-        shared_sigalgs
+        expectedSharedSigalgs
       );
     } else {
       if (serr) {
@@ -69,10 +74,13 @@ test('RSA-PSS+SHA256:RSA-PSS+SHA512:ECDSA+SHA256',
 const handshakeErr = hasOpenSSL(4, 0) ?
   'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
     'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
+const noSharedSigalgsErr = process.features.openssl_is_boringssl ?
+  'ERR_SSL_NO_COMMON_SIGNATURE_ALGORITHMS' :
+  'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS';
 test('RSA-PSS+SHA384', 'ECDSA+SHA256',
      undefined, handshakeErr,
-     'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS');
+     noSharedSigalgsErr);
 
 test('RSA-PSS+SHA384:ECDSA+SHA256', 'ECDSA+SHA384:RSA-PSS+SHA256',
      undefined, handshakeErr,
-     'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS');
+     noSharedSigalgsErr);

@@ -10,6 +10,10 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+#include <vector>
+#endif
+
 namespace node {
 namespace crypto {
 // A maxVersion of 0 means "any", but OpenSSL may support TLS versions that
@@ -46,6 +50,27 @@ class SecureContext final : public BaseObject {
   // Non-const ctx() that allows for non-default initialization of
   // the SecureContext.
   ncrypto::SSLCtxPointer& ctx() { return ctx_; }
+
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  bool HasCertCompression() const {
+    return cert_comp_prefs_len_ > 0;
+  }
+  int* CertCompPrefs() {
+    return cert_comp_prefs_;
+  }
+  size_t CertCompPrefsLen() const {
+    return cert_comp_prefs_len_;
+  }
+
+  struct CompressedCertData {
+    int algorithm;
+    std::vector<unsigned char> data;
+    size_t orig_length;
+  };
+  const std::vector<CompressedCertData>& CompressedCerts() const {
+    return compressed_certs_;
+  }
+#endif
 
   ncrypto::SSLPointer CreateSSL();
 
@@ -106,6 +131,10 @@ class SecureContext final : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionTimeout(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCertificateCompression(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCertificateCompressionAlgorithms(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMinProto(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMaxProto(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMinProto(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -129,14 +158,22 @@ class SecureContext final : public BaseObject {
                                unsigned char* name,
                                unsigned char* iv,
                                EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                               EVP_MAC_CTX* hctx,
+#else
                                HMAC_CTX* hctx,
+#endif
                                int enc);
 
   static int TicketCompatibilityCallback(SSL* ssl,
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                         EVP_MAC_CTX* hctx,
+#else
                                          HMAC_CTX* hctx,
+#endif
                                          int enc);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap);
@@ -156,6 +193,12 @@ class SecureContext final : public BaseObject {
   unsigned char ticket_key_name_[16];
   unsigned char ticket_key_aes_[16];
   unsigned char ticket_key_hmac_[16];
+
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  int cert_comp_prefs_[TLSEXT_comp_cert_limit] = {};
+  size_t cert_comp_prefs_len_ = 0;
+  std::vector<CompressedCertData> compressed_certs_;
+#endif
 };
 
 int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,

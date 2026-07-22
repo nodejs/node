@@ -15,10 +15,60 @@
 #include "bindingdata.h"
 #include "data.h"
 
+#include <vector>
+
 namespace node::quic {
 
 class Session;
 class Stream;
+
+// An elastic ring buffer used by Stream to coalesce received data before
+// flushing it into the DataQueue. This avoids creating many small V8
+// BackingStore allocations from per-QUIC-frame ngtcp2 callbacks. Data is
+// memcpy'd into the ring buffer and flushed as a single right-sized
+// BackingStore when the reader pulls or the buffer reaches its flush
+// threshold. The buffer starts at kMinCapacity and can grow up to a
+// configured maximum (typically the stream flow control window).
+class RecvAccumulator final {
+ public:
+  static constexpr size_t kMinCapacity = 64 * 1024;        // 64 KB
+  static constexpr size_t kFlushThreshold = kMinCapacity;  // flush at 64 KB
+
+  explicit RecvAccumulator(size_t max_capacity);
+  ~RecvAccumulator() = default;
+
+  DISALLOW_COPY_AND_MOVE(RecvAccumulator)
+
+  // Append data. Returns the number of bytes written (may be less than
+  // len if the buffer is full). The caller should flush and retry with
+  // the remaining bytes.
+  size_t Write(const uint8_t* data, size_t len);
+
+  // Flush accumulated data as a single DataQueue entry backed by a
+  // right-sized V8 BackingStore. Returns nullptr if nothing is
+  // accumulated. Resets the read/write cursors and shrinks the buffer
+  // back toward kMinCapacity if it was expanded.
+  std::unique_ptr<DataQueue::Entry> Flush(Environment* env);
+
+  // Current number of bytes awaiting flush.
+  size_t available() const { return len_; }
+
+  // Number of bytes that can still be written before the buffer is full.
+  size_t remaining() const { return buf_.size() - len_; }
+
+  // True if accumulated data has reached the flush threshold.
+  bool should_flush() const { return len_ >= kFlushThreshold; }
+
+  // Grow the buffer capacity (doubles, up to max_capacity_).
+  void Grow();
+
+ private:
+  std::vector<uint8_t> buf_;
+  size_t max_capacity_;
+  size_t read_pos_ = 0;
+  size_t write_pos_ = 0;
+  size_t len_ = 0;  // write_pos_ - read_pos_, accounting for wrap
+};
 
 using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 
@@ -208,9 +258,17 @@ class Stream final : public AsyncWrap,
 
   Session& session() const;
 
+  // Returns the most recent activity timestamp for this stream in
+  // nanoseconds (uv_hrtime). Uses received_at if data has been received,
+  // otherwise falls back to created_at. Returns 0 if neither is set.
+  uint64_t last_activity_timestamp() const;
+
   // True if this stream was created in a pending state and is still waiting
   // to be created.
   bool is_pending() const;
+
+  // True if the stream is already destroyed.
+  bool is_destroyed() const;
 
   // True if we've completely sent all outbound data for this stream.
   // Importantly, this does not necessarily mean that we are completely
@@ -218,11 +276,26 @@ class Stream final : public AsyncWrap,
   // data to be acknowledged by the remote peer.
   bool is_eos() const;
 
+  // True if the stream wants to send trailing headers after the body.
+  bool wants_trailers() const;
+
+  // Marks this stream as having received 0-RTT early data.
+  void set_early();
+
   // True if this stream is still in a readable state.
   bool is_readable() const;
 
   // True if this stream is still in a writable state.
   bool is_writable() const;
+
+  // True if an outbound data source has been configured.
+  bool has_outbound() const;
+
+  // True if a Blob::Reader has been created for the inbound data.
+  bool has_reader() const;
+
+  // Returns the Blob::Reader for the inbound data, or nullptr.
+  Blob::Reader* reader() const;
 
   // Called by the session/application to indicate that the specified number
   // of bytes have been acknowledged by the peer.
@@ -238,6 +311,7 @@ class Stream final : public AsyncWrap,
   void EndWritable();
   void EndReadable(std::optional<uint64_t> maybe_final_size = std::nullopt);
   void EntryRead(size_t amount) override;
+  void BeforePull() override;
 
   // Pulls data from the internal outbound DataQueue configured for this stream.
   // This is called by the session/application when it is preparing to send
@@ -270,6 +344,17 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
+  // Sends a reset stream to the peer to tell it we will not be sending any
+  // more data for this stream. This has the effect of shutting down the
+  // writable side of the stream for this peer. Any data that is held in the
+  // outbound queue will be dropped. The stream may still be readable.
+  void DoStreamReset(error_code code);
+
+  // Tells the peer to stop sending data for this stream. This has the effect
+  // of shutting down the readable side of the stream for this peer. Any data
+  // that has already been received is still readable.
+  void SendStopSending(error_code code);
+
   // Currently, only HTTP/3 streams support headers. These methods are here
   // to support that. They are not used when using any other QUIC application.
 
@@ -278,7 +363,7 @@ class Stream final : public AsyncWrap,
   // Returns false if the header cannot be added. This will typically happen
   // if the application does not support headers, a maximum number of headers
   // have already been added, or the maximum total header length is reached.
-  bool AddHeader(const Header& header);
+  bool AddHeader(std::unique_ptr<Header> header);
 
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
   // reader_, headers_, and pending_headers_queue_.
@@ -289,11 +374,26 @@ class Stream final : public AsyncWrap,
   struct State;
   struct Stats;
 
+  // Typed accessors for arena-allocated state/stats. These are defined
+  // in streams.cc where State and Stats are complete types.
+  inline State* state() { return static_cast<State*>(state_slot_.ptr); }
+  inline const State* state() const {
+    return static_cast<const State*>(state_slot_.ptr);
+  }
+  inline Stats* stats() { return static_cast<Stats*>(stats_slot_.ptr); }
+  inline const Stats* stats() const {
+    return static_cast<const Stats*>(stats_slot_.ptr);
+  }
+
  private:
   struct Impl;
   struct PendingHeaders;
 
   class Outbound;
+
+  // Flushes any data accumulated in the receive ring buffer into the
+  // inbound DataQueue as a single right-sized entry.
+  void FlushAccumulation();
 
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
@@ -326,6 +426,14 @@ class Stream final : public AsyncWrap,
   // blocked because of flow control restriction.
   void EmitBlocked();
 
+  // Notifies the JavaScript side that the outbound buffer has capacity
+  // for more data. Fires when write_desired_size transitions from 0 to > 0.
+  void EmitDrain();
+
+  // Updates the write_desired_size state field based on current flow control
+  // and outbound buffer state. Emits drain if transitioning from 0 to > 0.
+  void UpdateWriteDesiredSize();
+
   // Delivers the set of inbound headers that have been collected.
   void EmitHeaders();
 
@@ -339,12 +447,13 @@ class Stream final : public AsyncWrap,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
 
-  AliasedStruct<Stats> stats_;
-  AliasedStruct<State> state_;
+  ArenaSlotBase stats_slot_;
+  ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Session> session_;
   std::unique_ptr<Outbound> outbound_;
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
+  std::unique_ptr<RecvAccumulator> recv_accumulator_;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream
@@ -355,16 +464,21 @@ class Stream final : public AsyncWrap,
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 
-  struct PendingPriority {
-    StreamPriority priority;
-    StreamPriorityFlags flags;
+  struct StoredPriority {
+    StreamPriority priority = StreamPriority::DEFAULT;
+    StreamPriorityFlags flags = StreamPriorityFlags::NON_INCREMENTAL;
+    bool pending = false;
   };
-  std::optional<PendingPriority> pending_priority_ = std::nullopt;
+  StoredPriority priority_;
+
+  const StoredPriority& stored_priority() const { return priority_; }
 
   // The headers_ field holds a block of headers that have been received and
-  // are being buffered for delivery to the JavaScript side.
-  // TODO(@jasnell): Use v8::Global instead of v8::Local here.
-  v8::LocalVector<v8::Value> headers_;
+  // are being buffered for delivery to the JavaScript side. Headers are
+  // stored as C++ objects during collection (AddHeader) and converted to
+  // V8 strings only when emitted (EmitHeaders), avoiding StrongRootAllocator
+  // mutex contention on the per-header hot path.
+  std::vector<std::unique_ptr<Header>> headers_;
 
   // The headers_kind_ field indicates the kind of headers that are being
   // buffered.
@@ -393,6 +507,7 @@ class Stream final : public AsyncWrap,
   using Queue = ListHead<Stream, &Stream::stream_queue_>;
 
   void Schedule(Queue* queue);
+  void Unschedule();
 };
 
 }  // namespace node::quic

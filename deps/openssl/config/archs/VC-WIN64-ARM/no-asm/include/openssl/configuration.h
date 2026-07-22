@@ -43,14 +43,8 @@ extern "C" {
 # ifndef OPENSSL_NO_ASM
 #  define OPENSSL_NO_ASM
 # endif
-# ifndef OPENSSL_NO_BROTLI
-#  define OPENSSL_NO_BROTLI
-# endif
 # ifndef OPENSSL_NO_BROTLI_DYNAMIC
 #  define OPENSSL_NO_BROTLI_DYNAMIC
-# endif
-# ifndef OPENSSL_NO_COMP
-#  define OPENSSL_NO_COMP
 # endif
 # ifndef OPENSSL_NO_CRYPTO_MDEBUG
 #  define OPENSSL_NO_CRYPTO_MDEBUG
@@ -121,6 +115,9 @@ extern "C" {
 # ifndef OPENSSL_NO_SSLKEYLOG
 #  define OPENSSL_NO_SSLKEYLOG
 # endif
+# ifndef OPENSSL_NO_TESTS
+#  define OPENSSL_NO_TESTS
+# endif
 # ifndef OPENSSL_NO_TFO
 #  define OPENSSL_NO_TFO
 # endif
@@ -139,14 +136,8 @@ extern "C" {
 # ifndef OPENSSL_NO_WEAK_SSL_CIPHERS
 #  define OPENSSL_NO_WEAK_SSL_CIPHERS
 # endif
-# ifndef OPENSSL_NO_ZLIB
-#  define OPENSSL_NO_ZLIB
-# endif
 # ifndef OPENSSL_NO_ZLIB_DYNAMIC
 #  define OPENSSL_NO_ZLIB_DYNAMIC
-# endif
-# ifndef OPENSSL_NO_ZSTD
-#  define OPENSSL_NO_ZSTD
 # endif
 # ifndef OPENSSL_NO_ZSTD_DYNAMIC
 #  define OPENSSL_NO_ZSTD_DYNAMIC

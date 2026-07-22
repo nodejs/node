@@ -30,7 +30,9 @@ declare namespace SnapshotRecorder {
     ignoreHeaders?: string[]
     excludeHeaders?: string[]
     matchBody?: boolean
+    normalizeBody?: (body: string | Buffer | null | undefined) => string
     matchQuery?: boolean
+    normalizeQuery?: (query: URLSearchParams) => string
     caseSensitive?: boolean
     shouldRecord?: (requestOpts: any) => boolean
     shouldPlayback?: (requestOpts: any) => boolean
@@ -98,7 +100,9 @@ declare namespace SnapshotAgent {
     ignoreHeaders?: string[]
     excludeHeaders?: string[]
     matchBody?: boolean
+    normalizeBody?: (body: string | Buffer | null | undefined) => string
     matchQuery?: boolean
+    normalizeQuery?: (query: URLSearchParams) => string
     caseSensitive?: boolean
     shouldRecord?: (requestOpts: any) => boolean
     shouldPlayback?: (requestOpts: any) => boolean

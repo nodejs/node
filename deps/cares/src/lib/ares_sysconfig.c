@@ -218,13 +218,16 @@ static ares_status_t ares_init_sysconfig_android(const ares_channel_t *channel,
       status = ares_sconfig_append_fromstr(channel, &sysconfig->sconfig,
                                            dns_servers[i], ARES_TRUE);
       if (status != ARES_SUCCESS) {
-        return status;
+        break;
       }
     }
     for (i = 0; i < num_servers; i++) {
       ares_free(dns_servers[i]);
     }
     ares_free(dns_servers);
+    if (status != ARES_SUCCESS) {
+      return status;
+    }
   }
 
   domains            = ares_get_android_search_domains_list();
@@ -273,7 +276,7 @@ static ares_status_t
    *   3. if confstr(_CS_DOMAIN, ...) this is the domain name.  Use this as
    *      preference over anything else found.
    */
-  ares_buf_t    *buf                = ares_buf_create();
+  ares_buf_t    *buf                = NULL;
   unsigned char *data               = NULL;
   size_t         data_size          = 0;
   ares_bool_t    process_resolvconf = ARES_TRUE;
@@ -330,7 +333,7 @@ static ares_status_t
     char   domain[256];
     size_t domain_len;
 
-    domain_len = confstr(_CS_DOMAIN, domain, sizeof(domain_len));
+    domain_len = confstr(_CS_DOMAIN, domain, sizeof(domain));
     if (domain_len != 0) {
       ares_strsplit_free(sysconfig->domains, sysconfig->ndomains);
       sysconfig->domains = ares_strsplit(domain, ", ", &sysconfig->ndomains);

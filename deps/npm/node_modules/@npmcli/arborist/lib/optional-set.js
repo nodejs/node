@@ -26,7 +26,7 @@ const optionalSet = node => {
 
   // now that we've hit the boundary, gather the rest of the nodes in
   // the optional section that don't have dependents outside the set.
-  return gatherDepSet(set, edge => !set.has(edge.to))
+  return gatherDepSet(set, edge => !set.has(edge.to) && !edge.from?.inert)
 }
 
 module.exports = optionalSet

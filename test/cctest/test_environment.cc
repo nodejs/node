@@ -401,6 +401,69 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
   EXPECT_EQ(called_unref, 0);
 }
 
+TEST_F(EnvironmentTest, RunAndClearNativeImmediatesSkipsEmptyScope) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+  v8::Local<v8::Context> context = env.context();
+
+  using IntVec = std::vector<int>;
+  IntVec callback_calls;
+  v8::Local<v8::Function> must_call =
+      v8::Function::New(
+          context,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            IntVec* callback_calls =
+                static_cast<IntVec*>(info.Data().As<v8::External>()->Value(
+                    v8::kExternalPointerTypeTagDefault));
+            callback_calls->push_back(info[0].As<v8::Int32>()->Value());
+          },
+          v8::External::New(isolate_,
+                            static_cast<void*>(&callback_calls),
+                            v8::kExternalPointerTypeTagDefault))
+          .ToLocalChecked();
+  context->Global()
+      ->Set(context,
+            v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
+            must_call)
+      .Check();
+
+  v8::Local<v8::Function> eval_in_env =
+      node::LoadEnvironment(*env, "return eval;")
+          .ToLocalChecked()
+          .As<v8::Function>();
+
+  v8::Local<v8::Value> queue_microtask = v8::String::NewFromUtf8Literal(
+      isolate_, "Promise.resolve().then(() => mustCall(1));");
+  eval_in_env->Call(context, v8::Null(isolate_), 1, &queue_microtask)
+      .ToLocalChecked();
+  EXPECT_TRUE(callback_calls.empty());
+  (*env)->RunAndClearNativeImmediates();
+  EXPECT_TRUE(callback_calls.empty());
+
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  EXPECT_EQ(callback_calls, (IntVec{1}));
+  callback_calls.clear();
+
+  queue_microtask = v8::String::NewFromUtf8Literal(
+      isolate_, "Promise.resolve().then(() => mustCall(2));");
+  eval_in_env->Call(context, v8::Null(isolate_), 1, &queue_microtask)
+      .ToLocalChecked();
+  EXPECT_TRUE(callback_calls.empty());
+
+  bool native_immediate_called = false;
+  (*env)->SetImmediate(
+      [&](node::Environment* env_arg) {
+        EXPECT_EQ(env_arg, *env);
+        native_immediate_called = true;
+      },
+      node::CallbackFlags::kRefed);
+
+  (*env)->RunAndClearNativeImmediates();
+  EXPECT_TRUE(native_immediate_called);
+  EXPECT_EQ(callback_calls, (IntVec{2}));
+}
+
 static char hello[] = "hello";
 
 TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {

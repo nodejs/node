@@ -1,40 +1,77 @@
-# Class: MockAgent
+# MockAgent
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v4.0.0-->
+<!--type=module-->
+<!-- source_link=lib/mock/mock-agent.js -->
 
-A mocked Agent class that implements the Agent API. It allows one to intercept HTTP requests made through undici and return mocked responses instead.
+> Stability: 2 - Stable
 
-## `new MockAgent([options])`
+A `MockAgent` is a {Dispatcher} that intercepts HTTP requests made through
+undici and replies with programmed mock responses instead of contacting the
+network. It is useful for testing code that performs HTTP requests without
+relying on a live server.
 
-Arguments:
+A `MockAgent` does not intercept requests on its own. Mock responses are
+registered on the {MockClient} or {MockPool} instances returned by
+[`mockAgent.get(origin)`][], and requests are routed through them once the
+`MockAgent` is set as the dispatcher (for example through
+[`setGlobalDispatcher()`][] or a per-request `dispatcher` option).
 
-* **options** `MockAgentOptions` (optional) - It extends the `Agent` options.
-
-Returns: `MockAgent`
-
-### Parameter: `MockAgentOptions`
-
-Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
-
-* **agent** `Agent` (optional) - Default: `new Agent([options])` - a custom agent encapsulated by the MockAgent.
-
-* **ignoreTrailingSlash** `boolean` (optional) - Default: `false` - set the default value for `ignoreTrailingSlash` for interceptors.
-
-* **acceptNonStandardSearchParameters** `boolean` (optional) - Default: `false` - set to `true` if the matcher should also accept non standard search parameters such as multi-value items specified with `[]` (e.g. `param[]=1&param[]=2&param[]=3`) and multi-value items which values are comma separated (e.g. `param=1,2,3`).
-
-### Example - Basic MockAgent instantiation
-
-This will instantiate the MockAgent. It will not do anything until registered as the agent to use with requests and mock interceptions are added.
-
-```js
+```mjs
 import { MockAgent } from 'undici'
 
 const mockAgent = new MockAgent()
 ```
 
-### Example - Basic MockAgent instantiation with custom agent
+## Class: `MockAgent`
 
-```js
+<!-- YAML
+added: v4.0.0
+-->
+
+* Extends: {Dispatcher}
+
+Intercepts HTTP requests made through undici and returns mocked responses.
+
+### `new MockAgent([options])`
+
+<!-- YAML
+added: v4.0.0
+changes:
+  - version: v7.16.0
+    pr-url: https://github.com/nodejs/undici/pull/4479
+    description: Mock options are always normalized to an object internally.
+-->
+
+* `options` {MockAgentOptions} (optional)
+* Returns: {MockAgent}
+
+When instantiated, a `MockAgent` is automatically activated. It does not
+intercept any request until mock interceptors are registered on the dispatchers
+returned by [`mockAgent.get(origin)`][].
+
+#### Parameter: `MockAgentOptions`
+
+* Extends: {AgentOptions}
+* `agent` {Dispatcher} (optional) A custom agent to be encapsulated by the
+  `MockAgent`. It must implement the `Agent` API (that is, expose a `dispatch`
+  function). **Default:** a new {Agent} constructed from `options`.
+* `ignoreTrailingSlash` {boolean} (optional) Whether trailing slashes in the
+  request path are ignored when matching interceptors. **Default:** `false`.
+* `acceptNonStandardSearchParameters` {boolean} (optional) Whether the matcher
+  also accepts URLs using non-standard search-parameter syntaxes, such as
+  multi-value items written with `[]` (for example `param[]=1&param[]=2`) or
+  comma-separated values (for example `param=1,2,3`). **Default:** `false`.
+* `enableCallHistory` {boolean} (optional) Whether call history recording is
+  enabled. See [`mockAgent.getCallHistory()`][]. **Default:** `false`.
+
+```mjs displayName="Basic instantiation"
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent()
+```
+
+```mjs displayName="Instantiation with a custom agent"
 import { Agent, MockAgent } from 'undici'
 
 const agent = new Agent()
@@ -42,34 +79,30 @@ const agent = new Agent()
 const mockAgent = new MockAgent({ agent })
 ```
 
-## Instance Methods
+### `mockAgent.get(origin)`
 
-### `MockAgent.get(origin)`
+<!-- YAML
+added: v4.0.0
+-->
 
-This method creates and retrieves MockPool or MockClient instances which can then be used to intercept HTTP requests. If the number of connections on the mock agent is set to 1, a MockClient instance is returned. Otherwise a MockPool instance is returned.
+* `origin` {string|RegExp|Function} A matcher for the origin to retrieve. The
+  function form has the signature `(origin) => boolean`.
+* Returns: {MockClient|MockPool}
 
-For subsequent `MockAgent.get` calls on the same origin, the same mock instance will be returned.
+Creates and retrieves the mock dispatcher used to intercept requests for the
+given origin. When the `connections` option of the `MockAgent` is `1`, a
+{MockClient} is returned; otherwise a {MockPool} is returned. Subsequent calls
+with the same origin return the same instance.
 
-Arguments:
+The way `origin` is matched against incoming requests depends on its type:
 
-* **origin** `string | RegExp | (value) => boolean` - a matcher for the pool origin to be retrieved from the MockAgent.
+| Matcher type | Condition to pass            |
+| :----------: | ---------------------------- |
+| `string`     | Exact match against the value |
+| `RegExp`     | The regular expression matches |
+| `Function`   | The function returns `true`  |
 
-| Matcher type | Condition to pass          |
-|:------------:| -------------------------- |
-| `string`     | Exact match against string |
-| `RegExp`     | Regex must pass            |
-| `Function`   | Function must return true  |
-
-Returns: `MockClient | MockPool`.
-
-| `MockAgentOptions`   | Mock instance returned |
-| -------------------- | ---------------------- |
-| `connections === 1`  | `MockClient`           |
-| `connections` > `1`  | `MockPool`             |
-
-#### Example - Basic Mocked Request
-
-```js
+```mjs displayName="Basic mocked request"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -87,9 +120,7 @@ for await (const data of body) {
 }
 ```
 
-#### Example - Basic Mocked Request with local mock agent dispatcher
-
-```js
+```mjs displayName="Mocked request using a local dispatcher"
 import { MockAgent, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -97,10 +128,9 @@ const mockAgent = new MockAgent()
 const mockPool = mockAgent.get('http://localhost:3000')
 mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo', { dispatcher: mockAgent })
+const { statusCode, body } = await request('http://localhost:3000/foo', {
+  dispatcher: mockAgent
+})
 
 console.log('response received', statusCode) // response received 200
 
@@ -109,31 +139,7 @@ for await (const data of body) {
 }
 ```
 
-#### Example - Basic Mocked Request with local mock pool dispatcher
-
-```js
-import { MockAgent, request } from 'undici'
-
-const mockAgent = new MockAgent()
-
-const mockPool = mockAgent.get('http://localhost:3000')
-mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
-
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo', { dispatcher: mockPool })
-
-console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
-```
-
-#### Example - Basic Mocked Request with local mock client dispatcher
-
-```js
+```mjs displayName="Returning a MockClient"
 import { MockAgent, request } from 'undici'
 
 const mockAgent = new MockAgent({ connections: 1 })
@@ -141,10 +147,9 @@ const mockAgent = new MockAgent({ connections: 1 })
 const mockClient = mockAgent.get('http://localhost:3000')
 mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo', { dispatcher: mockClient })
+const { statusCode, body } = await request('http://localhost:3000/foo', {
+  dispatcher: mockClient
+})
 
 console.log('response received', statusCode) // response received 200
 
@@ -153,96 +158,7 @@ for await (const data of body) {
 }
 ```
 
-#### Example - Basic Mocked requests with multiple intercepts
-
-```js
-import { MockAgent, setGlobalDispatcher, request } from 'undici'
-
-const mockAgent = new MockAgent()
-setGlobalDispatcher(mockAgent)
-
-const mockPool = mockAgent.get('http://localhost:3000')
-mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
-mockPool.intercept({ path: '/hello'}).reply(200, 'hello')
-
-const result1 = await request('http://localhost:3000/foo')
-
-console.log('response received', result1.statusCode) // response received 200
-
-for await (const data of result1.body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
-
-const result2 = await request('http://localhost:3000/hello')
-
-console.log('response received', result2.statusCode) // response received 200
-
-for await (const data of result2.body) {
-  console.log('data', data.toString('utf8')) // data hello
-}
-```
-
-#### Example - Mock different requests within the same file
-
-```js
-const { MockAgent, setGlobalDispatcher } = require('undici');
-const agent = new MockAgent();
-agent.disableNetConnect();
-setGlobalDispatcher(agent);
-describe('Test', () => {
-  it('200', async () => {
-    const mockAgent = agent.get('http://test.com');
-    // your test
-  });
-  it('200', async () => {
-    const mockAgent = agent.get('http://testing.com');
-    // your test
-  });
-});
-```
-
-#### Example - Mocked request with query body, headers and trailers
-
-```js
-import { MockAgent, setGlobalDispatcher, request } from 'undici'
-
-const mockAgent = new MockAgent()
-setGlobalDispatcher(mockAgent)
-
-const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo?hello=there&see=ya',
-  method: 'POST',
-  body: 'form1=data1&form2=data2'
-}).reply(200, { foo: 'bar' }, {
-  headers: { 'content-type': 'application/json' },
-  trailers: { 'Content-MD5': 'test' }
-})
-
-const {
-  statusCode,
-  headers,
-  trailers,
-  body
-} = await request('http://localhost:3000/foo?hello=there&see=ya', {
-  method: 'POST',
-  body: 'form1=data1&form2=data2'
-})
-
-console.log('response received', statusCode) // response received 200
-console.log('headers', headers) // { 'content-type': 'application/json' }
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // '{"foo":"bar"}'
-}
-
-console.log('trailers', trailers) // { 'content-md5': 'test' }
-```
-
-#### Example - Mocked request with origin regex
-
-```js
+```mjs displayName="Matching the origin with a regular expression"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -251,21 +167,12 @@ setGlobalDispatcher(mockAgent)
 const mockPool = mockAgent.get(new RegExp('http://localhost:3000'))
 mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo')
+const { statusCode } = await request('http://localhost:3000/foo')
 
 console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
 ```
 
-#### Example - Mocked request with origin function
-
-```js
+```mjs displayName="Matching the origin with a function"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -274,46 +181,29 @@ setGlobalDispatcher(mockAgent)
 const mockPool = mockAgent.get((origin) => origin === 'http://localhost:3000')
 mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await request('http://localhost:3000/foo')
+const { statusCode } = await request('http://localhost:3000/foo')
 
 console.log('response received', statusCode) // response received 200
-
-for await (const data of body) {
-  console.log('data', data.toString('utf8')) // data foo
-}
 ```
 
-### `MockAgent.close()`
+### `mockAgent.dispatch(options, handler)`
 
-Closes the mock agent and waits for registered mock pools and clients to also close before resolving.
+<!-- YAML
+added: v4.0.0
+-->
 
-Returns: `Promise<void>`
+* `options` {AgentDispatchOptions}
+* `handler` {DispatchHandler}
+* Returns: {boolean}
 
-#### Example - clean up after tests are complete
+Dispatches a mocked request. This implements
+[`Dispatcher.dispatch()`][] for the encapsulated agent: it ensures the mock
+dispatcher for `options.origin` exists, records the call in the call history
+when enabled, and forwards the request to the underlying agent. It is normally
+invoked indirectly through higher-level methods such as
+[`mockAgent.request()`][].
 
-```js
-import { MockAgent, setGlobalDispatcher } from 'undici'
-
-const mockAgent = new MockAgent()
-setGlobalDispatcher(mockAgent)
-
-await mockAgent.close()
-```
-
-### `MockAgent.dispatch(options, handlers)`
-
-Implements [`Agent.dispatch(options, handlers)`](/docs/docs/api/Agent.md#parameter-agentdispatchoptions).
-
-### `MockAgent.request(options[, callback])`
-
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
-
-#### Example - MockAgent request
-
-```js
+```mjs displayName="Using mockAgent.request()"
 import { MockAgent } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -321,10 +211,7 @@ const mockAgent = new MockAgent()
 const mockPool = mockAgent.get('http://localhost:3000')
 mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
-const {
-  statusCode,
-  body
-} = await mockAgent.request({
+const { statusCode, body } = await mockAgent.request({
   origin: 'http://localhost:3000',
   path: '/foo',
   method: 'GET'
@@ -337,15 +224,39 @@ for await (const data of body) {
 }
 ```
 
-### `MockAgent.deactivate()`
+### `mockAgent.close()`
 
-This method disables mocking in MockAgent.
+<!-- YAML
+added: v4.0.0
+-->
 
-Returns: `void`
+* Returns: {Promise<void>} Resolves once the agent and its registered mock pools
+  and clients have closed.
 
-#### Example - Deactivate Mocking
+Clears the call history, closes the encapsulated agent, and waits for all
+registered mock pools and clients to close.
 
-```js
+```mjs displayName="Clean up after tests"
+import { MockAgent, setGlobalDispatcher } from 'undici'
+
+const mockAgent = new MockAgent()
+setGlobalDispatcher(mockAgent)
+
+await mockAgent.close()
+```
+
+### `mockAgent.deactivate()`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Returns: {undefined}
+
+Disables mocking on the `MockAgent`. While deactivated, requests are no longer
+intercepted.
+
+```mjs displayName="Deactivate mocking"
 import { MockAgent, setGlobalDispatcher } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -354,15 +265,19 @@ setGlobalDispatcher(mockAgent)
 mockAgent.deactivate()
 ```
 
-### `MockAgent.activate()`
+### `mockAgent.activate()`
 
-This method enables mocking in a MockAgent instance. When instantiated, a MockAgent is automatically activated. Therefore, this method is only effective after `MockAgent.deactivate` has been called.
+<!-- YAML
+added: v4.0.0
+-->
 
-Returns: `void`
+* Returns: {undefined}
 
-#### Example - Activate Mocking
+Enables mocking on the `MockAgent`. A `MockAgent` is activated automatically
+when instantiated, so this method is only required after
+[`mockAgent.deactivate()`][] has been called.
 
-```js
+```mjs displayName="Re-activate mocking"
 import { MockAgent, setGlobalDispatcher } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -375,21 +290,23 @@ mockAgent.deactivate()
 mockAgent.activate()
 ```
 
-### `MockAgent.enableNetConnect([host])`
+### `mockAgent.enableNetConnect([matcher])`
 
-When requests are not matched in a MockAgent intercept, a real HTTP request is attempted. We can control this further through the use of `enableNetConnect`. This is achieved by defining host matchers so only matching requests will be attempted.
+<!-- YAML
+added: v4.0.0
+-->
 
-When using a string, it should only include the **hostname and optionally, the port**. In addition, calling this method multiple times with a string will allow all HTTP requests that match these values.
+* `matcher` {string|RegExp|Function} (optional) A host matcher. When a string is
+  used it should only contain the hostname and, optionally, the port. The
+  function form has the signature `(host) => boolean`. When omitted, all
+  non-matching requests are allowed to perform a real request.
+* Returns: {undefined}
 
-Arguments:
+Defines host matchers so that requests that are not intercepted by a mock
+dispatcher are allowed to perform a real HTTP request. Calling this method
+multiple times with a string appends each value to the list of allowed hosts.
 
-* **host** `string | RegExp | (value) => boolean` - (optional)
-
-Returns: `void`
-
-#### Example - Allow all non-matching urls to be dispatched in a real HTTP request
-
-```js
+```mjs displayName="Allow all non-matching requests"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -401,9 +318,7 @@ await request('http://example.com')
 // A real request is made
 ```
 
-#### Example - Allow requests matching a host string to make real requests
-
-```js
+```mjs displayName="Allow requests matching specific hosts"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -422,43 +337,31 @@ await request('http://example-3.com')
 // Will throw
 ```
 
-#### Example - Allow requests matching a host regex to make real requests
-
-```js
+```mjs displayName="Allow requests matching a regular expression or function"
 import { MockAgent, setGlobalDispatcher, request } from 'undici'
 
 const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 mockAgent.enableNetConnect(new RegExp('example.com'))
+mockAgent.enableNetConnect((host) => host === 'example.org')
 
 await request('http://example.com')
 // A real request is made
 ```
 
-#### Example - Allow requests matching a host function to make real requests
+### `mockAgent.disableNetConnect()`
 
-```js
-import { MockAgent, setGlobalDispatcher, request } from 'undici'
+<!-- YAML
+added: v4.0.0
+-->
 
-const mockAgent = new MockAgent()
-setGlobalDispatcher(mockAgent)
+* Returns: {undefined}
 
-mockAgent.enableNetConnect((value) => value === 'example.com')
+Causes every request that is not matched by a mock interceptor to throw,
+disallowing real HTTP requests.
 
-await request('http://example.com')
-// A real request is made
-```
-
-### `MockAgent.disableNetConnect()`
-
-This method causes all requests to throw when requests are not matched in a MockAgent intercept.
-
-Returns: `void`
-
-#### Example - Disable all non-matching requests by throwing an error for each
-
-```js
+```mjs displayName="Throw on every non-matching request"
 import { MockAgent, request } from 'undici'
 
 const mockAgent = new MockAgent()
@@ -469,28 +372,132 @@ await request('http://example.com')
 // Will throw
 ```
 
-### `MockAgent.pendingInterceptors()`
+### `mockAgent.enableCallHistory()`
 
-This method returns any pending interceptors registered on a mock agent. A pending interceptor meets one of the following criteria:
+<!-- YAML
+added: v7.5.0
+-->
 
-- Is registered with neither `.times(<number>)` nor `.persist()`, and has not been invoked;
-- Is persistent (i.e., registered with `.persist()`) and has not been invoked;
-- Is registered with `.times(<number>)` and has not been invoked `<number>` of times.
+* Returns: {MockAgent} The same `MockAgent` instance, for chaining.
 
-Returns: `PendingInterceptor[]` (where `PendingInterceptor` is a `MockDispatch` with an additional `origin: string`)
+Enables call history recording. Once enabled, subsequent calls are registered
+and can be retrieved through [`mockAgent.getCallHistory()`][]. Call history can
+also be enabled at construction time with the `enableCallHistory` option.
 
-#### Example - List all pending interceptors
+```mjs
+import { MockAgent } from 'undici'
 
-```js
-const agent = new MockAgent()
-agent.disableNetConnect()
+const mockAgent = new MockAgent()
 
-agent
+mockAgent.enableCallHistory()
+```
+
+### `mockAgent.disableCallHistory()`
+
+<!-- YAML
+added: v7.5.0
+-->
+
+* Returns: {MockAgent} The same `MockAgent` instance, for chaining.
+
+Disables call history recording. Subsequent calls are no longer registered.
+
+```mjs
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent({ enableCallHistory: true })
+
+mockAgent.disableCallHistory()
+```
+
+### `mockAgent.getCallHistory()`
+
+<!-- YAML
+added: v7.5.0
+-->
+
+* Returns: {MockCallHistory|undefined} The {MockCallHistory} instance, or
+  `undefined` when call history is not enabled.
+
+Returns the call history instance, which records every request made through the
+`MockAgent` (whether intercepted or not). Call history is not enabled by
+default; enable it with the `enableCallHistory` option or
+[`mockAgent.enableCallHistory()`][].
+
+```mjs displayName="Inspect recorded calls"
+import { MockAgent, setGlobalDispatcher, request } from 'undici'
+
+const mockAgent = new MockAgent({ enableCallHistory: true })
+setGlobalDispatcher(mockAgent)
+
+await request('http://example.com', { query: { item: 1 } })
+
+mockAgent.getCallHistory()?.firstCall()
+// Returns
+// MockCallHistoryLog {
+//   body: undefined,
+//   headers: undefined,
+//   method: 'GET',
+//   origin: 'http://example.com',
+//   fullUrl: 'http://example.com/?item=1',
+//   path: '/',
+//   searchParams: { item: '1' },
+//   protocol: 'http:',
+//   host: 'example.com',
+//   port: ''
+// }
+```
+
+### `mockAgent.clearCallHistory()`
+
+<!-- YAML
+added: v7.5.0
+-->
+
+* Returns: {undefined}
+
+Clears the call history, deleting every recorded {MockCallHistoryLog} on the
+{MockCallHistory} instance. It is a no-op when call history has never been
+enabled.
+
+```mjs
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent({ enableCallHistory: true })
+
+mockAgent.clearCallHistory()
+```
+
+### `mockAgent.pendingInterceptors()`
+
+<!-- YAML
+added: v5.1.0
+-->
+
+* Returns: {PendingInterceptor[]} A `PendingInterceptor` is a `MockDispatch`
+  with an additional `origin` {string} property.
+
+Returns the interceptors registered on the `MockAgent` that are still pending.
+An interceptor is pending when it meets one of the following criteria:
+
+* It is registered with neither `.times(<number>)` nor `.persist()` and has not
+  been invoked.
+* It is persistent (registered with `.persist()`) and has not been invoked.
+* It is registered with `.times(<number>)` and has not been invoked `<number>`
+  times.
+
+```mjs displayName="List pending interceptors"
+import { MockAgent } from 'undici'
+
+const mockAgent = new MockAgent()
+mockAgent.disableNetConnect()
+
+mockAgent
   .get('https://example.com')
   .intercept({ method: 'GET', path: '/' })
   .reply(200)
 
-const pendingInterceptors = agent.pendingInterceptors()
+const pendingInterceptors = mockAgent.pendingInterceptors()
 // Returns [
 //   {
 //     timesInvoked: 0,
@@ -514,26 +521,35 @@ const pendingInterceptors = agent.pendingInterceptors()
 // ]
 ```
 
-### `MockAgent.assertNoPendingInterceptors([options])`
+### `mockAgent.assertNoPendingInterceptors([options])`
 
-This method throws if the mock agent has any pending interceptors. A pending interceptor meets one of the following criteria:
+<!-- YAML
+added: v5.1.0
+-->
 
-- Is registered with neither `.times(<number>)` nor `.persist()`, and has not been invoked;
-- Is persistent (i.e., registered with `.persist()`) and has not been invoked;
-- Is registered with `.times(<number>)` and has not been invoked `<number>` of times.
+* `options` {Object} (optional)
+  * `pendingInterceptorsFormatter` {Object} An object exposing a
+    `format(pendingInterceptors)` method used to render the pending interceptors
+    in the thrown error message. **Default:** a built-in formatter that prints a
+    table.
+* Returns: {undefined}
 
-#### Example - Check that there are no pending interceptors
+Throws an {UndiciError} when the `MockAgent` has any pending interceptors. The
+criteria for an interceptor being pending are the same as for
+[`mockAgent.pendingInterceptors()`][].
 
-```js
-const agent = new MockAgent()
-agent.disableNetConnect()
+```mjs displayName="Assert there are no pending interceptors"
+import { MockAgent } from 'undici'
 
-agent
+const mockAgent = new MockAgent()
+mockAgent.disableNetConnect()
+
+mockAgent
   .get('https://example.com')
   .intercept({ method: 'GET', path: '/' })
   .reply(200)
 
-agent.assertNoPendingInterceptors()
+mockAgent.assertNoPendingInterceptors()
 // Throws an UndiciError with the following message:
 //
 // 1 interceptor is pending:
@@ -545,59 +561,35 @@ agent.assertNoPendingInterceptors()
 // └─────────┴────────┴───────────────────────┴──────┴─────────────┴────────────┴─────────────┴───────────┘
 ```
 
-#### Example - access call history on MockAgent
+### `mockAgent.isMockActive`
 
-You can register every call made within a MockAgent to be able to retrieve the body, headers and so on.
+<!-- YAML
+added: v5.3.0
+-->
 
-This is not enabled by default.
+* Type: {boolean} `true` while mocking is active, `false` after
+  [`mockAgent.deactivate()`][] has been called.
 
-```js
-import { MockAgent, setGlobalDispatcher, request } from 'undici'
+A read-only property indicating whether mocking is currently active on the
+`MockAgent`.
 
-const mockAgent = new MockAgent({ enableCallHistory: true })
-setGlobalDispatcher(mockAgent)
+```mjs
+import { MockAgent } from 'undici'
 
-await request('http://example.com', { query: { item: 1 }})
-
-mockAgent.getCallHistory()?.firstCall()
-// Returns
-// MockCallHistoryLog {
-//   body: undefined,
-//   headers: undefined,
-//   method: 'GET',
-//   origin: 'http://example.com',
-//   fullUrl: 'http://example.com/?item=1',
-//   path: '/',
-//   searchParams: { item: '1' },
-//   protocol: 'http:',
-//   host: 'example.com',
-//   port: ''
-// }
-```
-
-#### Example - clear call history
-
-```js
 const mockAgent = new MockAgent()
 
-mockAgent.clearAllCallHistory()
+console.log(mockAgent.isMockActive) // true
+
+mockAgent.deactivate()
+
+console.log(mockAgent.isMockActive) // false
 ```
 
-#### Example - call history instance class method
-
-```js
-const mockAgent = new MockAgent()
-
-const mockAgentHistory = mockAgent.getCallHistory()
-
-mockAgentHistory?.calls() // returns an array of MockCallHistoryLogs
-mockAgentHistory?.firstCall() // returns the first MockCallHistoryLogs or undefined
-mockAgentHistory?.lastCall() // returns the last MockCallHistoryLogs or undefined
-mockAgentHistory?.nthCall(3) // returns the third MockCallHistoryLogs or undefined
-mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint OR hash === #hash-value
-mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }, { operator: 'AND' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint AND hash === #hash-value
-mockAgentHistory?.filterCalls(/"data": "{}"/) // returns an Array of MockCallHistoryLogs where any value match regexp
-mockAgentHistory?.filterCalls('application/json') // returns an Array of MockCallHistoryLogs where any value === 'application/json'
-mockAgentHistory?.filterCalls((log) => log.path === '/endpoint') // returns an Array of MockCallHistoryLogs when given function returns true
-mockAgentHistory?.clear() // clear the history
-```
+[`Dispatcher.dispatch()`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`mockAgent.deactivate()`]: #mockagentdeactivate
+[`mockAgent.enableCallHistory()`]: #mockagentenablecallhistory
+[`mockAgent.get(origin)`]: #mockagentgetorigin
+[`mockAgent.getCallHistory()`]: #mockagentgetcallhistory
+[`mockAgent.pendingInterceptors()`]: #mockagentpendinginterceptors
+[`mockAgent.request()`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`setGlobalDispatcher()`]: Dispatcher.md#setglobaldispatcherdispatcher

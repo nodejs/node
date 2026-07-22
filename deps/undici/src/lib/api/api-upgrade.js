@@ -51,7 +51,13 @@ class UpgradeHandler extends AsyncResource {
   }
 
   onRequestUpgrade (controller, statusCode, headers, socket) {
-    assert(socket[kHTTP2Stream] === true ? statusCode === 200 : statusCode === 101)
+    const expectedStatusCode = socket[kHTTP2Stream] === true ? 200 : 101
+
+    if (statusCode !== expectedStatusCode) {
+      const socketInfo = socket[kHTTP2Stream] === true ? null : util.getSocketInfo(socket)
+      controller.abort(new SocketError('bad upgrade', socketInfo))
+      return
+    }
 
     const { callback, opaque, context } = this
 
@@ -61,7 +67,7 @@ class UpgradeHandler extends AsyncResource {
 
     const rawHeaders = controller?.rawHeaders
     const responseHeaders = this.responseHeaders === 'raw'
-      ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+      ? util.parseRawHeaders(rawHeaders)
       : headers
 
     this.runInAsyncScope(callback, null, null, {

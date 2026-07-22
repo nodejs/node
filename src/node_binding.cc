@@ -5,6 +5,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_url_pattern.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include <string>
@@ -59,6 +60,7 @@
   V(http_parser)                                                               \
   V(inspector)                                                                 \
   V(internal_only_v8)                                                          \
+  V(ipc_serdes)                                                                \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
   V(locks)                                                                     \
@@ -106,6 +108,7 @@
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
+  NODE_BUILTIN_DTLS_BINDINGS(V)                                                \
   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
   NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
   NODE_BUILTIN_FFI_BINDINGS(V)
@@ -448,6 +451,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_DLOPEN_DISABLED(
       env, "Cannot load native addon because loading addons is disabled.");
   }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kAddon, "");
 
   auto context = env->context();
 

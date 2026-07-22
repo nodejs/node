@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 
 # Shell script to update llhttp in the source tree to specific version
 
@@ -8,12 +8,14 @@ DEPS_DIR="${BASE_DIR}/deps"
 
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
+NPM_DIR="$DEPS_DIR/npm/bin"
+NPM="$NPM_DIR/npm-cli.js"
 
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 if [ -n "$LOCAL_COPY" ]; then
-  NEW_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$LOCAL_COPY/package.json', 'utf-8')).version)")
+  NEW_VERSION=$(PACKAGE_JSON="$LOCAL_COPY/package.json" node -p "require(process.env.PACKAGE_JSON).version")
 else
   NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
   const res = await fetch('https://api.github.com/repos/nodejs/llhttp/releases/latest',
@@ -47,51 +49,27 @@ echo "Making temporary workspace ..."
 WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 trap cleanup INT TERM EXIT
 
-cd "$WORKSPACE"
+if [ -z "$LOCAL_COPY" ]; then
+  echo "Downloading llhttp source..."
+  curl -fsSL "https://github.com/nodejs/llhttp/archive/refs/tags/v$NEW_VERSION.tar.gz" | tar xz -C "$WORKSPACE"
+
+  LOCAL_COPY="$(find "$WORKSPACE" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+fi
 
 echo "Replacing existing llhttp (except GYP and GN build files)"
 mv "$DEPS_DIR/llhttp/"*.gn "$DEPS_DIR/llhttp/"*.gni "$WORKSPACE/"
 
-if [ -n "$LOCAL_COPY" ]; then
-  echo "Copying llhttp release from $LOCAL_COPY ..."
-  
-  echo "Building llhttp ..."
-  cd "$BASE_DIR"
+echo "Building llhttp ..."
+(
   cd "$LOCAL_COPY"
-  npm install
+  "$NODE" "$NPM" ci --ignore-scripts
+  "$NODE" "$NPM" exec tsc
   RELEASE=$NEW_VERSION make release
+)
 
-  echo "Copying llhttp release ..."
-  rm -rf "$DEPS_DIR/llhttp"
-  cp -a release "$DEPS_DIR/llhttp"
-elif echo "$NEW_VERSION" | grep -qs "/" ; then # Download a release
-  REPO="git@github.com:$NEW_VERSION.git"
-  BRANCH=$2
-  [ -z "$BRANCH" ] && BRANCH=main
-
-  echo "Cloning llhttp source archive $REPO ..."
-  git clone "$REPO" llhttp
-  cd llhttp
-  echo "Checking out branch $BRANCH ..."
-  git checkout "$BRANCH"
-
-  echo "Building llhttp ..."
-  npm install
-  RELEASE=$NEW_VERSION make release
-
-  echo "Copying llhttp release ..."
-  rm -rf "$DEPS_DIR/llhttp"
-  cp -a release "$DEPS_DIR/llhttp"
-else
-  echo "Download llhttp release $NEW_VERSION ..."
-  LLHTTP_TARBALL="llhttp-v$NEW_VERSION.tar.gz"
-  curl -sL -o "$LLHTTP_TARBALL" "https://github.com/nodejs/llhttp/archive/refs/tags/release/v$NEW_VERSION.tar.gz"
-  gzip -dc "$LLHTTP_TARBALL" | tar xf -
-
-  echo "Copying llhttp release ..."
-  rm -rf "$DEPS_DIR/llhttp"
-  cp -a "llhttp-release-v$NEW_VERSION" "$DEPS_DIR/llhttp"
-fi
+echo "Overwriting vendored files..."
+rm -rf "$DEPS_DIR/llhttp"
+cp -a "$LOCAL_COPY/release" "$DEPS_DIR/llhttp"
 
 mv "$WORKSPACE/"*.gn "$WORKSPACE/"*.gni "$DEPS_DIR/llhttp"
 

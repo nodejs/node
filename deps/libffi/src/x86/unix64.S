@@ -2,6 +2,7 @@
    unix64.S - Copyright (c) 2013  The Written Word, Inc.
 	    - Copyright (c) 2008  Red Hat, Inc
 	    - Copyright (c) 2002  Bo Thorsen <bo@suse.de>
+	    - Copyright (c) 2026  Anthony Green
 
    x86-64 Foreign Function Interface 
 
@@ -201,6 +202,13 @@ E(L(store_table), UNIX64_RET_ST_XMM0_XMM1)
 E(L(store_table), UNIX64_RET_ST_RAX_RDX)
 	_CET_ENDBR
 	movq	%rdx, 8(%rsi)
+	jmp	L(s2)
+E(L(store_table), UNIX64_RET_XMM128)
+	_CET_ENDBR
+	movups	%xmm0, (%rdi)
+	ret
+
+	.balign 8
 L(s2):
 	movq	%rax, (%rsi)
 	shrl	$UNIX64_SIZE_SHIFT, %ecx
@@ -234,6 +242,154 @@ L(load_sse):
 
 L(UW4):
 ENDF(C(ffi_call_unix64))
+
+/* Lean trampoline for the plan fast path: no stack args, simple return.
+   struct { UINT64 rax; double xmm0; }
+   ffi_plan_fast_call (struct register_args *img /rdi/, void (*fn)(void) /rsi/);
+
+   Loads the argument registers from IMG, calls FN, and lets the callee's
+   rax/xmm0 flow straight out as this function's {UINT64,double} return -- so
+   the C caller recovers both with no return-dispatch table.  Skips the frame
+   relocation that ffi_call_unix64 needs only for stack args and struct/x87
+   returns.  Caller guarantees img has no spilled stack arguments.  */
+	.balign	8
+	.globl	C(ffi_plan_fast_call)
+	FFI_HIDDEN(C(ffi_plan_fast_call))
+C(ffi_plan_fast_call):
+	.cfi_startproc
+	_CET_ENDBR
+	movq	%rsi, %r11		/* fn */
+	movq	%rdi, %rax		/* img */
+	movl	0xb0(%rax), %r10d	/* ssecount */
+	testl	%r10d, %r10d
+	jz	1f
+	movdqa	0x30(%rax), %xmm0
+	movdqa	0x40(%rax), %xmm1
+	movdqa	0x50(%rax), %xmm2
+	movdqa	0x60(%rax), %xmm3
+	movdqa	0x70(%rax), %xmm4
+	movdqa	0x80(%rax), %xmm5
+	movdqa	0x90(%rax), %xmm6
+	movdqa	0xa0(%rax), %xmm7
+1:
+	movq	0x00(%rax), %rdi
+	movq	0x08(%rax), %rsi
+	movq	0x10(%rax), %rdx
+	movq	0x18(%rax), %rcx
+	movq	0x20(%rax), %r8
+	movq	0x28(%rax), %r9
+	movl	%r10d, %eax		/* %al = ssecount */
+	subq	$8, %rsp		/* realign to 16 across the call */
+	.cfi_adjust_cfa_offset 8
+	call	*%r11
+	addq	$8, %rsp
+	.cfi_adjust_cfa_offset -8
+	ret				/* rax + xmm0 carry the callee's return */
+	.cfi_endproc
+	ENDF(C(ffi_plan_fast_call))
+
+/* Count-based direct thunks for the pure-GP64 fast path: load avalue[0..N-1]
+   straight into the argument registers (no register_args image) and call.
+   struct { UINT64 rax; double xmm0; }
+   ffi_plan_gpN (void **avalue /rdi/, void (*fn)(void) /rsi/);
+   Eligible only when every arg is a single 64-bit GP value (no sign-extension,
+   no SSE, no stack spill, no sret) -- so a plain 8-byte load per arg is exact.
+   rax/xmm0 flow out as the {UINT64,double} return; C stores per return code.  */
+
+#define FFI_GP_HEAD				\
+	.cfi_startproc;				\
+	_CET_ENDBR;				\
+	movq	%rsi, %r11;			\
+	movq	%rdi, %rax
+#define FFI_GP_LD(OFS, REG)			\
+	movq	OFS(%rax), %r10;		\
+	movq	(%r10), REG
+#define FFI_GP_TAIL				\
+	xorl	%eax, %eax;			\
+	subq	$8, %rsp;			\
+	.cfi_adjust_cfa_offset 8;		\
+	call	*%r11;				\
+	addq	$8, %rsp;			\
+	.cfi_adjust_cfa_offset -8;		\
+	ret;					\
+	.cfi_endproc
+
+	.balign	8
+	.globl	C(ffi_plan_gp0)
+	FFI_HIDDEN(C(ffi_plan_gp0))
+C(ffi_plan_gp0):
+	FFI_GP_HEAD
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp0))
+
+	.balign	8
+	.globl	C(ffi_plan_gp1)
+	FFI_HIDDEN(C(ffi_plan_gp1))
+C(ffi_plan_gp1):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp1))
+
+	.balign	8
+	.globl	C(ffi_plan_gp2)
+	FFI_HIDDEN(C(ffi_plan_gp2))
+C(ffi_plan_gp2):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x08, %rsi)
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp2))
+
+	.balign	8
+	.globl	C(ffi_plan_gp3)
+	FFI_HIDDEN(C(ffi_plan_gp3))
+C(ffi_plan_gp3):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x08, %rsi)
+	FFI_GP_LD(0x10, %rdx)
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp3))
+
+	.balign	8
+	.globl	C(ffi_plan_gp4)
+	FFI_HIDDEN(C(ffi_plan_gp4))
+C(ffi_plan_gp4):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x08, %rsi)
+	FFI_GP_LD(0x10, %rdx)
+	FFI_GP_LD(0x18, %rcx)
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp4))
+
+	.balign	8
+	.globl	C(ffi_plan_gp5)
+	FFI_HIDDEN(C(ffi_plan_gp5))
+C(ffi_plan_gp5):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x08, %rsi)
+	FFI_GP_LD(0x10, %rdx)
+	FFI_GP_LD(0x18, %rcx)
+	FFI_GP_LD(0x20, %r8)
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp5))
+
+	.balign	8
+	.globl	C(ffi_plan_gp6)
+	FFI_HIDDEN(C(ffi_plan_gp6))
+C(ffi_plan_gp6):
+	FFI_GP_HEAD
+	FFI_GP_LD(0x08, %rsi)
+	FFI_GP_LD(0x10, %rdx)
+	FFI_GP_LD(0x18, %rcx)
+	FFI_GP_LD(0x20, %r8)
+	FFI_GP_LD(0x28, %r9)
+	FFI_GP_LD(0x00, %rdi)
+	FFI_GP_TAIL
+	ENDF(C(ffi_plan_gp6))
 
 /* 6 general registers, 8 vector registers,
    32 bytes of rvalue, 8 bytes of alignment.  */
@@ -386,6 +542,13 @@ E(L(load_table), UNIX64_RET_ST_XMM0_XMM1)
 E(L(load_table), UNIX64_RET_ST_RAX_RDX)
 	_CET_ENDBR
 	movq	8(%rsi), %rdx
+	jmp	L(l2)
+E(L(load_table), UNIX64_RET_XMM128)
+	_CET_ENDBR
+	movups	(%rsi), %xmm0
+	ret
+
+	.balign	8
 L(l2):
 	movq	(%rsi), %rax
 	ret
@@ -559,6 +722,10 @@ EHFrame0:
 
 #ifdef HAVE_AS_X86_PCREL
 # define PCREL(X)	X - .
+#elif defined(__clang__)
+/* clang's integrated assembler rejects the X@rel variant (#947); the
+   pc-relative label difference works wherever @rel would.  */
+# define PCREL(X)	X - .
 #else
 # define PCREL(X)	X@rel
 #endif
@@ -706,6 +873,6 @@ L(EFDE5):
 #endif
 
 #endif /* __x86_64__ */
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif

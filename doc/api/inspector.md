@@ -415,8 +415,8 @@ changes:
     description: The API is exposed in the worker threads.
 -->
 
-Attempts to close all remaining connections, blocking the event loop until all
-are closed. Once all connections are closed, deactivates the inspector.
+Deactivates the inspector. If there are active connections, they are forcibly
+terminated. Blocks until the inspector server has fully stopped.
 
 ### `inspector.console`
 
@@ -687,6 +687,7 @@ For more details, see the official CDP documentation: [Network.loadNetworkResour
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -708,6 +709,7 @@ This event indicates that a new item has been added to the storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -728,6 +730,7 @@ This event indicates that an item has been removed from the storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -750,6 +753,7 @@ This event indicates that a storage item has been updated.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -770,6 +774,7 @@ storage.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 * `params` {Object}

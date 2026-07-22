@@ -593,6 +593,18 @@ added:
 Returns a promise that fulfills with the contents of the `Blob` decoded as a
 UTF-8 string.
 
+### `blob.textStream()`
+
+<!-- YAML
+added: v26.5.0
+-->
+
+* Returns: {ReadableStream}
+
+Returns a new `ReadableStream` that allows the content of the `Blob` to be read
+as a stream of UTF-8 decoded strings. It is equivalent to piping
+[`blob.stream()`][] through a [`TextDecoderStream`][] set up with UTF-8.
+
 ### `blob.type`
 
 <!-- YAML
@@ -881,7 +893,7 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations less than `Buffer.poolSize >>> 1` (4KiB when default poolSize is used) are sliced
+allocations less than `Buffer.poolSize >>> 1` (32KiB when default poolSize is used) are sliced
 from a single pre-allocated `Buffer`. This allows applications to avoid the
 garbage collection overhead of creating many individually allocated `Buffer`
 instances. This approach improves both performance and memory usage by
@@ -1513,9 +1525,15 @@ console.log(Buffer.isEncoding(''));
 
 <!-- YAML
 added: v0.11.3
+changes:
+  - version:
+    - v26.3.0
+    - v24.18.0
+    pr-url: https://github.com/nodejs/node/pull/63597
+    description: Default raised from 8192 to 65536.
 -->
 
-* Type: {integer} **Default:** `8192`
+* Type: {integer} **Default:** `65536`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
@@ -2074,7 +2092,7 @@ console.log(buf.fill('zz', 'hex'));
 <!-- YAML
 added: v5.3.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version:
@@ -2142,7 +2160,7 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version: v8.0.0
@@ -2325,7 +2343,7 @@ for (const key of buf.keys()) {
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version: v8.0.0
@@ -5606,10 +5624,12 @@ introducing security vulnerabilities into an application.
 [`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String.prototype.lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+[`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray.prototype.set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
 [`TypedArray.prototype.slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
 [`TypedArray.prototype.subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
+[`blob.stream()`]: #blobstream
 [`buf.buffer`]: #bufbuffer
 [`buf.compare()`]: #bufcomparetarget-targetstart-targetend-sourcestart-sourceend
 [`buf.entries()`]: #bufentries

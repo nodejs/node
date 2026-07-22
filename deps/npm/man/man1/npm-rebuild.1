@@ -1,4 +1,4 @@
-.TH "NPM-REBUILD" "1" "March 2026" "NPM@11.12.1" ""
+.TH "NPM-REBUILD" "1" "June 2026" "NPM@11.18.0" ""
 .SH "NAME"
 \fBnpm-rebuild\fR - Rebuild a package
 .SS "Synopsis"
@@ -101,6 +101,44 @@ Type: Boolean
 If true, npm does not run scripts specified in package.json files.
 .P
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBallow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Comma-separated list of packages whose install-time lifecycle scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry dependencies) are allowed to run.
+.P
+This setting is intended for one-off and global contexts: \fBnpm exec\fR, \fBnpx\fR, and \fBnpm install -g\fR, where no project \fBpackage.json\fR is involved. For team-wide policy in a project, use the \fBallowScripts\fR field in \fBpackage.json\fR (which also supports explicit denials), or configure it in \fB.npmrc\fR. Passing \fB--allow-scripts\fR on the command line during a project-scoped \fBnpm install\fR, \fBci\fR, \fBupdate\fR, or \fBrebuild\fR is an error.
+.P
+Each name is matched against a dependency's resolved identity, not against the package's self-reported name. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.SS "\fBstrict-allow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+.P
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.P
+Optional dependencies that cannot be installed on the current platform or engine (a non-matching \fBos\fR, \fBcpu\fR, or \fBlibc\fR) are not flagged, because their install scripts never run.
+.SS "\fBdangerously-allow-all-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, bypass the \fBallowScripts\fR policy entirely and run every dependency install script regardless of whether it was approved or denied. Intended as a migration escape hatch only; its use is strongly discouraged. \fB--ignore-scripts\fR still takes precedence over this setting.
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

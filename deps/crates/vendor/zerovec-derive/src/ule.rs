@@ -77,7 +77,7 @@ pub fn derive_impl(input: &DeriveInput) -> TokenStream2 {
 }
 
 /// Given an slice over ULE struct fields, returns code validating that a slice variable `bytes` contains valid instances of those ULE types
-/// in order, plus the byte offset of any remaining unvalidated bytes. ULE types should not have any remaining bytes, but VarULE types will since
+/// in order, plus the byte offset of any remaining unvalidated bytes. ULE types should not have any remaining bytes, but `VarULE` types will since
 /// the last field is the unsized one.
 pub(crate) fn generate_ule_validators(
     fields: &[FieldInfo],

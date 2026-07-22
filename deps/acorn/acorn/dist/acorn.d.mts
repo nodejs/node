@@ -620,6 +620,12 @@ export interface Options {
   sourceType?: "script" | "module" | "commonjs"
 
   /**
+   * When set to true, enable strict parsing mode even if `sourceType`
+   * is `"script"`.
+   */
+  strict?: boolean
+
+  /**
    * a callback that will be called when a semicolon is automatically inserted.
    * @param lastTokEnd the position of the comma as an offset
    * @param lastTokEndLoc location if {@link locations} is enabled

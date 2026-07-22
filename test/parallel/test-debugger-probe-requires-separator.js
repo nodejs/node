@@ -4,18 +4,20 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndExit } = require('../common/child_process');
-const { probeScript } = require('../common/debugger-probe');
+
+const cwd = fixtures.path('debugger');
 
 spawnSyncAndExit(process.execPath, [
   'inspect',
-  '--probe', `${probeScript}:12`,
+  '--probe', 'probe.js:12',
   '--expr', 'finalValue',
   '--inspect-port=0',
-  probeScript,
-], {
+  'probe.js',
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   signal: null,
-  status: 1,
+  status: 9,
   stderr: /Use -- before child Node\.js flags in probe mode/,
   trim: true,
 });

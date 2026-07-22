@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,10 @@ use OpenSSL::stackhash qw(generate_stack_macros);
 #include <openssl/x509v3.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct X509_acert_st X509_ACERT;
 typedef struct X509_acert_info_st X509_ACERT_INFO;
@@ -205,5 +209,9 @@ DECLARE_ASN1_FUNCTIONS(OSSL_AUTHORITY_ATTRIBUTE_ID_SYNTAX)
     generate_stack_macros("OSSL_ISSUER_SERIAL");
 -}
 /* clang-format on */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

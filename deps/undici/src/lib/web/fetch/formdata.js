@@ -4,10 +4,16 @@ const { iteratorMixin } = require('./util')
 const { kEnumerableProperty } = require('../../core/util')
 const { webidl } = require('../webidl')
 const nodeUtil = require('node:util')
+const { runtimeFeatures } = require('../../util/runtime-features.js')
+
+const random = runtimeFeatures.has('crypto')
+  ? require('node:crypto').randomInt
+  : (max) => Math.floor(Math.random() * max)
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
   #state = []
+  #boundary = null
 
   constructor (form = undefined) {
     webidl.util.markAsUncloneable(this)
@@ -192,11 +198,24 @@ class FormData {
   static setFormDataState (formData, newState) {
     formData.#state = newState
   }
+
+  /**
+   * @param {FormData} formData
+   * @returns {string | null}
+   */
+  static getFormDataBoundary (formData) {
+    const boundary = formData.#boundary
+    if (boundary != null) return boundary
+
+    // eslint-disable-next-line no-return-assign
+    return formData.#boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+  }
 }
 
-const { getFormDataState, setFormDataState } = FormData
+const { getFormDataState, setFormDataState, getFormDataBoundary } = FormData
 Reflect.deleteProperty(FormData, 'getFormDataState')
 Reflect.deleteProperty(FormData, 'setFormDataState')
+Reflect.deleteProperty(FormData, 'getFormDataBoundary')
 
 iteratorMixin('FormData', FormData, getFormDataState, 'name', 'value')
 
@@ -256,4 +275,4 @@ function makeEntry (name, value, filename) {
 
 webidl.is.FormData = webidl.util.MakeTypeAssertion(FormData)
 
-module.exports = { FormData, makeEntry, setFormDataState }
+module.exports = { FormData, makeEntry, setFormDataState, getFormDataBoundary }
