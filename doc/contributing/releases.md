@@ -1345,7 +1345,7 @@ The label description can be copied from existing labels of previous releases.
 The label color must be the same for all new labels, but different from the
 labels of previous releases.
 
-#### Initial Alpha Release proposal
+#### Initial Alpha release proposal
 
 A draft release proposal should be created before the release. A
 separate `vN.x-proposal` branch should be created that tracks the `vN.x`
