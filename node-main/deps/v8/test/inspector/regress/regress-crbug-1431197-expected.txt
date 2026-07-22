@@ -1,0 +1,59 @@
+Test properties of TypedArrays backed with a resizable buffer
+{
+    result : {
+        className : Float64Array
+        description : Float64Array(3)
+        objectId : <objectId>
+        preview : {
+            description : Float64Array(3)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : 0
+                    type : number
+                    value : 0
+                }
+                [1] : {
+                    name : 1
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : 2
+                    type : number
+                    value : 0
+                }
+                [3] : {
+                    name : buffer
+                    subtype : arraybuffer
+                    type : object
+                    value : ArrayBuffer(24)
+                }
+                [4] : {
+                    name : byteLength
+                    type : number
+                    value : 24
+                }
+                [5] : {
+                    name : byteOffset
+                    type : number
+                    value : 0
+                }
+                [6] : {
+                    name : length
+                    type : number
+                    value : 3
+                }
+                [7] : {
+                    name : Symbol(Symbol.toStringTag)
+                    type : string
+                    value : Float64Array
+                }
+            ]
+            subtype : typedarray
+            type : object
+        }
+        subtype : typedarray
+        type : object
+    }
+}

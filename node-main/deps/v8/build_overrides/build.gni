@@ -1,0 +1,65 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Variable that can be used to support multiple build scenarios, like having
+# Chromium specific targets in a client project's GN file etc.
+build_with_chromium = false
+
+# Variable that can be used to support multiple build scenarios, like when
+# V8 is embedded within a target.
+build_with_v8_embedder = false
+
+# Not all of V8's dependencies are available in V8's Node.js build.
+build_with_node = false
+
+# Used by perfetto to distinguish from its own standalone build and the
+# chromium build.
+perfetto_build_with_embedder = true
+
+# We use Perfetto's Trace Processor to convert traces to the legacy JSON
+# format.
+enable_perfetto_trace_processor = true
+
+# When building with chromium, determines whether we want to also use the
+# perfetto library from chromium instead declaring our own.
+use_perfetto_client_library = false
+
+# Uncomment these to specify a different NDK location and version in
+# non-Chromium builds.
+# default_android_ndk_root = "//third_party/android_ndk"
+# default_android_ndk_version = "r10e"
+
+# Some non-Chromium builds don't support building java targets.
+enable_java_templates = false
+
+# Enables assertions on safety checks in libc++.
+enable_safe_libcxx = true
+
+# Enable assertions on safety checks, also in libstdc++
+#
+# In case the C++ standard library implementation used is libstdc++, then
+# enable its own hardening checks.
+enable_safe_libstdcxx = true
+
+# Allows different projects to specify their own suppressions files.
+asan_suppressions_file = "//build/sanitizers/asan_suppressions.cc"
+lsan_suppressions_file = "//build/sanitizers/lsan_suppressions.cc"
+tsan_suppressions_file = "//build/sanitizers/tsan_suppressions.cc"
+
+# Skip assertions about 4GiB file size limit.
+ignore_elf32_limitations = true
+
+if (host_os == "mac") {
+  _result = exec_script("//build/mac/should_use_hermetic_xcode.py",
+                        [ target_os ],
+                        "value")
+  assert(_result != 2,
+         "Do not allow building targets with the default" +
+             "hermetic toolchain if the minimum OS version is not met.")
+  assert(_result != 3,
+         "iOS does not support building with a hermetic toolchain. " +
+             "Please install Xcode.")
+
+  use_system_xcode = _result == 0
+}

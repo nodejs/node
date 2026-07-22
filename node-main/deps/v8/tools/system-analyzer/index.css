@@ -1,0 +1,289 @@
+:root {
+  --code-font: Consolas, Monaco, Menlo, monospace;
+  --code-font-size: 12px;
+  --background-color: #000000;
+  --surface-color-rgb: 18, 18, 18;
+  --surface-color: rgb(var(--surface-color-rgb));
+  --primary-color: #bb86fc;
+  --secondary-color: #03dac6;
+  --on-surface-color: #ffffff;
+  --on-background-color: #f5f0f0;
+  --on-primary-color: #000000;
+  --on-secondary-color: #000000;
+  --default-color: #9b6edc;
+  --error-color: #cf6679;
+  --map-background-color: #5e5454;
+  --timeline-background-color: #1f1f1f;
+  --file-reader-background-color: #ffffff80;
+  --file-reader-border-color: #ffffff;
+  --red: #dc6eae;
+  --green: #aedc6e;
+  --yellow: #eeff41;
+  --blue: #6e77dc;
+  --orange: #dc9b6e;
+  --violet: #d26edc;
+  --selection-color: rgba(133, 68, 163, 0.5);
+  --border-color-rgb: 128, 128, 128;
+  --border-color: rgba(var(--border-color-rgb), 0.2);
+  scrollbar-color:  rgba(128, 128, 128, 0.5)  rgba(0, 0, 0, 0.0);
+}
+
+::-webkit-scrollbar, ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
+  background-color: rgba(0, 0, 0, 0.0);
+}
+::-webkit-scrollbar, ::-webkit-scrollbar-track {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 128, 128, 0.8);
+}
+
+body {
+  font-family: sans-serif;
+  font-size: 14px;
+  color: var(--on-background-color);
+  margin: 10px 10px 0 10px;
+  background-color: var(--background-color);
+}
+
+h3 {
+  margin-block-end: 0.3em;
+}
+
+section {
+  margin-bottom: 10px;
+}
+
+kbd {
+  color: var(--on-primary-color);
+  background-color: var(--primary-color);
+  border-radius: 3px;
+  border: 1px solid var(--on-primary-color);
+  display: inline-block;
+  font-size: .9em;
+  font-weight: bold;
+  padding: 0px 4px 2px 4px;
+  white-space: nowrap;
+}
+
+kbd, code, pre {
+  font-family: var(--code-font);
+}
+code {
+  font-size: var(--code-font-size);
+  white-space: pre;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--secondary-color);
+}
+a:link {
+  color: var(--secondary-color);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: min-content auto;
+  grid-gap: 5px;
+}
+dt {
+  text-align: right;
+  white-space: nowrap;
+}
+dd {
+  margin: 0;
+}
+
+.panel {
+  background-color: var(--surface-color);
+  color: var(--on-surface-color);
+  padding: 10px;
+  border-radius: 10px;
+  border: 3px solid var(--border-color);
+  overflow: hidden;
+}
+
+.panelBody {
+  position: relative;
+  max-height: 800px;
+  overflow-y: scroll;
+  margin: 0 -10px -10px 0;
+}
+
+.panel > h2, .panelTitle {
+  margin: -10px -10px 0 -10px;
+  padding: 5px 10px 5px 10px;
+  background-color: var(--border-color);
+  border-radius: 7px 7px 0 0;
+  font-weight: 400;
+}
+
+.panel > select {
+  width: calc(100% + 20px);
+  margin: 0 -10px 10px -10px;
+}
+
+.panel > .selection {
+  display: flex;
+  margin: 0 -10px 0 -10px;
+}
+.panel > .selection input {
+  display: none;
+}
+
+.panel > .selection label {
+  flex: 1;
+  padding: 5px;
+  cursor: pointer;
+  background-color: var( --surface-color);
+  font-weight: normal;
+  text-align: center;
+}
+.panel > .selection label ~ label {
+  border-left: 2px var(--border-color) solid;
+}
+
+.panel > .selection label:hover {
+  background-color: var(--primary-color);
+}
+.panel > .selection [type=radio]:checked + label {
+  background-color: var(--border-color);
+}
+
+.panel > .selection  select {
+  flex: 1;
+  width: 50%;
+}
+
+button {
+  cursor: pointer;
+}
+input,
+select,
+button {
+  background-color: var(--surface-color);
+  color: var(--on-surface-color);
+  border: 2px solid rgba(var(--border-color-rgb), 0.4);
+  border-radius: 5px;
+  padding: 2px;
+}
+input:hover,
+select:hover,
+button:hover {
+  border: 2px solid rgba(var(--border-color-rgb), 0.6);
+}
+
+.colorbox {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 2px var(--background-color) solid;
+  border-radius: 50%;
+}
+
+.primary {
+  background-color: var(--default-color);
+}
+
+.red {
+  background-color: var(--red);
+}
+
+.green {
+  background-color: var(--green);
+}
+
+.yellow {
+  background-color: var(--yellow);
+  color: var(--map-background-color);
+}
+
+.blue {
+  background-color: var(--blue);
+}
+
+.orange {
+  background-color: var(--orange);
+}
+
+.violet {
+  background-color: var(--violet);
+  color: var(--map-background-color);
+}
+
+.success {
+  background-color: var(--secondary-color);
+}
+
+.failure {
+  background-color: var(--error-color);
+}
+
+.highlight {
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+}
+
+button:hover,
+.clickable:hover,
+.mark:hover,
+.clickable:active,
+.mark:active {
+  border-radius: 3px;
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+  cursor: pointer;
+}
+
+
+.legend {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  background-color: var(--surface-color);
+  border-radius: 5px;
+  border: 3px solid var(--border-color);
+  padding: 0 10px 0 10px;
+}
+.legend dt  {
+  font-family: var(--code-font);
+}
+.legend h3 {
+  margin-top: 10px;
+}
+
+.panelCloserLabel {
+  float: left;
+  cursor: zoom-out;
+  margin: 0 5px 0 0;
+  transition: transform 0.2s ease-out;
+  user-select: none;
+}
+.panelCloserInput {
+  display: none;
+}
+.panel .panelCloserInput:checked ~ .panelCloserLabel,
+.panelCloserInput:checked ~ .panelCloserLabel {
+  cursor: zoom-in;
+  transform: rotate(-90deg);
+  display: inherit;
+}
+.panel .panelCloserInput:checked ~ h2 {
+  display: inherit;
+  border-radius: 7px;
+  margin-bottom: -20px;
+  padding-bottom: 10px;
+}
+.panelCloserInput:checked ~ * {
+  display: none;
+}

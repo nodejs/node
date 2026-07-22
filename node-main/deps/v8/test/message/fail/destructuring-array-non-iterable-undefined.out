@@ -1,0 +1,5 @@
+*%(basename)s:6: TypeError: x is not iterable
+var [y] = x;
+          ^
+TypeError: x is not iterable
+    at *%(basename)s:6:11

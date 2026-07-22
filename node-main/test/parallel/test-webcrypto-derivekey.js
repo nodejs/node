@@ -1,0 +1,305 @@
+'use strict';
+
+const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+const { hasOpenSSL } = require('../common/crypto');
+
+const assert = require('assert');
+const { subtle } = globalThis.crypto;
+const { KeyObject } = require('crypto');
+
+// This is only a partial test. The WebCrypto Web Platform Tests
+// will provide much greater coverage.
+
+// Test ECDH key derivation
+{
+  async function test(namedCurve) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name: 'ECDH', namedCurve }, true, ['deriveKey']),
+      subtle.generateKey({ name: 'ECDH', namedCurve }, true, ['deriveKey']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveKey({
+        name: 'ECDH', namedCurve, public: alice.publicKey
+      }, bob.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+      subtle.deriveKey({
+        name: 'ECDH', namedCurve, public: bob.publicKey
+      }, alice.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+    ]);
+
+    const [raw1, raw2] = await Promise.all([
+      subtle.exportKey('raw', secret1),
+      subtle.exportKey('raw', secret2),
+    ]);
+
+    assert.deepStrictEqual(raw1, raw2);
+  }
+
+  test('P-521').then(common.mustCall());
+}
+
+// Test HKDF key derivation
+{
+  async function test(pass, info, salt, hash, expected) {
+    const ec = new TextEncoder();
+    const key = await subtle.importKey(
+      'raw',
+      ec.encode(pass),
+      { name: 'HKDF', hash },
+      false, ['deriveKey']);
+
+    const secret = await subtle.deriveKey({
+      name: 'HKDF',
+      hash,
+      salt: ec.encode(salt),
+      info: ec.encode(info)
+    }, key, {
+      name: 'AES-CTR',
+      length: 256
+    }, true, ['encrypt']);
+
+    const raw = await subtle.exportKey('raw', secret);
+
+    assert.strictEqual(Buffer.from(raw).toString('hex'), expected);
+  }
+
+  const kTests = [
+    ['hello', 'there', 'my friend', 'SHA-1',
+     '365ca5d3f42d050c74302e420c83975327950f1913a151eecd00526bf52614a0'],
+    ['hello', 'there', 'my friend', 'SHA-256',
+     '14d93b0ccd99d4f2cbd9fbfe9c830b5b8a43e3e45e32941ef21bdeb0fa87b6b6'],
+    ['hello', 'there', 'my friend', 'SHA-384',
+     'e36cf2cf943d8f3a88adb80f478745c336ac811b1a86d03a7d10eb0b6b52295c'],
+    ['hello', 'there', 'my friend', 'SHA-512',
+     '1e42d43fcacba361716f65853bd5f3c479f679612f0180eab3c51ed6c9d2b47d'],
+  ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      ['hello', 'there', 'my friend', 'SHA3-256',
+       '2a49a3b6fb219117af9e251c6c65f16600cbca13bd0be6e70d96b0b9fa4cf3fd'],
+      ['hello', 'there', 'my friend', 'SHA3-384',
+       '0437bb59b95f2db2c7684c0b439028cb0fdd6f0f5d03b9f489066a87ae147221'],
+      ['hello', 'there', 'my friend', 'SHA3-512',
+       '3bbc469d38214371921e52c6f147e96cb7eb370421a81f53dea8b4851dfb8bce'],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
+
+  const tests = Promise.all(kTests.map((args) => test(...args)));
+
+  tests.then(common.mustCall());
+}
+
+// Test PBKDF2 key derivation
+{
+  async function test(pass, salt, iterations, hash, expected) {
+    const ec = new TextEncoder();
+    const key = await subtle.importKey(
+      'raw',
+      ec.encode(pass),
+      { name: 'PBKDF2', hash },
+      false, ['deriveKey']);
+    const secret = await subtle.deriveKey({
+      name: 'PBKDF2',
+      hash,
+      salt: ec.encode(salt),
+      iterations,
+    }, key, {
+      name: 'AES-CTR',
+      length: 256
+    }, true, ['encrypt']);
+
+    const raw = await subtle.exportKey('raw', secret);
+
+    assert.strictEqual(Buffer.from(raw).toString('hex'), expected);
+  }
+
+  const kTests = [
+    ['hello', 'there', 5, 'SHA-1',
+     'f8f65a5fd92c9b74916083a7e9b0001c46bc89e2a14c48014cf1e0e1dbabf635'],
+    ['hello', 'there', 5, 'SHA-256',
+     '2e575eae24267db32106c7dba01615e5417557e8c5cf33ba15a311cb0c2907ee'],
+    ['hello', 'there', 5, 'SHA-384',
+     '201509b012c9cd2fbe7ea938f0c509b36ecb140f38bf9130e96923f55f46756d'],
+    ['hello', 'there', 5, 'SHA-512',
+     '2e8d981741f98193e0af9c79870af0e985089341221edad9a130d297eae1984b'],
+  ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      ['hello', 'there', 5, 'SHA3-256',
+       '0aed29b61b3ca3978aea34a9793276574ea997b69e8d03727438199f90571649'],
+      ['hello', 'there', 5, 'SHA3-384',
+       '7aa4a274aa19b4623c5d3091c4b06355de85ff6f25e53a83e3126cbb86ae68df'],
+      ['hello', 'there', 5, 'SHA3-512',
+       '4d909c47a81c625f866d1f9406248e6bc3c7ea89225fbccf1f08820254c9ef56']
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
+
+  const tests = Promise.all(kTests.map((args) => test(...args)));
+
+  tests.then(common.mustCall());
+}
+
+// Test default key lengths
+{
+  const vectors = [
+    ['PBKDF2', 'deriveKey', 528],
+    ['HKDF', 'deriveKey', 528],
+    [{ name: 'HMAC', hash: 'SHA-1' }, 'sign', 512],
+    [{ name: 'HMAC', hash: 'SHA-256' }, 'sign', 512],
+    // Not long enough secret generated by ECDH
+    [{ name: 'HMAC', hash: 'SHA-384' }, 'sign', 1024],
+    [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 1024],
+  ];
+
+  if (!process.features.openssl_is_boringssl) {
+    vectors.push(
+      [{ name: 'HMAC', hash: 'SHA3-256', length: 256 }, 'sign', 256],
+      [{ name: 'HMAC', hash: 'SHA3-384', length: 384 }, 'sign', 384],
+      [{ name: 'HMAC', hash: 'SHA3-512', length: 512 }, 'sign', 512]
+      // This interaction is not defined for now.
+      // https://github.com/WICG/webcrypto-modern-algos/issues/23
+      // [{ name: 'HMAC', hash: 'SHA3-256' }, 'sign', 256],
+      // [{ name: 'HMAC', hash: 'SHA3-384' }, 'sign', 384],
+      // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
+
+  if (hasOpenSSL(3)) {
+    vectors.push(
+      ['KMAC128', 'sign', 128],
+      [{ name: 'KMAC128', length: 384 }, 'sign', 384],
+      ['KMAC256', 'sign', 256],
+      [{ name: 'KMAC256', length: 384 }, 'sign', 384],
+    );
+  }
+
+  (async () => {
+    const keyPair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-521' }, false, ['deriveKey']);
+    for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
+      const [result] = await Promise.allSettled([subtle.deriveKey(
+        { name: 'ECDH', public: keyPair.publicKey },
+        keyPair.privateKey,
+        derivedKeyAlgorithm,
+        false,
+        [usage])]);
+
+      if (expected > 528) {
+        assert.strictEqual(result.status, 'rejected');
+        assert.match(result.reason.message, /derived bit length is too small/);
+      } else {
+        assert.strictEqual(result.status, 'fulfilled');
+        const derived = result.value;
+        if (derived.algorithm.name === 'HMAC' || derived.algorithm.name.startsWith('KMAC')) {
+          assert.strictEqual(derived.algorithm.length, expected);
+        } else {
+          // KDFs cannot be exportable and do not indicate their length
+          const secretKey = KeyObject.from(derived);
+          assert.strictEqual(secretKey.symmetricKeySize, expected / 8);
+        }
+      }
+    }
+  })().then(common.mustCall());
+}
+
+{
+  const vectors = [
+    [{ name: 'HMAC', hash: 'SHA-1' }, 'sign', 512],
+    [{ name: 'HMAC', hash: 'SHA-256' }, 'sign', 512],
+    [{ name: 'HMAC', hash: 'SHA-384' }, 'sign', 1024],
+    [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 1024],
+  ];
+
+  if (!process.features.openssl_is_boringssl) {
+    vectors.push(
+      [{ name: 'HMAC', hash: 'SHA3-256', length: 256 }, 'sign', 256],
+      [{ name: 'HMAC', hash: 'SHA3-384', length: 384 }, 'sign', 384],
+      [{ name: 'HMAC', hash: 'SHA3-512', length: 512 }, 'sign', 512],
+      // This interaction is not defined for now.
+      // https://github.com/WICG/webcrypto-modern-algos/issues/23
+      // [{ name: 'HMAC', hash: 'SHA3-256' }, 'sign', 256],
+      // [{ name: 'HMAC', hash: 'SHA3-384' }, 'sign', 384],
+      // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
+
+  if (hasOpenSSL(3)) {
+    vectors.push(
+      ['KMAC128', 'sign', 128],
+      [{ name: 'KMAC128', length: 384 }, 'sign', 384],
+      ['KMAC256', 'sign', 256],
+      [{ name: 'KMAC256', length: 384 }, 'sign', 384],
+    );
+  }
+
+  (async () => {
+    for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
+      const derived = await subtle.deriveKey(
+        { name: 'PBKDF2', salt: new Uint8Array([]), hash: 'SHA-256', iterations: 20 },
+        await subtle.importKey('raw', new Uint8Array([]), { name: 'PBKDF2' }, false, ['deriveKey']),
+        derivedKeyAlgorithm,
+        false,
+        [usage]);
+
+      assert.strictEqual(derived.algorithm.length, expected);
+    }
+  })().then(common.mustCall());
+}
+
+// Test X25519 and X448 key derivation
+{
+  async function test(name) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name }, true, ['deriveKey']),
+      subtle.generateKey({ name }, true, ['deriveKey']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveKey({
+        name, public: alice.publicKey
+      }, bob.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+      subtle.deriveKey({
+        name, public: bob.publicKey
+      }, alice.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+    ]);
+
+    const [raw1, raw2] = await Promise.all([
+      subtle.exportKey('raw', secret1),
+      subtle.exportKey('raw', secret2),
+    ]);
+
+    assert.deepStrictEqual(raw1, raw2);
+  }
+
+  test('X25519').then(common.mustCall());
+  if (!process.features.openssl_is_boringssl) {
+    test('X448').then(common.mustCall());
+  } else {
+    common.printSkipMessage('Skipping unsupported X448 test case');
+  }
+}

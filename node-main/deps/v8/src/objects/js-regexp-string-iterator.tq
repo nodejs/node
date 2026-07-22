@@ -1,0 +1,17 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+bitfield struct JSRegExpStringIteratorFlags extends uint31 {
+  done: bool: 1 bit;
+  global: bool: 1 bit;
+  unicode: bool: 1 bit;
+}
+
+extern class JSRegExpStringIterator extends JSObject {
+  // The [[IteratingRegExp]] internal property.
+  iterating_reg_exp: JSReceiver;
+  // The [[IteratedString]] internal property.
+  iterated_string: String;
+  flags: SmiTagged<JSRegExpStringIteratorFlags>;
+}

@@ -1,0 +1,531 @@
+// Copyright 2019 the V8 project authors. All rights reserved. Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
+
+namespace math {
+
+transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(
+                                         x: JSAny): never
+    labels SmiResult(Smi), Float64Result(float64) {
+  let x1: JSAny = x;
+  while (true) {
+    typeswitch (x1) {
+      case (s: Smi): {
+        goto SmiResult(s);
+      }
+      case (h: HeapNumber): {
+        goto Float64Result(Convert<float64>(h));
+      }
+      case (a: JSAnyNotNumber): {
+        x1 = conversion::NonNumberToNumber(a);
+      }
+    }
+  }
+  VerifiedUnreachable();
+}
+
+// ES6 #sec-math.abs
+extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
+extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
+extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
+extern macro TrySmiAbs(Smi): Smi labels Overflow;
+extern macro Float64Abs(float64): float64;
+const kSmiMaxValuePlusOne:
+    constexpr float64 generates '0.0 - kSmiMinValue';
+
+transitioning javascript builtin MathAbs(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  try {
+    ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+  } label SmiResult(s: Smi) {
+    try {
+      if constexpr (IsIntPtrAbsWithOverflowSupported()) {
+        const result: Smi = TrySmiAbs(s)
+            otherwise SmiOverflow;
+        return result;
+      } else {
+        if (0 <= s) {
+          return s;
+        } else {
+          const result: Smi = TrySmiSub(0, s) otherwise SmiOverflow;
+          return result;
+        }
+      }
+    } label SmiOverflow {
+      return NumberConstant(kSmiMaxValuePlusOne);
+    }
+  } label Float64Result(f: float64) {
+    return Convert<Number>(Float64Abs(f));
+  }
+}
+
+// ES6 #sec-math.ceil
+extern macro Float64Ceil(float64): float64;
+transitioning javascript builtin MathCeil(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  try {
+    ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+  } label SmiResult(s: Smi) {
+    return s;
+  } label Float64Result(f: float64) {
+    return Convert<Number>(Float64Ceil(f));
+  }
+}
+
+// ES6 #sec-math.floor
+extern macro Float64Floor(float64): float64;
+transitioning javascript builtin MathFloor(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  try {
+    ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+  } label SmiResult(s: Smi) {
+    return s;
+  } label Float64Result(f: float64) {
+    return Convert<Number>(Float64Floor(f));
+  }
+}
+
+// ES6 #sec-math.round
+extern macro Float64Round(float64): float64;
+transitioning javascript builtin MathRound(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  try {
+    ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+  } label SmiResult(s: Smi) {
+    return s;
+  } label Float64Result(f: float64) {
+    return Convert<Number>(Float64Round(f));
+  }
+}
+
+// ES6 #sec-math.trunc
+extern macro Float64Trunc(float64): float64;
+transitioning javascript builtin MathTrunc(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  try {
+    ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+  } label SmiResult(s: Smi) {
+    return s;
+  } label Float64Result(f: float64) {
+    return Convert<Number>(Float64Trunc(f));
+  }
+}
+
+// ES6 #sec-math.pow
+extern macro Float64Pow(float64, float64): float64;
+extern macro TruncateTaggedToFloat64(implicit context: Context)(
+                                      JSAny): float64;
+
+@export
+macro MathPowImpl(implicit context: Context)(base: JSAny,
+                     exponent: JSAny): Number {
+  const baseValue: float64 = TruncateTaggedToFloat64(base);
+  const exponentValue: float64 = TruncateTaggedToFloat64(exponent);
+  const result: float64 = Float64Pow(baseValue, exponentValue);
+  return Convert<Number>(result);
+}
+
+transitioning javascript builtin MathPow(
+    js-implicit context: NativeContext)(base: JSAny, exponent: JSAny): Number {
+  return MathPowImpl(base, exponent);
+}
+
+// ES6 #sec-math.max
+extern macro Float64Max(float64, float64): float64;
+transitioning javascript builtin MathMax(
+    js-implicit context: NativeContext)(...arguments): Number {
+  let result: float64 = MINUS_V8_INFINITY;
+  const argCount = arguments.length;
+  for (let i: intptr = 0; i < argCount; i++) {
+    const doubleValue = TruncateTaggedToFloat64(arguments[i]);
+    result = Float64Max(result, doubleValue);
+  }
+  return Convert<Number>(result);
+}
+
+// ES6 #sec-math.min
+extern macro Float64Min(float64, float64): float64;
+transitioning javascript builtin MathMin(
+    js-implicit context: NativeContext)(...arguments): Number {
+  let result: float64 = V8_INFINITY;
+  const argCount = arguments.length;
+  for (let i: intptr = 0; i < argCount; i++) {
+    const doubleValue = TruncateTaggedToFloat64(arguments[i]);
+    result = Float64Min(result, doubleValue);
+  }
+  return Convert<Number>(result);
+}
+
+// ES6 #sec-math.acos
+extern macro Float64Acos(float64): float64;
+
+transitioning javascript builtin MathAcos(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Acos(value));
+}
+
+// ES6 #sec-math.acosh
+extern macro Float64Acosh(float64): float64;
+
+transitioning javascript builtin MathAcosh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Acosh(value));
+}
+
+// ES6 #sec-math.asin
+extern macro Float64Asin(float64): float64;
+
+transitioning javascript builtin MathAsin(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Asin(value));
+}
+
+// ES6 #sec-math.asinh
+extern macro Float64Asinh(float64): float64;
+
+transitioning javascript builtin MathAsinh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Asinh(value));
+}
+
+// ES6 #sec-math.atan
+extern macro Float64Atan(float64): float64;
+
+transitioning javascript builtin MathAtan(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Atan(value));
+}
+
+// ES6 #sec-math.atan2
+extern macro Float64Atan2(float64, float64): float64;
+
+transitioning javascript builtin MathAtan2(
+    js-implicit context: NativeContext)(y: JSAny, x: JSAny): Number {
+  const yValue = Convert<float64>(ToNumber_Inline(y));
+  const xValue = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Atan2(yValue, xValue));
+}
+
+// ES6 #sec-math.atanh
+extern macro Float64Atanh(float64): float64;
+
+transitioning javascript builtin MathAtanh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Atanh(value));
+}
+
+// ES6 #sec-math.cbrt
+extern macro Float64Cbrt(float64): float64;
+
+transitioning javascript builtin MathCbrt(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Cbrt(value));
+}
+
+// ES6 #sec-math.clz32
+extern macro Word32Clz(int32): int32;
+
+transitioning javascript builtin MathClz32(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value: int32 = Convert<int32>(ToNumber_Inline(x));
+  return Convert<Number>(Word32Clz(value));
+}
+
+// ES6 #sec-math.cos
+extern macro Float64Cos(float64): float64;
+
+transitioning javascript builtin MathCos(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Cos(value));
+}
+
+// ES6 #sec-math.cosh
+extern macro Float64Cosh(float64): float64;
+
+transitioning javascript builtin MathCosh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Cosh(value));
+}
+
+// ES6 #sec-math.exp
+extern macro Float64Exp(float64): float64;
+
+transitioning javascript builtin MathExp(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Exp(value));
+}
+
+// ES6 #sec-math.expm1
+extern macro Float64Expm1(float64): float64;
+
+transitioning javascript builtin MathExpm1(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Expm1(value));
+}
+
+// ES6 #sec-math.fround
+transitioning javascript builtin MathFround(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const x32 = Convert<float32>(ToNumber_Inline(x));
+  const x64 = Convert<float64>(x32);
+  return Convert<Number>(x64);
+}
+
+// ES6 #sec-math.f16round
+@incrementUseCounter('v8::Isolate::kFloat16Array')
+transitioning javascript builtin MathF16round(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const x16 = Convert<float16_raw_bits>(ToNumber_Inline(x));
+  const x64 = Convert<float64>(x16);
+  return Convert<Number>(x64);
+}
+
+// ES6 #sec-math.imul
+transitioning javascript builtin MathImul(
+    js-implicit context: NativeContext)(x: JSAny, y: JSAny): Number {
+  const x = Convert<int32>(ToNumber_Inline(x));
+  const y = Convert<int32>(ToNumber_Inline(y));
+  return Convert<Number>(x * y);
+}
+
+// ES6 #sec-math.log
+extern macro Float64Log(float64): float64;
+
+transitioning javascript builtin MathLog(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Log(value));
+}
+
+// ES6 #sec-math.log1p
+extern macro Float64Log1p(float64): float64;
+
+transitioning javascript builtin MathLog1p(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Log1p(value));
+}
+
+// ES6 #sec-math.log10
+extern macro Float64Log10(float64): float64;
+
+transitioning javascript builtin MathLog10(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Log10(value));
+}
+
+// ES6 #sec-math.log2
+extern macro Float64Log2(float64): float64;
+
+transitioning javascript builtin MathLog2(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Log2(value));
+}
+
+// ES6 #sec-math.sin
+extern macro Float64Sin(float64): float64;
+
+transitioning javascript builtin MathSin(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Sin(value));
+}
+
+// ES6 #sec-math.sign
+transitioning javascript builtin MathSign(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const num = ToNumber_Inline(x);
+  const value = Convert<float64>(num);
+
+  if (value < 0) {
+    return -1;
+  } else if (value > 0) {
+    return 1;
+  } else {
+    return num;
+  }
+}
+
+// ES6 #sec-math.sinh
+extern macro Float64Sinh(float64): float64;
+
+transitioning javascript builtin MathSinh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Sinh(value));
+}
+
+// ES6 #sec-math.sqrt
+extern macro Float64Sqrt(float64): float64;
+
+transitioning javascript builtin MathSqrt(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Sqrt(value));
+}
+
+// ES6 #sec-math.tan
+extern macro Float64Tan(float64): float64;
+
+transitioning javascript builtin MathTan(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Tan(value));
+}
+
+// ES6 #sec-math.tanh
+extern macro Float64Tanh(float64): float64;
+
+transitioning javascript builtin MathTanh(
+    js-implicit context: NativeContext)(x: JSAny): Number {
+  const value = Convert<float64>(ToNumber_Inline(x));
+  return Convert<Number>(Float64Tanh(value));
+}
+
+// Fast path for few arguments to avoid loop comparison.
+transitioning macro FastMathHypot(
+    implicit context: Context)(arguments: Arguments): Number labels Slow {
+  const length = arguments.length;
+
+  if (length > 3) {
+    goto Slow;
+  }
+
+  if (length == 0) {
+    return 0;
+  }
+
+  const a = Float64Abs(Convert<float64>(ToNumber_Inline(arguments[0])));
+
+  if (length == 1) {
+    return Convert<Number>(a);
+  }
+
+  let max: float64 = 0;
+  const b = Float64Abs(Convert<float64>(ToNumber_Inline(arguments[1])));
+
+  if (length == 2) {
+    if (a == V8_INFINITY || b == V8_INFINITY) {
+      return V8_INFINITY;
+    }
+
+    max = Float64Max(a, b);
+
+    if (Float64IsNaN(max)) {
+      return kNaN;
+    }
+
+    if (max == 0) {
+      return 0;
+    }
+
+    return Convert<Number>(
+        Float64Sqrt((a / max) * (a / max) + (b / max) * (b / max)) * max);
+  }
+
+  if (length == 3) {
+    const c = Float64Abs(Convert<float64>(ToNumber_Inline(arguments[2])));
+    if (a == V8_INFINITY || b == V8_INFINITY || c == V8_INFINITY) {
+      return V8_INFINITY;
+    }
+
+    max = Float64Max(Float64Max(a, b), c);
+
+    if (Float64IsNaN(max)) {
+      return kNaN;
+    }
+
+    if (max == 0) {
+      return 0;
+    }
+
+    const powerA: float64 = (a / max) * (a / max);
+    const powerB: float64 = (b / max) * (b / max);
+    const compensation: float64 = (powerA + powerB) - powerA - powerB;
+    const powerC: float64 = (c / max) * (c / max) - compensation;
+
+    return Convert<Number>(Float64Sqrt(powerA + powerB + powerC) * max);
+  }
+  unreachable;
+}
+
+// ES6 #sec-math.hypot
+transitioning javascript builtin MathHypot(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Number {
+  try {
+    return FastMathHypot(arguments) otherwise Slow;
+  } label Slow {
+    const length = arguments.length;
+    const absValues = AllocateZeroedFixedDoubleArray(length);
+    let oneArgIsNaN: bool = false;
+    let max: float64 = 0;
+    for (let i: intptr = 0; i < length; ++i) {
+      const value = Convert<float64>(ToNumber_Inline(arguments[i]));
+      if (Float64IsNaN(value)) {
+        oneArgIsNaN = true;
+      } else {
+        const absValue = Float64Abs(value);
+        absValues.values[i] = Convert<float64_or_undefined_or_hole>(absValue);
+        if (absValue > max) {
+          max = absValue;
+        }
+      }
+    }
+    if (max == V8_INFINITY) {
+      return V8_INFINITY;
+    } else if (oneArgIsNaN) {
+      return kNaN;
+    } else if (max == 0) {
+      return 0;
+    }
+    dcheck(max > 0);
+
+    // Kahan summation to avoid rounding errors.
+    // Normalize the numbers to the largest one to avoid overflow.
+    let sum: float64 = 0;
+    let compensation: float64 = 0;
+    for (let i: intptr = 0; i < length; ++i) {
+      const n = absValues.values[i].ValueUnsafeAssumeNotHole() / max;
+      const summand = n * n - compensation;
+      const preliminary = sum + summand;
+      compensation = (preliminary - sum) - summand;
+      sum = preliminary;
+    }
+    return Convert<Number>(Float64Sqrt(sum) * max);
+  }
+}
+
+// ES6 #sec-math.random
+extern macro RefillMathRandom(NativeContext): Smi;
+
+transitioning javascript builtin MathRandom(
+    js-implicit context: NativeContext, receiver: JSAny)(): Number {
+  let smiIndex: Smi = *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX);
+  if (smiIndex == 0) {
+    // refill math random.
+    smiIndex = RefillMathRandom(context);
+  }
+  const newSmiIndex: Smi = smiIndex - 1;
+  *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX) = newSmiIndex;
+
+  const array: FixedDoubleArray =
+      *NativeContextSlot(ContextSlot::MATH_RANDOM_CACHE_INDEX);
+  const random: float64 =
+      array.values[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
+  return AllocateHeapNumberWithValue(random);
+}
+}

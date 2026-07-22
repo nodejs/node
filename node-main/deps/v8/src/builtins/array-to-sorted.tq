@@ -1,0 +1,133 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+transitioning macro CopyWorkArrayToNewFastJSArray(
+    implicit context: Context, sortState: SortState)(
+    elementsKind: constexpr ElementsKind, numberOfNonUndefined: Smi): JSArray {
+  dcheck(
+      elementsKind == ElementsKind::PACKED_SMI_ELEMENTS ||
+      elementsKind == ElementsKind::PACKED_ELEMENTS);
+
+  const len = sortState.sortLength;
+  dcheck(len == numberOfNonUndefined + sortState.numberOfUndefined);
+  dcheck(len <= kMaxFastArrayLength);
+
+  const copy: FixedArray = UnsafeCast<FixedArray>(
+      AllocateFixedArray(elementsKind, Convert<intptr>(len)));
+
+  const workArray = sortState.workArray;
+  CopyElements(
+      elementsKind, copy, 0, workArray, 0,
+      Convert<intptr>(numberOfNonUndefined));
+
+  dcheck(
+      sortState.numberOfUndefined == 0 ||
+      elementsKind == ElementsKind::PACKED_ELEMENTS);
+  for (let i = numberOfNonUndefined; i < len; ++i) {
+    copy.objects[i] = Undefined;
+  }
+
+  const map = LoadJSArrayElementsMap(elementsKind, LoadNativeContext(context));
+  return NewJSArray(map, copy);
+}
+
+transitioning macro CopyWorkArrayToNewJSArray(
+    implicit context: Context, sortState: SortState)(
+    numberOfNonUndefined: Smi): JSArray {
+  const len = sortState.sortLength;
+  dcheck(len == numberOfNonUndefined + sortState.numberOfUndefined);
+
+  const workArray = sortState.workArray;
+  const copy = ArrayCreate(len);
+  let i: Smi = 0;
+  for (; i < numberOfNonUndefined; ++i) {
+    SetProperty(copy, i, UnsafeCast<JSAny>(workArray.objects[i]));
+  }
+  for (; i < len; ++i) {
+    SetProperty(copy, i, Undefined);
+  }
+  return copy;
+}
+
+transitioning builtin ArrayTimSortIntoCopy(
+    context: Context, sortState: SortState): JSArray {
+  const isToSorted: constexpr bool = true;
+  const numberOfNonUndefined: Smi =
+      CompactReceiverElementsIntoWorkArray(isToSorted);
+  ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
+
+  if (sortState.sortLength <= kMaxFastArrayLength) {
+    // The result copy of Array.prototype.toSorted is always packed.
+    try {
+      if (sortState.numberOfUndefined != 0) goto FastObject;
+
+      const workArray = sortState.workArray;
+      dcheck(numberOfNonUndefined <= workArray.length);
+      for (let i: Smi = 0; i < numberOfNonUndefined; ++i) {
+        const e = UnsafeCast<JSAny>(workArray.objects[i]);
+        // TODO(v8:12764): ArrayTimSortImpl already boxed doubles. Support
+        // PACKED_DOUBLE_ELEMENTS.
+        if (TaggedIsNotSmi(e)) {
+          goto FastObject;
+        }
+      }
+      return CopyWorkArrayToNewFastJSArray(
+          ElementsKind::PACKED_SMI_ELEMENTS, numberOfNonUndefined);
+    } label FastObject {
+      return CopyWorkArrayToNewFastJSArray(
+          ElementsKind::PACKED_ELEMENTS, numberOfNonUndefined);
+    }
+  }
+
+  return CopyWorkArrayToNewJSArray(numberOfNonUndefined);
+}
+
+// https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toSorted
+@incrementUseCounter('v8::Isolate::kArrayByCopy')
+transitioning javascript builtin ArrayPrototypeToSorted(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. If comparefn is not undefined and IsCallable(comparefn) is false, throw
+  //    a TypeError exception.
+  const comparefnObj: JSAny = arguments[0];
+  const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
+  ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
+
+  // 2. Let O be ? ToObject(this value).
+  const obj: JSReceiver = ToObject(context, receiver);
+
+  // 3. Let len be ? LengthOfArrayLike(O).
+  const len: Number = GetLengthProperty(obj);
+
+  if (len == 0) return ArrayCreate(0);
+  if (len == 1) {
+    const copy = ArrayCreate(1);
+    const zero: Smi = 0;
+    SetProperty(copy, zero, GetProperty(obj, zero));
+    return copy;
+  }
+
+  // 4. Let A be ? ArrayCreate(𝔽(len)).
+  //
+  // The actual array will be created later, but perform the range check.
+  if (len > kMaxArrayLength) {
+    ThrowRangeError(MessageTemplate::kInvalidArrayLength, len);
+  }
+
+  // 5. Let SortCompare be a new Abstract Closure with parameters (x, y) that
+  //    captures comparefn and performs the following steps when called:
+  //   a. Return ? CompareArrayElements(x, y, comparefn).
+  // 6. Let sortedList be ? SortIndexedProperties(obj, len, SortCompare, false).
+  // 7. Let j be 0.
+  // 8. Repeat, while j < len,
+  //   a. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(j)),
+  //      sortedList[j]). b. Set j to j + 1.
+  // 9. Return A.
+  //
+  // The implementation of the above steps is shared with Array.prototype.sort.
+  const isToSorted: constexpr bool = true;
+  const sortState: SortState = NewSortState(obj, comparefn, len, isToSorted);
+  return ArrayTimSortIntoCopy(context, sortState);
+}
+}

@@ -1,0 +1,128 @@
+Test getting private class methods from an instance that calls nested super()
+
+Running test: testScopesPaused
+private members after super() is called in IIFE
+privateProperties from Runtime.getProperties()
+undefined
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}
+private members after super() is called in arrow function
+privateProperties from Runtime.getProperties()
+[
+    [0] : {
+        get : {
+            className : Function
+            description : get #c() {}
+            objectId : <objectId>
+            type : function
+        }
+        name : #c
+    }
+]
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}
+private members after super() is called in eval()
+privateProperties from Runtime.getProperties()
+[
+    [0] : {
+        get : {
+            className : Function
+            description : get #c() {}
+            objectId : <objectId>
+            type : function
+        }
+        name : #c
+    }
+    [1] : {
+        name : #d
+        set : {
+            className : Function
+            description : set #d(val) {}
+            objectId : <objectId>
+            type : function
+        }
+    }
+]
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}

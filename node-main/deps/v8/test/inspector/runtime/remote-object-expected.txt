@@ -1,0 +1,3281 @@
+Tests Runtime.RemoteObject.
+
+Running test: testNull
+'null', returnByValue: false, generatePreview: false
+{
+    result : {
+        subtype : null
+        type : object
+        value : null
+    }
+}
+'null', returnByValue: true, generatePreview: false
+{
+    result : {
+        subtype : null
+        type : object
+        value : null
+    }
+}
+'null', returnByValue: false, generatePreview: true
+{
+    result : {
+        subtype : null
+        type : object
+        value : null
+    }
+}
+
+Running test: testBoolean
+'true', returnByValue: false, generatePreview: false
+{
+    result : {
+        type : boolean
+        value : true
+    }
+}
+'false', returnByValue: false, generatePreview: false
+{
+    result : {
+        type : boolean
+        value : false
+    }
+}
+'true', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : boolean
+        value : true
+    }
+}
+'true', returnByValue: false, generatePreview: true
+{
+    result : {
+        type : boolean
+        value : true
+    }
+}
+
+Running test: testNumber
+'0 / {}', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : NaN
+        type : number
+        unserializableValue : NaN
+    }
+}
+'-0', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : -0
+        type : number
+        unserializableValue : -0
+    }
+}
+'0', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+'1/0', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : Infinity
+        type : number
+        unserializableValue : Infinity
+    }
+}
+'-1/0', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : -Infinity
+        type : number
+        unserializableValue : -Infinity
+    }
+}
+'2.3456', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 2.3456
+        type : number
+        value : 2.3456
+    }
+}
+'2.3456', returnByValue: true, generatePreview: false
+{
+    result : {
+        description : 2.3456
+        type : number
+        value : 2.3456
+    }
+}
+'1/0', returnByValue: true, generatePreview: false
+{
+    result : {
+        description : Infinity
+        type : number
+        unserializableValue : Infinity
+    }
+}
+'({a: 1/0})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            a : null
+        }
+    }
+}
+
+Running test: testUndefined
+'undefined', returnByValue: false, generatePreview: false
+{
+    result : {
+        type : undefined
+    }
+}
+'undefined', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : undefined
+    }
+}
+'({a : undefined})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+'([1, undefined])', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : [
+            [0] : 1
+            [1] : null
+        ]
+    }
+}
+
+Running test: testString
+''Hello!'', returnByValue: false, generatePreview: false
+{
+    result : {
+        type : string
+        value : Hello!
+    }
+}
+''Hello!'', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : string
+        value : Hello!
+    }
+}
+''Hello!'', returnByValue: false, generatePreview: true
+{
+    result : {
+        type : string
+        value : Hello!
+    }
+}
+
+Running test: testSymbol
+'Symbol()', returnByValue: false, generatePreview: true
+{
+    result : {
+        description : Symbol()
+        objectId : <objectId>
+        type : symbol
+    }
+}
+'Symbol(42)', returnByValue: false, generatePreview: true
+{
+    result : {
+        description : Symbol(42)
+        objectId : <objectId>
+        type : symbol
+    }
+}
+'Symbol('abc')', returnByValue: false, generatePreview: true
+{
+    result : {
+        description : Symbol(abc)
+        objectId : <objectId>
+        type : symbol
+    }
+}
+'Symbol('abc')', returnByValue: true, generatePreview: false
+{
+    error : {
+        code : -32000
+        message : Object couldn't be returned by value
+    }
+    id : <messageId>
+}
+
+Running test: testReturnByValue
+Empty object
+'({})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+Object with properties
+'({a:1, b:2})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            a : 1
+            b : 2
+        }
+    }
+}
+Object with cycle
+'a = {};a.a = a; a', returnByValue: true, generatePreview: false
+{
+    code : -32000
+    message : Object reference chain is too long
+}
+Function () => 42
+'() => 42', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : function
+        value : {
+        }
+    }
+}
+Symbol(42)
+'Symbol(42)', returnByValue: true, generatePreview: false
+{
+    code : -32000
+    message : Object couldn't be returned by value
+}
+Error object
+'new Error()', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+
+Running test: testFunction
+'(() => 42)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Function
+        description : () => 42
+        objectId : <objectId>
+        type : function
+    }
+}
+'(function() { return 42 })', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Function
+        description : function() { return 42 }
+        objectId : <objectId>
+        type : function
+    }
+}
+'(function name() { return 42 })', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Function
+        description : function name() { return 42 }
+        objectId : <objectId>
+        type : function
+    }
+}
+'(async function asyncName() { return 42 })', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : AsyncFunction
+        description : async function asyncName() { return 42 }
+        objectId : <objectId>
+        type : function
+    }
+}
+'(async () => 42)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : AsyncFunction
+        description : async () => 42
+        objectId : <objectId>
+        type : function
+    }
+}
+'(function (a) { return a; }).bind(null, 42)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Function
+        description : function () { [native code] }
+        objectId : <objectId>
+        type : function
+    }
+}
+'a = (function() { return 42 }); a.b = 2; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Function
+        description : function() { return 42 }
+        objectId : <objectId>
+        type : function
+    }
+}
+'(function() { return 42 })', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : function
+        value : {
+        }
+    }
+}
+'a = (function() { return 42 }); a.b = 2; a', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : function
+        value : {
+            b : 2
+        }
+    }
+}
+
+Running test: testBigInt
+'1n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 1n
+        type : bigint
+        unserializableValue : 1n
+    }
+}
+'-5n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : -5n
+        type : bigint
+        unserializableValue : -5n
+    }
+}
+'1234567890123456789012345678901234567890n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 1234567890123456789012345678901234567890n
+        type : bigint
+        unserializableValue : 1234567890123456789012345678901234567890n
+    }
+}
+'-5n', returnByValue: true, generatePreview: false
+{
+    result : {
+        description : -5n
+        type : bigint
+        unserializableValue : -5n
+    }
+}
+'-5n', returnByValue: false, generatePreview: true
+{
+    result : {
+        description : -5n
+        type : bigint
+        unserializableValue : -5n
+    }
+}
+'1n << 9_999_999n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 0x800000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
+'-1n << 9_999_999n', returnByValue: false, generatePreview: false
+100
+{
+    result : {
+        description : -0x80000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
+
+Running test: testRegExp
+'/w+/d', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/d
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/g', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/g
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/i', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/i
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/m', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/m
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/s', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/s
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/u', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/u
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/y', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/y
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/v', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/v
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/dgimsuy', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/dgimsuy
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'/w+/dgimsvy', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/dgimsvy
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'new RegExp('\w+', 'g')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /w+/g
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'new RegExp('foo/bar')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /foo\/bar/
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /./dgimsuy
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'var re = /./dgimsvy;
+        re.toString = () => 'foo';
+        re', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /./dgimsvy
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
+'var re = new RegExp('\w+', 'g');
+        re.prop = 32;
+        re', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : RegExp
+        description : /w+/g
+        objectId : <objectId>
+        preview : {
+            description : /w+/g
+            overflow : true
+            properties : [
+                [0] : {
+                    name : prop
+                    type : number
+                    value : 32
+                }
+                [1] : {
+                    name : lastIndex
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : dotAll
+                    type : boolean
+                    value : false
+                }
+                [3] : {
+                    name : flags
+                    type : string
+                    value : g
+                }
+                [4] : {
+                    name : global
+                    type : boolean
+                    value : true
+                }
+            ]
+            subtype : regexp
+            type : object
+        }
+        subtype : regexp
+        type : object
+    }
+}
+'var re = new RegExp('\w+', 'g');
+        re.prop = 32;
+        re', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            prop : 32
+        }
+    }
+}
+
+Running test: testDate
+'new Date('May 18, 1991 03:24:00')', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'new Date(2018, 9, 31)', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a.b = 2; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+                [0] : {
+                    name : b
+                    type : number
+                    value : 2
+                }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a.toString = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+                [0] : {
+                    name : toString
+                    type : function
+                    value :
+                }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+
+Running test: testMap
+'new Map()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Map
+        description : Map(0)
+        objectId : <objectId>
+        preview : {
+            description : Map(0)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : size
+                    type : number
+                    value : 0
+                }
+            ]
+            subtype : map
+            type : object
+        }
+        subtype : map
+        type : object
+    }
+}
+'new Map([[1,2]])', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Map
+        description : Map(1)
+        objectId : <objectId>
+        preview : {
+            description : Map(1)
+            entries : [
+                [0] : {
+                    key : {
+                        description : 1
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                    value : {
+                        description : 2
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+                [0] : {
+                    name : size
+                    type : number
+                    value : 1
+                }
+            ]
+            subtype : map
+            type : object
+        }
+        subtype : map
+        type : object
+    }
+}
+'a = new Map(); a.set(a, a); a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Map
+        description : Map(1)
+        objectId : <objectId>
+        preview : {
+            description : Map(1)
+            entries : [
+                [0] : {
+                    key : {
+                        description : Map(1)
+                        overflow : true
+                        properties : [
+                            [0] : {
+                                name : size
+                                type : number
+                                value : 1
+                            }
+                        ]
+                        subtype : map
+                        type : object
+                    }
+                    value : {
+                        description : Map(1)
+                        overflow : true
+                        properties : [
+                            [0] : {
+                                name : size
+                                type : number
+                                value : 1
+                            }
+                        ]
+                        subtype : map
+                        type : object
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+                [0] : {
+                    name : size
+                    type : number
+                    value : 1
+                }
+            ]
+            subtype : map
+            type : object
+        }
+        subtype : map
+        type : object
+    }
+}
+'new Map([['a','b']])', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Map
+        description : Map(1)
+        objectId : <objectId>
+        subtype : map
+        type : object
+    }
+}
+'({ a: new Map([['a','b']]) })', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    subtype : map
+                    type : object
+                    value : Map(1)
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+'m = new Map([['a', {b: 2}]])
+        m.d = 42;
+        m', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Map
+        description : Map(1)
+        objectId : <objectId>
+        preview : {
+            description : Map(1)
+            entries : [
+                [0] : {
+                    key : {
+                        description : a
+                        overflow : false
+                        properties : [
+                        ]
+                        type : string
+                    }
+                    value : {
+                        description : Object
+                        overflow : false
+                        properties : [
+                            [0] : {
+                                name : b
+                                type : number
+                                value : 2
+                            }
+                        ]
+                        type : object
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+                [0] : {
+                    name : d
+                    type : number
+                    value : 42
+                }
+                [1] : {
+                    name : size
+                    type : number
+                    value : 1
+                }
+            ]
+            subtype : map
+            type : object
+        }
+        subtype : map
+        type : object
+    }
+}
+'m = new Map([['a', {b: 2}]])
+        m.d = 42;
+        m', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            d : 42
+        }
+    }
+}
+'new Map([['a', {b: 2}]]).values()', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        subtype : iterator
+        type : object
+    }
+}
+'new Map([['a', {b: 2}]]).values()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        preview : {
+            description : MapIterator
+            entries : [
+                [0] : {
+                    value : {
+                        description : Object
+                        overflow : false
+                        properties : [
+                            [0] : {
+                                name : b
+                                type : number
+                                value : 2
+                            }
+                        ]
+                        type : object
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+'it = new Map([['a', {b: 2}]]).values(); it.next(); it', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        preview : {
+            description : MapIterator
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+'new Map([['a', {b: 2}]]).values()', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+'new Map([['a', {b: 2}]]).entries()', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        subtype : iterator
+        type : object
+    }
+}
+'new Map([['a', {b: 2}]]).entries()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        preview : {
+            description : MapIterator
+            entries : [
+                [0] : {
+                    key : {
+                        description : a
+                        overflow : false
+                        properties : [
+                        ]
+                        type : string
+                    }
+                    value : {
+                        description : Object
+                        overflow : false
+                        properties : [
+                            [0] : {
+                                name : b
+                                type : number
+                                value : 2
+                            }
+                        ]
+                        type : object
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+'it = new Map([['a', {b: 2}]]).entries(); it.next(); it', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : MapIterator
+        description : MapIterator
+        objectId : <objectId>
+        preview : {
+            description : MapIterator
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+'new Map([['a', {b: 2}]]).entries()', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+
+Running test: testSet
+'new Set([1])', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Set
+        description : Set(1)
+        objectId : <objectId>
+        preview : {
+            description : Set(1)
+            entries : [
+                [0] : {
+                    value : {
+                        description : 1
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+                [0] : {
+                    name : size
+                    type : number
+                    value : 1
+                }
+            ]
+            subtype : set
+            type : object
+        }
+        subtype : set
+        type : object
+    }
+}
+'new Set([1])', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+'new Set([1,2,3,4,5,6,7])', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Set
+        description : Set(7)
+        objectId : <objectId>
+        preview : {
+            description : Set(7)
+            entries : [
+                [0] : {
+                    value : {
+                        description : 1
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [1] : {
+                    value : {
+                        description : 2
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [2] : {
+                    value : {
+                        description : 3
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [3] : {
+                    value : {
+                        description : 4
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [4] : {
+                    value : {
+                        description : 5
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : true
+            properties : [
+                [0] : {
+                    name : size
+                    type : number
+                    value : 7
+                }
+            ]
+            subtype : set
+            type : object
+        }
+        subtype : set
+        type : object
+    }
+}
+'new Set([1,2,3]).values()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : SetIterator
+        description : SetIterator
+        objectId : <objectId>
+        preview : {
+            description : SetIterator
+            entries : [
+                [0] : {
+                    value : {
+                        description : 1
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [1] : {
+                    value : {
+                        description : 2
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [2] : {
+                    value : {
+                        description : 3
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+'it = new Set([1,2,3]).values(); it.next(); it', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : SetIterator
+        description : SetIterator
+        objectId : <objectId>
+        preview : {
+            description : SetIterator
+            entries : [
+                [0] : {
+                    value : {
+                        description : 2
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+                [1] : {
+                    value : {
+                        description : 3
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : iterator
+            type : object
+        }
+        subtype : iterator
+        type : object
+    }
+}
+
+Running test: testWeakMap
+'new WeakMap()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : WeakMap
+        description : WeakMap
+        objectId : <objectId>
+        preview : {
+            description : WeakMap
+            overflow : false
+            properties : [
+            ]
+            subtype : weakmap
+            type : object
+        }
+        subtype : weakmap
+        type : object
+    }
+}
+'new WeakMap([[this, 1]])', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : WeakMap
+        description : WeakMap
+        objectId : <objectId>
+        preview : {
+            description : WeakMap
+            entries : [
+                [0] : {
+                    key : {
+                        description : global
+                        overflow : true
+                        properties : [
+                            [0] : {
+                                name : setTimeout
+                                type : function
+                                value :
+                            }
+                            [1] : {
+                                name : inspector
+                                type : object
+                                value : Object
+                            }
+                            [2] : {
+                                name : a
+                                subtype : map
+                                type : object
+                                value : Map(1)
+                            }
+                            [3] : {
+                                name : re
+                                subtype : regexp
+                                type : object
+                                value : /w+/g
+                            }
+                            [4] : {
+                                name : m
+                                subtype : map
+                                type : object
+                                value : Map(1)
+                            }
+                        ]
+                        type : object
+                    }
+                    value : {
+                        description : 1
+                        overflow : false
+                        properties : [
+                        ]
+                        type : number
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : weakmap
+            type : object
+        }
+        subtype : weakmap
+        type : object
+    }
+}
+
+Running test: testWeakSet
+'new WeakSet()', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : WeakSet
+        description : WeakSet
+        objectId : <objectId>
+        preview : {
+            description : WeakSet
+            overflow : false
+            properties : [
+            ]
+            subtype : weakset
+            type : object
+        }
+        subtype : weakset
+        type : object
+    }
+}
+'new WeakSet([this])', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : WeakSet
+        description : WeakSet
+        objectId : <objectId>
+        preview : {
+            description : WeakSet
+            entries : [
+                [0] : {
+                    value : {
+                        description : global
+                        overflow : true
+                        properties : [
+                            [0] : {
+                                name : setTimeout
+                                type : function
+                                value :
+                            }
+                            [1] : {
+                                name : inspector
+                                type : object
+                                value : Object
+                            }
+                            [2] : {
+                                name : a
+                                subtype : map
+                                type : object
+                                value : Map(1)
+                            }
+                            [3] : {
+                                name : re
+                                subtype : regexp
+                                type : object
+                                value : /w+/g
+                            }
+                            [4] : {
+                                name : m
+                                subtype : map
+                                type : object
+                                value : Map(1)
+                            }
+                        ]
+                        type : object
+                    }
+                }
+            ]
+            overflow : false
+            properties : [
+            ]
+            subtype : weakset
+            type : object
+        }
+        subtype : weakset
+        type : object
+    }
+}
+
+Running test: testGenerator
+'g = (function*(){ yield 42; })(); g.a = 2; g', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Generator
+        description : Generator
+        objectId : <objectId>
+        preview : {
+            description : Generator
+            overflow : false
+            properties : [
+                [0] : {
+                    name : [[GeneratorState]]
+                    type : string
+                    value : suspended
+                }
+                [1] : {
+                    name : a
+                    type : number
+                    value : 2
+                }
+            ]
+            subtype : generator
+            type : object
+        }
+        subtype : generator
+        type : object
+    }
+}
+
+Running test: testError
+'new Error()', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Error
+        description : Error     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+'new Error('abc')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Error
+        description : Error: abc     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+'new Error('at\nat')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Error
+        description : Error: at at     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+'new Error('preview')', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+'new Error('preview')', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Error
+        description : Error: preview     at <anonymous>:1:1
+        objectId : <objectId>
+        preview : {
+            description : Error: preview     at <anonymous>:1:1
+            overflow : false
+            properties : [
+                [0] : {
+                    name : stack
+                    type : string
+                    value : Error: preview     at <anonymous>:1:1
+                }
+                [1] : {
+                    name : message
+                    type : string
+                    value : preview
+                }
+            ]
+            subtype : error
+            type : object
+        }
+        subtype : error
+        type : object
+    }
+}
+'({a: new Error('preview')})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    subtype : error
+                    type : object
+                    value : Error: preview     at <anonymous>:1:6
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+'a = new Error('preview and a'); a.a = 123; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Error
+        description : Error: preview and a     at <anonymous>:1:5
+        objectId : <objectId>
+        preview : {
+            description : Error: preview and a     at <anonymous>:1:5
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    type : number
+                    value : 123
+                }
+                [1] : {
+                    name : stack
+                    type : string
+                    value : Error: preview and a     at <anonymous>:1:5
+                }
+                [2] : {
+                    name : message
+                    type : string
+                    value : preview and a
+                }
+            ]
+            subtype : error
+            type : object
+        }
+        subtype : error
+        type : object
+    }
+}
+'a = new Error('preview and a'); a.a = 123; a', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            a : 123
+        }
+    }
+}
+
+Running test: testCustomError
+'class CustomError extends Error {}; a = new CustomError(); delete a.stack; a', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : CustomError
+        description : CustomError
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+
+Running test: testCustomErrorWithMessage
+'class CustomMsgError extends Error {}; a = new CustomMsgError(); delete a.stack; a.message = 'foobar'; a', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : CustomMsgError
+        description : CustomMsgError: foobar
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+
+Running test: testProxy
+'new Proxy({}, {})', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Object
+        description : Proxy(Object)
+        objectId : <objectId>
+        subtype : proxy
+        type : object
+    }
+}
+'new Proxy(new Error(), {})', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Object
+        description : Proxy(Error)
+        objectId : <objectId>
+        subtype : proxy
+        type : object
+    }
+}
+'new Proxy({c: 3}, {d: 4})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+        }
+    }
+}
+'new Proxy({a: 1}, {b: 2})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Proxy(Object)
+        objectId : <objectId>
+        preview : {
+            description : Proxy(Object)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    type : number
+                    value : 1
+                }
+            ]
+            subtype : proxy
+            type : object
+        }
+        subtype : proxy
+        type : object
+    }
+}
+'({e: new Proxy({a: 1}, {b: 2})})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : e
+                    subtype : proxy
+                    type : object
+                    value : Proxy(Object)
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+'new Proxy([1, 2], {})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Proxy(Array)
+        objectId : <objectId>
+        preview : {
+            description : Proxy(Array)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : 0
+                    type : number
+                    value : 1
+                }
+                [1] : {
+                    name : 1
+                    type : number
+                    value : 2
+                }
+            ]
+            subtype : proxy
+            type : object
+        }
+        subtype : proxy
+        type : object
+    }
+}
+'revocable = Proxy.revocable({}, {}); revocable.revoke(); revocable.proxy', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Proxy
+        objectId : <objectId>
+        preview : {
+            description : Proxy
+            overflow : false
+            properties : [
+            ]
+            subtype : proxy
+            type : object
+        }
+        subtype : proxy
+        type : object
+    }
+}
+
+Running test: testPromise
+'Promise.resolve(42)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        subtype : promise
+        type : object
+    }
+}
+'Promise.reject(42)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        subtype : promise
+        type : object
+    }
+}
+'(async function(){})()', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        subtype : promise
+        type : object
+    }
+}
+'Promise.resolve('a'.repeat(101))', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        preview : {
+            description : Promise
+            overflow : false
+            properties : [
+                [0] : {
+                    name : [[PromiseState]]
+                    type : string
+                    value : fulfilled
+                }
+                [1] : {
+                    name : [[PromiseResult]]
+                    type : string
+                    value : aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                }
+            ]
+            subtype : promise
+            type : object
+        }
+        subtype : promise
+        type : object
+    }
+}
+'Promise.reject(42)', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        preview : {
+            description : Promise
+            overflow : false
+            properties : [
+                [0] : {
+                    name : [[PromiseState]]
+                    type : string
+                    value : rejected
+                }
+                [1] : {
+                    name : [[PromiseResult]]
+                    type : number
+                    value : 42
+                }
+            ]
+            subtype : promise
+            type : object
+        }
+        subtype : promise
+        type : object
+    }
+}
+'new Promise(resolve => this.resolve = resolve)', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Promise
+        description : Promise
+        objectId : <objectId>
+        preview : {
+            description : Promise
+            overflow : false
+            properties : [
+                [0] : {
+                    name : [[PromiseState]]
+                    type : string
+                    value : pending
+                }
+                [1] : {
+                    name : [[PromiseResult]]
+                    type : undefined
+                    value : undefined
+                }
+            ]
+            subtype : promise
+            type : object
+        }
+        subtype : promise
+        type : object
+    }
+}
+'a = Promise.resolve(42); a.b = 2; a', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            b : 2
+        }
+    }
+}
+'({a: Promise.resolve(42)})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    subtype : promise
+                    type : object
+                    value : Promise
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+
+Running test: testTypedArray
+'a = new Uint8Array(2); a.b = 2; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Uint8Array
+        description : Uint8Array(2)
+        objectId : <objectId>
+        preview : {
+            description : Uint8Array(2)
+            overflow : true
+            properties : [
+                [0] : {
+                    name : 0
+                    type : number
+                    value : 0
+                }
+                [1] : {
+                    name : 1
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : b
+                    type : number
+                    value : 2
+                }
+                [3] : {
+                    name : buffer
+                    subtype : arraybuffer
+                    type : object
+                    value : ArrayBuffer(2)
+                }
+                [4] : {
+                    name : byteLength
+                    type : number
+                    value : 2
+                }
+                [5] : {
+                    name : byteOffset
+                    type : number
+                    value : 0
+                }
+                [6] : {
+                    name : length
+                    type : number
+                    value : 2
+                }
+            ]
+            subtype : typedarray
+            type : object
+        }
+        subtype : typedarray
+        type : object
+    }
+}
+'new Int32Array(101)', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Int32Array
+        description : Int32Array(101)
+        objectId : <objectId>
+        preview : {
+            description : Int32Array(101)
+            overflow : true
+            properties : [
+                [0] : {
+                    name : 0
+                    type : number
+                    value : 0
+                }
+                [1] : {
+                    name : 1
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : 2
+                    type : number
+                    value : 0
+                }
+                [3] : {
+                    name : 3
+                    type : number
+                    value : 0
+                }
+                [4] : {
+                    name : 4
+                    type : number
+                    value : 0
+                }
+                [5] : {
+                    name : 5
+                    type : number
+                    value : 0
+                }
+                [6] : {
+                    name : 6
+                    type : number
+                    value : 0
+                }
+                [7] : {
+                    name : 7
+                    type : number
+                    value : 0
+                }
+                [8] : {
+                    name : 8
+                    type : number
+                    value : 0
+                }
+                [9] : {
+                    name : 9
+                    type : number
+                    value : 0
+                }
+                [10] : {
+                    name : 10
+                    type : number
+                    value : 0
+                }
+                [11] : {
+                    name : 11
+                    type : number
+                    value : 0
+                }
+                [12] : {
+                    name : 12
+                    type : number
+                    value : 0
+                }
+                [13] : {
+                    name : 13
+                    type : number
+                    value : 0
+                }
+                [14] : {
+                    name : 14
+                    type : number
+                    value : 0
+                }
+                [15] : {
+                    name : 15
+                    type : number
+                    value : 0
+                }
+                [16] : {
+                    name : 16
+                    type : number
+                    value : 0
+                }
+                [17] : {
+                    name : 17
+                    type : number
+                    value : 0
+                }
+                [18] : {
+                    name : 18
+                    type : number
+                    value : 0
+                }
+                [19] : {
+                    name : 19
+                    type : number
+                    value : 0
+                }
+                [20] : {
+                    name : 20
+                    type : number
+                    value : 0
+                }
+                [21] : {
+                    name : 21
+                    type : number
+                    value : 0
+                }
+                [22] : {
+                    name : 22
+                    type : number
+                    value : 0
+                }
+                [23] : {
+                    name : 23
+                    type : number
+                    value : 0
+                }
+                [24] : {
+                    name : 24
+                    type : number
+                    value : 0
+                }
+                [25] : {
+                    name : 25
+                    type : number
+                    value : 0
+                }
+                [26] : {
+                    name : 26
+                    type : number
+                    value : 0
+                }
+                [27] : {
+                    name : 27
+                    type : number
+                    value : 0
+                }
+                [28] : {
+                    name : 28
+                    type : number
+                    value : 0
+                }
+                [29] : {
+                    name : 29
+                    type : number
+                    value : 0
+                }
+                [30] : {
+                    name : 30
+                    type : number
+                    value : 0
+                }
+                [31] : {
+                    name : 31
+                    type : number
+                    value : 0
+                }
+                [32] : {
+                    name : 32
+                    type : number
+                    value : 0
+                }
+                [33] : {
+                    name : 33
+                    type : number
+                    value : 0
+                }
+                [34] : {
+                    name : 34
+                    type : number
+                    value : 0
+                }
+                [35] : {
+                    name : 35
+                    type : number
+                    value : 0
+                }
+                [36] : {
+                    name : 36
+                    type : number
+                    value : 0
+                }
+                [37] : {
+                    name : 37
+                    type : number
+                    value : 0
+                }
+                [38] : {
+                    name : 38
+                    type : number
+                    value : 0
+                }
+                [39] : {
+                    name : 39
+                    type : number
+                    value : 0
+                }
+                [40] : {
+                    name : 40
+                    type : number
+                    value : 0
+                }
+                [41] : {
+                    name : 41
+                    type : number
+                    value : 0
+                }
+                [42] : {
+                    name : 42
+                    type : number
+                    value : 0
+                }
+                [43] : {
+                    name : 43
+                    type : number
+                    value : 0
+                }
+                [44] : {
+                    name : 44
+                    type : number
+                    value : 0
+                }
+                [45] : {
+                    name : 45
+                    type : number
+                    value : 0
+                }
+                [46] : {
+                    name : 46
+                    type : number
+                    value : 0
+                }
+                [47] : {
+                    name : 47
+                    type : number
+                    value : 0
+                }
+                [48] : {
+                    name : 48
+                    type : number
+                    value : 0
+                }
+                [49] : {
+                    name : 49
+                    type : number
+                    value : 0
+                }
+                [50] : {
+                    name : 50
+                    type : number
+                    value : 0
+                }
+                [51] : {
+                    name : 51
+                    type : number
+                    value : 0
+                }
+                [52] : {
+                    name : 52
+                    type : number
+                    value : 0
+                }
+                [53] : {
+                    name : 53
+                    type : number
+                    value : 0
+                }
+                [54] : {
+                    name : 54
+                    type : number
+                    value : 0
+                }
+                [55] : {
+                    name : 55
+                    type : number
+                    value : 0
+                }
+                [56] : {
+                    name : 56
+                    type : number
+                    value : 0
+                }
+                [57] : {
+                    name : 57
+                    type : number
+                    value : 0
+                }
+                [58] : {
+                    name : 58
+                    type : number
+                    value : 0
+                }
+                [59] : {
+                    name : 59
+                    type : number
+                    value : 0
+                }
+                [60] : {
+                    name : 60
+                    type : number
+                    value : 0
+                }
+                [61] : {
+                    name : 61
+                    type : number
+                    value : 0
+                }
+                [62] : {
+                    name : 62
+                    type : number
+                    value : 0
+                }
+                [63] : {
+                    name : 63
+                    type : number
+                    value : 0
+                }
+                [64] : {
+                    name : 64
+                    type : number
+                    value : 0
+                }
+                [65] : {
+                    name : 65
+                    type : number
+                    value : 0
+                }
+                [66] : {
+                    name : 66
+                    type : number
+                    value : 0
+                }
+                [67] : {
+                    name : 67
+                    type : number
+                    value : 0
+                }
+                [68] : {
+                    name : 68
+                    type : number
+                    value : 0
+                }
+                [69] : {
+                    name : 69
+                    type : number
+                    value : 0
+                }
+                [70] : {
+                    name : 70
+                    type : number
+                    value : 0
+                }
+                [71] : {
+                    name : 71
+                    type : number
+                    value : 0
+                }
+                [72] : {
+                    name : 72
+                    type : number
+                    value : 0
+                }
+                [73] : {
+                    name : 73
+                    type : number
+                    value : 0
+                }
+                [74] : {
+                    name : 74
+                    type : number
+                    value : 0
+                }
+                [75] : {
+                    name : 75
+                    type : number
+                    value : 0
+                }
+                [76] : {
+                    name : 76
+                    type : number
+                    value : 0
+                }
+                [77] : {
+                    name : 77
+                    type : number
+                    value : 0
+                }
+                [78] : {
+                    name : 78
+                    type : number
+                    value : 0
+                }
+                [79] : {
+                    name : 79
+                    type : number
+                    value : 0
+                }
+                [80] : {
+                    name : 80
+                    type : number
+                    value : 0
+                }
+                [81] : {
+                    name : 81
+                    type : number
+                    value : 0
+                }
+                [82] : {
+                    name : 82
+                    type : number
+                    value : 0
+                }
+                [83] : {
+                    name : 83
+                    type : number
+                    value : 0
+                }
+                [84] : {
+                    name : 84
+                    type : number
+                    value : 0
+                }
+                [85] : {
+                    name : 85
+                    type : number
+                    value : 0
+                }
+                [86] : {
+                    name : 86
+                    type : number
+                    value : 0
+                }
+                [87] : {
+                    name : 87
+                    type : number
+                    value : 0
+                }
+                [88] : {
+                    name : 88
+                    type : number
+                    value : 0
+                }
+                [89] : {
+                    name : 89
+                    type : number
+                    value : 0
+                }
+                [90] : {
+                    name : 90
+                    type : number
+                    value : 0
+                }
+                [91] : {
+                    name : 91
+                    type : number
+                    value : 0
+                }
+                [92] : {
+                    name : 92
+                    type : number
+                    value : 0
+                }
+                [93] : {
+                    name : 93
+                    type : number
+                    value : 0
+                }
+                [94] : {
+                    name : 94
+                    type : number
+                    value : 0
+                }
+                [95] : {
+                    name : 95
+                    type : number
+                    value : 0
+                }
+                [96] : {
+                    name : 96
+                    type : number
+                    value : 0
+                }
+                [97] : {
+                    name : 97
+                    type : number
+                    value : 0
+                }
+                [98] : {
+                    name : 98
+                    type : number
+                    value : 0
+                }
+                [99] : {
+                    name : 99
+                    type : number
+                    value : 0
+                }
+            ]
+            subtype : typedarray
+            type : object
+        }
+        subtype : typedarray
+        type : object
+    }
+}
+
+Running test: testArrayBuffer
+'new Uint8Array().buffer', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : ArrayBuffer
+        description : ArrayBuffer(0)
+        objectId : <objectId>
+        preview : {
+            description : ArrayBuffer(0)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : byteLength
+                    type : number
+                    value : 0
+                }
+                [1] : {
+                    name : maxByteLength
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : resizable
+                    type : boolean
+                    value : false
+                }
+                [3] : {
+                    name : detached
+                    type : boolean
+                    value : false
+                }
+            ]
+            subtype : arraybuffer
+            type : object
+        }
+        subtype : arraybuffer
+        type : object
+    }
+}
+'new Int32Array(100).buffer', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : ArrayBuffer
+        description : ArrayBuffer(400)
+        objectId : <objectId>
+        preview : {
+            description : ArrayBuffer(400)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : byteLength
+                    type : number
+                    value : 400
+                }
+                [1] : {
+                    name : maxByteLength
+                    type : number
+                    value : 400
+                }
+                [2] : {
+                    name : resizable
+                    type : boolean
+                    value : false
+                }
+                [3] : {
+                    name : detached
+                    type : boolean
+                    value : false
+                }
+            ]
+            subtype : arraybuffer
+            type : object
+        }
+        subtype : arraybuffer
+        type : object
+    }
+}
+
+Running test: testDataView
+'new DataView(new ArrayBuffer(16))', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : DataView
+        description : DataView(16)
+        objectId : <objectId>
+        preview : {
+            description : DataView(16)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : buffer
+                    subtype : arraybuffer
+                    type : object
+                    value : ArrayBuffer(16)
+                }
+                [1] : {
+                    name : byteLength
+                    type : number
+                    value : 16
+                }
+                [2] : {
+                    name : byteOffset
+                    type : number
+                    value : 0
+                }
+            ]
+            subtype : dataview
+            type : object
+        }
+        subtype : dataview
+        type : object
+    }
+}
+'new DataView(new ArrayBuffer(16), 12, 4)', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : DataView
+        description : DataView(4)
+        objectId : <objectId>
+        preview : {
+            description : DataView(4)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : buffer
+                    subtype : arraybuffer
+                    type : object
+                    value : ArrayBuffer(16)
+                }
+                [1] : {
+                    name : byteLength
+                    type : number
+                    value : 4
+                }
+                [2] : {
+                    name : byteOffset
+                    type : number
+                    value : 12
+                }
+            ]
+            subtype : dataview
+            type : object
+        }
+        subtype : dataview
+        type : object
+    }
+}
+
+Running test: testArray
+'[]', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Array
+        description : Array(0)
+        objectId : <objectId>
+        subtype : array
+        type : object
+    }
+}
+'[1,2,3]', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Array
+        description : Array(3)
+        objectId : <objectId>
+        subtype : array
+        type : object
+    }
+}
+
+Running test: testArgumentsObject
+'(function() { return arguments; })(1, 2, 3)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Arguments
+        description : Arguments(3)
+        objectId : <objectId>
+        subtype : array
+        type : object
+    }
+}
+'(function() { "use strict"; return arguments; })(-1, 0, 1, 2, 3)', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Arguments
+        description : Arguments(5)
+        objectId : <objectId>
+        subtype : array
+        type : object
+    }
+}
+
+Running test: testOtherObjects
+'({a: 1, b:2})', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        type : object
+    }
+}
+'({a: 1, b:2})', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            a : 1
+            b : 2
+        }
+    }
+}
+'({a: 1, b:2})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    type : number
+                    value : 1
+                }
+                [1] : {
+                    name : b
+                    type : number
+                    value : 2
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+'new (function Foo() { this.a = 5; })', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Foo
+        description : Foo
+        objectId : <objectId>
+        type : object
+    }
+}
+'new (function Foo() { this.a = [1,2,3]; })', returnByValue: true, generatePreview: false
+{
+    result : {
+        type : object
+        value : {
+            a : [
+                [0] : 1
+                [1] : 2
+                [2] : 3
+            ]
+        }
+    }
+}
+'new (class Bar {})', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : Bar
+        description : Bar
+        objectId : <objectId>
+        type : object
+    }
+}
+'inspector.createObjectWithNativeDataProperty('title', true)', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : title
+                        type : accessor
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'inspector.createObjectWithNativeDataProperty('title', false)', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : title
+                        type : accessor
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'inspector.createObjectWithNativeDataProperty('title', true)', returnByValue: true, generatePreview: false
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+'({get a() { return 42; }})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        type : accessor
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({set a(v) {}})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a: () => 42})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        type : function
+                        value :
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a: null})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        subtype : null
+                        type : object
+                        value : null
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a: true})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        type : boolean
+                        value : true
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: -Infinity, a2: +Infinity, a3: -0, a4: NaN, a5: 1.23})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : number
+                        value : -Infinity
+                    }
+                    [1] : {
+                        name : a2
+                        type : number
+                        value : Infinity
+                    }
+                    [2] : {
+                        name : a3
+                        type : number
+                        value : -0
+                    }
+                    [3] : {
+                        name : a4
+                        type : number
+                        value : NaN
+                    }
+                    [4] : {
+                        name : a5
+                        type : number
+                        value : 1.23
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: 1234567890123456789012345678901234567890n})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : bigint
+                        value : 1234567890123456789012345678901234567890n
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: Symbol(42)})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : symbol
+                        value : Symbol(42)
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: /abc/i})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        subtype : regexp
+                        type : object
+                        value : /abc/i
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: () => 42, a2: async () => 42})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : function
+                        value :
+                    }
+                    [1] : {
+                        name : a2
+                        type : function
+                        value :
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: ({}), a2: new (class Bar{})})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : object
+                        value : Object
+                    }
+                    [1] : {
+                        name : a2
+                        type : object
+                        value : Bar
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: 'a'.repeat(100), a2: 'a'.repeat(101)})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : string
+                        value : aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    }
+                    [1] : {
+                        name : a2
+                        type : string
+                        value : aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'({a1: 1, a2: 2, a3: 3, a4:4, a5:5, a6: 6})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : true
+                properties : [
+                    [0] : {
+                        name : a1
+                        type : number
+                        value : 1
+                    }
+                    [1] : {
+                        name : a2
+                        type : number
+                        value : 2
+                    }
+                    [2] : {
+                        name : a3
+                        type : number
+                        value : 3
+                    }
+                    [3] : {
+                        name : a4
+                        type : number
+                        value : 4
+                    }
+                    [4] : {
+                        name : a5
+                        type : number
+                        value : 5
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+'([1,2,3])', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Array
+            description : Array(3)
+            objectId : <objectId>
+            preview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : 0
+                        type : number
+                        value : 1
+                    }
+                    [1] : {
+                        name : 1
+                        type : number
+                        value : 2
+                    }
+                    [2] : {
+                        name : 2
+                        type : number
+                        value : 3
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+            subtype : array
+            type : object
+        }
+    }
+}
+
+Running test: testArray2
+'([1,2,3])', returnByValue: false, generatePreview: false
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Array
+            description : Array(3)
+            objectId : <objectId>
+            subtype : array
+            type : object
+        }
+    }
+}
+'([1,2,3])', returnByValue: true, generatePreview: false
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : 1
+                [1] : 2
+                [2] : 3
+            ]
+        }
+    }
+}
+'([1,2,3])', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Array
+            description : Array(3)
+            objectId : <objectId>
+            preview : {
+                description : Array(3)
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : 0
+                        type : number
+                        value : 1
+                    }
+                    [1] : {
+                        name : 1
+                        type : number
+                        value : 2
+                    }
+                    [2] : {
+                        name : 2
+                        type : number
+                        value : 3
+                    }
+                ]
+                subtype : array
+                type : object
+            }
+            subtype : array
+            type : object
+        }
+    }
+}
+'({a: [1,2,3]})', returnByValue: false, generatePreview: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        subtype : array
+                        type : object
+                        value : Array(3)
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}

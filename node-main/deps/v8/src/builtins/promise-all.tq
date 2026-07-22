@@ -1,0 +1,396 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+const kPromiseBuiltinsPromiseContextLength: constexpr int31
+    generates 'PromiseBuiltins::kPromiseContextLength';
+
+// Creates the context used by all Promise.all resolve element closures,
+// together with the values array. Since all closures for a single Promise.all
+// call use the same context, we need to store the indices for the individual
+// closures somewhere else (we put them into the identity hash field of the
+// closures).
+macro CreatePromiseAllResolveElementContext(
+    implicit context: Context)(capability: PromiseCapability,
+    nativeContext: NativeContext): PromiseAllResolveElementContext {
+  const resolveContext = %RawDownCast<
+      PromiseAllResolveElementContext>(AllocateSyntheticFunctionContext(
+      nativeContext,
+      PromiseAllResolveElementContextSlots::kPromiseAllResolveElementLength));
+  InitContextSlot(
+      resolveContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementRemainingSlot,
+      1);
+  InitContextSlot(
+      resolveContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementCapabilitySlot,
+      capability);
+  InitContextSlot(
+      resolveContext,
+      PromiseAllResolveElementContextSlots::kPromiseAllResolveElementValuesSlot,
+      kEmptyFixedArray);
+  return resolveContext;
+}
+
+macro CreatePromiseAllResolveElementFunction(
+    implicit context: Context)(
+    resolveElementContext: PromiseAllResolveElementContext, index: Smi,
+    resolveFunction: constexpr intptr): JSFunction {
+  dcheck(index > 0);
+  dcheck(index < kPropertyArrayHashFieldMax);
+
+  const resolve = AllocateRootFunctionWithContext(
+      resolveFunction, resolveElementContext,
+      LoadNativeContext(resolveElementContext));
+
+  dcheck(kPropertyArrayNoHashSentinel == 0);
+  resolve.properties_or_hash = index;
+  return resolve;
+}
+
+@export
+macro CreatePromiseResolvingFunctionsContext(
+    implicit context: Context)(promise: JSPromise, debugEvent: Boolean,
+    nativeContext: NativeContext): PromiseResolvingFunctionContext {
+  const resolveContext = %RawDownCast<PromiseResolvingFunctionContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseResolvingFunctionContextSlot::kPromiseContextLength));
+  InitContextSlot(
+      resolveContext, PromiseResolvingFunctionContextSlot::kPromiseSlot,
+      promise);
+  InitContextSlot(
+      resolveContext, PromiseResolvingFunctionContextSlot::kAlreadyResolvedSlot,
+      False);
+  InitContextSlot(
+      resolveContext, PromiseResolvingFunctionContextSlot::kDebugEventSlot,
+      debugEvent);
+  static_assert(
+      PromiseResolvingFunctionContextSlot::kPromiseContextLength ==
+      ContextSlot::MIN_CONTEXT_SLOTS + 3);
+  return resolveContext;
+}
+
+macro IsPromiseThenLookupChainIntact(
+    implicit context: Context)(nativeContext: NativeContext,
+    receiverMap: Map): bool {
+  if (IsForceSlowPath()) return false;
+  if (!IsJSPromiseMap(receiverMap)) return false;
+  if (receiverMap.prototype != *NativeContextSlot(
+          nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX)) {
+    return false;
+  }
+  return !IsPromiseThenProtectorCellInvalid();
+}
+
+const kPromiseAllResolveElementClosureSharedFun: constexpr intptr
+    generates 'static_cast<intptr_t>(RootIndex::kPromiseAllResolveElementClosureSharedFun)'
+    ;
+struct PromiseAllResolveElementFunctor {
+  macro Call(
+      implicit context: Context)(
+      resolveElementContext: PromiseAllResolveElementContext,
+      _nativeContext: NativeContext, index: Smi,
+      _capability: PromiseCapability): Callable {
+    return CreatePromiseAllResolveElementFunction(
+        resolveElementContext, index,
+        kPromiseAllResolveElementClosureSharedFun);
+  }
+}
+
+struct PromiseAllRejectElementFunctor {
+  macro Call(
+      implicit context: Context)(
+      _resolveElementContext: PromiseAllResolveElementContext,
+      _nativeContext: NativeContext, _index: Smi,
+      capability: PromiseCapability): Callable {
+    return UnsafeCast<Callable>(capability.reject);
+  }
+}
+
+const kPromiseAllSettledResolveElementClosureSharedFun: constexpr intptr
+    generates 'static_cast<intptr_t>(RootIndex::kPromiseAllSettledResolveElementClosureSharedFun)'
+    ;
+struct PromiseAllSettledResolveElementFunctor {
+  macro Call(
+      implicit context: Context)(
+      resolveElementContext: PromiseAllResolveElementContext,
+      _nativeContext: NativeContext, index: Smi,
+      _capability: PromiseCapability): Callable {
+    return CreatePromiseAllResolveElementFunction(
+        resolveElementContext, index,
+        kPromiseAllSettledResolveElementClosureSharedFun);
+  }
+}
+
+const kPromiseAllSettledRejectElementClosureSharedFun: constexpr intptr
+    generates 'static_cast<intptr_t>(RootIndex::kPromiseAllSettledRejectElementClosureSharedFun)'
+    ;
+struct PromiseAllSettledRejectElementFunctor {
+  macro Call(
+      implicit context: Context)(
+      resolveElementContext: PromiseAllResolveElementContext,
+      _nativeContext: NativeContext, index: Smi,
+      _capability: PromiseCapability): Callable {
+    return CreatePromiseAllResolveElementFunction(
+        resolveElementContext, index,
+        kPromiseAllSettledRejectElementClosureSharedFun);
+  }
+}
+
+transitioning macro PerformPromiseAll<F1: type, F2: type>(
+    implicit context: Context)(nativeContext: NativeContext,
+    iter: iterator::IteratorRecord, constructor: Constructor,
+    capability: PromiseCapability, promiseResolveFunction: JSAny,
+    createResolveElementFunctor: F1,
+    createRejectElementFunctor: F2): JSAny labels
+Reject(JSAny) {
+  const promise = capability.promise;
+  const resolve = capability.resolve;
+  const reject = capability.reject;
+
+  // For catch prediction, don't treat the .then calls as handling it;
+  // instead, recurse outwards.
+  if (IsDebugActive()) deferred {
+      SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
+    }
+
+  const resolveElementContext =
+      CreatePromiseAllResolveElementContext(capability, nativeContext);
+
+  let index: Smi = 1;
+
+  try {
+    const fastIteratorResultMap = *NativeContextSlot(
+        nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX);
+    while (true) {
+      let nextValue: JSAny;
+      try {
+        // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
+        // If next is an abrupt completion, set iteratorRecord.[[Done]] to
+        // true. ReturnIfAbrupt(next).
+        const next: JSReceiver = iterator::IteratorStep(
+            iter, fastIteratorResultMap) otherwise goto Done;
+
+        // Let nextValue be IteratorValue(next).
+        // If nextValue is an abrupt completion, set iteratorRecord.[[Done]]
+        // to true.
+        // ReturnIfAbrupt(nextValue).
+        nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+      } catch (e, _message) {
+        goto Reject(e);
+      }
+
+      // Check if we reached the limit.
+      if (index == kPropertyArrayHashFieldMax) {
+        // If there are too many elements (currently more than 2**21-1),
+        // raise a RangeError here (which is caught below and turned into
+        // a rejection of the resulting promise). We could gracefully handle
+        // this case as well and support more than this number of elements
+        // by going to a separate function and pass the larger indices via a
+        // separate context, but it doesn't seem likely that we need this,
+        // and it's unclear how the rest of the system deals with 2**21 live
+        // Promises anyway.
+        ThrowRangeError(
+            MessageTemplate::kTooManyElementsInPromiseCombinator, 'all');
+      }
+
+      // Set remainingElementsCount.[[Value]] to
+      //     remainingElementsCount.[[Value]] + 1.
+      *ContextSlot(
+          resolveElementContext,
+          PromiseAllResolveElementContextSlots::
+              kPromiseAllResolveElementRemainingSlot) += 1;
+
+      // Let resolveElement be CreateBuiltinFunction(steps,
+      //                                             « [[AlreadyCalled]],
+      //                                               [[Index]],
+      //                                               [[Values]],
+      //                                               [[Capability]],
+      //                                               [[RemainingElements]]
+      //                                               »).
+      // Set resolveElement.[[AlreadyCalled]] to a Record { [[Value]]: false
+      // }. Set resolveElement.[[Index]] to index. Set
+      // resolveElement.[[Values]] to values. Set
+      // resolveElement.[[Capability]] to resultCapability. Set
+      // resolveElement.[[RemainingElements]] to remainingElementsCount.
+      const resolveElementFun = createResolveElementFunctor.Call(
+          resolveElementContext, nativeContext, index, capability);
+      const rejectElementFun = createRejectElementFunctor.Call(
+          resolveElementContext, nativeContext, index, capability);
+
+      // We can skip the "then" lookup on the result of the "resolve" call and
+      // immediately chain the continuation onto the {next_value} if:
+      //
+      //   (a) The {constructor} is the intrinsic %Promise% function, and
+      //       looking up "resolve" on {constructor} yields the initial
+      //       Promise.resolve() builtin, and
+      //   (b) the promise @@species protector cell is valid, meaning that
+      //       no one messed with the Symbol.species property on any
+      //       intrinsic promise or on the Promise.prototype, and
+      //   (c) the {next_value} is a JSPromise whose [[Prototype]] field
+      //       contains the intrinsic %PromisePrototype%, and
+      //   (d) we're not running with async_hooks or DevTools enabled.
+      //
+      // In that case we also don't need to allocate a chained promise for
+      // the PromiseReaction (aka we can pass undefined to
+      // PerformPromiseThen), since this is only necessary for DevTools and
+      // PromiseHooks.
+      if (promiseResolveFunction != Undefined || NeedsAnyPromiseHooks() ||
+          IsPromiseSpeciesProtectorCellInvalid() || Is<Smi>(nextValue) ||
+          !IsPromiseThenLookupChainIntact(
+              nativeContext, UnsafeCast<HeapObject>(nextValue).map)) {
+        // Let nextPromise be ? Call(constructor, _promiseResolve_, «
+        // nextValue »).
+        const nextPromise =
+            CallResolve(constructor, promiseResolveFunction, nextValue);
+
+        // Perform ? Invoke(nextPromise, "then", « resolveElement,
+        //                  resultCapability.[[Reject]] »).
+        const then = GetProperty(nextPromise, kThenString);
+        const thenResult = Call(
+            nativeContext, then, nextPromise, resolveElementFun,
+            rejectElementFun);
+
+        // For catch prediction, mark that rejections here are
+        // semantically handled by the combined Promise.
+        if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
+            SetPropertyStrict(
+                context, thenResult, kPromiseHandledBySymbol, promise);
+          }
+      } else {
+        PerformPromiseThenImpl(
+            UnsafeCast<JSPromise>(nextValue), resolveElementFun,
+            rejectElementFun, Undefined);
+      }
+
+      // Set index to index + 1.
+      index += 1;
+    }
+  } catch (e, _message) deferred {
+    iterator::IteratorCloseOnException(iter.object);
+    goto Reject(e);
+  } label Done {}
+
+  // Set iteratorRecord.[[Done]] to true.
+  // Set remainingElementsCount.[[Value]] to
+  //    remainingElementsCount.[[Value]] - 1.
+  const remainingElementsCount = -- *ContextSlot(
+      resolveElementContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementRemainingSlot);
+
+  check(remainingElementsCount >= 0);
+
+  const valuesRef:&FixedArray = ContextSlot(
+      resolveElementContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementValuesSlot);
+  const values = *valuesRef;
+
+  if (remainingElementsCount > 0) {
+    // Pre-allocate the backing store for the {values} to the desired
+    // capacity. We may already have elements in "values" - this happens
+    // when the Thenable calls the resolve callback immediately.
+    // 'index' is a 1-based index and incremented after every Promise. Later we
+    // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
+    const newCapacity = SmiUntag(index) - 1;
+
+    const oldCapacity = values.length_intptr;
+    if (oldCapacity < newCapacity) {
+      *valuesRef =
+          ExtractFixedArray(values, 0, oldCapacity, newCapacity, PromiseHole);
+    }
+  } else
+    deferred {
+      // If remainingElementsCount.[[Value]] is 0, then
+      //     Let valuesArray be CreateArrayFromList(values).
+      //     Perform ? Call(resultCapability.[[Resolve]], undefined,
+      //                    « valuesArray »).
+      const arrayMap =
+          *NativeContextSlot(
+          nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+
+      // After this point, values escapes to user code. Clear the slot.
+      *valuesRef = kEmptyFixedArray;
+
+      const valuesArray = NewJSArray(arrayMap, values);
+      Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
+    }
+
+  // Return resultCapability.[[Promise]].
+  return promise;
+}
+
+transitioning macro GeneratePromiseAll<F1: type, F2: type>(
+    implicit context: Context)(receiver: JSAny, iterable: JSAny,
+    createResolveElementFunctor: F1, createRejectElementFunctor: F2,
+    message: constexpr string): JSAny {
+  const nativeContext = LoadNativeContext(context);
+  // Let C be the this value.
+  // If Type(C) is not Object, throw a TypeError exception.
+  const receiver = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, message);
+
+  // Let promiseCapability be ? NewPromiseCapability(C).
+  // Don't fire debugEvent so that forwarding the rejection through all does
+  // not trigger redundant ExceptionEvents
+  const capability = NewPromiseCapability(receiver, False);
+
+  // NewPromiseCapability guarantees that receiver is Constructor.
+  dcheck(Is<Constructor>(receiver));
+  const constructor = UnsafeCast<Constructor>(receiver);
+
+  try {
+    // Let promiseResolve be GetPromiseResolve(C).
+    // IfAbruptRejectPromise(promiseResolve, promiseCapability).
+    const promiseResolveFunction =
+        GetPromiseResolve(nativeContext, constructor);
+
+    // Let iterator be GetIterator(iterable).
+    // IfAbruptRejectPromise(iterator, promiseCapability).
+    let i = iterator::GetIterator(iterable);
+
+    // Let result be PerformPromiseAll(iteratorRecord, C,
+    // promiseCapability). If result is an abrupt completion, then
+    //   If iteratorRecord.[[Done]] is false, let result be
+    //       IteratorClose(iterator, result).
+    //    IfAbruptRejectPromise(result, promiseCapability).
+    return PerformPromiseAll(
+        nativeContext, i, constructor, capability, promiseResolveFunction,
+        createResolveElementFunctor, createRejectElementFunctor)
+        otherwise Reject;
+  } catch (e, _message) deferred {
+    goto Reject(e);
+  } label Reject(e: JSAny) deferred {
+    const reject = UnsafeCast<JSAny>(capability.reject);
+    Call(context, reject, Undefined, e);
+    return capability.promise;
+  }
+}
+
+// ES#sec-promise.all
+transitioning javascript builtin PromiseAll(
+    js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
+  return GeneratePromiseAll(
+      receiver, iterable, PromiseAllResolveElementFunctor{},
+      PromiseAllRejectElementFunctor{}, 'Promise.all');
+}
+
+// ES#sec-promise.allsettled
+// Promise.allSettled ( iterable )
+transitioning javascript builtin PromiseAllSettled(
+    js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
+  return GeneratePromiseAll(
+      receiver, iterable, PromiseAllSettledResolveElementFunctor{},
+      PromiseAllSettledRejectElementFunctor{}, 'Promise.allSettled');
+}
+
+extern macro MakeFixedArrayCOW(FixedArray): void;
+}

@@ -1,0 +1,52 @@
+{
+  "name": "libnpmteam",
+  "description": "npm Team management APIs",
+  "version": "8.0.2",
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "main": "lib/index.js",
+  "scripts": {
+    "lint": "npm run eslint",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/template-oss": "4.25.1",
+    "nock": "^13.3.3",
+    "tap": "^16.3.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmteam"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "homepage": "https://npmjs.com/package/libnpmteam",
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "npm-registry-fetch": "^19.0.0"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.25.1",
+    "content": "../../scripts/template-oss/index.js"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+Checks that it is possbible to remove breakpoint when paused at it.
+set breakpoint, call foo, wait for pause..
+function foo() {
+  #return 42;
+}
+
+remove breakpoint, call foo again..
+call finished without pause

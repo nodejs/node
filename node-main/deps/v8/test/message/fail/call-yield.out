@@ -1,0 +1,6 @@
+*%(basename)s:6: TypeError: yield is not a function
+  yield()
+  ^
+TypeError: yield is not a function
+    at f (*%(basename)s:6:3)
+    at *%(basename)s:8:1

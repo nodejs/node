@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>functionality test of window.performance.clearMeasures</title>
+<link rel="author" title="Intel" href="http://www.intel.com/" />
+<link rel="help" href="http://www.w3.org/TR/user-timing/#extensions-performance-interface"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/performance-timeline-utils.js"></script>
+<script src="resources/webperftestharness.js"></script>
+<script src="resources/webperftestharnessextension.js"></script>
+<script>
+setup({ explicit_done: true });
+
+function onload_test()
+{
+    const context = new PerformanceContext(window.performance);
+    const entrylist_checker = new performance_entrylist_checker('measure');
+    const measure_names = measures.map(function(x) {return x[0];});
+
+    mark_names.forEach(function(name) {
+        context.mark(name);
+    });
+    measures.forEach(context.initialMeasures, context);
+    for (let i = 0; i < measures.length; ++i)
+    {
+        context.clearMeasures(measures[i][0]);
+        const retained_entries = context.getEntriesByType('measure');
+        const non_retained_entries = context.getEntriesByName(measures[i][0], 'measure');
+        entrylist_checker.entrylist_check(retained_entries, measures.length - i - 1, measure_names,
+            'First loop: checking entries after removing "' + measures[i][0] + '". ');
+        test_equals(non_retained_entries.length, 0,
+            'First loop: measure "' + measures[i][0] + '" should not exist anymore after we cleared it.');
+    }
+
+    measures.forEach(context.initialMeasures, context);
+    context.clearMeasures();
+    test_equals(context.getEntriesByType('measure').length, 0, 'No measures should exist after we clear all (after first loop).');
+
+    // Following cases test clear existed measure name that is tied twice.
+    measures.forEach(context.initialMeasures, context);
+    mark_names.forEach(function(name) {
+        context.mark(name);
+    });
+    measures.forEach(context.initialMeasures, context);
+    for (let i = 0; i < measures.length; ++i)
+    {
+        context.clearMeasures(measures[i][0]);
+        const retained_entries = context.getEntriesByType('measure');
+        const non_retained_entries = context.getEntriesByName(measures[i][0], 'measure');
+        entrylist_checker.entrylist_check(retained_entries, (measures.length - i - 1) * 2, measure_names,
+            'Second loop: checking entries after removing "' + measures[i][0] + '". ');
+        test_equals(non_retained_entries.length, 0,
+            'Second loop: measure "' + measures[i][0] +'" should not exist anymore after we cleared it.');
+    }
+
+    // Following cases test clear functionality when measure names are tied twice.
+    measures.forEach(context.initialMeasures, context);
+    measures.forEach(context.initialMeasures, context);
+    const entry_number_before_useless_clear = context.getEntriesByType('measure').length;
+    context.clearMeasures('NonExist');
+    const entry_number_after_useless_clear = context.getEntriesByType('measure').length;
+    test_equals(entry_number_before_useless_clear, entry_number_after_useless_clear, 'Nothing should happen if we clear a non-exist measure');
+    context.clearMeasures();
+    test_equals(context.getEntriesByType('measure').length, 0, 'No measures should exist when we clear all (after second loop).');
+
+    done();
+}
+</script>
+</head>
+<body onload=onload_test()>
+    <h1>Description</h1>
+    <p>This test validates functionality of the interface window.performance.clearMeasures.</p>
+    <div id="log"></div>
+</body>
+</html>

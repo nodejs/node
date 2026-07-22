@@ -1,0 +1,46 @@
+[ ca ]
+default_ca      = CA_default
+
+[ CA_default ]
+dir = .
+name_opt = CA_default
+cert_opt = CA_default
+default_crl_days = 9999
+default_md = sha256
+database = fake-startcom-root-database.txt
+serial = fake-startcom-root-serial
+private_key = fake-startcom-root-key.pem
+certificate = fake-startcom-root-cert.pem
+new_certs_dir = fake-startcom-root-issued-certs
+email_in_dn = no
+policy          = policy_anything
+
+[ policy_anything ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+default_bits           = 2048
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+output_password        = password
+x509_extensions        = v3_ca
+
+[ req_distinguished_name ]
+C                      = IL
+O                      = StartCom Ltd.
+OU                     = Secure Digital Certificate Signing
+CN                     = StartCom Certification Authority
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ v3_ca ]
+basicConstraints = CA:TRUE

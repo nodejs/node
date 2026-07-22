@@ -1,0 +1,347 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-object-gen.h'
+
+namespace runtime {
+extern transitioning runtime ObjectIsExtensible(
+    implicit context: Context)(JSAny): JSAny;
+
+extern transitioning runtime JSReceiverPreventExtensionsThrow(
+    implicit context: Context)(JSReceiver): JSAny;
+
+extern transitioning runtime JSReceiverPreventExtensionsDontThrow(
+    implicit context: Context)(JSReceiver): JSAny;
+
+extern transitioning runtime JSReceiverGetPrototypeOf(
+    implicit context: Context)(JSReceiver): JSAny;
+
+extern transitioning runtime JSReceiverSetPrototypeOfThrow(
+    implicit context: Context)(JSReceiver, JSAny): JSAny;
+
+extern transitioning runtime JSReceiverSetPrototypeOfDontThrow(
+    implicit context: Context)(JSReceiver, JSAny): JSAny;
+
+extern transitioning runtime ObjectCreate(
+    implicit context: Context)(JSAny, JSAny): JSAny;
+}  // namespace runtime
+
+namespace object {
+transitioning macro ObjectIsExtensibleImpl(
+    implicit context: Context)(object: JSAny): JSAny {
+  const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+  const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+      otherwise return runtime::ObjectIsExtensible(objectJSReceiver);
+  return proxy::ProxyIsExtensible(objectJSProxy);
+}
+
+transitioning macro ObjectPreventExtensionsThrow(
+    implicit context: Context)(object: JSAny): JSAny {
+  const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
+  const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+      otherwise return runtime::JSReceiverPreventExtensionsThrow(objectJSReceiver);
+  proxy::ProxyPreventExtensions(objectJSProxy, True);
+  return objectJSReceiver;
+}
+
+transitioning macro ObjectPreventExtensionsDontThrow(
+    implicit context: Context)(object: JSAny): JSAny {
+  const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+  const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+      otherwise return runtime::JSReceiverPreventExtensionsDontThrow(
+      objectJSReceiver);
+  return proxy::ProxyPreventExtensions(objectJSProxy, False);
+}
+
+transitioning macro ObjectGetPrototypeOfImpl(
+    implicit context: Context)(object: JSAny): JSAny {
+  const objectJSReceiver: JSReceiver = ToObject_Inline(context, object);
+  return object::JSReceiverGetPrototypeOf(objectJSReceiver);
+}
+
+transitioning macro JSReceiverGetPrototypeOf(
+    implicit context: Context)(object: JSReceiver): JSAny {
+  const objectJSProxy = Cast<JSProxy>(object)
+      otherwise return runtime::JSReceiverGetPrototypeOf(object);
+  return proxy::ProxyGetPrototypeOf(objectJSProxy);
+}
+
+transitioning macro ObjectSetPrototypeOfThrow(
+    implicit context: Context)(object: JSAny, proto: JSReceiver|Null): JSAny {
+  const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
+  const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+      otherwise return runtime::JSReceiverSetPrototypeOfThrow(
+      objectJSReceiver, proto);
+  proxy::ProxySetPrototypeOf(objectJSProxy, proto, True);
+  return objectJSReceiver;
+}
+
+transitioning macro ObjectSetPrototypeOfDontThrow(
+    implicit context: Context)(object: JSAny, proto: JSReceiver|Null): JSAny {
+  const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+  const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+      otherwise return runtime::JSReceiverSetPrototypeOfDontThrow(
+      objectJSReceiver, proto);
+  return proxy::ProxySetPrototypeOf(objectJSProxy, proto, False);
+}
+
+transitioning builtin CreateObjectWithoutProperties(
+    implicit context: Context)(prototype: JSAny): JSAny {
+  try {
+    let map: Map;
+    let properties: NameDictionary|SwissNameDictionary|EmptyFixedArray;
+    typeswitch (prototype) {
+      case (Null): {
+        map = *NativeContextSlot(
+            ContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
+        @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+          properties =
+              AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
+        }
+        @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+          properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+        }
+      }
+      case (prototype: JSReceiver): {
+        properties = kEmptyFixedArray;
+        const objectFunction =
+            *NativeContextSlot(ContextSlot::OBJECT_FUNCTION_INDEX);
+        map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+        if (prototype != map.prototype) {
+          const prototypeInfo = prototype.map.PrototypeInfo() otherwise Runtime;
+          typeswitch (prototypeInfo.derived_maps) {
+            case (Undefined): {
+              goto Runtime;
+            }
+            case (derived_maps: WeakArrayList): {
+              const theMap = MaybeObjectToStrong(derived_maps.objects[0])
+                  otherwise Runtime;
+              map = UnsafeCast<Map>(theMap);
+            }
+          }
+        }
+      }
+      case (JSAny): {
+        goto Runtime;
+      }
+    }
+    return AllocateJSObjectFromMap(map, properties);
+  } label Runtime deferred {
+    return runtime::ObjectCreate(prototype, Undefined);
+  }
+}
+
+// ES6 section 19.1.2.11 Object.isExtensible ( O )
+transitioning javascript builtin ObjectIsExtensible(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
+  return object::ObjectIsExtensibleImpl(object);
+}
+
+// ES6 section 19.1.2.18 Object.preventExtensions ( O )
+transitioning javascript builtin ObjectPreventExtensions(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
+  return object::ObjectPreventExtensionsThrow(object);
+}
+
+// ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
+transitioning javascript builtin ObjectGetPrototypeOf(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
+  return object::ObjectGetPrototypeOfImpl(object);
+}
+
+// ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
+transitioning javascript builtin ObjectSetPrototypeOf(
+    js-implicit context: NativeContext)(object: JSAny, proto: JSAny): JSAny {
+  // 1. Set O to ? RequireObjectCoercible(O).
+  RequireObjectCoercible(object, 'Object.setPrototypeOf');
+
+  // 2. If Type(proto) is neither Object nor Null, throw a TypeError
+  // exception.
+  // 3. If Type(O) is not Object, return O.
+  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+  // 5. If status is false, throw a TypeError exception.
+  // 6. Return O.
+  typeswitch (proto) {
+    case (proto: JSReceiver|Null): {
+      return object::ObjectSetPrototypeOfThrow(object, proto);
+    }
+    case (JSAny): {
+      ThrowTypeError(MessageTemplate::kProtoObjectOrNull, proto);
+    }
+  }
+}
+
+// ES #sec-object.prototype.tostring
+transitioning javascript builtin ObjectPrototypeToString(
+    js-implicit context: Context, receiver: JSAny)(): String {
+  return ObjectToString(context, receiver);
+}
+
+// ES #sec-object.prototype.valueof
+transitioning javascript builtin ObjectPrototypeValueOf(
+    js-implicit context: Context, receiver: JSAny)(): JSReceiver {
+  // 1. Return ? ToObject(this value).
+  return ToObject_Inline(context, receiver);
+}
+
+// ES #sec-object.prototype.tolocalestring
+transitioning javascript builtin ObjectPrototypeToLocaleString(
+    js-implicit context: Context, receiver: JSAny)(): JSAny {
+  // 1. Let O be the this value.
+  // 2. Return ? Invoke(O, "toString").
+  if (receiver == Null || receiver == Undefined) deferred {
+      ThrowTypeError(
+          MessageTemplate::kCalledOnNullOrUndefined,
+          'Object.prototype.toLocaleString');
+    }
+  const method = GetProperty(receiver, 'toString');
+  return Call(context, method, receiver);
+}
+
+// JSDataPropertyDescriptor constants
+const kJSDataPropertyDescriptorWritableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kWritableOffset';
+const kJSDataPropertyDescriptorEnumerableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kEnumerableOffset';
+const kJSDataPropertyDescriptorConfigurableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kConfigurableOffset';
+const kJSDataPropertyDescriptorValueOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kValueOffset';
+
+// JSAccessorPropertyDescriptor constants
+const kJSAccessorPropertyDescriptorEnumerableOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kEnumerableOffset';
+const kJSAccessorPropertyDescriptorConfigurableOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kConfigurableOffset';
+const kJSAccessorPropertyDescriptorGetOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kGetOffset';
+const kJSAccessorPropertyDescriptorSetOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kSetOffset';
+
+// ToPropertyDescriptor (https://tc39.es/ecma262/#sec-topropertydescriptor)
+transitioning macro ToPropertyDescriptor(
+    implicit context: Context)(object: JSReceiver): PropertyDescriptorObject {
+  const result: PropertyDescriptorObject = AllocatePropertyDescriptorObject();
+
+  if (object.map == *NativeContextSlot<Map>(
+          context, ContextSlot::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX)) {
+    const writable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorWritableOffset));
+    result.flags.has_writable = true;
+    result.flags.is_writable = ToBoolean(writable);
+
+    const enumerable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorEnumerableOffset));
+    result.flags.has_enumerable = true;
+    result.flags.is_enumerable = ToBoolean(enumerable);
+
+    const configurable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorConfigurableOffset));
+    result.flags.has_configurable = true;
+    result.flags.is_configurable = ToBoolean(configurable);
+
+    result.flags.has_value = true;
+    result.value = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorValueOffset));
+  } else if (
+      object.map == *NativeContextSlot<Map>(
+          context, ContextSlot::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX)) {
+    const enumerable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorEnumerableOffset));
+    result.flags.has_enumerable = true;
+    result.flags.is_enumerable = ToBoolean(enumerable);
+
+    const configurable = UnsafeCast<JSAny>(LoadObjectField(
+        object, kJSAccessorPropertyDescriptorConfigurableOffset));
+    result.flags.has_configurable = true;
+    result.flags.is_configurable = ToBoolean(configurable);
+
+    result.flags.has_get = true;
+    result.get = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorGetOffset));
+
+    result.flags.has_set = true;
+    result.set = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorSetOffset));
+  } else {
+    const hasEnumerable = HasProperty(object, 'enumerable');
+    if (hasEnumerable == True) {
+      const enumerable = ToBoolean(GetProperty(object, 'enumerable'));
+      result.flags.has_enumerable = true;
+      result.flags.is_enumerable = enumerable;
+    }
+
+    const hasConfigurable = HasProperty(object, 'configurable');
+    if (hasConfigurable == True) {
+      const configurable = ToBoolean(GetProperty(object, 'configurable'));
+      result.flags.has_configurable = true;
+      result.flags.is_configurable = configurable;
+    }
+
+    const hasValue = HasProperty(object, 'value');
+    if (hasValue == True) {
+      const value = GetProperty(object, 'value');
+      result.flags.has_value = true;
+      result.value = value;
+    }
+
+    const hasWritable = HasProperty(object, 'writable');
+    if (hasWritable == True) {
+      const writable = ToBoolean(GetProperty(object, 'writable'));
+      result.flags.has_writable = true;
+      result.flags.is_writable = writable;
+    }
+
+    const hasGet = HasProperty(object, 'get');
+    if (hasGet == True) {
+      let getter = GetProperty(object, 'get');
+      if (!Is<Undefined>(getter) && !Is<FunctionTemplateInfo>(getter)) {
+        getter = Cast<Callable>(getter) otherwise ThrowTypeError(
+            MessageTemplate::kObjectGetterCallable, getter);
+      }
+      result.flags.has_get = true;
+      result.get = getter;
+    }
+
+    const hasSet = HasProperty(object, 'set');
+    if (hasSet == True) {
+      let setter = GetProperty(object, 'set');
+      if (!Is<Undefined>(setter) && !Is<FunctionTemplateInfo>(setter)) {
+        setter = Cast<Callable>(setter) otherwise ThrowTypeError(
+            MessageTemplate::kObjectSetterCallable, setter);
+      }
+      result.flags.has_set = true;
+      result.set = setter;
+    }
+  }
+  return result;
+}
+
+@export
+transitioning macro ToPropertyDescriptor(
+    implicit context: Context)(object: JSAny): PropertyDescriptorObject
+    |Undefined {
+  typeswitch (object) {
+    case (Undefined): {
+      return Undefined;
+    }
+    case (receiver: JSReceiver): {
+      return ToPropertyDescriptor(receiver);
+    }
+    case (JSAny): {
+      ThrowTypeError(MessageTemplate::kPropertyDescObject, object);
+    }
+  }
+}
+
+extern transitioning macro ObjectBuiltinsAssembler::FromPropertyDescriptor(
+    Context, JSAny): JSAny;
+
+@export
+transitioning macro FromPropertyDescriptor(
+    implicit context: Context)(object: JSAny): JSAny {
+  return FromPropertyDescriptor(context, object);
+}
+
+}  // namespace object

@@ -1,0 +1,73 @@
+Tests Runtime.terminateExecution
+Terminate first evaluation (it forces injected-script-source compilation)
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}
+Checks that we reset termination after evaluation
+{
+    description : 42
+    type : number
+    value : 42
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Terminate evaluation when injected-script-source already compiled
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}
+Terminate script evaluated with v8 API
+{
+    id : <messageId>
+    result : {
+    }
+}
+Terminate chained callback
+Pause inside microtask and terminate execution
+{
+    id : <messageId>
+    result : {
+    }
+}
+{
+    type : string
+    value : separate eval after while(true)
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Terminate execution with pending microtasks
+{
+    id : <messageId>
+    result : {
+    }
+}
+Terminate execution does not crash on destroy
