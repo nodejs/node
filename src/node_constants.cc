@@ -1137,7 +1137,12 @@ void DefineFsConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_EXCL);
 #endif
 
-NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
+  // Windows-only open flags honored by libuv. They are 0 on other platforms.
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_TEMPORARY);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_SHORT_LIVED);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_SEQUENTIAL);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_RANDOM);
 
 #ifdef O_NOCTTY
   NODE_DEFINE_CONSTANT(target, O_NOCTTY);
