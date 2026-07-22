@@ -253,10 +253,11 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   bool use_fast_api = info->fast_metadata != nullptr;
   bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
-  // Fast API signatures that still accept JS pointer-like values need a JS
-  // wrapper with the native type names attached as hidden metadata.
-  bool needs_raw_pointer_conversions =
-      use_fast_api && SignatureNeedsRawPointerConversions(*fn);
+  // Fast API signatures that need JS-side argument conversion or range checks
+  // use a wrapper with the native type names attached as hidden metadata.
+  bool needs_fast_argument_wrapper =
+      use_fast_api && (SignatureNeedsRawPointerConversions(*fn) ||
+                       SignatureNeedsFastIntegerValidation(*fn));
   // A single pointer-like parameter can get a separate Buffer-aware Fast API
   // entrypoint so Buffer calls avoid JS pointer extraction.
   bool needs_fast_buffer_invoke =
@@ -381,7 +382,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     }
   }
 
-  if (needs_raw_pointer_conversions || needs_fast_buffer_invoke) {
+  if (needs_fast_argument_wrapper || needs_fast_buffer_invoke) {
     // Fast API wrappers need only the parameter type names. Result conversion
     // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
     // which must also know how to read slot 0.
