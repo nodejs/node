@@ -339,7 +339,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          BaseObjectWeakPtr<DatabaseSync> database,
+          BaseObjectPtr<DatabaseSync> database,
           sqlite3_session* session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
@@ -349,7 +349,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       BaseObjectPtr<DatabaseSync> database,
                                        sqlite3_session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -359,7 +359,7 @@ class Session : public BaseObject {
  private:
   void Delete();
   sqlite3_session* session_;
-  BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+  BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
 };
 
 class SQLTagStore : public BaseObject {
