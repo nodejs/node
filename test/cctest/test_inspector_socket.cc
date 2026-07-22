@@ -419,6 +419,13 @@ TEST_F(InspectorSocketTest, WaitsForFrameBodyToArrive) {
   const char FRAME_HEADER[] = {'\x81', '\x85'};
   do_write(FRAME_HEADER, sizeof(FRAME_HEADER));
 
+  // Round trip through the server so the header is guaranteed to have been
+  // read on its own, instead of arriving together with the body below.
+  const char SERVER_MESSAGE[] = "ping";
+  const char SERVER_FRAME[] = {'\x81', '\x04', 'p', 'i', 'n', 'g'};
+  delegate->Write(SERVER_MESSAGE, sizeof(SERVER_MESSAGE) - 1);
+  expect_on_client(SERVER_FRAME, sizeof(SERVER_FRAME));
+
   const char FRAME_BODY[] = {'\x01', '\x02', '\x03', '\x04',
                              '\x69', '\x67', '\x6F', '\x68', '\x6E'};
   do_write(FRAME_BODY, sizeof(FRAME_BODY));
