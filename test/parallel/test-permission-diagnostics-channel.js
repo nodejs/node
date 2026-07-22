@@ -12,6 +12,12 @@ const assert = require('node:assert');
 const dc = require('node:diagnostics_channel');
 const fs = require('node:fs');
 
+// JS-only channels must not consume the native subscriber storage used by the
+// permission audit publisher.
+for (let i = 0; i < 1024 * 10 + 1; i++) {
+  dc.channel(`test:permission:unrelated:${i}`);
+}
+
 const messages = [];
 dc.subscribe('node:permission-model:fs', (msg) => {
   messages.push(msg);
