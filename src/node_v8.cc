@@ -463,10 +463,10 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
         const cppgc::HeapStatistics::ObjectStatsEntry& object_stats =
             page_stats.object_statistics[k];
         MaybeLocal<Value> object_stats_values[] = {
-            Uint32::NewFromUnsigned(
-                isolate, static_cast<uint32_t>(object_stats.allocated_bytes)),
-            Uint32::NewFromUnsigned(
-                isolate, static_cast<uint32_t>(object_stats.object_count))};
+            Number::New(isolate,
+                        static_cast<double>(object_stats.allocated_bytes)),
+            Number::New(isolate,
+                        static_cast<double>(object_stats.object_count))};
         Local<Object> object_stats_object;
         if (!NewDictionaryInstanceNullProto(
                  context, object_stats_template, object_stats_values)
@@ -478,12 +478,11 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
 
       // Set page statistics
       MaybeLocal<Value> page_stats_values[] = {
-          Uint32::NewFromUnsigned(
-              isolate, static_cast<uint32_t>(page_stats.committed_size_bytes)),
-          Uint32::NewFromUnsigned(
-              isolate, static_cast<uint32_t>(page_stats.resident_size_bytes)),
-          Uint32::NewFromUnsigned(
-              isolate, static_cast<uint32_t>(page_stats.used_size_bytes)),
+          Number::New(isolate,
+                      static_cast<double>(page_stats.committed_size_bytes)),
+          Number::New(isolate,
+                      static_cast<double>(page_stats.resident_size_bytes)),
+          Number::New(isolate, static_cast<double>(page_stats.used_size_bytes)),
           Array::New(isolate,
                      object_statistics_array.data(),
                      object_statistics_array.size())};
@@ -521,15 +520,14 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
     }
     MaybeLocal<Value> space_stats_values[] = {
         name_value,
-        Uint32::NewFromUnsigned(
+        Number::New(
             isolate,
-            static_cast<uint32_t>(stats.space_stats[i].committed_size_bytes)),
-        Uint32::NewFromUnsigned(
+            static_cast<double>(stats.space_stats[i].committed_size_bytes)),
+        Number::New(
             isolate,
-            static_cast<uint32_t>(stats.space_stats[i].resident_size_bytes)),
-        Uint32::NewFromUnsigned(
-            isolate,
-            static_cast<uint32_t>(stats.space_stats[i].used_size_bytes)),
+            static_cast<double>(stats.space_stats[i].resident_size_bytes)),
+        Number::New(isolate,
+                    static_cast<double>(stats.space_stats[i].used_size_bytes)),
         Array::New(isolate,
                    page_statistics_array.data(),
                    page_statistics_array.size()),
@@ -550,12 +548,9 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
     return MaybeLocal<Object>();
   }
   MaybeLocal<Value> heap_statistics_values[] = {
-      Uint32::NewFromUnsigned(
-          isolate, static_cast<uint32_t>(stats.committed_size_bytes)),
-      Uint32::NewFromUnsigned(isolate,
-                              static_cast<uint32_t>(stats.resident_size_bytes)),
-      Uint32::NewFromUnsigned(isolate,
-                              static_cast<uint32_t>(stats.used_size_bytes)),
+      Number::New(isolate, static_cast<double>(stats.committed_size_bytes)),
+      Number::New(isolate, static_cast<double>(stats.resident_size_bytes)),
+      Number::New(isolate, static_cast<double>(stats.used_size_bytes)),
       Array::New(isolate,
                  space_statistics_array.data(),
                  space_statistics_array.size()),
