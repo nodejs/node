@@ -178,9 +178,12 @@ void InitCryptoOnce() {
 
 #endif  // OPENSSL_IS_BORINGSSL
 
-  // Turn off compression. Saves memory and protects against CRIME attacks.
-  // No-op with OPENSSL_NO_COMP builds of OpenSSL.
-  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
+  // Disable TLS record compression process-wide to protect against CRIME.
+  STACK_OF(SSL_COMP)* compression_methods =
+      SSL_COMP_get_compression_methods();
+  while (SSL_COMP* method = sk_SSL_COMP_pop(compression_methods)) {
+    OPENSSL_free(method);
+  }
 
 #ifndef OPENSSL_NO_ENGINE
   EnginePointer::initEnginesOnce();
