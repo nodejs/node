@@ -142,6 +142,28 @@ async function testStatefulSyncTransformYieldsString() {
   assert.deepStrictEqual(data, new TextEncoder().encode('world'));
 }
 
+// Stateful async transform yields null (no output)
+async function testStatefulTransformYieldsNull() {
+  const tx = {
+    async *transform() {
+      yield null;
+    },
+  };
+  const data = await bytes(pull(from('x'), tx));
+  assert.deepStrictEqual(data, new Uint8Array());
+}
+
+// Stateful sync transform yields null (no output)
+async function testStatefulSyncTransformYieldsNull() {
+  const tx = {
+    *transform() {
+      yield null;
+    },
+  };
+  const data = bytesSync(pullSync(fromSync('x'), tx));
+  assert.deepStrictEqual(data, new Uint8Array());
+}
+
 // Flush returns single Uint8Array (not batch)
 async function testFlushReturnsSingleUint8Array() {
   const tx = (chunks) => {
@@ -217,6 +239,8 @@ Promise.all([
   testStatefulTransformYieldsString(),
   testStatefulTransformYieldsArrayBuffer(),
   testStatefulSyncTransformYieldsString(),
+  testStatefulTransformYieldsNull(),
+  testStatefulSyncTransformYieldsNull(),
   testFlushReturnsSingleUint8Array(),
   testFlushReturnsString(),
   testSyncFlushReturnsSingleUint8Array(),
