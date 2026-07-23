@@ -4082,7 +4082,13 @@ bool SSLPointer::setSniContext(const SSLCtxPointer& ctx) const {
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx.get());
   STACK_OF(X509) * chain;
   int err = SSL_CTX_get0_chain_certs(ctx.get(), &chain);
-  if (err == 1) err = SSL_use_certificate(get(), x509);
+  if (err == 1) {
+    // SSL_use_certificate replaces only the certificate matching the key
+    // type. Clear all existing certificates so credentials from the default
+    // context cannot be selected for a different key type.
+    SSL_certs_clear(get());
+    err = SSL_use_certificate(get(), x509);
+  }
   if (err == 1) err = SSL_use_PrivateKey(get(), pkey);
   if (err == 1 && chain != nullptr) err = SSL_set1_chain(get(), chain);
   return err == 1;
