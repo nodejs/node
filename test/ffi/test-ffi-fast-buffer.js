@@ -69,3 +69,29 @@ test('fast FFI buffer arguments reject invalid values', () => {
     lib.close();
   }
 });
+
+test('fast FFI string buffers survive reentrant callbacks', {
+  // Bundled libffi callbacks crash on SmartOS.
+  skip: common.isSunOS,
+}, () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    safe_strlen: { arguments: ['string'], return: 'i32' },
+    string_survives_callback: {
+      arguments: ['string', 'pointer'],
+      return: 'i32',
+    },
+  });
+  let nestedLength;
+  const callback = lib.registerCallback(() => {
+    nestedLength = functions.safe_strlen('inner string');
+  });
+
+  try {
+    assert.strictEqual(
+      functions.string_survives_callback('outer string', callback), 1);
+    assert.strictEqual(nestedLength, 12);
+  } finally {
+    lib.unregisterCallback(callback);
+    lib.close();
+  }
+});
