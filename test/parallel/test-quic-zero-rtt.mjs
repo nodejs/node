@@ -90,15 +90,15 @@ const cs2 = await connect(serverEndpoint.address, {
 });
 
 // Send data BEFORE the handshake completes — true 0-RTT.
-const s2 = await cs2.createBidirectionalStream({
-  body: encoder.encode('early data'),
-});
+const s2 = await cs2.createBidirectionalStream();
+await s2.writer.write(encoder.encode('early data'));
 
 // Now wait for handshake completion.
 const info2 = await cs2.opened;
 strictEqual(info2.earlyDataAttempted, true);
 strictEqual(info2.earlyDataAccepted, true);
 
+await s2.writer.end();
 for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
 await s2.closed;
 
