@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { exec } = require('child_process');
 
 const bindingPath = path.resolve(
   __dirname, 'build', common.buildType, 'binding.node');
@@ -18,26 +18,28 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-// We do not want to generate core files / actually crash the process when
-// running this test as a regular addon test. It is also required as an
-// abort test with ALLOW_CRASHES set (see ../../abort/test-addon-abort-handler.js).
-if (!process.env.ALLOW_CRASHES)
-  common.skip('test needs ALLOW_CRASHES to spawn a crashing child');
-
-const result = spawnSync(process.execPath, [__filename, 'child']);
-
-const stderr = result.stderr.toString();
-assert.ok(
-  stderr.includes('CUSTOM_ABORT_HANDLER_RAN'),
-  `Expected custom abort handler marker in stderr, got:\n${stderr}`);
-assert.ok(
-  !stderr.includes('Native stack trace'),
-  `Expected the custom handler to replace the default dump, got:\n${stderr}`);
-
-if (common.isWindows) {
-  assert.strictEqual(result.status, 134);
-  assert.strictEqual(result.signal, null);
-} else {
-  assert.strictEqual(result.status, null);
-  assert.strictEqual(result.signal, 'SIGABRT');
+const escapedArgs =
+  common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
+if (!common.isWindows) {
+  // Do not create core files, as it can take a lot of disk space on
+  // continuous testing and developers' machines.
+  escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
 }
+
+exec(...escapedArgs, common.mustCall((err, stdout, stderr) => {
+  assert.ok(
+    stderr.includes('CUSTOM_ABORT_HANDLER_RAN'),
+    `Expected custom abort handler marker in stderr, got:\n${stderr}`);
+  assert.ok(
+    !stderr.includes('Native stack trace'),
+    `Expected the custom handler to replace the default dump, got:\n${stderr}`);
+
+  // The child aborts. Whether that surfaces as the SIGABRT signal or as exit
+  // code 134 depends on shell wrapping: the `ulimit -c 0 && ...` prefix makes
+  // /bin/sh wait on (rather than exec-replace itself with) the node grandchild,
+  // so sh reports the aborted grandchild as a normal exit with code 134.
+  // common.nodeProcessAborted() accepts both forms.
+  assert.ok(
+    err && common.nodeProcessAborted(err.code, err.signal),
+    `Expected the child to abort, got code=${err?.code} signal=${err?.signal}`);
+}));

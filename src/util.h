@@ -143,9 +143,10 @@ AbortHandler GetAbortHandler();
 // correct backtracing.
 // `ABORT` must be a macro and not a [[noreturn]] function to make sure the
 // backtrace is correct.
-#define ABORT()                                                                \
+#define ABORT() ABORT_WITH_MESSAGE(nullptr)
+#define ABORT_WITH_MESSAGE(message)                                            \
   do {                                                                         \
-    node::GetAbortHandler()();                                                 \
+    node::GetAbortHandler()(message);                                          \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
