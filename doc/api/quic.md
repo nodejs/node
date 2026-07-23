@@ -1425,6 +1425,32 @@ will be silently dropped and `0n` returned. The local
 `maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
 what this endpoint advertises to the peer as its own maximum.
 
+### `session.servername`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the session. This is
+`null` before the client hello is processed. Once the hello has been
+processed, this is either the host name string or `false` if the handshake
+had no SNI.
+
+### `session.alpnProtocol`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|null}
+
+The negotiated ALPN protocol. This is `null` before the client hello is
+processed. Once ALPN has been negotiated, this is the protocol string. ALPN
+is mandatory in QUIC so this is never `false` on successful connections,
+unlike `node:tls` where this is optional.
+
 ### `session.certificate`
 
 <!-- YAML
@@ -3599,7 +3625,11 @@ added: v23.8.0
 * `this` {quic.QuicEndpoint}
 * `session` {quic.QuicSession}
 
-The callback function that is invoked when a new session is initiated by a remote peer.
+The callback function that is invoked when a new server session is initiated by
+a remote peer. It is called once the peer's TLS `ClientHello` has been
+processed, so the negotiated TLS parameters are immediately available when
+the callback runs. Sessions whose handshake is rejected before this point are
+never surfaced.
 
 ### Callback: `OnStreamCallback`
 

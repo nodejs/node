@@ -184,6 +184,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
 #define SESSION_JS_METHODS(V)                                                  \
   V(Destroy, destroy, SIDE_EFFECT)                                             \
   V(GetRemoteAddress, getRemoteAddress, NO_SIDE_EFFECT)                        \
+  V(GetServername, getServername, NO_SIDE_EFFECT)                              \
+  V(GetAlpnProtocol, getAlpnProtocol, NO_SIDE_EFFECT)                          \
   V(GetLocalAddress, getLocalAddress, NO_SIDE_EFFECT)                          \
   V(GetCertificate, getCertificate, NO_SIDE_EFFECT)                            \
   V(GetEphemeralKeyInfo, getEphemeralKey, NO_SIDE_EFFECT)                      \
@@ -781,6 +783,8 @@ struct Session::Impl final : public MemoryRetainer {
   SocketAddress remote_address_;
   std::unique_ptr<Application> application_;
   StreamsMap streams_;
+  // Emits deferred until after session setup is completed
+  std::vector<std::function<void()>> deferred_emits_;
   TimerWrapHandle timer_;
   size_t send_scope_depth_ = 0;
   QuicError last_error_;
@@ -999,6 +1003,41 @@ struct Session::Impl final : public MemoryRetainer {
       session->SendConnectionClose();
     }
     session->Destroy();
+  }
+
+  // The SNI servername: null until the TLS parameters are final, then the
+  // host name string, or false if the handshake produced no SNI.
+  JS_METHOD(GetServername) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed() || !session->tls_info_ready()) {
+      return args.GetReturnValue().SetNull();
+    }
+    auto sn = session->tls_session().servername();
+    if (sn.empty()) return args.GetReturnValue().Set(false);
+    Local<Value> ret;
+    if (ToV8Value(env->context(), sn).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
+  }
+
+  // The negotiated ALPN protocol: null until the TLS parameters are final,
+  // then the protocol string.
+  JS_METHOD(GetAlpnProtocol) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed() || !session->tls_info_ready()) {
+      return args.GetReturnValue().SetNull();
+    }
+    auto proto = session->tls_session().protocol();
+    // QUIC requires ALPN
+    DCHECK(!proto.empty());
+    Local<Value> ret;
+    if (ToV8Value(env->context(), proto).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
   }
 
   JS_METHOD(GetRemoteAddress) {
@@ -2649,6 +2688,12 @@ const Session::Options& Session::options() const {
 void Session::EmitQlog(uint32_t flags, std::string_view data) {
   if (!env()->can_call_into_js()) return;
 
+  if (!is_destroyed() && must_defer_emits()) {
+    QueueDeferredEmit(
+        [this, flags, held = std::string(data)]() { EmitQlog(flags, held); });
+    return;
+  }
+
   bool fin = (flags & NGTCP2_QLOG_WRITE_FLAG_FIN) != 0;
 
   // Fun fact... ngtcp2 does not emit the final qlog statement until the
@@ -2771,6 +2816,16 @@ bool Session::ReadPacket(const uint8_t* data,
         // Process deferred operations that couldn't run inside callback
         // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
         application().PostReceive();
+        // Surface a server session to JS once its ClientHello has been
+        // processed (OnSelectAlpn fired: SNI + ALPN are known and reliable).
+        // Held first-flight events - including 0-RTT request streams - replay
+        // at emit. The !wrapped guard makes this fire exactly once, on
+        // whichever packet completes the ClientHello (so a multi-datagram
+        // ClientHello is handled correctly).
+        if (is_server() && hello_processed_ && !impl_->state()->wrapped &&
+            !is_destroyed()) {
+          endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
+        }
       }
       return true;
     }
@@ -3460,6 +3515,36 @@ void Session::set_wrapped() {
   impl_->state()->wrapped = 1;
 }
 
+bool Session::must_defer_emits() const {
+  // Server sessions are surfaced to JS (via the deferred new-session emit)
+  // only after the ClientHello has been processed and wrapped; anything
+  // emitted before then has no JS wrapper to receive it and must be held
+  // for replay.
+  return is_server() && !impl_->state()->wrapped;
+}
+
+bool Session::tls_info_ready() const {
+  // hello_processed_ is set server-side, handshake_completed covers
+  // the client. Together they mark the point when SNI/ALPN are final.
+  return hello_processed_ || impl_->state()->handshake_completed;
+}
+
+void Session::QueueDeferredEmit(std::function<void()> fn) {
+  impl_->deferred_emits_.emplace_back(std::move(fn));
+}
+
+void Session::ReplayDeferredEmits() {
+  if (is_destroyed()) return;
+  DCHECK(impl_->state()->wrapped);
+  // Runs synchronously immediately after the new-session callback
+  // returns (still within first-flight processing).
+  auto emits = std::move(impl_->deferred_emits_);
+  for (auto& emit : emits) {
+    if (is_destroyed()) return;
+    emit();
+  }
+}
+
 void Session::set_priority_supported(bool on) {
   DCHECK(!is_destroyed());
   impl_->state()->priority_supported = on ? 1 : 0;
@@ -3769,6 +3854,10 @@ bool Session::HandshakeCompleted() {
 
   Debug(this, "Session handshake completed");
   impl_->state()->handshake_completed = 1;
+  // This implies fully completing a handshake without setting hello_processed
+  // (set during ALPN negotiation). Should be impossible unless ALPN flow is
+  // changed drastically, but good to check as it'd lose sessions.
+  DCHECK(!is_server() || hello_processed_);
 
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
   SetStreamOpenAllowed();
@@ -3967,6 +4056,7 @@ void Session::set_max_datagram_size(uint16_t size) {
 
 void Session::EmitGoaway(stream_id last_stream_id) {
   if (is_destroyed()) return;
+  if (DeferEmit([this, last_stream_id] { EmitGoaway(last_stream_id); })) return;
   if (!env()->can_call_into_js()) return;
 
   CallbackScope<Session> cb_scope(this);
@@ -3981,6 +4071,14 @@ void Session::EmitGoaway(stream_id last_stream_id) {
 
 void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
+
+  if (must_defer_emits()) {
+    QueueDeferredEmit([this, datagram = std::move(datagram), flag]() mutable {
+      EmitDatagram(std::move(datagram), flag);
+    });
+    return;
+  }
+
   if (!env()->can_call_into_js()) return;
 
   CallbackScope<Session> cbv_scope(this);
@@ -3995,6 +4093,8 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
 
 void Session::EmitDatagramStatus(datagram_id id, quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
+
+  if (DeferEmit([this, id, status] { EmitDatagramStatus(id, status); })) return;
 
   if (!env()->can_call_into_js()) return;
 
@@ -4157,6 +4257,7 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
 void Session::EmitApplication() {
   if (is_destroyed()) return;
+  if (DeferEmit([this] { EmitApplication(); })) return;
   if (!env()->can_call_into_js()) return;
 
   if (!has_application()) {
@@ -4227,6 +4328,10 @@ void Session::EmitNewToken(const uint8_t* token, size_t len) {
 void Session::EmitStream(const BaseObjectWeakPtr<Stream>& stream) {
   DCHECK(!is_destroyed());
 
+  if (DeferEmit([this, stream] { EmitStream(stream); })) return;
+
+  if (!stream) return;
+
   if (!env()->can_call_into_js()) return;
   CallbackScope<Session> cb_scope(this);
 
@@ -4282,6 +4387,14 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
 
 void Session::EmitOrigins(std::vector<std::string>&& origins) {
   DCHECK(!is_destroyed());
+
+  if (must_defer_emits()) {
+    QueueDeferredEmit([this, origins = std::move(origins)]() mutable {
+      EmitOrigins(std::move(origins));
+    });
+    return;
+  }
+
   if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::ORIGIN))
     return;
@@ -4307,11 +4420,17 @@ void Session::EmitOrigins(std::vector<std::string>&& origins) {
 
 void Session::EmitKeylog(const char* line) {
   DCHECK(!is_destroyed());
+
+  if (must_defer_emits()) {
+    QueueDeferredEmit(
+        [this, str = std::string(line)]() { EmitKeylog(str.c_str()); });
+    return;
+  }
+
   if (!env()->can_call_into_js()) return;
 
-  auto str = std::string(line);
   Local<Value> argv[] = {Undefined(env()->isolate())};
-  if (!ToV8Value(env()->context(), str).ToLocal(&argv[0])) {
+  if (!ToV8Value(env()->context(), std::string(line)).ToLocal(&argv[0])) {
     Debug(this, "Failed to convert keylog line to V8 string");
     return;
   }

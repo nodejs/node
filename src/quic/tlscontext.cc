@@ -378,6 +378,7 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
     return SSL_TLSEXT_ERR_NOACK;
   }
   session.SetApplication(std::move(app));
+  session.set_hello_processed();
 
   return SSL_TLSEXT_ERR_OK;
 }
