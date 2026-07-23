@@ -3233,6 +3233,31 @@ value, PING frames will be sent automatically to keep the connection alive
 before the idle timeout fires. The value should be less than the effective
 idle timeout (`maxIdleTimeout` transport parameter) to be useful.
 
+#### `sessionOptions.truncatedReads`
+
+* Type: {string} One of `'error'` or `'allow'`.
+* **Default:** `'error'`
+
+Controls how reading a stream reports a truncated read. A stream's read side
+can end without receiving a QUIC FIN, meaning the peer never signalled that
+the whole stream had been sent and the data received may be incomplete. This
+selects how the stream's async iterator reports this:
+
+* `'error'` - The default. Peers are expected to always send a FIN to end
+  their data explicitly, and so any truncation is an error. The iterator yields
+  the data that did arrive and then throws, so an incomplete stream can never
+  be mistaken for a complete one. Incomplete streams will either throw a
+  `ERR_QUIC_STREAM_RESET` carrying the peer's error code, a connection error,
+  or `ERR_QUIC_STREAM_ABORTED` for other cases.
+
+* `'allow'` - Truncated reads are allowed: only a stream or connection error
+  is reported, and any clean abort/cancellation or similar simply ends the
+  stream. A non-zero peer reset still throws `ERR_QUIC_STREAM_RESET` and a
+  connection error still throws its real error, but a truncation that carried
+  no error (an idle timeout, a graceful close, a local `stopSending()`) ends
+  the read cleanly with the data received. This matches `stream.closed`,
+  which rejects only on an error.
+
 #### `sessionOptions.verifyPeer` (client only)
 
 * Type: {string} One of `'strict'`, `'auto'`, or `'manual'`.

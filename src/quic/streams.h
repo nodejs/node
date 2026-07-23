@@ -309,10 +309,12 @@ class Stream final : public AsyncWrap,
   void Commit(size_t datalen, bool fin = false);
 
   void EndWritable();
-  // clean_fin indicates the read side is ending because a real FIN frame was
-  // received from the peer (as opposed to a reset, a local abort, or the
-  // session being torn down). Anything else => truncated read.
-  void EndReadable(std::optional<uint64_t> maybe_final_size, bool clean_fin);
+  // The read side ended cleanly with a peer FIN: the content is complete.
+  void FinishReadable();
+  // The read side ended without a FIN (a reset, a local abort, or the session
+  // being torn down) so the content is truncated.
+  void TruncateReadable(
+      std::optional<uint64_t> maybe_final_size = std::nullopt);
   void EntryRead(size_t amount) override;
   void BeforePull() override;
 
@@ -397,6 +399,10 @@ class Stream final : public AsyncWrap,
   // Flushes any data accumulated in the receive ring buffer into the
   // inbound DataQueue as a single right-sized entry.
   void FlushAccumulation();
+
+  // Common tail of FinishReadable()/TruncateReadable(): marks the read side
+  // ended, caps it at the final size, and notifies the reader.
+  void CapReadable(std::optional<uint64_t> maybe_final_size);
 
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
