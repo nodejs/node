@@ -1656,6 +1656,10 @@ characters directly to the `prefix` string. For instance, given a directory
 
 <!-- YAML
 added: v24.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: Allow `prefix` to be a `Buffer` and return a `Buffer`.
 -->
 
 * `prefix` {string|Buffer|URL}
@@ -6424,6 +6428,10 @@ object with an `encoding` property specifying the character encoding to use.
 
 <!-- YAML
 added: v24.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: Allow `prefix` to be a `Buffer` and return a `Buffer`.
 -->
 
 * `prefix` {string|Buffer|URL}
