@@ -164,8 +164,8 @@ bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
   for (const std::string& name : fn.arg_type_names) {
     if (name == "bool" || name == "char" || name == "i8" || name == "int8" ||
         name == "u8" || name == "uint8" || name == "i16" || name == "int16" ||
-        name == "u16" || name == "uint16" || name == "i64" || name == "int64" ||
-        name == "u64" || name == "uint64") {
+        name == "u16" || name == "uint16" || name == "i32" || name == "int32" ||
+        name == "i64" || name == "int64" || name == "u64" || name == "uint64") {
       return true;
     }
   }

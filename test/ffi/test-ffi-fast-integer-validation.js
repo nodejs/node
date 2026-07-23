@@ -28,6 +28,8 @@ test('fast FFI validates integer argument ranges', () => {
 
     function callU16(value) { return functions.add_u16(value, 0); }
 
+    function callI32(value) { return functions.add_i32(value, 0); }
+
     function callI64(value) { return functions.add_i64(value, 0n); }
 
     function callU64(value) { return functions.add_u64(value, 0n); }
@@ -37,6 +39,7 @@ test('fast FFI validates integer argument ranges', () => {
       [callU8, 0],
       [callI16, 0],
       [callU16, 0],
+      [callI32, 0],
       [callI64, 0n],
       [callU64, 0n],
     ]) {
@@ -48,6 +51,10 @@ test('fast FFI validates integer argument ranges', () => {
     assert.throws(() => callU8(256), expect);
     assert.throws(() => callI16(32768), expect);
     assert.throws(() => callU16(65536), expect);
+    assert.throws(() => callI32(2147483648), expect);
+    assert.throws(() => callI32(-2147483649), expect);
+    assert.throws(() => callI32(1.5), expect);
+    assert.throws(() => callI32('1'), expect);
     assert.throws(() => callI64(2n ** 63n), expect);
     assert.throws(() => callU64(2n ** 64n), expect);
   } finally {
