@@ -47,10 +47,11 @@
 
 #include <sys/types.h>
 
+#include <atomic>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <atomic>
+#include <optional>
 
 namespace node {
 
@@ -349,6 +350,7 @@ class ZstdCompressContext final : public ZstdContext {
   DeleteFnPtr<ZSTD_CCtx, ZstdCompressContext::FreeZstd> cctx_;
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
+  std::optional<uint64_t> consumed_src_size_;
 };
 
 class ZstdDecompressContext final : public ZstdContext {
@@ -1655,6 +1657,11 @@ void ZstdCompressContext::Close() {
 CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary) {
   pledged_src_size_ = pledged_src_size;
+  if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
+    consumed_src_size_.reset();
+  } else {
+    consumed_src_size_ = 0;
+  }
 #ifdef NODE_BUNDLED_ZSTD
   ZSTD_customMem custom_mem = {
       CompressionStreamMemoryOwner::AllocForBrotli,
@@ -1694,12 +1701,26 @@ CompressionError ZstdCompressContext::ResetStream() {
 }
 
 void ZstdCompressContext::DoThreadPoolWork() {
+  // Zstd overrides a configured pledge when the first call uses ZSTD_e_end.
+  size_t const input_pos = input_.pos;
   size_t const remaining =
       ZSTD_compressStream2(cctx_.get(), &output_, &input_, flush_);
+  if (consumed_src_size_.has_value()) {
+    *consumed_src_size_ += input_.pos - input_pos;
+  }
   if (ZSTD_isError(remaining)) {
     error_ = ZSTD_getErrorCode(remaining);
     error_code_string_ = ZstdStrerror(error_);
     error_string_ = ZSTD_getErrorString(error_);
+  } else if (remaining == 0 && flush_ == ZSTD_e_end &&
+             consumed_src_size_.has_value()) {
+    uint64_t const consumed_src_size = *consumed_src_size_;
+    consumed_src_size_.reset();
+    if (consumed_src_size != pledged_src_size_) {
+      error_ = ZSTD_error_srcSize_wrong;
+      error_code_string_ = ZstdStrerror(error_);
+      error_string_ = ZSTD_getErrorString(error_);
+    }
   }
 }
 
