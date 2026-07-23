@@ -67,6 +67,8 @@ The current security stewards are documented in the main Node.js
 * [ ] 3\. **Assigning Severity and Writing Team Summary:**
   * [ ] Assign a severity and write a team summary on HackerOne for the reports
     chosen in the `vulnerabilities.json`.
+  * [ ] If a report targets a Node.js dependency, such as `undici` or `llhttp`,
+    make sure to update the `DEPENDENCY` custom field on HackerOne.
   * Run `git node security --sync` to update severity and summary in
     `vulnerabilities.json`.
 
