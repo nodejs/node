@@ -1866,16 +1866,17 @@ int MKDirpSync(uv_loop_t* loop,
     req_wrap->continuation_data()->PushPath(std::move(path));
   }
 
-  while (req_wrap->continuation_data()->paths().size() > 0) {
-    std::string next_path = req_wrap->continuation_data()->PopPath();
+  FSContinuationData* cont_data = req_wrap->continuation_data();
+  while (cont_data->paths().size() > 0) {
+    std::string next_path = cont_data->PopPath();
     int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode, nullptr);
     while (true) {
       switch (err) {
         // Note: uv_fs_req_cleanup in terminal paths will be called by
         // ~FSReqWrapSync():
         case 0:
-          req_wrap->continuation_data()->MaybeSetFirstPath(next_path);
-          if (req_wrap->continuation_data()->paths().empty()) {
+          cont_data->MaybeSetFirstPath(next_path);
+          if (cont_data->paths().empty()) {
             return 0;
           }
           break;
@@ -1889,9 +1890,9 @@ int MKDirpSync(uv_loop_t* loop,
           std::string dirname =
               next_path.substr(0, next_path.find_last_of(kPathSeparator));
           if (dirname != next_path) {
-            req_wrap->continuation_data()->PushPath(std::move(next_path));
-            req_wrap->continuation_data()->PushPath(std::move(dirname));
-          } else if (req_wrap->continuation_data()->paths().empty()) {
+            cont_data->PushPath(std::move(next_path));
+            cont_data->PushPath(std::move(dirname));
+          } else if (cont_data->paths().empty()) {
             err = UV_EEXIST;
             continue;
           }
@@ -1903,8 +1904,7 @@ int MKDirpSync(uv_loop_t* loop,
           err = uv_fs_stat(loop, req, next_path.c_str(), nullptr);
           if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) {
             uv_fs_req_cleanup(req);
-            if (orig_err == UV_EEXIST &&
-                req_wrap->continuation_data()->paths().size() > 0) {
+            if (orig_err == UV_EEXIST && cont_data->paths().size() > 0) {
               return UV_ENOTDIR;
             }
             return UV_EEXIST;
