@@ -37,6 +37,8 @@ professionalism across all documents.
 ### Testing documentation
 
 * Validate documentation changes using `make test-doc -j` or `vcbuild test-doc`.
+* Node.js uses [remark](https://github.com/remarkjs/remark) and [`remark-preset-lint-node`][] to lint markdown documentation.
+* You can run the linter locally with `npm run lint-md` to check your documentation changes.
 
 ***
 
