@@ -1,17 +1,8 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
 
 const arrayBuffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer;
 const TypedArrays = [
@@ -32,7 +23,7 @@ const TypedArrays = [
 suite('StatementSync with TypedArray/DataView', () => {
   for (const [displayName, TypedArray] of TypedArrays) {
     test(displayName, (t) => {
-      const db = new DatabaseSync(nextDb());
+      const db = new DatabaseSync(':memory:');
       t.after(() => { db.close(); });
       db.exec('CREATE TABLE test (data BLOB)');
       // insert
