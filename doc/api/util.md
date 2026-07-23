@@ -2638,26 +2638,33 @@ The special format value `none` applies no additional styling to the text.
 
 In addition to predefined color names, `util.styleText()` supports hex color
 strings using ANSI TrueColor (24-bit) escape sequences. Hex colors can be
-specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format:
+specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format for foreground,
+or prefixed with `bg` (e.g., `bg#RGB`, `bg#RRGGBB`) for background:
 
 ```mjs
 import { styleText } from 'node:util';
 
-// 6-digit hex color
+// 6-digit hex color (foreground)
 console.log(styleText('#ff5733', 'Orange text'));
 
-// 3-digit hex color (shorthand)
+// 3-digit hex color (shorthand) (foreground)
 console.log(styleText('#f00', 'Red text'));
+
+// Hex color for background
+console.log(styleText('bg#ff5733', 'Text with orange background'));
 ```
 
 ```cjs
 const { styleText } = require('node:util');
 
-// 6-digit hex color
+// 6-digit hex color (foreground)
 console.log(styleText('#ff5733', 'Orange text'));
 
-// 3-digit hex color (shorthand)
+// 3-digit hex color (shorthand) (foreground)
 console.log(styleText('#f00', 'Red text'));
+
+// Hex color for background
+console.log(styleText('bg#ff5733', 'Text with orange background'));
 ```
 
 The full list of formats can be found in [modifiers][].
