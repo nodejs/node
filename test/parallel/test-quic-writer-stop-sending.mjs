@@ -46,8 +46,8 @@ w.writeSync(encoder.encode('initial data'));
 // Wait for the server to send STOP_SENDING.
 await serverReady.promise;
 
-// Give a moment for the STOP_SENDING to propagate.
-await setTimeout(100);
+// Wait for the STOP_SENDING to propagate and error the writer.
+while (w.canWrite !== null) await setTimeout(5);
 
 // After STOP_SENDING, the writer should be in an errored state.
 // writeSync returns false (refuses to accept data).
