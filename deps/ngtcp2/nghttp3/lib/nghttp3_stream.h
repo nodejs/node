@@ -56,6 +56,7 @@ typedef uint64_t nghttp3_stream_type;
 #define NGHTTP3_STREAM_TYPE_PUSH 0x01U
 #define NGHTTP3_STREAM_TYPE_QPACK_ENCODER 0x02U
 #define NGHTTP3_STREAM_TYPE_QPACK_DECODER 0x03U
+#define NGHTTP3_STREAM_TYPE_WT_STREAM 0x54U
 #define NGHTTP3_STREAM_TYPE_UNKNOWN UINT64_MAX
 
 typedef enum nghttp3_ctrl_stream_state {
@@ -78,9 +79,18 @@ typedef enum nghttp3_req_stream_state {
   NGHTTP3_REQ_STREAM_STATE_FRAME_LENGTH,
   NGHTTP3_REQ_STREAM_STATE_DATA,
   NGHTTP3_REQ_STREAM_STATE_HEADERS,
+  NGHTTP3_REQ_STREAM_STATE_BEFORE_WT_DATA,
+  NGHTTP3_REQ_STREAM_STATE_WT_DATA,
   NGHTTP3_REQ_STREAM_STATE_IGN_FRAME,
   NGHTTP3_REQ_STREAM_STATE_IGN_REST,
 } nghttp3_req_stream_state;
+
+/* stream state for WebTransport unidirectional data stream */
+typedef enum nghttp3_wt_stream_state {
+  NGHTTP3_WT_STREAM_STATE_SESSION_ID,
+  NGHTTP3_WT_STREAM_STATE_DATA,
+  NGHTTP3_WT_STREAM_STATE_IGN_REST,
+} nghttp3_wt_stream_state;
 
 typedef struct nghttp3_varint_read_state {
   uint64_t acc;
@@ -94,6 +104,8 @@ typedef struct nghttp3_stream_read_state {
   uint64_t left;
   int state;
 } nghttp3_stream_read_state;
+
+typedef struct nghttp3_wt_session nghttp3_wt_session;
 
 /* NGHTTP3_STREAM_FLAG_NONE indicates that no flag is set. */
 #define NGHTTP3_STREAM_FLAG_NONE 0x0000U
@@ -128,6 +140,18 @@ typedef struct nghttp3_stream_read_state {
 /* NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED indicates that server
    received PRIORITY_UPDATE frame for this stream. */
 #define NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED 0x0800U
+/* NGHTTP3_STREAM_FLAG_MAYBE_WT_DATA indicates that the stream may be
+   WebTransport data stream. */
+#define NGHTTP3_STREAM_FLAG_MAYBE_WT_DATA 0x1000U
+/* NGHTTP3_STREAM_FLAG_WT_DATA indicates that the stream is
+   WebTransport data stream. */
+#define NGHTTP3_STREAM_FLAG_WT_DATA 0x2000U
+/* NGHTTP3_STREAM_FLAG_WT_SESSION_BLOCKED indicates that the stream is
+   blocked because WebTransport session has not been established. */
+#define NGHTTP3_STREAM_FLAG_WT_SESSION_BLOCKED 0x4000U
+/* NGHTTP3_STREAM_FLAG_RESP_SUBMITTED indicates that HTTP/3 response
+   has been submitted via nghttp3_conn_submit_response. */
+#define NGHTTP3_STREAM_FLAG_RESP_SUBMITTED 0x8000U
 
 typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_NONE,
@@ -225,8 +249,6 @@ struct nghttp3_stream {
       uint64_t unscheduled_nwrite;
       nghttp3_stream_type type;
       nghttp3_stream_read_state rstate;
-      /* error_code indicates the reason of closure of this stream. */
-      uint64_t error_code;
 
       struct {
         uint64_t offset;
@@ -236,6 +258,12 @@ struct nghttp3_stream {
         nghttp3_stream_http_state hstate;
         nghttp3_http_state http;
       } rx;
+
+      struct {
+        nghttp3_wt_session *session;
+        nghttp3_stream *prev;
+        nghttp3_stream *next;
+      } wt;
 
       uint16_t flags;
     };
@@ -312,6 +340,15 @@ int nghttp3_stream_write_priority_update(
 int nghttp3_stream_write_origin(nghttp3_stream *stream,
                                 const nghttp3_frame_origin *fr);
 
+int nghttp3_stream_write_wt_stream(nghttp3_stream *stream,
+                                   const nghttp3_exfr_wt_stream *fr);
+
+int nghttp3_stream_write_wt_stream_data(nghttp3_stream *stream, int *peof,
+                                        const nghttp3_exfr_wt_stream *fr);
+
+int nghttp3_stream_write_cpsl_wt_close_session(
+  nghttp3_stream *stream, const nghttp3_exfr_cpsl_wt_close_session *frent);
+
 int nghttp3_stream_ensure_chunk(nghttp3_stream *stream, size_t need);
 
 nghttp3_buf *nghttp3_stream_get_chunk(nghttp3_stream *stream);
@@ -346,6 +383,8 @@ int nghttp3_stream_is_active(nghttp3_stream *stream);
  */
 int nghttp3_stream_require_schedule(const nghttp3_stream *stream);
 
+int nghttp3_stream_schedulable(const nghttp3_stream *stream);
+
 int nghttp3_stream_buffer_data(nghttp3_stream *stream, const uint8_t *src,
                                size_t srclen);
 
@@ -359,6 +398,12 @@ int nghttp3_stream_transit_rx_http_state(nghttp3_stream *stream,
                                          nghttp3_stream_http_event event);
 
 int nghttp3_stream_empty_headers_allowed(const nghttp3_stream *stream);
+
+int nghttp3_stream_wt_ctrl(const nghttp3_stream *stream);
+
+int nghttp3_stream_wt_data(const nghttp3_stream *stream);
+
+int nghttp3_stream_critical(const nghttp3_stream *stream);
 
 /*
  * nghttp3_stream_uni returns nonzero if stream identified by
@@ -383,5 +428,7 @@ int nghttp3_client_stream_uni(int64_t stream_id);
  * |stream_id| is server initiated unidirectional stream.
  */
 int nghttp3_server_stream_uni(int64_t stream_id);
+
+int nghttp3_server_stream_bidi(int64_t stream_id);
 
 #endif /* !defined(NGHTTP3_STREAM_H) */

@@ -90,6 +90,7 @@
       'nghttp3/lib/nghttp3_unreachable.c',
       'nghttp3/lib/nghttp3_vec.c',
       'nghttp3/lib/nghttp3_version.c',
+      'nghttp3/lib/nghttp3_wt.c',
     ],
     'ngtcp2_test_server_sources': [
       'ngtcp2/examples/tls_server_session_ossl.cc',

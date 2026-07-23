@@ -46,6 +46,7 @@ namespace quic {
 
 #define STREAM_STATE(V)                                                        \
   V(ID, id, stream_id)                                                         \
+  V(SESSION_ID, session_id, stream_id)                                         \
   V(PENDING, pending, uint8_t)                                                 \
   V(FIN_SENT, fin_sent, uint8_t)                                               \
   V(FIN_RECEIVED, fin_received, uint8_t)                                       \
@@ -59,6 +60,10 @@ namespace quic {
   V(WANTS_BLOCK, wants_block, uint8_t)                                         \
   /* Set when the stream has a headers event handler */                        \
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
+  /* Set when the stream has a sessionid event handler */                      \
+  V(WANTS_SESSIONID, wants_sessionid, uint8_t)                                 \
+  /* Set when the stream has a event handler for closing a WT session */       \
+  V(WANTS_WTSESSIONCLOSE, wants_wtsessionclose, uint8_t)                       \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
@@ -97,6 +102,8 @@ namespace quic {
   V(AttachSource, attachSource, false)                                         \
   V(Destroy, destroy, false)                                                   \
   V(SendHeaders, sendHeaders, false)                                           \
+  V(MakeWebtransportStream, makeWebtransportStream, false)                     \
+  V(CloseWebtransportSessionStream, closeWebtransportSessionStream, false)     \
   V(StopSending, stopSending, false)                                           \
   V(ResetStream, resetStream, false)                                           \
   V(SetPriority, setPriority, false)                                           \
@@ -472,6 +479,59 @@ struct Stream::Impl {
 
     args.GetReturnValue().Set(stream->session().application().SendHeaders(
         *stream, kind, headers, flags));
+  }
+
+  // Connects a stream to a webtransport session stream,
+  // also sends the initial bytes of a stream to signal the wt stream
+  // also connects the readers
+  JS_METHOD(MakeWebtransportStream) {
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    CHECK(args.Length() > 0);
+    CHECK(args[0]->IsObject());
+    Stream* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<v8::Object>());
+    if (stream->is_pending()) {
+      stream->EnqueuePendingWebtransportStream(session->id());
+      return args.GetReturnValue().Set(true);
+    }
+    args.GetReturnValue().Set(stream->session().application().MakeWebtransportStream(
+      *stream,
+      session->id()
+    ));
+  }
+
+  // Closes a webtransport session stream,
+  // also closes connected data streams
+  JS_METHOD(CloseWebtransportSessionStream) {
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    CHECK(args.Length() > 0);
+    uint32_t wt_error_code = 0;
+    if (args.Length() > 0) {
+      CHECK(args[0]->IsUint32());
+      wt_error_code = FromV8Value<uint32_t>(args[0]);
+    }
+    uint8_t * msg = nullptr;
+    size_t msglen = 0;
+    if (args.Length() > 1) {
+      CHECK(args[1]->IsString());
+      Local<String> msgstr = args[1].As<String>();
+      const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
+      msg = new  uint8_t[length];
+      msgstr->WriteUtf8V2(
+        args.GetIsolate(), reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
+      msglen = std::min<size_t>(length, 1024);
+    }
+    args.GetReturnValue().Set(stream->session().application().CloseWebtransportSessionStream(
+      *stream,
+      wt_error_code,
+      msg,
+      msglen
+    ));
+    if (msg) {
+      delete[] msg;
+    }
   }
 
   // Tells the peer to stop sending data for this stream. This has the effect
@@ -870,7 +930,6 @@ class Stream::Outbound final : public MemoryRetainer {
         PullUncommitted(std::move(next));
         return bob::Status::STATUS_CONTINUE;
       }
-
       std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](int) {});
       return bob::Status::STATUS_BLOCK;
     }
@@ -1067,6 +1126,8 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(HeadersFlags::NONE);
   constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
       static_cast<uint8_t>(HeadersFlags::TERMINAL);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT =
+      static_cast<uint8_t>(HeadersFlags::WEBTRANSPORT);
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
@@ -1074,6 +1135,7 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT);
 }
 
 Stream* Stream::From(void* stream_user_data) {
@@ -1112,6 +1174,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   MakeWeak();
   DCHECK(id < kMaxStreamId);
   state()->id = id;
+  state()->session_id = kMaxStreamId;
   state()->pending = 0;
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
@@ -1169,6 +1232,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
   MakeWeak();
   state()->id = kMaxStreamId;
+  state()->session_id = kMaxStreamId;
   state()->pending = 1;
 
   // Allows us to be notified when data is actually read from the
@@ -1229,6 +1293,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
   Debug(this, "Pending stream opened with id %" PRIi64, id);
   state()->pending = 0;
   state()->id = id;
+  state()->session_id = kMaxStreamId;
   STAT_RECORD_TIMESTAMP(Stats, opened_at);
   // Now that the stream is actually opened, add it to the sessions
   // list of known open streams.
@@ -1262,7 +1327,12 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
-  // If the stream is not a local unidirectional stream and is_readable is
+  if (pending_webtransport_session_ >= 0) {
+    session().application().MakeWebtransportStream(*this,
+      pending_webtransport_session_);
+    pending_webtransport_session_ = 0;
+  }
+  // If the stream is not a local undirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
@@ -1299,6 +1369,11 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
       kind, Global<Array>(env()->isolate(), headers), flags));
 }
 
+void Stream::EnqueuePendingWebtransportStream(int64_t sessionid) {
+  Debug(this, "Enqueing Webtransport Session strean for pending stream");
+  pending_webtransport_session_ = sessionid;
+}
+
 bool Stream::is_pending() const {
   return state()->pending;
 }
@@ -1309,6 +1384,10 @@ bool Stream::is_destroyed() const {
 
 stream_id Stream::id() const {
   return state()->id;
+}
+
+stream_id Stream::session_id() const {
+  return state()->session_id;
 }
 
 Side Stream::origin() const {
@@ -1555,6 +1634,7 @@ void Stream::BeginHeaders(HeadersKind kind) {
   headers_length_ = 0;
   headers_.clear();
   set_headers_kind(kind);
+  state()->session_id = -1; // we know we are not a wt stream
 }
 
 void Stream::set_headers_kind(HeadersKind kind) {
@@ -1571,6 +1651,19 @@ bool Stream::AddHeader(std::unique_ptr<Header> header) {
   headers_length_ += len;
   headers_.push_back(std::move(header));
   return true;
+}
+
+void Stream::NotifyWTSession(stream_id session_id) {
+  if (state()->session_id != session_id) {
+    state()->session_id = session_id;
+    EmitSessionid(session_id);
+  }
+}
+
+void Stream::NotifyWTSessionClose(uint32_t wt_error_code,
+                                   const uint8_t *msg,
+                                   size_t msglen) {
+  EmitWTSessionClose(wt_error_code, msg, msglen);
 }
 
 void Stream::Acknowledge(size_t datalen) {
@@ -1945,6 +2038,29 @@ void Stream::EmitHeaders() {
   MakeCallback(binding.stream_headers_callback(), arraysize(argv), argv);
 }
 
+void Stream::EmitSessionid(stream_id session_id) {
+  if (!env()->can_call_into_js()  || !state()->wants_sessionid) return;
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> sid = BigInt::New(env()->isolate(), session_id);
+  MakeCallback(BindingData::Get(env()).stream_sessionid_callback(), 1, &sid);
+}
+
+  
+void Stream::EmitWTSessionClose(uint32_t wt_error_code,
+                                const uint8_t *msg,
+                                size_t msglen) {       
+  if (!env()->can_call_into_js()  || !state()->wants_wtsessionclose) return;
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> argv[] = {
+      Integer::NewFromUnsigned(env()->isolate(),
+                               wt_error_code),
+      String::NewFromUtf8(env()->isolate(), reinterpret_cast<const char *>(msg), 
+          v8::NewStringType::kNormal, msglen).ToLocalChecked()
+  };
+  MakeCallback(BindingData::Get(env()).stream_wtsessionclose_callback(), 
+    arraysize(argv), argv);
+}
+
 void Stream::EmitReset(const QuicError& error) {
   // state()->wants_reset will be set from the javascript side if the
   // stream object has a handler for the reset event.
@@ -1973,7 +2089,9 @@ void Stream::EmitWantTrailers() {
 void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
   Debug(this, "Scheduled");
-  if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
+  if (outbound_ && stream_queue_.IsEmpty()) {
+    queue->PushBack(this);
+  }
 }
 
 void Stream::Unschedule() {

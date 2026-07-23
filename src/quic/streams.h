@@ -248,8 +248,13 @@ class Stream final : public AsyncWrap,
   ~Stream() override;
 
   // While the stream is still pending, the id will be kMaxStreamId,
-  // inidicating the maximum possible stream id is kMaxStreamId - 1.
+  // indicating the maximum possible stream id is kMaxStreamId - 1.
   stream_id id() const;
+
+  // Until is is clear, that this has a session stream, it is kMaxStreamId
+  // after this it is -1, if it is not a webtransport stream
+  // and >= 0  it is a webtransport stream.
+  stream_id session_id() const;
 
   // While the stream is still pending, the origin will be invalid.
   Side origin() const;
@@ -365,6 +370,14 @@ class Stream final : public AsyncWrap,
   // have already been added, or the maximum total header length is reached.
   bool AddHeader(std::unique_ptr<Header> header);
 
+  // Currently only http/3 can have a session stream in WebTransport
+  void NotifyWTSession(stream_id session_id);
+
+  // Currently only http/3 can have a session stream that receives a close capsule
+  void NotifyWTSessionClose(uint32_t wt_error_code,
+                            const uint8_t *msg,
+                            size_t msglen);
+
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
   // reader_, headers_, and pending_headers_queue_.
   SET_NO_MEMORY_INFO()
@@ -437,15 +450,27 @@ class Stream final : public AsyncWrap,
   // Delivers the set of inbound headers that have been collected.
   void EmitHeaders();
 
+  // Delivers the session_id aka the stream that holds e.g. the WT session.
+  void EmitSessionid(stream_id session_id);
+
+  // delivers the content of the close capsule
+  void EmitWTSessionClose(uint32_t wt_error_code,
+                          const uint8_t *msg,
+                          size_t msglen);
+
   void NotifyReadableEnded(error_code code);
   void NotifyWritableEnded(error_code code);
 
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
   void NotifyStreamOpened(stream_id id);
+
+  // The session id can arrive later
+  void NotifySessionStream(stream_id session_id);
   void EnqueuePendingHeaders(HeadersKind kind,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
+  void EnqueuePendingWebtransportStream(int64_t session_id);
 
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
@@ -461,6 +486,7 @@ class Stream final : public AsyncWrap,
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
   std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
+  int64_t pending_webtransport_session_ = -1;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 

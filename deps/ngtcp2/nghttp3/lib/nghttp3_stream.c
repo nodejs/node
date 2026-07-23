@@ -36,6 +36,7 @@
 #include "nghttp3_http.h"
 #include "nghttp3_vec.h"
 #include "nghttp3_unreachable.h"
+#include "nghttp3_wt.h"
 
 /* NGHTTP3_STREAM_MAX_COPY_THRES is the maximum size of buffer which
    makes a copy to outq. */
@@ -68,7 +69,6 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
         .http.content_length = -1,
         .http.pri.urgency = NGHTTP3_DEFAULT_URGENCY,
       },
-    .error_code = NGHTTP3_H3_NO_ERROR,
   };
 
   nghttp3_tnode_init(&stream->node, stream_id);
@@ -167,6 +167,10 @@ void nghttp3_stream_del(nghttp3_stream *stream) {
   delete_out_chunks(&stream->chunks, stream->out_chunk_objalloc, stream->mem);
   delete_frq(&stream->frq, stream->mem);
   nghttp3_tnode_free(&stream->node);
+
+  if (nghttp3_stream_wt_ctrl(stream)) {
+    nghttp3_wt_session_del(stream->wt.session, stream->mem);
+  }
 
   nghttp3_objalloc_stream_release(stream->stream_objalloc, stream);
 }
@@ -296,6 +300,47 @@ int nghttp3_stream_fill_outq(nghttp3_stream *stream) {
       }
 
       break;
+    case NGHTTP3_FRAME_EX_WT:
+      switch (fr->wt.fr.hd.type) {
+      case NGHTTP3_EXFR_WT_STREAM_BIDI:
+      case NGHTTP3_EXFR_WT_STREAM_UNI:
+        rv = nghttp3_stream_write_wt_stream(stream, &fr->wt.fr.wt_stream);
+        if (rv != 0) {
+          return rv;
+        }
+
+        fr->wt.fr.wt_stream.type = NGHTTP3_EXFR_WT_STREAM_DATA;
+
+        /* fall through */
+      case NGHTTP3_EXFR_WT_STREAM_DATA:
+        rv = nghttp3_stream_write_wt_stream_data(stream, &data_eof,
+                                                 &fr->wt.fr.wt_stream);
+        if (rv != 0) {
+          return rv;
+        }
+
+        if ((stream->flags & NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED) ||
+            !data_eof) {
+          return 0;
+        }
+
+        break;
+      }
+
+      break;
+    case NGHTTP3_FRAME_EX_CPSL:
+      switch (fr->cpsl.fr.hd.type) {
+      case NGHTTP3_EXFR_CPSL_WT_CLOSE_SESSION:
+        rv = nghttp3_stream_write_cpsl_wt_close_session(
+          stream, &fr->cpsl.fr.wt_close_session);
+        if (rv != 0) {
+          return rv;
+        }
+
+        break;
+      }
+
+      break;
     default:
       /* TODO Not implemented */
       break;
@@ -371,6 +416,31 @@ int nghttp3_stream_write_settings(nghttp3_stream *stream,
     };
 
     ++fr.niv;
+  }
+
+  if (local_settings->wt_enabled) {
+    /* For client, only draft version sends SETTINGS_WT_ENABLED. */
+    ents[fr.niv++] = (nghttp3_settings_entry){
+      .id = NGHTTP3_SETTINGS_ID_WT_ENABLED,
+      .value = 1,
+    };
+
+    /* compat for pre draft-15 */
+    ents[fr.niv++] = (nghttp3_settings_entry){
+      .id = NGHTTP3_SETTINGS_ID_WT_MAX_SESSIONS,
+      .value = 1,
+    };
+
+    ents[fr.niv++] = (nghttp3_settings_entry){
+      .id = NGHTTP3_SETTINGS_ID_WT_MAX_SESSIONS_DRAFT7,
+      .value = 1,
+    };
+
+    /* compat for ancient draft */
+    ents[fr.niv++] = (nghttp3_settings_entry){
+      .id = NGHTTP3_SETTINGS_ID_ENABLE_WEBTRANSPORT_DRAFT2,
+      .value = 1,
+    };
   }
 
   len = nghttp3_frame_write_settings_len(&payloadlen, &fr);
@@ -473,6 +543,150 @@ int nghttp3_stream_write_origin(nghttp3_stream *stream,
 
   nghttp3_buf_wrap_init(&buf, (uint8_t *)fr->origin_list.base,
                         fr->origin_list.len);
+  buf.last = buf.end;
+  nghttp3_typed_buf_init(&tbuf, &buf, NGHTTP3_BUF_TYPE_ALIEN_NO_ACK);
+
+  return nghttp3_stream_outq_add(stream, &tbuf);
+}
+
+int nghttp3_stream_write_wt_stream(nghttp3_stream *stream,
+                                   const nghttp3_exfr_wt_stream *fr) {
+  size_t len;
+  int rv;
+  nghttp3_buf *chunk;
+  nghttp3_typed_buf tbuf;
+
+  len = nghttp3_frame_write_wt_stream_len(fr);
+
+  rv = nghttp3_stream_ensure_chunk(stream, len);
+  if (rv != 0) {
+    return rv;
+  }
+
+  chunk = nghttp3_stream_get_chunk(stream);
+  nghttp3_typed_buf_shared_init(&tbuf, chunk);
+
+  chunk->last = nghttp3_frame_write_wt_stream(chunk->last, fr);
+
+  tbuf.buf.last = chunk->last;
+
+  return nghttp3_stream_outq_add(stream, &tbuf);
+}
+
+int nghttp3_stream_write_wt_stream_data(nghttp3_stream *stream, int *peof,
+                                        const nghttp3_exfr_wt_stream *fr) {
+  int rv;
+  nghttp3_typed_buf tbuf;
+  nghttp3_buf buf;
+  nghttp3_read_data_callback read_data = fr->dr.read_data;
+  nghttp3_conn *conn = stream->conn;
+  uint64_t datalen;
+  uint32_t flags = 0;
+  nghttp3_vec vec[8];
+  nghttp3_vec *v;
+  nghttp3_ssize sveccnt;
+  size_t i;
+
+  assert(!(stream->flags & NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED));
+  assert(read_data);
+  assert(conn);
+
+  *peof = 0;
+
+  sveccnt = read_data(conn, stream->node.id, vec, nghttp3_arraylen(vec), &flags,
+                      conn->user_data, stream->user_data);
+  if (sveccnt < 0) {
+    if (sveccnt == NGHTTP3_ERR_WOULDBLOCK) {
+      stream->flags |= NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED;
+      return 0;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  rv = nghttp3_vec_len_uvarint(&datalen, vec, (size_t)sveccnt);
+  if (rv != 0) {
+    return NGHTTP3_ERR_STREAM_DATA_OVERFLOW;
+  }
+
+  assert(datalen || flags & NGHTTP3_DATA_FLAG_EOF);
+
+  if (flags & NGHTTP3_DATA_FLAG_EOF) {
+    *peof = 1;
+
+    stream->flags |= NGHTTP3_STREAM_FLAG_WRITE_END_STREAM;
+    if (datalen == 0) {
+      if (nghttp3_stream_outq_write_done(stream)) {
+        /* If this is the last data and its is 0 length, we don't need
+           send data.  We rely on the non-emptiness of outq to
+           schedule stream, so add empty tbuf to outq to just send
+           fin. */
+        nghttp3_buf_init(&buf);
+        nghttp3_typed_buf_init(&tbuf, &buf, NGHTTP3_BUF_TYPE_PRIVATE);
+        return nghttp3_stream_outq_add(stream, &tbuf);
+      }
+
+      /* We are going to send data, but nothing to send this time. */
+
+      return 0;
+    }
+  }
+
+  assert(datalen);
+
+  for (i = 0; i < (size_t)sveccnt; ++i) {
+    v = &vec[i];
+    if (v->len == 0) {
+      continue;
+    }
+    nghttp3_buf_wrap_init(&buf, v->base, v->len);
+    buf.last = buf.end;
+    nghttp3_typed_buf_init(&tbuf, &buf, NGHTTP3_BUF_TYPE_ALIEN);
+    rv = nghttp3_stream_outq_add(stream, &tbuf);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return 0;
+}
+
+int nghttp3_stream_write_cpsl_wt_close_session(
+  nghttp3_stream *stream, const nghttp3_exfr_cpsl_wt_close_session *fr) {
+  int rv;
+  nghttp3_buf *chunk;
+  nghttp3_buf buf;
+  nghttp3_typed_buf tbuf;
+  size_t cpsl_payloadlen = sizeof(fr->error_code) + fr->error_msg.len;
+  size_t fr_hdlen = nghttp3_frame_write_hd_len(fr->type, cpsl_payloadlen);
+  uint64_t payloadlen = fr_hdlen + cpsl_payloadlen;
+
+  rv = nghttp3_stream_ensure_chunk(
+    stream, nghttp3_frame_write_hd_len(NGHTTP3_FRAME_DATA, payloadlen) +
+              fr_hdlen + sizeof(fr->error_code));
+  if (rv != 0) {
+    return rv;
+  }
+
+  chunk = nghttp3_stream_get_chunk(stream);
+  nghttp3_typed_buf_shared_init(&tbuf, chunk);
+
+  chunk->last =
+    nghttp3_frame_write_hd(chunk->last, NGHTTP3_FRAME_DATA, payloadlen);
+  chunk->last = nghttp3_frame_write_hd(chunk->last, fr->type, cpsl_payloadlen);
+  chunk->last = nghttp3_put_uint32be(chunk->last, fr->error_code);
+
+  tbuf.buf.last = chunk->last;
+
+  rv = nghttp3_stream_outq_add(stream, &tbuf);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (fr->error_msg.len == 0) {
+    return 0;
+  }
+
+  nghttp3_buf_wrap_init(&buf, fr->error_msg.base, fr->error_msg.len);
   buf.last = buf.end;
   nghttp3_typed_buf_init(&tbuf, &buf, NGHTTP3_BUF_TYPE_ALIEN_NO_ACK);
 
@@ -847,6 +1061,11 @@ int nghttp3_stream_require_schedule(const nghttp3_stream *stream) {
           !(stream->flags & NGHTTP3_STREAM_FLAG_SHUT_WR)) ||
          (nghttp3_ringbuf_len(&stream->frq) &&
           !(stream->flags & NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED));
+}
+
+int nghttp3_stream_schedulable(const nghttp3_stream *stream) {
+  return !nghttp3_stream_uni(stream->node.id) ||
+         stream->type == NGHTTP3_STREAM_TYPE_WT_STREAM;
 }
 
 size_t nghttp3_stream_writev(nghttp3_stream *stream, int *pfin,
@@ -1236,7 +1455,24 @@ int nghttp3_stream_empty_headers_allowed(const nghttp3_stream *stream) {
   }
 }
 
+int nghttp3_stream_critical(const nghttp3_stream *stream) {
+  return nghttp3_stream_uni(stream->node.id) &&
+         (stream->type == NGHTTP3_STREAM_TYPE_CONTROL ||
+          stream->type == NGHTTP3_STREAM_TYPE_QPACK_ENCODER ||
+          stream->type == NGHTTP3_STREAM_TYPE_QPACK_DECODER);
+}
+
 int nghttp3_stream_uni(int64_t stream_id) { return (stream_id & 0x2) != 0; }
+
+int nghttp3_stream_wt_ctrl(const nghttp3_stream *stream) {
+  return stream->wt.session &&
+         stream->wt.session->session_id == stream->node.id;
+}
+
+int nghttp3_stream_wt_data(const nghttp3_stream *stream) {
+  return stream->wt.session &&
+         stream->wt.session->session_id != stream->node.id;
+}
 
 int nghttp3_client_stream_bidi(int64_t stream_id) {
   return (stream_id & 0x3) == 0;
@@ -1248,4 +1484,8 @@ int nghttp3_client_stream_uni(int64_t stream_id) {
 
 int nghttp3_server_stream_uni(int64_t stream_id) {
   return (stream_id & 0x3) == 0x3;
+}
+
+int nghttp3_server_stream_bidi(int64_t stream_id) {
+  return (stream_id & 0x3) == 0x1;
 }

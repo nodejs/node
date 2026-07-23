@@ -28,8 +28,8 @@ namespace quic {
 
 namespace {
 constexpr uint8_t kSessionTicketAppDataVersion = 1;
-// Layout: [type(1)][version(1)][crc(4)][payload(34)] = 40 bytes
-constexpr size_t kSessionTicketAppDataSize = 40;
+// Layout: [type(1)][version(1)][crc(4)][payload(35)] = 41 bytes
+constexpr size_t kSessionTicketAppDataSize = 41;
 constexpr size_t kSessionTicketAppDataHeaderSize = 6;  // type + version + crc
 constexpr size_t kSessionTicketAppDataPayloadSize =
     kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
@@ -390,7 +390,9 @@ class Http3ApplicationImpl final : public Session::Application {
     WriteBE64(payload + 16, options_.qpack_encoder_max_dtable_capacity);
     WriteBE64(payload + 24, options_.qpack_blocked_streams);
     payload[32] = options_.enable_connect_protocol ? 1 : 0;
+    // May be bitfield should be used!
     payload[33] = options_.enable_datagrams ? 1 : 0;
+    payload[34] = options_.enable_webtransport ? 1 : 0;
 
     uLong crc = crc32(0L, Z_NULL, 0);
     crc = crc32(crc, payload, kSessionTicketAppDataPayloadSize);
@@ -443,32 +445,36 @@ class Http3ApplicationImpl final : public Session::Application {
     uint64_t stored_qpack_blocked_streams = ReadBE64(payload + 24);
     bool stored_enable_connect_protocol = payload[32] != 0;
     bool stored_enable_datagrams = payload[33] != 0;
+    bool stored_enable_webtransport = payload[34] != 0;
 
     Debug(&session(),
           "Ticket app data: stored mfss=%" PRIu64 " qmdc=%" PRIu64
-          " qemdc=%" PRIu64 " qbs=%" PRIu64 " ecp=%d ed=%d",
+          " qemdc=%" PRIu64 " qbs=%" PRIu64 " ecp=%d ed=%d ew=%d",
           stored_max_field_section_size,
           stored_qpack_max_dtable_capacity,
           stored_qpack_encoder_max_dtable_capacity,
           stored_qpack_blocked_streams,
           stored_enable_connect_protocol,
-          stored_enable_datagrams);
+          stored_enable_datagrams,
+          stored_enable_webtransport);
     Debug(&session(),
           "Current opts: mfss=%" PRIu64 " qmdc=%" PRIu64 " qemdc=%" PRIu64
-          " qbs=%" PRIu64 " ecp=%d ed=%d",
+          " qbs=%" PRIu64 " ecp=%d ed=%d ew %d",
           options_.max_field_section_size,
           options_.qpack_max_dtable_capacity,
           options_.qpack_encoder_max_dtable_capacity,
           options_.qpack_blocked_streams,
           options_.enable_connect_protocol,
-          options_.enable_datagrams);
+          options_.enable_datagrams,
+          options_.enable_webtransport);
     if (options_.max_field_section_size < stored_max_field_section_size ||
         options_.qpack_max_dtable_capacity < stored_qpack_max_dtable_capacity ||
         options_.qpack_encoder_max_dtable_capacity <
             stored_qpack_encoder_max_dtable_capacity ||
         options_.qpack_blocked_streams < stored_qpack_blocked_streams ||
         (stored_enable_connect_protocol && !options_.enable_connect_protocol) ||
-        (stored_enable_datagrams && !options_.enable_datagrams)) {
+        (stored_enable_datagrams && !options_.enable_datagrams) ||
+        (stored_enable_webtransport && !options_.enable_webtransport)) {
       Debug(&session(), "Ticket app data REJECTED");
       return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
     }
@@ -491,7 +497,8 @@ class Http3ApplicationImpl final : public Session::Application {
            options_.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
            (!ticket.enable_connect_protocol ||
             options_.enable_connect_protocol) &&
-           (!ticket.enable_datagrams || options_.enable_datagrams);
+           (!ticket.enable_datagrams || options_.enable_datagrams) &&
+           (!ticket.enable_webtransport || options_.enable_webtransport);
   }
 
   void ReceiveStreamClose(Stream* stream,
@@ -503,7 +510,8 @@ class Http3ApplicationImpl final : public Session::Application {
       code = error.code();
     }
 
-    int rv = nghttp3_conn_close_stream(*this, stream->id(), code);
+    int rv = nghttp3_conn_close_stream2(*this, NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET,
+                                        stream->id(), code, 0);
     // If the call is successful, Http3Application::OnStreamClose callback will
     // be invoked when the stream is ready to be closed. We'll handle destroying
     // the actual Stream object there.
@@ -567,33 +575,63 @@ class Http3ApplicationImpl final : public Session::Application {
         // If the terminal flag is set, that means that we know we're only
         // sending headers and no body and the stream writable side should be
         // closed immediately because there is no nghttp3_data_reader provided.
-        if (flags != HeadersFlags::TERMINAL) {
+        if (flags != HeadersFlags::TERMINAL
+          && flags != HeadersFlags::WEBTRANSPORT) {
           reader_ptr = &reader;
         }
 
         if (session().is_server()) {
           // If this is a server, we're submitting a response...
-          Debug(&session(),
-                "Submitting %" PRIu64 " response headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_response(*this,
-                                              stream.id(),
-                                              nva.data(),
-                                              nva.length(),
-                                              reader_ptr) == 0;
+          if (flags !=  HeadersFlags::WEBTRANSPORT) {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " response headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_response(*this,
+                                                stream.id(),
+                                                nva.data(),
+                                                nva.length(),
+                                                reader_ptr) == 0;
+          } else {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " wt resp. headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            if (nghttp3_conn_submit_wt_response(*this,
+                                                stream.id(),
+                                                nva.data(),
+                                                nva.length()) != 0)
+                                                return false;
+            return nghttp3_conn_server_confirm_wt_session(*this,
+                                                          stream.id(),
+                                                          0) == 0;
+          }
         } else {
           // Otherwise we're submitting a request...
-          Debug(&session(),
-                "Submitting %" PRIu64 " request headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_request(*this,
-                                             stream.id(),
-                                             nva.data(),
-                                             nva.length(),
-                                             reader_ptr,
-                                             const_cast<Stream*>(&stream)) == 0;
+          if (flags !=  HeadersFlags::WEBTRANSPORT) {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " request headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_request(*this,
+                                               stream.id(),
+                                               nva.data(),
+                                               nva.length(),
+                                               reader_ptr,
+                                               const_cast<Stream*>(&stream))
+                                              == 0;
+          } else {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " wt req. headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_wt_request(*this,
+                                               stream.id(),
+                                               nva.data(),
+                                               nva.length(),
+                                               const_cast<Stream*>(&stream))
+                                              == 0;
+          }
         }
         break;
       }
@@ -609,6 +647,47 @@ class Http3ApplicationImpl final : public Session::Application {
     }
 
     return false;
+  }
+
+  bool MakeWebtransportStream(const Stream& stream, int64_t sessionid) override {
+    Session::SendPendingDataScope send_scope(&session());
+    static constexpr nghttp3_data_reader reader = {on_read_data_callback};
+    const nghttp3_data_reader* reader_ptr = &reader; // can use the same reader
+
+    Debug(&session(),
+              "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
+              stream.id(),
+              sessionid);
+    // we only need to do this, if we can send data
+    if (stream.is_remote_unidirectional())
+      return true; // so bail out for remote unidirectional streams
+    return nghttp3_conn_open_wt_data_stream(*this,
+                                     sessionid,
+                                     stream.id(),
+                                     reader_ptr,
+                                     const_cast<Stream*>(&stream))
+                                     == 0;
+  }
+
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  // msg is optional
+  // msg length is maximum 1024
+  bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) override {
+    Session::SendPendingDataScope send_scope(&session());
+    Debug(&session(),
+          "Close webtransport session stream %" PRIu64,
+          stream.id());
+    return nghttp3_conn_close_wt_session(*this,
+                                         stream.id(),
+                                         wt_error_code,
+                                         msg,
+                                         msglen) == 0;
   }
 
   void SetStreamPriority(const Stream& stream,
@@ -797,16 +876,31 @@ class Http3ApplicationImpl final : public Session::Application {
     return Http3ConnectionPointer(conn);
   }
 
-  void OnStreamClose(Stream* stream, error_code app_error_code) {
-    if (app_error_code != NGHTTP3_H3_NO_ERROR) {
+  void OnStreamClose(Stream* stream, uint32_t flags, 
+                     error_code rx_app_error_code,
+                     error_code tx_app_error_code) {
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
       Debug(&session(),
             "HTTP/3 application received stream close for stream %" PRIi64
-            " with code %" PRIu64,
+            " with remote error code %" PRIu64,
             stream->id(),
-            app_error_code);
+            rx_app_error_code);
+    }
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+      Debug(&session(),
+            "HTTP/3 application send stream close for stream %" PRIi64
+            " with error code %" PRIu64,
+            stream->id(),
+            tx_app_error_code);
     }
     auto direction = stream->direction();
-    stream->Destroy(QuicError::ForApplication(app_error_code));
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+      stream->Destroy(QuicError::ForApplication(rx_app_error_code));
+    } else if (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET) {
+      stream->Destroy(QuicError::ForApplication(tx_app_error_code));
+    } else {
+       stream->Destroy();
+    }
     ExtendMaxStreams(EndpointLabel::REMOTE, direction, 1);
   }
 
@@ -994,6 +1088,7 @@ class Http3ApplicationImpl final : public Session::Application {
   void OnReceiveSettings(const nghttp3_proto_settings* settings) {
     options_.enable_connect_protocol = settings->enable_connect_protocol;
     options_.enable_datagrams = settings->h3_datagram;
+    options_.enable_webtransport = settings->wt_enabled;
     options_.max_field_section_size = settings->max_field_section_size;
     options_.qpack_blocked_streams = settings->qpack_blocked_streams;
     options_.qpack_max_dtable_capacity = settings->qpack_max_dtable_capacity;
@@ -1168,13 +1263,16 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_stream_close(nghttp3_conn* conn,
+                             uint32_t flags,
                              stream_id id,
-                             error_code app_error_code,
+                             error_code rx_app_error_code,
+                             error_code tx_app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     if (auto stream = app.session().FindStream(id)) {
-      app.OnStreamClose(stream.get(), app_error_code);
+      app.OnStreamClose(stream.get(), flags, rx_app_error_code,
+        tx_app_error_code);
     }
     return NGTCP2_SUCCESS;
   }
@@ -1195,6 +1293,56 @@ class Http3ApplicationImpl final : public Session::Application {
     auto& session = app.session();
     if (auto stream = FindOrCreateStream(conn, &session, id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  static int on_receive_wt_data(nghttp3_conn *conn,
+                                int64_t session_id,
+                                int64_t stream_id,
+                                const uint8_t *data,
+                                size_t datalen,
+                                void *conn_user_data,
+                                void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    auto& session = app.session();
+    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+      stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  static int on_wt_data_stream_open(nghttp3_conn *conn,
+                                     int64_t session_id,
+                                     int64_t stream_id,
+                                     void *conn_user_data,
+                                     void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    auto& session = app.session();
+    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+      if (!app.MakeWebtransportStream(*stream.get(), session_id)) {
+        stream->Destroy(); // close stream forcefully, TODO may be use an assert instead?
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
+      }
+      stream->NotifyWTSession(session_id);
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  static int on_recv_wt_close_session(nghttp3_conn *conn,
+                                      int64_t session_id,
+                                      uint32_t wt_error_code,
+                                      const uint8_t *msg,
+                                      size_t msglen,
+                                      void *conn_user_data,
+                                      void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    auto& session = app.session();
+    if (auto stream = FindOrCreateStream(conn, &session, session_id)) [[likely]] {
+      stream->NotifyWTSessionClose(wt_error_code, msg, msglen);
       return NGTCP2_SUCCESS;
     }
     return NGHTTP3_ERR_CALLBACK_FAILURE;
@@ -1382,7 +1530,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static constexpr nghttp3_callbacks kCallbacks = {
       on_acked_stream_data,
-      on_stream_close,
+      nullptr, //nghttp3_stream_close (deprecated)
       on_receive_data,
       on_deferred_consume,
       on_begin_headers,
@@ -1399,7 +1547,11 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_origin,
       on_end_origin,
       on_rand,
-      on_receive_settings};
+      on_receive_settings,
+      on_stream_close,
+      on_receive_wt_data,
+      on_wt_data_stream_open,
+      on_recv_wt_close_session};
 };
 
 std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {

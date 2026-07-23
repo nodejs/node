@@ -25,6 +25,7 @@ struct Http3TicketData {
   uint64_t qpack_blocked_streams;
   bool enable_connect_protocol;
   bool enable_datagrams;
+  bool enable_webtransport;
 };
 using PendingTicketAppData =
     std::variant<std::monostate, DefaultTicketData, Http3TicketData>;
@@ -203,6 +204,27 @@ class Session::Application : public MemoryRetainer {
                            const v8::Local<v8::Array>& headers,
                            HeadersFlags flags = HeadersFlags::NONE) {
     return false;
+  }
+
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  // it is a noop, if we can not send on this stream incoming
+  // unidirectional stream
+  virtual bool MakeWebtransportStream(const Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
+
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  virtual bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) {
+      return false;
   }
 
   // Returns true if the application protocol supports sending and
