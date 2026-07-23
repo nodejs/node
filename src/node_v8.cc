@@ -248,40 +248,6 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(flags.out(), flags.length());
 }
 
-void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CpuProfileOptions options = ParseCpuProfileOptions(args);
-  CpuProfilingResult result = env->StartCpuProfile(options);
-  if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
-    return THROW_ERR_CPU_PROFILE_TOO_MANY(isolate,
-                                          "There are too many CPU profiles");
-  } else if (result.status == CpuProfilingStatus::kStarted) {
-    args.GetReturnValue().Set(Number::New(isolate, result.id));
-  }
-}
-
-void StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK(args[0]->IsUint32());
-  uint32_t profile_id = args[0]->Uint32Value(env->context()).FromJust();
-  CpuProfile* profile = env->StopCpuProfile(profile_id);
-  if (!profile) {
-    return THROW_ERR_CPU_PROFILE_NOT_STARTED(isolate,
-                                             "CPU profile not started");
-  }
-  auto json_out_stream = std::make_unique<node::JSONOutputStream>();
-  profile->Serialize(json_out_stream.get(),
-                     CpuProfile::SerializationFormat::kJSON);
-  profile->Delete();
-  Local<Value> ret;
-  if (ToV8Value(env->context(), json_out_stream->out_stream().str(), isolate)
-          .ToLocal(&ret)) {
-    args.GetReturnValue().Set(ret);
-  }
-}
-
 void StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   auto options = ParseHeapProfileOptions(args);
@@ -767,8 +733,6 @@ void Initialize(Local<Object> target,
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 
-  SetMethod(context, target, "startCpuProfile", StartCpuProfile);
-  SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
   SetMethod(context, target, "startHeapProfile", StartHeapProfile);
   SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
 
@@ -834,8 +798,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCppHeapStatistics);
   registry->Register(IsStringOneByteRepresentation);
   registry->Register(fast_is_string_one_byte_representation_);
-  registry->Register(StartCpuProfile);
-  registry->Register(StopCpuProfile);
   registry->Register(StartHeapProfile);
   registry->Register(StopHeapProfile);
 }
