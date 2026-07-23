@@ -784,8 +784,9 @@ const stream = zlib.createZstdCompress({
 #### Pledged Source Size
 
 It's possible to specify the expected total size of the uncompressed input via
-`opts.pledgedSrcSize`. If the size doesn't match at the end of the input,
-compression will fail with the code `ZSTD_error_srcSize_wrong`.
+`opts.pledgedSrcSize`, which must be a non-negative safe integer. If the size
+doesn't match at the end of the input, compression will fail with the code
+`ZSTD_error_srcSize_wrong`.
 
 #### Decompressor options
 
@@ -1927,7 +1928,8 @@ added: v25.9.0
       `ZSTD_btultra2`.
       See the [Zstd compressor options][] in the zlib documentation for the
       full list.
-  * `pledgedSrcSize` {number} Expected uncompressed size (optional hint).
+  * `pledgedSrcSize` {number} Expected uncompressed size as a non-negative safe
+    integer (optional hint).
   * `dictionary` {Buffer|TypedArray|DataView}
 * Returns: {Object} A stateful transform.
 
