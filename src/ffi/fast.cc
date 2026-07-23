@@ -37,7 +37,7 @@ bool FastScalarTypeFromName(std::string_view type, FastFFIType* out) {
   if (type == "void") {
     *out = FastFFIType::kVoid;
   } else if (type == "bool") {
-    *out = FastFFIType::kBool;
+    *out = FastFFIType::kUint8;
   } else if (IsTypeName(type, {"i8", "int8"})) {
     *out = FastFFIType::kInt8;
   } else if (IsTypeName(type, {"u8", "uint8"})) {
@@ -96,8 +96,6 @@ CTypeInfo::Type ToV8Type(FastFFIType type, bool is_return) {
   switch (type) {
     case FastFFIType::kVoid:
       return CTypeInfo::Type::kVoid;
-    case FastFFIType::kBool:
-      return CTypeInfo::Type::kBool;
     case FastFFIType::kUint8:
       return CTypeInfo::Type::kUint32;
     case FastFFIType::kInt8:
