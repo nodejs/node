@@ -221,6 +221,24 @@ class DatabaseSync : public BaseObject {
   }
   sqlite3* Connection();
 
+  // SQLite forbids closing the database while a user-defined scalar or
+  // aggregate function callback is on the stack. Wrap every such
+  // callback with the RAII guard returned by EnterUserFunctionCallback().
+  // db.close()/deserialize() and SQL tag store .clear() check
+  // IsInUserFunctionCallback() and refuse to run, since they would
+  // finalize statements (potentially the running one). Reentry into the
+  // *running* statement (recursive step, reset, or finalize) is
+  // detected separately via the per-statement
+  // StatementSync::IsStepping() flag, which leaves cross-statement use
+  // (the "lookup" pattern) unaffected.
+  inline auto EnterUserFunctionCallback() {
+    user_function_callback_depth_++;
+    return OnScopeLeave([this]() { user_function_callback_depth_--; });
+  }
+  bool IsInUserFunctionCallback() const {
+    return user_function_callback_depth_ > 0;
+  }
+
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
   // exception. In this case, the SQLite error should be ignored. These methods
@@ -241,6 +259,7 @@ class DatabaseSync : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  int user_function_callback_depth_ = 0;
 
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
@@ -283,6 +302,18 @@ class StatementSync : public BaseObject {
   bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
   void Finalize();
   bool IsFinalized();
+  bool IsStepping() const { return stepping_; }
+
+  // RAII guard: marks this statement as being stepped while alive.
+  // JS-callable methods that would step, reset, or finalize this
+  // statement check IsStepping() and throw — that's the
+  // sqlite3_step / sqlite3_reset / sqlite3_finalize reentry SQLite
+  // forbids while the statement's user-defined function callback is
+  // on the stack.
+  inline auto MarkStepping() {
+    stepping_ = true;
+    return OnScopeLeave([this]() { stepping_ = false; });
+  }
 
   SET_MEMORY_INFO_NAME(StatementSync)
   SET_SELF_SIZE(StatementSync)
@@ -295,6 +326,7 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
+  bool stepping_ = false;
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
