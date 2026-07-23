@@ -1667,7 +1667,11 @@ added: v24.4.0
   * `[Symbol.asyncDispose]` {AsyncFunction} The same as `remove`.
 
 The resulting Promise holds an async-disposable object whose `path` property
-holds the created directory path. If `prefix` is a `Buffer`, the `path` will also be a `Buffer`. When the object is disposed, the directory and its contents will be removed asynchronously if it still exists. If the directory cannot be deleted, disposal will throw an error. The object has an async `remove()` method which will perform the same task.
+holds the created directory path. If `prefix` is a `Buffer`, the `path` will
+also be a `Buffer`. When the object is disposed, the directory and its contents
+will be removed asynchronously if it still exists. If the directory cannot be
+deleted, disposal will throw an error. The object has an async `remove()`
+method which will perform the same task.
 
 Both this function and the disposal function on the resulting object are
 async, so it should be used with `await` + `await using` as in
@@ -6431,7 +6435,10 @@ added: v24.4.0
   * `[Symbol.dispose]` {Function} The same as `remove`.
 
 Returns a disposable object whose `path` property holds the created directory
-path. If `prefix` is a `Buffer`, the `path` will also be a `Buffer`. When the object is disposed, the directory and its contents will be removed if it still exists. If the directory cannot be deleted, disposal will throw an error. The object has a `remove()` method which will perform the same task.
+path. If `prefix` is a `Buffer`, the `path` will also be a `Buffer`. When the
+object is disposed, the directory and its contents will be removed if it still
+exists. If the directory cannot be deleted, disposal will throw an error. The
+object has a `remove()` method which will perform the same task.
 
 <!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
 
