@@ -540,6 +540,10 @@ The `error.syscall` property is a string describing the [syscall][] that failed.
 This is a list of system errors commonly-encountered when writing a Node.js
 program. For a comprehensive list, see the [`errno`(3) man page][].
 
+Some file system operations such as `fs.copyFile()` operate on the resolved
+target of symbolic links rather than the link itself. As a result, any errors
+raised may originate from the target file rather than the symbolic link.
+
 * `EACCES` (Permission denied): An attempt was made to access a file in a way
   forbidden by its file access permissions.
 
@@ -595,6 +599,7 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][]. Often a sign that a `socket.end()`
   was not properly called.
+
 
 ## Class: `TypeError`
 
