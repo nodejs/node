@@ -232,7 +232,6 @@ void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
 // consumes the declared low 8/16 bits.
 bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
       EmitNarrowInstruction(cursor, 0xb6, reg);
       return true;
@@ -252,7 +251,6 @@ bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
 
 bool NeedsNarrow(FastFFIType type) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
     case FastFFIType::kInt8:
     case FastFFIType::kUint16:
@@ -655,7 +653,6 @@ void EmitNarrowInstruction(uint8_t** cursor, uint8_t opcode, unsigned reg) {
 
 bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
       EmitNarrowInstruction(cursor, 0xb6, reg);
       return true;
@@ -675,7 +672,6 @@ bool EmitNarrowReturn(uint8_t** cursor, FastFFIType type, unsigned reg) {
 
 bool NeedsNarrow(FastFFIType type) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
     case FastFFIType::kInt8:
     case FastFFIType::kUint16:

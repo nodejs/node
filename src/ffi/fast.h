@@ -17,7 +17,6 @@ struct FFIFunction;
 
 enum class FastFFIType : uint8_t {
   kVoid,
-  kBool,
   kInt8,
   kUint8,
   kInt16,

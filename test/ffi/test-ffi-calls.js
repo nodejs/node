@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc
+// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
@@ -62,8 +62,16 @@ test('ffi bool signatures use uint8 values', () => {
       arguments: ['bool', 'bool'],
       return: 'bool',
     });
-    assert.strictEqual(boolAdder(1, 0), 1);
-    assert.throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
+    function callBoolAdder(a, b) {
+      return boolAdder(a, b);
+    }
+
+    eval('%PrepareFunctionForOptimization(callBoolAdder)');
+    assert.strictEqual(callBoolAdder(1, 0), 1);
+    eval('%OptimizeFunctionOnNextCall(callBoolAdder)');
+    assert.strictEqual(callBoolAdder(1, 0), 1);
+    assert.throws(
+      () => callBoolAdder(true, false), /Argument 0 must be a uint8/);
   } finally {
     lib.close();
   }

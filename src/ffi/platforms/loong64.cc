@@ -19,7 +19,6 @@ bool IsFloatType(FastFFIType type) {
 
 bool IsNarrowType(FastFFIType type) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kInt8:
     case FastFFIType::kUint8:
     case FastFFIType::kInt16:
