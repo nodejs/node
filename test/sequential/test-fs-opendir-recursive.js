@@ -223,6 +223,19 @@ function processDirCb(dir, cb) {
   test().then(common.mustCall());
 }
 
+{
+  async function testBufferSize() {
+    const dir = await fsPromises.opendir(testDir, { recursive: true, bufferSize: 1 });
+    const dirents = [];
+    for await (const dirent of dir) {
+      dirents.push(dirent);
+    }
+    assertDirents(dirents);
+  }
+
+  testBufferSize().then(common.mustCall());
+}
+
 // Issue https://github.com/nodejs/node/issues/48820 highlights that
 // opendir recursive does not properly handle the buffer size option.
 // This test asserts that the buffer size option is respected.
