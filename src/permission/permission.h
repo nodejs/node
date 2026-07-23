@@ -109,6 +109,11 @@ class Permission {
 
   FORCE_INLINE bool enabled() const { return enabled_; }
 
+  // Side-effect-free permission query for native I/O callbacks. The resource
+  // must already be an absolute path.
+  bool is_granted_no_side_effects(
+      PermissionScope permission, const std::string_view& resource = "") const;
+
   FORCE_INLINE bool warning_only() const { return warning_only_; }
 
   static PermissionScope StringToPermission(const std::string& perm);

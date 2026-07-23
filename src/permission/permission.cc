@@ -223,6 +223,15 @@ void Permission::AsyncThrowAccessDenied(Environment* env,
   // superseding error to be thrown.
 }
 
+bool Permission::is_granted_no_side_effects(
+    PermissionScope permission, const std::string_view& resource) const {
+  if (!enabled_) return true;
+
+  const auto it = nodes_.find(permission);
+  if (it == nodes_.end()) return false;
+  return it->second->is_granted_no_side_effects(permission, resource);
+}
+
 void Permission::EnablePermissions() {
   if (!enabled_) {
     enabled_ = true;
