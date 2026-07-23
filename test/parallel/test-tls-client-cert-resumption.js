@@ -100,7 +100,8 @@ async function testResumption(version, name) {
     else
       assert.strictEqual(peer.subject.CN, peerCN, where);
 
-    socket.resume();
+    // N.b. BoringSSL only sends a ticket after a write:
+    socket.end('.');
   }, 2));
 
   server.listen(0);
@@ -142,7 +143,7 @@ async function testRejectResumedWithoutCert() {
   lenient.on('secureConnection', common.mustCall((socket) => {
     assert.strictEqual(socket.authorized, false);
     assert.strictEqual(socket.authorizationError, 'UNABLE_TO_GET_ISSUER_CERT');
-    socket.resume();
+    socket.end('.');
   }));
 
   const strict = tls.createServer({ ...options, rejectUnauthorized: true });
