@@ -336,6 +336,8 @@ static const char* GetGCTypeName(v8::GCType gc_type) {
   switch (gc_type) {
     case v8::GCType::kGCTypeScavenge:
       return "Scavenge";
+    case v8::GCType::kGCTypeMinorMarkSweep:
+      return "MinorMarkSweep";
     case v8::GCType::kGCTypeMarkSweepCompact:
       return "MarkSweepCompact";
     case v8::GCType::kGCTypeIncrementalMarking:
