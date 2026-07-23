@@ -64,6 +64,7 @@
 * [UDP/datagram](dgram.md)
 * [URL](url.md)
 * [Utilities](util.md)
+* [Logger](logger.md)
 * [V8](v8.md)
 * [Virtual File System](vfs.md)
 * [VM](vm.md)
