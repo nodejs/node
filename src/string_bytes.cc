@@ -723,8 +723,11 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
       if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
         return EncodeTwoByteString(
-            isolate, str_len, [buf, buflen](uint16_t* dst) {
-              memcpy(dst, buf, buflen);
+            isolate, str_len, [buf, str_len](uint16_t* dst) {
+              // Copy whole code units only. buflen may be odd, but the
+              // destination holds str_len (== buflen / 2) uint16_t units, so
+              // copying buflen bytes would write one byte past it.
+              memcpy(dst, buf, str_len * sizeof(uint16_t));
             });
       }
       return ExternTwoByteString::NewFromCopy(
