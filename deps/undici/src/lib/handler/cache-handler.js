@@ -3,7 +3,10 @@
 const util = require('../core/util')
 const {
   parseCacheControlHeader,
+  hasInvalidCacheControlDirective,
   parseVaryHeader,
+  hasVaryStar,
+  isInvalidOrWildcardVaryHeader,
   isEtagUsable
 } = require('../util/cache')
 const { parseHttpDate } = require('../util/date.js')
@@ -26,6 +29,95 @@ const NOT_UNDERSTOOD_STATUS_CODES = [
 
 const MAX_RESPONSE_AGE = 2147483647000
 
+// Retention for revalidation-only entries (zero freshness lifetime but a
+// validator present); each successful revalidation re-stores the entry.
+const REVALIDATION_ONLY_RETENTION = 86400000 // 24 hours
+
+function trimOWS (value) {
+  return value.replace(/^[\t ]+|[\t ]+$/g, '')
+}
+
+function arrayIncludes (array, value) {
+  for (let i = 0; i < array.length; i++) {
+    if (array[i] === value) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function appendConnectionHeaderTokens (headersToRemove, connectionHeader) {
+  const values = Array.isArray(connectionHeader) ? connectionHeader : [connectionHeader]
+
+  for (let i = 0; i < values.length; i++) {
+    const tokens = values[i].split(',')
+    for (let j = 0; j < tokens.length; j++) {
+      headersToRemove.push(trimOWS(tokens[j]).toLowerCase())
+    }
+  }
+}
+
+function getSameOriginPath (cacheKey, location) {
+  if (typeof location !== 'string') {
+    return undefined
+  }
+
+  let originUrl
+  let requestUrl
+  let locationUrl
+  try {
+    originUrl = new URL(cacheKey.origin)
+    requestUrl = new URL(cacheKey.path, originUrl)
+    locationUrl = new URL(location, requestUrl)
+  } catch {
+    return undefined
+  }
+
+  if (locationUrl.origin !== originUrl.origin) {
+    return undefined
+  }
+
+  return locationUrl.pathname + locationUrl.search
+}
+
+function deleteCachedUri (store, cacheKey, path) {
+  deleteCachedValue(store, {
+    ...cacheKey,
+    path
+  })
+
+  for (let i = 0; i < util.safeHTTPMethods.length; i++) {
+    const method = util.safeHTTPMethods[i]
+    if (method !== cacheKey.method) {
+      deleteCachedValue(store, {
+        ...cacheKey,
+        method,
+        path
+      })
+    }
+  }
+}
+
+function deleteLocationTargets (store, cacheKey, headerValue) {
+  if (headerValue === undefined) {
+    return
+  }
+
+  const values = Array.isArray(headerValue) ? headerValue : [headerValue]
+  for (let i = 0; i < values.length; i++) {
+    const path = getSameOriginPath(cacheKey, values[i])
+    if (path !== undefined) {
+      deleteCachedUri(store, cacheKey, path)
+    }
+  }
+}
+
+function invalidateUnsafeRequest (store, cacheKey, resHeaders) {
+  deleteCachedUri(store, cacheKey, cacheKey.path)
+  deleteLocationTargets(store, cacheKey, resHeaders.location)
+  deleteLocationTargets(store, cacheKey, resHeaders['content-location'])
+}
 /**
  * @typedef {import('../../types/dispatcher.d.ts').default.DispatchHandler} DispatchHandler
  *
@@ -107,28 +199,28 @@ class CacheHandler {
     const handler = this
 
     if (
-      !util.safeHTTPMethods.includes(this.#cacheKey.method) &&
+      !arrayIncludes(util.safeHTTPMethods, this.#cacheKey.method) &&
       statusCode >= 200 &&
       statusCode <= 399
     ) {
       // Successful response to an unsafe method, delete it from cache
       //  https://www.rfc-editor.org/rfc/rfc9111.html#name-invalidating-stored-response
-      try {
-        this.#store.delete(this.#cacheKey)?.catch?.(noop)
-      } catch {
-        // Fail silently
-      }
+      invalidateUnsafeRequest(this.#store, this.#cacheKey, resHeaders)
       return downstreamOnHeaders()
     }
 
     const cacheControlHeader = resHeaders['cache-control']
-    const heuristicallyCacheable = resHeaders['last-modified'] && HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode)
+    const heuristicallyCacheable = resHeaders['last-modified'] && arrayIncludes(HEURISTICALLY_CACHEABLE_STATUS_CODES, statusCode)
     if (
       !cacheControlHeader &&
       !resHeaders['expires'] &&
       !heuristicallyCacheable &&
       !this.#cacheByDefault
     ) {
+      if (statusCode === 304 && resHeaders.vary && isInvalidOrWildcardVaryHeader(resHeaders.vary)) {
+        deleteCachedValue(this.#store, this.#cacheKey)
+      }
+
       // Don't have anything to tell us this response is cachable and we're not
       //  caching by default
       return downstreamOnHeaders()
@@ -136,31 +228,54 @@ class CacheHandler {
 
     const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
     if (!canCacheResponse(this.#cacheType, statusCode, resHeaders, cacheControlDirectives, this.#cacheKey.headers)) {
+      if (statusCode === 304 && (cacheControlHeader || revalidationResponseDisallowsCachedReuse(this.#cacheType, resHeaders, cacheControlDirectives))) {
+        deleteCachedValue(this.#store, this.#cacheKey)
+      }
+
       return downstreamOnHeaders()
     }
 
     const now = Date.now()
-    const resAge = resHeaders.age ? getAge(resHeaders.age) : undefined
-    if (resAge && resAge >= MAX_RESPONSE_AGE) {
+    const resAge = Object.hasOwn(resHeaders, 'age') ? getAge(resHeaders.age) : undefined
+    if (resAge !== undefined && resAge >= MAX_RESPONSE_AGE) {
       // Response considered stale
+      deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
       return downstreamOnHeaders()
     }
 
-    const resDate = typeof resHeaders.date === 'string'
-      ? parseHttpDate(resHeaders.date)
-      : undefined
+    const resDate = Object.hasOwn(resHeaders, 'date') ? getDate(resHeaders.date) : undefined
+    if (resDate === null) {
+      deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
+      return downstreamOnHeaders()
+    }
+
+    const apparentAge = resDate ? Math.max(0, now - resDate.getTime()) : 0
+    const currentAge = Math.max(apparentAge, resAge ?? 0)
+
+    const hasValidator =
+      (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) ||
+      typeof resHeaders['last-modified'] === 'string'
 
     const staleAt =
-      determineStaleAt(this.#cacheType, now, resAge, resHeaders, resDate, cacheControlDirectives) ??
+      determineStaleAt(this.#cacheType, now, resAge, resHeaders, resDate, cacheControlDirectives, hasValidator) ??
       this.#cacheByDefault
-    if (staleAt === undefined || (resAge && resAge > staleAt)) {
+    // Zero freshness lifetime but a validator: stale from the start, yet still
+    // storable since each reuse is preceded by a revalidation request.
+    // https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.4
+    const revalidationOnly = staleAt === 0 && hasValidator
+    if (staleAt === undefined || (currentAge >= staleAt && !revalidationOnly)) {
+      if (cacheControlHeader || staleAt !== undefined) {
+        deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
+      }
+
       return downstreamOnHeaders()
     }
 
-    const baseTime = resDate ? resDate.getTime() : now
+    const baseTime = now - currentAge
     const absoluteStaleAt = staleAt + baseTime
-    if (now >= absoluteStaleAt) {
+    if (now >= absoluteStaleAt && !revalidationOnly) {
       // Response is already stale
+      deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
       return downstreamOnHeaders()
     }
 
@@ -173,8 +288,8 @@ class CacheHandler {
       }
     }
 
-    const cachedAt = resAge ? now - resAge : now
-    const deleteAt = determineDeleteAt(baseTime, cachedAt, cacheControlDirectives, absoluteStaleAt)
+    const cachedAt = baseTime
+    const deleteAt = determineDeleteAt(baseTime, now, cacheControlDirectives, absoluteStaleAt)
     const strippedHeaders = stripNecessaryHeaders(resHeaders, cacheControlDirectives)
 
     /**
@@ -204,6 +319,7 @@ class CacheHandler {
         value.statusCode = cachedValue.statusCode
         value.statusMessage = cachedValue.statusMessage
         value.etag = cachedValue.etag
+        value.vary = varyDirectives ?? cachedValue.vary
         value.headers = { ...cachedValue.headers, ...strippedHeaders }
 
         downstreamOnHeaders()
@@ -335,6 +451,36 @@ class CacheHandler {
 }
 
 /**
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheStore} store
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
+ */
+function deleteCachedValue (store, cacheKey) {
+  try {
+    store.delete(cacheKey)?.catch?.(noop)
+  } catch {
+    // Fail silently
+  }
+}
+
+function deleteCachedValueIfNotModified (statusCode, store, cacheKey) {
+  if (statusCode === 304) {
+    deleteCachedValue(store, cacheKey)
+  }
+}
+
+/**
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
+ * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
+ * @returns {boolean}
+ */
+function revalidationResponseDisallowsCachedReuse (cacheType, resHeaders, cacheControlDirectives) {
+  return cacheControlDirectives['no-store'] === true ||
+    (cacheType === 'shared' && cacheControlDirectives.private === true) ||
+    (resHeaders.vary ? isInvalidOrWildcardVaryHeader(resHeaders.vary) : false)
+}
+
+/**
  * @see https://www.rfc-editor.org/rfc/rfc9111.html#name-storing-responses-to-authen
  *
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
@@ -345,12 +491,12 @@ class CacheHandler {
  */
 function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives, reqHeaders) {
   // Status code must be final and understood.
-  if (statusCode < 200 || NOT_UNDERSTOOD_STATUS_CODES.includes(statusCode)) {
+  if (statusCode < 200 || arrayIncludes(NOT_UNDERSTOOD_STATUS_CODES, statusCode)) {
     return false
   }
   // Responses with neither status codes that are heuristically cacheable, nor "explicit enough" caching
   // directives, are not cacheable. "Explicit enough": see https://www.rfc-editor.org/rfc/rfc9111.html#section-3
-  if (!HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode) && !resHeaders['expires'] &&
+  if (!arrayIncludes(HEURISTICALLY_CACHEABLE_STATUS_CODES, statusCode) && !resHeaders['expires'] &&
     !cacheControlDirectives.public &&
     cacheControlDirectives['max-age'] === undefined &&
     // RFC 9111: a private response directive, if the cache is not shared
@@ -369,12 +515,12 @@ function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirect
   }
 
   // https://www.rfc-editor.org/rfc/rfc9111.html#section-4.1-5
-  if (resHeaders.vary?.includes('*')) {
+  if (resHeaders.vary && hasVaryStar(resHeaders.vary)) {
     return false
   }
 
   // https://www.rfc-editor.org/rfc/rfc9111.html#name-storing-responses-to-authen
-  if (reqHeaders?.authorization) {
+  if (reqHeaders != null && Object.hasOwn(reqHeaders, 'authorization')) {
     if (
       !cacheControlDirectives.public &&
       !cacheControlDirectives['s-maxage'] &&
@@ -389,14 +535,14 @@ function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirect
 
     if (
       Array.isArray(cacheControlDirectives['no-cache']) &&
-      cacheControlDirectives['no-cache'].includes('authorization')
+      arrayIncludes(cacheControlDirectives['no-cache'], 'authorization')
     ) {
       return false
     }
 
     if (
       Array.isArray(cacheControlDirectives['private']) &&
-      cacheControlDirectives['private'].includes('authorization')
+      arrayIncludes(cacheControlDirectives['private'], 'authorization')
     ) {
       return false
     }
@@ -406,13 +552,50 @@ function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirect
 }
 
 /**
+ * @param {string | string[]} dateHeader
+ * @returns {Date | null | undefined}
+ */
+function getDate (dateHeader) {
+  let dateValue = dateHeader
+  if (Array.isArray(dateValue)) {
+    if (dateValue.length !== 1) {
+      return null
+    }
+
+    dateValue = dateValue[0]
+  }
+
+  if (typeof dateValue !== 'string') {
+    return null
+  }
+
+  return parseHttpDate(dateValue)
+}
+
+/**
  * @param {string | string[]} ageHeader
  * @returns {number | undefined}
  */
 function getAge (ageHeader) {
-  const age = parseInt(Array.isArray(ageHeader) ? ageHeader[0] : ageHeader)
+  let ageValue = ageHeader
+  if (Array.isArray(ageValue)) {
+    if (ageValue.length !== 1) {
+      return MAX_RESPONSE_AGE
+    }
 
-  return isNaN(age) ? undefined : age * 1000
+    ageValue = ageValue[0]
+  }
+
+  if (typeof ageValue !== 'string' || !/^[\t ]*[0-9]+[\t ]*$/.test(ageValue)) {
+    return MAX_RESPONSE_AGE
+  }
+
+  const age = BigInt(ageValue.replace(/^[\t ]+|[\t ]+$/g, ''))
+  if (age >= BigInt(MAX_RESPONSE_AGE / 1000)) {
+    return MAX_RESPONSE_AGE
+  }
+
+  return Number(age) * 1000
 }
 
 /**
@@ -422,51 +605,80 @@ function getAge (ageHeader) {
  * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
  * @param {Date | undefined} responseDate
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
+ * @param {boolean} hasValidator whether the response has a validator (etag or
+ *  last-modified) that revalidation requests can be made with
  *
  * @returns {number | undefined} time that the value is stale at in seconds or undefined if it shouldn't be cached
  */
-function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheControlDirectives) {
+function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheControlDirectives, hasValidator) {
   if (cacheType === 'shared') {
     // Prioritize s-maxage since we're a shared cache
     //  s-maxage > max-age > Expire
     //  https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.10-3
+    if (hasInvalidCacheControlDirective(cacheControlDirectives, 's-maxage')) {
+      return 0
+    }
+
     const sMaxAge = cacheControlDirectives['s-maxage']
     if (sMaxAge !== undefined) {
-      return sMaxAge > 0 ? sMaxAge * 1000 : undefined
+      if (sMaxAge > 0) {
+        return sMaxAge * 1000
+      }
+
+      // Immediately stale, but storable if we can revalidate it before reuse.
+      return 0
     }
+  }
+
+  if (hasInvalidCacheControlDirective(cacheControlDirectives, 'max-age')) {
+    return 0
   }
 
   const maxAge = cacheControlDirectives['max-age']
   if (maxAge !== undefined) {
-    return maxAge > 0 ? maxAge * 1000 : undefined
+    if (maxAge > 0) {
+      return maxAge * 1000
+    }
+
+    // Immediately stale, but storable if we can revalidate it before reuse.
+    return 0
   }
 
-  if (typeof resHeaders.expires === 'string') {
+  if (Object.hasOwn(resHeaders, 'expires')) {
     // https://www.rfc-editor.org/rfc/rfc9111.html#section-5.3
-    const expiresDate = parseHttpDate(resHeaders.expires)
-    if (expiresDate) {
-      if (now >= expiresDate.getTime()) {
-        return undefined
-      }
-
-      if (responseDate) {
-        if (responseDate >= expiresDate) {
-          return undefined
-        }
-
-        if (age !== undefined && age > (expiresDate - responseDate)) {
-          return undefined
-        }
-      }
-
-      return expiresDate.getTime() - now
+    if (typeof resHeaders.expires !== 'string') {
+      return 0
     }
+
+    const expiresDate = parseHttpDate(resHeaders.expires)
+    if (!expiresDate) {
+      return 0
+    }
+
+    if (now >= expiresDate.getTime()) {
+      return 0
+    }
+
+    if (responseDate) {
+      if (responseDate >= expiresDate) {
+        return 0
+      }
+
+      const freshnessLifetime = expiresDate.getTime() - responseDate.getTime()
+      if (age !== undefined && age >= freshnessLifetime) {
+        return 0
+      }
+
+      return freshnessLifetime
+    }
+
+    return expiresDate.getTime() - now
   }
 
   if (typeof resHeaders['last-modified'] === 'string') {
     // https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-heuristic-fresh
-    const lastModified = new Date(resHeaders['last-modified'])
-    if (isValidDate(lastModified)) {
+    const lastModified = parseHttpDate(resHeaders['last-modified'])
+    if (lastModified) {
       if (lastModified.getTime() >= now) {
         return undefined
       }
@@ -480,6 +692,12 @@ function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheC
   if (cacheControlDirectives.immutable) {
     // https://www.rfc-editor.org/rfc/rfc8246.html#section-2.2
     return 31536000000
+  }
+
+  if (cacheControlDirectives['no-cache'] === true && hasValidator) {
+    // No freshness source, but a validator lets us revalidate before reuse.
+    //  https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.4
+    return 0
   }
 
   return undefined
@@ -518,6 +736,11 @@ function determineDeleteAt (baseTime, cachedAt, cacheControlDirectives, staleAt)
   // revalidated.
   if (staleWhileRevalidate === -Infinity && staleIfError === -Infinity && immutable === -Infinity) {
     const freshnessLifetime = staleAt - baseTime
+    if (freshnessLifetime <= 0) {
+      // Revalidation-only entry: no freshness lifetime to size the buffer on,
+      //  so retain it for a bounded window instead.
+      return cachedAt + REVALIDATION_ONLY_RETENTION
+    }
     const datePrecisionPadding = Math.min(Math.max(cachedAt - baseTime, 0), 1000)
     return staleAt + freshnessLifetime + datePrecisionPadding
   }
@@ -546,14 +769,7 @@ function stripNecessaryHeaders (resHeaders, cacheControlDirectives) {
   ]
 
   if (resHeaders['connection']) {
-    if (Array.isArray(resHeaders['connection'])) {
-      // connection: a
-      // connection: b
-      headersToRemove.push(...resHeaders['connection'].map(header => header.trim()))
-    } else {
-      // connection: a, b
-      headersToRemove.push(...resHeaders['connection'].split(',').map(header => header.trim()))
-    }
+    appendConnectionHeaderTokens(headersToRemove, resHeaders['connection'])
   }
 
   if (Array.isArray(cacheControlDirectives['no-cache'])) {
@@ -566,21 +782,13 @@ function stripNecessaryHeaders (resHeaders, cacheControlDirectives) {
 
   let strippedHeaders
   for (const headerName of headersToRemove) {
-    if (resHeaders[headerName]) {
+    if (Object.hasOwn(resHeaders, headerName)) {
       strippedHeaders ??= { ...resHeaders }
       delete strippedHeaders[headerName]
     }
   }
 
   return strippedHeaders ?? resHeaders
-}
-
-/**
- * @param {Date} date
- * @returns {boolean}
- */
-function isValidDate (date) {
-  return date instanceof Date && Number.isFinite(date.valueOf())
 }
 
 module.exports = CacheHandler

@@ -370,7 +370,12 @@ function destroy (stream, err) {
       stream.socket = null
     }
 
-    stream.destroy(err)
+    try {
+      stream.destroy(err)
+    } catch {
+      // stream.destroy may throw on managed sockets (e.g., http2).
+      // Silently ignore — the socket lifecycle is handled by the subsystem.
+    }
   } else if (err) {
     queueMicrotask(() => {
       stream.emit('error', err)
