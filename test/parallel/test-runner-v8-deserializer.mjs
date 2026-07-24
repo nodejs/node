@@ -30,12 +30,15 @@ defaultSerializer.writeHeader();
 const headerLength = defaultSerializer.releaseBuffer().length;
 const headerOnly = Buffer.from([0xff, 0x0f]);
 const oversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x7f, 0xff, 0xff, 0xff]);
+const unsignedOversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x80, 0x00, 0x00, 0x00]);
 const truncatedLengthHeader = Buffer.from([0xff, 0x0f, 0x00, 0x01, 0x00, 0x00]);
 // Expected stdout for oversizedLengthHeader: first byte is emitted via
 // String.fromCharCode (byte-by-byte fallback in #drainRawBuffer), remaining
 // bytes go through the nonSerialized UTF-8 decode path in #processRawBuffer.
 const oversizedLengthStdout = String.fromCharCode(oversizedLengthHeader[0]) +
   Buffer.from(oversizedLengthHeader.subarray(1)).toString('utf-8');
+const unsignedOversizedLengthStdout = String.fromCharCode(unsignedOversizedLengthHeader[0]) +
+  Buffer.from(unsignedOversizedLengthHeader.subarray(1)).toString('utf-8');
 
 function collectStdout(reported) {
   return reported
@@ -110,6 +113,12 @@ describe('v8 deserializer', common.mustCall(() => {
       Array.from({ length: reported.length }, () => ({ type: 'test:stdout' })),
     );
     assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
+  });
+
+  it('should read an oversized length as an unsigned integer', async () => {
+    const reported = await collectReported([unsignedOversizedLengthHeader]);
+    assert(reported.every((event) => event.type === 'test:stdout'));
+    assert.strictEqual(collectStdout(reported), unsignedOversizedLengthStdout);
   });
 
   it('should flush incomplete v8 frame as stdout and keep prior valid data', async () => {
