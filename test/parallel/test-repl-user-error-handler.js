@@ -6,8 +6,17 @@ const { PassThrough } = require('node:stream');
 const { once } = require('node:events');
 const test = require('node:test');
 const { spawn } = require('node:child_process');
+const vm = require('node:vm');
 
 common.skipIfInspectorDisabled();
+
+function evaluate(code, context, filename, callback) {
+  try {
+    callback(null, vm.runInContext(code, context, { filename }));
+  } catch (err) {
+    callback(err);
+  }
+}
 
 function* generateCases() {
   for (const async of [false, true]) {
@@ -23,13 +32,12 @@ function* generateCases() {
 
 for (const { async, handleErrorReturn } of generateCases()) {
   test(`async: ${async}, handleErrorReturn: ${handleErrorReturn}`, async () => {
-    let err;
     const options = {
       input: new PassThrough(),
       output: new PassThrough().setEncoding('utf8'),
-      handleError: common.mustCall((e) => {
-        err = e;
-        queueMicrotask(() => repl.emit('handled-error'));
+      eval: evaluate,
+      handleError: common.mustCall((err) => {
+        queueMicrotask(() => repl.emit('handled-error', err));
         return handleErrorReturn;
       })
     };
@@ -45,13 +53,16 @@ for (const { async, handleErrorReturn } of generateCases()) {
     let outputString = '';
     options.output.on('data', (chunk) => { outputString += chunk; });
 
-    const inputString = async ?
-      'setImmediate(() => { throw new Error("testerror") })\n42\n' :
-      'throw new Error("testerror")\n42\n';
-    options.input.end(inputString);
+    const errorInput = async ?
+      'setImmediate(() => { throw new Error("testerror") })\n' :
+      'throw new Error("testerror")\n';
+    const handledErrorEvent = once(repl, 'handled-error');
+    options.input.write(errorInput);
 
-    await once(repl, 'handled-error');
+    const [err] = await handledErrorEvent;
     assert.strictEqual(err.message, 'testerror');
+    const exitEvent = once(repl, 'exit');
+    options.input.end('42\n');
     while (!/42/.test(outputString)) {
       await once(options.output, 'data');
     }
@@ -66,6 +77,7 @@ for (const { async, handleErrorReturn } of generateCases()) {
       const [uncaughtErr] = await uncaughtExceptionEvent;
       assert.strictEqual(uncaughtErr, err);
     }
+    await exitEvent;
   });
 }
 
