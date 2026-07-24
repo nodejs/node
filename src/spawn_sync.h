@@ -209,7 +209,7 @@ class SyncProcessRunner {
   std::vector<std::unique_ptr<SyncProcessStdioPipe>> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
-  uv_process_options_t uv_process_options_;
+  uv_process_options2_t uv_process_options_;
   std::unique_ptr<const char[]> file_buffer_;
   std::unique_ptr<char[]> args_buffer_;
   std::unique_ptr<char[]> env_buffer_;

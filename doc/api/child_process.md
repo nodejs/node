@@ -684,7 +684,8 @@ changes:
     [`options.stdio`][`stdio`]).
   * `detached` {boolean} Prepare child process to run independently of
     its parent process. Specific behavior depends on the platform (see
-    [`options.detached`][]).
+    [`options.detached`][]). Cannot be used together with [`options.pty`][]
+    on Windows.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `serialization` {string} Specify the kind of serialization used for sending
@@ -699,6 +700,9 @@ changes:
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+    Cannot be used together with [`options.pty`][].
+  * `pty` {boolean|Object} Spawn the child with a pseudo-terminal.
+    See [`options.pty`][]. **Default:** `false`.
   * `signal` {AbortSignal} allows aborting the child process using an
     AbortSignal.
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -907,7 +911,8 @@ added: v0.7.10
 On Windows, setting `options.detached` to `true` makes it possible for the
 child process to continue running after the parent exits. The child process
 will have its own console window. Once enabled for a child process,
-it cannot be disabled.
+it cannot be disabled. `options.detached` cannot be used together with
+[`options.pty`][] on Windows.
 
 On non-Windows platforms, if `options.detached` is set to `true`, the child
 process will be made the leader of a new process group and session. Child
@@ -983,6 +988,32 @@ const subprocess = spawn('prg', [], {
 subprocess.unref();
 ```
 
+#### `options.pty`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pty` {boolean|Object} If `true` or an object, spawn the child with a
+  pseudo-terminal so that `stdin`/`stdout`/`stderr` in the child are TTYs.
+  `false` disables PTY mode. When `true`, uses `process.stdout.columns`/`rows`
+  when available, otherwise `80x24`. When an object:
+  * `cols` {number} Terminal width. Must be an integer `>= 1`.
+  * `rows` {number} Terminal height. Must be an integer `>= 1`.
+  * `name` {string} Optional value for the child's `TERM` environment
+    variable.
+
+Enabling PTY remaps stdio fds 0-2 to `['pipe', 'pty', 'pty']`: the parent
+writes to stdin, reads combined stdout/stderr from the PTY out stream, and
+`subprocess.stderr` is `null`. Fd 0 must be `'pipe'` (or defaulted); an
+explicit `'pty'` on stdin throws `ERR_INVALID_ARG_VALUE`. `'ipc'` stdio
+entries are not supported together with PTY. `options.windowsHide` cannot be
+used with PTY. On Windows, `options.detached` cannot be used with PTY (ConPTY
+does not deliver output to the parent). When `options.pty.name` is set, it
+replaces any existing `TERM` in the child environment. On Windows (ConPTY),
+output may include terminal VT/OSC sequences.
+See also [`options.stdio`][`stdio`].
+
 #### `options.stdio`
 
 <!-- YAML
@@ -1008,6 +1039,8 @@ equal to `['pipe', 'pipe', 'pipe']`.
 For convenience, `options.stdio` may be one of the following strings:
 
 * `'pipe'`: equivalent to `['pipe', 'pipe', 'pipe']` (the default)
+* `'pty'`: enable PTY mode (same as `{ pty: true }` with
+  `stdio: ['pipe', 'pty', 'pty']`)
 * `'overlapped'`: equivalent to `['overlapped', 'overlapped', 'overlapped']`
 * `'ignore'`: equivalent to `['ignore', 'ignore', 'ignore']`
 * `'inherit'`: equivalent to `['inherit', 'inherit', 'inherit']` or `[0, 1, 2]`
@@ -1025,13 +1058,19 @@ pipes between the parent and child. The value is one of the following:
    These are not actual Unix pipes and therefore the child process
    can not use them by their descriptor files,
    e.g. `/dev/fd/2` or `/dev/stdout`.
-2. `'overlapped'`: Same as `'pipe'` except that the `FILE_FLAG_OVERLAPPED` flag
+2. `'pty'`: Use a pseudo-terminal for this fd. Requires [`options.pty`][] (or
+   implied by `stdio: 'pty'`). Fd 0 must not be `'pty'` (use `'pipe'` for PTY
+   input); passing `'pty'` for stdin throws `ERR_INVALID_ARG_VALUE`. Fds 1 and
+   2 are remapped so the child sees a TTY; the parent reads combined output
+   from fd 1 and fd 2 is ignored (`subprocess.stderr` is `null`). On Windows,
+   ConPTY may emit VT/OSC sequences in the output stream.
+3. `'overlapped'`: Same as `'pipe'` except that the `FILE_FLAG_OVERLAPPED` flag
    is set on the handle. This is necessary for overlapped I/O on the child
    process's stdio handles. See the
    [docs](https://docs.microsoft.com/en-us/windows/win32/fileio/synchronous-and-asynchronous-i-o)
    for more details. This is exactly the same as `'pipe'` on non-Windows
    systems.
-3. `'ipc'`: Create an IPC channel for passing messages/file descriptors
+4. `'ipc'`: Create an IPC channel for passing messages/file descriptors
    between parent and child. A [`ChildProcess`][] may have at most one IPC
    stdio file descriptor. Setting this option enables the
    [`subprocess.send()`][] method. If the child process is a Node.js instance,
@@ -1042,15 +1081,15 @@ pipes between the parent and child. The value is one of the following:
    Accessing the IPC channel fd in any way other than [`process.send()`][]
    or using the IPC channel with a child process that is not a Node.js instance
    is not supported.
-4. `'ignore'`: Instructs Node.js to ignore the fd in the child. While Node.js
+5. `'ignore'`: Instructs Node.js to ignore the fd in the child. While Node.js
    will always open fds 0, 1, and 2 for the processes it spawns, setting the fd
    to `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
-5. `'inherit'`: Pass through the corresponding stdio stream to/from the
+6. `'inherit'`: Pass through the corresponding stdio stream to/from the
    parent process. In the first three positions, this is equivalent to
    `process.stdin`, `process.stdout`, and `process.stderr`, respectively. In
    any other position, equivalent to `'ignore'`.
-6. {Stream} object: Share a readable or writable stream that refers to a tty,
+7. {Stream} object: Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. The stream must have an
@@ -1065,11 +1104,11 @@ pipes between the parent and child. The value is one of the following:
    encounters errors. Always ensure that `stdin` is used as readable and
    `stdout`/`stderr` as writable to maintain the intended flow of data between
    the parent and child processes.
-7. Positive integer: The integer value is interpreted as a file descriptor
+8. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
    is not supported on Windows.
-8. `null`, `undefined`: Use default value. For stdio fds 0, 1, and 2 (in other
+9. `null`, `undefined`: Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
@@ -1387,11 +1426,18 @@ changes:
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+    Cannot be used together with [`options.pty`][].
+  * `pty` {boolean|Object} Same as [`options.pty`][] for
+    [`child_process.spawn()`][]. When enabled, `stderr` in the returned object
+    is `null` and combined PTY output is in `stdout`. On Windows, `input` is
+    written to the PTY but stdin is not shut down until the child exits
+    (ConPTY treats early stdin shutdown as `CTRL_C`).
 * Returns: {Object}
   * `pid` {number} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
   * `stdout` {Buffer|string} The contents of `output[1]`.
-  * `stderr` {Buffer|string} The contents of `output[2]`.
+  * `stderr` {Buffer|string|null} The contents of `output[2]`.
+    `null` when [`options.pty`][] is enabled.
   * `status` {number|null} The exit code of the subprocess, or `null` if the
     subprocess terminated due to a signal.
   * `signal` {string|null} The signal used to kill the subprocess, or `null` if
@@ -1662,6 +1708,21 @@ When the child process is terminated by a signal, `subprocess.exitCode` will be
 `null` and [`subprocess.signalCode`][] will be set. To get the corresponding
 POSIX exit code, use
 [`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
+### `subprocess.resize(cols, rows)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `cols` {number} Terminal width. Must be an integer `>= 1`.
+* `rows` {number} Terminal height. Must be an integer `>= 1`.
+* Returns: {number} `0` on success, or a libuv error code.
+
+Resizes the pseudo-terminal for a child spawned with [`options.pty`][]. Throws
+`ERR_OUT_OF_RANGE` if `cols` or `rows` is less than `1`. Throws
+`ERR_INVALID_STATE` if the child was not spawned with PTY mode, or if the
+process handle is already closed.
 
 ### `subprocess.kill([signal])`
 
@@ -2375,6 +2436,7 @@ or [`child_process.fork()`][].
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`options.detached`]: #optionsdetached
+[`options.pty`]: #optionspty
 [`process.disconnect()`]: process.md#processdisconnect
 [`process.env`]: process.md#processenv
 [`process.execPath`]: process.md#processexecpath

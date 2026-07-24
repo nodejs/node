@@ -52,6 +52,7 @@ using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
@@ -162,11 +163,22 @@ int SyncProcessStdioPipe::Start() {
                        WriteCallback);
       if (r < 0)
         return r;
-    }
 
-    int r = uv_shutdown(&shutdown_req_, uv_stream(), ShutdownCallback);
-    if (r < 0)
-      return r;
+      // Do not uv_shutdown PTY stdin: ConPTY treats that as CTRL_C_EVENT.
+      // Stdin is closed from OnExit instead.
+      if (!(process_handler_->uv_process_options_.flags & UV_PROCESS_PTY)) {
+        r = uv_shutdown(&shutdown_req_, uv_stream(), ShutdownCallback);
+        if (r < 0)
+          return r;
+      }
+    } else if (!(process_handler_->uv_process_options_.flags &
+                 UV_PROCESS_PTY)) {
+      // Closing PTY stdin immediately makes ConPTY send CTRL_C_EVENT before
+      // the child can write. For PTY, stdin is closed from OnExit instead.
+      int r = uv_shutdown(&shutdown_req_, uv_stream(), ShutdownCallback);
+      if (r < 0)
+        return r;
+    }
   }
 
   if (writable()) {
@@ -180,6 +192,9 @@ int SyncProcessStdioPipe::Start() {
 
 
 void SyncProcessStdioPipe::Close() {
+  if (lifecycle_ == kClosing || lifecycle_ == kClosed)
+    return;
+
   CHECK(lifecycle_ == kInitialized || lifecycle_ == kStarted);
 
   uv_close(uv_handle(), CloseCallback);
@@ -514,7 +529,7 @@ Maybe<void> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   }
 
   uv_process_options_.exit_cb = ExitCallback;
-  r = uv_spawn(uv_loop_, &uv_process_, &uv_process_options_);
+  r = uv_spawn2(uv_loop_, &uv_process_, &uv_process_options_);
   if (r < 0) {
     SetError(r);
     return JustVoid();
@@ -661,6 +676,15 @@ void SyncProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
   exit_status_ = exit_status;
   term_signal_ = term_signal;
+
+  // For PTY spawns, stdin was left open to avoid ConPTY CTRL_C on startup.
+  // Close it now so the event loop can finish.
+  if (uv_process_options_.flags & UV_PROCESS_PTY) {
+    for (const auto& pipe : stdio_pipes_) {
+      if (pipe != nullptr && pipe->readable())
+        pipe->Close();
+    }
+  }
 }
 
 
@@ -795,6 +819,9 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   Local<Context> context = env()->context();
   Local<Object> js_options = js_value.As<Object>();
 
+  memset(&uv_process_options_, 0, sizeof(uv_process_options_));
+  uv_process_options_.version = UV_PROCESS_OPTIONS_VERSION;
+
   Local<Value> js_file;
   const char* file_buffer;
   if (!js_options->Get(context, env()->file_string()).ToLocal(&js_file) ||
@@ -912,6 +939,35 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   if (js_wva->BooleanValue(isolate)) {
     uv_process_options_.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  }
+
+  Local<Value> js_pty_cols;
+  if (!js_options->Get(context, env()->pty_cols_string())
+           .ToLocal(&js_pty_cols)) {
+    return Nothing<int>();
+  }
+  if (!js_pty_cols->IsNullOrUndefined()) {
+    Local<Value> js_pty_rows;
+    if (!js_options->Get(context, env()->pty_rows_string())
+             .ToLocal(&js_pty_rows) ||
+        !js_pty_cols->IsUint32() || !js_pty_rows->IsUint32()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env(), "options.pty must include numeric cols and rows");
+      return Nothing<int>();
+    }
+    const uint32_t pty_cols = js_pty_cols.As<Uint32>()->Value();
+    const uint32_t pty_rows = js_pty_rows.As<Uint32>()->Value();
+    if (pty_cols == 0 || pty_rows == 0) {
+      THROW_ERR_OUT_OF_RANGE(
+          env(), "options.pty.cols and options.pty.rows must be >= 1");
+      return Nothing<int>();
+    }
+    uv_process_options_.flags |= UV_PROCESS_PTY;
+    // ConPTY rejects WINDOWS_HIDE / WINDOWS_HIDE_CONSOLE with UV_PROCESS_PTY.
+    uv_process_options_.flags &= ~(UV_PROCESS_WINDOWS_HIDE |
+                                   UV_PROCESS_WINDOWS_HIDE_CONSOLE);
+    uv_process_options_.pty_cols = pty_cols;
+    uv_process_options_.pty_rows = pty_rows;
   }
 
   Local<Value> js_timeout;

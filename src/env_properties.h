@@ -303,6 +303,9 @@
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
+  V(pty_string, "pty")                                                         \
+  V(pty_cols_string, "ptyCols")                                                \
+  V(pty_rows_string, "ptyRows")                                                \
   V(pipe_target_string, "pipeTarget")                                          \
   V(port1_string, "port1")                                                     \
   V(port2_string, "port2")                                                     \
