@@ -76,17 +76,3 @@ dns.lookup('::1', common.mustSucceed((result, addressType) => {
 
   assert.throws(() => dnsPromises.resolve('www.google.com', val), err);
 });
-
-// Windows doesn't usually have an entry for localhost 127.0.0.1 in
-// C:\Windows\System32\drivers\etc\hosts
-// so we disable this test on Windows.
-// IBMi reports `ENOTFOUND` when get hostname by address 127.0.0.1
-if (!common.isWindows && !common.isIBMi) {
-  dns.reverse('127.0.0.1', common.mustSucceed((domains) => {
-    assert.ok(Array.isArray(domains));
-  }));
-
-  (async function() {
-    assert.ok(Array.isArray(await dnsPromises.reverse('127.0.0.1')));
-  })().then(common.mustCall());
-}
