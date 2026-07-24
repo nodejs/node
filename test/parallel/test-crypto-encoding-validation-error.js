@@ -12,13 +12,19 @@ const createCipher = () => {
   return createCipheriv('aes-256-cbc', randomBytes(32), randomBytes(16));
 };
 
+const encodingChangeError = {
+  code: 'ERR_INVALID_ARG_VALUE',
+  name: 'TypeError',
+  message: /cannot be changed from 'utf8'/,
+};
+
 {
   const cipher = createCipher();
   cipher.update('test', 'utf-8', 'utf-8');
 
   assert.throws(
     () => cipher.update('666f6f', 'hex', 'hex'),
-    { message: /Cannot change encoding/ }
+    encodingChangeError
   );
 }
 
@@ -28,7 +34,7 @@ const createCipher = () => {
 
   assert.throws(
     () => cipher.final('hex'),
-    { message: /Cannot change encoding/ }
+    encodingChangeError
   );
 }
 

@@ -848,6 +848,9 @@ added: v0.1.94
   If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
+If an output encoding was specified in a previous call to
+[`cipher.update()`][], `outputEncoding` must use the same encoding.
+
 Once the `cipher.final()` method has been called, the `Cipheriv` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
 once will result in an error being thrown.
@@ -940,6 +943,8 @@ The `outputEncoding` specifies the output format of the enciphered
 data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
+When `outputEncoding` is specified, it must use the same encoding as previous
+calls to `cipher.update()`.
 
 The `cipher.update()` method can be called multiple times with new data until
 [`cipher.final()`][] is called. Calling `cipher.update()` after
@@ -1158,6 +1163,9 @@ added: v0.1.94
   If `outputEncoding` is specified, a string is
   returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
+If an output encoding was specified in a previous call to
+[`decipher.update()`][], `outputEncoding` must use the same encoding.
+
 Once the `decipher.final()` method has been called, the `Decipheriv` object can
 no longer be used to decrypt data. Attempts to call `decipher.final()` more
 than once will result in an error being thrown.
@@ -1290,6 +1298,8 @@ The `outputEncoding` specifies the output format of the enciphered
 data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
+When `outputEncoding` is specified, it must use the same encoding as previous
+calls to `decipher.update()`.
 
 The `decipher.update()` method can be called multiple times with new data until
 [`decipher.final()`][] is called. Calling `decipher.update()` after
