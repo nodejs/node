@@ -2203,9 +2203,9 @@ added:
     should stop.
   * `maxQueue` {number} Specifies the number of events to queue between iterations
     of the {AsyncIterator} returned. **Default:** `2048`.
-  * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
+  * `overflow` {string} Either `'ignore'` or `'error'` when there are more events to be
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
-    warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
+    warning is emitted, while `'error'` means to throw an exception. **Default:** `'ignore'`.
   * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
     glob patterns (using [`minimatch`][]), RegExp patterns are tested against
     the filename, and functions receive the filename and return `true` to
