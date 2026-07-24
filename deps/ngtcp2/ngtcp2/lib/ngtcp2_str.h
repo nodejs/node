@@ -46,43 +46,54 @@ uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
 const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n);
 
 /*
- * ngtcp2_encode_hex encodes |data| of length |len| in hex string.  It
- * writes additional NULL bytes at the end of the buffer.  The buffer
- * pointed by |dest| must have at least |len| * 2 + 1 bytes space.
- * This function returns |dest|.
+ * ngtcp2_encode_hex encodes |data| of length |len| in hex string.
+ * The buffer pointed by |dest| must have at least |len| * 2 bytes
+ * space.  This function returns |dest| + |len| * 2.
  */
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
 /*
+ * ngtcp2_encode_uint_hexlen returns the number of bytes
+ * ngtcp2_encode_uint_hex produces when |n| is given.
+ */
+size_t ngtcp2_encode_uint_hexlen(uint64_t n);
+
+/*
+ * ngtcp2_encode_uint_hex encodes |n| in hex string.  It omits the
+ * leading zeros (e.g., 1fb).  The buffer pointed by |dest| must have
+ * at least ngtcp2_encode_uint_hexlen(|n|) bytes.  This function
+ * returns |dest| + the number of bytes written.
+ */
+uint8_t *ngtcp2_encode_uint_hex(uint8_t *dest, uint64_t n);
+
+/*
  * ngtcp2_encode_ipv4 encodes binary form IPv4 address stored in
  * |addr| to human readable text form in the buffer pointed by |dest|.
- * The capacity of buffer must have enough length to store a text form
- * plus a terminating NULL byte.  The resulting text form ends with
- * NULL byte.  The function returns |dest|.
+ * The capacity of buffer must have enough length to store a text
+ * form.  The function returns |dest| + the number of bytes written.
  */
-uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr);
+uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const ngtcp2_in_addr *addr);
 
 /*
  * ngtcp2_encode_ipv6 encodes binary form IPv6 address stored in
  * |addr| to human readable text form in the buffer pointed by |dest|.
- * The capacity of buffer must have enough length to store a text form
- * plus a terminating NULL byte.  The resulting text form ends with
- * NULL byte.  The function produces the canonical form of IPv6 text
+ * The capacity of buffer must have enough length to store a text
+ * form.  The function produces the canonical form of IPv6 text
  * representation described in
  * https://tools.ietf.org/html/rfc5952#section-4.  The function
- * returns |dest|.
+ * returns |dest| + the number of bytes written.
  */
-uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const uint8_t *addr);
+uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const ngtcp2_in6_addr *addr);
 
 /*
  * ngtcp2_encode_printable_ascii encodes |data| of length |len| in
  * |dest| in the following manner: printable ascii characters are
- * copied as is.  The other characters are converted to ".".  It
- * writes additional NULL bytes at the end of the buffer.  |dest| must
- * have at least |len| + 1 bytes.  This function returns |dest|.
+ * copied as is.  The other characters are converted to ".".  |dest|
+ * must have at least |len|.  This function returns |dest| + the
+ * number of bytes written.
  */
-char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
-                                    size_t len);
+uint8_t *ngtcp2_encode_printable_ascii(uint8_t *dest, const uint8_t *data,
+                                       size_t len);
 
 /*
  * ngtcp2_cmemeq returns nonzero if the first |n| bytes of the buffers
@@ -90,5 +101,19 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
  * constant time manner.
  */
 int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n);
+
+/*
+ * ngtcp2_encode_uintlen returns the number of bytes
+ * ngtcp2_encode_uint produces when |n| is given.
+ */
+size_t ngtcp2_encode_uintlen(uint64_t n);
+
+/*
+ * ngtcp2_encode_uint encodes |n| as a decimal integer to the buffer
+ * pointed by |dest|.  This function assumes that the buffer contains
+ * the sufficient capacity to write the number.  This function returns
+ * the pointer to the buffer past the last byte written.
+ */
+uint8_t *ngtcp2_encode_uint(uint8_t *dest, uint64_t n);
 
 #endif /* !defined(NGTCP2_STR_H) */

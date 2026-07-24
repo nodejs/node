@@ -33,9 +33,11 @@
 #include <nghttp3/nghttp3.h>
 
 /*
- * nghttp3_vec_len_varint is similar to nghttp3_vec_len, but it
- * returns -1 if the sum of the length exceeds NGHTTP3_MAX_VARINT.
+ * nghttp3_vec_len_uvarint is similar to nghttp3_vec_len, but it
+ * stores the return value from nghttp3_vec_len(|vec|, |n|) into
+ * |dest| if it does not exceed NGHTTP3_MAX_VARINT, and returns 0.
+ * Otherwise returns -1.
  */
-int64_t nghttp3_vec_len_varint(const nghttp3_vec *vec, size_t n);
+int nghttp3_vec_len_uvarint(uint64_t *dest, const nghttp3_vec *vec, size_t n);
 
 #endif /* !defined(NGHTTP3_VEC_H) */

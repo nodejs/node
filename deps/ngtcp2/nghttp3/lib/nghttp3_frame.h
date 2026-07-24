@@ -34,50 +34,53 @@
 
 #include "nghttp3_buf.h"
 
-#define NGHTTP3_FRAME_DATA 0x00
-#define NGHTTP3_FRAME_HEADERS 0x01
-#define NGHTTP3_FRAME_CANCEL_PUSH 0x03
-#define NGHTTP3_FRAME_SETTINGS 0x04
-#define NGHTTP3_FRAME_PUSH_PROMISE 0x05
-#define NGHTTP3_FRAME_GOAWAY 0x07
-#define NGHTTP3_FRAME_MAX_PUSH_ID 0x0d
+#define NGHTTP3_FRAME_DATA 0x00U
+#define NGHTTP3_FRAME_HEADERS 0x01U
+#define NGHTTP3_FRAME_CANCEL_PUSH 0x03U
+#define NGHTTP3_FRAME_SETTINGS 0x04U
+#define NGHTTP3_FRAME_PUSH_PROMISE 0x05U
+#define NGHTTP3_FRAME_GOAWAY 0x07U
+#define NGHTTP3_FRAME_MAX_PUSH_ID 0x0DU
 /* PRIORITY_UPDATE: https://datatracker.ietf.org/doc/html/rfc9218 */
-#define NGHTTP3_FRAME_PRIORITY_UPDATE 0x0f0700
-#define NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID 0x0f0701
+#define NGHTTP3_FRAME_PRIORITY_UPDATE 0x0F0700U
+#define NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID 0x0F0701U
 /* ORIGIN: https://datatracker.ietf.org/doc/html/rfc9412 */
-#define NGHTTP3_FRAME_ORIGIN 0x0c
+#define NGHTTP3_FRAME_ORIGIN 0x0CU
 
 /* Frame types that are reserved for HTTP/2, and must not be used in
    HTTP/3. */
-#define NGHTTP3_H2_FRAME_PRIORITY 0x02
-#define NGHTTP3_H2_FRAME_PING 0x06
-#define NGHTTP3_H2_FRAME_WINDOW_UPDATE 0x08
-#define NGHTTP3_H2_FRAME_CONTINUATION 0x9
+#define NGHTTP3_H2_FRAME_PRIORITY 0x02U
+#define NGHTTP3_H2_FRAME_PING 0x06U
+#define NGHTTP3_H2_FRAME_WINDOW_UPDATE 0x08U
+#define NGHTTP3_H2_FRAME_CONTINUATION 0x9U
 
 typedef struct nghttp3_frame_hd {
-  int64_t type;
+  uint64_t type;
 } nghttp3_frame_hd;
 
 typedef struct nghttp3_frame_data {
-  int64_t type;
+  uint64_t type;
+  /* dr is set when sending DATA frame.  It is not used on
+     reception. */
+  nghttp3_data_reader dr;
 } nghttp3_frame_data;
 
 typedef struct nghttp3_frame_headers {
-  int64_t type;
+  uint64_t type;
   nghttp3_nv *nva;
   size_t nvlen;
 } nghttp3_frame_headers;
 
-#define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06
-#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
-#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
-#define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
-#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33
+#define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06U
+#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01U
+#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07U
+#define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08U
+#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33U
 
-#define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2
-#define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3
-#define NGHTTP3_H2_SETTINGS_ID_INITIAL_WINDOW_SIZE 0x4
-#define NGHTTP3_H2_SETTINGS_ID_MAX_FRAME_SIZE 0x5
+#define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2U
+#define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3U
+#define NGHTTP3_H2_SETTINGS_ID_INITIAL_WINDOW_SIZE 0x4U
+#define NGHTTP3_H2_SETTINGS_ID_MAX_FRAME_SIZE 0x5U
 
 typedef struct nghttp3_settings_entry {
   uint64_t id;
@@ -85,18 +88,21 @@ typedef struct nghttp3_settings_entry {
 } nghttp3_settings_entry;
 
 typedef struct nghttp3_frame_settings {
-  int64_t type;
+  uint64_t type;
   size_t niv;
   nghttp3_settings_entry *iv;
+  /* local_settings is set when sending SETTINGS frame.  It is not
+     used on reception. */
+  const nghttp3_settings *local_settings;
 } nghttp3_frame_settings;
 
 typedef struct nghttp3_frame_goaway {
-  int64_t type;
+  uint64_t type;
   int64_t id;
 } nghttp3_frame_goaway;
 
 typedef struct nghttp3_frame_priority_update {
-  int64_t type;
+  uint64_t type;
   /* pri_elem_id is stream ID if type ==
      NGHTTP3_FRAME_PRIORITY_UPDATE.  It is push ID if type ==
      NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID.  It is undefined
@@ -120,7 +126,7 @@ typedef struct nghttp3_frame_priority_update {
 } nghttp3_frame_priority_update;
 
 typedef struct nghttp3_frame_origin {
-  int64_t type;
+  uint64_t type;
   /* These fields are only used by server to send ORIGIN frame.
      Client never use them. */
   nghttp3_vec origin_list;
@@ -143,14 +149,14 @@ typedef union nghttp3_frame {
  *
  * This function returns |dest| plus the number of bytes written.
  */
-uint8_t *nghttp3_frame_write_hd(uint8_t *dest, int64_t type,
-                                int64_t payloadlen);
+uint8_t *nghttp3_frame_write_hd(uint8_t *dest, uint64_t type,
+                                uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_hd_len returns the number of bytes required to
  * write a frame header consisting of |type| and |payloadlen|.
  */
-size_t nghttp3_frame_write_hd_len(int64_t type, int64_t payloadlen);
+size_t nghttp3_frame_write_hd_len(uint64_t type, uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_settings writes SETTINGS frame |fr| to |dest|.
@@ -161,14 +167,14 @@ size_t nghttp3_frame_write_hd_len(int64_t type, int64_t payloadlen);
  */
 uint8_t *nghttp3_frame_write_settings(uint8_t *dest,
                                       const nghttp3_frame_settings *fr,
-                                      int64_t payloadlen);
+                                      uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_settings_len returns the number of bytes
  * required to write |fr|.  This function stores the frame payload
  * length in |*ppayloadlen|.
  */
-size_t nghttp3_frame_write_settings_len(int64_t *pppayloadlen,
+size_t nghttp3_frame_write_settings_len(uint64_t *pppayloadlen,
                                         const nghttp3_frame_settings *fr);
 
 /*
@@ -180,14 +186,14 @@ size_t nghttp3_frame_write_settings_len(int64_t *pppayloadlen,
  */
 uint8_t *nghttp3_frame_write_goaway(uint8_t *dest,
                                     const nghttp3_frame_goaway *fr,
-                                    int64_t payloadlen);
+                                    uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_goaway_len returns the number of bytes required
  * to write |fr|.  This function stores the frame payload length in
  * |*ppayloadlen|.
  */
-size_t nghttp3_frame_write_goaway_len(int64_t *ppayloadlen,
+size_t nghttp3_frame_write_goaway_len(uint64_t *ppayloadlen,
                                       const nghttp3_frame_goaway *fr);
 
 /*
@@ -198,7 +204,7 @@ size_t nghttp3_frame_write_goaway_len(int64_t *ppayloadlen,
  * This function returns |dest| plus the number of bytes written;
  */
 uint8_t *nghttp3_frame_write_priority_update(
-  uint8_t *dest, const nghttp3_frame_priority_update *fr, int64_t payloadlen);
+  uint8_t *dest, const nghttp3_frame_priority_update *fr, uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_priority_update_len returns the number of bytes
@@ -206,7 +212,7 @@ uint8_t *nghttp3_frame_write_priority_update(
  * length in |*ppayloadlen|.
  */
 size_t nghttp3_frame_write_priority_update_len(
-  int64_t *ppayloadlen, const nghttp3_frame_priority_update *fr);
+  uint64_t *ppayloadlen, const nghttp3_frame_priority_update *fr);
 
 /*
  * nghttp3_frame_write_origin writes ORIGIN frame |fr| to |dest|.
@@ -217,14 +223,14 @@ size_t nghttp3_frame_write_priority_update_len(
  */
 uint8_t *nghttp3_frame_write_origin(uint8_t *dest,
                                     const nghttp3_frame_origin *fr,
-                                    int64_t payloadlen);
+                                    uint64_t payloadlen);
 
 /*
  * nghttp3_frame_write_origin_len returns the number of bytes required
  * to write |fr|.  This function stores the frame payload length in
  * |*ppayloadlen|.
  */
-size_t nghttp3_frame_write_origin_len(int64_t *ppayloadlen,
+size_t nghttp3_frame_write_origin_len(uint64_t *ppayloadlen,
                                       const nghttp3_frame_origin *fr);
 
 /*

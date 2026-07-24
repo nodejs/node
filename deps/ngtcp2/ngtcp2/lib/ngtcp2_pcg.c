@@ -66,12 +66,12 @@ void ngtcp2_pcg32_init(ngtcp2_pcg32 *pcg, uint64_t seed) {
 }
 
 static uint32_t pcg_rotr_32(uint32_t value, unsigned int rot) {
-  return (value >> rot) | (value << ((-rot) & 31));
+  return (value >> rot) | (value << ((32 - rot) & 31));
 }
 
 static uint32_t pcg_output_xsh_rr_64_32(uint64_t state) {
-  return pcg_rotr_32((uint32_t)(((state >> 18u) ^ state) >> 27u),
-                     (unsigned int)(state >> 59u));
+  return pcg_rotr_32((uint32_t)(((state >> 18U) ^ state) >> 27U),
+                     (unsigned int)(state >> 59U));
 }
 
 uint32_t ngtcp2_pcg32_rand(ngtcp2_pcg32 *pcg) {

@@ -34,12 +34,13 @@ extern uint64_t performance_v8_start;
   V(LOOP_EXIT, "loopExit")                                                     \
   V(BOOTSTRAP_COMPLETE, "bootstrapComplete")
 
-#define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
-  V(GC, "gc")                                                                 \
-  V(HTTP, "http")                                                             \
-  V(HTTP2, "http2")                                                           \
-  V(NET, "net")                                                               \
-  V(DNS, "dns")
+#define NODE_PERFORMANCE_ENTRY_TYPES(V)                                        \
+  V(GC, "gc")                                                                  \
+  V(HTTP, "http")                                                              \
+  V(HTTP2, "http2")                                                            \
+  V(NET, "net")                                                                \
+  V(DNS, "dns")                                                                \
+  V(QUIC, "quic")
 
 enum PerformanceMilestone {
 #define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,

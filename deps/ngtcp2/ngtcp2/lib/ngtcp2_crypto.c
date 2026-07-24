@@ -28,6 +28,7 @@
 #include <assert.h>
 
 #include "ngtcp2_net.h"
+#include "ngtcp2_str.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
                          size_t secretlen,
@@ -65,15 +66,21 @@ int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
   }
 
   p = (uint8_t *)(*pckm) + sizeof(ngtcp2_crypto_km);
-  (*pckm)->secret.base = p;
-  (*pckm)->secret.len = secretlen;
-  p += secretlen;
-  (*pckm)->iv.base = p;
-  (*pckm)->iv.len = ivlen;
-  (*pckm)->aead_ctx.native_handle = NULL;
-  (*pckm)->pkt_num = -1;
-  (*pckm)->use_count = 0;
-  (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
+
+  **pckm = (ngtcp2_crypto_km){
+    .secret =
+      {
+        .base = p,
+        .len = secretlen,
+      },
+    .iv =
+      {
+        .base = p + secretlen,
+        .len = ivlen,
+      },
+    .pkt_num = -1,
+    .flags = NGTCP2_CRYPTO_KM_FLAG_NONE,
+  };
 
   return 0;
 }
@@ -84,13 +91,7 @@ void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem) {
   }
 
   if (ckm->secret.len) {
-#ifdef WIN32
-    SecureZeroMemory(ckm->secret.base, ckm->secret.len);
-#elif defined(HAVE_EXPLICIT_BZERO)
-    explicit_bzero(ckm->secret.base, ckm->secret.len);
-#elif defined(HAVE_MEMSET_S)
-    memset_s(ckm->secret.base, ckm->secret.len, 0, ckm->secret.len);
-#endif /* defined(HAVE_MEMSET_S) */
+    ngtcp2_secure_clear(ckm->secret.base, ckm->secret.len);
   }
 
   ngtcp2_mem_free(mem, ckm);

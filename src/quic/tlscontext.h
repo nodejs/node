@@ -45,12 +45,13 @@ class OSSLContext final {
                   ngtcp2_conn* connection,
                   SSL_CTX* ssl_ctx);
 
-  std::string get_cipher_name() const;
+  std::string_view get_cipher_name() const;
   std::string get_selected_alpn() const;
   std::string_view get_negotiated_group() const;
 
   bool set_alpn_protocols(std::string_view protocols) const;
   bool set_hostname(std::string_view hostname) const;
+  bool set_verify_hostname(std::string_view hostname) const;
   bool set_early_data_enabled() const;
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
@@ -207,6 +208,21 @@ class TLSContext final : public MemoryRetainer,
     // This option is only used by the server side.
     bool reject_unauthorized = true;
 
+    // When true, the client will set SSL_VERIFY_PEER so that OpenSSL
+    // aborts the handshake if the server's certificate fails validation.
+    // This is the "strict" verify_peer mode. When false (the default),
+    // the handshake completes regardless and VerifyPeerIdentity is
+    // called after to surface errors to JS. This option is only used
+    // by the client side.
+    bool verify_peer_strict = false;
+
+    // When true, OpenSSL verifies that the server's certificate matches
+    // the servername (hostname verification via SSL_set1_host). Should
+    // be true for 'strict' and 'auto' verifyPeer modes, false for
+    // 'manual'. Without this, a valid certificate for any domain would
+    // be accepted. This option is only used by the client side.
+    bool verify_hostname = false;
+
     // When true (the default), the server accepts 0-RTT early data
     // from clients with valid session tickets. When false, early data
     // is disabled and clients must complete a full handshake before
@@ -241,6 +257,15 @@ class TLSContext final : public MemoryRetainer,
     // JavaScript option name "crl"
     std::vector<Store> crl;
 
+    // The port to advertise in ORIGIN frames for this hostname.
+    // Defaults to 443 (the standard HTTPS port). Only relevant for
+    // server-side SNI entries used with HTTP/3.
+    uint16_t port = 443;
+
+    // Whether this hostname should be included in ORIGIN frames.
+    // Only relevant for server-side SNI entries.
+    bool authoritative = true;
+
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(TLSContext::Options)
     SET_SELF_SIZE(Options)
@@ -254,10 +279,12 @@ class TLSContext final : public MemoryRetainer,
     std::string ToString() const;
   };
 
-  static std::shared_ptr<TLSContext> CreateClient(const Options& options);
-  static std::shared_ptr<TLSContext> CreateServer(const Options& options);
+  static std::shared_ptr<TLSContext> CreateClient(Environment* env,
+                                                  const Options& options);
+  static std::shared_ptr<TLSContext> CreateServer(Environment* env,
+                                                  const Options& options);
 
-  TLSContext(Side side, const Options& options);
+  TLSContext(Environment* env, Side side, const Options& options);
   DISALLOW_COPY_AND_MOVE(TLSContext)
 
   // Each QUIC Session has exactly one TLSSession. Each TLSSession maintains
@@ -286,7 +313,7 @@ class TLSContext final : public MemoryRetainer,
   SET_SELF_SIZE(TLSContext)
 
  private:
-  ncrypto::SSLCtxPointer Initialize();
+  ncrypto::SSLCtxPointer Initialize(Environment* env);
   operator SSL_CTX*() const;
 
   static void OnKeylog(const SSL* ssl, const char* line);
@@ -304,9 +331,9 @@ class TLSContext final : public MemoryRetainer,
   Options options_;
   ncrypto::X509Pointer cert_;
   ncrypto::X509Pointer issuer_;
-  ncrypto::SSLCtxPointer ctx_;
   std::string validation_error_ = "";
   std::unordered_map<std::string, std::shared_ptr<TLSContext>> sni_contexts_;
+  ncrypto::SSLCtxPointer ctx_;
 
   friend class TLSSession;
 };

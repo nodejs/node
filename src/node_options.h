@@ -130,6 +130,7 @@ class EnvironmentOptions : public Options {
   bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
   bool experimental_sqlite = HAVE_SQLITE;
+  bool experimental_stream_iter = false;
   bool experimental_webstorage = false;
 #ifndef OPENSSL_NO_QUIC
   bool experimental_quic = EXPERIMENTALS_DEFAULT_VALUE;
@@ -229,6 +230,7 @@ class EnvironmentOptions : public Options {
   bool trace_env = false;
   bool trace_env_js_stack = false;
   bool trace_env_native_stack = false;
+  bool use_system_ca = false;
   std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
@@ -291,7 +293,7 @@ class PerIsolateOptions : public Options {
   PerIsolateOptions() = default;
   PerIsolateOptions(PerIsolateOptions&&) = default;
 
-  std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
+  std::shared_ptr<EnvironmentOptions> per_env{new EnvironmentOptions()};
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
@@ -324,7 +326,7 @@ class PerProcessOptions : public Options {
   // using the node::per_process::cli_options_mutex, typically:
   //
   //     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  std::shared_ptr<PerIsolateOptions> per_isolate { new PerIsolateOptions() };
+  std::shared_ptr<PerIsolateOptions> per_isolate{new PerIsolateOptions()};
 
   std::string title;
   std::string trace_event_categories;
@@ -364,7 +366,6 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
-  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
@@ -534,8 +535,7 @@ class OptionsParser {
   // if the option has a non-option argument (not starting with -) following it.
   void AddAlias(const char* from, const char* to);
   void AddAlias(const char* from, const std::vector<std::string>& to);
-  void AddAlias(const char* from,
-                const std::initializer_list<std::string>& to);
+  void AddAlias(const char* from, const std::initializer_list<std::string>& to);
 
   // Add implications from some arbitrary option to a boolean one, either
   // in a way that makes `from` set `to` to true or to false.
@@ -547,7 +547,7 @@ class OptionsParser {
   // type.
   template <typename ChildOptions>
   void Insert(const OptionsParser<ChildOptions>& child_options_parser,
-              ChildOptions* (Options::* get_child)());
+              ChildOptions* (Options::*get_child)());
 
   // Parse a sequence of options into an options struct, a list of
   // arguments that were parsed as options, a list of unknown/JS engine options,
@@ -636,17 +636,15 @@ class OptionsParser {
   // These are helpers that make `Insert()` support properties of other
   // options structs, if we know how to access them.
   template <typename OriginalField, typename ChildOptions>
-  static auto Convert(
-      std::shared_ptr<OriginalField> original,
-      ChildOptions* (Options::* get_child)());
+  static auto Convert(std::shared_ptr<OriginalField> original,
+                      ChildOptions* (Options::*get_child)());
   template <typename ChildOptions>
-  static auto Convert(
-      typename OptionsParser<ChildOptions>::OptionInfo original,
-      ChildOptions* (Options::* get_child)());
+  static auto Convert(typename OptionsParser<ChildOptions>::OptionInfo original,
+                      ChildOptions* (Options::*get_child)());
   template <typename ChildOptions>
   static auto Convert(
       typename OptionsParser<ChildOptions>::Implication original,
-      ChildOptions* (Options::* get_child)());
+      ChildOptions* (Options::*get_child)());
 
   std::unordered_map<std::string, OptionInfo> options_;
   std::unordered_map<std::string, std::vector<std::string>> aliases_;
@@ -673,10 +671,12 @@ class OptionsParser {
 
 using StringVector = std::vector<std::string>;
 template <class OptionsType, class = Options>
-void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args, OptionsType* const options,
-  OptionEnvvarSettings required_env_settings, StringVector* const errors);
+void Parse(StringVector* const args,
+           StringVector* const exec_args,
+           StringVector* const v8_args,
+           OptionsType* const options,
+           OptionEnvvarSettings required_env_settings,
+           StringVector* const errors);
 
 }  // namespace options_parser
 

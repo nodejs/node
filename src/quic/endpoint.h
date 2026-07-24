@@ -6,6 +6,7 @@
 #include <async_wrap.h>
 #include <env.h>
 #include <node_sockaddr.h>
+#include <timer_wrap.h>
 #include <uv.h>
 #include <v8.h>
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include "bindingdata.h"
 #include "packet.h"
 #include "session.h"
+#include "session_manager.h"
 #include "sessionticket.h"
 #include "tokens.h"
 
@@ -24,27 +26,31 @@ namespace node::quic {
 // client and server simultaneously.
 class Endpoint final : public AsyncWrap, public Packet::Listener {
  public:
-  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS =
-      std::min<uint64_t>(kMaxSizeT, kMaxSafeJsInteger);
-  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
-  static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
-      (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
-  static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
-  static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
+  // The socket address LRU is used for tracking validated remote addresses.
+  static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE = 1024;
 
-  // Maximum number of version negotiation packets that will be sent to a
-  // given remote host within the LRU tracking window. Version negotiation
-  // packets are cheap to generate but can be used as an amplification
-  // vector with spoofed source addresses.
-  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
-  static constexpr uint64_t kMaxVersionNegotiations = 10;
+  // Default rate limits for stateless responses. These are global token
+  // bucket limits that cap the total rate of each response type regardless
+  // of source address. This prevents spoofed-source floods from bypassing
+  // per-host limits (which are keyed by source IP and trivially defeated
+  // by rotating spoofed addresses). The rate is in responses per second
+  // and the burst is the maximum tokens the bucket can hold.
+  static constexpr double DEFAULT_RETRY_RATE = 100;
+  static constexpr double DEFAULT_RETRY_BURST = 200;
+  static constexpr double DEFAULT_STATELESS_RESET_RATE = 100;
+  static constexpr double DEFAULT_STATELESS_RESET_BURST = 200;
+  static constexpr double DEFAULT_VERSION_NEGOTIATION_RATE = 100;
+  static constexpr double DEFAULT_VERSION_NEGOTIATION_BURST = 200;
+  static constexpr double DEFAULT_IMMEDIATE_CLOSE_RATE = 100;
+  static constexpr double DEFAULT_IMMEDIATE_CLOSE_BURST = 200;
 
-  // Maximum number of immediate connection close packets that will be sent
-  // to a given remote host within the LRU tracking window. These are sent
-  // when the server is busy or a token is invalid — a malicious peer could
-  // trigger a large number of them.
-  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
-  static constexpr uint64_t kMaxImmediateCloses = 10;
+  // Per-host session creation rate limit. This is tracked per validated
+  // remote address in the address LRU, preventing a single source from
+  // churning through sessions faster than the server can handle. Unlike
+  // the global stateless response buckets, this only applies after address
+  // validation (spoofed sources can't reach this path).
+  static constexpr double DEFAULT_SESSION_CREATION_RATE = 50;
+  static constexpr double DEFAULT_SESSION_CREATION_BURST = 100;
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
@@ -64,41 +70,32 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
         RetryToken::QUIC_DEFAULT_RETRYTOKEN_EXPIRATION / NGTCP2_SECONDS;
 
     // Tokens issued using NEW_TOKEN are time-limited. By default, tokens expire
-    // after DEFAULT_TOKEN_EXPIRATION *seconds*.
+    // after QUIC_DEFAULT_REGULARTOKEN_EXPIRATION *seconds*.
     uint64_t token_expiration =
         RegularToken::QUIC_DEFAULT_REGULARTOKEN_EXPIRATION / NGTCP2_SECONDS;
 
-    // Each Endpoint places limits on the number of concurrent connections from
-    // a single host, and the total number of concurrent connections allowed as
-    // a whole. These are set to fairly modest, and arbitrary defaults. We can
-    // set these to whatever we'd like.
-    uint64_t max_connections_per_host = DEFAULT_MAX_CONNECTIONS_PER_HOST;
-    uint64_t max_connections_total = DEFAULT_MAX_CONNECTIONS;
-
-    // A stateless reset in QUIC is a discrete mechanism that one endpoint can
-    // use to communicate to a peer that it has lost whatever state it
-    // previously held about a session. Because generating a stateless reset
-    // consumes resources (even very modestly), they can be a DOS vector in
-    // which a malicious peer intentionally sends a large number of stateless
-    // reset eliciting packets. To protect against that risk, we limit the
-    // number of stateless resets that may be generated for a given remote host
-    // within a window of time. This is not mandated by QUIC, and the limit is
-    // arbitrary. We can set it to whatever we'd like.
-    uint64_t max_stateless_resets = DEFAULT_MAX_STATELESS_RESETS;
-
-    // For tracking the number of connections per host, the number of stateless
-    // resets that have been sent, and tracking the path verification status of
-    // a remote host, we maintain an LRU cache of the most recently seen hosts.
-    // The address_lru_size parameter determines the size of that cache. The
-    // default is set modestly at 10 times the default max connections per host.
+    // For tracking the path verification status of remote hosts, we maintain
+    // an LRU cache of the most recently seen hosts.
     uint64_t address_lru_size = DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE;
 
-    // Similar to stateless resets, we enforce a limit on the number of retry
-    // packets that can be generated and sent for a remote host. Generating
-    // retry packets consumes a modest amount of resources and it's fairly
-    // trivial for a malicious peer to trigger generation of a large number of
-    // retries, so limiting them helps prevent a DOS vector.
-    uint64_t max_retries = DEFAULT_MAX_RETRY_LIMIT;
+    // Global token bucket rate limits for stateless responses. These cap
+    // the total rate of each response type regardless of source address,
+    // preventing spoofed-source floods. Rate is in responses per second,
+    // burst is the maximum number of responses that can be sent in a burst.
+    double retry_rate = DEFAULT_RETRY_RATE;
+    double retry_burst = DEFAULT_RETRY_BURST;
+    double stateless_reset_rate = DEFAULT_STATELESS_RESET_RATE;
+    double stateless_reset_burst = DEFAULT_STATELESS_RESET_BURST;
+    double version_negotiation_rate = DEFAULT_VERSION_NEGOTIATION_RATE;
+    double version_negotiation_burst = DEFAULT_VERSION_NEGOTIATION_BURST;
+    double immediate_close_rate = DEFAULT_IMMEDIATE_CLOSE_RATE;
+    double immediate_close_burst = DEFAULT_IMMEDIATE_CLOSE_BURST;
+
+    // Per-host session creation rate limit. Tracked per validated remote
+    // address in the address LRU. Set to high values for benchmarking
+    // where traffic comes from a single source.
+    double session_creation_rate = DEFAULT_SESSION_CREATION_RATE;
+    double session_creation_burst = DEFAULT_SESSION_CREATION_BURST;
 
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
@@ -153,6 +150,25 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // forwarded through. The default is 64. The value is in the range 1 to 255.
     // Setting to 0 uses the default.
     uint8_t udp_ttl = 0;
+
+    // When an endpoint becomes idle (not listening and no primary sessions),
+    // it will be destroyed after this many seconds. A value of 0 means
+    // destroy immediately when idle (default, preserves pre-SessionManager
+    // behavior). A positive value keeps the endpoint alive for potential
+    // reuse by future connect() or listen() calls.
+    static constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 0;
+    uint64_t idle_timeout = DEFAULT_IDLE_TIMEOUT;
+
+    // Optional block list for filtering incoming packets by source address.
+    // When block_list_policy is DENY, packets from addresses matching the
+    // block list are dropped. When ALLOW, only packets from addresses
+    // matching the block list are accepted (all others dropped).
+    enum class BlockListPolicy : uint8_t {
+      DENY,   // Drop packets from matching addresses (blocklist)
+      ALLOW,  // Drop packets from non-matching addresses (allowlist)
+    };
+    std::shared_ptr<SocketAddressBlockList> block_list;
+    BlockListPolicy block_list_policy = BlockListPolicy::DENY;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Endpoint::Config)
@@ -212,6 +228,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   void Send(Packet::Ptr packet);
 
+  // Attempt synchronous send via uv_udp_try_send. If the socket is
+  // writable, the packet is sent immediately and the Ptr is released.
+  // If the socket is not writable (UV_EAGAIN), falls back to the
+  // async Send path. Used by the deferred flush callback to avoid
+  // the one-tick latency of async uv_udp_send.
+  void SendOrTrySend(Packet::Ptr packet);
+
+  // Send a batch of packets using uv_udp_try_send2 (sendmmsg) for
+  // synchronous batched delivery. Packets successfully sent are released
+  // immediately. On EAGAIN or partial send, remaining packets fall back
+  // to async uv_udp_send. The Packet::Ptr array is consumed: all entries
+  // will be empty (released or moved) on return.
+  void SendBatch(Packet::Ptr* packets, size_t count);
+
   // Acquire a Packet from the pool. length sets the initial working
   // size (must be <= pool capacity). The slot is always allocated at
   // full capacity to avoid fragmentation.
@@ -233,24 +263,27 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // ellicit retry packets (It can do so by intentionally sending initial
   // packets that ignore the retry token). To help mitigate that risk, we limit
   // the number of retries we send to a given remote endpoint.
-  void SendRetry(const PathDescriptor& options);
+  void SendRetry(const PathDescriptor& options, uint64_t now);
 
   // Sends a version negotiation packet. This is terminal for the connection and
   // is sent only when a QUIC packet is received for an unsupported QUIC
   // version. It is possible that a malicious packet triggered this so we need
   // to be careful not to commit too many resources.
-  void SendVersionNegotiation(const PathDescriptor& options);
+  void SendVersionNegotiation(const PathDescriptor& options, uint64_t now);
 
   // Possibly generates and sends a stateless reset packet. This is terminal for
   // the connection. It is possible that a malicious packet triggered this so we
   // need to be careful not to commit too many resources.
-  bool SendStatelessReset(const PathDescriptor& options, size_t source_len);
+  bool SendStatelessReset(const PathDescriptor& options,
+                          size_t source_len,
+                          uint64_t now);
 
   // Shutdown a connection prematurely, before a Session is created. This should
   // only be called at the start of a session before the crypto keys have been
   // established.
   void SendImmediateConnectionClose(const PathDescriptor& options,
-                                    QuicError error);
+                                    QuicError error,
+                                    uint64_t now);
 
   // Listen for connections (act as a server).
   void Listen(const Session::Options& options);
@@ -285,6 +318,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     void Close();
     int Send(Packet::Ptr packet);
 
+    // Synchronous send using uv_udp_try_send. Returns the number of
+    // bytes sent on success, UV_EAGAIN if the socket is not writable
+    // or the send queue is non-empty, or another negative error code.
+    // The Ptr is not consumed — the caller manages the lifecycle.
+    int TrySend(const Packet::Ptr& packet);
+
+    // Synchronous batched send using uv_udp_try_send2 (sendmmsg).
+    // Takes pre-built libuv argument arrays. Returns the number of
+    // messages successfully sent (>= 0), or a negative error code.
+    int TrySendBatch(uv_buf_t* bufs[],
+                     unsigned int nbufs[],
+                     struct sockaddr* addrs[],
+                     size_t count);
+
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
     SocketAddress local_address() const;
@@ -305,9 +352,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     class Impl;
 
     BaseObjectWeakPtr<Impl> impl_;
-    bool is_bound_ = false;
-    bool is_started_ = false;
-    bool is_closed_ = false;
+    struct Flags {
+      uint8_t is_bound : 1 = 0;
+      uint8_t is_started : 1 = 0;
+      uint8_t is_closed : 1 = 0;
+    };
+    Flags flags_;
   };
 
   bool is_closed() const;
@@ -343,9 +393,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   void EmitNewSession(const BaseObjectPtr<Session>& session);
   void EmitClose(CloseContext context, int status);
-
-  void IncrementSocketAddressCounter(const SocketAddress& address);
-  void DecrementSocketAddressCounter(const SocketAddress& address);
 
   // JavaScript API
 
@@ -388,13 +435,18 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // Ref() causes a listening Endpoint to keep the event loop active.
   JS_METHOD(Ref);
 
-  void Receive(const uv_buf_t& buf, const SocketAddress& from);
+  void Receive(const uint8_t* data, size_t len, const SocketAddress& from);
 
   AliasedStruct<Stats> stats_;
   AliasedStruct<State> state_;
   const Options options_;
   ArenaPool<Packet> packet_pool_;
   UDP udp_;
+
+  // Idle timer: started when the endpoint becomes idle (not listening,
+  // no primary sessions). When it fires, the endpoint is destroyed.
+  // Stopped when a new session is added or listening begins.
+  TimerWrapHandle idle_timer_;
 
   struct ServerState {
     Session::Options options;
@@ -403,31 +455,56 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // Set if/when the endpoint is configured to listen.
   std::optional<ServerState> server_state_ = std::nullopt;
 
-  // A Session is generally identified by one or more CIDs. We use two
-  // maps for this rather than one to avoid creating a whole bunch of
-  // BaseObjectPtr references. The primary map (sessions_) just maps
-  // the original CID to the Session, the second map (dcid_to_scid_)
-  // maps the additional CIDs to the primary.
-  CID::Map<BaseObjectPtr<Session>> sessions_;
+  // Count of sessions for which this endpoint is the primary endpoint.
+  // Drives ref/unref and idle timer logic. The actual session-to-endpoint
+  // mapping is maintained by the SessionManager.
+  size_t primary_session_count_ = 0;
+
+  // Per-endpoint CID -> SCID mapping for peer-chosen CIDs from connection
+  // establishment (config.dcid, config.ocid). These are kept per-endpoint
+  // because peer-chosen values can collide across endpoints (e.g., a
+  // client's random outgoing DCID matching an incoming DCID on the server
+  // endpoint). Locally-generated CIDs that need cross-endpoint routing
+  // (preferred address, multipath) go in SessionManager::dcid_to_scid_.
+  //
+  // Endpoint::FindSession does a three-tier lookup:
+  //   1. SessionManager::sessions_[cid]          (direct SCID match)
+  //   2. SessionManager::dcid_to_scid_[cid]      (cross-endpoint CID)
+  //   3. Endpoint::dcid_to_scid_[cid]            (peer-chosen CID)
+  // Each tier resolves to an SCID and looks up SessionManager::sessions_.
   CID::Map<CID> dcid_to_scid_;
-  StatelessResetToken::Map<Session*> token_map_;
+
+  SessionManager& session_manager() const;
 
   struct SocketAddressInfoTraits final {
     struct Type final {
-      size_t active_connections;
-      size_t reset_count;
-      size_t retry_count;
-      size_t version_negotiation_count;
-      size_t immediate_close_count;
       uint64_t timestamp;
       bool validated;
+      TokenBucket session_creation_bucket;
     };
 
-    static bool CheckExpired(const SocketAddress& address, const Type& type);
-    static void Touch(const SocketAddress& address, Type* type);
+    static bool CheckExpired(const SocketAddress& address,
+                             const Type& type,
+                             uint64_t now);
+    static void Touch(const SocketAddress& address, Type* type, uint64_t now);
   };
 
-  SocketAddressLRU<SocketAddressInfoTraits> addrLRU_;
+  SocketAddressLRU<SocketAddressInfoTraits> addr_validation_lru_;
+
+  // Global token buckets for stateless response rate limiting.
+  // These cap the total server-wide rate of each response type,
+  // regardless of source address.
+  TokenBucket retry_bucket_;
+  TokenBucket stateless_reset_bucket_;
+  TokenBucket version_negotiation_bucket_;
+  TokenBucket immediate_close_bucket_;
+
+  // Per-IP connection counts for maxConnectionsPerHost enforcement.
+  // Only populated when max_connections_per_host > 0. Entries are
+  // added in AddSession and removed when the count reaches 0 in
+  // RemoveSession. The map size is bounded by the number of active
+  // sessions (each entry has count >= 1).
+  SocketAddress::IpMap<uint16_t> conn_counts_per_host_;
 
   CloseContext close_context_ = CloseContext::CLOSE;
   int close_status_ = 0;

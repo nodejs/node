@@ -1,9 +1,12 @@
 // Flags: --expose-internals --experimental-quic --no-warnings
-import { hasQuic, skip } from '../common/index.mjs';
+import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
+const { readKey } = fixtures;
 import { SocketAddress } from 'node:net';
+
+const { strictEqual, rejects, ok, throws } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -12,68 +15,67 @@ if (!hasQuic) {
 // Import after the hasQuic check
 const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
-const { kState } = (await import('internal/quic/symbols')).default;
+const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
-const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-const cert = fixtures.readKey('agent1-cert.pem');
+const key = createPrivateKey(readKey('agent1-key.pem'));
+const cert = readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 
 const endpoint = new QuicEndpoint();
+const state = getQuicEndpointState(endpoint);
+ok(!state.isBound);
+ok(!state.isReceiving);
+ok(!state.isListening);
 
-assert.ok(!endpoint[kState].isBound);
-assert.ok(!endpoint[kState].isReceiving);
-assert.ok(!endpoint[kState].isListening);
+strictEqual(endpoint.address, undefined);
 
-assert.strictEqual(endpoint.address, undefined);
-
-await assert.rejects(listen(123, { sni, endpoint }), {
+await rejects(listen(123, { sni, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 // Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
+strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(() => {}, 123), {
+await rejects(listen(mustNotCall(), 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-await listen(() => {}, { sni, endpoint });
+await listen(mustNotCall(), { sni, endpoint });
 // Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
+strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(() => {}, { sni, endpoint }), {
+await rejects(listen(mustNotCall(), { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
-
 // Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
+strictEqual(cert.buffer.detached, false);
 
-assert.ok(endpoint[kState].isBound);
-assert.ok(endpoint[kState].isReceiving);
-assert.ok(endpoint[kState].isListening);
+ok(state.isBound);
+ok(state.isReceiving);
+ok(state.isListening);
 
 const address = endpoint.address;
-assert.ok(address instanceof SocketAddress);
+ok(address instanceof SocketAddress);
 
-assert.strictEqual(address.address, '127.0.0.1');
-assert.strictEqual(address.family, 'ipv4');
-assert.strictEqual(address.flowlabel, 0);
-assert.ok(address.port !== 0);
+strictEqual(address.address, '127.0.0.1');
+strictEqual(address.family, 'ipv4');
+strictEqual(address.flowlabel, 0);
+ok(address.port !== 0);
 
-assert.ok(!endpoint.destroyed);
+ok(!endpoint.destroyed);
 endpoint.destroy();
-assert.strictEqual(endpoint.closed, endpoint.close());
+strictEqual(endpoint.closed, endpoint.close());
 await endpoint.closed;
-assert.ok(endpoint.destroyed);
+ok(endpoint.destroyed);
 
-await assert.rejects(listen(() => {}, { sni, endpoint }), {
+await rejects(listen(mustNotCall(), { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
+strictEqual(cert.buffer.detached, false);
 
-assert.throws(() => { endpoint.busy = true; }, {
+throws(() => { endpoint.busy = true; }, {
   code: 'ERR_INVALID_STATE',
 });
 await endpoint[Symbol.asyncDispose]();
 
-assert.strictEqual(endpoint.address, undefined);
+strictEqual(endpoint.address, undefined);

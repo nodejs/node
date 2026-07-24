@@ -1,0 +1,69 @@
+name: Test Linux (with QUIC)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/test-linux-quic.yml
+      - configure.py
+      - node.gyp
+      - node.gypi
+      - deps/ngtcp2/**
+      - deps/nghttp3/**
+      - deps/openssl/**
+      - src/quic/**
+      - src/node_bob*
+      - lib/quic.js
+      - lib/http3.js
+      - lib/internal/quic/**
+      - lib/stream/iter.js
+      - lib/internal/streams/iter/**
+      - test/cctest/test_quic_*
+      - test/common/quic*
+      - test/common/quic/**
+      - test/parallel/*quic*
+      - test/parallel/test-stream-iter-*
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang
+  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++
+  SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+  SCCACHE_IDLE_TIMEOUT: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  test-quic:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          path: node
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
+        with:
+          version: v0.16.0
+      - name: Build
+        working-directory: node
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --experimental-quic"
+      - name: Test
+        working-directory: node
+        run: make test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+      - name: Ensure running tests did not cause any change in the tree
+        working-directory: node
+        run: git add -A && git diff --name-only --exit-code --staged

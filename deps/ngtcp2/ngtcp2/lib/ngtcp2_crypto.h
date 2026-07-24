@@ -42,10 +42,10 @@
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
 /* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00u
+#define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00U
 /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
    set. */
-#define NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE 0x01u
+#define NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE 0x01U
 
 typedef struct ngtcp2_crypto_km {
   ngtcp2_vec secret;

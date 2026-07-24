@@ -67,11 +67,11 @@
 #    define ngtcp2_htonl64(N) (N)
 #  else /* !defined(WORDS_BIGENDIAN) */
 #    if HAVE_DECL_BSWAP_64
-#      define ngtcp2_bswap64 bswap_64
+#      define ngtcp2_bswap64(N) bswap_64(N)
 #    elif defined(WIN32)
-#      define ngtcp2_bswap64 _byteswap_uint64
+#      define ngtcp2_bswap64(N) _byteswap_uint64(N)
 #    elif defined(__APPLE__)
-#      define ngtcp2_bswap64 OSSwapInt64
+#      define ngtcp2_bswap64(N) OSSwapInt64(N)
 #    else /* !(HAVE_DECL_BSWAP_64 || defined(WIN32) || defined(__APPLE__)) */
 #      define ngtcp2_bswap64(N)                                                \
         ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                       \
@@ -83,59 +83,19 @@
 #endif   /* !HAVE_DECL_BE64TOH */
 
 #ifdef WIN32
-/* Windows requires ws2_32 library for ntonl family functions.  We
-   define inline functions for those function so that we don't have
-   dependency on that lib. */
-
-#  ifdef _MSC_VER
-#    define STIN static __inline
-#  else /* !defined(_MSC_VER) */
-#    define STIN static inline
-#  endif /* !defined(_MSC_VER) */
-
-STIN uint32_t ngtcp2_htonl(uint32_t hostlong) {
-  uint32_t res;
-  unsigned char *p = (unsigned char *)&res;
-  *p++ = (unsigned char)(hostlong >> 24);
-  *p++ = (hostlong >> 16) & 0xffu;
-  *p++ = (hostlong >> 8) & 0xffu;
-  *p = hostlong & 0xffu;
-  return res;
-}
-
-STIN uint16_t ngtcp2_htons(uint16_t hostshort) {
-  uint16_t res;
-  unsigned char *p = (unsigned char *)&res;
-  *p++ = (unsigned char)(hostshort >> 8);
-  *p = hostshort & 0xffu;
-  return res;
-}
-
-STIN uint32_t ngtcp2_ntohl(uint32_t netlong) {
-  uint32_t res;
-  unsigned char *p = (unsigned char *)&netlong;
-  res = (uint32_t)(*p++ << 24);
-  res += (uint32_t)(*p++ << 16);
-  res += (uint32_t)(*p++ << 8);
-  res += *p;
-  return res;
-}
-
-STIN uint16_t ngtcp2_ntohs(uint16_t netshort) {
-  uint16_t res;
-  unsigned char *p = (unsigned char *)&netshort;
-  res = (uint16_t)(*p++ << 8);
-  res += *p;
-  return res;
-}
-
+/* Windows requires ws2_32 library for ntonl family of functions.
+   Instead of using them, use _byteswap_* functions.  This is fine
+   because all platforms that can run Windows these days are little
+   endian. */
+#  define ngtcp2_htonl(N) _byteswap_ulong(N)
+#  define ngtcp2_htons(N) _byteswap_ushort(N)
+#  define ngtcp2_ntohl(N) _byteswap_ulong(N)
+#  define ngtcp2_ntohs(N) _byteswap_ushort(N)
 #else /* !defined(WIN32) */
-
-#  define ngtcp2_htonl htonl
-#  define ngtcp2_htons htons
-#  define ngtcp2_ntohl ntohl
-#  define ngtcp2_ntohs ntohs
-
+#  define ngtcp2_htonl(N) htonl(N)
+#  define ngtcp2_htons(N) htons(N)
+#  define ngtcp2_ntohl(N) ntohl(N)
+#  define ngtcp2_ntohs(N) ntohs(N)
 #endif /* !defined(WIN32) */
 
 #endif /* !defined(NGTCP2_NET_H) */
