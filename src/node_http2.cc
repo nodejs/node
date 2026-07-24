@@ -612,6 +612,16 @@ Http2Session::Http2Session(Http2State* http2_state,
       &alloc_info), 0);
   session_.reset(session);
 
+  // Increase the default local connection window to improve throughput
+  // on high-latency connections. The default 64KB window limits throughput
+  // to window_size / RTT. With a 32MB connection window, throughput is
+  // significantly improved. See https://github.com/nodejs/node/issues/38426
+  CHECK_EQ(nghttp2_session_set_local_window_size(
+      session,
+      NGHTTP2_FLAG_NONE,
+      0,
+      DEFAULT_SETTINGS_LOCAL_CONNECTION_WINDOW_SIZE), 0);
+
   outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
