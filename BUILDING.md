@@ -1057,8 +1057,8 @@ Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs,
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 Building it requires a Rust toolchain:
 
-* rustc >= 1.83 (with LLVM >= 19)
-* cargo >= 1.83
+* rustc >= 1.86 (with LLVM >= 19)
+* cargo >= 1.86
 
 Refer to [Install Rust](https://rust-lang.org/tools/install/) for instructions.
 Individual packages such as `rust` and `cargo` in some operating system distributions may be considered
