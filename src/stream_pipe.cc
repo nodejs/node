@@ -162,17 +162,15 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
     // If the sink has been destroyed, pending_writes_ may have been
     // reset and we should check <= 0 instead of == 0. Also guard
     // against the listener having already been removed.
-    bool writes_done = pipe->sink_destroyed_ ?
-        pipe->pending_writes_ <= 0 :
-        pipe->pending_writes_ == 0;
+    bool writes_done = pipe->sink_destroyed_ ? pipe->pending_writes_ <= 0
+                                             : pipe->pending_writes_ == 0;
     if (writes_done) {
       Environment* env = pipe->env();
       HandleScope handle_scope(env->isolate());
       Context::Scope context_scope(env->context());
       if (pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).IsEmpty())
         return;
-      if (stream() != nullptr)
-        stream()->RemoveStreamListener(this);
+      if (stream() != nullptr) stream()->RemoveStreamListener(this);
     }
     return;
   }
