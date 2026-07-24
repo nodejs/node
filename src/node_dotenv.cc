@@ -89,19 +89,24 @@ Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
 MaybeLocal<Object> Dotenv::ToObject(Environment* env) const {
   EscapableHandleScope scope(env->isolate());
 
-  LocalVector<Name> names(env->isolate(), store_.size());
-  LocalVector<Value> values(env->isolate(), store_.size());
+  LocalVector<Name> names(env->isolate(), keys_order_.size());
+  LocalVector<Value> values(env->isolate(), keys_order_.size());
   auto context = env->context();
 
   Local<Value> tmp;
 
   int n = 0;
-  for (const auto& entry : store_) {
-    if (!ToV8Value(context, entry.first).ToLocal(&tmp)) {
+  for (const auto& key : keys_order_) {
+    auto entry = store_.find(key);
+    if (entry == store_.end()) {
+      continue;
+    }
+
+    if (!ToV8Value(context, entry->first).ToLocal(&tmp)) {
       return MaybeLocal<Object>();
     }
     names[n] = tmp.As<Name>();
-    if (!ToV8Value(context, entry.second).ToLocal(&tmp)) {
+    if (!ToV8Value(context, entry->second).ToLocal(&tmp)) {
       return MaybeLocal<Object>();
     }
     values[n++] = tmp;
@@ -137,6 +142,17 @@ std::string_view trim_spaces(std::string_view input) {
 
 void Dotenv::ParseContent(const std::string_view input) {
   std::string lines(input);
+
+  const auto set_entry = [this](std::string_view entry_key,
+                                std::string entry_value) {
+    auto [it, inserted] =
+        store_.insert_or_assign(std::string(entry_key),
+                                std::move(entry_value));
+
+    if (inserted) {
+      keys_order_.push_back(it->first);
+    }
+  };
 
   // Handle windows newlines "\r\n": remove "\r" and keep only "\n"
   lines.erase(std::remove(lines.begin(), lines.end(), '\r'), lines.end());
@@ -187,7 +203,7 @@ void Dotenv::ParseContent(const std::string_view input) {
 
     // If the value is not present (e.g. KEY=) set it to an empty string
     if (content.empty() || content.front() == '\n') {
-      store_.insert_or_assign(std::string(key), "");
+      set_entry(key, "");
       continue;
     }
 
@@ -212,7 +228,7 @@ void Dotenv::ParseContent(const std::string_view input) {
     if (content.empty()) {
       // In case the last line is a single key without value
       // Example: KEY= (without a newline at the EOF)
-      store_.insert_or_assign(std::string(key), "");
+      set_entry(key, "");
       break;
     }
 
@@ -232,7 +248,7 @@ void Dotenv::ParseContent(const std::string_view input) {
           pos += 1;
         }
 
-        store_.insert_or_assign(std::string(key), multi_line_value);
+        set_entry(key, std::move(multi_line_value));
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
           content.remove_prefix(newline + 1);
@@ -259,18 +275,18 @@ void Dotenv::ParseContent(const std::string_view input) {
         auto newline = content.find('\n');
         if (newline != std::string_view::npos) {
           value = content.substr(0, newline);
-          store_.insert_or_assign(std::string(key), value);
+          set_entry(key, std::string(value));
           content.remove_prefix(newline + 1);
         } else {
           // No newline - take rest of content
           value = content;
-          store_.insert_or_assign(std::string(key), value);
+          set_entry(key, std::string(value));
           break;
         }
       } else {
         // Found closing quote - take content between quotes
         value = content.substr(1, closing_quote - 1);
-        store_.insert_or_assign(std::string(key), value);
+        set_entry(key, std::string(value));
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
           // Use +1 to discard the '\n' itself => next line
@@ -296,7 +312,7 @@ void Dotenv::ParseContent(const std::string_view input) {
           value = value.substr(0, hash_character);
         }
         value = trim_spaces(value);
-        store_.insert_or_assign(std::string(key), std::string(value));
+        set_entry(key, std::string(value));
         content.remove_prefix(newline + 1);
       } else {
         // Last line without newline
@@ -305,7 +321,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (hash_char != std::string_view::npos) {
           value = content.substr(0, hash_char);
         }
-        store_.insert_or_assign(std::string(key), trim_spaces(value));
+        set_entry(key, std::string(trim_spaces(value)));
         content = {};
       }
     }
