@@ -55,7 +55,13 @@ await clientSession.opened;
     message: /writer already accessed/,
   });
 
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  // The server handles only the first stream and then closes its session, so
+  // this stream is never answered and never receives a FIN. Reading it
+  // therefore surfaces the truncation rather than ending cleanly.
+  await assert.rejects((async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream) { /* drain */ }
+  })(), { code: 'ERR_QUIC_STREAM_ABORTED' });
   await stream.closed;
 }
 
