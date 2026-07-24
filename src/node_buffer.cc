@@ -1360,31 +1360,17 @@ void FastSwap64(Local<Value> receiver,
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
 
-struct ValidationResult {
-  bool is_valid;
-  bool was_detached;
-};
-
-static ValidationResult ValidateUtf8(Local<Value> value) {
+static bool ValidateUtf8(Local<Value> value) {
   ArrayBufferViewContents<char> abv(value);
-  bool was_detached = abv.WasDetached();
-  return {!was_detached && simdutf::validate_utf8(abv.data(), abv.length()),
-          was_detached};
+  return abv.length() == 0 || simdutf::validate_utf8(abv.data(), abv.length());
 }
 
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
 
-  const ValidationResult result = ValidateUtf8(args[0]);
-  if (result.was_detached) {
-    return node::THROW_ERR_INVALID_STATE(
-        env, "Cannot validate on a detached buffer");
-  }
-
-  args.GetReturnValue().Set(result.is_valid);
+  args.GetReturnValue().Set(ValidateUtf8(args[0]));
 }
 
 static bool FastIsUtf8(Local<Value> receiver,
@@ -1393,40 +1379,23 @@ static bool FastIsUtf8(Local<Value> receiver,
                        FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isUtf8");
   HandleScope scope(options.isolate);
-
-  const ValidationResult result = ValidateUtf8(value);
-  if (result.was_detached) {
-    node::THROW_ERR_INVALID_STATE(options.isolate,
-                                  "Cannot validate on a detached buffer");
-    return false;
-  }
-  return result.is_valid;
+  return ValidateUtf8(value);
 }
 
 static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
 
-static ValidationResult ValidateAscii(Local<Value> value) {
+static bool ValidateAscii(Local<Value> value) {
   ArrayBufferViewContents<char> abv(value);
-  bool was_detached = abv.WasDetached();
-  return {
-      !was_detached &&
-          !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error,
-      was_detached};
+  return abv.length() == 0 ||
+         !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error;
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
 
-  const ValidationResult result = ValidateAscii(args[0]);
-  if (result.was_detached) {
-    return node::THROW_ERR_INVALID_STATE(
-        env, "Cannot validate on a detached buffer");
-  }
-
-  args.GetReturnValue().Set(result.is_valid);
+  args.GetReturnValue().Set(ValidateAscii(args[0]));
 }
 
 static bool FastIsAscii(Local<Value> receiver,
@@ -1435,14 +1404,7 @@ static bool FastIsAscii(Local<Value> receiver,
                         FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isAscii");
   HandleScope scope(options.isolate);
-
-  const ValidationResult result = ValidateAscii(value);
-  if (result.was_detached) {
-    node::THROW_ERR_INVALID_STATE(options.isolate,
-                                  "Cannot validate on a detached buffer");
-    return false;
-  }
-  return result.is_valid;
+  return ValidateAscii(value);
 }
 
 static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
