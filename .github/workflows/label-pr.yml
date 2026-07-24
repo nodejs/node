@@ -3,16 +3,76 @@ name: Label PRs
 on:
   pull_request_target:
     types: [opened]
+  workflow_run:
+    workflows: [PR Reviewed]
+    types: [completed]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   label:
     runs-on: ubuntu-slim
+    if: github.event_name != 'workflow_run'
 
     steps:
       - uses: nodejs/node-pr-labeler@d4cf1b8b9f23189c37917000e5e17e796c770a6b  # v1
         with:
           repo-token: ${{ secrets.GH_USER_TOKEN }}
           configuration-path: .github/label-pr-config.yml
+
+  count_approvals:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run'
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Download PR number
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: pr-number
+          run-id: ${{ github.event.workflow_run.id }}
+          # Using privileged token to be able to download file from a different workflow
+          github-token: ${{ secrets.GH_USER_TOKEN }}
+      - name: Fetch PR data
+        id: pr-data
+        run: |
+          set -x
+          PR_NUMBER="$(grep -E '^[0-9]+$' pr_number.txt)"
+
+          [ -n "$PR_NUMBER" ] && {
+            echo "NUMBER=$PR_NUMBER"
+            echo "DATA=$(
+              gh --repo "$GITHUB_REPOSITORY" pr view "$PR_NUMBER" \
+                --json reviewDecision,headRefOid,reviews,labels \
+                --jq 'if .reviewDecision != "APPROVED" then .reviewDecision | halt_error end' \
+              || true
+            )"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          # Using unprivileged token as PR_NUMBER is a user-provided value
+          GH_TOKEN: ${{ github.token }}
+      - name: 'Add/remove "Approvals: 2+" label'
+        run: |
+          set -x
+          [ -n "$PR_DATA" ] && {
+            TEAM_NAME=$(echo "$PR_DATA" | jq -r 'if (.labels | any(.name == "semver-major")) then "tsc" else "collaborators" end')
+            TEAM_MEMBERS=$(gh api "orgs/nodejs/teams/$TEAM_NAME/members" --paginate --jq 'map(.login)')
+
+            echo "$PR_DATA" | jq --argjson team "$TEAM_MEMBERS" -r '
+              .headRefOid as $head
+              | .reviews
+              | map(select(
+                      .state == "APPROVED"
+                  and .commit.oid == $head
+                  and (.author.login as $login | $team | any(. == $login))
+                ))
+              | unique_by(.author.login)
+              | if length < 2 then halt_error end' \
+            && gh --repo "$GITHUB_REPOSITORY" pr edit "$PR_NUMBER" --add-label 'Approvals: 2+'
+          } \
+          || gh --repo "$GITHUB_REPOSITORY" pr edit "$PR_NUMBER" --remove-label 'Approvals: 2+'
+        env:
+          # Using privileged token to be able to fetch the team list
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PR_NUMBER: ${{ steps.pr-data.outputs.NUMBER }}
+          PR_DATA: ${{ steps.pr-data.outputs.DATA }}
