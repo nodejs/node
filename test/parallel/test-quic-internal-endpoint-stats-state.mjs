@@ -158,6 +158,7 @@ strictEqual(streamState.reset, false);
 strictEqual(streamState.hasReader, false);
 strictEqual(streamState.wantsBlock, false);
 strictEqual(streamState.wantsReset, false);
+strictEqual(streamState.wantsStopSending, false);
 
 strictEqual(sessionState.hasPathValidationListener, false);
 strictEqual(sessionState.hasDatagramListener, false);
