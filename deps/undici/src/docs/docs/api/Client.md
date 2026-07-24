@@ -49,6 +49,10 @@ added: v1.0.0
   * `headersTimeout` {number|null} The timeout, in milliseconds, the parser
     waits to receive the complete HTTP headers before the request times out. Use
     `0` to disable it entirely. **Default:** `300e3`.
+    HTTP/1.1 headers/body parser timeouts are not guaranteed to fire with exact
+    millisecond precision: delays up to 1000ms use native timers, while larger
+    delays use undici's lower-overhead fast timers with a target resolution
+    around 500ms.
   * `connectTimeout` {number|null} The timeout, in milliseconds, for
     establishing a socket connection. Use `0` to disable it entirely.
     **Default:** `10e3`.

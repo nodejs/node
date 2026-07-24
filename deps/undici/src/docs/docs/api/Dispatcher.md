@@ -228,6 +228,10 @@ added: v4.0.0
   * `bodyTimeout` {number|null} The time, in milliseconds, after which the request
     times out while receiving body data. Monitors the time between body chunks.
     Use `0` to disable it entirely. Defaults to 300 seconds.
+    HTTP/1.1 headers/body parser timeouts are not guaranteed to fire with exact
+    millisecond precision: delays up to 1000ms use native timers, while larger
+    delays use undici's lower-overhead fast timers with a target resolution
+    around 500ms.
   * `reset` {boolean} Whether the request should establish a keep-alive
     connection. **Default:** `false`.
   * `expectContinue` {boolean} For HTTP/2, appends the `expect: 100-continue`
@@ -729,6 +733,8 @@ await client.request({ path: '/', method: 'GET' })
 ```
 
 For the full list of built-in interceptors provided by undici, see [Interceptors](Interceptors.md).
+For an example of a custom interceptor that wraps handler callbacks, see
+[Custom interceptors](Interceptors.md#custom-interceptors).
 
 ### Event: `'connect'`
 

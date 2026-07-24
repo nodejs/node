@@ -1811,7 +1811,10 @@ var require_util = __commonJS({
         if (Object.getPrototypeOf(stream2).constructor === IncomingMessage) {
           stream2.socket = null;
         }
-        stream2.destroy(err);
+        try {
+          stream2.destroy(err);
+        } catch {
+        }
       } else if (err) {
         queueMicrotask(() => {
           stream2.emit("error", err);
@@ -2873,7 +2876,7 @@ var require_request = __commonJS({
         this.headersTimeout = headersTimeout;
         this.bodyTimeout = bodyTimeout;
         this.method = method;
-        this.typeOfService = typeOfService ?? 0;
+        this.typeOfService = typeOfService;
         this.abort = null;
         if (body == null) {
           this.body = null;
@@ -3107,7 +3110,11 @@ var require_request = __commonJS({
           } else if (typeof val[i] === "object") {
             throw new InvalidArgumentError(`invalid ${key} header`);
           } else {
-            arr.push(`${val[i]}`);
+            const str = `${val[i]}`;
+            if (!isValidHeaderValue(str)) {
+              throw new InvalidArgumentError(`invalid ${key} header`);
+            }
+            arr.push(str);
           }
         }
         val = arr;
@@ -3119,6 +3126,9 @@ var require_request = __commonJS({
         val = "";
       } else {
         val = `${val}`;
+        if (!isValidHeaderValue(val)) {
+          throw new InvalidArgumentError(`invalid ${key} header`);
+        }
       }
       if (headerName === "host") {
         if (request.host !== null) {
@@ -6730,6 +6740,7 @@ var require_body = __commonJS({
     var { multipartFormDataParser } = require_formdata_parser();
     var { parseJSONFromBytes } = require_infra();
     var { utf8DecodeBytes } = require_encoding();
+    var { ReadableStreamTee } = require("node:stream/web");
     var textEncoder = new TextEncoder();
     function noop() {
     }
@@ -6875,7 +6886,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     }
     __name(safelyExtractBody, "safelyExtractBody");
     function cloneBody(body) {
-      const { 0: out1, 1: out2 } = body.stream.tee();
+      const { 0: out1, 1: out2 } = ReadableStreamTee?.(body.stream, true) ?? body.stream.tee();
       body.stream = out1;
       return {
         stream: out2,
@@ -7034,6 +7045,7 @@ var require_client_h1 = __commonJS({
       RequestContentLengthMismatchError,
       ResponseContentLengthMismatchError,
       RequestAbortedError,
+      InvalidArgumentError,
       HeadersTimeoutError,
       HeadersOverflowError,
       SocketError,
@@ -7083,6 +7095,7 @@ var require_client_h1 = __commonJS({
     var kIdleSocketValidation = /* @__PURE__ */ Symbol("kIdleSocketValidation");
     var kIdleSocketValidationTimeout = /* @__PURE__ */ Symbol("kIdleSocketValidationTimeout");
     var kSocketUsed = /* @__PURE__ */ Symbol("kSocketUsed");
+    var kTypeOfService = /* @__PURE__ */ Symbol("kTypeOfService");
     var extractBody;
     function lazyllhttp() {
       const llhttpWasmData = process.env.JEST_WORKER_ID ? require_llhttp_wasm() : void 0;
@@ -7830,7 +7843,7 @@ var require_client_h1 = __commonJS({
     __name(onSocketClose, "onSocketClose");
     function clearIdleSocketValidation(socket) {
       if (socket[kIdleSocketValidationTimeout]) {
-        clearTimeout(socket[kIdleSocketValidationTimeout]);
+        clearImmediate(socket[kIdleSocketValidationTimeout]);
         socket[kIdleSocketValidationTimeout] = null;
       }
       socket[kIdleSocketValidation] = 0;
@@ -7838,13 +7851,13 @@ var require_client_h1 = __commonJS({
     __name(clearIdleSocketValidation, "clearIdleSocketValidation");
     function scheduleIdleSocketValidation(client, socket) {
       socket[kIdleSocketValidation] = 1;
-      socket[kIdleSocketValidationTimeout] = setTimeout(() => {
+      socket[kIdleSocketValidationTimeout] = setImmediate(() => {
         socket[kIdleSocketValidationTimeout] = null;
         socket[kIdleSocketValidation] = 2;
         if (client[kSocket] === socket && !socket.destroyed) {
           client[kResume]();
         }
-      }, 0);
+      });
       socket[kIdleSocketValidationTimeout].unref?.();
     }
     __name(scheduleIdleSocketValidation, "scheduleIdleSocketValidation");
@@ -7901,6 +7914,25 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     __name(shouldSendContentLength, "shouldSendContentLength");
+    function setTypeOfService(socket, request) {
+      if (typeof socket.setTypeOfService !== "function") {
+        return;
+      }
+      const typeOfService = request.typeOfService;
+      if (typeOfService === void 0) {
+        return;
+      }
+      const currentTypeOfService = socket[kTypeOfService];
+      if (currentTypeOfService === typeOfService) {
+        return;
+      }
+      try {
+        socket.setTypeOfService(typeOfService);
+        socket[kTypeOfService] = typeOfService;
+      } catch {
+      }
+    }
+    __name(setTypeOfService, "setTypeOfService");
     function writeH1(client, request) {
       const { method, path, host, upgrade, blocking, reset } = request;
       let { body, headers, contentLength } = request;
@@ -7915,8 +7947,16 @@ var require_client_h1 = __commonJS({
         }
         body = bodyStream.stream;
         contentLength = bodyStream.length;
-      } else if (util.isBlobLike(body) && request.contentType == null && body.type) {
-        headers.push("content-type", body.type);
+      } else if (util.isBlobLike(body) && request.contentType == null) {
+        const contentType = body.type;
+        if (contentType) {
+          const contentTypeValue = `${contentType}`;
+          if (!util.isValidHeaderValue(contentTypeValue)) {
+            util.errorRequest(client, request, new InvalidArgumentError("invalid content-type header"));
+            return false;
+          }
+          headers.push("content-type", contentTypeValue);
+        }
       }
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -7969,9 +8009,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      if (socket.setTypeOfService) {
-        socket.setTypeOfService(request.typeOfService);
-      }
+      setTypeOfService(socket, request);
       let header = `${method} ${path} HTTP/1.1\r
 `;
       if (typeof host === "string") {
@@ -8470,6 +8508,7 @@ var require_client_h2 = __commonJS({
       const queue = client[kQueue];
       const runningIdx = client[kRunningIdx];
       if (runningIdx < client[kPendingIdx] && queue[runningIdx] === request) {
+        queue[runningIdx] = null;
         client[kRunningIdx] = runningIdx + 1;
         return;
       }
@@ -8540,7 +8579,6 @@ var require_client_h2 = __commonJS({
       }
       util.addListener(session, "error", onHttp2SessionError);
       util.addListener(session, "frameError", onHttp2FrameError);
-      util.addListener(session, "end", onHttp2SessionEnd);
       util.addListener(session, "goaway", onHttp2SessionGoAway);
       util.addListener(session, "close", onHttp2SessionClose);
       util.addListener(session, "remoteSettings", onHttp2RemoteSettings);
@@ -8599,7 +8637,6 @@ var require_client_h2 = __commonJS({
           if (request != null) {
             if (client[kRunning] > 0) {
               if ((request.upgrade === "websocket" || request.method === "CONNECT") && session[kRemoteSettings] === false) return true;
-              if (util.bodyLength(request.body) !== 0 && (util.isStream(request.body) || util.isAsyncIterable(request.body) || util.isFormDataLike(request.body))) return true;
             } else {
               return (request.upgrade === "websocket" || request.method === "CONNECT") && session[kRemoteSettings] === false;
             }
@@ -8742,12 +8779,6 @@ var require_client_h2 = __commonJS({
       }
     }
     __name(onHttp2FrameError, "onHttp2FrameError");
-    function onHttp2SessionEnd() {
-      const err = new SocketError("other side closed", util.getSocketInfo(this[kSocket]));
-      this.destroy(err);
-      util.destroy(this[kSocket], err);
-    }
-    __name(onHttp2SessionEnd, "onHttp2SessionEnd");
     function onHttp2SessionGoAway(errorCode, lastStreamID) {
       if (this[kReceivedGoAway]) {
         return;
@@ -8844,7 +8875,7 @@ var require_client_h2 = __commonJS({
       if (this[kHTTP2Session]?.[kReceivedGoAway]) {
         return;
       }
-      this[kClient][kOnError](err);
+      this[kHTTP2Session]?.[kClient]?.[kOnError](err);
     }
     __name(onHttp2SocketError, "onHttp2SocketError");
     function onHttp2SocketEnd() {
@@ -8876,19 +8907,20 @@ var require_client_h2 = __commonJS({
       closeStreamSession(this);
     }
     __name(onUpgradeStreamClose, "onUpgradeStreamClose");
-    function onRequestStreamClose() {
+    function completeRequestStream() {
       const state = this[kRequestStreamState];
-      if (state) {
-        releaseRequestStream(this);
-        if (state.pendingEnd && !state.request.aborted && !state.request.completed) {
-          state.request.onResponseEnd(state.trailers || {});
-          finalizeRequest(state);
-        }
+      if (state == null) {
+        return;
       }
+      releaseRequestStream(this);
+      if (state.pendingEnd && !state.request.aborted && !state.request.completed) {
+        state.request.onResponseEnd(state.trailers || {});
+      }
+      finalizeRequest(state);
       closeStreamSession(this);
       this[kRequestStreamState] = null;
     }
-    __name(onRequestStreamClose, "onRequestStreamClose");
+    __name(completeRequestStream, "completeRequestStream");
     function shouldSendContentLength(method) {
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
@@ -9077,11 +9109,9 @@ var require_client_h2 = __commonJS({
           clearRequestStream(request);
           const stream2 = state.stream;
           stream2.close();
-          setImmediate(() => {
-            if (!stream2.destroyed) {
-              util.destroy(stream2);
-            }
-          });
+          if (!stream2.destroyed) {
+            util.destroy(stream2);
+          }
           client[kOnError](err);
           finalizeRequest(state, resetPendingIdx);
         }
@@ -9190,7 +9220,7 @@ var require_client_h2 = __commonJS({
         stream.setTimeout(headersTimeout);
       }
       stream[kHTTP2Session] = session;
-      stream.on("close", onRequestStreamClose);
+      stream.on("close", completeRequestStream);
       bindRequestToStream(request, stream, releaseRequestStream);
       if (expectContinue) {
         stream.once("continue", writeBodyH2);
@@ -9296,6 +9326,7 @@ var require_client_h2 = __commonJS({
       if (state.responseReceived) {
         if (!request.aborted && !request.completed) {
           state.pendingEnd = true;
+          completeRequestStream.call(stream);
         }
       } else {
         state.abort(new InformationalError("HTTP/2: stream half-closed (remote)"), true);
@@ -10318,14 +10349,14 @@ var require_agent = __commonJS({
               dispatcher.close();
             }
             let hasOrigin = false;
-            for (const client of this[kClients].values()) {
-              if (client[kUrl].origin === dispatcher[kUrl].origin) {
+            for (const k of this[kClients].keys()) {
+              if (k === origin || k === `${origin}#http1-only`) {
                 hasOrigin = true;
                 break;
               }
             }
             if (!hasOrigin) {
-              this[kOrigins].delete(dispatcher[kUrl].origin);
+              this[kOrigins].delete(origin);
             }
           }, "closeClientIfUnused");
           dispatcher.on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", (origin2, targets, err) => {
@@ -10470,6 +10501,7 @@ var require_global2 = __commonJS({
     var { InvalidArgumentError } = require_errors();
     var Agent = require_agent();
     var Dispatcher1Wrapper = require_dispatcher1_wrapper();
+    var fallbackDispatcher;
     if (getGlobalDispatcher2() === void 0) {
       setGlobalDispatcher2(new Agent());
     }
@@ -10477,23 +10509,37 @@ var require_global2 = __commonJS({
       if (!agent || typeof agent.dispatch !== "function") {
         throw new InvalidArgumentError("Argument agent must implement Agent");
       }
-      Object.defineProperty(globalThis, globalDispatcher, {
-        value: agent,
-        writable: true,
-        enumerable: false,
-        configurable: false
-      });
-      const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent);
-      Object.defineProperty(globalThis, legacyGlobalDispatcher, {
-        value: legacyAgent,
-        writable: true,
-        enumerable: false,
-        configurable: false
-      });
+      try {
+        Object.defineProperty(globalThis, globalDispatcher, {
+          value: agent,
+          writable: true,
+          enumerable: false,
+          configurable: false
+        });
+      } catch (err) {
+        if (err instanceof TypeError) {
+          fallbackDispatcher = agent;
+          return;
+        }
+        throw err;
+      }
+      try {
+        const legacyAgent = agent instanceof Dispatcher1Wrapper ? agent : new Dispatcher1Wrapper(agent);
+        Object.defineProperty(globalThis, legacyGlobalDispatcher, {
+          value: legacyAgent,
+          writable: true,
+          enumerable: false,
+          configurable: false
+        });
+      } catch (err) {
+        if (!(err instanceof TypeError)) {
+          throw err;
+        }
+      }
     }
     __name(setGlobalDispatcher2, "setGlobalDispatcher");
     function getGlobalDispatcher2() {
-      return globalThis[globalDispatcher];
+      return globalThis[globalDispatcher] ?? fallbackDispatcher;
     }
     __name(getGlobalDispatcher2, "getGlobalDispatcher");
     var installedExports = (
@@ -12173,9 +12219,7 @@ var require_response = __commonJS({
       // https://fetch.spec.whatwg.org/#dom-response-json
       static json(data, init = void 0) {
         webidl.argumentLengthCheck(arguments, 1, "Response.json");
-        if (init !== null) {
-          init = webidl.converters.ResponseInit(init);
-        }
+        init = webidl.converters.ResponseInit(init);
         const bytes = textEncoder.encode(
           serializeJavascriptValueToJSONString(data)
         );

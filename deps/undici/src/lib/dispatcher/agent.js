@@ -107,15 +107,15 @@ class Agent extends DispatcherBase {
         }
 
         let hasOrigin = false
-        for (const client of this[kClients].values()) {
-          if (client[kUrl].origin === dispatcher[kUrl].origin) {
+        for (const k of this[kClients].keys()) {
+          if (k === origin || k === `${origin}#http1-only`) {
             hasOrigin = true
             break
           }
         }
 
         if (!hasOrigin) {
-          this[kOrigins].delete(dispatcher[kUrl].origin)
+          this[kOrigins].delete(origin)
         }
       }
 
