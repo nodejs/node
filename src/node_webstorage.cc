@@ -167,24 +167,24 @@ Maybe<void> Storage::Open() {
       ""
       "INSERT OR IGNORE INTO nodejs_webstorage_state (total_size) VALUES (0);";
 
-  sqlite3* db = db_.get();
-  if (db != nullptr) {
+  if (db_ != nullptr) {
     return JustVoid();
   }
 
+  sqlite3* db = nullptr;
   int r = sqlite3_open(location_.c_str(), &db);
+  auto conn = conn_unique_ptr(db);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
-  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
+  r = sqlite3_exec(conn.get(), init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
 
   // Get the current schema version, used to determine schema migrations.
   sqlite3_stmt* s = nullptr;
-  r = sqlite3_prepare_v2(db,
+  r = sqlite3_prepare_v2(conn.get(),
                          get_schema_version_sql.data(),
                          get_schema_version_sql.size(),
                          &s,
                          nullptr);
-  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
@@ -205,11 +205,11 @@ Maybe<void> Storage::Open() {
         "UPDATE nodejs_webstorage_state SET schema_version = " +
         std::to_string(kCurrentSchemaVersion) + ";";
     r = sqlite3_exec(
-        db, set_user_version_sql.c_str(), nullptr, nullptr, nullptr);
+        conn.get(), set_user_version_sql.c_str(), nullptr, nullptr, nullptr);
     CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   }
 
-  db_ = conn_unique_ptr(db);
+  db_ = std::move(conn);
   return JustVoid();
 }
 
