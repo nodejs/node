@@ -1068,10 +1068,23 @@ void DatabaseSync::CreateTagStore(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   int capacity = 1000;
-  if (args.Length() > 0 && args[0]->IsNumber()) {
-    capacity = args[0].As<Number>()->Value();
+  if (args.Length() > 0 && !args[0]->IsUndefined()) {
+    if (!args[0]->IsNumber()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"maxSize\" argument must be a positive integer.");
+      return;
+    }
+    double val = args[0].As<Number>()->Value();
+    if (!std::isfinite(val) || std::floor(val) != val || val <= 0 ||
+        val > std::numeric_limits<int>::max()) {
+      THROW_ERR_OUT_OF_RANGE(
+          env->isolate(),
+          "The \"maxSize\" argument must be a positive integer.");
+      return;
+    }
+    capacity = static_cast<int>(val);
   }
-
   BaseObjectPtr<SQLTagStore> session =
       SQLTagStore::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), capacity);
   if (!session) {
