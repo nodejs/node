@@ -5,32 +5,37 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const vfs = require('node:vfs');
+
+// Mount points look like `${os.devNull}/vfs/<id>` where `<id>` is a decimal
+// integer segment. This regex captures that structural invariant without
+// tying the tests to a specific id.
+const mountPointShape = new RegExp(
+  `^${os.devNull.replace(/[\\^$.*+?()[\]{}|/\\\\]/g, '\\$&')}` +
+  `\\${path.sep}vfs\\${path.sep}\\d+$`,
+);
 
 // Basic mount/unmount API and dispatch through node:vfs from the public fs.
 
-const baseMountPoint = path.resolve('/tmp/vfs-mount-' + process.pid);
-let mountCounter = 0;
-
 function createMountedVfs() {
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount();
   return { myVfs, mountPoint };
 }
 
-// Test: mounted/mountPoint getters
+// Test: mounted/mountPoint getters; mount() returns a path under os.devNull.
 {
   const myVfs = vfs.create();
   assert.strictEqual(myVfs.mounted, false);
   assert.strictEqual(myVfs.mountPoint, null);
 
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount();
   assert.strictEqual(myVfs.mounted, true);
   assert.strictEqual(myVfs.mountPoint, mountPoint);
+  assert.match(mountPoint, mountPointShape);
 
   myVfs.unmount();
   assert.strictEqual(myVfs.mounted, false);
@@ -40,22 +45,26 @@ function createMountedVfs() {
 // Test: double-mount throws
 {
   const myVfs = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
-  assert.throws(() => myVfs.mount(mountPoint), { code: 'ERR_INVALID_STATE' });
+  myVfs.mount();
+  assert.throws(() => myVfs.mount(), { code: 'ERR_INVALID_STATE' });
   myVfs.unmount();
 }
 
-// Test: overlapping mounts throw
+// Test: two instances get distinct mount points in their own layer namespace.
 {
   const a = vfs.create();
   const b = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  a.mount(mountPoint);
-  assert.throws(() => b.mount(mountPoint), { code: 'ERR_INVALID_STATE' });
-  assert.throws(() => b.mount(path.join(mountPoint, 'inner')),
-                { code: 'ERR_INVALID_STATE' });
+  a.writeFileSync('/f.txt', 'A');
+  b.writeFileSync('/f.txt', 'B');
+  const mountA = a.mount();
+  const mountB = b.mount();
+  assert.notStrictEqual(mountA, mountB);
+  assert.match(mountA, mountPointShape);
+  assert.match(mountB, mountPointShape);
+  assert.strictEqual(fs.readFileSync(path.join(mountA, 'f.txt'), 'utf8'), 'A');
+  assert.strictEqual(fs.readFileSync(path.join(mountB, 'f.txt'), 'utf8'), 'B');
   a.unmount();
+  b.unmount();
 }
 
 // Test: fs.readFileSync intercepted
@@ -165,8 +174,7 @@ function createMountedVfs() {
 // Test: Symbol.dispose unmounts
 {
   const myVfs = vfs.create();
-  const mountPoint = baseMountPoint + '-' + (mountCounter++);
-  myVfs.mount(mountPoint);
+  myVfs.mount();
   assert.strictEqual(myVfs.mounted, true);
   myVfs[Symbol.dispose]();
   assert.strictEqual(myVfs.mounted, false);

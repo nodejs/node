@@ -1,8 +1,8 @@
 // Flags: --experimental-vfs
 'use strict';
 
-// Two concurrent non-overlapping mounts must each route to its own VFS without
-// interference. Also exercises that the handler registry iterates and routes
+// Two concurrent mounts must each route to its own VFS without
+// interference. Also exercises that the layer registry routes
 // correctly when more than one VFS is active.
 
 require('../common');
@@ -10,9 +10,6 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
-
-const baseA = path.resolve('/tmp/vfs-multi-a-' + process.pid);
-const baseB = path.resolve('/tmp/vfs-multi-b-' + process.pid);
 
 const a = vfs.create();
 a.writeFileSync('/file.txt', 'from-a');
@@ -24,8 +21,8 @@ b.writeFileSync('/file.txt', 'from-b');
 b.mkdirSync('/dir', { recursive: true });
 b.writeFileSync('/dir/inside.txt', 'b-inside');
 
-a.mount(baseA);
-b.mount(baseB);
+const baseA = a.mount();
+const baseB = b.mount();
 
 // Each mount sees its own content
 assert.strictEqual(fs.readFileSync(path.join(baseA, 'file.txt'), 'utf8'),

@@ -9,10 +9,9 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-writeFileSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 const target = path.join(mountPoint, 'src/new.txt');
 
@@ -58,15 +57,12 @@ myVfs.unmount();
 // after the backing path is renamed.
 {
   const root = path.join('/tmp', 'vfs-real-writeFileSync-' + process.pid);
-  const realMountPoint = path.join('/tmp', 'vfs-real-writeFileSync-mount-' + process.pid);
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(realMountPoint, { recursive: true, force: true });
   fs.mkdirSync(root, { recursive: true });
-  fs.mkdirSync(realMountPoint, { recursive: true });
 
-  const realVfs = vfs
-    .create(new vfs.RealFSProvider(root), { emitExperimentalWarning: false })
-    .mount(realMountPoint);
+  const realVfs = vfs.create(
+    new vfs.RealFSProvider(root), { emitExperimentalWarning: false });
+  const realMountPoint = realVfs.mount();
   try {
     const mountedFile = path.join(realMountPoint, 'a.txt');
     fs.writeFileSync(path.join(root, 'a.txt'), 'old');
@@ -83,6 +79,5 @@ myVfs.unmount();
   } finally {
     realVfs.unmount();
     fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(realMountPoint, { recursive: true, force: true });
   }
 }

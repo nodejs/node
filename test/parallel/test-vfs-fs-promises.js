@@ -12,11 +12,10 @@ const path = require('path');
 const vfs = require('node:vfs');
 
 (async () => {
-  const mountPoint = path.resolve('/tmp/vfs-promises-' + process.pid);
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount();
   const p = (s) => path.join(mountPoint, s);
 
   // Path-based reads
