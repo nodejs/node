@@ -13,11 +13,22 @@ tmpdir.refresh();
 
 const dest = path.resolve(tmpDir, 'tmp.txt');
 const otherDest = path.resolve(tmpDir, 'tmp-2.txt');
+const errorDest = path.resolve(tmpDir, 'tmp-error.txt');
 const buffer = Buffer.from('abc'.repeat(1000));
 const stream = Readable.from(['a', 'b', 'c']);
 const stream2 = Readable.from(['ümlaut', ' ', 'sechzig']);
 const iterable = {
   expected: 'abc',
+  *[Symbol.iterator]() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+};
+const streamLikeIterable = {
+  expected: 'abc',
+  pipe: common.mustNotCall('pipe should not be called for custom iterables'),
+  on: common.mustNotCall('on should not be called without removeListener'),
   *[Symbol.iterator]() {
     yield 'a';
     yield 'b';
@@ -39,6 +50,27 @@ function iterableWith(value) {
     }
   };
 }
+
+function createEarlyErrorStream(error) {
+  const stream = new Readable({
+    read() {}
+  });
+  process.nextTick(() => stream.destroy(error));
+  return stream;
+}
+
+function createErroredStream(error) {
+  const stream = new Readable({
+    read() {}
+  });
+  stream.destroy(error);
+  return stream;
+}
+
+function waitForNextTick() {
+  return new Promise((resolve) => process.nextTick(resolve));
+}
+
 const bufferIterable = {
   expected: 'abc',
   *[Symbol.iterator]() {
@@ -77,6 +109,53 @@ async function doWriteStream() {
   assert.deepStrictEqual(data, expected);
 }
 
+async function doWriteStreamError() {
+  const error = new Error('early writeFile stream error');
+  const stream = createEarlyErrorStream(error);
+  const uncaughtException = common.mustNotCall(
+    'stream errors should reject writeFile()');
+
+  process.once('uncaughtException', uncaughtException);
+  try {
+    await assert.rejects(
+      fsPromises.writeFile(errorDest, stream),
+      { message: error.message }
+    );
+    assert.strictEqual(stream.listenerCount('error'), 0);
+  } finally {
+    process.removeListener('uncaughtException', uncaughtException);
+  }
+}
+
+async function doWriteAlreadyErroredStream() {
+  const error = new Error('already errored writeFile stream');
+  const stream = createErroredStream(error);
+  const uncaughtException = common.mustNotCall(
+    'already errored streams should reject writeFile()');
+
+  process.once('uncaughtException', uncaughtException);
+  try {
+    await assert.rejects(
+      fsPromises.writeFile(errorDest, stream),
+      { message: error.message }
+    );
+    await waitForNextTick();
+    assert.strictEqual(stream.listenerCount('error'), 0);
+  } finally {
+    process.removeListener('uncaughtException', uncaughtException);
+  }
+}
+
+async function doWriteStreamOpenError() {
+  const stream = Readable.from(['a']);
+
+  await assert.rejects(
+    fsPromises.writeFile(path.resolve(tmpDir, 'not-found', 'tmp.txt'), stream),
+    { code: 'ENOENT' }
+  );
+  assert.strictEqual(stream.listenerCount('error'), 0);
+}
+
 async function doWriteStreamWithCancel() {
   const controller = new AbortController();
   const { signal } = controller;
@@ -91,6 +170,12 @@ async function doWriteIterable() {
   await fsPromises.writeFile(dest, iterable);
   const data = fs.readFileSync(dest, 'utf-8');
   assert.deepStrictEqual(data, iterable.expected);
+}
+
+async function doWriteStreamLikeIterable() {
+  await fsPromises.writeFile(dest, streamLikeIterable);
+  const data = fs.readFileSync(dest, 'utf-8');
+  assert.deepStrictEqual(data, streamLikeIterable.expected);
 }
 
 async function doWriteInvalidIterable() {
@@ -165,8 +250,12 @@ async function doWriteTypedArrays() {
   await doWriteBufferAndCancel();
   await doWriteString();
   await doWriteStream();
+  await doWriteStreamError();
+  await doWriteAlreadyErroredStream();
+  await doWriteStreamOpenError();
   await doWriteStreamWithCancel();
   await doWriteIterable();
+  await doWriteStreamLikeIterable();
   await doWriteInvalidIterable();
   await doWriteIterableWithEncoding();
   await doWriteBufferIterable();
