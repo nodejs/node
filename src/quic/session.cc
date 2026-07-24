@@ -2813,9 +2813,9 @@ bool Session::ReadPacket(const uint8_t* data,
       Debug(this, "Session successfully received %zu-byte packet", len);
       if (!is_destroyed()) [[likely]] {
         STAT_INCREMENT_N(Stats, bytes_received, len);
-        // Process deferred operations that couldn't run inside callback
-        // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
-        application().PostReceive();
+        // Process deferred application operations after ALPN selection - not
+        // necessarily resolved yet as ClientHello can span multiple packets.
+        if (has_application()) application().PostReceive();
         // Surface a server session to JS once its ClientHello has been
         // processed (OnSelectAlpn fired: SNI + ALPN are known and reliable).
         // Held first-flight events - including 0-RTT request streams - replay
