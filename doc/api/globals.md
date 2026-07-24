@@ -567,6 +567,18 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
+### Differences from browser `fetch()`
+
+The Node.js implementation of `fetch()` is browser-compatible but is
+implemented by undici. Some browser-specific behaviors do not apply in Node.js.
+
+Known differences include:
+
+* Browser-specific forbidden header restrictions are not applied, although
+  lower-level HTTP constraints still apply.
+* Cookies are not automatically stored or sent between requests.
+* `AsyncIterable` instances can be used as `Request` or `Response` bodies.
+
 ### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
