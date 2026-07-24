@@ -1612,17 +1612,19 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     // Store the SNI context for later use.
     w->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
-    if (w->ssl_.setSniContext(w->sni_context_->ctx()) && !w->SetCACerts(sc)) {
+    // Replace the complete SSL certificate configuration. Copying only the
+    // certificate and private key leaves credentials for other key types from
+    // the default context in place, allowing OpenSSL to select one of them.
+    if (SSL_set_SSL_CTX(w->ssl_.get(), sc->ctx().get()) == nullptr ||
+        !w->SetCACerts(sc)) {
       // Not clear why sometimes we throw error, and sometimes we call
       // onerror(). Both cause .destroy(), but onerror does a bit more.
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       return ThrowCryptoError(env, err, "CertCbDone");
     }
-    // setSniContext copies the cert via SSL_use_certificate which does not
-    // carry over pre-compressed certificate data (comp_cert). If the new
-    // context has certificate compression configured, set the compression
-    // preferences on this connection and apply the cached compressed cert
-    // data so the server can send CompressedCertificate messages.
+    // Certificate compression preferences are stored on the SSL connection,
+    // rather than the SSL context. Apply the selected context's preferences
+    // after replacing the SSL certificate configuration.
 #ifdef NODE_OPENSSL_HAS_CERT_COMP
     if (sc->HasCertCompression()) {
       SSL_set1_cert_comp_preference(
