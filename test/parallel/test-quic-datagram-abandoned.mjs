@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { notStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,7 +30,7 @@ const clientSession = await connect(serverEndpoint.address, {
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagramstatus: mustCallAtLeast((id, status) => {
     if (status === 'abandoned') {
-      strictEqual(id, ids[0]);
+      assert.strictEqual(id, ids[0]);
       abandoned = true;
     }
     // We'll likely only get status for one other datagram.
@@ -49,13 +47,13 @@ ids[0] = await clientSession.sendDatagram(new Uint8Array([1]));
 ids[1] = await clientSession.sendDatagram(new Uint8Array([2]));
 ids[2] = await clientSession.sendDatagram(new Uint8Array([3]));
 
-notStrictEqual(ids[0], 0n);
-notStrictEqual(ids[1], 0n);
-notStrictEqual(ids[2], 0n);
+assert.notStrictEqual(ids[0], 0n);
+assert.notStrictEqual(ids[1], 0n);
+assert.notStrictEqual(ids[2], 0n);
 
 // The abandoned status fires synchronously during sendDatagram when the
 // queue overflows. It should already be set
-strictEqual(abandoned, true);
+assert.strictEqual(abandoned, true);
 
 await Promise.all([
   serverSession.close(),

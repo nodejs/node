@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { deepStrictEqual, strictEqual, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,8 +26,8 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
 
-    deepStrictEqual(received, expected);
-    strictEqual(decoder.decode(received), message);
+    assert.deepStrictEqual(received, expected);
+    assert.strictEqual(decoder.decode(received), message);
 
     stream.writer.endSync();
     await stream.closed;
@@ -48,7 +46,7 @@ const stream = await clientSession.createBidirectionalStream();
 stream.setBody(encoder.encode(message));
 
 // Calling setBody() again should throw.
-throws(() => {
+assert.throws(() => {
   stream.setBody(encoder.encode('second body'));
 }, {
   code: 'ERR_INVALID_STATE',

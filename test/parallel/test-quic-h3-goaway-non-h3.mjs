@@ -9,9 +9,6 @@ import assert from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,8 +17,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -31,7 +28,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
   ss.onstream = mustCall(async (stream) => {
     // Read client data, send response, close stream.
     const data = await bytes(stream);
-    strictEqual(decoder.decode(data), 'ping');
+    assert.strictEqual(decoder.decode(data), 'ping');
     stream.writer.writeSync('pong');
     stream.writer.endSync();
     await stream.closed;
@@ -57,7 +54,7 @@ const stream = await clientSession.createBidirectionalStream({
 });
 
 const response = await bytes(stream);
-strictEqual(decoder.decode(response), 'pong');
+assert.strictEqual(decoder.decode(response), 'pong');
 await Promise.all([stream.closed, serverDone.promise]);
 
 // Wait a tick for any deferred callbacks to fire.

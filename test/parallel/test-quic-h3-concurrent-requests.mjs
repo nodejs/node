@@ -12,9 +12,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -23,8 +20,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const decoder = new TextDecoder();
 
@@ -75,7 +72,7 @@ const requests = paths.map(mustCall(async (path) => {
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
       headersReceived.resolve();
     }),
   });
@@ -83,7 +80,7 @@ const requests = paths.map(mustCall(async (path) => {
   await headersReceived.promise;
   const body = await bytes(stream);
   const text = decoder.decode(body);
-  strictEqual(text, `response for ${path}`);
+  assert.strictEqual(text, `response for ${path}`);
   await stream.closed;
 }, REQUEST_COUNT));
 

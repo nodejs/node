@@ -5,8 +5,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { deepStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const allDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    deepStrictEqual(received, expected);
+    assert.deepStrictEqual(received, expected);
     stream.writer.endSync();
     await stream.closed;
     if (++serverStreamCount === 2) {

@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -29,7 +27,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // Read the client's data (client has already sent FIN).
     const received = await bytes(stream);
-    strictEqual(decoder.decode(received), clientMessage);
+    assert.strictEqual(decoder.decode(received), clientMessage);
 
     // The server's writable side is still open. Send a response.
     const w = stream.writer;
@@ -53,7 +51,7 @@ const stream = await clientSession.createBidirectionalStream({
 // The client's writable side is closed (FIN sent with body), but
 // the readable side is still open. Read the server's response.
 const response = await bytes(stream);
-strictEqual(decoder.decode(response), serverMessage);
+assert.strictEqual(decoder.decode(response), serverMessage);
 
 await Promise.all([stream.closed, done.promise]);
 await clientSession.close();

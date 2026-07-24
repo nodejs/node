@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -18,8 +15,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverGot = Promise.withResolvers();
 
@@ -27,8 +24,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
   // maxDatagramSize reflects peer's max payload (frame size
   // minus DATAGRAM frame overhead of type byte + varint length).
-  ok(serverSession.maxDatagramSize > 0);
-  ok(serverSession.maxDatagramSize < 1200);
+  assert.ok(serverSession.maxDatagramSize > 0);
+  assert.ok(serverSession.maxDatagramSize < 1200);
   // Wait for the datagram before closing.
   await serverGot.promise;
   await serverSession.close();
@@ -37,8 +34,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   alpn: ['quic-test'],
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagram: mustCall((data) => {
-    ok(data instanceof Uint8Array);
-    strictEqual(data.byteLength, 3);
+    assert.ok(data instanceof Uint8Array);
+    assert.strictEqual(data.byteLength, 3);
     serverGot.resolve();
   }),
 });
@@ -52,8 +49,8 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Client maxDatagramSize reflects actual payload max.
-ok(clientSession.maxDatagramSize > 0);
-ok(clientSession.maxDatagramSize < 1200);
+assert.ok(clientSession.maxDatagramSize > 0);
+assert.ok(clientSession.maxDatagramSize < 1200);
 
 // Client sends datagram.
 const id = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));

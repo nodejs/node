@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { rejects, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -18,8 +15,8 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const endpoint = new QuicEndpoint();
 
@@ -42,9 +39,9 @@ const cs1 = await connect(serverEndpoint.address, {
 await cs1.opened;
 
 // Set the endpoint busy.
-strictEqual(endpoint.busy, false);
+assert.strictEqual(endpoint.busy, false);
 endpoint.busy = true;
-strictEqual(endpoint.busy, true);
+assert.strictEqual(endpoint.busy, true);
 
 // Second connection while busy — server rejects.
 const cs2 = await connect(serverEndpoint.address, {
@@ -52,21 +49,21 @@ const cs2 = await connect(serverEndpoint.address, {
   verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
-    strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+    assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
   }),
 });
 
-await rejects(cs2.opened, {
+await assert.rejects(cs2.opened, {
   code: 'ERR_QUIC_TRANSPORT_ERROR',
 });
 
-await rejects(cs2.closed, {
+await assert.rejects(cs2.closed, {
   code: 'ERR_QUIC_TRANSPORT_ERROR',
 });
 
 // Unset busy.
 endpoint.busy = false;
-strictEqual(endpoint.busy, false);
+assert.strictEqual(endpoint.busy, false);
 
 // Clean up.
 await cs1.close();

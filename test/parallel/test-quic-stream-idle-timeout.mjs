@@ -9,8 +9,6 @@ import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { text } from 'node:stream/iter';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const { listen, connect } = await import('../common/quic.mjs');
     serverSession.onstream = mustCall(async (stream) => {
       // Don't read — let the stream sit idle after the initial data.
       // The stream idle timeout should destroy it, rejecting stream.closed.
-      await rejects(stream.closed, {
+      await assert.rejects(stream.closed, {
         code: 'ERR_QUIC_TRANSPORT_ERROR',
       });
       streamDestroyed.resolve();
@@ -55,7 +53,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   // ShutdownStream maps the transport error to the application's
   // internal error code on the wire, so the client sees an application
   // error indicating the server rejected the stream.
-  await rejects(clientStream.closed, {
+  await assert.rejects(clientStream.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
   });
 
@@ -71,7 +69,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const data = await text(stream);
-      strictEqual(data, 'xy');
+      assert.strictEqual(data, 'xy');
       serverGotData.resolve();
       await serverSession.close();
     });
@@ -111,7 +109,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 
       // We should receive all the data, even though it is sent with a pause
       // longer than the default idle timeout.
-      strictEqual(data, 'xy');
+      assert.strictEqual(data, 'xy');
       streamSurvived.resolve();
     });
 

@@ -18,8 +18,6 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import diagnostics_channel from 'node:diagnostics_channel';
 
-const { strictEqual, rejects, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -72,47 +70,47 @@ clientSession.onerror = mustNotCall(
 const goodError = new Error('intended teardown');
 
 // 1. options is not an object -> throws ERR_INVALID_ARG_TYPE.
-throws(() => clientSession.destroy(goodError, 'not an object'), {
+assert.throws(() => clientSession.destroy(goodError, 'not an object'), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-strictEqual(clientSession.destroyed, false);
-strictEqual(stream.destroyed, false);
+assert.strictEqual(clientSession.destroyed, false);
+assert.strictEqual(stream.destroyed, false);
 
 // 2. options.code is the wrong type -> throws ERR_INVALID_ARG_TYPE.
-throws(() => clientSession.destroy(goodError, { code: 'oops' }), {
+assert.throws(() => clientSession.destroy(goodError, { code: 'oops' }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-strictEqual(clientSession.destroyed, false);
-strictEqual(stream.destroyed, false);
+assert.strictEqual(clientSession.destroyed, false);
+assert.strictEqual(stream.destroyed, false);
 
 // 3. options.type is not in the allowed set -> throws ERR_INVALID_ARG_VALUE.
-throws(() => clientSession.destroy(goodError, { type: 'bogus' }), {
+assert.throws(() => clientSession.destroy(goodError, { type: 'bogus' }), {
   code: 'ERR_INVALID_ARG_VALUE',
 });
-strictEqual(clientSession.destroyed, false);
-strictEqual(stream.destroyed, false);
+assert.strictEqual(clientSession.destroyed, false);
+assert.strictEqual(stream.destroyed, false);
 
 // 4. options.reason is the wrong type -> throws ERR_INVALID_ARG_TYPE.
-throws(() => clientSession.destroy(goodError, { reason: 42 }), {
+assert.throws(() => clientSession.destroy(goodError, { reason: 42 }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-strictEqual(clientSession.destroyed, false);
-strictEqual(stream.destroyed, false);
+assert.strictEqual(clientSession.destroyed, false);
+assert.strictEqual(stream.destroyed, false);
 
 // Now switch the handlers to expect the real teardown so the final
 // destroy with valid options can run cleanly.
 diagnostics_channel.unsubscribe('quic.session.error', errSub);
-clientSession.onerror = mustCall((err) => { strictEqual(err, goodError); });
-stream.onerror = mustCall((err) => { strictEqual(err, goodError); });
+clientSession.onerror = mustCall((err) => { assert.strictEqual(err, goodError); });
+stream.onerror = mustCall((err) => { assert.strictEqual(err, goodError); });
 
 // Pre-attach rejection handlers on both sides BEFORE triggering the
 // final destroy, so the rejections do not race ahead of any awaits in
 // the test body. The client rejects with the original `goodError`;
 // the server decodes the CONNECTION_CLOSE frame transport code into
 // an `ERR_QUIC_TRANSPORT_ERROR`.
-const clientClosedAssertion = rejects(clientSession.closed, goodError);
-const serverClosedAssertion = rejects(serverSession.closed, mustCall((err) => {
-  strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+const clientClosedAssertion = assert.rejects(clientSession.closed, goodError);
+const serverClosedAssertion = assert.rejects(serverSession.closed, mustCall((err) => {
+  assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
   return true;
 }));
 
@@ -125,8 +123,8 @@ clientSession.destroy(goodError, {
   type: 'transport',
   reason: 'after validation throw',
 });
-strictEqual(clientSession.destroyed, true);
-strictEqual(stream.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
+assert.strictEqual(stream.destroyed, true);
 
 await clientClosedAssertion;
 await serverClosedAssertion;

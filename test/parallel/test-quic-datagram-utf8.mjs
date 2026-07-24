@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, deepStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,9 +25,9 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 }), {
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagram: mustCall((data) => {
-    ok(data instanceof Uint8Array);
+    assert.ok(data instanceof Uint8Array);
     // Verify the received bytes match the UTF-8 encoding.
-    deepStrictEqual(Buffer.from(data), expected);
+    assert.deepStrictEqual(Buffer.from(data), expected);
     serverGot.resolve();
   }),
 });
@@ -40,7 +38,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 const id = await clientSession.sendDatagram(message);
-strictEqual(id, 1n);
+assert.strictEqual(id, 1n);
 
 await Promise.all([serverGot.promise, clientSession.closed]);
 await serverEndpoint.close();

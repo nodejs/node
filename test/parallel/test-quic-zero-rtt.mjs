@@ -11,8 +11,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,44 +30,45 @@ let secondStreamEarly;
 const secondStreamDone = Promise.withResolvers();
 
 let serverSessionCount = 0;
-const serverEndpoint = await listen((serverSession) => {
+const serverEndpoint = await listen(mustCall((serverSession) => {
   const sessionNum = ++serverSessionCount;
-  serverSession.onstream = async (stream) => {
-    const data = await bytes(stream);
-    ok(data.byteLength > 0);
+  serverSession.onstream = mustCall((stream) =>
+    bytes.then((data) => {
+      assert.ok(data.byteLength > 0);
 
-    if (sessionNum === 1) {
-      firstStreamEarly = stream.early;
-    } else {
-      secondStreamEarly = stream.early;
-      secondStreamDone.resolve();
-    }
+      if (sessionNum === 1) {
+        firstStreamEarly = stream.early;
+      } else {
+        secondStreamEarly = stream.early;
+        secondStreamDone.resolve();
+      }
 
-    stream.writer.endSync();
-    await stream.closed;
-    serverSession.close();
-  };
-});
+      stream.writer.endSync();
+      return stream.closed;
+
+    }).then(mustCall(() => serverSession.close()))
+  );
+}));
 
 // --- ZRTT-01: First connection — receive the session ticket and token ---
 const cs1 = await connect(serverEndpoint.address, {
   onsessionticket: mustCall((ticket) => {
-    ok(Buffer.isBuffer(ticket));
-    ok(ticket.length > 0);
+    assert.ok(Buffer.isBuffer(ticket));
+    assert.ok(ticket.length > 0);
     savedTicket = ticket;
     gotTicket.resolve();
   }, 2),
   onnewtoken: mustCall((token) => {
-    ok(Buffer.isBuffer(token));
-    ok(token.length > 0);
+    assert.ok(Buffer.isBuffer(token));
+    assert.ok(token.length > 0);
     savedToken = token;
     gotToken.resolve();
   }),
 });
 
 const info1 = await cs1.opened;
-strictEqual(info1.earlyDataAttempted, false);
-strictEqual(info1.earlyDataAccepted, false);
+assert.strictEqual(info1.earlyDataAttempted, false);
+assert.strictEqual(info1.earlyDataAccepted, false);
 
 await Promise.all([gotTicket.promise, gotToken.promise]);
 
@@ -95,8 +94,8 @@ await s2.writer.write(encoder.encode('early data'));
 
 // Now wait for handshake completion.
 const info2 = await cs2.opened;
-strictEqual(info2.earlyDataAttempted, true);
-strictEqual(info2.earlyDataAccepted, true);
+assert.strictEqual(info2.earlyDataAttempted, true);
+assert.strictEqual(info2.earlyDataAccepted, true);
 
 await s2.writer.end();
 for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
@@ -104,8 +103,8 @@ await s2.closed;
 
 // Verify the server saw the early data flag.
 await secondStreamDone.promise;
-strictEqual(firstStreamEarly, false);
-strictEqual(secondStreamEarly, true);
+assert.strictEqual(firstStreamEarly, false);
+assert.strictEqual(secondStreamEarly, true);
 
 await cs2.closed;
 await serverEndpoint.close();

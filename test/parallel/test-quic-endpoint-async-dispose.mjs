@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,13 +25,13 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // session[Symbol.asyncDispose] closes the session.
-strictEqual(typeof clientSession[Symbol.asyncDispose], 'function');
+assert.strictEqual(typeof clientSession[Symbol.asyncDispose], 'function');
 await clientSession[Symbol.asyncDispose]();
-strictEqual(clientSession.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
 
 await serverDone.promise;
 
 // endpoint[Symbol.asyncDispose] closes the endpoint.
-strictEqual(typeof serverEndpoint[Symbol.asyncDispose], 'function');
+assert.strictEqual(typeof serverEndpoint[Symbol.asyncDispose], 'function');
 await serverEndpoint[Symbol.asyncDispose]();
-strictEqual(serverEndpoint.destroyed, true);
+assert.strictEqual(serverEndpoint.destroyed, true);

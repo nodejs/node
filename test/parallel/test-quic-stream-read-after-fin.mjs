@@ -7,8 +7,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert';
 
-const { deepStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,7 +43,7 @@ await serverSent.promise;
 await delay(10);
 
 const received = await bytes(stream);
-deepStrictEqual(received, expected);
+assert.deepStrictEqual(received, expected);
 
 writer.endSync();
 await stream.closed;

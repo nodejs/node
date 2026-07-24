@@ -10,8 +10,6 @@
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,10 +18,10 @@ const quic = await import('node:quic');
 const { listen, connect } = await import('../common/quic.mjs');
 
 // Module exports are frozen/sealed.
-throws(() => { quic.newProperty = true; }, TypeError);
+assert.throws(() => { quic.newProperty = true; }, TypeError);
 
 // Stats classes exist.
-ok(quic.QuicEndpoint);
+assert.ok(quic.QuicEndpoint);
 
 // CONST-08/09: Session ticket and token getters.
 {
@@ -50,12 +48,12 @@ ok(quic.QuicEndpoint);
   await Promise.all([clientSession.opened, gotTicket.promise, gotToken.promise]);
 
   // Session ticket is a Buffer.
-  ok(Buffer.isBuffer(savedTicket));
-  ok(savedTicket.length > 0);
+  assert.ok(Buffer.isBuffer(savedTicket));
+  assert.ok(savedTicket.length > 0);
 
   // Token is a Buffer.
-  ok(Buffer.isBuffer(savedToken));
-  ok(savedToken.length > 0);
+  assert.ok(Buffer.isBuffer(savedToken));
+  assert.ok(savedToken.length > 0);
 
   await clientSession.close();
   await serverEndpoint.close();

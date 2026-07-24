@@ -10,9 +10,6 @@ import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 const { setTimeout } = await import('node:timers/promises');
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,8 +17,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverGot = Promise.withResolvers();
 const clientGot = Promise.withResolvers();
@@ -39,8 +36,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   // The sendDatagram call happens inside ondatagram (ngtcp2 callback
   // scope). The datagram is queued and flushed by SendPendingData.
   ondatagram: mustCall((data, early, session) => {
-    ok(data instanceof Uint8Array);
-    ok(!early);
+    assert.ok(data instanceof Uint8Array);
+    assert.ok(!early);
     session.sendDatagram(data);
     serverGot.resolve();
   }),
@@ -52,11 +49,11 @@ const clientSession = await connect(serverEndpoint.address, {
   transportParams: { maxDatagramFrameSize: 10 },
   // Client receives datagram from server.
   ondatagram: mustCall(function(data) {
-    ok(data instanceof Uint8Array);
-    strictEqual(data.byteLength, 3);
-    strictEqual(data[0], 10);
-    strictEqual(data[1], 20);
-    strictEqual(data[2], 30);
+    assert.ok(data instanceof Uint8Array);
+    assert.strictEqual(data.byteLength, 3);
+    assert.strictEqual(data[0], 10);
+    assert.strictEqual(data[1], 20);
+    assert.strictEqual(data[2], 30);
     clientGot.resolve();
   }),
 });

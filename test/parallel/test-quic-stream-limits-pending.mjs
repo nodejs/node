@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -53,7 +51,7 @@ const s2 = await clientSession.createBidirectionalStream({
 
 // s2 should be pending until s1 closes and the server grants
 // more stream credits.
-strictEqual(s2.pending, true);
+assert.strictEqual(s2.pending, true);
 
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars

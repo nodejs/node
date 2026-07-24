@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,7 +18,7 @@ const message = 'pooled buffer test data';
 const expected = Buffer.from(message);
 
 // Verify this IS a pooled buffer (byteLength < buffer.byteLength).
-ok(
+assert.ok(
   expected.buffer.byteLength > expected.byteLength,
   'Buffer should be pooled for this test to be meaningful',
 );
@@ -30,7 +28,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(Buffer.from(received).toString(), message);
+    assert.strictEqual(Buffer.from(received).toString(), message);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();

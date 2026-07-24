@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -18,13 +15,13 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
-const ca = readKey('ca1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   const info = await serverSession.opened;
-  strictEqual(info.protocol, 'quic-test');
+  assert.strictEqual(info.protocol, 'quic-test');
   serverSession.close();
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
@@ -41,7 +38,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 
 const info = await clientSession.opened;
-strictEqual(info.protocol, 'quic-test');
+assert.strictEqual(info.protocol, 'quic-test');
 // The CA option is accepted. Validation may or may not succeed
 // depending on the cert chain. The important thing is the
 // handshake completed and the option was used.

@@ -13,9 +13,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,8 +21,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const decoder = new TextDecoder();
 
@@ -55,16 +52,16 @@ async function getTicket(endpointOptions) {
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
-    onsessionticket(ticket) {
-      ok(Buffer.isBuffer(ticket));
+    onsessionticket: mustCall((ticket) => {
+      assert.ok(Buffer.isBuffer(ticket));
       savedTicket = ticket;
       gotTicket.resolve();
-    },
-    onnewtoken(token) {
-      ok(Buffer.isBuffer(token));
+    }),
+    onnewtoken: mustCall((token) => {
+      assert.ok(Buffer.isBuffer(token));
       savedToken = token;
       gotToken.resolve();
-    },
+    }),
   });
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
@@ -77,11 +74,11 @@ async function getTicket(endpointOptions) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
   const body = await bytes(s);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await Promise.all([s.closed, cs.closed]);
   await ep.close();
 
@@ -122,13 +119,13 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
       ':authority': 'localhost',
     },
   });
-  await rejects(s.closed, {
+  await assert.rejects(s.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
   });
 
   const info = await cs.opened;
-  strictEqual(info.earlyDataAttempted, true);
-  strictEqual(info.earlyDataAccepted, false);
+  assert.strictEqual(info.earlyDataAttempted, true);
+  assert.strictEqual(info.earlyDataAccepted, false);
 
   cs.close();
   ep.close();

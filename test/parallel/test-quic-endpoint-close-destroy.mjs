@@ -10,8 +10,6 @@ import assert from 'node:assert';
 const { setTimeout } = await import('node:timers/promises');
 const { bytes } = await import('stream/iter');
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -37,13 +35,13 @@ const encoder = new TextEncoder();
     await serverSession.opened;
 
     // Before close, closing is false.
-    strictEqual(serverEndpoint.closing, false);
+    assert.strictEqual(serverEndpoint.closing, false);
 
     // Initiate endpoint close — it should wait for this session.
     serverEndpoint.close();
 
     // After close() is called, closing is true.
-    strictEqual(serverEndpoint.closing, true);
+    assert.strictEqual(serverEndpoint.closing, true);
 
     // The endpoint's closed promise should NOT resolve yet — session is open.
     let endpointClosed = false;
@@ -51,7 +49,7 @@ const encoder = new TextEncoder();
 
     // Give a tick to confirm endpoint hasn't closed yet.
     await setTimeout(100);
-    strictEqual(endpointClosed, false);
+    assert.strictEqual(endpointClosed, false);
 
     // Wait for the stream to complete, then close the session.
     await streamDone.promise;
@@ -75,5 +73,5 @@ const encoder = new TextEncoder();
                      stream.closed,
                      serverEndpoint.closed]);
 
-  strictEqual(serverEndpoint.destroyed, true);
+  assert.strictEqual(serverEndpoint.destroyed, true);
 }

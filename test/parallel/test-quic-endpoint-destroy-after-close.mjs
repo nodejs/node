@@ -10,8 +10,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -52,7 +50,7 @@ const closingPromise = serverEndpoint.close();
 // With the fix, the error is still recorded and surfaces on
 // `endpoint.closed`. Without the fix, it'd be silently dropped.
 const destroyError = new Error('destroy after close');
-const closedAssertion = rejects(serverEndpoint.closed, destroyError);
+const closedAssertion = assert.rejects(serverEndpoint.closed, destroyError);
 
 serverEndpoint.destroy(destroyError);
 
@@ -60,7 +58,7 @@ await closedAssertion;
 
 // `endpoint.close()` returns the same promise as `endpoint.closed`, so
 // it should reject with the same error as well.
-await rejects(closingPromise, destroyError);
+await assert.rejects(closingPromise, destroyError);
 
 await serverDone.promise;
 clientSession.destroy();

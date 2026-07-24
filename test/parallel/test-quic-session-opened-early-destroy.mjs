@@ -20,8 +20,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -53,7 +51,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // the handshake itself happens asynchronously over the network.
   clientSession.destroy();
 
-  await rejects(clientSession.opened, {
+  await assert.rejects(clientSession.opened, {
     code: 'ERR_INVALID_STATE',
     message: /destroyed before it opened/,
   });
@@ -108,7 +106,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // session, which should reject session.opened.
   clientEndpoint.destroy();
 
-  await rejects(clientSession.opened, {
+  await assert.rejects(clientSession.opened, {
     code: 'ERR_INVALID_STATE',
     message: /destroyed before it opened/,
   });
@@ -135,7 +133,7 @@ const transportParams = { maxIdleTimeout: 1 };
   });
 
   const info = await clientSession.opened;
-  strictEqual(typeof info.protocol, 'string');
+  assert.strictEqual(typeof info.protocol, 'string');
 
   clientSession.destroy();
 
@@ -143,7 +141,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // info object (PromiseWithResolvers caches it; we just assert the
   // promise is not rejected).
   const infoAgain = await clientSession.opened;
-  strictEqual(infoAgain, info);
+  assert.strictEqual(infoAgain, info);
 
   await serverDone.promise;
   await serverEndpoint.close();
