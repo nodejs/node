@@ -201,11 +201,6 @@ class SecureContext final : public BaseObject {
 #endif
 };
 
-int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
-                                  ncrypto::BIOPointer&& in,
-                                  ncrypto::X509Pointer* cert,
-                                  ncrypto::X509Pointer* issuer);
-
 }  // namespace crypto
 }  // namespace node
 

@@ -2,6 +2,7 @@
 #include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_common.h"
+#include "crypto/crypto_tls_certificates.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -1731,22 +1732,14 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   ByteSource passphrase;
   if (args[1]->IsString())
     passphrase = ByteSource::FromString(env, args[1].As<String>());
-  // This redirection is necessary because the PasswordCallback expects a
-  // pointer to a pointer to the passphrase ByteSource to allow passing in
-  // const ByteSources.
-  const ByteSource* pass_ptr = &passphrase;
-
-  EVPKeyPointer key(
-      PEM_read_bio_PrivateKey(bio.get(),
-                              nullptr,
-                              PasswordCallback,
-                              &pass_ptr));
-
-  if (!key)
-    return ThrowCryptoError(env, ERR_get_error(), "PEM_read_bio_PrivateKey");
-
-  if (!SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get()))
-    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
+  switch (UsePrivateKey(sc->ctx_.get(), bio, &passphrase)) {
+    case PrivateKeyResult::kSuccess:
+      break;
+    case PrivateKeyResult::kParseError:
+      return ThrowCryptoError(env, ERR_get_error(), "PEM_read_bio_PrivateKey");
+    case PrivateKeyResult::kApplyError:
+      return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
+  }
 }
 
 void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
@@ -1849,16 +1842,7 @@ void SecureContext::SetX509StoreFlag(unsigned long flags) {
 }
 
 X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
-  Environment* env = this->env();
-  if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
-
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore(env)) {
-    cert_store = NewRootCertStore(env);
-    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-  }
-
-  return own_cert_store_cache_ = cert_store;
+  return GetOrCreateOwnedCertStore(env(), ctx_.get(), &own_cert_store_cache_);
 }
 
 void SecureContext::SetAllowPartialTrustChain(
@@ -1870,13 +1854,7 @@ void SecureContext::SetAllowPartialTrustChain(
 
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return;
-  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
-             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
-    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
-  }
+  AddCACertificates(env(), ctx_.get(), bio, &own_cert_store_cache_);
 }
 
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
@@ -1896,20 +1874,11 @@ Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   // TODO(tniessen): this should be checked by the caller and not treated as ok
   if (!bio) return JustVoid();
 
-  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
-      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
-
-  if (!crl) {
+  if (!crypto::AddCRL(env, ctx_.get(), bio, &own_cert_store_cache_)) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
     return Nothing<void>();
   }
 
-  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
-
-  CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
-  CHECK_EQ(1,
-           X509_STORE_set_flags(
-               cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
   return JustVoid();
 }
 
@@ -1927,12 +1896,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetRootCerts() {
   ClearErrorOnReturn clear_error_on_return;
-  Environment* env = this->env();
-  auto store = GetOrCreateRootCertStore(env);
-
-  // Increment reference count so global store is not deleted along with CTX.
-  X509_STORE_up_ref(store);
-  SSL_CTX_set_cert_store(ctx_.get(), store);
+  UseDefaultRootCertStore(env(), ctx_.get());
 }
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
