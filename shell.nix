@@ -19,6 +19,7 @@
   withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
+  withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -67,7 +68,8 @@ let
     )
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
-  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi";
+  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
+  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
