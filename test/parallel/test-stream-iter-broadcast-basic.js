@@ -244,15 +244,15 @@ async function testWriterFailIdempotent() {
   }, { message: 'fail!' });
 }
 
-// cancel() with falsy reason (0, "", false) should still treat as error
 async function testCancelWithFalsyReason() {
-  const { broadcast: bc } = broadcast();
-  const consumer = bc.push();
-  const resultPromise = text(consumer).catch((err) => err);
-  await new Promise((resolve) => setImmediate(resolve));
-  bc.cancel(0);
-  const result = await resultPromise;
-  assert.strictEqual(result, 0);
+  for (const reason of [0, '', false, null]) {
+    const { broadcast: bc } = broadcast();
+    const iterator = bc.push()[Symbol.asyncIterator]();
+
+    bc.cancel(reason);
+
+    await assert.rejects(iterator.next(), (error) => error === reason);
+  }
 }
 
 // Late-joining consumer should read from oldest buffered entry

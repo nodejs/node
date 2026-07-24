@@ -87,37 +87,32 @@ function testShareSyncCancelMidIteration() {
 }
 
 function testShareSyncCancelWithReason() {
-  // When cancel(reason) is called, a consumer that hasn't started
-  // iterating is already detached, so it sees done:true (not the error).
-  // But a consumer that is mid-iteration when another consumer cancels
-  // with a reason will see the error on the next pull after cancel.
   const enc = new TextEncoder();
   function* gen() {
     yield [enc.encode('a')];
     yield [enc.encode('b')];
-    yield [enc.encode('c')];
   }
   const shared = shareSync(gen(), { budget: 16384 });
-  const c1 = shared.pull();
-  const c2 = shared.pull();
+  const iterator1 = shared.pull()[Symbol.iterator]();
+  const iterator2 = shared.pull()[Symbol.iterator]();
+  const reason = new Error('sync cancel reason');
 
-  // c1 reads one item, then c2 cancels with a reason
-  const iter1 = c1[Symbol.iterator]();
-  const first = iter1.next();
-  assert.strictEqual(first.done, false);
+  iterator1.next();
+  shared.cancel(reason);
 
-  shared.cancel(new Error('sync cancel reason'));
+  assert.throws(() => iterator1.next(), (error) => error === reason);
+  assert.throws(() => iterator2.next(), (error) => error === reason);
+}
 
-  // c1 was already iterating, it's now detached → done
-  const next = iter1.next();
-  assert.strictEqual(next.done, true);
+function testShareSyncCancelWithFalsyReason() {
+  for (const reason of [0, '', false, null]) {
+    const shared = shareSync(fromSync('data'));
+    const iterator = shared.pull()[Symbol.iterator]();
 
-  // c2 never started, also detached → done (not error)
-  const batches = [];
-  for (const batch of c2) {
-    batches.push(batch);
+    shared.cancel(reason);
+
+    assert.throws(() => iterator.next(), (error) => error === reason);
   }
-  assert.strictEqual(batches.length, 0);
 }
 
 // =============================================================================
@@ -157,6 +152,7 @@ Promise.all([
   testShareSyncCancel(),
   testShareSyncCancelMidIteration(),
   testShareSyncCancelWithReason(),
+  testShareSyncCancelWithFalsyReason(),
   testShareSyncSourceError(),
   testShareSyncStringSource(),
 ]).then(common.mustCall());
