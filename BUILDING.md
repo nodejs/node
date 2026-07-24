@@ -12,8 +12,10 @@ file a new issue.
 
 * [Supported platforms](#supported-platforms)
   * [Input](#input)
-  * [Strategy](#strategy)
   * [Platform list](#platform-list)
+    * [Tier 1](#tier-1)
+    * [Tier 2](#tier-2)
+    * [Experimental](#experimental)
   * [Supported toolchains](#supported-toolchains)
   * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
     * [OpenSSL asm support](#openssl-asm-support)
@@ -72,57 +74,70 @@ which it belongs.
 
 Node.js relies on V8 and libuv. We adopt a subset of their supported platforms.
 
-### Strategy
-
-There are three support tiers:
-
-* **Tier 1**: These platforms represent the majority of Node.js users. The
-  Node.js Build Working Group maintains infrastructure for full test coverage.
-  Test failures on tier 1 platforms will block releases.
-* **Tier 2**: These platforms represent smaller segments of the Node.js user
-  base. The Node.js Build Working Group maintains infrastructure for full test
-  coverage. Test failures on tier 2 platforms will block releases.
-  Infrastructure issues may delay the release of binaries for these platforms.
-* **Experimental**: May not compile or test suite may not pass. The core team
-  does not create releases for these platforms. Test failures on experimental
-  platforms do not block releases. Contributions to improve support for these
-  platforms are welcome.
-
-Platforms may move between tiers between major release lines. The table below
-will reflect those changes.
-
 ### Platform list
 
+Support for different platforms are organized into three tiers. Platforms may
+move between tiers between major release lines. The tables below will reflect
+those changes.
+
 Node.js compilation/execution support depends on operating system, architecture,
-and libc version. The table below lists the support tier for each supported
-combination. A list of [supported compile toolchains](#supported-toolchains) is
-also supplied for tier 1 platforms.
+and libc version.
 
 **For production applications, run Node.js on supported platforms only (Tier 1 or 2).**
 
 Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
-platforms. This is true regardless of entries in the table below.
+platforms. This is true regardless of entries in the tables below.
 
-| Operating System | Architectures    | Versions                          | Support Type | Notes                                                      |
-| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                                            |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                                |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                                |
-| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                                  |
-| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                                |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                            |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5]             |
-| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                                  |
-| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                            |
-| macOS            | x64              | >= 13.5                           | Tier 2       | Until early 2028[^8]. For notes about compilation see [^4] |
-| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                            |
-| SmartOS          | x64              | >= 18                             | Tier 2       |                                                            |
-| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                            |
-| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                            |
-| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                            |
+#### Tier 1
+
+These platforms represent the majority of Node.js users. The Node.js Build
+Working Group maintains infrastructure for full test coverage. Test failures on
+tier 1 platforms will block releases.
+
+A list of [supported compile toolchains](#supported-toolchains) is also supplied
+for tier 1 platforms.
+
+| Operating System | Architectures    | Versions                          | Notes                                |
+| ---------------- | ---------------- | --------------------------------- | ------------------------------------ |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| Windows          | x64              | >= Windows 10/Server 2016         | [^2],[^3]                            |
+| macOS            | arm64            | >= 13.5                           |                                      |
+
+#### Tier 2
+
+These platforms represent smaller segments of the Node.js user base. The
+Node.js Build Working Group maintains infrastructure for full test coverage.
+Test failures on tier 2 platforms will block releases. Infrastructure issues
+may delay the release of binaries for these platforms.
+
+| Operating System | Architectures    | Versions                          | Notes                                                      |
+| ---------------- | ---------------- | --------------------------------- | ---------------------------------------------------------- |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | e.g. Ubuntu 20.04, RHEL 8                                  |
+| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | e.g. RHEL 8                                                |
+| Windows          | arm64            | >= Windows 10                     |                                                            |
+| macOS            | x64              | >= 13.5                           | Until early 2028[^8]. For notes about compilation see [^4] |
+| SmartOS          | x64              | >= 18                             |                                                            |
+| AIX              | ppc64be >=power9 | >= 7.2 TL04                       |                                                            |
+
+#### Experimental
+
+May not compile or test suite may not pass. The core team does not create
+releases for these platforms. Test failures on experimental platforms do not
+block releases. Contributions to improve support for these platforms are
+welcome.
+
+| Operating System | Architectures    | Versions[^9]                  | Notes                        |
+| ---------------- | ---------------- | ----------------------------- | ---------------------------- |
+| GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4  | e.g. Alpine 3.19             |
+| GNU/Linux        | arm64            | kernel >= 6.12, musl >= 1.2.5 | e.g. Alpine 3.22             |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10  |
+| GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24  |
+| GNU/Linux        | loong64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04            |
+| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | GCC >= 14 or Clang >= 19[^5] |
+| FreeBSD          | x64              | >= 13.2                       |                              |
+| OpenHarmony      | arm64            | >= 5.0                        |                              |
 
 <!--lint disable final-definition-->
 
@@ -161,6 +176,8 @@ platforms. This is true regardless of entries in the table below.
     creating universal binaries for versions of Node.js which are still in support which will
     be compatible with both Apple Silicon-based and Intel-based macOS versions but
     they will be untested.
+
+[^9]: Older kernel or libc versions may work.
 
 <!--lint enable final-definition-->
 
