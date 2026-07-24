@@ -995,6 +995,66 @@ added: v15.4.0
 
 * `message` {any} Any cloneable JavaScript value.
 
+### `messageEvent.sender`
+
+<!-- YAML added: REPLACEME -->
+
+> Stability: 1 - Experimental
+
+Type: {number}
+
+A Node.js-specific extension that identifies the sender of a
+BroadcastChannel message.
+
+When a message originates, sender is the threadId of the
+worker that posted the message.
+
+```mjs
+import {
+  isMainThread,
+  BroadcastChannel,
+  Worker,
+} from 'node:worker_threads';
+
+const bc = new BroadcastChannel('hello');
+
+if (isMainThread) {
+  let c = 0;
+  bc.onmessage = ({ data, sender }) => {
+    console.log(`Received "${data}" from worker ${sender}`);
+    if (++c === 10) bc.close();
+  };
+  for (let n = 0; n < 10; n++)
+    new Worker(new URL(import.meta.url));
+} else {
+  bc.postMessage('hello from every worker');
+  bc.close();
+}
+```
+
+```cjs
+const {
+  isMainThread,
+  BroadcastChannel,
+  Worker,
+} = require('node:worker_threads');
+
+const bc = new BroadcastChannel('hello');
+
+if (isMainThread) {
+  let c = 0;
+  bc.onmessage = ({ data, sender }) => {
+    console.log(`Received "${data}" from worker ${sender}`);
+    if (++c === 10) bc.close();
+  };
+  for (let n = 0; n < 10; n++)
+    new Worker(__filename);
+} else {
+  bc.postMessage('hello from every worker');
+  bc.close();
+}
+```
+
 ### `broadcastChannel.ref()`
 
 <!-- YAML
