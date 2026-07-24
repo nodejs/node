@@ -233,6 +233,10 @@ v8_source_set("cctest_sources") {
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
+  } else if (v8_current_cpu == "loong64") {
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/test-run-machops-select-loong64.cc" ]
+    }
   }
 
   if (v8_use_perfetto) {
