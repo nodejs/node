@@ -2,7 +2,7 @@
 
 <!--introduced_in=v25.9.0-->
 
-> Stability: 1 - Experimental
+> Stability: 1 - Experimental – Enable this API with the [`--experimental-stream-iter`][] CLI flag.
 
 <!-- source_link=lib/stream/iter.js -->
 
@@ -10,15 +10,12 @@ The `node:stream/iter` module provides a streaming API built on iterables
 rather than the event-driven `Readable`/`Writable`/`Transform` class hierarchy,
 or the Web Streams `ReadableStream`/`WritableStream`/`TransformStream` interfaces.
 
-This module is available only when the `--experimental-stream-iter` CLI flag
-is enabled.
-
-Streams are represented as `AsyncIterable<Uint8Array[]>` (async) or
-`Iterable<Uint8Array[]>` (sync). There are no base classes to extend -- any
+Streams are represented as {AsyncIterable} (async) or {Iterable} (sync). There
+are no base classes to extend -- any
 object implementing the iterable protocol can participate. Transforms are plain
 functions or objects with a `transform` method.
 
-Data flows in **batches** (`Uint8Array[]` per iteration) to amortize the cost
+Data flows in **batches** ({Uint8Array\[]} per iteration) to amortize the cost
 of async operations.
 
 ```mjs
@@ -85,15 +82,15 @@ run().catch(console.error);
 
 ### Byte streams
 
-All data in this API is represented as `Uint8Array` bytes. Strings
+All data in this API is represented as {Uint8Array} bytes. Strings
 are automatically UTF-8 encoded when passed to `from()`, `push()`, or
 `pipeTo()`. This removes ambiguity around encodings and enables zero-copy
 transfers between streams and native code.
 
 ### Batching
 
-Each iteration yields a **batch** -- an array of `Uint8Array` chunks
-(`Uint8Array[]`). Batching amortizes the cost of `await` and Promise creation
+Each iteration yields a **batch** -- an {Array} of {Uint8Array} chunks
+({Uint8Array\[]}). Batching amortizes the cost of `await` and {Promise} creation
 across multiple chunks. A consumer that processes one chunk at a time can
 simply iterate the inner array:
 
@@ -121,7 +118,7 @@ Transforms come in two forms:
 
 * **Stateless** -- a function `(chunks, options) => result` called once per
   batch. Receives `Uint8Array[]` (or `null` as the flush signal) and an
-  `options` object. Returns `Uint8Array[]`, `null`, or an iterable of chunks.
+  `options` object. Returns {Uint8Array\[]|null|Iterable}.
 
 * **Stateful** -- an object `{ transform(source, options) }` where `transform`
   is a generator (sync or async) that receives the entire upstream iterable
@@ -529,11 +526,11 @@ added:
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|AsyncIterable|Object}
   Must not be `null` or `undefined`.
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}.
 
 Create an async byte stream from the given input. Strings are UTF-8 encoded.
 `ArrayBuffer` and `ArrayBufferView` values are wrapped as `Uint8Array`. Arrays
-and iterables are recursively flattened and normalized.
+and iterables in `input` are recursively flattened and normalized.
 
 Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 `Symbol.for('Stream.toStreamable')` are converted via those protocols. The
@@ -570,7 +567,7 @@ added:
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|Object}
   Must not be `null` or `undefined`.
-* Returns: {Iterable\<Uint8Array\[]>}
+* Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
 Synchronous version of [`from()`][]. Returns a sync iterable. Cannot accept
 async iterables or promises. Objects implementing
@@ -682,7 +679,7 @@ added:
 * `...transforms` {Function|Object} Zero or more transforms to apply.
 * `options` {Object}
   * `signal` {AbortSignal} Abort the pipeline.
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Create a lazy async pipeline. Data is not read from `source` until the
 returned iterable is consumed. Transforms are applied in order.
@@ -752,7 +749,7 @@ added:
 
 * `source` {Iterable} The sync data source.
 * `...transforms` {Function|Object} Zero or more sync transforms.
-* Returns: {Iterable\<Uint8Array\[]>}
+* Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
 Synchronous version of [`pull()`][]. All transforms must be synchronous.
 
@@ -775,8 +772,8 @@ added:
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal} Abort the stream.
 * Returns: {Object}
-  * `writer` {PushWriter} The writer side.
-  * `readable` {AsyncIterable\<Uint8Array\[]>} The readable side.
+  * `writer` {Writable} The writer side.
+  * `readable` {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Create a push stream with backpressure. The writer pushes data in; the
 readable side is consumed as an async iterable.
@@ -853,8 +850,7 @@ the other channel's readable.
 Each channel has:
 
 * `writer` — a \[Writer interface]\[] object for sending data to the peer.
-* `readable` — an `AsyncIterable<Uint8Array[]>` for reading data from
-  the peer.
+* `readable` — an {AsyncIterable} for reading data from the peer.
 * `close()` — close this end of the channel (idempotent).
 * `[Symbol.asyncDispose]()` — async dispose support for `await using`.
 
@@ -909,7 +905,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
@@ -925,7 +921,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
@@ -941,7 +937,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {Iterable\<Uint8Array\[]>}
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
@@ -956,7 +952,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {Iterable\<Uint8Array\[]>}
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
@@ -971,7 +967,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
@@ -1005,7 +1001,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {Iterable\<Uint8Array\[]>}
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
@@ -1020,7 +1016,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `encoding` {string} Text encoding. **Default:** `'utf-8'`.
   * `signal` {AbortSignal}
@@ -1053,7 +1049,7 @@ added:
  - v25.9.0
 -->
 
-* `source` {Iterable\<Uint8Array\[]>}
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `encoding` {string} **Default:** `'utf-8'`.
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
@@ -1129,10 +1125,10 @@ added:
  - v25.9.0
 -->
 
-* `...sources` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>} Two or more iterables.
+* `...sources` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
 * `options` {Object}
   * `signal` {AbortSignal}
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Merge multiple async iterables by yielding batches in temporal order
 (whichever source produces data first). All sources are consumed
@@ -1224,8 +1220,8 @@ added:
     `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal}
 * Returns: {Object}
-  * `writer` {BroadcastWriter}
-  * `broadcast` {Broadcast}
+  * `writer` {Writable}
+  * `broadcast` {BroadcastChannel}
 
 Create a push-model multi-consumer broadcast channel. A single writer pushes
 data to multiple consumers. Each consumer has an independent cursor into a
@@ -1296,7 +1292,7 @@ The number of active consumers.
 * `...transforms` {Function|Object}
 * `options` {Object}
   * `signal` {AbortSignal}
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Create a new consumer. Each consumer receives all data written to the
 broadcast from the point of subscription onward. Optional transforms are
@@ -1313,11 +1309,11 @@ added:
  - v25.9.0
 -->
 
-* `input` {AsyncIterable|Iterable|Broadcastable}
+* `input` {AsyncIterable|Iterable|BroadcastChannel}
 * `options` {Object} Same as `broadcast()`.
 * Returns: {Object} `{ writer, broadcast }`
 
-Create a {Broadcast} from an existing source. The source is consumed
+Create a {BroadcastChannel} from an existing source. The source is consumed
 automatically and pushed to all subscribers.
 
 ### `share(source[, options])`
@@ -1371,6 +1367,21 @@ async function run() {
 run().catch(console.error);
 ```
 
+### Class: `Share`
+
+#### Static method: `Share.from(input[, options])`
+
+<!-- YAML
+added:
+ - v25.9.0
+-->
+
+* `input` {AsyncIterable|Shareable}
+* `options` {Object} Same as `share()`.
+* Returns: {Share}
+
+Create a {Share} from an existing source.
+
 #### `share.cancel([reason])`
 
 * `reason` {Error}
@@ -1388,7 +1399,7 @@ The number of active consumers.
 * `...transforms` {Function|Object}
 * `options` {Object}
   * `signal` {AbortSignal}
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Create a new consumer of the shared source.
 
@@ -1396,18 +1407,17 @@ Create a new consumer of the shared source.
 
 Alias for `share.cancel()`.
 
-### `Share.from(input[, options])`
+### Interface: `Shareable`
 
-<!-- YAML
-added:
- - v25.9.0
--->
+#### `sharable[Symbol.for('Stream.shareProtocol')]`
 
-* `input` {AsyncIterable|Shareable}
-* `options` {Object} Same as `share()`.
-* Returns: {Share}
+* {Function} that returns a {Share}.
 
-Create a {Share} from an existing source.
+### Interface: `SyncShareable`
+
+#### `sharable[Symbol.for('Stream.shareSyncProtocol')]`
+
+* {Function} that returns a {SyncShare}.
 
 ### `shareSync(source[, options])`
 
@@ -1425,7 +1435,9 @@ added:
 
 Synchronous version of [`share()`][].
 
-### `SyncShare.fromSync(input[, options])`
+### Class: `SyncShare`
+
+#### Static method: `SyncShare.fromSync(input[, options])`
 
 <!-- YAML
 added:
@@ -1435,6 +1447,37 @@ added:
 * `input` {Iterable|SyncShareable}
 * `options` {Object}
 * Returns: {SyncShare}
+
+#### `share.bufferSize`
+
+* {number}
+
+The number of chunks currently buffered.
+
+#### `share.cancel([reason])`
+
+* `reason` {Error}
+
+Cancel the share. All consumers receive an error.
+
+#### `share.consumerCount`
+
+* {number}
+
+The number of active consumers.
+
+#### `share.pull([...transforms][, options])`
+
+* `...transforms` {Function|Object}
+* `options` {Object}
+  * `signal` {AbortSignal}
+* Returns: {Iterable} whose chunks return {Uint8Array\[]}
+
+Create a new consumer of the shared source.
+
+#### `share[Symbol.dispose]()`
+
+Alias for `share.cancel()`.
 
 ## Compression and decompression transforms
 
@@ -1462,7 +1505,7 @@ added: v26.1.0
 
 * `readable` {stream.Readable|Object} A classic Readable stream or any object
   with `read()`, `on()`, and `off()` methods.
-* Returns: {AsyncIterable\<Uint8Array\[]>} A stream/iter async iterable source.
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Converts a classic Readable stream (or duck-typed equivalent) into a
 stream/iter async iterable source that can be passed to [`from()`][],
@@ -1579,7 +1622,7 @@ added: v26.1.0
 
 > Stability: 1 - Experimental
 
-* `source` {AsyncIterable} An `AsyncIterable<Uint8Array[]>` source, such as
+* `source` {AsyncIterable} whose chunks must fulfill with {Uint8Array\[]}
   the return value of [`pull()`][] or [`from()`][].
 * `options` {Object}
   * `highWaterMark` {number} The internal buffer size in bytes before
@@ -1587,7 +1630,7 @@ added: v26.1.0
   * `signal` {AbortSignal} An optional signal to abort the readable.
 * Returns: {stream.Readable}
 
-Creates a byte-mode [`stream.Readable`][] from an `AsyncIterable<Uint8Array[]>`
+Creates a byte-mode [`stream.Readable`][] from the `source`
 (the native batch format used by the stream/iter API). Each `Uint8Array` in a
 yielded batch is pushed as a separate chunk into the Readable.
 
@@ -1621,15 +1664,15 @@ added: v26.1.0
 
 > Stability: 1 - Experimental
 
-* `source` {Iterable} An `Iterable<Uint8Array[]>` source, such as the
+* `source` {Iterable} whose chunks must return {Uint8Array\[]}, such as the
   return value of [`pullSync()`][] or [`fromSync()`][].
 * `options` {Object}
   * `highWaterMark` {number} The internal buffer size in bytes before
     backpressure is applied. **Default:** `65536` (64 KB).
 * Returns: {stream.Readable}
 
-Creates a byte-mode [`stream.Readable`][] from a synchronous
-`Iterable<Uint8Array[]>`. The `_read()` method pulls from the iterator
+Creates a byte-mode [`stream.Readable`][] from the `source`.
+The `_read()` method pulls from the iterator
 synchronously, so data is available immediately via `readable.read()`.
 
 ```mjs
@@ -1706,7 +1749,7 @@ streaming protocol without importing from `node:stream/iter` directly.
 
 The value must be a function. When called by `Broadcast.from()`, it receives
 the options passed to `Broadcast.from()` and must return an object conforming
-to the {Broadcast} interface. The implementation is fully custom -- it can
+to the {BroadcastChannel} interface. The implementation is fully custom -- it can
 manage consumers, buffering, and backpressure however it wants.
 
 ```mjs
@@ -2083,6 +2126,7 @@ const stream = fromSync(new Greeting('world'));
 console.log(textSync(stream)); // 'hello world'
 ```
 
+[`--experimental-stream-iter`]: cli.md#--experimental-stream-iter
 [`array()`]: #arraysource-options
 [`arrayBuffer()`]: #arraybuffersource-options
 [`bytes()`]: #bytessource-options
@@ -2092,7 +2136,7 @@ console.log(textSync(stream)); // 'hello world'
 [`ondrain()`]: #ondraindrainable
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
-[`pullSync()`]: #pullsyncsource-transforms-options
+[`pullSync()`]: #pullsyncsource-transforms
 [`share()`]: #sharesource-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable`]: stream.md#class-streamwritable
