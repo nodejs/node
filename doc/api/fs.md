@@ -8941,6 +8941,10 @@ String paths are interpreted as UTF-8 character sequences identifying
 the absolute or relative filename. Relative paths will be resolved relative
 to the current working directory as determined by calling `process.cwd()`.
 
+String paths are never interpreted as URLs. For example, on POSIX,
+`'file:///tmp/hello'` is a relative path that begins with a directory named
+`file:`. To use a `file:` URL, pass a {URL} object instead.
+
 Example using an absolute path on POSIX:
 
 ```mjs
