@@ -45,6 +45,13 @@ class ProcessRunner {
   std::unique_ptr<char* []> env_ {};  // memory for options_.env
   std::unique_ptr<char* []> arg_ {};  // memory for options_.args
   std::string cwd_;
+  // POSIX no-shell fast path: when the script is a "simple" command (no shell
+  // metacharacters) these hold the argv to exec directly, bypassing /bin/sh.
+  // Empty means the command must go through the shell.
+  std::vector<std::string> direct_args_{};
+  // PATH (including the node_modules/.bin prefixes) used to resolve the direct
+  // executable; mirrors the value placed in env_vars_.
+  std::string exec_search_path_;
 
   // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);

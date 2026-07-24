@@ -1,7 +1,13 @@
 #include "node_task_runner.h"
 #include "util-inl.h"
 
-#include <regex>  // NOLINT(build/c++11)
+#ifndef _WIN32
+#include <fcntl.h>   // fcntl()
+#include <unistd.h>  // chdir(), execve(), execvp()
+#endif
+
+#include <cstdlib>  // setenv()
+#include <regex>    // NOLINT(build/c++11)
 
 namespace node::task_runner {
 
@@ -9,6 +15,44 @@ namespace node::task_runner {
 static constexpr const char* env_var_separator = ";";
 #else
 static constexpr const char* env_var_separator = ":";
+#endif  // _WIN32
+
+#ifndef _WIN32
+// A command is "simple" if it is a plain `program arg arg ...` invocation with
+// no shell syntax, so it can be executed directly without spawning /bin/sh.
+// Any character that the shell would interpret specially (redirections, pipes,
+// command separators, quoting, expansions, globbing, comments, etc.) disables
+// the fast path and falls back to the shell. Whitespace separates arguments.
+static bool IsSimpleCommand(std::string_view command) {
+  bool has_token = false;
+  for (char c : command) {
+    if (c == ' ' || c == '\t') continue;
+    has_token = true;
+    const bool safe = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                      (c >= '0' && c <= '9') || c == '_' || c == '-' ||
+                      c == '.' || c == '/' || c == '=' || c == ':' ||
+                      c == '+' || c == ',' || c == '@' || c == '%';
+    if (!safe) return false;
+  }
+  return has_token;
+}
+
+// Splits a simple command on runs of whitespace into individual arguments.
+static std::vector<std::string> SplitCommand(std::string_view command) {
+  std::vector<std::string> tokens;
+  size_t i = 0;
+  while (i < command.size()) {
+    while (i < command.size() && (command[i] == ' ' || command[i] == '\t')) {
+      ++i;
+    }
+    size_t start = i;
+    while (i < command.size() && command[i] != ' ' && command[i] != '\t') {
+      ++i;
+    }
+    if (i > start) tokens.emplace_back(command.substr(start, i - start));
+  }
+  return tokens;
+}
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
@@ -86,6 +130,18 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
     options_.args[i] = const_cast<char*>(command_args_[i].c_str());
   }
   options_.args[argc] = nullptr;
+
+#ifndef _WIN32
+  // Prepare the no-shell fast path for simple commands. Positional arguments
+  // are passed through verbatim (one argv entry each) instead of being shell
+  // escaped, which preserves them exactly without a shell round-trip.
+  if (IsSimpleCommand(command)) {
+    direct_args_ = SplitCommand(command);
+    for (const auto& arg : positional_args) {
+      direct_args_.emplace_back(arg);
+    }
+  }
+#endif  // _WIN32
 }
 
 void ProcessRunner::SetEnvironmentVariables() {
@@ -111,6 +167,7 @@ void ProcessRunner::SetEnvironmentVariables() {
     if (StringEqualNoCase(name.c_str(), "path")) {
       // Add path env variable to the beginning of the PATH
       value = path_env_var_ + value;
+      exec_search_path_ = value;
     }
     env_vars_.push_back(name + "=" + value);
   }
@@ -207,6 +264,55 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
   cwd_ = package_json_path_.parent_path().string();
+
+#ifndef _WIN32
+  // Fast path: `node --run` does nothing else once the script's shell has been
+  // launched, so instead of forking a child process and keeping this (large)
+  // process resident just to wait for it, replace the current process image
+  // with the shell via execve(). This avoids forking the whole node process,
+  // the event-loop round-trip, and all of node's exit-time teardown. The shell
+  // inherits stdio and becomes the process, so its exit status is reported
+  // directly. We only need to fall back to the spawn path if execve() fails.
+  //
+  // node marks the stdio descriptors close-on-exec via
+  // uv_disable_stdio_inheritance(); the regular spawn path re-inherits them
+  // explicitly for its child, so do the equivalent here by clearing FD_CLOEXEC
+  // on stdin/stdout/stderr before handing the process over to the shell.
+  for (int fd = 0; fd <= 2; ++fd) {
+    int flags = fcntl(fd, F_GETFD);
+    if (flags != -1 && (flags & FD_CLOEXEC)) {
+      fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC);
+    }
+  }
+  if (chdir(cwd_.c_str()) == 0) {
+    // Fastest path: a "simple" command needs no shell at all, so exec the
+    // program directly. Mirror the augmented PATH and the NODE_RUN_* variables
+    // into this process's environment so execvp() resolves binaries on the
+    // node_modules/.bin path and the program inherits the same environment the
+    // shell path would have provided. If this fails (e.g. the command is a
+    // shell builtin or is not found), fall back to running it via the shell.
+    if (!direct_args_.empty()) {
+      std::vector<char*> argv;
+      argv.reserve(direct_args_.size() + 1);
+      for (const auto& arg : direct_args_) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
+      }
+      argv.push_back(nullptr);
+      if (!exec_search_path_.empty()) {
+        setenv("PATH", exec_search_path_.c_str(), 1);
+      }
+      setenv("NODE_RUN_SCRIPT_NAME", script_name_.c_str(), 1);
+      setenv(
+          "NODE_RUN_PACKAGE_JSON_PATH", package_json_path_.string().c_str(), 1);
+      execvp(argv[0], argv.data());
+    }
+    // Either not a simple command or the direct exec failed: hand off to the
+    // shell, still replacing this process instead of spawning a child.
+    execve(options_.file, options_.args, options_.env);
+  }
+  // The exec calls only return on failure; fall through to the spawn path.
+#endif  // _WIN32
+
   options_.cwd = cwd_.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
