@@ -1320,7 +1320,8 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists.
+already exists. If an error occurs, the promise is rejected with an {Error}
+object whose `code` is one of [Common System Errors][].
 
 No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
@@ -2832,9 +2833,11 @@ changes:
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. No arguments other than a possible exception are given to the
-callback function. Node.js makes no guarantees about the atomicity of the copy
-operation. If an error occurs after the destination file has been opened for
-writing, Node.js will attempt to remove the destination.
+callback function. If an error occurs, the `err` argument will be an {Error}
+object whose `code` is one of [Common System Errors][]. Node.js makes no
+guarantees about the atomicity of the copy operation. If an error occurs after
+the destination file has been opened for writing, Node.js will attempt to remove
+the destination.
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
@@ -5972,9 +5975,11 @@ changes:
 * `mode` {integer} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists. Returns `undefined`. Node.js makes no guarantees about the
-atomicity of the copy operation. If an error occurs after the destination file
-has been opened for writing, Node.js will attempt to remove the destination.
+already exists. Returns `undefined`. If an error occurs, an {Error} object whose
+`code` is one of [Common System Errors][] will be thrown. Node.js makes no
+guarantees about the atomicity of the copy operation. If an error occurs after
+the destination file has been opened for writing, Node.js will attempt to remove
+the destination.
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
