@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -30,18 +28,18 @@ await clientSession.opened;
 clientSession.close();
 
 // Creating a stream on a closing session rejects.
-await rejects(
+await assert.rejects(
   clientSession.createBidirectionalStream(),
   { code: 'ERR_INVALID_STATE' },
 );
 
-await rejects(
+await assert.rejects(
   clientSession.createUnidirectionalStream(),
   { code: 'ERR_INVALID_STATE' },
 );
 
 // sendDatagram on a closing session throws.
-await rejects(
+await assert.rejects(
   clientSession.sendDatagram(new Uint8Array([1, 2, 3])),
   { code: 'ERR_INVALID_STATE' },
 );

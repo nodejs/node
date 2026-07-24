@@ -11,8 +11,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { deepStrictEqual, notStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -42,16 +40,16 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // Send hex-encoded string — '48656c6c6f' is 'Hello' in hex.
   const hexId = await clientSession.sendDatagram('48656c6c6f', 'hex');
-  notStrictEqual(hexId, 0n);
+  assert.notStrictEqual(hexId, 0n);
 
   // Send base64-encoded string — 'V29ybGQ=' is 'World' in base64.
   const b64Id = await clientSession.sendDatagram('V29ybGQ=', 'base64');
-  notStrictEqual(b64Id, 0n);
+  assert.notStrictEqual(b64Id, 0n);
 
   await allReceived.promise;
 
-  deepStrictEqual(received[0], Buffer.from('Hello'));
-  deepStrictEqual(received[1], Buffer.from('World'));
+  assert.deepStrictEqual(received[0], Buffer.from('Hello'));
+  assert.deepStrictEqual(received[1], Buffer.from('World'));
 
   await clientSession.closed;
   await serverEndpoint.close();
@@ -67,7 +65,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   }), {
     transportParams: { maxDatagramFrameSize: 1200 },
     ondatagram: mustCall((data) => {
-      deepStrictEqual(Buffer.from(data), Buffer.from([42]));
+      assert.deepStrictEqual(Buffer.from(data), Buffer.from([42]));
       serverGot.resolve();
     }),
   });
@@ -81,7 +79,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const promiseId = await clientSession.sendDatagram(
     Promise.resolve(new Uint8Array([42])),
   );
-  notStrictEqual(promiseId, 0n);
+  assert.notStrictEqual(promiseId, 0n);
 
   await Promise.all([serverGot.promise, clientSession.closed]);
   await serverEndpoint.close();
@@ -113,7 +111,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   });
 
   const id = await clientSession.sendDatagram(slowPromise);
-  strictEqual(id, 0n);
+  assert.strictEqual(id, 0n);
 
   await serverEndpoint.close();
 }
@@ -128,7 +126,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   }), {
     transportParams: { maxDatagramFrameSize: 1200 },
     ondatagram: mustCall((data) => {
-      deepStrictEqual(Buffer.from(data), Buffer.from([10, 20, 30]));
+      assert.deepStrictEqual(Buffer.from(data), Buffer.from([10, 20, 30]));
       serverGot.resolve();
     }),
   });
@@ -146,10 +144,10 @@ const { listen, connect } = await import('../common/quic.mjs');
   view[2] = 30;
 
   const id = await clientSession.sendDatagram(view);
-  notStrictEqual(id, 0n);
+  assert.notStrictEqual(id, 0n);
 
   // The SharedArrayBuffer should still be usable (copied, not transferred).
-  strictEqual(view[0], 10);
+  assert.strictEqual(view[0], 10);
 
   await Promise.all([serverGot.promise, clientSession.closed]);
   await serverEndpoint.close();
@@ -166,7 +164,7 @@ const { listen, connect } = await import('../common/quic.mjs');
     transportParams: { maxDatagramFrameSize: 1200 },
     ondatagram: mustCall((data) => {
       // The received data should match the slice content.
-      deepStrictEqual(Buffer.from(data), Buffer.from('hello'));
+      assert.deepStrictEqual(Buffer.from(data), Buffer.from('hello'));
       serverGot.resolve();
     }),
   });
@@ -180,7 +178,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   // ArrayBuffer is larger and the view has a non-zero offset.
   const pooledBuf = Buffer.from('hello');
   const id = await clientSession.sendDatagram(pooledBuf);
-  notStrictEqual(id, 0n);
+  assert.notStrictEqual(id, 0n);
 
   await Promise.all([serverGot.promise, clientSession.closed]);
   await serverEndpoint.close();
@@ -196,7 +194,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   }), {
     transportParams: { maxDatagramFrameSize: 1200 },
     ondatagram: mustCall((data) => {
-      deepStrictEqual(Buffer.from(data), Buffer.from([0xCA, 0xFE]));
+      assert.deepStrictEqual(Buffer.from(data), Buffer.from([0xCA, 0xFE]));
       serverGot.resolve();
     }),
   });
@@ -213,7 +211,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   // DataView over bytes [2, 3] of the buffer.
   const dv = new DataView(ab, 2, 2);
   const id = await clientSession.sendDatagram(dv);
-  notStrictEqual(id, 0n);
+  assert.notStrictEqual(id, 0n);
 
   await Promise.all([serverGot.promise, clientSession.closed]);
   await serverEndpoint.close();

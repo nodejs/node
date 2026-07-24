@@ -3,9 +3,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { rejects, strictEqual, throws } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -14,8 +11,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
@@ -42,9 +39,9 @@ const streamClosedPromises = [];
 {
   const stream = await clientSession.createBidirectionalStream();
   streamClosedPromises.push(stream.closed);
-  strictEqual(stream.priority, null);
+  assert.strictEqual(stream.priority, null);
 
-  throws(
+  assert.throws(
     () => stream.setPriority({ level: 'high', incremental: true }),
     { code: 'ERR_INVALID_STATE' },
   );
@@ -52,19 +49,19 @@ const streamClosedPromises = [];
 
 // Test 2: Validation of createStream priority/incremental options
 {
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({ priority: 'urgent' }),
     { code: 'ERR_INVALID_ARG_VALUE' },
   );
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({ priority: 42 }),
     { code: 'ERR_INVALID_ARG_VALUE' },
   );
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({ incremental: 'yes' }),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({ incremental: 1 }),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
@@ -75,15 +72,15 @@ const streamClosedPromises = [];
   const stream = await clientSession.createBidirectionalStream();
   streamClosedPromises.push(stream.closed);
 
-  throws(
+  assert.throws(
     () => stream.setPriority({ level: 'high' }),
     { code: 'ERR_INVALID_STATE' },
   );
-  throws(
+  assert.throws(
     () => stream.setPriority({ level: 'low', incremental: true }),
     { code: 'ERR_INVALID_STATE' },
   );
-  throws(
+  assert.throws(
     () => stream.setPriority(),
     { code: 'ERR_INVALID_STATE' },
   );

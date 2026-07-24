@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -35,24 +33,24 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     // complete, so applicationOptions should be available.
     const opts = serverSession.applicationOptions;
 
-    ok(opts != null, 'server applicationOptions should be available after handshake');
-    strictEqual(typeof opts, 'object');
-    strictEqual(Object.getPrototypeOf(opts), null);
+    assert.ok(opts != null, 'server applicationOptions should be available after handshake');
+    assert.strictEqual(typeof opts, 'object');
+    assert.strictEqual(Object.getPrototypeOf(opts), null);
 
     // Verify configured values are reflected.
-    strictEqual(opts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
-    strictEqual(opts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
-    strictEqual(opts.maxFieldSectionSize,
-                BigInt(customAppOptions.maxFieldSectionSize));
-    strictEqual(opts.qpackMaxDtableCapacity,
-                BigInt(customAppOptions.qpackMaxDTableCapacity));
-    strictEqual(opts.qpackEncoderMaxDtableCapacity,
-                BigInt(customAppOptions.qpackEncoderMaxDTableCapacity));
-    strictEqual(opts.qpackBlockedStreams,
-                BigInt(customAppOptions.qpackBlockedStreams));
-    strictEqual(opts.enableConnectProtocol,
-                customAppOptions.enableConnectProtocol);
-    strictEqual(opts.enableDatagrams, customAppOptions.enableDatagrams);
+    assert.strictEqual(opts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
+    assert.strictEqual(opts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
+    assert.strictEqual(opts.maxFieldSectionSize,
+                       BigInt(customAppOptions.maxFieldSectionSize));
+    assert.strictEqual(opts.qpackMaxDtableCapacity,
+                       BigInt(customAppOptions.qpackMaxDTableCapacity));
+    assert.strictEqual(opts.qpackEncoderMaxDtableCapacity,
+                       BigInt(customAppOptions.qpackEncoderMaxDTableCapacity));
+    assert.strictEqual(opts.qpackBlockedStreams,
+                       BigInt(customAppOptions.qpackBlockedStreams));
+    assert.strictEqual(opts.enableConnectProtocol,
+                       customAppOptions.enableConnectProtocol);
+    assert.strictEqual(opts.enableDatagrams, customAppOptions.enableDatagrams);
 
     stream.writer.endSync();
     await stream.closed;
@@ -71,24 +69,24 @@ await clientSession.opened;
 // After opened, ALPN negotiation is complete and applicationOptions
 // should be available on the client session.
 const clientOpts = clientSession.applicationOptions;
-ok(clientOpts != null, 'client applicationOptions should be available after handshake');
-strictEqual(typeof clientOpts, 'object');
-strictEqual(Object.getPrototypeOf(clientOpts), null);
+assert.ok(clientOpts != null, 'client applicationOptions should be available after handshake');
+assert.strictEqual(typeof clientOpts, 'object');
+assert.strictEqual(Object.getPrototypeOf(clientOpts), null);
 
 // Verify configured values on the client side.
-strictEqual(clientOpts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
-strictEqual(clientOpts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
-strictEqual(clientOpts.maxFieldSectionSize,
-            customAppOptions.maxFieldSectionSize);
-strictEqual(clientOpts.qpackMaxDtableCapacity,
-            customAppOptions.qpackMaxDTableCapacity);
-strictEqual(clientOpts.qpackEncoderMaxDtableCapacity,
-            customAppOptions.qpackEncoderMaxDTableCapacity);
-strictEqual(clientOpts.qpackBlockedStreams,
-            customAppOptions.qpackBlockedStreams);
-strictEqual(clientOpts.enableConnectProtocol,
-            customAppOptions.enableConnectProtocol);
-strictEqual(clientOpts.enableDatagrams, customAppOptions.enableDatagrams);
+assert.strictEqual(clientOpts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
+assert.strictEqual(clientOpts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
+assert.strictEqual(clientOpts.maxFieldSectionSize,
+                   customAppOptions.maxFieldSectionSize);
+assert.strictEqual(clientOpts.qpackMaxDtableCapacity,
+                   customAppOptions.qpackMaxDTableCapacity);
+assert.strictEqual(clientOpts.qpackEncoderMaxDtableCapacity,
+                   customAppOptions.qpackEncoderMaxDTableCapacity);
+assert.strictEqual(clientOpts.qpackBlockedStreams,
+                   customAppOptions.qpackBlockedStreams);
+assert.strictEqual(clientOpts.enableConnectProtocol,
+                   customAppOptions.enableConnectProtocol);
+assert.strictEqual(clientOpts.enableDatagrams, customAppOptions.enableDatagrams);
 
 // Exchange data to let the server side run its assertions.
 const stream = await clientSession.createBidirectionalStream();
@@ -100,6 +98,6 @@ await Promise.all([stream.closed, serverDone.promise]);
 
 // After close, applicationOptions should return null.
 await clientSession.close();
-strictEqual(clientSession.applicationOptions, null);
+assert.strictEqual(clientSession.applicationOptions, null);
 
 await serverEndpoint.close();

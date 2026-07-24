@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,8 +17,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -58,15 +55,15 @@ const decoder = new TextDecoder();
     verifyPeer: 'manual',
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
-      ok(Array.isArray(origins));
+      assert.ok(Array.isArray(origins));
       // The origins should include the specific SNI hostnames.
-      ok(origins.length >= 2);
+      assert.ok(origins.length >= 2);
       // The wildcard (*) should NOT be in the list.
       const originStrings = origins.join(',');
-      ok(originStrings.includes('example.com'), 'should include example.com');
-      ok(originStrings.includes('api.example.com'),
-         'should include api.example.com');
-      ok(!originStrings.includes('*'), 'should not include wildcard');
+      assert.ok(originStrings.includes('example.com'), 'should include example.com');
+      assert.ok(originStrings.includes('api.example.com'),
+                'should include api.example.com');
+      assert.ok(!originStrings.includes('*'), 'should not include wildcard');
       originReceived.resolve();
     }),
   });
@@ -80,12 +77,12 @@ const decoder = new TextDecoder();
       ':authority': 'example.com',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
   await clientSession.close();
@@ -135,33 +132,33 @@ const decoder = new TextDecoder();
     servername: 'custom-port.example.com',
     verifyPeer: 'manual',
     onorigin: mustCall(function(origins) {
-      ok(Array.isArray(origins));
+      assert.ok(Array.isArray(origins));
 
       // Custom port included in origin string.
-      ok(origins.includes('https://custom-port.example.com:8443'),
-         'should include origin with custom port');
+      assert.ok(origins.includes('https://custom-port.example.com:8443'),
+                'should include origin with custom port');
 
       // Default port 443 omitted from origin string.
-      ok(origins.includes('https://default-port.example.com'),
-         'should include origin without port for 443');
+      assert.ok(origins.includes('https://default-port.example.com'),
+                'should include origin without port for 443');
       // Verify port 443 is NOT appended.
       const defaultPortOrigin = origins.find((o) =>
         o.includes('default-port.example.com'));
-      ok(!defaultPortOrigin.includes(':443'),
-         'default port 443 should be omitted');
+      assert.ok(!defaultPortOrigin.includes(':443'),
+                'default port 443 should be omitted');
 
       // Non-authoritative entry excluded.
       const allOrigins = origins.join(',');
-      ok(!allOrigins.includes('not-authoritative'),
-         'non-authoritative entry should be excluded');
+      assert.ok(!allOrigins.includes('not-authoritative'),
+                'non-authoritative entry should be excluded');
 
       // Explicitly authoritative entry included.
-      ok(allOrigins.includes('authoritative.example.com'),
-         'explicitly authoritative entry should be included');
+      assert.ok(allOrigins.includes('authoritative.example.com'),
+                'explicitly authoritative entry should be included');
 
       // Default authoritative (true when omitted) included.
-      ok(allOrigins.includes('default-auth.example.com'),
-         'default authoritative entry should be included');
+      assert.ok(allOrigins.includes('default-auth.example.com'),
+                'default authoritative entry should be included');
 
       originReceived.resolve();
     }),
@@ -176,12 +173,12 @@ const decoder = new TextDecoder();
       ':authority': 'custom-port.example.com',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
 
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
   await clientSession.close();

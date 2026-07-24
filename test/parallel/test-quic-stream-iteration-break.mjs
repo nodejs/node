@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,10 +43,10 @@ const stream = await clientSession.createBidirectionalStream({
 let batchCount = 0;
 for await (const batch of stream) {
   batchCount++;
-  ok(Array.isArray(batch));
+  assert.ok(Array.isArray(batch));
   break;  // Exit early — should trigger iterator cleanup.
 }
-strictEqual(batchCount, 1);
+assert.strictEqual(batchCount, 1);
 
 // After break, the stream should still be closable.
 // End the writable side (it was already ended by the body).

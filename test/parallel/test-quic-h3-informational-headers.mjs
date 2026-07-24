@@ -15,9 +15,6 @@ import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,24 +23,24 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const decoder = new TextDecoder();
 const responseBody = 'final response';
 
 // quic.stream.info fires when informational (1xx) headers are received.
 dc.subscribe('quic.stream.info', mustCall((msg) => {
-  ok(msg.stream, 'stream.info should include stream');
-  ok(msg.session, 'stream.info should include session');
-  ok(msg.headers, 'stream.info should include headers');
-  strictEqual(msg.headers[':status'], '103');
+  assert.ok(msg.stream, 'stream.info should include stream');
+  assert.ok(msg.session, 'stream.info should include session');
+  assert.ok(msg.headers, 'stream.info should include headers');
+  assert.strictEqual(msg.headers[':status'], '103');
 }));
 
 // quic.stream.headers also fires for the final response headers.
 dc.subscribe('quic.stream.headers', mustCall((msg) => {
-  ok(msg.stream, 'stream.headers should include stream');
-  ok(msg.headers, 'stream.headers should include headers');
+  assert.ok(msg.stream, 'stream.headers should include stream');
+  assert.ok(msg.headers, 'stream.headers should include headers');
 }, 2));
 
 const serverDone = Promise.withResolvers();
@@ -92,13 +89,13 @@ const stream = await clientSession.createBidirectionalStream({
     ':authority': 'localhost',
   },
   oninfo: mustCall(function(headers) {
-    strictEqual(headers[':status'], '103');
-    strictEqual(headers.link, '</style.css>; rel=preload; as=style');
+    assert.strictEqual(headers[':status'], '103');
+    assert.strictEqual(headers.link, '</style.css>; rel=preload; as=style');
     clientInfoReceived.resolve();
   }),
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
-    strictEqual(headers['content-type'], 'text/plain');
+    assert.strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers['content-type'], 'text/plain');
     clientHeadersReceived.resolve();
   }),
 });
@@ -107,10 +104,10 @@ await Promise.all([clientInfoReceived.promise, clientHeadersReceived.promise]);
 
 // Read the response body.
 const body = await bytes(stream);
-strictEqual(decoder.decode(body), responseBody);
+assert.strictEqual(decoder.decode(body), responseBody);
 
 // stream.headers should return the final (initial) headers, not 1xx.
-strictEqual(stream.headers[':status'], '200');
+assert.strictEqual(stream.headers[':status'], '200');
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();

@@ -4,9 +4,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -14,11 +11,11 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // The token option must be an ArrayBufferView if provided
-await rejects(connect({ port: 1234 }, {
+await assert.rejects(connect({ port: 1234 }, {
   alpn: 'quic-test',
   token: 'not-a-buffer',
 }), {
@@ -44,9 +41,9 @@ const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
   // Set onnewtoken at connection time to avoid missing the event.
   onnewtoken: mustCall(function(token, address) {
-    ok(Buffer.isBuffer(token), 'token should be a Buffer');
-    ok(token.length > 0, 'token should not be empty');
-    ok(address !== undefined, 'address should be defined');
+    assert.ok(Buffer.isBuffer(token), 'token should be a Buffer');
+    assert.ok(token.length > 0, 'token should not be empty');
+    assert.ok(address !== undefined, 'address should be defined');
     clientToken.resolve();
   }),
 });

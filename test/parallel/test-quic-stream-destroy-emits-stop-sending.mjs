@@ -24,8 +24,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -79,7 +77,7 @@ const clientClosedAssertion = assert.rejects(stream.closed, err);
 stream.destroy(err);
 
 const observedCanWrite = await serverObservation.promise;
-strictEqual(observedCanWrite, null);
+assert.strictEqual(observedCanWrite, null);
 
 await clientClosedAssertion;
 

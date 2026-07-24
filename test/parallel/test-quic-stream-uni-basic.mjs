@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { deepStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,17 +25,17 @@ const done = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
-    strictEqual(stream.direction, 'uni');
+    assert.strictEqual(stream.direction, 'uni');
 
     const received = await bytes(stream);
-    deepStrictEqual(received, expected);
-    strictEqual(decoder.decode(received), message);
+    assert.deepStrictEqual(received, expected);
+    assert.strictEqual(decoder.decode(received), message);
 
     // The server side of a remote unidirectional stream is not writable.
     // The writer should be pre-closed (canWrite returns null).
     const w = stream.writer;
-    strictEqual(w.canWrite, null);
-    strictEqual(w.endSync(), 0);
+    assert.strictEqual(w.canWrite, null);
+    assert.strictEqual(w.endSync(), 0);
 
     await stream.closed;
     serverSession.close();
@@ -49,12 +47,12 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 const stream = await clientSession.createUnidirectionalStream({ body });
-strictEqual(stream.direction, 'uni');
+assert.strictEqual(stream.direction, 'uni');
 
 // The client-side uni stream is write-only — async iteration yields nothing.
 const iter = stream[Symbol.asyncIterator]();
 const { done: iterDone } = await iter.next();
-strictEqual(iterDone, true);
+assert.strictEqual(iterDone, true);
 
 await done.promise;
 // The server closed its session, delivering CONNECTION_CLOSE to the client.

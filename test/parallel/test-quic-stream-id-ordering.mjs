@@ -5,8 +5,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -44,13 +42,13 @@ for (let i = 0; i < 10; i++) {
 
 // Verify IDs are strictly increasing.
 for (let i = 1; i < ids.length; i++) {
-  ok(ids[i] > ids[i - 1],
-     `Stream ID ${ids[i]} should be > ${ids[i - 1]}`);
+  assert.ok(ids[i] > ids[i - 1],
+            `Stream ID ${ids[i]} should be > ${ids[i - 1]}`);
 }
 
 // Verify all IDs are unique.
 const uniqueIds = new Set(ids);
-strictEqual(uniqueIds.size, ids.length);
+assert.strictEqual(uniqueIds.size, ids.length);
 
 await Promise.all([serverDone.promise, clientSession.closed]);
 await serverEndpoint.close();
