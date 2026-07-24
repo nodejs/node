@@ -18,6 +18,7 @@ const samples = [
   ['[', '[[]'],
   ['[*', '[[][*]'],
   ['[]a', '[[][]]a'],
+  ['file(1).txt', 'file(1).txt']
 ];
 
 for (const [expected, escapedPattern] of samples) {
