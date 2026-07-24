@@ -217,12 +217,14 @@ return the [module namespace object][]. In this case it is similar to dynamic
 `import()` but is run synchronously and returns the name space object
 directly.
 
-With the following ES Modules:
+With the following ES module `distance.mjs`:
 
 ```mjs
 // distance.mjs
 export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 ```
+
+`point.mjs`:
 
 ```mjs
 // point.mjs
