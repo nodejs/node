@@ -2574,7 +2574,9 @@ changes:
 * `format` {string | Array} A text format or an Array
   of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
   or `#RRGGBB` form.
-* `text` {string} The text to be formatted.
+* `text` {string|number|boolean|bigint} The text to be formatted.
+  Non-string scalar values (`number`, `boolean`, `bigint`) are coerced
+  to a string internally via `String(text)`.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
