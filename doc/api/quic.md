@@ -3934,8 +3934,9 @@ A few things to note:
   the request is `HEADERS` followed by `END_STREAM`.
 * The `onheaders` callback receives the response pseudo-headers and
   regular headers in a single object with lowercase string keys.
-  After the callback returns, the same object is also accessible
-  via [`stream.headers`][].
+  For incoming headers, the `:status` pseudo-header is converted to
+  a `number`, matching HTTP/2 behavior. After the callback returns,
+  the same object is also accessible via [`stream.headers`][].
 * Reading `for await (const chunks of stream)` consumes the response
   body. Each iteration yields a `Uint8Array[]` batch of chunks.
 * HTTP semantic helpers (URL parsing, method/status validation,

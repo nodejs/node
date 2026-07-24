@@ -81,7 +81,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
   await clientSession.opened;
 
   const onClientHeaders = mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
     if (++clientHeaderCount === 2) {
       bothHeadersReceived.resolve();
     }

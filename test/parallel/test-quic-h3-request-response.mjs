@@ -96,7 +96,7 @@ const stream = await clientSession.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
     strictEqual(headers['content-type'], 'text/plain');
     clientHeadersReceived.resolve();
   }),
@@ -109,7 +109,7 @@ const body = await bytes(stream);
 strictEqual(decoder.decode(body), responseBody);
 
 // stream.headers should return the buffered response headers.
-strictEqual(stream.headers[':status'], '200');
+strictEqual(stream.headers[':status'], 200);
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();

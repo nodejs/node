@@ -87,7 +87,7 @@ const stream = await clientSession.createBidirectionalStream({
   },
   body: encoder.encode(requestBody),
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    strictEqual(headers[':status'], 200);
     clientHeadersReceived.resolve();
   }),
 });

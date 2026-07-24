@@ -70,7 +70,7 @@ const decoder = new TextDecoder();
     priority: 'high',
     incremental: false,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 
@@ -88,7 +88,7 @@ const decoder = new TextDecoder();
     priority: 'low',
     incremental: true,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
   deepStrictEqual(stream2.priority, { level: 'low', incremental: true });
@@ -102,7 +102,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
   deepStrictEqual(stream3.priority, { level: 'default', incremental: false });
@@ -116,7 +116,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
   // Default priority initially.
@@ -218,7 +218,7 @@ const decoder = new TextDecoder();
     },
     body: encoder.encode('signal'),
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
   deepStrictEqual(stream.priority, { level: 'default', incremental: false });
