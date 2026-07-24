@@ -9,6 +9,7 @@ const skipForceColors =
 
 describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   const tests = [
+    { name: 'console/console_assert.js' },
     { name: 'console/2100bytes.js' },
     { name: 'console/console_low_stack_space.js' },
     { name: 'console/console.js' },
