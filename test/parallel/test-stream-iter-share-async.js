@@ -132,6 +132,17 @@ async function testShareCancelWithReason() {
   );
 }
 
+async function testShareCancelWithFalsyReason() {
+  for (const reason of [0, '', false, null]) {
+    const shared = share(from('data'));
+    const iterator = shared.pull()[Symbol.asyncIterator]();
+
+    shared.cancel(reason);
+
+    await assert.rejects(iterator.next(), (error) => error === reason);
+  }
+}
+
 async function testShareAbortSignal() {
   const ac = new AbortController();
   const reason = new Error('share aborted');
@@ -357,6 +368,7 @@ Promise.all([
   testShareCancel(),
   testShareCancelMidIteration(),
   testShareCancelWithReason(),
+  testShareCancelWithFalsyReason(),
   testShareAbortSignal(),
   testShareAbortSignalWhileSourcePullPending(),
   testSharePullAbortSignalRejectsPendingNext(),
