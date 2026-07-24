@@ -32,13 +32,12 @@ await assert.rejects(connect({ port: 1234 }, {
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onerror = () => {};
-  assert.rejects(
-    serverSession.opened,
-    (err) => err.code === 'ERR_QUIC_TRANSPORT_ERROR' ||
+  return assert.rejects(serverSession.opened, (err) =>
+    err.code === 'ERR_QUIC_TRANSPORT_ERROR' ||
         err.code === 'ERR_INVALID_STATE',
-  )
-    .then(() => serverSession.close())
-    .then(mustCall());
+  ).then(mustCall(() => {
+    serverSession.close();
+  }));
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['quic-test'],

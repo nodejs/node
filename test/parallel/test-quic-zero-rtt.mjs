@@ -48,7 +48,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
     }).then(mustCall(() => serverSession.close()))
   );
-}));
+}, 2));
 
 // --- ZRTT-01: First connection — receive the session ticket and token ---
 const cs1 = await connect(serverEndpoint.address, {
