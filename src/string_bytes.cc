@@ -472,7 +472,6 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case HEX:
-      CHECK(view.length() % 2 == 0 && "invalid hex string length");
       data_size = view.length() / 2;
       break;
 
