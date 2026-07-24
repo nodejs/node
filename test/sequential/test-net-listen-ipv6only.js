@@ -11,9 +11,13 @@ const net = require('net');
 
 const host = '::';
 const server = net.createServer();
+// Use a fixed port and run this test sequentially. The assertion below relies
+// on nothing else listening on the IPv4 side of the chosen port; with an
+// ephemeral port under parallel execution another test can occupy that IPv4
+// port, making the connection succeed instead of being refused.
 server.listen({
   host,
-  port: 0,
+  port: common.PORT,
   ipv6Only: true,
 }, common.mustCall(() => {
   const { port } = server.address();
