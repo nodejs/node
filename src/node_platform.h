@@ -266,6 +266,7 @@ class NodePlatform : public MultiIsolatePlatform {
  private:
   IsolatePlatformDelegate* ForIsolate(v8::Isolate* isolate);
   std::shared_ptr<PerIsolatePlatformData> ForNodeIsolate(v8::Isolate* isolate);
+  bool FlushForegroundTasksForAllIsolates();
 
   Mutex per_isolate_mutex_;
   using DelegatePair = std::pair<IsolatePlatformDelegate*,
