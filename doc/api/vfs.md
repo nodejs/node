@@ -10,10 +10,9 @@ added: v26.4.0
 
 <!-- source_link=lib/vfs.js -->
 
-The `node:vfs` module provides an in-memory virtual file system with a
-`node:fs`-like API. It is useful for tests, fixtures, embedded assets, and other
-scenarios where you need a self-contained file system without touching the
-actual file-system.
+The `node:vfs` module provides a virtual file system with a `node:fs`-like API.
+It is useful for tests, fixtures, embedded assets, and other scenarios where you
+need a self-contained file system without touching the actual file-system.
 
 To access it:
 
@@ -27,6 +26,22 @@ const vfs = require('node:vfs');
 
 This module is only available under the `node:` scheme, and only when Node.js
 is started with the `--experimental-vfs` flag.
+
+## Security
+
+The VFS API is not a sandbox, permission system, or access-control mechanism.
+It does not isolate untrusted code from the host file system or from other
+Node.js capabilities. Code that can access a [`VirtualFileSystem`][] instance,
+mount it, select its provider, or pass paths to it is trusted application code.
+
+Mounting a VFS only redirects supported [`node:fs`][] calls whose resolved paths
+are under the mount point. It does not prevent code from using other paths or
+other Node.js APIs to access resources available to the process.
+[`RealFSProvider`][] maps VFS paths under its configured root and rejects paths
+that resolve outside that root, but that check is not a security boundary. Do
+not rely on VFS to run untrusted code; use operating-system-level isolation,
+such as separate users, containers, or platform sandboxes, when a security
+boundary is required.
 
 ## Basic usage
 
@@ -68,7 +83,7 @@ const vfs = require('node:vfs');
 const memoryVfs = vfs.create();
 
 // Explicit provider
-const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/sandbox'));
+const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ```
 
 ## Class: `VirtualFileSystem`
@@ -187,9 +202,6 @@ added: v26.4.0
 -->
 
 The base class for all VFS providers. Subclasses implement the essential
-primitives (`open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
-`rename`, ...) and inherit default implementations of the derived
-The base class for all VFS providers. Subclasses implement the essential
 primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, etc.) and inherit default implementations of the derived
 methods (such as `readFile`, `writeFile`, `exists`, `copyFile`, `access`, etc.).
@@ -257,10 +269,11 @@ myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 added: v26.4.0
 -->
 
-A provider that wraps a directory (i.e. one on the actual file system) and exposes its
-contents through the VFS API. All VFS paths are resolved relative to
-the root and verified to stay inside it; symbolic links resolving
-outside the root are rejected.
+A provider that wraps a directory (i.e. one on the actual file system) and
+exposes its contents through the VFS API. All VFS paths are resolved relative to
+the root and verified to stay inside it; symbolic links resolving outside the
+root are rejected. This path mapping is not a sandbox or access-control
+mechanism.
 
 ### `new RealFSProvider(rootPath)`
 
@@ -274,8 +287,8 @@ added: v26.4.0
 ```cjs
 const vfs = require('node:vfs');
 
-const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/sandbox'));
-realVfs.writeFileSync('/file.txt', 'hello'); // writes /tmp/sandbox/file.txt
+const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
+realVfs.writeFileSync('/file.txt', 'hello'); // writes /tmp/vfs-root/file.txt
 ```
 
 ### `realFSProvider.rootPath`
@@ -303,6 +316,7 @@ fields use synthetic but stable values:
 * Times default to the moment the entry was created/last modified.
 
 [`MemoryProvider`]: #class-memoryprovider
+[`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
 [`fs.BigIntStats`]: fs.md#class-fsbigintstats

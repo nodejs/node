@@ -814,8 +814,8 @@ void Endpoint::AddSession(const CID& cid, BaseObjectPtr<Session> session) {
   // For server sessions, associate the client's original DCID (ocid) so
   // that 0-RTT packets arriving in a separate UDP datagram can be routed
   // to this session. This must happen after the session is added (so
-  // FindSession can resolve the mapping) but before EmitNewSession (which
-  // runs JS and may yield to libuv, allowing the 0-RTT packet to arrive).
+  // FindSession can resolve the mapping) and before any JS runs (which
+  // may yield to libuv, allowing the 0-RTT packet to arrive).
   if (session->is_server() && session->config().ocid) {
     AssociateCID(session->config().ocid, session->config().scid);
   }
@@ -825,22 +825,22 @@ void Endpoint::AddSession(const CID& cid, BaseObjectPtr<Session> session) {
   if (session->is_server() && session->config().retry_scid) {
     AssociateCID(session->config().retry_scid, session->config().scid);
   }
-  // Increment the primary session count and ref the handle BEFORE
-  // EmitNewSession. EmitNewSession calls into JS, which may close/destroy
-  // the session synchronously. The session's ~Impl calls RemoveSession
-  // which decrements the count. If we increment after EmitNewSession,
-  // RemoveSession would see count=0 and the count would be permanently
-  // off by one.
+  // Increment the primary session count and ref the handle BEFORE any
+  // JS can run for this session (the deferred EmitNewSession, or packet
+  // processing callbacks). JS may close/destroy the session
+  // synchronously; the session's ~Impl calls RemoveSession which
+  // decrements the count. If we incremented after, RemoveSession would
+  // see count=0 and the count would be permanently off by one.
   if (primary_session_count_++ == 0) {
     idle_timer_.Stop();
     udp_.Ref();
   }
   if (session->is_server()) {
     STAT_INCREMENT(Stats, server_sessions);
-    // We only emit the new session event for server sessions.
-    EmitNewSession(session);
-    // It is important to note that the session may be closed/destroyed
-    // when it is emitted here.
+    // Note that we don't emit new sessions here - that's deferred until the
+    // ClientHello has been processed (see Session::ReadPacket), so the
+    // session is exposed to JS only once its SNI/ALPN are known and invalid
+    // handshakes never surface.
   } else {
     STAT_INCREMENT(Stats, client_sessions);
   }
@@ -1802,6 +1802,24 @@ void Endpoint::Receive(const uint8_t* data,
       // successfully decoded. Send a Version Negotiation response
       // per RFC 9000 Section 6. The VN packet's DCID is the client's
       // SCID and vice versa (mirrored back to the client).
+      //
+      // ngtcp2_pkt_decode_version_cid() only enforces the
+      // NGTCP2_MAX_CIDLEN limit for *supported* versions; for an
+      // unsupported version it returns the raw connection ID lengths
+      // taken from the single-byte length fields on the wire, which can
+      // be up to 255. Constructing a CID -- backed by a fixed
+      // NGTCP2_MAX_CIDLEN-byte buffer -- from such a length writes past
+      // the buffer (an assertion abort in release builds). A single
+      // unauthenticated UDP datagram could therefore crash the endpoint
+      // before any handshake. Drop these packets, mirroring the
+      // CID-length policy applied below for supported versions.
+      if (pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
+          pversion_cid.scidlen > NGTCP2_MAX_CIDLEN) {
+        Debug(this,
+              "Version negotiation packet had incorrectly sized CIDs, "
+              "ignoring");
+        return;
+      }
       Debug(this,
             "Packet version %d is not supported, sending version negotiation",
             pversion_cid.version);
@@ -1980,6 +1998,12 @@ void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
   // the call to MakeCallback. If that's the case, the session object still
   // exists but it is in a destroyed state. Care should be taken accessing
   // session after this point.
+
+  // Deliver any stream events that were held until the stream was setup,
+  // e.g. 0-RTT streams from the first flight.
+  if (!session->is_destroyed()) {
+    session->ReplayDeferredEmits();
+  }
 }
 
 void Endpoint::EmitClose(CloseContext context, int status) {

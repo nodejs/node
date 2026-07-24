@@ -8,7 +8,7 @@
 // 0x100 | <tls_alert>. For `no_application_protocol` (alert 120 / 0x78) this
 // is 0x178 == 376.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
 const { rejects, strictEqual, match } = assert;
@@ -29,16 +29,15 @@ const onerror = mustCall((err) => {
   strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
   strictEqual(err.errorCode, 376n);
   match(err.message, /no application protocol/);
-}, 2);
+});
 const transportParams = { maxIdleTimeout: 1 };
 
-const serverEndpoint = await listen(mustCall(async (serverSession) => {
-  await rejects(serverSession.opened, expected);
-  await rejects(serverSession.closed, expected);
-}), {
-  transportParams,
-  onerror,
-});
+// The handshake fails so the session is never surfaced to JS
+const serverEndpoint = await listen(
+  mustNotCall('server session must not be surfaced for a failed handshake'),
+  {
+    transportParams,
+  });
 
 // Client requests an ALPN the server doesn't offer.
 const clientSession = await connect(serverEndpoint.address, {

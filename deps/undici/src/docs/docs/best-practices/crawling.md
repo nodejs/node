@@ -1,5 +1,7 @@
 # Crawling
 
+<!--type=misc-->
+
 [RFC 9309](https://datatracker.ietf.org/doc/html/rfc9309) defines crawlers as automated clients.
 
 Some web servers may reject requests that omit the `User-Agent` header or that use common defaults such as `'curl/7.79.1'`.
@@ -10,7 +12,7 @@ It is recommended to specify a **custom `User-Agent` header** when implementing 
 
 A user agent string should include sufficient detail to identify the crawler and provide contact information. For example:
 
-```
+```text
 AcmeCo Crawler - acme.co - contact@acme.co
 ```
 

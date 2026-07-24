@@ -65,7 +65,7 @@ where
             &<<M::DataStruct as Yokeable<'_>>::Output as MaybeAsVarULE>::EncodedStruct,
         > = core::iter::once(first_varule)
             .chain(rest.iter().map(|v| {
-                #[allow(clippy::expect_used)] // exporter code
+                #[expect(clippy::expect_used)] // exporter code
                 v.get()
                     .payload
                     .as_any()

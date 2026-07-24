@@ -200,7 +200,6 @@ surface. It models the ABI categories that the generated trampoline knows how to
 marshal directly:
 
 * `kVoid`
-* `kBool`
 * signed and unsigned 8-bit, 16-bit, 32-bit, and 64-bit integers
 * `kFloat32`
 * `kFloat64`
@@ -208,7 +207,8 @@ marshal directly:
 * `kBuffer`
 
 Public aliases are normalized in `FastScalarTypeFromName()` and
-`FastArgTypeFromName()`.
+`FastArgTypeFromName()`. In particular, `bool` is normalized to `kUint8` to
+match its documented 8-bit unsigned integer semantics.
 
 `pointer`, `ptr`, `string`, `str`, `buffer`, and `arraybuffer` all represent
 pointer-sized native values at the target ABI boundary. They differ in how

@@ -16,7 +16,7 @@ async function testBasicWriteRead() {
 }
 
 async function testMultipleWrites() {
-  const { writer, readable } = push({ highWaterMark: 10 });
+  const { writer, readable } = push({ budget: 16384 });
 
   writer.write('a');
   writer.write('b');
@@ -27,19 +27,18 @@ async function testMultipleWrites() {
   assert.strictEqual(data, 'abc');
 }
 
-async function testDesiredSize() {
-  const { writer } = push({ highWaterMark: 3 });
+async function testCanWrite() {
+  const kHalf = new Uint8Array(8192);
+  const { writer } = push({ budget: 16384 });
 
-  assert.strictEqual(writer.desiredSize, 3);
-  writer.writeSync('a');
-  assert.strictEqual(writer.desiredSize, 2);
-  writer.writeSync('b');
-  assert.strictEqual(writer.desiredSize, 1);
-  writer.writeSync('c');
-  assert.strictEqual(writer.desiredSize, 0);
+  assert.strictEqual(writer.canWrite, true);
+  writer.writeSync(kHalf);
+  assert.strictEqual(writer.canWrite, true);  // 8192 < 16384
+  writer.writeSync(kHalf);
+  assert.strictEqual(writer.canWrite, false); // 16384 >= 16384
 
   writer.end();
-  assert.strictEqual(writer.desiredSize, null);
+  assert.strictEqual(writer.canWrite, null);
 }
 
 async function testWriterEnd() {
@@ -75,7 +74,7 @@ async function testWriterFail() {
 }
 
 async function testConsumerBreak() {
-  const { writer, readable } = push({ highWaterMark: 10 });
+  const { writer, readable } = push({ budget: 16384 });
 
   writer.writeSync('a');
   writer.writeSync('b');
@@ -87,8 +86,8 @@ async function testConsumerBreak() {
     break;
   }
 
-  // Writer should now see null desiredSize
-  assert.strictEqual(writer.desiredSize, null);
+  // Writer should now see null canWrite
+  assert.strictEqual(writer.canWrite, null);
 }
 
 async function testAbortSignal() {
@@ -119,7 +118,7 @@ async function testPreAbortedSignal() {
 }
 
 async function testConsumerBreakWriteSyncReturnsFalse() {
-  const { writer, readable } = push({ highWaterMark: 10 });
+  const { writer, readable } = push({ budget: 16384 });
   writer.writeSync('a');
 
   // Break after first batch
@@ -130,7 +129,7 @@ async function testConsumerBreakWriteSyncReturnsFalse() {
 
   // After consumer break, writeSync should return false
   assert.strictEqual(writer.writeSync('b'), false);
-  assert.strictEqual(writer.desiredSize, null);
+  assert.strictEqual(writer.canWrite, null);
 }
 
 async function testPushWithTransforms() {
@@ -160,7 +159,7 @@ async function testInvalidBackpressure() {
   });
 
   // Valid values should not throw
-  for (const bp of ['strict', 'block', 'drop-oldest', 'drop-newest']) {
+  for (const bp of ['strict', 'unbounded', 'drop-oldest', 'drop-newest']) {
     push({ backpressure: bp });
   }
 }
@@ -168,7 +167,7 @@ async function testInvalidBackpressure() {
 Promise.all([
   testBasicWriteRead(),
   testMultipleWrites(),
-  testDesiredSize(),
+  testCanWrite(),
   testWriterEnd(),
   testWriterFail(),
   testConsumerBreak(),

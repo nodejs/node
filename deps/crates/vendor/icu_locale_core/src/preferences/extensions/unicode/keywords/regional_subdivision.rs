@@ -24,8 +24,21 @@ struct_keyword!(
             .ok_or(PreferencesParseError::InvalidKeywordValue)
     },
     |input: RegionalSubdivision| {
-        #[allow(clippy::unwrap_used)] // TODO
-        Value::from_subtag(Some(Subtag::try_from_str(&input.0.to_string()).unwrap()))
+        let mut raw = [0; 8];
+        raw[0] = input.0.region.into_raw()[0];
+        raw[1] = input.0.region.into_raw()[1];
+        raw[2] = input.0.region.into_raw()[2];
+        let len = input.0.region.as_str().len();
+        debug_assert!((2..=3).contains(&len));
+        #[allow(clippy::indexing_slicing)] // safe
+        {
+            raw[len] = input.0.suffix.into_raw()[0];
+            raw[len + 1] = input.0.suffix.into_raw()[1];
+            raw[len + 2] = input.0.suffix.into_raw()[2];
+            raw[len + 3] = input.0.suffix.into_raw()[2];
+        }
+        #[expect(clippy::unwrap_used)] // correct by construction
+        Value::from_subtag(Some(Subtag::try_from_raw(raw).unwrap()))
     }
 );
 

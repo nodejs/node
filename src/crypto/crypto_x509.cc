@@ -20,7 +20,6 @@ using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::Digest;
-using ncrypto::ECKeyPointer;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
 using ncrypto::X509Pointer;
@@ -668,17 +667,10 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
 }
 
 MaybeLocal<Object> GetPubKey(Environment* env, const ncrypto::Rsa& rsa) {
-  int size = i2d_RSA_PUBKEY(rsa, nullptr);
-  CHECK_GE(size, 0);
-
-  auto bs = ArrayBuffer::NewBackingStore(
-      env->isolate(), size, BackingStoreInitializationMode::kUninitialized);
-
-  auto serialized = reinterpret_cast<unsigned char*>(bs->Data());
-  CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
-
-  auto ab = ArrayBuffer::New(env->isolate(), std::move(bs));
-  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
+  auto bio = rsa.derPublicKey();
+  Local<Value> ret;
+  if (!ToBuffer(env, &bio).ToLocal(&ret)) return {};
+  return ret.As<Object>();
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
@@ -698,14 +690,13 @@ MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
   return ToV8Value(env->context(), bio);
 }
 
-MaybeLocal<Value> GetECPubKey(Environment* env,
-                              const EC_GROUP* group,
-                              OSSL3_CONST EC_KEY* ec) {
-  const auto pubkey = ECKeyPointer::GetPublicKey(ec);
+MaybeLocal<Value> GetECPubKey(Environment* env, const ncrypto::Ec& ec) {
+  const auto group = ec.getGroup();
+  const auto pubkey = ec.getPublicKey();
   if (pubkey == nullptr) [[unlikely]]
     return Undefined(env->isolate());
 
-  return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec))
+  return ECPointToBuffer(env, group, pubkey, ec.getPointConversionForm())
       .FromMaybe(Local<Object>());
 }
 
@@ -792,7 +783,7 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
 
   cert.ifEc([&](const ncrypto::Ec& ec) {
     const auto group = ec.getGroup();
-    values[7] = GetECPubKey(env, group, ec);  // pubkey
+    values[7] = GetECPubKey(env, ec);         // pubkey
     values[8] = GetECGroupBits(env, group);   // bits
     const int nid = ec.getCurve();
     if (nid != 0) {

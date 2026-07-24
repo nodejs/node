@@ -30,6 +30,7 @@ namespace node {
 using ncrypto::DataPointer;
 using ncrypto::EVPMDCtxPointer;
 using ncrypto::MarkPopErrorOnReturn;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -43,8 +44,11 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
+using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -195,12 +199,12 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   values.reserve(size);
   for (auto& [alias, id] : env->alias_to_md_id_map) {
     names.push_back(OneByteString(isolate, alias));
-    values.push_back(v8::Uint32::New(isolate, id));
+    values.push_back(Uint32::New(isolate, id));
   }
 #else
   CHECK(env->alias_to_md_id_map.empty());
 #endif
-  Local<Value> prototype = v8::Null(isolate);
+  Local<Value> prototype = Null(isolate);
   Local<Object> result =
       Object::New(isolate, prototype, names.data(), values.data(), size);
   args.GetReturnValue().Set(result);
@@ -233,7 +237,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
     if (algorithm_cache.As<Object>()
             ->Set(isolate->GetCurrentContext(),
                   algorithm,
-                  v8::Int32::New(isolate, result.cache_id))
+                  Int32::New(isolate, result.cache_id))
             .IsNothing()) {
       return nullptr;
     }
@@ -247,7 +251,11 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 }
 
 void MarkInvalidXofLength() {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+#else
   EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+#endif
 }
 
 // DEP0198 EOL requires XOFs without an OpenSSL-defined default output length
@@ -329,11 +337,13 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 
   if (output_length == 0) {
     if (output_enc == BUFFER) {
-      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
-      args.GetReturnValue().Set(
-          Buffer::New(isolate, ab, 0, 0).ToLocalChecked());
+      Local<Uint8Array> u8;
+      if (Buffer::New(isolate, ArrayBuffer::New(isolate, 0), 0, 0)
+              .ToLocal(&u8)) {
+        args.GetReturnValue().Set(u8);
+      }
     } else {
-      args.GetReturnValue().Set(v8::String::Empty(isolate));
+      args.GetReturnValue().Set(String::Empty(isolate));
     }
     return;
   }
@@ -459,7 +469,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
     if (!mdctx_.hasXofFlag()) [[unlikely]] {
-      EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+      MarkInvalidXofLength();
       mdctx_.reset();
       return false;
     }

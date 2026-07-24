@@ -333,6 +333,15 @@ FFI_EXPORT void call_void_callback(VoidCallback callback) {
   }
 }
 
+FFI_EXPORT int32_t string_survives_callback(const char* str,
+                                            VoidCallback callback) {
+  if (callback) {
+    callback();
+  }
+
+  return str && strcmp(str, "outer string") == 0;
+}
+
 FFI_EXPORT void call_string_callback(StringCallback callback, const char* str) {
   if (callback) {
     callback(str);

@@ -863,8 +863,8 @@ void PrintTupleTo(const T& t, std::integral_constant<size_t, I>,
     GTEST_INTENTIONAL_CONST_COND_POP_()
     *os << ", ";
   }
-  UniversalPrinter<typename std::tuple_element<I - 1, T>::type>::Print(
-      std::get<I - 1>(t), os);
+  UniversalPrinter<std::tuple_element_t<I - 1, T>>::Print(std::get<I - 1>(t),
+                                                          os);
 }
 
 template <typename... Types>
@@ -1218,7 +1218,7 @@ template <typename Tuple>
 Strings UniversalTersePrintTupleFieldsToStrings(const Tuple& value) {
   Strings result;
   TersePrintPrefixToStrings(
-      value, std::integral_constant<size_t, std::tuple_size<Tuple>::value>(),
+      value, std::integral_constant<size_t, std::tuple_size_v<Tuple>>(),
       &result);
   return result;
 }

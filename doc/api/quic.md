@@ -137,8 +137,12 @@ To avoid this, servers should use compact certificate chains:
   large RSA intermediates. The choice of CA directly affects handshake latency.
 
 Certificate compression ([RFC 8879][]) can also address this issue by
-compressing the certificate chain during the handshake. However, Node.js does
-not currently support TLS certificate compression.
+compressing the certificate chain during the handshake, often keeping the
+server's Certificate message within the amplification limit and avoiding the
+extra round trip. Certificate compression is opt-in via the
+[`certificateCompression`][] TLS option and is disabled by default. When
+enabled, it applies to both the server's certificate and, for mutual TLS,
+the client's certificate.
 
 ### Rate limiting
 
@@ -1280,8 +1284,8 @@ added: v23.8.0
   * `body` {string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView |
     Blob | FileHandle | AsyncIterable | Iterable | Promise | null}
     The outbound body source. See [`stream.setBody()`][] for details on
-    supported types. When omitted, the stream starts half-closed (writable
-    side open, no body queued).
+    supported types. When omitted, the stream's outgoing side remains
+    writable with no body queued; no FIN is sent immediately.
   * `headers` {Object} Initial request or response headers to send. Only
     used when the session supports headers (e.g. HTTP/3). If `body` is not
     specified and `headers` is provided, the stream is treated as
@@ -1292,7 +1296,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1308,7 +1312,8 @@ added: v23.8.0
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
-the outgoing stream will be half-closed. The `priority` and `incremental`
+the stream's outgoing side remains writable and no FIN is sent
+immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 The `headers`, `onheaders`, `ontrailers`, `oninfo`, and `onwanttrailers`
 options are only used when the session supports headers (e.g. HTTP/3).
@@ -1323,7 +1328,8 @@ added: v23.8.0
   * `body` {string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView |
     Blob | FileHandle | AsyncIterable | Iterable | Promise | null}
     The outbound body source. See [`stream.setBody()`][] for details on
-    supported types. When omitted, the stream is closed immediately.
+    supported types. When omitted, the stream's outgoing side remains
+    writable with no body queued; no FIN is sent immediately.
   * `headers` {Object} Initial request headers to send.
   * `priority` {string} The priority level of the stream. One of `'high'`,
     `'default'`, or `'low'`. **Default:** `'default'`.
@@ -1331,7 +1337,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1345,7 +1351,8 @@ added: v23.8.0
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
-the outgoing stream will be closed. The `priority` and `incremental`
+the stream's outgoing side remains writable and no FIN is sent
+immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 
 ### `session.path`
@@ -1417,6 +1424,32 @@ and `0n` will be returned. If the datagram exceeds the peer's limit, it
 will be silently dropped and `0n` returned. The local
 `maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
 what this endpoint advertises to the peer as its own maximum.
+
+### `session.servername`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the session. This is
+`null` before the client hello is processed. Once the hello has been
+processed, this is either the host name string or `false` if the handshake
+had no SNI.
+
+### `session.alpnProtocol`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|null}
+
+The negotiated ALPN protocol. This is `null` before the client hello is
+processed. Once ALPN has been negotiated, this is the protocol string. ALPN
+is mandatory in QUIC so this is never `false` on successful connections,
+unlike `node:tls` where this is optional.
 
 ### `session.certificate`
 
@@ -1937,7 +1970,7 @@ added: v23.8.0
 The directionality of the stream, or `null` if the stream has been destroyed
 or is still pending. Read only.
 
-### `stream.highWaterMark`
+### `stream.budget`
 
 <!-- YAML
 added: v26.2.0
@@ -2249,7 +2282,8 @@ The Writer has the following methods:
   the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
   See [`stream.destroy()`][] for a full-stream abort that also resets
   the readable side via `STOP_SENDING`.
-* `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
+* `canWrite` — `true` if writes will be accepted, `false` if at capacity,
+  or `null` if closed/errored.
 
 The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
 input chunk are copied into an internal buffer, so the caller's source
@@ -2915,6 +2949,34 @@ added: v23.8.0
 The TLS certificates to use for client sessions. For server sessions,
 certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 
+#### `sessionOptions.certificateCompression`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in
+  preference order.
+
+Enables TLS certificate compression ([RFC 8879][]) for this session. When
+omitted, certificate compression is disabled.
+
+On the server side, the certificate chain is compressed using the first
+listed algorithm that the client advertises support for. On the client side,
+the listed algorithms are advertised to the server so that the server may
+compress its certificate. When client authentication is in use, the option
+also controls compression of the client's certificate.
+
+Compressing the certificate chain is especially useful for QUIC because it
+reduces the size of the server's first flight, which is bounded by the
+anti-amplification limit (see [Certificate size and handshake
+performance][]). Certificate compression requires TLS 1.3, which QUIC always
+uses.
+
+At most three algorithms may be specified. The option is silently ignored if
+Node.js was built against a shared OpenSSL that lacks certificate compression
+support.
+
 #### `sessionOptions.ciphers`
 
 <!-- YAML
@@ -3563,7 +3625,11 @@ added: v23.8.0
 * `this` {quic.QuicEndpoint}
 * `session` {quic.QuicSession}
 
-The callback function that is invoked when a new session is initiated by a remote peer.
+The callback function that is invoked when a new server session is initiated by
+a remote peer. It is called once the peer's TLS `ClientHello` has been
+processed, so the negotiated TLS parameters are immediately available when
+the callback runs. Sessions whose handshake is rejected before this point are
+never surfaced.
 
 ### Callback: `OnStreamCallback`
 
@@ -4424,6 +4490,7 @@ throughput issues caused by flow control.
 
 [Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
+[Certificate size and handshake performance]: #certificate-size-and-handshake-performance
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
@@ -4453,6 +4520,7 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`certificateCompression`]: #sessionoptionscertificatecompression
 [`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost

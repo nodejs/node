@@ -385,11 +385,14 @@ bool KeyObjectData::ToEncodedPublicKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
+      ECKeyPointer ec_key(pkey);
+      if (!ec_key) {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+      }
       auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
-      const auto point = ECKeyPointer::GetPublicKey(ec_key);
+      const auto group = ec_key.getGroup();
+      const auto point = ec_key.getPublicKey();
       return ECPointToBuffer(env, group, point, form).ToLocal(out);
     }
     const int id = pkey.id();
@@ -431,14 +434,23 @@ bool KeyObjectData::ToEncodedPrivateKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      const EC_KEY* ec_key = pkey;
-      CHECK_NOT_NULL(ec_key);
-      const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
-      CHECK_NOT_NULL(private_key);
-      const auto group = ECKeyPointer::GetGroup(ec_key);
+      ECKeyPointer ec_key(pkey);
+      if (!ec_key) {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+      }
+      const BIGNUM* private_key = ec_key.getPrivateKey();
+      if (private_key == nullptr) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC private key");
+        return false;
+      }
+      const auto group = ec_key.getGroup();
       auto order = BignumPointer::New();
-      CHECK(order);
-      CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+      if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
+        return false;
+      }
       auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
       if (!buf) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -629,7 +641,9 @@ static KeyObjectData ImportRawKey(Environment* env,
       throw_invalid();
       return {};
     }
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
     eckey.release();
+#endif
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
 
@@ -1460,15 +1474,17 @@ void KeyObjectHandle::ExportECPublicRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
   CHECK(args[0]->IsInt32());
   auto form =
       static_cast<point_conversion_form_t>(args[0].As<Int32>()->Value());
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
-  const auto point = ECKeyPointer::GetPublicKey(ec_key);
+  const auto group = ec_key.getGroup();
+  const auto point = ec_key.getPublicKey();
 
   Local<Object> buf;
   if (!ECPointToBuffer(env, group, point, form).ToLocal(&buf)) return;
@@ -1491,16 +1507,23 @@ void KeyObjectHandle::ExportECPrivateRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  const EC_KEY* ec_key = m_pkey;
-  CHECK_NOT_NULL(ec_key);
+  ECKeyPointer ec_key(m_pkey);
+  if (!ec_key) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  }
 
-  const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
-  CHECK_NOT_NULL(private_key);
+  const BIGNUM* private_key = ec_key.getPrivateKey();
+  if (private_key == nullptr) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to get EC private key");
+  }
 
-  const auto group = ECKeyPointer::GetGroup(ec_key);
+  const auto group = ec_key.getGroup();
   auto order = BignumPointer::New();
-  CHECK(order);
-  CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+  if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
+  }
 
   auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
   if (!buf) {

@@ -34,9 +34,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     strictEqual(decoder.decode(received), message);
 
     // The server side of a remote unidirectional stream is not writable.
-    // The writer should be pre-closed (desiredSize returns null).
+    // The writer should be pre-closed (canWrite returns null).
     const w = stream.writer;
-    strictEqual(w.desiredSize, null);
+    strictEqual(w.canWrite, null);
     strictEqual(w.endSync(), 0);
 
     await stream.closed;

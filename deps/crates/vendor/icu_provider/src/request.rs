@@ -95,6 +95,8 @@ impl<'a> DataIdentifierBorrowed<'a> {
     }
 
     /// Converts this [`DataIdentifierBorrowed`] into a [`DataIdentifierCow<'static>`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn into_owned(self) -> DataIdentifierCow<'static> {
         DataIdentifierCow {
@@ -104,6 +106,8 @@ impl<'a> DataIdentifierBorrowed<'a> {
     }
 
     /// Borrows this [`DataIdentifierBorrowed`] as a [`DataIdentifierCow<'a>`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn as_cow(self) -> DataIdentifierCow<'a> {
         DataIdentifierCow {
@@ -116,6 +120,8 @@ impl<'a> DataIdentifierBorrowed<'a> {
 /// A data identifier identifies a particular version of data, such as "English".
 ///
 /// It is a wrapper around a [`DataLocale`] and a [`DataMarkerAttributes`].
+///
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[non_exhaustive]
 #[cfg(feature = "alloc")]
@@ -188,7 +194,6 @@ impl<'a> DataIdentifierCow<'a> {
     }
 
     /// Creates a [`DataIdentifierCow`] from an owned [`DataMarkerAttributes`] and an owned [`DataLocale`].
-    #[cfg(feature = "alloc")]
     pub fn from_owned(marker_attributes: Box<DataMarkerAttributes>, locale: DataLocale) -> Self {
         Self {
             marker_attributes: Cow::Owned(marker_attributes),
@@ -264,7 +269,7 @@ impl DataMarkerAttributes {
     const fn validate(s: &[u8]) -> Result<(), AttributeParseError> {
         let mut i = 0;
         while i < s.len() {
-            #[allow(clippy::indexing_slicing)] // duh
+            #[expect(clippy::indexing_slicing)] // duh
             if !matches!(s[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_') {
                 return Err(AttributeParseError);
             }
@@ -310,6 +315,8 @@ impl DataMarkerAttributes {
     /// Creates an owned [`DataMarkerAttributes`] from an owned string.
     ///
     /// Returns an error if the string contains characters other than `[a-zA-Z0-9_\-]`.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_string(s: String) -> Result<Box<Self>, AttributeParseError> {
         let Ok(()) = Self::validate(s.as_bytes()) else {
@@ -342,6 +349,7 @@ impl DataMarkerAttributes {
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl ToOwned for DataMarkerAttributes {
     type Owned = Box<Self>;

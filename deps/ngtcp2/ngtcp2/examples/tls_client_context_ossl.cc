@@ -36,23 +36,16 @@
 #include "client_base.h"
 #include "template.h"
 
-namespace {
-auto _ = [] {
-  if (ngtcp2_crypto_ossl_init() != 0) {
-    assert(0);
-    abort();
-  }
-
-  return 0;
-}();
-} // namespace
-
 extern Config config;
+
+TLSClientContext::TLSClientContext() { ngtcp2_crypto_ossl_init(); }
 
 TLSClientContext::~TLSClientContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);
   }
+
+  ngtcp2_crypto_ossl_free();
 }
 
 SSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }

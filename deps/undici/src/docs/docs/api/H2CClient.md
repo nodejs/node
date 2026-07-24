@@ -1,263 +1,385 @@
-# Class: H2CClient
+# H2CClient
 
-Extends: `undici.Dispatcher`
+<!--introduced_in=v7.7.0-->
+<!--type=module-->
+<!-- source_link=lib/dispatcher/h2c-client.js -->
 
-A basic H2C client.
+> Stability: 2 - Stable
 
-**Example**
+An `H2CClient` is a [`Dispatcher`][] that speaks HTTP/2 in cleartext (h2c) over a
+single TCP connection to an `http:` origin, without the protocol upgrade or prior
+knowledge negotiation that a regular [`Client`][] performs. It is a thin
+specialization of [`Client`][] that forces `allowH2` and `useH2c` on and aliases
+`pipelining` to `maxConcurrentStreams`, so multiple requests are multiplexed as
+HTTP/2 streams rather than pipelined HTTP/1.x requests.
 
-```js
-const { createServer } = require('node:http2')
-const { once } = require('node:events')
-const { H2CClient } = require('undici')
+Use an `H2CClient` when the server is known to accept cleartext HTTP/2 directly,
+for example a service behind a trusted proxy or in a test environment. Only the
+`http:` protocol is supported; passing any other protocol throws
+`InvalidArgumentError`.
 
-const server = createServer((req, res) => {
-  res.writeHead(200)
-  res.end('Hello, world!')
-})
+```mjs
+import { H2CClient } from 'undici'
 
-server.listen()
-once(server, 'listening').then(async () => {
-  const client = new H2CClient(`http://localhost:${server.address().port}/`)
+const client = new H2CClient('http://localhost:3000')
 
-  const response = await client.request({ path: '/', method: 'GET' })
-  console.log(response.statusCode) // 200
-  response.body.text.then((text) => {
-    console.log(text) // Hello, world!
-  })
-})
+const { statusCode, body } = await client.request({ path: '/', method: 'GET' })
+console.log(statusCode)
+console.log(await body.text())
 ```
 
-## `new H2CClient(url[, options])`
+## Class: `H2CClient`
 
-Arguments:
+<!-- YAML
+added: v7.7.0
+changes:
+  - version: v7.17.0
+    pr-url: https://github.com/nodejs/undici/pull/4690
+    description: Added support for h2c over Unix domain sockets.
+-->
 
-- **url** `URL | string` - Should only include the **protocol, hostname, and port**. It only supports `http` protocol.
-- **options** `H2CClientOptions` (optional)
+* Extends: {Client}
 
-Returns: `H2CClient`
+`H2CClient` inherits the full instance API of [`Client`][] (and therefore of
+[`Dispatcher`][]). The sections below cover the surface that is meaningful for an
+h2c client; refer to [`Dispatcher`][] for the complete semantics of each method
+and event.
 
-### Parameter: `H2CClientOptions`
+### `new H2CClient(url[, options])`
 
-- **bodyTimeout** `number | null` (optional) - Default: `300e3` - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 300 seconds. Please note the `timeout` will be reset if you keep writing data to the socket everytime.
-- **headersTimeout** `number | null` (optional) - Default: `300e3` - The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 300 seconds.
-- **keepAliveMaxTimeout** `number | null` (optional) - Default: `600e3` - The maximum allowed `keepAliveTimeout`, in milliseconds, when overridden by _keep-alive_ hints from the server. Defaults to 10 minutes.
-- **keepAliveTimeout** `number | null` (optional) - Default: `4e3` - The timeout, in milliseconds, after which a socket without active requests will time out. Monitors time between activity on a connected socket. This value may be overridden by _keep-alive_ hints from the server. See [MDN: HTTP - Headers - Keep-Alive directives](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive#directives) for more details. Defaults to 4 seconds.
-- **keepAliveTimeoutThreshold** `number | null` (optional) - Default: `2e3` - A number of milliseconds subtracted from server _keep-alive_ hints when overriding `keepAliveTimeout` to account for timing inaccuracies caused by e.g. transport latency. Defaults to 2 seconds.
-- **maxHeaderSize** `number | null` (optional) - Default: `--max-http-header-size` or `16384` - The maximum length of request headers in bytes. Defaults to Node.js' --max-http-header-size or 16KiB.
-- **maxResponseSize** `number | null` (optional) - Default: `-1` - The maximum length of response body in bytes. Set to `-1` to disable.
-- **maxConcurrentStreams**: `number` - Default: `100`. The maximum number of concurrent HTTP/2 streams per session — also advertised to the server as `peerMaxConcurrentStreams` (the cap on streams the server may push back). The initial value is replaced by the server's `SETTINGS_MAX_CONCURRENT_STREAMS` whenever the server sends one, so a user-supplied value acts as a pre-`SETTINGS` default rather than a hard cap.
-- **pipelining** `number | null` (optional) - Default to `maxConcurrentStreams` - The amount of concurrent requests sent over a single HTTP/2 session in accordance with [RFC-7540](https://httpwg.org/specs/rfc7540.html#StreamsLayer) Stream specification. Streams can be closed up by remote server at any time. Unlike on a regular [`Client`](/docs/docs/api/Client.md), `H2CClient` aliases `pipelining` to `maxConcurrentStreams` at construction time, so the two move together.
-- **pingInterval**: `number` - Default: `60e3`. The time interval in milliseconds between PING frames sent to the server. Set to `0` to disable PING frames. This is only applicable for HTTP/2 connections.
-- **connect** `ConnectOptions | null` (optional) - Default: `null`.
-- **strictContentLength** `Boolean` (optional) - Default: `true` - Whether to treat request content length mismatches as errors. If true, an error is thrown when the request content-length header doesn't match the length of the request body. **Security Warning:** Disabling this option can expose your application to HTTP Request Smuggling attacks, where mismatched content-length headers cause servers and proxies to interpret request boundaries differently. This can lead to cache poisoning, credential hijacking, and bypassing security controls. Only disable this in controlled environments where you fully trust the request source.
-- **autoSelectFamily**: `boolean` (optional) - Default: depends on local Node version, on Node 18.13.0 and above is `false`. Enables a family autodetection algorithm that loosely implements section 5 of [RFC 8305](https://tools.ietf.org/html/rfc8305#section-5). See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details. This option is ignored if not supported by the current Node version.
-- **autoSelectFamilyAttemptTimeout**: `number` - Default: depends on local Node version, on Node 18.13.0 and above is `250`. The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details.
+<!-- YAML
+added: v7.7.0
+-->
 
-#### Parameter: `H2CConnectOptions`
+* `url` {URL|string} The origin to connect to. Should include only the protocol,
+  hostname, and port. Only the `http:` protocol is supported.
+* `options` {H2CClientOptions} (optional)
+  * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
+    streams for the session. It is advertised to the server and may be overridden
+    by a remote `SETTINGS` frame. Must be a positive integer. **Default:** `100`.
+  * `pipelining` {number} The number of concurrent requests multiplexed over the
+    single connection. For an `H2CClient` this is aliased to
+    `maxConcurrentStreams` and may not exceed it. Must be a positive integer.
+    **Default:** `100`.
+  * `maxHeaderSize` {number} The maximum length of request headers in bytes.
+    **Default:** Node.js' `--max-http-header-size` or `16384` (16 KiB).
+  * `headersTimeout` {number} The amount of time, in milliseconds, the parser
+    waits to receive the complete HTTP headers. **Default:** `300e3`.
+  * `connectTimeout` {number} The timeout for establishing a socket connection,
+    in milliseconds. Use `0` to disable it entirely. **Default:** `10e3`.
+  * `bodyTimeout` {number} The timeout, in milliseconds, after which a request
+    times out. Monitors the time between received body data. Use `0` to disable
+    it entirely. **Default:** `300e3`.
+  * `keepAliveTimeout` {number} The timeout, in milliseconds, after which a
+    socket without active requests times out. May be overridden by _keep-alive_
+    hints from the server. **Default:** `4e3`.
+  * `keepAliveMaxTimeout` {number} The maximum allowed `keepAliveTimeout`, in
+    milliseconds, when overridden by _keep-alive_ hints from the server.
+    **Default:** `600e3`.
+  * `keepAliveTimeoutThreshold` {number} A number of milliseconds subtracted from
+    server _keep-alive_ hints when overriding `keepAliveTimeout`, to account for
+    timing inaccuracies such as transport latency. **Default:** `1e3`.
+  * `socketPath` {string} An IPC endpoint, either a Unix domain socket or a
+    Windows named pipe. **Default:** `null`.
+  * `strictContentLength` {boolean} If `true`, an error is thrown when the
+    request `content-length` header does not match the length of the request
+    body. **Default:** `true`.
+  * `maxCachedSessions` {number} The maximum number of TLS sessions cached by the
+    built-in connector. Use `0` to disable TLS session caching. **Default:** `100`.
+  * `connect` {Object|Function} Connector options passed to `buildConnector`, or
+    a custom connector function. The `allowH2` option may not be set here.
+    **Default:** `null`.
+  * `maxRequestsPerClient` {number} The maximum number of requests to send over
+    a single connection before it is reset. Use `0` to disable this limit.
+    **Default:** `null`.
+  * `localAddress` {string} The local IP address the socket should connect from.
+  * `maxResponseSize` {number} The maximum allowed response body size in bytes.
+    Use `-1` to disable. **Default:** `-1`.
+  * `autoSelectFamily` {boolean} Enables a family autodetection algorithm that
+    loosely implements section 5 of [RFC 8305][]. Ignored if not supported by the
+    current Node.js version.
+  * `autoSelectFamilyAttemptTimeout` {number} The amount of time, in
+    milliseconds, to wait for a connection attempt to finish before trying the
+    next address when `autoSelectFamily` is enabled.
 
-- **socketPath** `string | null` (optional) - Default: `null` - An IPC endpoint, either Unix domain socket or Windows named pipe.
-- **timeout** `number | null` (optional) - In milliseconds, Default `10e3`.
-- **servername** `string | null` (optional)
-- **keepAlive** `boolean | null` (optional) - Default: `true` - TCP keep-alive enabled
-- **keepAliveInitialDelay** `number | null` (optional) - Default: `60000` - TCP keep-alive interval for the socket in milliseconds
+Creates a new `H2CClient` for the given origin. The client does not connect until
+a request is queued; call [`h2cClient.connect()`](#h2cclientconnectoptions-callback)
+to connect eagerly.
 
-### Example - Basic Client instantiation
+```mjs
+import { H2CClient } from 'undici'
 
-This will instantiate the undici H2CClient, but it will not connect to the origin until something is queued. Consider using `client.connect` to prematurely connect to the origin, or just call `client.request`.
-
-```js
-"use strict";
-import { H2CClient } from "undici";
-
-const client = new H2CClient("http://localhost:3000");
+const client = new H2CClient('http://localhost:3000')
 ```
 
-## Instance Methods
+### `h2cClient.close([callback])`
 
-### `H2CClient.close([callback])`
+<!-- YAML
+added: v7.7.0
+-->
 
-Implements [`Dispatcher.close([callback])`](/docs/docs/api/Dispatcher.md#dispatcherclosecallback-promise).
+* `callback` {Function} (optional) Invoked once all queued requests have settled
+  and the client is closed.
+* Returns: {Promise|undefined} A `Promise` that resolves once the client is
+  closed, when `callback` is not provided.
 
-### `H2CClient.destroy([error, callback])`
+Closes the client and gracefully waits for enqueued requests to complete before
+resolving. See [`dispatcher.close([callback])`][].
 
-Implements [`Dispatcher.destroy([error, callback])`](/docs/docs/api/Dispatcher.md#dispatcherdestroyerror-callback-promise).
+### `h2cClient.destroy([error[, callback]])`
 
-Waits until socket is closed before invoking the callback (or returning a promise if no callback is provided).
+<!-- YAML
+added: v7.7.0
+-->
 
-### `H2CClient.connect(options[, callback])`
+* `error` {Error} (optional) The error with which to reject pending requests.
+  **Default:** `null`.
+* `callback` {Function} (optional) Invoked once the client is destroyed.
+* Returns: {Promise|undefined} A `Promise` that resolves once the client is
+  destroyed, when `callback` is not provided.
 
-See [`Dispatcher.connect(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback).
+Destroys the client abruptly, aborting any pending requests. Waits until the
+socket is closed before invoking `callback` (or resolving the returned `Promise`).
+See [`dispatcher.destroy([error[, callback]])`][].
 
-### `H2CClient.dispatch(options, handlers)`
+### `h2cClient.connect(options[, callback])`
 
-Implements [`Dispatcher.dispatch(options, handlers)`](/docs/docs/api/Dispatcher.md#dispatcherdispatchoptions-handler).
+<!-- YAML
+added: v7.7.0
+-->
 
-### `H2CClient.pipeline(options, handler)`
+* `options` {Object}
+  * `path` {string}
+  * `headers` {Object} (optional) **Default:** `null`.
+  * `signal` {AbortSignal|EventEmitter|null} (optional) **Default:** `null`.
+  * `opaque` {any} (optional) An opaque value passed through to the returned
+    connect data.
+  * `responseHeaders` {string|null} (optional) Set to `'raw'` to return the
+    response headers as a raw array instead of an object. **Default:** `null`.
+* `callback` {Function} (optional) Invoked with `(err, data)` once the connection
+  is established. If omitted, a `Promise` is returned instead.
+* Returns: {Promise|undefined} A `Promise` resolving to the connect data, when
+  `callback` is not provided.
 
-See [`Dispatcher.pipeline(options, handler)`](/docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler).
+Starts an HTTP `CONNECT` request. See [`dispatcher.connect(options[, callback])`][].
 
-### `H2CClient.request(options[, callback])`
+### `h2cClient.dispatch(options, handlers)`
 
-See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
+<!-- YAML
+added: v7.7.0
+-->
 
-### `H2CClient.stream(options, factory[, callback])`
+* `options` {Object} The request options.
+* `handlers` {Object} The dispatch handler callbacks.
+* Returns: {boolean} `false` if the dispatcher is busy and the caller should wait
+  for the [`'drain'`](#event-drain) event before dispatching again.
 
-See [`Dispatcher.stream(options, factory[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback).
+The lowest-level request API. All other request methods are implemented on top of
+it. See [`dispatcher.dispatch(options, handler)`][].
 
-### `H2CClient.upgrade(options[, callback])`
+### `h2cClient.pipeline(options, handler)`
 
-See [`Dispatcher.upgrade(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback).
+<!-- YAML
+added: v7.7.0
+-->
 
-## Instance Properties
+* `options` {Object} The request options.
+* `handler` {Function} A handler that receives the response data and returns a
+  {Readable} body.
+* Returns: {Duplex} A duplex stream for the request body and response body.
 
-### `H2CClient.closed`
+Sends a request and returns a duplex stream, suitable for piping. See
+[`dispatcher.pipeline(options, handler)`][].
 
-- `boolean`
+### `h2cClient.request(options[, callback])`
 
-`true` after `H2CClient.close()` has been called.
+<!-- YAML
+added: v7.7.0
+-->
 
-### `H2CClient.destroyed`
+* `options` {Object} The request options.
+* `callback` {Function} (optional) Invoked with `(err, data)` once the response
+  is received. If omitted, a `Promise` is returned instead.
+* Returns: {Promise|undefined} A `Promise` resolving to the response data, when
+  `callback` is not provided.
 
-- `boolean`
+Performs an HTTP request. See [`dispatcher.request(options[, callback])`][].
 
-`true` after `client.destroyed()` has been called or `client.close()` has been called and the client shutdown has completed.
+### `h2cClient.stream(options, factory[, callback])`
 
-### `H2CClient.pipelining`
+<!-- YAML
+added: v7.7.0
+-->
 
-- `number`
+* `options` {Object} The request options.
+* `factory` {Function} A factory that returns a {Writable} to which the response
+  body is written.
+* `callback` {Function} (optional) Invoked once the request completes. If
+  omitted, a `Promise` is returned instead.
+* Returns: {Promise|undefined} A `Promise` that resolves once the request
+  completes, when `callback` is not provided.
 
-Property to get and set the pipelining factor.
+Sends a request and writes the response body to the stream returned by `factory`.
+See [`dispatcher.stream(options, factory[, callback])`][].
 
-## Instance Events
+### `h2cClient.upgrade(options[, callback])`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* `options` {Object} The request options.
+* `callback` {Function} (optional) Invoked with `(err, data)` once the upgrade
+  completes. If omitted, a `Promise` is returned instead.
+* Returns: {Promise|undefined} A `Promise` resolving to the upgrade data, when
+  `callback` is not provided.
+
+Upgrades a connection to a different protocol. See
+[`dispatcher.upgrade(options[, callback])`][].
+
+### `h2cClient.closed`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Type: {boolean}
+
+`true` after [`h2cClient.close()`](#h2cclientclosecallback) has been called.
+
+### `h2cClient.destroyed`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Type: {boolean}
+
+`true` after [`h2cClient.destroy()`](#h2cclientdestroyerror-callback) has been
+called, or after [`h2cClient.close()`](#h2cclientclosecallback) has been called
+and the client shutdown has completed.
+
+### `h2cClient.pipelining`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Type: {number}
+
+Gets and sets the pipelining factor, i.e. the number of requests multiplexed over
+the connection.
 
 ### Event: `'connect'`
 
-See [Dispatcher Event: `'connect'`](/docs/docs/api/Dispatcher.md#event-connect).
+<!-- YAML
+added: v7.7.0
+-->
 
-Parameters:
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
 
-- **origin** `URL`
-- **targets** `Array<Dispatcher>`
+Emitted when the socket has been created and connected. The client connects once
+`client.size > 0`. See [Dispatcher Event: `'connect'`][].
 
-Emitted when a socket has been created and connected. The client will connect once `client.size > 0`.
-
-#### Example - Client connect event
-
-```js
-import { createServer } from "node:http2";
-import { H2CClient } from "undici";
-import { once } from "events";
+```mjs
+import { createServer } from 'node:http2'
+import { once } from 'node:events'
+import { H2CClient } from 'undici'
 
 const server = createServer((request, response) => {
-  response.end("Hello, World!");
-}).listen();
+  response.end('Hello, World!')
+}).listen()
 
-await once(server, "listening");
+await once(server, 'listening')
 
-const client = new H2CClient(`http://localhost:${server.address().port}`);
+const client = new H2CClient(`http://localhost:${server.address().port}`)
 
-client.on("connect", (origin) => {
-  console.log(`Connected to ${origin}`); // should print before the request body statement
-});
+client.on('connect', (origin) => {
+  console.log(`Connected to ${origin}`)
+})
 
-try {
-  const { body } = await client.request({
-    path: "/",
-    method: "GET",
-  });
-  body.setEncoding("utf-8");
-  body.on("data", console.log);
-  client.close();
-  server.close();
-} catch (error) {
-  console.error(error);
-  client.close();
-  server.close();
-}
+const { body } = await client.request({ path: '/', method: 'GET' })
+console.log(await body.text())
+
+client.close()
+server.close()
 ```
 
 ### Event: `'disconnect'`
 
-See [Dispatcher Event: `'disconnect'`](/docs/docs/api/Dispatcher.md#event-disconnect).
+<!-- YAML
+added: v7.7.0
+-->
 
-Parameters:
+* `origin` {URL}
+* `targets` {Array<Dispatcher>}
+* `error` {Error}
 
-- **origin** `URL`
-- **targets** `Array<Dispatcher>`
-- **error** `Error`
+Emitted when the socket has disconnected. The `error` argument is the error that
+caused the socket to disconnect. The client reconnects if (or once)
+`client.size > 0`. See [Dispatcher Event: `'disconnect'`][].
 
-Emitted when socket has disconnected. The error argument of the event is the error which caused the socket to disconnect. The client will reconnect if or once `client.size > 0`.
-
-#### Example - Client disconnect event
-
-```js
-import { createServer } from "node:http2";
-import { H2CClient } from "undici";
-import { once } from "events";
+```mjs
+import { createServer } from 'node:http2'
+import { once } from 'node:events'
+import { H2CClient } from 'undici'
 
 const server = createServer((request, response) => {
-  response.destroy();
-}).listen();
+  response.destroy()
+}).listen()
 
-await once(server, "listening");
+await once(server, 'listening')
 
-const client = new H2CClient(`http://localhost:${server.address().port}`);
+const client = new H2CClient(`http://localhost:${server.address().port}`)
 
-client.on("disconnect", (origin) => {
-  console.log(`Disconnected from ${origin}`);
-});
+client.on('disconnect', (origin) => {
+  console.log(`Disconnected from ${origin}`)
+})
 
 try {
-  await client.request({
-    path: "/",
-    method: "GET",
-  });
+  await client.request({ path: '/', method: 'GET' })
 } catch (error) {
-  console.error(error.message);
-  client.close();
-  server.close();
+  console.error(error.message)
+} finally {
+  client.close()
+  server.close()
 }
 ```
 
 ### Event: `'drain'`
 
-Emitted when pipeline is no longer busy.
+<!-- YAML
+added: v7.7.0
+-->
 
-See [Dispatcher Event: `'drain'`](/docs/docs/api/Dispatcher.md#event-drain).
+* `origin` {URL}
 
-#### Example - Client drain event
-
-```js
-import { createServer } from "node:http2";
-import { H2CClient } from "undici";
-import { once } from "events";
-
-const server = createServer((request, response) => {
-  response.end("Hello, World!");
-}).listen();
-
-await once(server, "listening");
-
-const client = new H2CClient(`http://localhost:${server.address().port}`);
-
-client.on("drain", () => {
-  console.log("drain event");
-  client.close();
-  server.close();
-});
-
-const requests = [
-  client.request({ path: "/", method: "GET" }),
-  client.request({ path: "/", method: "GET" }),
-  client.request({ path: "/", method: "GET" }),
-];
-
-await Promise.all(requests);
-
-console.log("requests completed");
-```
+Emitted when the client is no longer busy and can accept more requests. See
+[Dispatcher Event: `'drain'`][].
 
 ### Event: `'error'`
 
-Invoked for user errors such as throwing in the `onResponseError` handler.
+<!-- YAML
+added: v7.7.0
+-->
+
+* `error` {Error}
+
+Emitted for user errors, such as an error thrown from an `onResponseError`
+handler.
+
+[RFC 8305]: https://tools.ietf.org/html/rfc8305#section-5
+[Dispatcher Event: `'connect'`]: Dispatcher.md#event-connect
+[Dispatcher Event: `'disconnect'`]: Dispatcher.md#event-disconnect
+[Dispatcher Event: `'drain'`]: Dispatcher.md#event-drain
+[`Client`]: Client.md#class-client
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`dispatcher.close([callback])`]: Dispatcher.md#dispatcherclosecallback
+[`dispatcher.connect(options[, callback])`]: Dispatcher.md#dispatcherconnectoptions-callback
+[`dispatcher.destroy([error[, callback]])`]: Dispatcher.md#dispatcherdestroyerror-callback
+[`dispatcher.dispatch(options, handler)`]: Dispatcher.md#dispatcherdispatchoptions-handler
+[`dispatcher.pipeline(options, handler)`]: Dispatcher.md#dispatcherpipelineoptions-handler
+[`dispatcher.request(options[, callback])`]: Dispatcher.md#dispatcherrequestoptions-callback
+[`dispatcher.stream(options, factory[, callback])`]: Dispatcher.md#dispatcherstreamoptions-factory-callback
+[`dispatcher.upgrade(options[, callback])`]: Dispatcher.md#dispatcherupgradeoptions-callback

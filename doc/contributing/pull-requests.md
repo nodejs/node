@@ -180,14 +180,13 @@ A good commit message should describe what changed and why.
 
 3. Wrap all other lines at 72 columns (except for long URLs).
 
-4. If your patch fixes an open issue, you can add a reference to it at the end
-   of the log. Use the `Fixes:` prefix and the full issue URL. For other
-   references use `Refs:`.
+4. If your patch fixes an open issue, include a reference in the pull request
+   description. Use the `Fixes:` prefix and the full issue URL. For other
+   references, use `Refs:`.
 
-   `Fixes:` and `Refs:` trailers get automatically added to your commit message
-   when the Pull Request lands as long as they are included in the
-   Pull Request's description. If the Pull Request lands in several commits,
-   by default the trailers found in the description are added to each commits.
+   `Fixes:` and `Refs:` trailers are automatically added to the commit message
+   when the pull request lands. If the pull request lands as several commits,
+   the trailers from the description are added to each commit by default.
 
    Examples:
 
@@ -207,7 +206,7 @@ A good commit message should describe what changed and why.
    This rule does not apply to dependency updates (e.g. cherry-picks), release
    commits, or backport commits.
 
-Sample complete commit message:
+Sample final commit message after landing:
 
 ```text
 subsystem: explain the commit in one line
@@ -460,7 +459,7 @@ commit.
 
 If a pull request has been inactive for more than six months, add the `stalled` label
 to it. That will trigger an automation that adds a comment explaining the pull request
-may be close for inactivity, giving a heads-up to the contributor before actually
+may be closed for inactivity, giving a heads-up to the contributor before actually
 closing it if it remains inactive.
 
 ### Approving a change
@@ -539,6 +538,13 @@ specific details of how to do this are included in the new collaborator
 [Onboarding guide][]. Usually, a collaborator or triager will start a CI
 test run for you as approvals for the pull request come in.
 If not, you can ask a collaborator or triager to start a CI run.
+
+CI access is only available to collaborators and members of the platform
+teams.  If you are not yet in one of those teams then you will need someone
+to relay the results to you.  If a CI has been completed and failed and a
+day or so has passed, it will be worth commenting in the issue to say you
+cannot see what failed and to politely request in the PR that someone gives
+you that information.
 
 Ideally, the code change will pass ("be green") on all platform configurations
 supported by Node.js. This means that all tests pass and there are no linting

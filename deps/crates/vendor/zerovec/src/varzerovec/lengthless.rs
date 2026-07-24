@@ -6,9 +6,8 @@ use super::components::VarZeroVecComponents;
 use super::*;
 use crate::ule::*;
 use core::marker::PhantomData;
-use core::mem;
 
-/// A slice representing the index and data tables of a VarZeroVec,
+/// A slice representing the index and data tables of a [`VarZeroVec`],
 /// *without* any length fields. The length field is expected to be stored elsewhere.
 ///
 /// Without knowing the length this is of course unsafe to use directly.
@@ -35,7 +34,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroLengthlessSlice<T, F> {
         }
     }
 
-    /// Parse a VarZeroLengthlessSlice from a slice of the appropriate format
+    /// Parse a [`VarZeroLengthlessSlice`] from a slice of the appropriate format
     ///
     /// Slices of the right format can be obtained via [`VarZeroSlice::as_bytes()`]
     pub fn parse_bytes<'a>(len: u32, slice: &'a [u8]) -> Result<&'a Self, UleError> {
@@ -57,7 +56,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroLengthlessSlice<T, F> {
     /// The length associated with this value will be the length associated with the original slice.
     pub(crate) const unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         // self is really just a wrapper around a byte slice
-        mem::transmute(bytes)
+        &*(bytes as *const [u8] as *const Self)
     }
 
     /// Uses a `&mut [u8]` buffer as a `VarZeroLengthlessSlice<T>` without any verification.
@@ -70,7 +69,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroLengthlessSlice<T, F> {
     /// The length associated with this value will be the length associated with the original slice.
     pub(crate) unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Self {
         // self is really just a wrapper around a byte slice
-        mem::transmute(bytes)
+        &mut *(bytes as *mut [u8] as *mut VarZeroLengthlessSlice<T, F>)
     }
 
     /// Get one of this slice's elements
@@ -78,7 +77,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroLengthlessSlice<T, F> {
     /// # Safety
     ///
     /// `index` must be in range, and `len` must be the length associated with this
-    /// instance of VarZeroLengthlessSlice.
+    /// instance of [`VarZeroLengthlessSlice`].
     pub(crate) unsafe fn get_unchecked(&self, len: u32, idx: usize) -> &T {
         self.as_components(len).get_unchecked(idx)
     }
@@ -97,7 +96,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroLengthlessSlice<T, F> {
     ///
     /// # Safety
     ///
-    ///  - `len` is the length associated with this VarZeroLengthlessSlice
+    ///  - `len` is the length associated with this [`VarZeroLengthlessSlice`]
     ///  - The resultant slice is only mutated in a way such that it remains a valid `T`
     ///
     /// # Panics

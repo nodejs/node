@@ -57,7 +57,7 @@ pub fn fixed_from_arithmetic_persian(year: i32, month: u8, day: u8) -> RataDie {
     )
 }
 
-/// fixed_from_arithmetic_persian, modified to use the more correct 33-year rule
+/// [`fixed_from_arithmetic_persian`], modified to use the more correct 33-year rule
 pub fn fixed_from_fast_persian(year: i32, month: u8, day: u8) -> RataDie {
     let p_year = i64::from(year);
     let month = i64::from(month);
@@ -95,7 +95,7 @@ pub fn arithmetic_persian_from_fixed(date: RataDie) -> Result<(i32, u8, u8), I32
     Ok((year, month, day))
 }
 
-/// arithmetic_persian_from_fixed, modified to use the 33-year rule method
+/// [`arithmetic_persian_from_fixed`], modified to use the 33-year rule method
 pub fn fast_persian_from_fixed(date: RataDie) -> Result<(i32, u8, u8), I32CastError> {
     let year = fast_persian_year_from_fixed(date);
     let mut year = i64_to_i32(year)?;
@@ -136,13 +136,13 @@ fn arithmetic_persian_year_from_fixed(date: RataDie) -> i64 {
     }
 }
 
-/// arithmetic_persian_year_from_fixed modified for the 33-year rule
+/// [`arithmetic_persian_year_from_fixed`] modified for the 33-year rule
 fn fast_persian_year_from_fixed(date: RataDie) -> i64 {
     let days_since_epoch = date - FIXED_PERSIAN_EPOCH + 1;
     1 + (33 * days_since_epoch + 3).div_euclid(12053)
 }
 
-/// Lisp code reference: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L4789
+/// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L4789>
 /// Not used, but kept for comparative purposes
 #[allow(dead_code)]
 fn is_arithmetic_leap_year(p_year: i32) -> bool {

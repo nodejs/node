@@ -943,14 +943,36 @@ function expectRequiredModule(mod, expectation, checkESModule = true) {
   assert.deepStrictEqual(clone, { ...expectation });
 }
 
-function expectRequiredTLAError(err) {
+// Extract the entries of the rendered "Require stack:" list (each shown as
+// "- <path>") from an error message or a process output string.
+function expectRequireStack(output, expected) {
+  const lines = output.replace(/\r/g, '').split('\n');
+  const start = lines.indexOf('Require stack:');
+  if (start === -1) {
+    assert.deepStrictEqual([], expected);
+    return;
+  }
+  const stack = [];
+  for (let i = start + 1; i < lines.length && lines[i].startsWith('- '); i++) {
+    stack.push(lines[i].slice(2));
+  }
+  assert.deepStrictEqual(stack, expected);
+}
+
+function expectRequiredTLAError(err, stack) {
   const message = /require\(\) cannot be used on an ESM graph with top-level await/;
   if (typeof err === 'string') {
     assert.match(err, /ERR_REQUIRE_ASYNC_MODULE/);
     assert.match(err, message);
+    if (stack) {
+      expectRequireStack(err, stack);
+    }
   } else {
     assert.strictEqual(err.code, 'ERR_REQUIRE_ASYNC_MODULE');
     assert.match(err.message, message);
+    if (stack) {
+      assert.deepStrictEqual(err.requireStack, stack);
+    }
   }
 }
 
@@ -1011,6 +1033,7 @@ const common = {
   mustSucceed,
   nodeProcessAborted,
   PIPE,
+  expectRequireStack,
   parseTestMetadata,
   platformTimeout,
   printSkipMessage,

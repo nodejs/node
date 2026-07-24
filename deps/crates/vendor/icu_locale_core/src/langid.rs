@@ -40,6 +40,14 @@ use alloc::borrow::Cow;
 /// This operation normalizes syntax to be well-formed. No legacy subtag replacements is performed.
 /// For validation and canonicalization, see `LocaleCanonicalizer`.
 ///
+/// # Serde
+///
+/// This type implements `serde::Serialize` and `serde::Deserialize` if the
+/// `"serde"` Cargo feature is enabled on the crate.
+///
+/// The value will be serialized as a string and parsed when deserialized.
+/// For tips on efficient storage and retrieval of locales, see [`crate::zerovec`].
+///
 /// # Examples
 ///
 /// Simple example:
@@ -71,7 +79,7 @@ use alloc::borrow::Cow;
 /// assert_eq!(li.language, language!("en"));
 /// assert_eq!(li.script, Some(script!("Latn")));
 /// assert_eq!(li.region, Some(region!("US")));
-/// assert_eq!(li.variants.get(0), Some(&variant!("valencia")));
+/// assert_eq!(li.variants.first(), Some(&variant!("valencia")));
 /// ```
 ///
 /// [`Unicode BCP47 Language Identifier`]: https://unicode.org/reports/tr35/tr35.html#Unicode_language_identifier
@@ -95,6 +103,8 @@ impl LanguageIdentifier {
     /// A constructor which takes a utf8 slice, parses it and
     /// produces a well-formed [`LanguageIdentifier`].
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -109,13 +119,15 @@ impl LanguageIdentifier {
     }
 
     /// See [`Self::try_from_str`]
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         crate::parser::parse_language_identifier(code_units, parser::ParserMode::LanguageIdentifier)
     }
 
     #[doc(hidden)] // macro use
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     // The return type should be `Result<Self, ParseError>` once the `const_precise_live_drops`
     // is stabilized ([rust-lang#73255](https://github.com/rust-lang/rust/issues/73255)).
     pub const fn try_from_utf8_with_single_variant(
@@ -137,6 +149,8 @@ impl LanguageIdentifier {
 
     /// A constructor which takes a utf8 slice which may contain extension keys,
     /// parses it and produces a well-formed [`LanguageIdentifier`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -168,6 +182,8 @@ impl LanguageIdentifier {
     ///
     /// This operation will normalize casing and the separator.
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -179,7 +195,7 @@ impl LanguageIdentifier {
     /// );
     /// ```
     #[cfg(feature = "alloc")]
-    pub fn normalize_utf8(input: &[u8]) -> Result<Cow<str>, ParseError> {
+    pub fn normalize_utf8(input: &[u8]) -> Result<Cow<'_, str>, ParseError> {
         let lang_id = Self::try_from_utf8(input)?;
         Ok(writeable::to_string_or_borrow(&lang_id, input))
     }
@@ -188,6 +204,8 @@ impl LanguageIdentifier {
     ///
     /// This operation will normalize casing and the separator.
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -199,7 +217,7 @@ impl LanguageIdentifier {
     /// );
     /// ```
     #[cfg(feature = "alloc")]
-    pub fn normalize(input: &str) -> Result<Cow<str>, ParseError> {
+    pub fn normalize(input: &str) -> Result<Cow<'_, str>, ParseError> {
         Self::normalize_utf8(input.as_bytes())
     }
 
@@ -495,6 +513,7 @@ impl core::fmt::Debug for LanguageIdentifier {
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for LanguageIdentifier {
     type Err = ParseError;
@@ -505,7 +524,7 @@ impl FromStr for LanguageIdentifier {
     }
 }
 
-impl_writeable_for_each_subtag_str_no_test!(LanguageIdentifier, selff, selff.script.is_none() && selff.region.is_none() && selff.variants.is_empty() => selff.language.write_to_string());
+impl_writeable_for_each_subtag_str_no_test!(LanguageIdentifier, selff, selff.script.is_none() && selff.region.is_none() && selff.variants.is_empty() => Some(selff.language.as_str()));
 
 #[test]
 fn test_writeable() {

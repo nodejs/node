@@ -151,6 +151,82 @@ async function testMergeSignalMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testMergeSignalDuringPendingMultiSourceRead() {
+  const ac = new AbortController();
+
+  async function* pending() {
+    await new Promise(() => {});
+    yield [];
+  }
+
+  const iter = merge(pending(), pending(), {
+    __proto__: null,
+    signal: ac.signal,
+  })[Symbol.asyncIterator]();
+
+  const next = iter.next();
+  ac.abort();
+
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testMergeSignalDuringPendingSingleSourceRead() {
+  const ac = new AbortController();
+  let returned = false;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return this;
+    },
+    next() {
+      // Intentionally never settle to verify that aborting interrupts a pending read.
+      return new Promise(() => {});
+    },
+    return() {
+      returned = true;
+      return { __proto__: null, done: true };
+    },
+  };
+
+  const iter = merge(source, {
+    __proto__: null,
+    signal: ac.signal,
+  })[Symbol.asyncIterator]();
+
+  const next = iter.next();
+  await new Promise(setImmediate);
+  ac.abort();
+
+  await assert.rejects(next, { name: 'AbortError' });
+  assert.strictEqual(returned, true);
+}
+
+async function testMergeDoesNotDrainSourcesWhileIdle() {
+  function source(n) {
+    return {
+      __proto__: null,
+      pulls: 0,
+      async *[Symbol.asyncIterator]() {
+        while (this.pulls < n) {
+          yield [Buffer.from(`${++this.pulls}`)];
+        }
+      },
+    };
+  }
+
+  const a = source(5);
+  const b = source(5);
+  const iterator = merge(a, b)[Symbol.asyncIterator]();
+
+  await iterator.next();
+  await new Promise(setImmediate);
+
+  assert.strictEqual(a.pulls, 1);
+  assert.strictEqual(b.pulls, 1);
+
+  await iterator.return?.();
+}
+
 // merge() accepts string sources (normalized via from())
 async function testMergeStringSources() {
   const batches = [];
@@ -286,6 +362,9 @@ Promise.all([
   testMergeSourceError(),
   testMergeConsumerBreak(),
   testMergeSignalMidIteration(),
+  testMergeSignalDuringPendingMultiSourceRead(),
+  testMergeSignalDuringPendingSingleSourceRead(),
+  testMergeDoesNotDrainSourcesWhileIdle(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
   testMergeCleanupErrorOnly(),

@@ -13,8 +13,13 @@
 edition = "2021"
 rust-version = "1.63"
 name = "libm"
-version = "0.2.15"
-authors = ["Jorge Aparicio <jorge@japaric.io>"]
+version = "0.2.16"
+authors = [
+    "Alex Crichton <alex@alexcrichton.com>",
+    "Amanieu d'Antras <amanieu@gmail.com>",
+    "Jorge Aparicio <japaricious@gmail.com>",
+    "Trevor Gross <tg@trevorgross.com>",
+]
 build = "build.rs"
 autolib = false
 autobins = false
@@ -22,7 +27,6 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "libm in pure Rust"
-documentation = "https://docs.rs/libm"
 readme = "README.md"
 keywords = [
     "libm",

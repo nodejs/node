@@ -1,306 +1,497 @@
 # Diagnostics Channel Support
 
-Stability: Experimental.
+<!--introduced_in=v6.3.0-->
+<!--type=misc-->
 
-Undici supports the [`diagnostics_channel`](https://nodejs.org/api/diagnostics_channel.html) (currently available only on Node.js v16+).
-It is the preferred way to instrument Undici and retrieve internal information.
+> Stability: 1 - Experimental
 
-The channels available are the following.
+Undici is instrumented with Node.js' built-in [`diagnostics_channel`][] module.
+It is the preferred way to observe undici's internal behaviour without patching
+the library, and it backs the human-readable [debug logs][Debug].
 
-## `undici:request:create`
+Each integration point is exposed as a named channel. To observe an event,
+obtain the channel by name and subscribe to it:
 
-This message is published when a new outgoing request is created.
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
+  console.log(request.method, request.origin, request.path)
+})
+```
+
+```cjs
+const diagnosticsChannel = require('node:diagnostics_channel')
+
+diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
+  console.log(request.method, request.origin, request.path)
+})
+```
+
+The message published to a channel is always a single object whose shape depends
+on the channel. The sections below describe every channel and the object it
+publishes. Subscriber callbacks run synchronously inside undici, so they should
+be fast and must not throw.
+
+The same `request` object is shared across all `undici:request:*` channels for a
+given request, so a subscriber may correlate the lifecycle of one request by
+identity.
+
+## Event: `'undici:request:create'`
+
+<!-- YAML
+added: v6.3.0
+-->
+
+Published when a new outgoing request is created, before it is dispatched.
+
+* `message` {Object}
+  * `request` {Object} The request being created.
+    * `origin` {string|URL} The origin the request is sent to.
+    * `completed` {boolean} Whether the request has completed. `false` at this
+      point.
+    * `method` {string} The HTTP method, e.g. `'GET'`.
+    * `path` {string} The request path, including any query string.
+    * `headers` {string[]} The request headers as a flat array of strings,
+      alternating between header name and value.
+
+The `request` object also exposes an `addHeader(name, value)` method that
+appends a header before the request is sent.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
   console.log('origin', request.origin)
   console.log('completed', request.completed)
   console.log('method', request.method)
   console.log('path', request.path)
-  console.log('headers', request.headers) // array of strings, e.g: ['foo', 'bar']
+  console.log('headers', request.headers)
   request.addHeader('hello', 'world')
-  console.log('headers', request.headers) // e.g. ['foo', 'bar', 'hello', 'world']
 })
 ```
 
-Note: a request is only loosely completed to a given socket.
+A request is only loosely bound to a given socket at this stage.
 
-## `undici:request:bodyChunkSent`
+## Event: `'undici:request:bodyChunkSent'`
 
-This message is published when a chunk of the request body is being sent.
+<!-- YAML
+added: v7.11.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published each time a chunk of the request body is written to the socket.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+  * `chunk` {Uint8Array|string} The body chunk being sent.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:bodyChunkSent').subscribe(({ request, chunk }) => {
-  // request is the same object undici:request:create
+  console.log('sent', chunk.length, 'bytes')
 })
 ```
 
-## `undici:request:bodySent`
+## Event: `'undici:request:bodySent'`
 
-This message is published after the request body has been fully sent.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after the request body has been fully sent.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:bodySent').subscribe(({ request }) => {
-  // request is the same object undici:request:create
+  // request is the same object as in 'undici:request:create'
 })
 ```
 
-## `undici:request:headers`
+## Event: `'undici:request:headers'`
 
-This message is published after the response headers have been received.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after the response headers have been received.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+  * `response` {Object} The response being received.
+    * `statusCode` {number} The HTTP status code.
+    * `statusText` {string} The HTTP status message.
+    * `headers` {Buffer[]} The raw response headers as an array of buffers,
+      alternating between header name and value.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:headers').subscribe(({ request, response }) => {
-  // request is the same object undici:request:create
   console.log('statusCode', response.statusCode)
   console.log(response.statusText)
-  // response.headers are buffers.
   console.log(response.headers.map((x) => x.toString()))
 })
 ```
 
-## `undici:request:bodyChunkReceived`
+## Event: `'undici:request:bodyChunkReceived'`
 
-This message is published after a chunk of the response body has been received.
+<!-- YAML
+added: v7.11.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published each time a chunk of the response body is received.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+  * `chunk` {Buffer} The body chunk that was received.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:bodyChunkReceived').subscribe(({ request, chunk }) => {
-  // request is the same object undici:request:create
+  console.log('received', chunk.length, 'bytes')
 })
 ```
 
-## `undici:request:trailers`
+## Event: `'undici:request:trailers'`
 
-This message is published after the response body and trailers have been received, i.e. the response has been completed.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after the response body and trailers have been received, that is, once
+the response has fully completed.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][]. `request.completed` is now `true`.
+  * `trailers` {Buffer[]} The raw response trailers as an array of buffers,
+    alternating between header name and value.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:trailers').subscribe(({ request, trailers }) => {
-  // request is the same object undici:request:create
   console.log('completed', request.completed)
-  // trailers are buffers.
   console.log(trailers.map((x) => x.toString()))
 })
 ```
 
-## `undici:request:error`
+## Event: `'undici:request:error'`
 
-This message is published if the request is going to error, but it has not errored yet.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published when the request is about to error, before the error is surfaced to
+the caller.
+
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+  * `error` {Error} The error the request is about to fail with.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:error').subscribe(({ request, error }) => {
-  // request is the same object undici:request:create
+  console.error(error)
 })
 ```
 
-## `undici:client:sendHeaders`
+## Event: `'undici:client:sendHeaders'`
 
-This message is published right before the first byte of the request is written to the socket.
+<!-- YAML
+added: v6.3.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/undici/pull/3585
+    description: Refactor the diagnostics channel internals.
+-->
 
-*Note*: It will publish the exact headers that will be sent to the server in raw format.
+Published immediately before the first byte of the request is written to the
+socket. The headers are published exactly as they will be sent to the server, in
+raw form.
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+* `message` {Object}
+  * `request` {Object} The same object published by
+    [`'undici:request:create'`][].
+  * `headers` {string} The request headers as a single raw string, with lines
+    separated by `\r\n`.
+  * `socket` {net.Socket} The socket the request is written to.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:sendHeaders').subscribe(({ request, headers, socket }) => {
-  // request is the same object undici:request:create
-  console.log(`Full headers list ${headers.split('\r\n')}`);
+  console.log(`Full headers list: ${headers.split('\r\n')}`)
 })
 ```
 
-## `undici:client:beforeConnect`
+## Event: `'undici:client:beforeConnect'`
 
-This message is published before creating a new connection for **any** request.
-You can not assume that this event is related to any specific request.
+<!-- YAML
+added: v6.3.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/undici/pull/3585
+    description: Refactor the diagnostics channel internals.
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published before a new connection is opened for any request. This event cannot be
+attributed to a specific request, because connections are pooled and shared.
+
+* `message` {Object}
+  * `connectParams` {Object} The parameters used to open the connection.
+    * `host` {string} The connection host, including the port if present.
+    * `hostname` {string} The connection hostname.
+    * `protocol` {string} The protocol, e.g. `'https:'`.
+    * `port` {string} The connection port.
+    * `servername` {string|null} The TLS server name, or `null`.
+  * `connector` {Function} The function that creates the socket.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:beforeConnect').subscribe(({ connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername, version } = connectParams
-  // connector is a function that creates the socket
+  const { host, hostname, protocol, port, servername } = connectParams
+  // connector is the function that creates the socket
 })
 ```
 
-## `undici:client:connected`
+## Event: `'undici:client:connected'`
 
-This message is published after a connection is established.
+<!-- YAML
+added: v6.3.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/undici/pull/3585
+    description: Refactor the diagnostics channel internals.
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after a connection has been successfully established.
+
+* `message` {Object}
+  * `socket` {net.Socket} The newly connected socket.
+  * `connectParams` {Object} The parameters used to open the connection. See
+    [`'undici:client:beforeConnect'`][] for the field descriptions.
+  * `connector` {Function} The function that created the socket.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:connected').subscribe(({ socket, connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername, version } = connectParams
- // connector is a function that creates the socket
+  const { host, hostname, protocol, port, servername } = connectParams
 })
 ```
 
-## `undici:client:connectError`
+## Event: `'undici:client:connectError'`
 
-This message is published if it did not succeed to create new connection
+<!-- YAML
+added: v6.3.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/undici/pull/3585
+    description: Refactor the diagnostics channel internals.
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published when a connection could not be established.
+
+* `message` {Object}
+  * `error` {Error} The error that prevented the connection.
+  * `socket` {net.Socket} The socket associated with the failed attempt.
+  * `connectParams` {Object} The parameters used to open the connection. See
+    [`'undici:client:beforeConnect'`][] for the field descriptions.
+  * `connector` {Function} The function that created the socket.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:connectError').subscribe(({ error, socket, connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername, version } = connectParams
-  // connector is a function that creates the socket
-  console.log(`Connect failed with ${error.message}`)
+  console.error(`Connect failed with ${error.message}`)
 })
 ```
 
-## `undici:websocket:open`
+## Event: `'undici:websocket:open'`
 
-This message is published after the client has successfully connected to a server.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after a [`WebSocket`][] has successfully connected to a server.
 
-diagnosticsChannel.channel('undici:websocket:open').subscribe(({ 
-  address,           // { address: string, family: string, port: number }
-  protocol,          // string - negotiated subprotocol
-  extensions,        // string - negotiated extensions
-  websocket,         // WebSocket - the WebSocket instance
-  handshakeResponse  // object - HTTP response that upgraded the connection
+* `message` {Object}
+  * `address` {Object|null} The remote socket address, as returned by
+    [`socket.address()`][], or `null` if it cannot be determined. When present,
+    it contains `address`, `family`, and `port`.
+  * `protocol` {string} The negotiated subprotocol.
+  * `extensions` {string} The negotiated extensions.
+  * `websocket` {WebSocket} The `WebSocket` instance.
+  * `handshakeResponse` {Object} The HTTP response that upgraded the connection.
+    * `status` {number} The HTTP status code: `101` for an HTTP/1.1 upgrade, or
+      `200` for an HTTP/2 extended `CONNECT`.
+    * `statusText` {string} The HTTP status message: `'Switching Protocols'` for
+      HTTP/1.1, and commonly `'OK'` for HTTP/2.
+    * `headers` {Object} The response headers from the server. The `upgrade` and
+      `connection` headers are only present for HTTP/1.1 handshakes.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
+
+diagnosticsChannel.channel('undici:websocket:open').subscribe(({
+  address,
+  protocol,
+  extensions,
+  websocket,
+  handshakeResponse
 }) => {
-  console.log(address) // address, family, and port
-  console.log(protocol) // negotiated subprotocols
-  console.log(extensions) // negotiated extensions
-  console.log(websocket) // the WebSocket instance
-  
-  // Handshake response details
-  console.log(handshakeResponse.status) // 101 for HTTP/1.1, 200 for HTTP/2 extended CONNECT
-  console.log(handshakeResponse.statusText) // 'Switching Protocols' for HTTP/1.1, commonly 'OK' for HTTP/2 in Node.js
-  console.log(handshakeResponse.headers) // Object containing response headers
+  console.log(address)
+  console.log(protocol)
+  console.log(extensions)
+  console.log(handshakeResponse.status)
+  console.log(handshakeResponse.headers)
 })
 ```
 
-### Handshake Response Object
+## Event: `'undici:websocket:close'`
 
-The `handshakeResponse` object contains the HTTP response that established the WebSocket connection:
+<!-- YAML
+added: v6.3.0
+-->
 
-- `status` (number): The HTTP status code (`101` for HTTP/1.1 upgrade, `200` for HTTP/2 extended CONNECT)
-- `statusText` (string): The HTTP status message (`'Switching Protocols'` for HTTP/1.1, commonly `'OK'` for HTTP/2 in Node.js)
-- `headers` (object): The HTTP response headers from the server, including:
-  - `sec-websocket-accept` and other WebSocket-related headers
-  - `upgrade: 'websocket'`
-  - `connection: 'upgrade'`
+Published after the [`WebSocket`][] connection has closed.
 
-  The `upgrade` and `connection` headers are only present for HTTP/1.1 handshakes.
+* `message` {Object}
+  * `websocket` {WebSocket} The `WebSocket` instance.
+  * `code` {number} The closing status code.
+  * `reason` {string} The closing reason.
 
-This information is particularly useful for debugging and monitoring WebSocket connections, as it provides access to the initial HTTP handshake response that established the WebSocket connection.
-
-## `undici:websocket:close`
-
-This message is published after the connection has closed.
-
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:close').subscribe(({ websocket, code, reason }) => {
-  console.log(websocket) // the WebSocket instance
-  console.log(code) // the closing status code
-  console.log(reason) // the closing reason
+  console.log(code, reason)
 })
 ```
 
-## `undici:websocket:socket_error`
+## Event: `'undici:websocket:socket_error'`
 
-This message is published if the socket experiences an error.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published when the underlying WebSocket socket experiences an error. Unlike the
+other WebSocket channels, the published message is the error itself.
+
+* `error` {Error} The socket error.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:socket_error').subscribe((error) => {
-  console.log(error)
+  console.error(error)
 })
 ```
 
-## `undici:websocket:ping`
+## Event: `'undici:websocket:ping'`
 
-This message is published after the client receives a ping frame, if the connection is not closing.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after the client receives a ping frame.
+
+* `message` {Object}
+  * `payload` {Buffer|undefined} The optional application data carried by the
+    frame.
+  * `websocket` {WebSocket} The `WebSocket` instance.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:ping').subscribe(({ payload, websocket }) => {
-  // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
-  console.log(websocket) // the WebSocket instance
 })
 ```
 
-## `undici:websocket:pong`
+## Event: `'undici:websocket:pong'`
 
-This message is published after the client receives a pong frame.
+<!-- YAML
+added: v6.3.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after the client receives a pong frame.
+
+* `message` {Object}
+  * `payload` {Buffer|undefined} The optional application data carried by the
+    frame.
+  * `websocket` {WebSocket} The `WebSocket` instance.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload, websocket }) => {
-  // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
-  console.log(websocket) // the WebSocket instance
 })
 ```
 
-## `undici:proxy:connected`
+## Event: `'undici:proxy:connected'`
 
-This message is published after the `ProxyAgent` establishes a connection to the proxy server.
+<!-- YAML
+added: v7.17.0
+-->
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+Published after a [`ProxyAgent`][] has established a tunnel to the proxy server.
+
+* `message` {Object}
+  * `socket` {net.Socket} The socket connected to the proxy.
+  * `connectParams` {Object} The parameters used to establish the tunnel.
+    * `origin` {string|URL} The proxy origin.
+    * `port` {string} The proxy port.
+    * `path` {string} The requested tunnel target, e.g. `'example.com:443'`.
+    * `signal` {AbortSignal|undefined} The signal associated with the request.
+    * `headers` {Object} The headers sent in the `CONNECT` request.
+    * `servername` {string|undefined} The TLS server name used for the proxy.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:proxy:connected').subscribe(({ socket, connectParams }) => {
-  console.log(socket)
-  console.log(connectParams)
-  // const { origin, port, path, signal, headers, servername } = connectParams
+  const { origin, port, path, signal, headers, servername } = connectParams
 })
 ```
 
-## `undici:request:pending-requests`
+## Event: `'undici:request:pending-requests'`
 
-This message is published when the deduplicate interceptor's pending request map changes. This is useful for monitoring and debugging request deduplication behavior.
+<!-- YAML
+added: v6.3.0
+-->
 
-The deduplicate interceptor automatically deduplicates concurrent requests for the same resource. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response.
+Published when the [`dedupe`][] interceptor's set of pending requests changes.
+The interceptor coalesces concurrent identical requests so that only one reaches
+the origin; this channel exposes that bookkeeping for monitoring and debugging.
 
-```js
-import diagnosticsChannel from 'diagnostics_channel'
+* `message` {Object}
+  * `type` {string} Either `'added'` when a new pending request is registered, or
+    `'removed'` when a pending request completes, whether successfully or with an
+    error.
+  * `size` {number} The number of pending requests after the change.
+  * `key` {string} The deduplication key for the request, composed of the origin,
+    method, path, and request headers.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel'
 
 diagnosticsChannel.channel('undici:request:pending-requests').subscribe(({ type, size, key }) => {
-  console.log(type)  // 'added' or 'removed'
-  console.log(size)  // current number of pending requests
-  console.log(key)   // the deduplication key for this request
-})
-```
-
-### Event Properties
-
-- `type` (`string`): Either `'added'` when a new pending request is registered, or `'removed'` when a pending request completes (successfully or with an error).
-- `size` (`number`): The current number of pending requests after the change.
-- `key` (`string`): The deduplication key for the request, composed of the origin, method, path, and request headers.
-
-### Example: Monitoring Request Deduplication
-
-```js
-import diagnosticsChannel from 'diagnostics_channel'
-
-const channel = diagnosticsChannel.channel('undici:request:pending-requests')
-
-channel.subscribe(({ type, size, key }) => {
   if (type === 'added') {
     console.log(`New pending request: ${key} (${size} total pending)`)
   } else {
@@ -309,7 +500,16 @@ channel.subscribe(({ type, size, key }) => {
 })
 ```
 
-This can be useful for:
-- Verifying that request deduplication is working as expected
-- Monitoring the number of concurrent in-flight requests
-- Debugging deduplication behavior in production environments
+This is useful for verifying that deduplication is working, monitoring the number
+of concurrent in-flight requests, and debugging deduplication behaviour in
+production.
+
+[`'undici:client:beforeConnect'`]: #event-undiciclientbeforeconnect
+[`'undici:request:create'`]: #event-undicirequestcreate
+[`'undici:request:headers'`]: #event-undicirequestheaders
+[`ProxyAgent`]: ProxyAgent.md#class-proxyagent
+[`WebSocket`]: WebSocket.md#class-websocket
+[`dedupe`]: Dispatcher.md#dedupe
+[`diagnostics_channel`]: https://nodejs.org/api/diagnostics_channel.html
+[`socket.address()`]: https://nodejs.org/api/net.html#socketaddress
+[Debug]: Debug.md

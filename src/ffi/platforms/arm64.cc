@@ -136,7 +136,6 @@ uint32_t UxthW(unsigned reg) {
 // to the ABI width expected by the native target before the final call.
 bool EmitNarrow(uint32_t** cursor, FastFFIType type, unsigned reg) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
       *(*cursor)++ = UxtbW(reg);
       return true;

@@ -57,6 +57,10 @@ constexpr int STREAM_OPTION_EMPTY_PAYLOAD = 0x1;
 // Stream might have trailing headers
 constexpr int STREAM_OPTION_GET_TRAILERS = 0x2;
 
+// Stream may finish with an empty DATA frame carrying END_STREAM without
+// calling back into JS, unless trailers are registered before then
+constexpr int STREAM_OPTION_AUTO_EMPTY_TRAILERS = 0x4;
+
 // Http2Stream internal states
 constexpr int kStreamStateNone = 0x0;
 constexpr int kStreamStateShut = 0x1;
@@ -66,6 +70,7 @@ constexpr int kStreamStateClosed = 0x8;
 constexpr int kStreamStateDestroyed = 0x10;
 constexpr int kStreamStateTrailers = 0x20;
 constexpr int kStreamStatePeerReset = 0x40;
+constexpr int kStreamStateAutoEmptyTrailers = 0x80;
 
 // Http2Session internal states
 constexpr int kSessionStateNone = 0x0;
@@ -77,6 +82,8 @@ constexpr int kSessionStateSending = 0x10;
 constexpr int kSessionStateWriteInProgress = 0x20;
 constexpr int kSessionStateReadingStopped = 0x40;
 constexpr int kSessionStateReceivePaused = 0x80;
+constexpr int kSessionStateReceiving = 0x100;
+constexpr int kSessionStateClosePending = 0x200;
 
 // The Padding Strategy determines the method by which extra padding is
 // selected for HEADERS and DATA frames. These are configurable via the
@@ -310,7 +317,9 @@ class Http2Stream : public AsyncWrap,
 
   // Submit trailing headers for this stream
   int SubmitTrailers(const Http2Headers& headers);
+  int SubmitEmptyTrailers();
   void OnTrailers();
+  void EmitWantTrailers();
 
   // Submit a PRIORITY frame for this stream
   int SubmitPriority(const Http2Priority& priority, bool silent = false);
@@ -331,6 +340,10 @@ class Http2Stream : public AsyncWrap,
 
   // Destroy this stream instance and free all held memory.
   void Destroy();
+
+  // Completes Destroy() after set_destroyed(); may run deferred until after
+  // nghttp2_session_mem_recv() returns.
+  void CompleteDestroyCleanup();
 
   bool is_destroyed() const {
     return flags_ & kStreamStateDestroyed;
@@ -366,6 +379,17 @@ class Http2Stream : public AsyncWrap,
       flags_ |= kStreamStateTrailers;
     else
       flags_ &= ~kStreamStateTrailers;
+  }
+
+  bool auto_empty_trailers() const {
+    return flags_ & kStreamStateAutoEmptyTrailers;
+  }
+
+  void set_auto_empty_trailers(bool on = true) {
+    if (on)
+      flags_ |= kStreamStateAutoEmptyTrailers;
+    else
+      flags_ &= ~kStreamStateAutoEmptyTrailers;
   }
 
   void set_closed() {
@@ -463,6 +487,8 @@ class Http2Stream : public AsyncWrap,
   static void RefreshState(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Info(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Trailers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DisableAutoTrailers(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RstStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -669,6 +695,8 @@ class Http2Session : public AsyncWrap,
   IS_FLAG(write_in_progress, kSessionStateWriteInProgress)
   IS_FLAG(reading_stopped, kSessionStateReadingStopped)
   IS_FLAG(receive_paused, kSessionStateReceivePaused)
+  IS_FLAG(receiving, kSessionStateReceiving)
+  IS_FLAG(close_pending, kSessionStateClosePending)
 
 #undef IS_FLAG
 
@@ -710,6 +738,10 @@ class Http2Session : public AsyncWrap,
   bool has_pending_rststream(int32_t stream_id) {
     return pending_rst_streams_.end() !=
            std::ranges::find(pending_rst_streams_, stream_id);
+  }
+
+  void RemovePendingRstStream(int32_t stream_id) {
+    std::erase(pending_rst_streams_, stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.
@@ -961,6 +993,10 @@ class Http2Session : public AsyncWrap,
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
+  // Saved arguments for Close() deferred while nghttp2_session_mem_recv()
+  // callbacks are active.
+  uint32_t pending_close_code_ = NGHTTP2_NO_ERROR;
+  bool pending_close_socket_closed_ = false;
   // Count streams that have been rejected while being opened. Exceeding a fixed
   // limit will result in the session being destroyed, as an indication of a
   // misbehaving peer. This counter is reset once new streams are being
@@ -975,6 +1011,8 @@ class Http2Session : public AsyncWrap,
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
+  void FinishClose(uint32_t code, bool socket_closed);
+  void MaybeFinishPendingClose();
 
   void MaybeNotifyGracefulCloseComplete();
 
@@ -1119,7 +1157,8 @@ class Origins {
   V(NGHTTP2_ERR_STREAM_CLOSED)                                                 \
   V(NGHTTP2_ERR_NOMEM)                                                         \
   V(STREAM_OPTION_EMPTY_PAYLOAD)                                               \
-  V(STREAM_OPTION_GET_TRAILERS)
+  V(STREAM_OPTION_GET_TRAILERS)                                                \
+  V(STREAM_OPTION_AUTO_EMPTY_TRAILERS)
 
 #define HTTP2_ERROR_CODES(V)                                                   \
   V(NGHTTP2_NO_ERROR)                                                          \

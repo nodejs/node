@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv64')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -1123,6 +1123,12 @@ parser.add_argument('--without-inspector',
     default=None,
     help='disable the V8 inspector protocol')
 
+parser.add_argument('--with-perfetto',
+    action='store_true',
+    dest='with_perfetto',
+    default=None,
+    help='enable perfetto support')
+
 parser.add_argument('--shared',
     action='store_true',
     dest='shared',
@@ -1440,6 +1446,48 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
+def get_openssl_macros(o):
+  """Extract OpenSSL preprocessor macros from the configured headers."""
+
+  # Use the C compiler to extract preprocessor macros from OpenSSL headers.
+  # crypto.h is included because BoringSSL declares OPENSSL_IS_BORINGSSL there.
+  args = ['-E', '-dM',
+          '-include', 'openssl/opensslv.h',
+          '-include', 'openssl/crypto.h',
+          '-']
+  if not options.shared_openssl:
+    args = ['-I', 'deps/openssl/openssl/include'] + args
+  elif options.shared_openssl_includes:
+    args = ['-I', options.shared_openssl_includes] + args
+  else:
+    for dir in o['include_dirs']:
+      args = ['-I', dir] + args
+
+  proc = subprocess.Popen(
+    shlex.split(CC) + args,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+  )
+  with proc:
+    proc.stdin.write(b'\n')
+    out = to_utf8(proc.communicate()[0])
+
+  if proc.returncode != 0:
+    warn('Failed to extract OpenSSL macros from headers')
+    return {}
+
+  macros = {}
+  for line in out.split('\n'):
+    if line.startswith('#define OPENSSL_'):
+      parts = line.split()
+      if len(parts) >= 2:
+        macro_name = parts[1]
+        macro_value = parts[2] if len(parts) >= 3 else '1'
+        macros[macro_name] = macro_value
+
+  return macros
+
 def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
@@ -1449,39 +1497,7 @@ def get_openssl_version(o):
   """
 
   try:
-    # Use the C compiler to extract preprocessor macros from opensslv.h
-    args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
-    if not options.shared_openssl:
-      args = ['-I', 'deps/openssl/openssl/include'] + args
-    elif options.shared_openssl_includes:
-      args = ['-I', options.shared_openssl_includes] + args
-    else:
-      for dir in o['include_dirs']:
-        args = ['-I', dir] + args
-
-    proc = subprocess.Popen(
-      shlex.split(CC) + args,
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE
-    )
-    with proc:
-      proc.stdin.write(b'\n')
-      out = to_utf8(proc.communicate()[0])
-
-    if proc.returncode != 0:
-      warn('Failed to extract OpenSSL version from opensslv.h header')
-      return 0
-
-    # Parse the macro definitions
-    macros = {}
-    for line in out.split('\n'):
-      if line.startswith('#define OPENSSL_VERSION_'):
-        parts = line.split()
-        if len(parts) >= 3:
-          macro_name = parts[1]
-          macro_value = parts[2]
-          macros[macro_name] = macro_value
+    macros = get_openssl_macros(o)
 
     # Extract version components
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
@@ -1510,6 +1526,13 @@ def get_openssl_version(o):
   except (OSError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
+
+def get_openssl_is_boringssl(o):
+  try:
+    return b('OPENSSL_IS_BORINGSSL' in get_openssl_macros(o))
+  except (OSError, ValueError, subprocess.SubprocessError) as e:
+    warn(f'Failed to determine whether OpenSSL headers are BoringSSL: {e}')
+    return 'false'
 
 def get_cargo_version(cargo):
   try:
@@ -2206,6 +2229,7 @@ def configure_v8(o, configs):
         options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
+  o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
@@ -2315,6 +2339,7 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
+  o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
 
 def configure_lief(o):
   if options.without_lief:

@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const child_process = require('child_process');
 const assert = require('assert');
 

@@ -37,7 +37,7 @@ using namespace ngtcp2;
 
 class TLSServerContext {
 public:
-  TLSServerContext() = default;
+  TLSServerContext();
   ~TLSServerContext();
 
   std::expected<void, Error> init(const char *private_key_file,

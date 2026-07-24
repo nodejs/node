@@ -125,8 +125,13 @@ raw pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
 strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are
 converted on the JavaScript side before calling the optimized native wrapper.
 
-Optimized Fast FFI calls support at most 8 function arguments. Functions with
-more than 7 arguments use the generic FFI call path instead.
+Optimized Fast FFI calls support at most 8 function arguments, but the exact
+limit depends on the architecture and on the argument types, because each
+argument must fit in the registers used by the platform trampoline. Integer
+and pointer arguments are limited to 7 on AArch64 and to 6 on x86-64, while
+floating-point arguments can use up to 8 on both. Functions that exceed these
+limits, including any function with more than 8 arguments, use the generic FFI
+call path instead.
 
 ## Signature objects
 
@@ -709,6 +714,25 @@ Returns the raw memory address of JavaScript-managed byte storage.
 This is unsafe and dangerous. The returned pointer can become invalid if the
 underlying memory is detached, resized, transferred, or otherwise invalidated.
 Using stale pointers can cause memory corruption or process crashes.
+
+## `ffi.getCurrentEventLoop()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {bigint}
+
+Returns the address of the current thread's `uv_loop_t` as a `bigint`.
+
+The returned address is for the current Node.js environment. In the main thread,
+this is the main thread event loop. In a worker thread, this is that worker's
+event loop.
+
+This is unsafe and dangerous. The returned pointer is only valid for the lifetime
+of the current environment. Using it after the environment exits, or from native
+code that assumes a different thread or lifetime, can crash the process or
+corrupt memory.
 
 ## Safety notes
 

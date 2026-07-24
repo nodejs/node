@@ -1,6 +1,6 @@
 ---
 source: core/src/ast/methods.rs
-expression: "Method::from_syn(&syn::parse_quote! {\n                fn foo(&self, x: u64, y: MyCustomStruct) {}\n            },\n    PathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\n    None, &Attrs::default())"
+expression: "Method::from_syn(&syn::parse_quote!\n{ fn foo(&self, x: u64, y: MyCustomStruct) {} },\nPathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\nNone, &Attrs::default())"
 ---
 name: foo
 docs:
@@ -17,6 +17,11 @@ self_param:
         - MyStructContainingMethod
     lifetimes: []
   attrs: {}
+self_type:
+  path:
+    elements:
+      - MyStructContainingMethod
+  lifetimes: []
 params:
   - name: x
     ty:

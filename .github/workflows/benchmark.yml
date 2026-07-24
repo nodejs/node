@@ -1,0 +1,265 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        type: string
+        description: GitHub repository to fetch from (default to the current repo)
+      pr_id:
+        type: number
+        required: true
+        description: The PR to test
+      commit:
+        required: true
+        type: string
+        description: The expect HEAD of the PR
+      category:
+        required: true
+        type: string
+        description: The category (or categories) of tests to run, for example buffers, cluster etc. Maps to a folders in node/benchmark
+      filter:
+        type: string
+        description: A substring to restrict the benchmarks to run in a category. e.g. `net-c2c`
+      runs:
+        type: number
+        default: 30
+        description: How many times to repeat each benchmark
+      post-comment:
+        type: boolean
+        description: Post a comment linking to the run, with the aggregated result once known.
+      token:
+        type: string
+        description: A GitHub token to post comments cross repository (not recommended)
+
+permissions:
+  contents: read
+
+jobs:
+  post-comment:
+    if: inputs.post-comment
+    outputs:
+      body: ${{ steps.comment.outputs.COMMENT_BODY }}
+      url: ${{ steps.comment.outputs.COMMENT_URL }}
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Mark token input as sensitive
+        if: inputs.token != ''
+        run: echo "::add-mask::${{ inputs.token }}"
+      - name: Add link to the current run
+        id: comment
+        run: |
+          FILTER_IF_SET=
+          [ -z "$FILTER" ] || FILTER_IF_SET=" / $FILTER"
+          COMMENT_BODY="Benchmark GHA (${CATEGORIES}${FILTER_IF_SET}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          echo "COMMENT_BODY=$COMMENT_BODY" >> "$GITHUB_OUTPUT"
+          echo "COMMENT_URL=$(gh pr comment -R "${REPO:-$GITHUB_REPOSITORY}" "$PR_ID" --body "$COMMENT_BODY")" >> "$GITHUB_OUTPUT"
+        env:
+          CATEGORIES: ${{ inputs.category }}
+          FILTER: ${{ inputs.filter }}
+          GH_TOKEN: ${{ inputs.token || github.token }}
+          REPO: ${{ inputs.repo }}
+          PR_ID: ${{ inputs.pr_id }}
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-15-intel
+            system: x86_64-darwin
+          - runner: macos-latest
+            system: aarch64-darwin
+    name: '${{ matrix.system }}: with shared libraries'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          repository: ${{ inputs.repo || github.repository }}
+          ref: refs/pull/${{ inputs.pr_id }}/merge
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Validate PR head and roll back to base commit
+        run: |
+          [ "$(git rev-parse HEAD^2)" = "$EXPECTED_SHA" ]
+          git reset HEAD^ --hard
+        env:
+          EXPECTED_SHA: ${{ inputs.commit }}
+
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
+        with:
+          # We do not pass any `authToken` to avoid polluting the cache with potentially untrusted code.
+          name: nodejs
+
+      - name: Configure sccache
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            core.exportVariable('SCCACHE_GHA_VERSION', 'on');
+            core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Build Node.js on the base commit
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS \
+            --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
+            --arg useSeparateDerivationForV8 true \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache "${NIX_SCCACHE:-null}" \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            --run '
+                make build-ci -j4 V=1
+            '
+          mv out/Release/node base_node
+
+      - name: Checkout the merge commit
+        run: git reset FETCH_HEAD --hard
+
+      - name: Re-build Node.js on the merge commit
+        # ccache is disabled here to avoid polluting the cache. Local build outputs should make this build relatively quick anyway.
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure \
+            --arg useSeparateDerivationForV8 true \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache 'null' \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            --run '
+                make -j4 V=1
+            '
+
+      - name: Run benchmark
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure --keep FILTER --keep LC_ALL --keep LANG \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache 'null' \
+            --arg icu 'null' \
+            --arg sharedLibDeps '{}' \
+            --arg devTools '[]' \
+            --run '
+                set -o pipefail
+                ./base_node benchmark/compare.js \
+                  --filter "$FILTER" \
+                  --runs ${{ inputs.runs }} \
+                  --old ./base_node --new ./node \
+                  -- ${{ inputs.category }} \
+                | tee /dev/stderr \
+                > ${{ matrix.system }}.csv
+                echo "> [!WARNING] "
+                echo "> Do not take GHA benchmark results as face value, always confirm them"
+                echo "> using a dedicated machine, e.g. Jenkins CI."
+                echo
+                echo "Benchmark results:"
+                echo
+                echo '"'"'```'"'"'
+                Rscript benchmark/compare.R < ${{ matrix.system }}.csv
+                echo '"'"'```'"'"'
+                echo
+                echo "> [!WARNING] "
+                echo "> Do not take GHA benchmark results as face value, always confirm them"
+                echo "> using a dedicated machine, e.g. Jenkins CI."
+            ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
+        env:
+          FILTER: ${{ inputs.filter }}
+
+      - name: Upload raw benchmark results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: csv-${{ matrix.system }}
+          path: ${{ matrix.system }}.csv
+
+  aggregate-results:
+    needs: [build, post-comment]
+    if: ${{ always() && needs.build.result == 'success' && needs.post-comment.result == (inputs.post-comment && 'success' || 'skipped') }}
+    name: Aggregate benchmark results
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            benchmark/*.R
+            tools/nix/*.nix
+            *.nix
+          sparse-checkout-cone-mode: false
+
+      - name: Download benchmark raw results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: csv-*
+          merge-multiple: true
+          path: raw-results
+
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+        with:
+          extra_nix_config: sandbox = true
+
+      - name: Benchmark results
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure \
+            -E '(import <nixpkgs> {}).mkShell { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
+            --run '
+                export LC_ALL=C.UTF-8
+                echo "> [!WARNING] "
+                echo "> Do not take GHA benchmark results as face value, always confirm them"
+                echo "> using a dedicated machine, e.g. Jenkins CI."
+                echo
+                echo "Benchmark results:"
+                echo
+                echo '"'"'```'"'"'
+                awk "FNR==1 && NR!=1{next;}{print}" raw-results/*.csv | Rscript benchmark/compare.R
+                echo '"'"'```'"'"'
+                echo
+                echo "> [!WARNING] "
+                echo "> Do not take GHA benchmark results as face value, always confirm them"
+                echo "> using a dedicated machine, e.g. Jenkins CI."
+            ' | tee /dev/stderr ${{ inputs.post-comment && 'body.txt' || '' }} >> "$GITHUB_STEP_SUMMARY"
+      - name: Mark token input as sensitive
+        if: inputs.token != ''
+        run: echo "::add-mask::${{ inputs.token }}"
+      - name: Edit comment
+        if: inputs.post-comment
+        run: |
+          {
+            echo "$COMMENT_BODY"
+            echo
+            echo '<details><summary>Results</summary>'
+            echo
+            cat body.txt
+            echo
+            echo '</details>'
+          } | jq -Rrcs '{ body: . }' | gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "/repos/${REPO:-$GITHUB_REPOSITORY}/issues/comments/${COMMENT_URL##*-}" \
+            --input -
+        env:
+          GH_TOKEN: ${{ inputs.token || github.token }}
+          REPO: ${{ inputs.repo }}
+          COMMENT_BODY: ${{ needs.post-comment.outputs.body }}
+          COMMENT_URL: ${{ needs.post-comment.outputs.url }}
+          PR_ID: ${{ inputs.pr_id }}

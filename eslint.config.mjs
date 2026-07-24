@@ -179,7 +179,6 @@ export default [
       'default-case-last': 'error',
       'dot-notation': 'error',
       'eqeqeq': ['error', 'smart'],
-      'func-name-matching': 'error',
       'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
       'no-constant-condition': ['error', { checkLoops: false }],
       'no-constructor-return': 'error',
@@ -391,6 +390,7 @@ export default [
       'node-core/no-duplicate-requires': 'error',
       'node-core/prefer-proto': 'error',
       'node-core/prefer-optional-chaining': 'error',
+      'node-core/func-name-matching': ['error', { considerPropertyDescriptor: true }],
     },
   },
   // #endregion

@@ -41,7 +41,7 @@ const A_T: [f32; 5] = [
 ///
 /// Computes the inverse tangent (arc tangent) of the input value.
 /// Returns a value in radians, in the range of -pi/2 to pi/2.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn atanf(mut x: f32) -> f32 {
     let x1p_120 = f32::from_bits(0x03800000); // 0x1p-120 === 2 ^ (-120)
 

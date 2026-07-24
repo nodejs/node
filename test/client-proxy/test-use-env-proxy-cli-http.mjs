@@ -56,17 +56,17 @@ const requestUrl = `http://${serverHost}/test`;
     stdout: 'Hello world',
   }, ['--use-env-proxy']);
 
-  // FIXME(undici:4083): undici currently always tunnels the request over
-  // CONNECT if proxyTunnel is not explicitly set to false, but what we
-  // need is for it to be automatically false for HTTP requests to be
-  // consistent with curl.
   assert.deepStrictEqual(logs, [{
-    method: 'CONNECT',
-    url: serverHost,
+    method: 'GET',
+    url: requestUrl,
     headers: {
-      'connection': 'close',
-      'proxy-connection': 'keep-alive',
       'host': serverHost,
+      'connection': 'keep-alive',
+      'accept': '*/*',
+      'accept-language': '*',
+      'sec-fetch-mode': 'cors',
+      'user-agent': 'node',
+      'accept-encoding': 'gzip, deflate',
     },
   }]);
 }

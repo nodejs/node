@@ -21,6 +21,9 @@
 
 'use strict';
 const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
@@ -40,10 +43,6 @@ globalThis.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
 
-// Helpers for describing the expected output:
-const kArrow = /^ *\^+ *$/;  // Arrow of ^ pointing to syntax error location
-const kSource = Symbol('kSource');  // Placeholder standing for input readback
-
 async function runReplTests(socket, prompt, tests) {
   let lineBuffer = '';
 
@@ -55,11 +54,7 @@ async function runReplTests(socket, prompt, tests) {
     console.error('out:', JSON.stringify(send));
     socket.write(`${send}\n`);
 
-    for (let expectedLine of expectedLines) {
-      // Special value: kSource refers to last sent source text
-      if (expectedLine === kSource)
-        expectedLine = send;
-
+    for (const expectedLine of expectedLines) {
       while (!lineBuffer.includes('\n')) {
         lineBuffer += await event(socket, expect);
 
@@ -126,7 +121,7 @@ const unixTests = [
 const strictModeTests = [
   {
     send: 'ref = 1',
-    expect: [/^Uncaught ReferenceError:\s/]
+    expect: [/^Uncaught ReferenceError:\s/, /^ {4}at /]
   },
 ];
 
@@ -145,7 +140,7 @@ const errorTests = [
   // Uncaught error throws and prints out
   {
     send: 'throw new Error(\'test error\');',
-    expect: ['Uncaught Error: test error']
+    expect: ['Uncaught Error: test error', /^ {4}at /]
   },
   {
     send: "throw { foo: 'bar' };",
@@ -244,12 +239,7 @@ const errorTests = [
   // should throw
   {
     send: '/(/;',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   // invalid RegExp modifiers are a special case of syntax error,
   // should throw (GH-4012)
@@ -260,58 +250,27 @@ const errorTests = [
   // Strict mode syntax errors should be caught (GH-5178)
   {
     send: '(function() { "use strict"; return 0755; })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '(function() { "use strict"; with (this) {} })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '(function() { "use strict"; var x; delete x; })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '(function() { "use strict"; eval = 17; })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '(function() { "use strict"; if (true) function f() { } })()',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      /^SyntaxError: /,
-    ]
+    expect: ['Uncaught:', /^SyntaxError: /]
   },
   // Named functions can be used:
   {
@@ -334,12 +293,7 @@ const errorTests = [
   },
   {
     send: '}',
-    expect: [
-      '{}),({}',
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '{ a: ',
@@ -452,12 +406,7 @@ const errorTests = [
   // Fail when we are not inside a String and a line continuation is used
   {
     send: '[] \\',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   // Do not fail when a String is created with line continuation
   {
@@ -509,12 +458,7 @@ const errorTests = [
   },
   {
     send: '{ a: 1 }.a;', // { a: 1 }.a;
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: '{ a: 1 }["a"] === 1', // ({ a: 1 }['a'] === 1);
@@ -533,18 +477,6 @@ const errorTests = [
   {
     send: '\'the\\\n\\\nfourtheye\'\n',
     expect: '| | \'thefourtheye\''
-  },
-  // Regression test for https://github.com/nodejs/node/issues/597
-  {
-    send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
-    expect: 'true'
-  },
-  // The following test's result depends on the RegExp's match from the above
-  {
-    send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
-          'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
-    expect: ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'',
-             '\'7\'', '\'8\'', '\'9\'']
   },
   // Regression tests for https://github.com/nodejs/node/issues/2749
   {
@@ -620,6 +552,7 @@ const errorTests = [
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
+      /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       "  code: 'MODULE_NOT_FOUND',",
       "  requireStack: [ '<repl>' ]",
       '}',
@@ -642,20 +575,11 @@ const errorTests = [
     send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
     expect: '| | undefined'
   },
-  {
-    send: '{ var x = 4; }',
-    expect: 'undefined'
-  },
   // Illegal token is not recoverable outside string literal, RegExp literal,
   // or block comment. https://github.com/nodejs/node/issues/3611
   {
     send: 'a = 3.5e',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   // Mitigate https://github.com/nodejs/node/issues/548
   {
@@ -669,22 +593,12 @@ const errorTests = [
   // Avoid emitting repl:line-number for SyntaxError
   {
     send: 'a = 3.5e',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   // Avoid emitting stack trace
   {
     send: 'a = 3.5e',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
 
   // https://github.com/nodejs/node/issues/9850
@@ -747,12 +661,7 @@ const errorTests = [
   // Do not parse `...[]` as a REPL keyword
   {
     send: '...[]',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   // Bring back the repl to prompt
   {
@@ -761,30 +670,15 @@ const errorTests = [
   },
   {
     send: 'console.log("Missing comma in arg list" process.version)',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: 'x = {\nfield\n{',
-    expect: [
-      '| | {',
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^\| \| Uncaught SyntaxError: /]
   },
   {
     send: '(2 + 3))',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: 'if (typeof process === "object"); {',
@@ -796,12 +690,7 @@ const errorTests = [
   },
   {
     send: '} else {',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      /^Uncaught SyntaxError: /,
-    ]
+    expect: [/^Uncaught SyntaxError: /]
   },
   {
     send: 'console',
@@ -827,13 +716,11 @@ const errorTests = [
       / {2}dirxml: \[Function: (dirxml|log)],/,
       / {2}groupCollapsed: \[Function: (groupCollapsed|group)],/,
       / {2}Console: \[Function: Console],?/,
-      ...process.features.inspector ? [
-        '  profile: [Function: profile],',
-        '  profileEnd: [Function: profileEnd],',
-        '  timeStamp: [Function: timeStamp],',
-        '  context: [Function: context],',
-        '  createTask: [Function: createTask]',
-      ] : [],
+      '  profile: [Function: profile],',
+      '  profileEnd: [Function: profileEnd],',
+      '  timeStamp: [Function: timeStamp],',
+      '  context: [Function: context],',
+      '  createTask: [Function: createTask]',
       '}',
     ]
   },
@@ -855,83 +742,6 @@ const tcpTests = [
   {
     send: `require(${JSON.stringify(moduleFilename)}).number`,
     expect: '42'
-  },
-  {
-    send: 'import comeOn from \'fhqwhgads\'',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const { default: comeOn } = await import("fhqwhgads");',
-    ]
-  },
-  {
-    send: 'import { export1, export2 } from "module-name"',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const { export1, export2 } = await import("module-name");',
-    ]
-  },
-  {
-    send: 'import * as name from "module-name";',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const name = await import("module-name");',
-    ]
-  },
-  {
-    send: 'import "module-name";',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: await import("module-name");',
-    ]
-  },
-  {
-    send: 'import { export1 as localName1, export2 } from "bar";',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const { export1: localName1, export2 } = await import("bar");',
-    ]
-  },
-  {
-    send: 'import alias from "bar";',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const { default: alias } = await import("bar");',
-    ]
-  },
-  {
-    send: 'import alias, {namedExport} from "bar";',
-    expect: [
-      kSource,
-      kArrow,
-      '',
-      'Uncaught:',
-      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const { default: alias, namedExport } = await import("bar");',
-    ]
   },
 ];
 

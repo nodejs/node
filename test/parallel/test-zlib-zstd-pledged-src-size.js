@@ -35,3 +35,39 @@ compressWithPledgedSrcSize({ pledgedSrcSize: 42, actualSrcSize: 0 });
 compressWithPledgedSrcSize({ pledgedSrcSize: 42, actualSrcSize: 13 });
 
 compressWithPledgedSrcSize({ pledgedSrcSize: 42, actualSrcSize: 42 });
+
+function assertInvalidPledgedSrcSize(pledgedSrcSize, expected) {
+  assert.throws(
+    () => zlib.createZstdCompress({ pledgedSrcSize }),
+    expected,
+  );
+  assert.throws(
+    () => zlib.zstdCompressSync('', { pledgedSrcSize }),
+    expected,
+  );
+}
+
+for (const pledgedSrcSize of ['1', null]) {
+  assertInvalidPledgedSrcSize(pledgedSrcSize, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
+for (const pledgedSrcSize of [
+  NaN,
+  Infinity,
+  -Infinity,
+  1.9,
+  -1,
+  Number.MAX_SAFE_INTEGER + 1,
+]) {
+  assertInvalidPledgedSrcSize(pledgedSrcSize, {
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+  });
+}
+
+zlib.createZstdCompress({
+  pledgedSrcSize: Number.MAX_SAFE_INTEGER,
+}).destroy();

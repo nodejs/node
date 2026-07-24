@@ -724,6 +724,67 @@ test(function test_resolve_failure(done) {
 });
 
 
+async function testEmptyRecords(method, done) {
+  await assert.rejects(
+    dnsPromises[method](addresses.NO_RECORD_HOST),
+    { code: 'ENODATA' },
+  );
+
+  const req = dns[method](addresses.NO_RECORD_HOST, common.mustCall((err, result) => {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.code, 'ENODATA');
+    assert.strictEqual(result, undefined);
+    done();
+  }));
+
+  checkWrap(req);
+}
+
+test(function test_empty_4_records(done) {
+  testEmptyRecords('resolve4', done);
+});
+
+test(function test_empty_6_records(done) {
+  testEmptyRecords('resolve6', done);
+});
+
+test(function test_empty_caa_records(done) {
+  testEmptyRecords('resolveCaa', done);
+});
+
+test(function test_empty_cname_records(done) {
+  testEmptyRecords('resolveCname', done);
+});
+
+test(function test_empty_mx_records(done) {
+  testEmptyRecords('resolveMx', done);
+});
+
+test(function test_empty_naptr_records(done) {
+  testEmptyRecords('resolveNaptr', done);
+});
+
+test(function test_empty_ns_records(done) {
+  testEmptyRecords('resolveNs', done);
+});
+
+test(function test_empty_ptr_records(done) {
+  testEmptyRecords('resolvePtr', done);
+});
+
+test(function test_empty_srv_records(done) {
+  testEmptyRecords('resolveSrv', done);
+});
+
+test(function test_empty_tlsa_records(done) {
+  testEmptyRecords('resolveTlsa', done);
+});
+
+test(function test_empty_txt_records(done) {
+  testEmptyRecords('resolveTxt', done);
+});
+
+
 let getaddrinfoCallbackCalled = false;
 
 console.log(`looking up ${addresses.INET4_HOST}..`);

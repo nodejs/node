@@ -317,10 +317,9 @@ graph it `import`s contains top-level `await`,
 [`ERR_REQUIRE_ASYNC_MODULE`][] will be thrown. In this case, users should
 load the asynchronous module using [`import()`][].
 
-If `--experimental-print-required-tla` is enabled, instead of throwing
-`ERR_REQUIRE_ASYNC_MODULE` before evaluation, Node.js will evaluate the
-module, try to locate the top-level awaits, and print their location to
-help users fix them.
+If `--experimental-print-required-tla` is enabled and the error is uncaught,
+Node.js will try to locate the top-level `await`s in the `require()`'d module graph
+and print the locations in the stderr.
 
 If support for loading ES modules using `require()` results in unexpected
 breakage, it can be disabled using `--no-require-module`.
@@ -478,7 +477,7 @@ RESOLVE_ESM_MATCH(MATCH)
 3. THROW "not found"
 ```
 
-The "ESM resolver" is defined [in the ESM documentation](esm.md#resolver-algorithm-specification).
+The "ESM resolver" is defined [in the ESM documentation](esm.md#resolution-and-loading-algorithm).
 
 ## Caching
 
@@ -1134,7 +1133,7 @@ exports = { hello: false };  // Not exported, only available in the module
 When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`:
 
-<!-- eslint-disable func-name-matching -->
+<!-- eslint-disable node-core/func-name-matching -->
 
 ```js
 module.exports = exports = function Constructor() {

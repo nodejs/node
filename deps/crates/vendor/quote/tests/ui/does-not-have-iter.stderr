@@ -4,8 +4,8 @@ error[E0277]: repetition contains no interpolated value that is an iterator
 4 |     quote!(#(a b)*);
   |     ^^^^^^^^^^^^^^^ none of the values interpolated inside this repetition are iterable
   |
-help: the trait `CheckHasIterator<true>` is not implemented for `HasIterator<false>`
-      but it is implemented for `HasIterator<true>`
+help: the trait `quote::__private::CheckHasIterator<true>` is not implemented for `quote::__private::HasIterator<false>`
+      but it is implemented for `quote::__private::HasIterator<true>`
  --> src/runtime.rs
   |
   | impl CheckHasIterator<true> for HasIterator<true> {}

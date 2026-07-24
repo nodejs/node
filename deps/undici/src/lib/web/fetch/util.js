@@ -1195,7 +1195,10 @@ function simpleRangeHeaderValue (value, allowWhitespace) {
   // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is
   //     greater than rangeEndValue, then return failure.
   // Note: ... when can they not be numbers?
-  if (rangeStartValue > rangeEndValue) {
+  // Note: rangeStartValue or rangeEndValue may be null for open-ended ranges
+  //     such as `bytes=5-` or `bytes=-5`. A null value must not be coerced to 0
+  //     in the comparison, so this check only applies when both are numbers.
+  if (rangeStartValue !== null && rangeEndValue !== null && rangeStartValue > rangeEndValue) {
     return 'failure'
   }
 

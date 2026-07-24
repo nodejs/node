@@ -39,8 +39,58 @@
 #if HAVE_OPENSSL
 #include <openssl/ec.h>
 #include <openssl/ssl.h>
+#if !defined(RSA_PKCS1_PADDING)
+#define RSA_PKCS1_PADDING 1
+#endif
+#if !defined(RSA_SSLV23_PADDING)
+#define RSA_SSLV23_PADDING 2
+#endif
+#if !defined(RSA_NO_PADDING)
+#define RSA_NO_PADDING 3
+#endif
+#if !defined(RSA_PKCS1_OAEP_PADDING)
+#define RSA_PKCS1_OAEP_PADDING 4
+#endif
+#if !defined(RSA_X931_PADDING)
+#define RSA_X931_PADDING 5
+#endif
+#if !defined(RSA_PKCS1_PSS_PADDING)
+#define RSA_PKCS1_PSS_PADDING 6
+#endif
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
+// OpenSSL hides these deprecated DH check constants under
+// OPENSSL_NO_DEPRECATED, but the numeric verifyError values remain public API.
+#if !defined(DH_CHECK_P_NOT_PRIME)
+#define DH_CHECK_P_NOT_PRIME 0x01
+#endif
+#if !defined(DH_CHECK_P_NOT_SAFE_PRIME)
+#define DH_CHECK_P_NOT_SAFE_PRIME 0x02
+#endif
+#if !defined(DH_UNABLE_TO_CHECK_GENERATOR)
+#define DH_UNABLE_TO_CHECK_GENERATOR 0x04
+#endif
+#if !defined(DH_NOT_SUITABLE_GENERATOR)
+#define DH_NOT_SUITABLE_GENERATOR 0x08
+#endif
+#endif
 #ifndef OPENSSL_NO_ENGINE
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
+// Engine constants remain public API while engine implementation lives in the
+// dedicated compatibility target.
+#define ENGINE_METHOD_RSA (unsigned int)0x0001
+#define ENGINE_METHOD_DSA (unsigned int)0x0002
+#define ENGINE_METHOD_DH (unsigned int)0x0004
+#define ENGINE_METHOD_RAND (unsigned int)0x0008
+#define ENGINE_METHOD_CIPHERS (unsigned int)0x0040
+#define ENGINE_METHOD_DIGESTS (unsigned int)0x0080
+#define ENGINE_METHOD_PKEY_METHS (unsigned int)0x0200
+#define ENGINE_METHOD_PKEY_ASN1_METHS (unsigned int)0x0400
+#define ENGINE_METHOD_EC (unsigned int)0x0800
+#define ENGINE_METHOD_ALL (unsigned int)0xFFFF
+#define ENGINE_METHOD_NONE (unsigned int)0x0000
+#else
 #include <openssl/engine.h>
+#endif
 #endif  // !OPENSSL_NO_ENGINE
 #endif  // HAVE_OPENSSL
 
@@ -1272,9 +1322,6 @@ void DefineTraceConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MEMORY_DUMP);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MARK);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_CLOCK_SYNC);
-  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ENTER_CONTEXT);
-  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LEAVE_CONTEXT);
-  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LINK_IDS);
 }
 
 void CreatePerContextProperties(Local<Object> target,

@@ -144,7 +144,7 @@ fn add_to_weekday(weekday: Weekday, num_days: i32) -> Weekday {
 /// Which year or month that a calendar assigns a week to relative to the year/month
 /// the week is in.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 enum RelativeWeek {
     /// A week that is assigned to the last week of the previous year/month. e.g. 2021-01-01 is week 54 of 2020 per the ISO calendar.
     LastWeekOfPreviousUnit,
@@ -294,7 +294,7 @@ impl Iterator for WeekdaySetIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::Weekday, Date, DateDuration, RangeError};
+    use crate::{types::DateDuration, types::Weekday, Date, RangeError};
 
     static ISO_CALENDAR: WeekCalculator = WeekCalculator {
         first_weekday: Weekday::Monday,
@@ -457,7 +457,9 @@ mod tests {
         let day = (yyyymmdd % 100) as u8;
 
         let date = Date::try_new_iso(year, month, day)?;
-        let previous_month = date.added(DateDuration::new(0, -1, 0, 0));
+        let previous_month = date
+            .try_added_with_options(DateDuration::for_months(-1), Default::default())
+            .unwrap();
 
         calendar.week_of(
             u16::from(previous_month.days_in_month()),
@@ -646,7 +648,7 @@ fn test_iso_weeks() {
     use crate::types::IsoWeekOfYear;
     use crate::Date;
 
-    #[allow(clippy::zero_prefixed_literal)]
+    #[expect(clippy::zero_prefixed_literal)]
     for ((y, m, d), (iso_year, week_number)) in [
         // 2010 starts on a Thursday, so 2009 has 53 ISO weeks
         ((2009, 12, 30), (2009, 53)),

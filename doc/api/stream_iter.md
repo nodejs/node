@@ -186,22 +186,22 @@ The API supports two models:
 Pull streams have natural backpressure -- the consumer drives the pace, so
 the source is never read faster than the consumer can process. Push streams
 need explicit backpressure because the producer and consumer run
-independently. The `highWaterMark` and `backpressure` options on `push()`,
+independently. The `budget` and `backpressure` options on `push()`,
 `broadcast()`, and `share()` control how this works.
 
 #### The two-buffer model
 
 Push streams use a two-part buffering system. Think of it like a bucket
-(slots) being filled through a hose (pending writes), with a float valve
+(buffer) being filled through a hose (pending writes), with a float valve
 that closes when the bucket is full:
 
 ```text
-                          highWaterMark (e.g., 3)
+                          budget (e.g., 16384)
                                  |
     Producer                     v
        |                    +---------+
        v                    |         |
-  [ write() ] ----+    +--->| slots   |---> Consumer pulls
+  [ write() ] ----+    +--->| buffer  |---> Consumer pulls
   [ write() ]     |    |    | (bucket)|     for await (...)
   [ write() ]     v    |    +---------+
               +--------+         ^
@@ -214,29 +214,29 @@ that closes when the bucket is full:
           'strict' mode limits this too!
 ```
 
-* **Slots (the bucket)** -- data ready for the consumer, capped at
-  `highWaterMark`. When the consumer pulls, it drains all slots at once
-  into a single batch.
+* **Buffer (the bucket)** -- data ready for the consumer, capped at
+  `budget` bytes. When the consumer pulls, it drains all buffered data
+  at once into a single batch.
 
-* **Pending writes (the hose)** -- writes waiting for slot space. After
+* **Pending writes (the hose)** -- writes waiting for buffer space. After
   the consumer drains, pending writes are promoted into the now-empty
-  slots and their promises settle.
+  buffer and their promises settle.
 
 How each policy uses these buffers:
 
-| Policy          | Slots limit     | Pending writes limit |
-| --------------- | --------------- | -------------------- |
-| `'strict'`      | `highWaterMark` | `highWaterMark`      |
-| `'block'`       | `highWaterMark` | Unbounded            |
-| `'drop-oldest'` | `highWaterMark` | N/A (never waits)    |
-| `'drop-newest'` | `highWaterMark` | N/A (never waits)    |
+| Policy          | Buffer limit | Pending writes limit |
+| --------------- | ------------ | -------------------- |
+| `'strict'`      | `budget`     | 1                    |
+| `'unbounded'`   | `budget`     | Unbounded            |
+| `'drop-oldest'` | `budget`     | N/A (never waits)    |
+| `'drop-newest'` | `budget`     | N/A (never waits)    |
 
 #### Strict (default)
 
 Strict mode catches "fire-and-forget" patterns where the producer calls
 `write()` without awaiting, which would cause unbounded memory growth.
-It limits both the slots buffer and the pending writes queue to
-`highWaterMark`.
+It limits the buffer to `budget` bytes and the pending writes queue
+to a single entry.
 
 If you properly await each write, you can only ever have one pending
 write at a time (yours), so you never hit the pending writes limit.
@@ -246,7 +246,7 @@ overflows:
 ```mjs
 import { push, text } from 'node:stream/iter';
 
-const { writer, readable } = push({ highWaterMark: 16 });
+const { writer, readable } = push({ budget: 16384 });
 
 // Consumer must run concurrently -- without it, the first write
 // that fills the buffer blocks the producer forever.
@@ -265,7 +265,7 @@ console.log(await consuming);
 const { push, text } = require('node:stream/iter');
 
 async function run() {
-  const { writer, readable } = push({ highWaterMark: 16 });
+  const { writer, readable } = push({ budget: 16384 });
 
   // Consumer must run concurrently -- without it, the first write
   // that fills the buffer blocks the producer forever.
@@ -293,9 +293,9 @@ for (const item of dataset) {
 // --> throws "Backpressure violation: too many pending writes"
 ```
 
-#### Block
+#### Unbounded
 
-Block mode caps slots at `highWaterMark` but places no limit on the
+Unbounded mode caps buffered bytes at `budget` but places no limit on the
 pending writes queue. Awaited writes block until the consumer makes room,
 just like strict mode. The difference is that unawaited writes silently
 queue forever instead of throwing -- a potential memory leak if the
@@ -309,8 +309,8 @@ properly, or when migrating code from those APIs.
 import { push, text } from 'node:stream/iter';
 
 const { writer, readable } = push({
-  highWaterMark: 16,
-  backpressure: 'block',
+  budget: 16384,
+  backpressure: 'unbounded',
 });
 
 const consuming = text(readable);
@@ -328,8 +328,8 @@ const { push, text } = require('node:stream/iter');
 
 async function run() {
   const { writer, readable } = push({
-    highWaterMark: 16,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
 
   const consuming = text(readable);
@@ -355,9 +355,9 @@ any scenario where stale data is less valuable than current data.
 ```mjs
 import { push } from 'node:stream/iter';
 
-// Keep only the 5 most recent readings
+// Keep only the most recent ~16 KB of readings
 const { writer, readable } = push({
-  highWaterMark: 5,
+  budget: 16384,
   backpressure: 'drop-oldest',
 });
 ```
@@ -365,9 +365,9 @@ const { writer, readable } = push({
 ```cjs
 const { push } = require('node:stream/iter');
 
-// Keep only the 5 most recent readings
+// Keep only the most recent ~16 KB of readings
 const { writer, readable } = push({
-  highWaterMark: 5,
+  budget: 16384,
   backpressure: 'drop-oldest',
 });
 ```
@@ -382,9 +382,9 @@ shedding load under pressure.
 ```mjs
 import { push } from 'node:stream/iter';
 
-// Accept up to 10 buffered items; discard anything beyond that
+// Accept up to 16 KB of buffered data; discard anything beyond that
 const { writer, readable } = push({
-  highWaterMark: 10,
+  budget: 16384,
   backpressure: 'drop-newest',
 });
 ```
@@ -392,9 +392,9 @@ const { writer, readable } = push({
 ```cjs
 const { push } = require('node:stream/iter');
 
-// Accept up to 10 buffered items; discard anything beyond that
+// Accept up to 16 KB of buffered data; discard anything beyond that
 const { writer, readable } = push({
-  highWaterMark: 10,
+  budget: 16384,
   backpressure: 'drop-newest',
 });
 ```
@@ -416,14 +416,16 @@ if (writer.endSync() < 0) await writer.end();
 writer.fail(err);  // Always synchronous, no fallback needed
 ```
 
-#### `writer.desiredSize`
+#### `writer.canWrite`
 
-* {number|null}
+* {boolean|null}
 
-The number of buffer slots available before the high water mark is reached.
-Returns `null` if the writer is closed or the consumer has disconnected.
+Returns `true` if the next write is likely to be accepted (buffered data is
+below capacity), `false` if backpressure is active, or `null` if the writer
+is closed or the consumer has disconnected.
 
-The value is always non-negative.
+This is a hint, not a guarantee: the state can change between the check and
+the write. Use [`ondrain()`][] to wait for capacity rather than polling.
 
 #### `writer.end([options])`
 
@@ -766,10 +768,10 @@ added:
 * `...transforms` {Function|Object} Optional transforms applied to the
   readable side.
 * `options` {Object}
-  * `highWaterMark` {number} Maximum number of buffered slots before
-    backpressure is applied. Must be >= 1; values below 1 are clamped to 1.
-    **Default:** `4`.
-  * `backpressure` {string} Backpressure policy: `'strict'`, `'block'`,
+  * `budget` {number} Maximum number of buffered bytes before
+    backpressure is applied. Must be >= 16384.
+    **Default:** `16384`.
+  * `backpressure` {string} Backpressure policy: `'strict'`, `'unbounded'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal} Abort the stream.
 * Returns: {Object}
@@ -829,18 +831,18 @@ added:
 -->
 
 * `options` {Object}
-  * `highWaterMark` {number} Buffer size for both directions.
-    **Default:** `4`.
+  * `budget` {number} Buffer size in bytes for both directions.
+    **Default:** `16384`.
   * `backpressure` {string} Policy for both directions.
     **Default:** `'strict'`.
   * `signal` {AbortSignal} Cancellation signal for both channels.
   * `a` {Object} Options specific to the A-to-B direction. Overrides
     shared options.
-    * `highWaterMark` {number}
+    * `budget` {number}
     * `backpressure` {string}
   * `b` {Object} Options specific to the B-to-A direction. Overrides
     shared options.
-    * `highWaterMark` {number}
+    * `budget` {number}
     * `backpressure` {string}
 * Returns: {Array} A pair `[channelA, channelB]` of duplex channels.
 
@@ -1079,9 +1081,10 @@ fulfills with `true` when the writer can accept more data.
 ```mjs
 import { push, ondrain, text } from 'node:stream/iter';
 
-const { writer, readable } = push({ highWaterMark: 2 });
-writer.writeSync('a');
-writer.writeSync('b');
+const { writer, readable } = push({ budget: 16384 });
+const chunk = new Uint8Array(8192);  // 8 KB
+writer.writeSync(chunk);
+writer.writeSync(chunk);  // 16 KB total -- buffer full
 
 // Start consuming so the buffer can actually drain
 const consuming = text(readable);
@@ -1099,9 +1102,10 @@ await consuming;
 const { push, ondrain, text } = require('node:stream/iter');
 
 async function run() {
-  const { writer, readable } = push({ highWaterMark: 2 });
-  writer.writeSync('a');
-  writer.writeSync('b');
+  const { writer, readable } = push({ budget: 16384 });
+  const chunk = new Uint8Array(8192);  // 8 KB
+  writer.writeSync(chunk);
+  writer.writeSync(chunk);  // 16 KB total -- buffer full
 
   // Start consuming so the buffer can actually drain
   const consuming = text(readable);
@@ -1214,9 +1218,9 @@ added:
 -->
 
 * `options` {Object}
-  * `highWaterMark` {number} Buffer size in slots. Must be >= 1; values
-    below 1 are clamped to 1. **Default:** `16`.
-  * `backpressure` {string} `'strict'`, `'block'`, `'drop-oldest'`, or
+  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+    **Default:** `65536`.
+  * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
   * `signal` {AbortSignal}
 * Returns: {Object}
@@ -1275,12 +1279,6 @@ async function run() {
 run().catch(console.error);
 ```
 
-#### `broadcast.bufferSize`
-
-* {number}
-
-The number of chunks currently buffered.
-
 #### `broadcast.cancel([reason])`
 
 * `reason` {Error}
@@ -1331,9 +1329,9 @@ added:
 
 * `source` {AsyncIterable} The source to share.
 * `options` {Object}
-  * `highWaterMark` {number} Buffer size. Must be >= 1; values below 1
-    are clamped to 1. **Default:** `16`.
-  * `backpressure` {string} `'strict'`, `'block'`, `'drop-oldest'`, or
+  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+    **Default:** `65536`.
+  * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
 * Returns: {Share}
 
@@ -1372,12 +1370,6 @@ async function run() {
 
 run().catch(console.error);
 ```
-
-#### `share.bufferSize`
-
-* {number}
-
-The number of chunks currently buffered.
 
 #### `share.cancel([reason])`
 
@@ -1426,8 +1418,8 @@ added:
 
 * `source` {Iterable} The sync source to share.
 * `options` {Object}
-  * `highWaterMark` {number} Must be >= 1; values below 1 are clamped
-    to 1. **Default:** `16`.
+  * `budget` {number} Must be >= 16384.
+    **Default:** `65536`.
   * `backpressure` {string} **Default:** `'strict'`.
 * Returns: {SyncShare}
 
@@ -1528,7 +1520,7 @@ added: v26.1.0
   * `backpressure` {string} Backpressure policy. **Default:** `'strict'`.
     * `'strict'` -- writes are rejected when the buffer is full. Catches
       callers that ignore backpressure.
-    * `'block'` -- writes wait for drain when the buffer is full. Recommended
+    * `'unbounded'` -- writes wait for drain when the buffer is full. Recommended
       for use with [`pipeTo()`][].
     * `'drop-newest'` -- writes are silently discarded when the buffer is full.
     * `'drop-oldest'` -- **not supported**. Throws `ERR_INVALID_ARG_VALUE`.
@@ -1561,7 +1553,7 @@ const writable = new Writable({
 });
 
 await pipeTo(from('hello world'),
-             fromWritable(writable, { backpressure: 'block' }));
+             fromWritable(writable, { backpressure: 'unbounded' }));
 ```
 
 ```cjs
@@ -1574,7 +1566,7 @@ async function run() {
   });
 
   await pipeTo(from('hello world'),
-               fromWritable(writable, { backpressure: 'block' }));
+               fromWritable(writable, { backpressure: 'unbounded' }));
 }
 run();
 ```
@@ -2097,6 +2089,7 @@ console.log(textSync(stream)); // 'hello world'
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
 [`node:zlib/iter`]: zlib.md#iterable-compression
+[`ondrain()`]: #ondraindrainable
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms-options

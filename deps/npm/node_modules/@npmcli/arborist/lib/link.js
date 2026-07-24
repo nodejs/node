@@ -109,21 +109,12 @@ class Link extends Node {
   // so this is a no-op
   [_loadDeps] () {}
 
-  // When a Link receives overrides (via edgesIn), forward them to the target node which holds the actual edgesOut — but only when the OverrideSet has at least one rule that names a dep the target actually depends on.
-  // Without this scope, the link forwards a generic ancestor OverrideSet that has no real effect on the target's edges, but still flips the target to "has overrides", which changes downstream `canReplaceWith` / placement decisions and causes `npm ci` to re-resolve lockfile-pinned edges from the registry.
-  // See npm/cli#9357.
+  // Forward overrides to the target only when a rule names a dep it needs, directly or transitively (npm/cli#9357, #9619).
   recalculateOutEdgesOverrides () {
     if (!this.target || !this.overrides) {
       return
     }
-    let hasMatchingRule = false
-    for (const rule of this.overrides.ruleset.values()) {
-      if (this.target.edgesOut.has(rule.name)) {
-        hasMatchingRule = true
-        break
-      }
-    }
-    if (!hasMatchingRule) {
+    if (!overrideMatchesSubtree(this.overrides, this.target)) {
       return
     }
     this.target.updateOverridesEdgeInAdded(this.overrides)
@@ -141,6 +132,31 @@ class Link extends Node {
   get isLink () {
     return true
   }
+}
+
+// True when an override rule applies to an edge reachable from the target at any depth.
+// getEdgeRule matches on name and spec, returning the set itself when nothing applies, so a non-applicable version-qualified rule doesn't flip an intermediate node to "has overrides" (npm/cli#9357).
+// Not a method: runs from the Node super-constructor, before subclass private methods exist.
+const overrideMatchesSubtree = (overrides, target) => {
+  const seen = new Set()
+  const stack = [target]
+  while (stack.length) {
+    const node = stack.pop()
+    const resolved = node.isLink ? node.target : node
+    if (seen.has(resolved)) {
+      continue
+    }
+    seen.add(resolved)
+    for (const edge of resolved.edgesOut.values()) {
+      if (overrides.getEdgeRule(edge).name === edge.name) {
+        return true
+      }
+      if (edge.to) {
+        stack.push(edge.to)
+      }
+    }
+  }
+  return false
 }
 
 module.exports = Link

@@ -253,10 +253,11 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   bool use_fast_api = info->fast_metadata != nullptr;
   bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
-  // Fast API signatures that still accept JS pointer-like values need a JS
-  // wrapper with the native type names attached as hidden metadata.
-  bool needs_raw_pointer_conversions =
-      use_fast_api && SignatureNeedsRawPointerConversions(*fn);
+  // Fast API signatures that need JS-side argument conversion or range checks
+  // use a wrapper with the native type names attached as hidden metadata.
+  bool needs_fast_argument_wrapper =
+      use_fast_api && (SignatureNeedsRawPointerConversions(*fn) ||
+                       SignatureNeedsFastIntegerValidation(*fn));
   // A single pointer-like parameter can get a separate Buffer-aware Fast API
   // entrypoint so Buffer calls avoid JS pointer extraction.
   bool needs_fast_buffer_invoke =
@@ -381,7 +382,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     }
   }
 
-  if (needs_raw_pointer_conversions || needs_fast_buffer_invoke) {
+  if (needs_fast_argument_wrapper || needs_fast_buffer_invoke) {
     // Fast API wrappers need only the parameter type names. Result conversion
     // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
     // which must also know how to read slot 0.
@@ -1215,6 +1216,17 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
   return tmpl;
 }
 
+void GetCurrentEventLoop(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
+      isolate,
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(env->event_loop()))));
+}
+
 // Module initialization.
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
@@ -1230,6 +1242,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "toArrayBuffer", ToArrayBuffer);
   SetMethod(context, target, "exportBytes", ExportBytes);
   SetMethod(context, target, "getRawPointer", GetRawPointer);
+  SetMethod(context, target, "getCurrentEventLoop", GetCurrentEventLoop);
 
   SetMethod(context, target, "getInt8", GetInt8);
   SetMethod(context, target, "getUint8", GetUint8);

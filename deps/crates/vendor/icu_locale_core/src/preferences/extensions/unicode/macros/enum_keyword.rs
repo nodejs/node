@@ -151,29 +151,24 @@ macro_rules! __enum_keyword {
 
         impl From<$name>  for $crate::extensions::unicode::Value {
             fn from(input: $name) -> $crate::extensions::unicode::Value {
-                let mut result = $crate::extensions::unicode::Value::default();
-                input.extend_value(&mut result);
-                result
-            }
-        }
-
-        impl $name {
-            pub(crate) fn extend_value(self, input: &mut $crate::extensions::unicode::Value) {
-                match self {
+                let f;
+                #[allow(unused_mut)]
+                let mut s = None;
+                match input {
                     $(
                         // This is circumventing a limitation of the macro_rules - we need to have a conditional
                         // $()? case here for when the variant has a value, and macro_rules require us to
                         // reference the $v2 inside it, but in match case it becomes a variable, so clippy
                         // complaints.
                         #[allow(non_snake_case)]
-                        Self::$variant $(($v2))? => {
-                            input.push_subtag($crate::subtags::subtag!($key));
+                        $name::$variant $(($v2))? => {
+                            f = $crate::subtags::subtag!($key);
 
                             $(
                                 if let Some(v2) = $v2 {
                                     match v2 {
                                         $(
-                                            $v2::$subv => input.push_subtag($crate::subtags::subtag!($subk)),
+                                            $v2::$subv => s = Some($crate::subtags::subtag!($subk)),
                                         )*
                                     }
                                 }
@@ -181,8 +176,15 @@ macro_rules! __enum_keyword {
                         },
                     )*
                 }
+                if let Some(s) = s {
+                    $crate::extensions::unicode::Value::from_two_subtags(f, s)
+                } else {
+                    $crate::extensions::unicode::Value::from_subtag(Some(f))
+                }
             }
+        }
 
+        impl $name {
             /// A helper function for displaying as a `&str`.
             pub const fn as_str(&self) -> &'static str {
                 match self {

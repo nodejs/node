@@ -155,11 +155,22 @@ async function testDigest(size, alg) {
 
 // KT128 with customization string
 (async () => {
-  const digest = await subtle.digest(
-    { name: 'KT128', outputLength: 256, customization: Buffer.from('test') },
-    Buffer.from('hello'));
+  const digest = await subtle.digest({
+    name: 'KT128',
+    outputLength: 256,
+    customization: Buffer.alloc(512),
+  }, Buffer.from('hello'));
   assert(digest instanceof ArrayBuffer);
   assert.strictEqual(digest.byteLength, 32);
+
+  await assert.rejects(subtle.digest({
+    name: 'KT128',
+    outputLength: 256,
+    customization: Buffer.alloc(513),
+  }, Buffer.from('hello')), {
+    name: 'OperationError',
+    message: 'KangarooTwelveParams.customization must be at most 512 bytes',
+  });
 })().then(common.mustCall());
 
 // TurboSHAKE domain separation out of range

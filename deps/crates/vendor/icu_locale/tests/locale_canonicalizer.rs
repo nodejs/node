@@ -25,9 +25,9 @@ fn test_maximize() {
         let result = lc.maximize(&mut locale.id);
         assert_writeable_eq!(locale, case.output, "{:?}", case);
         if result == TransformResult::Modified {
-            assert_ne!(locale, unmodified, "{:?}", case);
+            assert_ne!(locale, unmodified, "{case:?}");
         } else {
-            assert_eq!(locale, unmodified, "{:?}", case);
+            assert_eq!(locale, unmodified, "{case:?}");
         }
     }
 }
@@ -49,9 +49,9 @@ fn test_minimize() {
         let result = lc.minimize(&mut locale.id);
         assert_writeable_eq!(locale, case.output, "{:?}", case);
         if result == TransformResult::Modified {
-            assert_ne!(locale, unmodified, "{:?}", case);
+            assert_ne!(locale, unmodified, "{case:?}");
         } else {
-            assert_eq!(locale, unmodified, "{:?}", case);
+            assert_eq!(locale, unmodified, "{case:?}");
         }
     }
 }
@@ -73,9 +73,9 @@ fn test_canonicalize() {
         let result = lc.canonicalize(&mut locale);
         assert_writeable_eq!(locale, case.output, "{:?}", case);
         if result == TransformResult::Modified {
-            assert_ne!(locale, unmodified, "{:?}", case);
+            assert_ne!(locale, unmodified, "{case:?}");
         } else {
-            assert_eq!(locale, unmodified, "{:?}", case);
+            assert_eq!(locale, unmodified, "{case:?}");
         }
     }
 }

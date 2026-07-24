@@ -6,28 +6,32 @@ const { describe, test } = require('node:test');
 
 const { startNewREPLServer } = require('../common/repl');
 
-function runCompletionTests(replInit, tests) {
-  const { replServer: testRepl, input } = startNewREPLServer();
-  input.run([replInit]);
+async function runCompletionTests(replInit, tests) {
+  const { replServer: testRepl, run } = startNewREPLServer();
 
-  tests.forEach(([query, expectedCompletions]) => {
-    testRepl.complete(query, common.mustCall((error, data) => {
-      const actualCompletions = data[0];
-      if (expectedCompletions.length === 0) {
-        assert.deepStrictEqual(actualCompletions, []);
-      } else {
-        expectedCompletions.forEach((expectedCompletion) =>
-          assert(actualCompletions.includes(expectedCompletion), `completion '${expectedCompletion}' not found`)
-        );
-      }
-    }));
-  });
+  await run([replInit]);
+
+  for (const [query, expectedCompletions] of tests) {
+    await new Promise((resolve) => {
+      testRepl.complete(query, common.mustCall((error, data) => {
+        const actualCompletions = data[0];
+        if (expectedCompletions.length === 0) {
+          assert.deepStrictEqual(actualCompletions, []);
+        } else {
+          expectedCompletions.forEach((expectedCompletion) =>
+            assert(actualCompletions.includes(expectedCompletion), `completion '${expectedCompletion}' not found`)
+          );
+        }
+        resolve();
+      }));
+    });
+  }
 }
 
 describe('REPL completion in relation of getters', () => {
   describe('standard behavior without proxies/getters', () => {
-    test('completion of nested properties of an undeclared objects', () => {
-      runCompletionTests('', [
+    test('completion of nested properties of an undeclared objects', async () => {
+      await runCompletionTests('', [
         ['nonExisting.', []],
         ['nonExisting.f', []],
         ['nonExisting.foo', []],
@@ -36,8 +40,8 @@ describe('REPL completion in relation of getters', () => {
       ]);
     });
 
-    test('completion of nested properties on plain objects', () => {
-      runCompletionTests('const plainObj = { foo: { bar: { baz: {} } } };', [
+    test('completion of nested properties on plain objects', async () => {
+      await runCompletionTests('const plainObj = { foo: { bar: { baz: {} } } };', [
         ['plainObj.', ['plainObj.foo']],
         ['plainObj.f', ['plainObj.foo']],
         ['plainObj.foo', ['plainObj.foo']],
@@ -50,8 +54,8 @@ describe('REPL completion in relation of getters', () => {
   });
 
   describe('completions on an object with getters', () => {
-    test(`completions are generated for properties that don't trigger getters`, () => {
-      runCompletionTests(
+    test(`completions are generated for properties that don't trigger getters`, async () => {
+      await runCompletionTests(
         `
         const fooKey = "foo";
 
@@ -81,8 +85,8 @@ describe('REPL completion in relation of getters', () => {
         ]);
     });
 
-    test('no completions are generated for properties that trigger getters', () => {
-      runCompletionTests(
+    test('side-effect-free getters are evaluated during completion', async () => {
+      await runCompletionTests(
         `
         function getGFooKey() {
           return "g" + "Foo";
@@ -100,19 +104,19 @@ describe('REPL completion in relation of getters', () => {
         };
         `,
         [
-          ['objWithGetters.gFoo.', []],
-          ['objWithGetters.gFoo.b', []],
-          ['objWithGetters["gFoo"].b', []],
-          ['objWithGetters.gFoo.bar.b', []],
+          ['objWithGetters.gFoo.', ['objWithGetters.gFoo.bar']],
+          ['objWithGetters.gFoo.b', ['objWithGetters.gFoo.bar']],
+          ['objWithGetters["gFoo"].b', ['objWithGetters["gFoo"].bar']],
+          ['objWithGetters.gFoo.bar.b', ['objWithGetters.gFoo.bar.baz']],
           ['objWithGetters.foo.gBar.', []],
           ['objWithGetters.foo.gBar.b', []],
           ["objWithGetters.foo['gBar'].b", []],
           ["objWithGetters['foo']['gBar'].b", []],
           ["objWithGetters['foo']['gBar']['gBuz'].", []],
-          ["objWithGetters[keys['g-foo key']].b", []],
-          ['objWithGetters[gFooKey].b', []],
-          ["objWithGetters['g' + 'Foo'].b", []],
-          ['objWithGetters[getGFooKey()].b', []],
+          ["objWithGetters[keys['g-foo key']].b", ["objWithGetters[keys['g-foo key']].bar"]],
+          ['objWithGetters[gFooKey].b', ['objWithGetters[gFooKey].bar']],
+          ["objWithGetters['g' + 'Foo'].b", ["objWithGetters['g' + 'Foo'].bar"]],
+          ['objWithGetters[getGFooKey()].b', ['objWithGetters[getGFooKey()].bar']],
         ]);
     });
 
@@ -130,23 +134,26 @@ describe('REPL completion in relation of getters', () => {
                         });
       });
 
-      ['foo.name.', 'foo["name"].'].forEach((test) => {
-        replServer.complete(
-          test,
-          common.mustCall((error, data) => {
-            // The context's nameGetterRun variable hasn't been set
-            assert.strictEqual(replServer.context.nameGetterRun, undefined);
-            // No errors has been thrown
-            assert.strictEqual(error, null);
-          })
-        );
-      });
+      for (const test of ['foo.name.', 'foo["name"].']) {
+        await new Promise((resolve, reject) => {
+          replServer.complete(
+            test,
+            common.mustCall((error, data) => {
+              // The context's nameGetterRun variable hasn't been set
+              assert.strictEqual(replServer.context.nameGetterRun, undefined);
+              // No errors has been thrown
+              assert.strictEqual(error, null);
+              resolve();
+            })
+          );
+        });
+      }
     });
   });
 
   describe('completions on proxies', () => {
-    test('no completions are generated for a proxy object', () => {
-      runCompletionTests(
+    test('completions stop at a proxy but resume past it', async () => {
+      await runCompletionTests(
         `
         function getFooKey() {
           return "foo";
@@ -163,18 +170,18 @@ describe('REPL completion in relation of getters', () => {
           ['proxyObj.', []],
           ['proxyObj.f', []],
           ['proxyObj.foo', []],
-          ['proxyObj.foo.', []],
+          ['proxyObj.foo.', ['proxyObj.foo.bar']],
           ['proxyObj.["foo"].', []],
           ['proxyObj.["f" + "oo"].', []],
           ['proxyObj.[fooKey].', []],
           ['proxyObj.[getFooKey()].', []],
           ['proxyObj.[keys["foo key"]].', []],
-          ['proxyObj.foo.bar.b', []],
+          ['proxyObj.foo.bar.b', ['proxyObj.foo.bar.baz']],
         ]);
     });
 
-    test('no completions are generated for a proxy present in a standard object', () => {
-      runCompletionTests(
+    test('no completions are generated for a proxy present in a standard object', async () => {
+      await runCompletionTests(
         'const objWithProxy = { foo: { bar: new Proxy({ baz: {} }, {}) } };', [
           ['objWithProxy.', ['objWithProxy.foo']],
           ['objWithProxy.foo', ['objWithProxy.foo']],

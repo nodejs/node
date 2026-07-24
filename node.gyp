@@ -200,9 +200,7 @@
       'src/timers.cc',
       'src/timer_wrap.cc',
       'src/tracing/agent.cc',
-      'src/tracing/node_trace_buffer.cc',
-      'src/tracing/node_trace_writer.cc',
-      'src/tracing/trace_event.cc',
+      'src/tracing/trace_event_helper.cc',
       'src/tracing/traced_value.cc',
       'src/tty_wrap.cc',
       'src/udp_wrap.cc',
@@ -338,10 +336,8 @@
       'src/tcp_wrap.h',
       'src/timers.h',
       'src/tracing/agent.h',
-      'src/tracing/node_trace_buffer.h',
-      'src/tracing/node_trace_writer.h',
+      'src/tracing/trace_event_helper.h',
       'src/tracing/trace_event.h',
-      'src/tracing/trace_event_common.h',
       'src/tracing/traced_value.h',
       'src/timer_wrap.h',
       'src/timer_wrap-inl.h',
@@ -457,6 +453,22 @@
       'src/crypto/crypto_x509.h',
       'src/node_crypto.cc',
       'src/node_crypto.h',
+    ],
+    'node_tracing_perfetto_sources': [
+      'src/tracing/agent_perfetto.cc',
+      'src/tracing/agent_perfetto.h',
+      'src/tracing/trace_event_perfetto.cc',
+      'src/tracing/trace_event_perfetto.h',
+    ],
+    'node_tracing_legacy_sources': [
+      'src/tracing/agent_legacy.cc',
+      'src/tracing/agent_legacy.h',
+      'src/tracing/node_trace_buffer.cc',
+      'src/tracing/node_trace_buffer.h',
+      'src/tracing/node_trace_writer.cc',
+      'src/tracing/node_trace_writer.h',
+      'src/tracing/trace_event_legacy_inl.h',
+      'src/tracing/trace_event_legacy.h',
     ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
@@ -961,6 +973,18 @@
             }],
           ],
         }],
+        [ 'v8_use_perfetto==1', {
+          'sources': [
+            '<@(node_tracing_perfetto_sources)',
+          ],
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          ],
+        }, {
+          'sources': [
+            '<@(node_tracing_legacy_sources)',
+          ],
+        }],
         [ 'v8_enable_inspector==1', {
           'includes' : [ 'src/inspector/node_inspector.gypi' ],
         }, {
@@ -1460,6 +1484,11 @@
         }, {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
+        [ 'v8_use_perfetto==1', {
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          ],
+        }],
         ['v8_enable_inspector==1', {
           'defines': [
             'HAVE_INSPECTOR=1',
@@ -1779,6 +1808,11 @@
         [ 'node_use_node_code_cache=="true"', {
           'defines': [
             'NODE_USE_NODE_CODE_CACHE=1',
+          ],
+        }],
+        [ 'v8_use_perfetto==1', {
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
         }],
         ['v8_enable_inspector==1', {

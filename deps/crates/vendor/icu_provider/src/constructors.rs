@@ -105,7 +105,7 @@ macro_rules! gen_buffer_unstable_docs {
     (BUFFER, $data:path) => {
         concat!(
             "A version of [`", stringify!($data), "`] that uses custom data ",
-            "provided by a [`BufferProvider`](icu_provider::buf::BufferProvider).\n\n",
+            "provided by a [`BufferProvider`].\n\n",
             "✨ *Enabled with the `serde` feature.*\n\n",
             "[📚 Help choosing a constructor](icu_provider::constructors)",
         )
@@ -113,7 +113,7 @@ macro_rules! gen_buffer_unstable_docs {
     (UNSTABLE, $data:path) => {
         concat!(
             "A version of [`", stringify!($data), "`] that uses custom data ",
-            "provided by a [`DataProvider`](icu_provider::DataProvider).\n\n",
+            "provided by a [`DataProvider`].\n\n",
             "[📚 Help choosing a constructor](icu_provider::constructors)\n\n",
             "<div class=\"stab unstable\">⚠️ The bounds on <tt>provider</tt> may change over time, including in SemVer minor releases.</div>"
         )
@@ -135,7 +135,7 @@ macro_rules! gen_buffer_unstable_docs {
 /// By default the macro will generate a `try_new`. If you wish to skip it, write `try_new: skip`
 ///
 /// Errors can be specified as `error: SomeError` or `result: SomeType`, where `error` will get it wrapped in `Result<Self, SomeError>`.
-#[allow(clippy::crate_in_macro_def)] // by convention each crate's data provider is `crate::provider::Baked`
+#[expect(clippy::crate_in_macro_def)] // by convention each crate's data provider is `crate::provider::Baked`
 #[doc(hidden)] // macro
 #[macro_export]
 macro_rules! gen_buffer_data_constructors {

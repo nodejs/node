@@ -258,5 +258,21 @@ std::unique_ptr<v8::ConvertableToTraceFormat> ProcessMeta::Cast() const {
   return trace_process;
 }
 
+#if defined(V8_USE_PERFETTO)
+void ProcessMeta::WriteIntoTrace(perfetto::TracedValue context) const {
+  auto dict = std::move(context).WriteDictionary();
+  auto versions_dict = dict.AddDictionary("versions");
+  for (const auto& version : per_process::metadata.versions.pairs()) {
+    versions_dict.Add(perfetto::DynamicString(std::string(version.first)),
+                      version.second);
+  }
+  dict.Add("arch", per_process::metadata.arch.c_str());
+  dict.Add("platform", per_process::metadata.platform.c_str());
+
+  auto release_dict = dict.AddDictionary("release");
+  release_dict.Add("name", per_process::metadata.release.name.c_str());
+}
+#endif
+
 }  // namespace tracing
 }  // namespace node

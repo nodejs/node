@@ -78,6 +78,9 @@ const clientSession = await connect(serverEndpoint.address, {
     strictEqual(oldRemote, null);
     strictEqual(preferred, true);
   }),
+  maxDatagramSendAttempts: 100, // While the connection is restablished,
+  // all the acknowledgement packets of ngtcp2 are counted as send attempts
+  // so either this or a delay, or a change in ngtcp2 interfaces
 });
 await clientSession.opened;
 

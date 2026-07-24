@@ -66,7 +66,7 @@ namespace quic {
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
-  V(HIGH_WATER_MARK, high_water_mark, uint32_t)
+  V(BUDGET, budget, uint32_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -487,15 +487,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&unused);
     }
 
-    stream->EndReadable();
-
-    if (!stream->is_pending()) {
-      // If the stream is a local unidirectional there's nothing to do here.
-      if (stream->is_local_unidirectional()) return;
-      stream->NotifyReadableEnded(code);
-    } else {
-      stream->pending_close_read_code_ = code;
-    }
+    stream->SendStopSending(code);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any
@@ -512,21 +504,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&lossless);
     }
 
-    if (stream->state()->reset == 1) return;
-
-    stream->EndWritable();
-    // We can release our outbound here now. Since the stream is being reset
-    // on the ngtcp2 side, we do not need to keep any of the data around
-    // waiting for acknowledgement that will never come.
-    stream->outbound_.reset();
-    stream->state()->reset = 1;
-
-    if (!stream->is_pending()) {
-      if (stream->is_remote_unidirectional()) return;
-      stream->NotifyWritableEnded(code);
-    } else {
-      stream->pending_close_write_code_ = code;
-    }
+    stream->DoStreamReset(code);
   }
 
   JS_METHOD(SetPriority) {
@@ -1284,7 +1262,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
-  // If the stream is not a local undirectional stream and is_readable is
+  // If the stream is not a local unidirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
@@ -1323,6 +1301,10 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
 
 bool Stream::is_pending() const {
   return state()->pending;
+}
+
+bool Stream::is_destroyed() const {
+  return stats()->destroyed_at != 0;
 }
 
 stream_id Stream::id() const {
@@ -1520,8 +1502,7 @@ void Stream::EntryRead(size_t amount) {
   // Extend the flow control window so the sender can transmit more.
   if (session().is_destroyed()) return;
   Session::SendPendingDataScope send_scope(&session());
-  session().ExtendStreamOffset(id(), amount);
-  session().ExtendOffset(amount);
+  session().Consume(id(), amount);
 }
 
 void Stream::BeforePull() {
@@ -1823,6 +1804,36 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
   EmitReset(error);
 }
 
+void Stream::DoStreamReset(error_code code) {
+  if (state()->reset == 1) return;
+
+  EndWritable();
+  // We can release our outbound here now. Since the stream is being reset
+  // on the ngtcp2 side, we do not need to keep any of the data around
+  // waiting for acknowledgement that will never come.
+  outbound_.reset();
+  state()->reset = 1;
+
+  if (!is_pending()) {
+    if (is_remote_unidirectional()) return;
+    NotifyWritableEnded(code);
+  } else {
+    pending_close_write_code_ = code;
+  }
+}
+
+void Stream::SendStopSending(error_code code) {
+  EndReadable();
+
+  if (!is_pending()) {
+    // If the stream is a local unidirectional there's nothing to do here.
+    if (is_local_unidirectional()) return;
+    NotifyReadableEnded(code);
+  } else {
+    pending_close_read_code_ = code;
+  }
+}
+
 // ============================================================================
 
 void Stream::EmitBlocked() {
@@ -1846,13 +1857,13 @@ void Stream::UpdateWriteDesiredSize() {
   if (!outbound_ || !outbound_->is_streaming()) return;
 
   uint64_t available;
-  uint64_t hwm = state()->high_water_mark;
+  uint64_t bgt = state()->budget;
 
   if (is_pending()) {
     // Pending streams don't have a stream ID yet, so ngtcp2 can't
-    // report their flow control window. Use the high water mark as
-    // the available capacity so writes can proceed while pending.
-    available = hwm > 0 ? hwm : std::numeric_limits<uint32_t>::max();
+    // report their flow control window. Use the budget as the
+    // available capacity so writes can proceed while pending.
+    available = bgt > 0 ? bgt : std::numeric_limits<uint32_t>::max();
   } else {
     // Calculate available capacity based on QUIC flow control.
     // The effective limit is the minimum of stream-level and
@@ -1862,9 +1873,9 @@ void Stream::UpdateWriteDesiredSize() {
     uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
     available = std::min(stream_left, conn_left);
 
-    // Apply the high water mark as an additional ceiling.
-    if (hwm > 0) {
-      available = std::min(available, hwm);
+    // Apply the budget as an additional ceiling.
+    if (bgt > 0) {
+      available = std::min(available, bgt);
     }
   }
 

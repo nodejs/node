@@ -1584,6 +1584,13 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // Keep the database alive during sqlite3_exec(), which may call
+  // user-defined SQLite functions that trigger JavaScript callbacks.
+  // If the JavaScript callback drops all references to the database,
+  // the DatabaseSync could otherwise be garbage-collected while the
+  // SQLite callback is still executing, causing a use-after-free.
+  BaseObjectPtr<DatabaseSync> guard(db);
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
@@ -2358,6 +2365,13 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Keep the database alive during sqlite3changeset_apply(), which may
+  // call conflict or filter callbacks that trigger JavaScript execution.
+  // If the JavaScript callback drops all references to the database,
+  // the DatabaseSync could otherwise be garbage-collected while the
+  // callback is still executing, causing a use-after-free.
+  BaseObjectPtr<DatabaseSync> guard(db);
+
   ArrayBufferViewContents<uint8_t> buf(args[0]);
   int r = sqlite3changeset_apply(
       db->connection_,
@@ -2865,12 +2879,16 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   int r;
-  int num_cols = sqlite3_column_count(stmt);
+  int num_cols = 0;
   LocalVector<Value> rows(isolate);
   LocalVector<Value> row_values(isolate);
   LocalVector<Name> row_keys(isolate);
 
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if (num_cols == 0) {
+      num_cols = sqlite3_column_count(stmt);
+    }
+
     if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
             .IsNothing()) {
       return MaybeLocal<Value>();

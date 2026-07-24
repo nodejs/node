@@ -5,6 +5,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
+const { Worker } = require('node:worker_threads');
 
 common.skipIfFFIMissing();
 
@@ -87,6 +88,7 @@ test('ffi exports expected API surface', () => {
     'exportArrayBufferView',
     'exportBuffer',
     'exportString',
+    'getCurrentEventLoop',
     'getFloat32',
     'getFloat64',
     'getInt16',
@@ -135,6 +137,7 @@ test('ffi exports expected API surface', () => {
   assert.strictEqual(typeof ffi.getUint64, 'function');
   assert.strictEqual(typeof ffi.getFloat32, 'function');
   assert.strictEqual(typeof ffi.getFloat64, 'function');
+  assert.strictEqual(typeof ffi.getCurrentEventLoop, 'function');
   assert.strictEqual(typeof ffi.setInt8, 'function');
   assert.strictEqual(typeof ffi.setUint8, 'function');
   assert.strictEqual(typeof ffi.setInt16, 'function');
@@ -179,4 +182,34 @@ test('ffi.types exports canonical type constants', () => {
 
   assert.deepStrictEqual(ffi.types, expected);
   assert.strictEqual(Object.isFrozen(ffi.types), true);
+});
+
+test('ffi.getCurrentEventLoop returns the current thread event loop address', async () => {
+  const ffi = require('node:ffi');
+  const mainLoop = ffi.getCurrentEventLoop();
+
+  assert.strictEqual(typeof mainLoop, 'bigint');
+  assert.ok(mainLoop > 0n);
+  assert.strictEqual(ffi.getCurrentEventLoop(), mainLoop);
+
+  const workerLoop = await new Promise((resolve, reject) => {
+    const worker = new Worker(`
+      const { parentPort } = require('node:worker_threads');
+      const ffi = require('node:ffi');
+      const loop = ffi.getCurrentEventLoop();
+
+      parentPort.postMessage([loop, ffi.getCurrentEventLoop()]);
+    `, { eval: true });
+
+    worker.on('message', resolve);
+    worker.on('error', reject);
+    worker.on('exit', (code) => {
+      if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
+    });
+  });
+
+  assert.strictEqual(typeof workerLoop[0], 'bigint');
+  assert.ok(workerLoop[0] > 0n);
+  assert.strictEqual(workerLoop[0], workerLoop[1]);
+  assert.notStrictEqual(workerLoop[0], mainLoop);
 });

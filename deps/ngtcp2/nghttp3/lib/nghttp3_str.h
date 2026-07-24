@@ -37,4 +37,14 @@ uint8_t *nghttp3_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
 void nghttp3_downcase(uint8_t *s, size_t len);
 
+extern const uint8_t nghttp3_downcase_tbl[];
+
+/*
+ * nghttp3_downcase_byte returns the lower case version of |c| if 'A'
+ * <= |c| && |c| <= 'Z'.  Otherwise, it returns |c|.
+ */
+static inline uint8_t nghttp3_downcase_byte(uint8_t c) {
+  return nghttp3_downcase_tbl[c];
+}
+
 #endif /* !defined(NGHTTP3_STR_H) */

@@ -421,6 +421,17 @@ test('es6 Maps and Sets', () => {
     new Map([[undefined, null], ['+000', 2n]]),
     new Map([[null, undefined], [false, '2']]),
   );
+  // A null key whose value is an object, alongside another object key and a
+  // matching map size, must not crash the unordered object-key matching (null
+  // is `typeof 'object'`). Refs: https://github.com/nodejs/node/issues/64433
+  assertNotDeepOrStrict(
+    new Map([[null, { v: 1 }], [{ a: 1 }, 1]]),
+    new Map([[{ b: 2 }, { v: 1 }], [{ a: 1 }, 1]])
+  );
+  assertDeepAndStrictEqual(
+    new Map([[null, { v: 1 }], [{ a: 1 }, 1]]),
+    new Map([[null, { v: 1 }], [{ a: 1 }, 1]])
+  );
   const xarray = ['x'];
   assertDeepAndStrictEqual(
     new Set([xarray, ['y']]),

@@ -3,7 +3,7 @@ use super::expm1f;
 /// The hyperbolic tangent of `x` (f32).
 ///
 /// `x` is specified in radians.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn tanhf(mut x: f32) -> f32 {
     /* x = |x| */
     let mut ix = x.to_bits();

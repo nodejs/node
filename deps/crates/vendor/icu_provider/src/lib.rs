@@ -194,7 +194,10 @@ pub mod fallback;
 pub use log;
 
 #[doc(hidden)] // internal
-#[cfg(all(not(feature = "logging"), debug_assertions, not(target_os = "none")))]
+#[cfg(all(
+    not(feature = "logging"),
+    all(debug_assertions, feature = "alloc", not(target_os = "none"))
+))]
 pub mod log {
     extern crate std;
     pub use std::eprintln as error;
@@ -206,7 +209,7 @@ pub mod log {
 
 #[cfg(all(
     not(feature = "logging"),
-    any(not(debug_assertions), target_os = "none")
+    not(all(debug_assertions, feature = "alloc", not(target_os = "none"),))
 ))]
 #[doc(hidden)] // internal
 pub mod log {

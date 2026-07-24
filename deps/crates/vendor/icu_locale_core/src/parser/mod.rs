@@ -16,7 +16,7 @@ const fn skip_before_separator(slice: &[u8]) -> &[u8] {
     let mut end = 0;
     // Invariant: end ≤ slice.len() since len is a nonnegative integer and end is 0
 
-    #[allow(clippy::indexing_slicing)] // very protected, should optimize out
+    #[expect(clippy::indexing_slicing)] // very protected, should optimize out
     while end < slice.len() && !matches!(slice[end], b'-') {
         // Invariant at beginning of loop: end < slice.len()
         // Advance until we reach end of slice or a separator.

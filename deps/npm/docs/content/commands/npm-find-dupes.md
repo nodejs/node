@@ -25,8 +25,16 @@ Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.
+deps at top-level. linked: install in node_modules/.store, link in place,
+unhoisted.
+
+We recommend that package authors use `--install-strategy=linked` during
+development to catch undeclared ("phantom") dependencies before publishing:
+the isolated layout only exposes a package's declared dependencies, so an
+`import` of a package that was never added to `package.json` can fail
+instead of resolving by accident and shipping broken. See [Catching
+undeclared ("phantom")
+dependencies](/using-npm/developers#catching-undeclared-phantom-dependencies).
 
 
 

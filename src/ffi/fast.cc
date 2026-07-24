@@ -37,7 +37,7 @@ bool FastScalarTypeFromName(std::string_view type, FastFFIType* out) {
   if (type == "void") {
     *out = FastFFIType::kVoid;
   } else if (type == "bool") {
-    *out = FastFFIType::kBool;
+    *out = FastFFIType::kUint8;
   } else if (IsTypeName(type, {"i8", "int8"})) {
     *out = FastFFIType::kInt8;
   } else if (IsTypeName(type, {"u8", "uint8"})) {
@@ -96,8 +96,6 @@ CTypeInfo::Type ToV8Type(FastFFIType type, bool is_return) {
   switch (type) {
     case FastFFIType::kVoid:
       return CTypeInfo::Type::kVoid;
-    case FastFFIType::kBool:
-      return CTypeInfo::Type::kBool;
     case FastFFIType::kUint8:
       return CTypeInfo::Type::kUint32;
     case FastFFIType::kInt8:
@@ -154,6 +152,20 @@ bool SignatureNeedsRawPointerConversions(const FFIFunction& fn) {
   for (const std::string& name : fn.arg_type_names) {
     if (name == "buffer" || name == "arraybuffer" || name == "string" ||
         name == "str") {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
+  // V8 widens narrow integers to 32 bits and truncates BigInts to 64 bits for
+  // Fast API calls. These types need a JS range check before the trampoline.
+  for (const std::string& name : fn.arg_type_names) {
+    if (name == "bool" || name == "char" || name == "i8" || name == "int8" ||
+        name == "u8" || name == "uint8" || name == "i16" || name == "int16" ||
+        name == "u16" || name == "uint16" || name == "i64" || name == "int64" ||
+        name == "u64" || name == "uint64") {
       return true;
     }
   }

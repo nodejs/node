@@ -1,6 +1,10 @@
 use core::{cmp, fmt, ops};
 
+mod narrowing_div;
+pub use narrowing_div::NarrowingDiv;
+
 /// Minimal integer implementations needed on all integer types, including wide integers.
+#[allow(dead_code)] // Some constants are only used with tests
 pub trait MinInt:
     Copy
     + fmt::Debug
@@ -36,8 +40,6 @@ pub trait Int:
     + fmt::Display
     + fmt::Binary
     + fmt::LowerHex
-    + PartialEq
-    + PartialOrd
     + ops::AddAssign
     + ops::SubAssign
     + ops::MulAssign
@@ -78,6 +80,7 @@ pub trait Int:
     fn unsigned(self) -> Self::Unsigned;
     fn from_unsigned(unsigned: Self::Unsigned) -> Self;
     fn abs(self) -> Self;
+    fn unsigned_abs(self) -> Self::Unsigned;
 
     fn from_bool(b: bool) -> Self;
 
@@ -100,7 +103,10 @@ pub trait Int:
     fn rotate_left(self, other: u32) -> Self;
     fn overflowing_add(self, other: Self) -> (Self, bool);
     fn overflowing_sub(self, other: Self) -> (Self, bool);
+    fn carrying_add(self, other: Self, carry: bool) -> (Self, bool);
+    fn borrowing_sub(self, other: Self, borrow: bool) -> (Self, bool);
     fn leading_zeros(self) -> u32;
+    fn trailing_zeros(self) -> u32;
     fn ilog2(self) -> u32;
 }
 
@@ -166,11 +172,29 @@ macro_rules! int_impl_common {
             <Self>::leading_zeros(self)
         }
 
+        fn trailing_zeros(self) -> u32 {
+            <Self>::trailing_zeros(self)
+        }
+
         fn ilog2(self) -> u32 {
             // On our older MSRV, this resolves to the trait method. Which won't actually work,
             // but this is only called behind other gates.
             #[allow(clippy::incompatible_msrv)]
             <Self>::ilog2(self)
+        }
+
+        fn carrying_add(self, other: Self, carry: bool) -> (Self, bool) {
+            let (ab, of1) = self.overflowing_add(other);
+            let (abc, of2) = ab.overflowing_add(Self::from_bool(carry));
+            // `of1 && of2` is possible with signed integers if a negative sum
+            // overflows to `MAX` and adding the carry overflows again back to `MIN`
+            (abc, of1 ^ of2)
+        }
+
+        fn borrowing_sub(self, other: Self, borrow: bool) -> (Self, bool) {
+            let (ab, of1) = self.overflowing_sub(other);
+            let (abc, of2) = ab.overflowing_sub(Self::from_bool(borrow));
+            (abc, of1 ^ of2)
         }
     };
 }
@@ -200,6 +224,10 @@ macro_rules! int_impl {
             }
 
             fn abs(self) -> Self {
+                unimplemented!()
+            }
+
+            fn unsigned_abs(self) -> Self {
                 unimplemented!()
             }
 
@@ -242,6 +270,10 @@ macro_rules! int_impl {
                 self.abs()
             }
 
+            fn unsigned_abs(self) -> Self::Unsigned {
+                self.unsigned_abs()
+            }
+
             fn from_unsigned(me: $uty) -> Self {
                 me as $ity
             }
@@ -264,7 +296,14 @@ int_impl!(i128, u128);
 
 /// Trait for integers twice the bit width of another integer. This is implemented for all
 /// primitives except for `u8`, because there is not a smaller primitive.
-pub trait DInt: MinInt {
+pub trait DInt:
+    MinInt
+    + ops::Add<Output = Self>
+    + ops::Sub<Output = Self>
+    + ops::Shl<u32, Output = Self>
+    + ops::Shr<u32, Output = Self>
+    + Ord
+{
     /// Integer that is half the bit width of the integer this trait is implemented for
     type H: HInt<D = Self>;
 
@@ -365,14 +404,19 @@ impl_h_int!(
 /// Trait to express (possibly lossy) casting of integers
 pub trait CastInto<T: Copy>: Copy {
     /// By default, casts should be exact.
+    #[track_caller]
     fn cast(self) -> T;
 
     /// Call for casts that are expected to truncate.
+    ///
+    /// In practice, this is exactly the same as `cast`; the main difference is to document intent
+    /// in code. `cast` may panic in debug mode.
     fn cast_lossy(self) -> T;
 }
 
 pub trait CastFrom<T: Copy>: Copy {
     /// By default, casts should be exact.
+    #[track_caller]
     fn cast_from(value: T) -> Self;
 
     /// Call for casts that are expected to truncate.

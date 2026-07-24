@@ -76,7 +76,7 @@
     "path": "url"
   },
   "urlpattern": {
-    "commit": "23aac9278460a73394585ff5a15b6a04dfcd5ec8",
+    "commit": "5847ee5cfa4f710cbb78ab9ef5cc66f74433ee03",
     "path": "urlpattern"
   },
   "user-timing": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "03a14768441c1ce2a31678d0dc080e81dc449d0a",
+    "commit": "ec2fee39a4ca3c13afd55236795547eedd7f165d",
     "path": "WebCryptoAPI"
   },
   "webidl": {

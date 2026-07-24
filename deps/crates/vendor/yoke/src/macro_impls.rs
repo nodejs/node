@@ -7,10 +7,7 @@
 #![allow(clippy::transmute_ptr_to_ptr)]
 
 use crate::Yokeable;
-use core::{
-    mem::{self, ManuallyDrop},
-    ptr,
-};
+use core::{mem::ManuallyDrop, ptr};
 
 macro_rules! copy_yoke_impl {
     () => {
@@ -70,11 +67,10 @@ macro_rules! unsafe_complex_yoke_impl {
     () => {
         fn transform(&'a self) -> &'a Self::Output {
             // Safety: equivalent to casting the lifetime. Macro caller ensures covariance.
-            unsafe { mem::transmute(self) }
+            unsafe { &*(self as *const Self as *const Self::Output) }
         }
 
         fn transform_owned(self) -> Self::Output {
-            debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
             // Safety: equivalent to casting the lifetime. Macro caller ensures covariance.
             unsafe {
                 let ptr: *const Self::Output = (&self as *const Self).cast();
@@ -84,8 +80,8 @@ macro_rules! unsafe_complex_yoke_impl {
         }
 
         unsafe fn make(from: Self::Output) -> Self {
-            debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
-            let ptr: *const Self = (&from as *const Self::Output).cast();
+            debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
+            let ptr = &from as *const Self::Output as *const Self;
             let _ = ManuallyDrop::new(from);
             // Safety: `ptr` is certainly valid, aligned and points to a properly initialized value, as
             // it comes from a value that was moved into a ManuallyDrop.
@@ -96,10 +92,7 @@ macro_rules! unsafe_complex_yoke_impl {
         where
             F: 'static + for<'b> FnOnce(&'b mut Self::Output),
         {
-            // Cast away the lifetime of Self
-            // Safety: this is equivalent to f(transmute(self)), and the documentation of the trait
-            // method explains why doing so is sound.
-            unsafe { f(mem::transmute::<&'a mut Self, &'a mut Self::Output>(self)) }
+            crate::utils::transform_mut_yokeable(self, f)
         }
     };
 }

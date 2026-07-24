@@ -106,6 +106,28 @@ For more details refer to the relevant documentation:
 
 ## API
 
+### `ReadableStreamTee(stream[, cloneForBranch2])`
+
+<!-- YAML
+added: v26.5.0
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {ReadableStream}
+* `cloneForBranch2` {boolean} When `true`, chunks enqueued into the second
+  branch are cloned from chunks enqueued into the first branch. **Default:**
+  `false`.
+* Returns: {ReadableStream\[]} Two {ReadableStream} branches.
+
+Runs the WHATWG `ReadableStreamTee` abstract operation on `stream`.
+
+This differs from `readableStream.tee()` only when `cloneForBranch2` is
+`true`. The `tee()` method always passes `false`, while other web platform
+specifications, such as Fetch body cloning, pass `true` so that the second
+branch receives cloned chunks and consumption of one branch cannot mutate chunks
+seen by the other.
+
 ### Class: `ReadableStream`
 
 <!-- YAML

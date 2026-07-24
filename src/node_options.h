@@ -126,7 +126,7 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
-  bool experimental_addon_modules = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_addon_modules = true;
   bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
@@ -139,6 +139,7 @@ class EnvironmentOptions : public Options {
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
+  bool experimental_import_text = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
@@ -153,7 +154,6 @@ class EnvironmentOptions : public Options {
   bool allow_wasi = false;
   bool allow_ffi = false;
   bool allow_worker_threads = false;
-  bool experimental_repl_await = true;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
   bool expose_internals = false;
@@ -333,7 +333,11 @@ class PerProcessOptions : public Options {
 
   std::string title;
   std::string trace_event_categories;
+#if defined(V8_USE_PERFETTO)
+  std::string trace_event_file_pattern = "node_trace.${rotation}.pftrace";
+#else
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
+#endif
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;

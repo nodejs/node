@@ -46,6 +46,14 @@ use core::str::FromStr;
 /// ICU4X's Locale parsing does not allow for non-BCP-47-compatible locales [allowed by UTS 35 for backwards compatability][tr35-bcp].
 /// Furthermore, it currently does not allow for language tags to have more than three characters.
 ///
+/// # Serde
+///
+/// This type implements `serde::Serialize` and `serde::Deserialize` if the
+/// `"serde"` Cargo feature is enabled on the crate.
+///
+/// The value will be serialized as a string and parsed when deserialized.
+/// For tips on efficient storage and retrieval of locales, see [`crate::zerovec`].
+///
 /// # Examples
 ///
 /// Simple example:
@@ -82,7 +90,7 @@ use core::str::FromStr;
 /// assert_eq!(loc.id.script, "Latn".parse::<Script>().ok());
 /// assert_eq!(loc.id.region, "US".parse::<Region>().ok());
 /// assert_eq!(
-///     loc.id.variants.get(0),
+///     loc.id.variants.first(),
 ///     "valencia".parse::<Variant>().ok().as_ref()
 /// );
 /// ```
@@ -129,6 +137,8 @@ impl Locale {
     /// A constructor which takes a utf8 slice, parses it and
     /// produces a well-formed [`Locale`].
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -143,6 +153,8 @@ impl Locale {
     }
 
     /// See [`Self::try_from_str`]
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         parse_locale(code_units)
@@ -151,6 +163,8 @@ impl Locale {
     /// Normalize the locale (operating on UTF-8 formatted byte slices)
     ///
     /// This operation will normalize casing and the separator.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -163,7 +177,7 @@ impl Locale {
     /// );
     /// ```
     #[cfg(feature = "alloc")]
-    pub fn normalize_utf8(input: &[u8]) -> Result<Cow<str>, ParseError> {
+    pub fn normalize_utf8(input: &[u8]) -> Result<Cow<'_, str>, ParseError> {
         let locale = Self::try_from_utf8(input)?;
         Ok(writeable::to_string_or_borrow(&locale, input))
     }
@@ -171,6 +185,8 @@ impl Locale {
     /// Normalize the locale (operating on strings)
     ///
     /// This operation will normalize casing and the separator.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -183,7 +199,7 @@ impl Locale {
     /// );
     /// ```
     #[cfg(feature = "alloc")]
-    pub fn normalize(input: &str) -> Result<Cow<str>, ParseError> {
+    pub fn normalize(input: &str) -> Result<Cow<'_, str>, ParseError> {
         Self::normalize_utf8(input.as_bytes())
     }
 
@@ -245,7 +261,7 @@ impl Locale {
         writeable::cmp_utf8(self, other)
     }
 
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     pub(crate) fn as_tuple(
         &self,
     ) -> (
@@ -360,6 +376,8 @@ impl Locale {
     /// The return value is equivalent to what would happen if you first parsed the
     /// BCP-47 string to a `Locale` and then performed a structural comparison.
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -424,7 +442,7 @@ impl Locale {
     }
 
     #[doc(hidden)] // macro use
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     pub const fn try_from_utf8_with_single_variant_single_keyword_unicode_extension(
         code_units: &[u8],
     ) -> Result<
@@ -453,6 +471,7 @@ impl Locale {
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for Locale {
     type Err = ParseError;
@@ -484,7 +503,7 @@ impl core::fmt::Debug for Locale {
     }
 }
 
-impl_writeable_for_each_subtag_str_no_test!(Locale, selff, selff.extensions.is_empty() => selff.id.write_to_string());
+impl_writeable_for_each_subtag_str_no_test!(Locale, selff, selff.extensions.is_empty() => selff.id.writeable_borrow());
 
 #[test]
 fn test_writeable() {

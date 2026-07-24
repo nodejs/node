@@ -17,7 +17,6 @@ struct FFIFunction;
 
 enum class FastFFIType : uint8_t {
   kVoid,
-  kBool,
   kInt8,
   kUint8,
   kInt16,
@@ -59,6 +58,7 @@ struct FastFFIMetadata {
 bool IsFastCallSupported();
 
 bool SignatureNeedsRawPointerConversions(const FFIFunction& fn);
+bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn);
 bool IsPointerTypeName(const std::string& name);
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn);
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(

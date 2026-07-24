@@ -717,8 +717,9 @@ Refs: https://tools.ietf.org/html/rfc7231#section-5.1.1
 #### Pipelining
 
 Undici will only use pipelining if configured with a `pipelining` factor
-greater than `1`. Also it is important to pass `blocking: false` to the
-request options to properly pipeline requests.
+greater than `1`. Only enable pipelining when the remote server is trusted.
+Also it is important to pass `blocking: false` to the request options to
+properly pipeline requests.
 
 Undici always assumes that connections are persistent and will immediately
 pipeline requests, without checking whether the connection is persistent.

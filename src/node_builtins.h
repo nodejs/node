@@ -207,7 +207,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   const UnionBytes config_;
 
-  // If any bulitins should be eagerly compiled i.e. with inner functions
+  // If any builtins should be eagerly compiled i.e. with inner functions
   // compiled too, either use should_eager_compile_ to compile all builtins
   // eagerly, or use to_eager_compile_ to compile specific builtins eagerly.
   // Currently we set should_eager_compile_ to true when compiling primordials,

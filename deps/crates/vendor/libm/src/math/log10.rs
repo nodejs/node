@@ -17,8 +17,6 @@
  *    log10(x) = (f - f*f/2 + r)/log(10) + k*log10(2)
  */
 
-use core::f64;
-
 const IVLN10HI: f64 = 4.34294481878168880939e-01; /* 0x3fdbcb7b, 0x15200000 */
 const IVLN10LO: f64 = 2.50829467116452752298e-11; /* 0x3dbb9438, 0xca9aadd5 */
 const LOG10_2HI: f64 = 3.01029995663611771306e-01; /* 0x3FD34413, 0x509F6000 */
@@ -32,7 +30,7 @@ const LG6: f64 = 1.531383769920937332e-01; /* 3FC39A09 D078C69F */
 const LG7: f64 = 1.479819860511658591e-01; /* 3FC2F112 DF3E5244 */
 
 /// The base 10 logarithm of `x` (f64).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn log10(mut x: f64) -> f64 {
     let x1p54 = f64::from_bits(0x4350000000000000); // 0x1p54 === 2 ^ 54
 
