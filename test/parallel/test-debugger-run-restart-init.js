@@ -56,7 +56,8 @@ function evalCommand(repl, command) {
   });
 }
 
-async function assertCommandWaitsForInit(repl, command, gate, calls) {
+async function assertCommandWaitsForInit(
+  repl, command, initGate, pauseGate, renderGate, calls) {
   let settled = false;
   const promise = evalCommand(repl, command).then(() => {
     settled = true;
@@ -69,7 +70,23 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
     `${command} resolved before post-connect initialization completed: ${calls}`,
   );
 
-  gate.resolve();
+  initGate.resolve();
+  await new Promise(setImmediate);
+  assert.strictEqual(
+    settled,
+    false,
+    `${command} resolved before the initial break was rendered: ${calls}`,
+  );
+
+  pauseGate.resolve();
+  await new Promise(setImmediate);
+  assert.strictEqual(
+    settled,
+    false,
+    `${command} resolved before the initial break render completed: ${calls}`,
+  );
+
+  renderGate.resolve();
   await promise;
   assert.strictEqual(settled, true);
 }
@@ -79,27 +96,67 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
   const runGate = createGate();
   const restartGate = createGate();
   const gates = [null, runGate, restartGate];
+  const initialRenderGate = createGate();
+  const runRenderGate = createGate();
+  const restartRenderGate = createGate();
+  const renderGates = [initialRenderGate, runRenderGate, restartRenderGate];
   const inspector = {
     client: new EventEmitter(),
     domainNames: ['Debugger', 'HeapProfiler', 'Profiler', 'Runtime'],
+    options: { script: 'fixture.js' },
     stdin: new PassThrough(),
     stdout: new PassThrough(),
     run: common.mustCall(async () => {
       calls.push('inspector.run');
     }, 2),
+    print(text, addNewline = true) {
+      this.stdout.write(`${text}${addNewline ? '\n' : ''}`);
+    },
     suspendReplWhile(fn) {
       return fn();
     },
   };
 
+  const pausedEvent = {
+    callFrames: [{
+      functionName: '',
+      location: { scriptId: '1', lineNumber: 0, columnNumber: 0 },
+      scopeChain: [],
+    }],
+    reason: 'other',
+  };
   for (const domain of inspector.domainNames) {
     inspector[domain] = createAgent(domain, calls, gates);
   }
+  inspector.Debugger.getScriptSource = async () => {
+    await renderGates.shift().promise;
+    return { scriptSource: 'const value = 1;\n' };
+  };
+  const emitPause = common.mustCall(() => {
+    inspector.Debugger.emit('paused', pausedEvent);
+  }, 3);
+  const initialPauseGate = { resolve: emitPause };
+  const runPauseGate = { resolve: emitPause };
+  const restartPauseGate = { resolve: emitPause };
 
-  const repl = await createRepl(inspector)();
+  let replSettled = false;
+  const replPromise = createRepl(inspector)().then((repl) => {
+    replSettled = true;
+    return repl;
+  });
+  await new Promise(setImmediate);
+  assert.strictEqual(replSettled, false);
+  initialPauseGate.resolve();
+  await new Promise(setImmediate);
+  assert.strictEqual(replSettled, false);
+  initialRenderGate.resolve();
+  const repl = await replPromise;
 
-  await assertCommandWaitsForInit(repl, 'run', runGate, calls);
-  await assertCommandWaitsForInit(repl, 'restart', restartGate, calls);
+  await assertCommandWaitsForInit(
+    repl, 'run', runGate, runPauseGate, runRenderGate, calls);
+  await assertCommandWaitsForInit(
+    repl, 'restart', restartGate, restartPauseGate,
+    restartRenderGate, calls);
 
   assert.deepStrictEqual(
     calls.filter((call) => (
