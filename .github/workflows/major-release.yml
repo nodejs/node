@@ -2,7 +2,7 @@ name: Major Release
 
 on:
   schedule:
-    - cron: 0 0 15 2,8 *  # runs at midnight UTC every 15 February and 15 August
+    - cron: 0 0 15 2 *  # runs at midnight UTC every 15 February
 
 permissions:
   contents: read
