@@ -38,3 +38,20 @@ spawnSyncAndAssert(
     stderr: /spawn-worker-with-trace-exit\.js:17/
   }
 );
+
+// Test that NODE_OPTIONS set at runtime in the parent process are
+// picked up by a worker even when the env option is not provided.
+spawnSyncAndAssert(
+  process.execPath,
+  [
+    fixtures.path('spawn-worker-without-env-option'),
+  ],
+  {
+    env: {
+      ...process.env,
+    }
+  },
+  {
+    stderr: /spawn-worker-without-env-option\.js:14/
+  }
+);
