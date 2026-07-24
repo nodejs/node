@@ -177,11 +177,17 @@ thread. This allows enhanced compatibility with browser
 added:
  - v20.5.0
  - v18.18.0
+deprecated: REPLACEME
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/64615
+   description: Runtime deprecation.
  - version: v24.2.0
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
+
+> Stability: 0 - Deprecated: Use [`clearTimeout()`][] instead.
 
 Cancels the timeout.
 
