@@ -204,6 +204,23 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   env->set_heap_snapshot_near_heap_limit(limit);
 }
 
+void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsFunction());
+
+  const uint32_t max_extensions = args[0].As<Uint32>()->Value();
+  const double extension_size = args[1].As<Number>()->Value();
+  CHECK_GT(max_extensions, 0);
+  CHECK_GT(extension_size, 0);
+
+  env->AddHeapProfileNearHeapLimitCallback(max_extensions,
+                                           static_cast<size_t>(extension_size),
+                                           args[2].As<v8::Function>());
+}
+
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapStatistics s;
@@ -300,6 +317,7 @@ void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   std::ostringstream out_stream;
   bool success = node::SerializeHeapProfile(isolate, out_stream);
   if (success) {
+    isolate->GetHeapProfiler()->StopSamplingHeapProfiler();
     Local<Value> result;
     if (ToV8Value(env->context(), out_stream.str(), isolate).ToLocal(&result)) {
       args.GetReturnValue().Set(result);
@@ -719,6 +737,10 @@ void Initialize(Local<Object> target,
                         SetHeapSnapshotNearHeapLimit);
   SetMethod(context,
             target,
+            "setHeapProfileNearHeapLimit",
+            SetHeapProfileNearHeapLimit);
+  SetMethod(context,
+            target,
             "updateHeapStatisticsBuffer",
             UpdateHeapStatisticsBuffer);
 
@@ -828,6 +850,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetFlagsFromString);
   registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
+  registry->Register(SetHeapProfileNearHeapLimit);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);
