@@ -32,8 +32,7 @@ using v8::Uint32;
 using v8::Value;
 
 KmacConfig::KmacConfig(KmacConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
+    : mode(other.mode),
       key(std::move(other.key)),
       data(std::move(other.data)),
       signature(std::move(other.signature)),
@@ -50,12 +49,9 @@ KmacConfig& KmacConfig::operator=(KmacConfig&& other) noexcept {
 
 void KmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  // If the job is sync, then the KmacConfig does not own the data.
-  if (IsCryptoJobAsync(job_mode)) {
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("signature", signature.size());
-    tracker->TrackFieldWithSize("customization", customization.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(signature, "signature");
+  tracker->TraitTrackInline(customization, "customization");
 }
 
 Maybe<void> KmacTraits::AdditionalConfig(
@@ -64,8 +60,6 @@ Maybe<void> KmacTraits::AdditionalConfig(
     unsigned int offset,
     KmacConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // SignConfiguration::Mode
   params->mode =

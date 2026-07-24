@@ -22,14 +22,13 @@ namespace crypto {
 #ifndef OPENSSL_NO_SCRYPT
 
 ScryptConfig::ScryptConfig(ScryptConfig&& other) noexcept
-  : mode(other.mode),
-    pass(std::move(other.pass)),
-    salt(std::move(other.salt)),
-    N(other.N),
-    r(other.r),
-    p(other.p),
-    maxmem(other.maxmem),
-    length(other.length) {}
+    : pass(std::move(other.pass)),
+      salt(std::move(other.salt)),
+      N(other.N),
+      r(other.r),
+      p(other.p),
+      maxmem(other.maxmem),
+      length(other.length) {}
 
 ScryptConfig& ScryptConfig::operator=(ScryptConfig&& other) noexcept {
   if (&other == this) return *this;
@@ -38,10 +37,8 @@ ScryptConfig& ScryptConfig::operator=(ScryptConfig&& other) noexcept {
 }
 
 void ScryptConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("pass", pass.size());
-    tracker->TrackFieldWithSize("salt", salt.size());
-  }
+  tracker->TraitTrackInline(pass, "pass");
+  tracker->TraitTrackInline(salt, "salt");
 }
 
 MaybeLocal<Value> ScryptTraits::EncodeOutput(Environment* env,
@@ -56,8 +53,6 @@ Maybe<void> ScryptTraits::AdditionalConfig(
     unsigned int offset,
     ScryptConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   ArrayBufferOrViewContents<char> pass(args[offset]);
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
@@ -80,7 +75,7 @@ Maybe<void> ScryptTraits::AdditionalConfig(
   CHECK(args[offset + 3]->IsUint32());  // r
   CHECK(args[offset + 4]->IsUint32());  // p
   CHECK(args[offset + 5]->IsNumber());  // maxmem
-  CHECK(args[offset + 6]->IsInt32());  // length
+  CHECK(args[offset + 6]->IsInt32());   // length
 
   params->N = args[offset + 2].As<Uint32>()->Value();
   params->r = args[offset + 3].As<Uint32>()->Value();

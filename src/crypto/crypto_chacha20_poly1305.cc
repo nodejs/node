@@ -81,8 +81,7 @@ bool ValidateAdditionalData(Environment* env,
 
 ChaCha20Poly1305CipherConfig::ChaCha20Poly1305CipherConfig(
     ChaCha20Poly1305CipherConfig&& other) noexcept
-    : mode(other.mode),
-      cipher(other.cipher),
+    : cipher(other.cipher),
       iv(std::move(other.iv)),
       additional_data(std::move(other.additional_data)) {}
 
@@ -94,12 +93,8 @@ ChaCha20Poly1305CipherConfig& ChaCha20Poly1305CipherConfig::operator=(
 }
 
 void ChaCha20Poly1305CipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If mode is sync, then the data in each of these properties
-  // is not owned by the ChaCha20Poly1305CipherConfig, so we ignore it.
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("iv", iv.size());
-    tracker->TrackFieldWithSize("additional_data", additional_data.size());
-  }
+  tracker->TraitTrackInline(iv, "iv");
+  tracker->TraitTrackInline(additional_data, "additional_data");
 }
 
 Maybe<void> ChaCha20Poly1305CipherTraits::AdditionalConfig(
@@ -110,7 +105,6 @@ Maybe<void> ChaCha20Poly1305CipherTraits::AdditionalConfig(
     ChaCha20Poly1305CipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
   params->cipher = ncrypto::Cipher::CHACHA20_POLY1305;
 
 #ifndef OPENSSL_IS_BORINGSSL

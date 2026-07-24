@@ -22,7 +22,6 @@ namespace node::crypto {
 // at least 16 bytes in length.
 
 struct Argon2Config final : public MemoryRetainer {
-  CryptoJobMode mode;
   KeyObjectData key;
   ByteSource pass;
   ByteSource salt;

@@ -491,8 +491,7 @@ void UseDefaultIV(AESCipherConfig* params) {
 }  // namespace
 
 AESCipherConfig::AESCipherConfig(AESCipherConfig&& other) noexcept
-    : mode(other.mode),
-      variant(other.variant),
+    : variant(other.variant),
       cipher(other.cipher),
       length(other.length),
       iv(std::move(other.iv)),
@@ -505,12 +504,8 @@ AESCipherConfig& AESCipherConfig::operator=(AESCipherConfig&& other) noexcept {
 }
 
 void AESCipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If mode is sync, then the data in each of these properties
-  // is not owned by the AESCipherConfig, so we ignore it.
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("iv", iv.size());
-    tracker->TrackFieldWithSize("additional_data", additional_data.size());
-  }
+  tracker->TraitTrackInline(iv, "iv");
+  tracker->TraitTrackInline(additional_data, "additional_data");
 }
 
 Maybe<void> AESCipherTraits::AdditionalConfig(
@@ -520,8 +515,6 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     WebCryptoCipherMode cipher_mode,
     AESCipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(args[offset]->IsUint32());  // Key Variant
   params->variant =

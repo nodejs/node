@@ -15,7 +15,6 @@ namespace node::crypto {
 enum class KmacVariant { KMAC128, KMAC256 };
 
 struct KmacConfig final : public MemoryRetainer {
-  CryptoJobMode job_mode;
   SignConfiguration::Mode mode;
   KeyObjectData key;
   ByteSource data;
