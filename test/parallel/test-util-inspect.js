@@ -4058,3 +4058,9 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
   delete Error[Symbol.hasInstance];
 }
+
+{
+  const obj = { a: 'short string', b: [1, 2], c: { d: true } };
+  const expected = "{ a: 'short string', b: [ 1, 2 ], c: { d: true } }";
+  assert.strictEqual(util.inspect(obj, { breakLength: Infinity }), expected);
+}
