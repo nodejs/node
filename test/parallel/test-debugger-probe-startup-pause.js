@@ -1,5 +1,5 @@
 // Flags: --expose-internals
-// This tests that probe mode ignores pauses until startup has finished binding
+// This tests that probe mode defers pauses until startup has finished binding
 // breakpoints.
 'use strict';
 
@@ -25,7 +25,7 @@ async function testStartupPauseHandling() {
   assert.deepStrictEqual(cdpCalls, []);
 
   session.started = true;
-  await session.handlePaused({});
+  await session.handleDeferredStartupPause();
   assert.deepStrictEqual(cdpCalls, ['Debugger.resume']);
 }
 
