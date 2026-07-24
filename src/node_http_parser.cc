@@ -31,9 +31,11 @@
 #include "stream_base-inl.h"
 #include "v8.h"
 
+#include <cstdio>  // snprintf
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
-
+#include <string>
+#include <vector>
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -55,6 +57,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -1293,6 +1296,467 @@ const llhttp_settings_t Parser::settings = {
     nullptr,
 };
 
+// Flags for BuildHttpMessage - keep in sync with lib/_http_outgoing.js.
+enum BuildHttpMessageFlags : uint32_t {
+  kBuildSendDate = 1u << 0,
+  kBuildShouldKeepAlive = 1u << 1,
+  kBuildMaxRequestsReached = 1u << 2,
+  kBuildDefaultKeepAlive = 1u << 3,
+  kBuildHasBody = 1u << 4,
+  kBuildUseChunkedByDefault = 1u << 5,
+  kBuildRemovedConnection = 1u << 6,
+  kBuildRemovedContLen = 1u << 7,
+  kBuildRemovedTE = 1u << 8,
+  kBuildHasAgent = 1u << 9,
+};
+
+// Out indices written into the optional Float64Array passed as args[9].
+enum BuildHttpMessageOut : uint32_t {
+  kOutLast = 0,
+  kOutChunked = 1,
+  kOutContentLength = 2,
+  kOutHasContentLength = 3,
+  kOutCount = 4,
+};
+
+static bool HeaderTokenEquals(const char* a,
+                              size_t a_len,
+                              const char* b,
+                              size_t b_len) {
+  if (a_len != b_len) return false;
+  for (size_t i = 0; i < a_len; i++) {
+    char ca = a[i];
+    char cb = b[i];
+    if (ca >= 'A' && ca <= 'Z') ca = static_cast<char>(ca + 32);
+    if (cb >= 'A' && cb <= 'Z') cb = static_cast<char>(cb + 32);
+    if (ca != cb) return false;
+  }
+  return true;
+}
+
+// Match lib/_http_common.js chunkExpression / conn close:
+// /(?:^|\W)token(?:$|\W)/i  where \W is any non-[A-Za-z0-9_] character.
+// This accepts transfer-coding parameters (`chunked;foo=bar`) as well as
+// list/comma separators.
+static bool IsWordChar(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') || c == '_';
+}
+
+static bool ValueContainsTokenCI(const char* value,
+                                 size_t len,
+                                 const char* token,
+                                 size_t token_len) {
+  if (token_len == 0 || len < token_len) return false;
+  for (size_t i = 0; i + token_len <= len; i++) {
+    bool match = true;
+    for (size_t j = 0; j < token_len; j++) {
+      char c = value[i + j];
+      if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
+      if (c != token[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (!match) continue;
+    const bool left_ok = i == 0 || !IsWordChar(value[i - 1]);
+    const bool right_ok =
+        i + token_len == len || !IsWordChar(value[i + token_len]);
+    if (left_ok && right_ok) return true;
+  }
+  return false;
+}
+
+// Build a complete HTTP/1.1 message (header block, optionally plus body) in a
+// single contiguous Buffer. Mirrors _storeHeader() keep-alive / length logic
+// so the JS fast path can skip intermediate string concatenation.
+//
+// args[0] firstLine     String  e.g. "HTTP/1.1 200 OK\r\n"
+// args[1] headers       Array|null  flat [name, value, name, value, ...]
+// args[2] body          String|Uint8Array|null
+// args[3] bodyEncoding  0=none/buffer, 1=latin1, 2=utf8 (only for string body)
+// args[4] flags         uint32 BuildHttpMessageFlags
+// args[5] date          String (pre-formatted UTC date) or empty
+// args[6] keepAliveSec  uint32 keep-alive timeout in seconds
+// args[7] maxRequests   int32  max requests per socket (0 = omit)
+// args[8] knownLength   int32  content-length if already known, else -1
+// args[9] out           Float64Array(kOutCount) optional result flags
+void BuildHttpMessage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+
+  if (args.Length() < 9 || !args[0]->IsString()) {
+    return;
+  }
+
+  Local<String> first_line_v = args[0].As<String>();
+
+  const uint32_t flags =
+      args[4]->IsUint32() ? args[4].As<Uint32>()->Value() : 0;
+  const bool send_date = (flags & kBuildSendDate) != 0;
+  const bool should_keep_alive = (flags & kBuildShouldKeepAlive) != 0;
+  const bool max_requests_reached = (flags & kBuildMaxRequestsReached) != 0;
+  const bool default_keep_alive = (flags & kBuildDefaultKeepAlive) != 0;
+  const bool has_body = (flags & kBuildHasBody) != 0;
+  const bool use_chunked_by_default = (flags & kBuildUseChunkedByDefault) != 0;
+  const bool removed_connection = (flags & kBuildRemovedConnection) != 0;
+  const bool removed_cont_len = (flags & kBuildRemovedContLen) != 0;
+  const bool removed_te = (flags & kBuildRemovedTE) != 0;
+  const bool has_agent = (flags & kBuildHasAgent) != 0;
+
+  int64_t known_length = -1;
+  if (args[8]->IsNumber()) {
+    known_length = args[8]->IntegerValue(env->context()).FromMaybe(-1);
+  }
+
+  // Measure / extract body.
+  size_t body_len = 0;
+  bool body_is_buffer = false;
+  bool body_is_string = false;
+  int body_encoding = 0;  // 0=buffer/none, 1=latin1, 2=utf8
+  Local<String> body_str;
+  const char* body_buf_data = nullptr;
+
+  if (!args[2]->IsNullOrUndefined()) {
+    if (Buffer::HasInstance(args[2])) {
+      body_is_buffer = true;
+      body_buf_data = Buffer::Data(args[2]);
+      body_len = Buffer::Length(args[2]);
+    } else if (args[2]->IsString()) {
+      body_is_string = true;
+      body_str = args[2].As<String>();
+      body_encoding = args[3]->IsUint32() ? args[3].As<Uint32>()->Value() : 2;
+      if (body_encoding == 1) {
+        body_len = static_cast<size_t>(body_str->Length());
+      } else {
+        body_len = static_cast<size_t>(body_str->Utf8LengthV2(isolate));
+        body_encoding = 2;
+      }
+    }
+  }
+
+  bool saw_connection = false;
+  bool saw_cont_len = false;
+  bool saw_te = false;
+  bool saw_date = false;
+  bool saw_trailer = false;
+  bool saw_keep_alive = false;
+  bool connection_close = false;
+  bool te_chunked = false;
+  int64_t header_content_length = -1;
+
+  std::vector<std::pair<Local<String>, Local<String>>> header_pairs;
+  if (args[1]->IsArray()) {
+    Local<Array> headers = args[1].As<Array>();
+    const uint32_t len = headers->Length();
+    if (len % 2u != 0u) {
+      return;  // Invalid; JS validates before calling.
+    }
+    header_pairs.reserve(len / 2);
+    Local<Context> context = env->context();
+    for (uint32_t i = 0; i < len; i += 2) {
+      Local<Value> k_v, v_v;
+      if (!headers->Get(context, i).ToLocal(&k_v) ||
+          !headers->Get(context, i + 1).ToLocal(&v_v) || !k_v->IsString() ||
+          !v_v->IsString()) {
+        return;
+      }
+      Local<String> key = k_v.As<String>();
+      Local<String> val = v_v.As<String>();
+      header_pairs.emplace_back(key, val);
+
+      const int klen = key->Length();
+      const int vlen = val->Length();
+
+      // Cheap length pre-filter matching matchHeader() in JS.
+      if (klen != 4 && klen != 6 && klen != 7 && klen != 10 && klen != 14 &&
+          klen != 17) {
+        continue;
+      }
+
+      char name_buf[32];
+      if (klen < 0 || klen >= static_cast<int>(sizeof(name_buf))) continue;
+      key->WriteOneByteV2(
+          isolate, 0, klen, reinterpret_cast<uint8_t*>(name_buf));
+
+      char value_buf_stack[128];
+      std::string value_heap;
+      const char* value_ptr;
+      size_t value_len = static_cast<size_t>(vlen);
+      if (vlen < static_cast<int>(sizeof(value_buf_stack))) {
+        val->WriteOneByteV2(
+            isolate, 0, vlen, reinterpret_cast<uint8_t*>(value_buf_stack));
+        value_ptr = value_buf_stack;
+      } else {
+        value_heap.resize(value_len);
+        val->WriteOneByteV2(
+            isolate, 0, vlen, reinterpret_cast<uint8_t*>(&value_heap[0]));
+        value_ptr = value_heap.data();
+      }
+
+      if (HeaderTokenEquals(name_buf, klen, "date", 4)) {
+        saw_date = true;
+      } else if (HeaderTokenEquals(name_buf, klen, "trailer", 7)) {
+        saw_trailer = true;
+      } else if (HeaderTokenEquals(name_buf, klen, "connection", 10)) {
+        saw_connection = true;
+        if (ValueContainsTokenCI(value_ptr, value_len, "close", 5))
+          connection_close = true;
+      } else if (HeaderTokenEquals(name_buf, klen, "keep-alive", 10)) {
+        saw_keep_alive = true;
+      } else if (HeaderTokenEquals(name_buf, klen, "content-length", 14)) {
+        saw_cont_len = true;
+        header_content_length = 0;
+        for (size_t j = 0; j < value_len; j++) {
+          if (value_ptr[j] < '0' || value_ptr[j] > '9') break;
+          header_content_length =
+              header_content_length * 10 + (value_ptr[j] - '0');
+        }
+      } else if (HeaderTokenEquals(name_buf, klen, "transfer-encoding", 17)) {
+        saw_te = true;
+        if (ValueContainsTokenCI(value_ptr, value_len, "chunked", 7))
+          te_chunked = true;
+      }
+    }
+  }
+
+  bool is_last = false;
+  bool chunked = te_chunked;
+  int64_t content_length = -1;
+
+  if (saw_cont_len) {
+    content_length = header_content_length;
+  } else if (known_length >= 0) {
+    content_length = known_length;
+  } else if (body_is_buffer || body_is_string) {
+    content_length = static_cast<int64_t>(body_len);
+  }
+
+  // Match _storeHeader connection logic.
+  // JS: shouldKeepAlive && (contLen || useChunkedByDefault || agent)
+  bool emit_connection_close = false;
+  bool emit_connection_keep_alive = false;
+  if (removed_connection) {
+    is_last = !should_keep_alive;
+  } else if (!saw_connection) {
+    const bool should_send_keep_alive =
+        should_keep_alive && (saw_cont_len || content_length >= 0 ||
+                              use_chunked_by_default || has_agent);
+    if (should_send_keep_alive && max_requests_reached) {
+      emit_connection_close = true;
+    } else if (should_send_keep_alive) {
+      emit_connection_keep_alive = true;
+    } else {
+      is_last = true;
+      emit_connection_close = true;
+    }
+  } else if (connection_close) {
+    is_last = true;
+  }
+
+  // Body framing. Note: useChunkedByDefault alone gates Content-Length /
+  // Transfer-Encoding auto headers - agent is NOT involved here.
+  bool need_auto_cont_len = false;
+  bool need_auto_te = false;
+  if (!saw_cont_len && !saw_te) {
+    if (!has_body) {
+      chunked = false;
+    } else if (!use_chunked_by_default) {
+      is_last = true;
+    } else if (!saw_trailer && !removed_cont_len && content_length >= 0) {
+      need_auto_cont_len = true;
+    } else if (!removed_te) {
+      need_auto_te = true;
+      chunked = true;
+    } else {
+      is_last = true;
+    }
+  }
+
+  // Single-shot body: prefer Content-Length over chunked when the message
+  // actually uses chunked-by-default (servers / POST/PUT clients). Do not
+  // rewrite when a Trailer is advertised — trailers require chunked framing.
+  if ((body_is_buffer || body_is_string) && content_length >= 0 && !saw_te &&
+      !saw_trailer && !removed_cont_len && use_chunked_by_default) {
+    need_auto_cont_len = !saw_cont_len;
+    need_auto_te = false;
+    chunked = false;
+  }
+
+  // statusCode is not passed in; 204/304 + chunked is handled by JS before
+  // or after calling this builder (see tryNativeStoreHeader).
+
+  // body arg: null/undefined => headers-only (_storeHeader); string/buffer
+  // (possibly empty) => complete message. Headers-only must not append the
+  // chunked terminator - JS end() still does that.
+  const bool headers_only = args[2]->IsNullOrUndefined();
+
+  // Size estimate (upper bound) so we can write into a single malloc and
+  // hand it to Buffer without a second copy.
+  size_t est = static_cast<size_t>(first_line_v->Length()) + 128 + body_len;
+  for (const auto& pair : header_pairs) {
+    est += static_cast<size_t>(pair.first->Length()) +
+           static_cast<size_t>(pair.second->Length()) + 4;  // ": \r\n"
+  }
+  if (chunked) est += 32;  // chunk framing
+
+  char* raw = UncheckedMalloc(est);
+  if (raw == nullptr) {
+    return;
+  }
+  size_t off = 0;
+
+  // Subtraction-style bounds checks avoid overflow of `off + n` before compare.
+  auto append_raw = [&](const char* p, size_t n) {
+    CHECK(off <= est && n <= est - off);
+    if (n > 0) {
+      std::memcpy(raw + off, p, n);
+      off += n;
+    }
+  };
+  auto append_lit = [&](const char* lit) { append_raw(lit, std::strlen(lit)); };
+  auto append_v8_latin1 = [&](Local<String> s) {
+    const int n = s->Length();
+    const size_t sn = static_cast<size_t>(n);
+    CHECK(off <= est && sn <= est - off);
+    if (s->IsOneByte()) {
+      s->WriteOneByteV2(isolate, 0, n, reinterpret_cast<uint8_t*>(raw + off));
+    } else {
+      std::vector<uint16_t> tmp(sn);
+      s->WriteV2(isolate, 0, n, tmp.data());
+      for (int i = 0; i < n; i++) {
+        raw[off + static_cast<size_t>(i)] =
+            static_cast<char>(tmp[static_cast<size_t>(i)] & 0xff);
+      }
+    }
+    off += sn;
+  };
+  auto append_number = [&](uint64_t n) {
+    char buf[32];
+    size_t i = sizeof(buf);
+    do {
+      buf[--i] = static_cast<char>('0' + (n % 10));
+      n /= 10;
+    } while (n > 0);
+    append_raw(buf + i, sizeof(buf) - i);
+  };
+
+  append_v8_latin1(first_line_v);
+
+  for (const auto& pair : header_pairs) {
+    append_v8_latin1(pair.first);
+    append_lit(": ");
+    append_v8_latin1(pair.second);
+    append_lit("\r\n");
+  }
+
+  if (send_date && !saw_date && args[5]->IsString()) {
+    append_lit("Date: ");
+    append_v8_latin1(args[5].As<String>());
+    append_lit("\r\n");
+  }
+
+  if (emit_connection_keep_alive) {
+    append_lit("Connection: keep-alive\r\n");
+    uint32_t ka = 0;
+    if (args[6]->IsNumber()) {
+      ka = args[6]->Uint32Value(env->context()).FromMaybe(0);
+    }
+    if (default_keep_alive && !saw_keep_alive && ka > 0) {
+      append_lit("Keep-Alive: timeout=");
+      append_number(ka);
+      int32_t max_req = 0;
+      if (args[7]->IsNumber()) {
+        max_req = args[7]->Int32Value(env->context()).FromMaybe(0);
+      }
+      if (max_req > 0) {
+        append_lit(", max=");
+        append_number(static_cast<uint64_t>(max_req));
+      }
+      append_lit("\r\n");
+    }
+  } else if (emit_connection_close) {
+    append_lit("Connection: close\r\n");
+  }
+
+  if (need_auto_cont_len && content_length >= 0) {
+    append_lit("Content-Length: ");
+    append_number(static_cast<uint64_t>(content_length));
+    append_lit("\r\n");
+  }
+  if (need_auto_te) {
+    append_lit("Transfer-Encoding: chunked\r\n");
+  }
+
+  append_lit("\r\n");
+
+  if (!headers_only && has_body && (body_is_buffer || body_is_string)) {
+    if (chunked && body_len > 0) {
+      char hex[16];
+      const int n =
+          std::snprintf(hex,
+                        sizeof(hex),
+                        "%llx",
+                        static_cast<unsigned long long>(body_len));  // NOLINT
+      append_raw(hex, static_cast<size_t>(n));
+      append_lit("\r\n");
+    }
+    if (body_is_buffer && body_len > 0) {
+      append_raw(body_buf_data, body_len);
+    } else if (body_is_string && body_len > 0) {
+      // Need room for payload; UTF-8 path may use body_len (no trailing NUL).
+      CHECK(off <= est && body_len <= est - off);
+      if (body_encoding == 1) {
+        body_str->WriteOneByteV2(isolate,
+                                 0,
+                                 body_str->Length(),
+                                 reinterpret_cast<uint8_t*>(raw + off));
+        off += body_len;
+      } else {
+        const size_t written = body_str->WriteUtf8V2(
+            isolate, raw + off, body_len, String::WriteFlags::kNone);
+        off += written;
+      }
+    }
+    if (chunked) {
+      if (body_len > 0) append_lit("\r\n");
+      append_lit("0\r\n\r\n");
+    }
+  }
+
+  Local<Object> buf_obj;
+  // Transfer ownership of `raw` to the Buffer; free callback releases it.
+  if (!Buffer::New(
+           isolate,
+           raw,
+           off,
+           [](char* data, void* /*hint*/) { free(data); },
+           nullptr)
+           .ToLocal(&buf_obj)) {
+    free(raw);
+    return;
+  }
+
+  // Float64Array so Content-Length values above 2^32-1 are not truncated
+  // (Uint32 would wrap; JS numbers are already doubles up to 2^53).
+  if (args.Length() > 9 && args[9]->IsFloat64Array()) {
+    Local<Float64Array> out_arr = args[9].As<Float64Array>();
+    if (out_arr->Length() >= kOutCount) {
+      auto* data =
+          static_cast<double*>(out_arr->Buffer()->GetBackingStore()->Data());
+      data += out_arr->ByteOffset() / sizeof(double);
+      data[kOutLast] = is_last ? 1.0 : 0.0;
+      data[kOutChunked] = chunked ? 1.0 : 0.0;
+      data[kOutContentLength] =
+          content_length >= 0 ? static_cast<double>(content_length) : 0.0;
+      data[kOutHasContentLength] = content_length >= 0 ? 1.0 : 0.0;
+    }
+  }
+
+  args.GetReturnValue().Set(buf_obj);
+}
+
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -1370,6 +1834,9 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
 
+  // Single-shot HTTP/1.1 message builder used by the OutgoingMessage fast path.
+  SetMethod(isolate, target, "buildHttpMessage", BuildHttpMessage);
+
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
   c->InstanceTemplate()
@@ -1436,6 +1903,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
   registry->Register(Parser::GetCurrentBuffer);
+  registry->Register(BuildHttpMessage);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
   registry->Register(ConnectionsList::Idle);
