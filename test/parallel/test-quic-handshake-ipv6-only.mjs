@@ -33,13 +33,12 @@ const check = {
 
 const serverOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) =>
-  serverSession.opened.then((info) => {
-    assert.partialDeepStrictEqual(info, check);
-    serverOpened.resolve();
-    return serverSession.close();
-  }).then(mustCall())
-), {
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const info = await serverSession.opened;
+  assert.partialDeepStrictEqual(info, check);
+  serverOpened.resolve();
+  await serverSession.close();
+}), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['quic-test'],
   endpoint: {

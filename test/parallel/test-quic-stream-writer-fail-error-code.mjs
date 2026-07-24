@@ -23,8 +23,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -33,7 +31,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 const { QuicError } = await import('node:quic');
 
 function wireCodeOf(err) {
-  strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
+  assert.strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
   return err.errorCode;
 }
 
@@ -89,8 +87,8 @@ await clientSession.opened;
 
 await allDone.promise;
 
-strictEqual(observed[0], expectedCodes[0]);
-strictEqual(observed[1], expectedCodes[1]);
+assert.strictEqual(observed[0], expectedCodes[0]);
+assert.strictEqual(observed[1], expectedCodes[1]);
 
 await clientSession.close();
 await serverEndpoint.close();

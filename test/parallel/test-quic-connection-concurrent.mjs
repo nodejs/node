@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,7 +43,7 @@ for (let i = 0; i < numClients; i++) {
       body: encoder.encode(message),
     });
     const received = await bytes(stream);
-    strictEqual(new TextDecoder().decode(received), message);
+    assert.strictEqual(new TextDecoder().decode(received), message);
     await stream.closed;
     cs.close();
     await cs.closed;

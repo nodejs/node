@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual, ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -38,22 +36,22 @@ const stream = await clientSession.createBidirectionalStream({
 const w = stream.writer;
 
 // Fill the buffer.
-strictEqual(w.writeSync(new Uint8Array(1024)), true);
+assert.strictEqual(w.writeSync(new Uint8Array(1024)), true);
 
 // canWrite should now be false.
-strictEqual(w.canWrite, false);
+assert.strictEqual(w.canWrite, false);
 
 // Async write() should reject when buffer is full.
-await rejects(
+await assert.rejects(
   w.write(new Uint8Array(512)),
   { code: 'ERR_INVALID_STATE' },
 );
 
 // Wait for drain, then write should succeed.
 const drain = w[dp]();
-ok(drain instanceof Promise);
+assert.ok(drain instanceof Promise);
 await drain;
-ok(w.canWrite === true);
+assert.ok(w.canWrite === true);
 
 // Now write succeeds.
 await w.write(new Uint8Array(100));

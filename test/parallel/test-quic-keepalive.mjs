@@ -9,8 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,8 +26,8 @@ const { listen, connect } = await import('../common/quic.mjs');
     // Wait for keep-alive PINGs to arrive.
     await setTimeout(300);
     // Server should have received PING frames.
-    ok(serverSession.stats.pingRecv > 0n,
-       'Server should receive keep-alive PINGs');
+    assert.ok(serverSession.stats.pingRecv > 0n,
+              'Server should receive keep-alive PINGs');
     serverSession.close();
     serverDone.resolve();
   }), {
@@ -55,7 +53,7 @@ const { listen, connect } = await import('../common/quic.mjs');
     const handshakePings = serverSession.stats.pingRecv;
     await setTimeout(200);
     // No additional PINGs should arrive without keepAlive.
-    strictEqual(serverSession.stats.pingRecv, handshakePings);
+    assert.strictEqual(serverSession.stats.pingRecv, handshakePings);
     serverSession.close();
     serverDone.resolve();
   }));

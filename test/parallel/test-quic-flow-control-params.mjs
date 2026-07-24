@@ -13,8 +13,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -35,7 +33,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(received.byteLength, expected.byteLength);
+      assert.strictEqual(received.byteLength, expected.byteLength);
       stream.writer.endSync();
       await stream.closed;
       serverSession.close();

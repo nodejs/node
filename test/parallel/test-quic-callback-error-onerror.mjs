@@ -10,8 +10,6 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -22,8 +20,8 @@ const { listen, connect } = await import('../common/quic.mjs');
 // It should fire once for the first client session (destroyed with error)
 // and not for the second (destroyed without error).
 dc.subscribe('quic.session.error', mustCall((msg) => {
-  ok(msg.session, 'session.error should include session');
-  ok(msg.error, 'session.error should include error');
+  assert.ok(msg.session, 'session.error should include session');
+  assert.ok(msg.error, 'session.error should include error');
 }));
 
 const transportParams = { maxIdleTimeout: 1 };
@@ -44,17 +42,17 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   let onerrorCalled = false;
   clientSession.onerror = mustCall((err) => {
     // Receives the original error.
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
     onerrorCalled = true;
   });
 
   clientSession.destroy(testError);
 
   // Onerror was called synchronously during destroy.
-  strictEqual(onerrorCalled, true);
+  assert.strictEqual(onerrorCalled, true);
 
   // Closed rejects with the original error.
-  await rejects(clientSession.closed, testError);
+  await assert.rejects(clientSession.closed, testError);
 }
 
 // Second client: destroy WITHOUT error — onerror should NOT fire.
