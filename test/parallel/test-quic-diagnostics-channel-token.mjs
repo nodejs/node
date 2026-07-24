@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,17 +24,17 @@ function checkDone() {
 
 // quic.session.ticket fires when session ticket received.
 dc.subscribe('quic.session.ticket', mustCall((msg) => {
-  ok(msg.session);
-  ok(msg.ticket);
+  assert.ok(msg.session);
+  assert.ok(msg.ticket);
   ticketFired = true;
   checkDone();
 }));
 
 // quic.session.new.token fires when NEW_TOKEN received.
 dc.subscribe('quic.session.new.token', mustCall((msg) => {
-  ok(msg.session);
-  ok(msg.token);
-  ok(msg.address);
+  assert.ok(msg.session);
+  assert.ok(msg.token);
+  assert.ok(msg.address);
   tokenFired = true;
   checkDone();
 }));
@@ -46,8 +44,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 }));
 
 const clientSession = await connect(serverEndpoint.address, {
-  onsessionticket: mustCall((ticket) => { ok(ticket); }),
-  onnewtoken: mustCall((token) => { ok(token); }),
+  onsessionticket: mustCall((ticket) => { assert.ok(ticket); }),
+  onnewtoken: mustCall((token) => { assert.ok(token); }),
 });
 await Promise.all([clientSession.opened, allDone.promise]);
 await clientSession.close();

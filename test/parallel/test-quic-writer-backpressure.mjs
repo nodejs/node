@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,7 +26,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(received.byteLength, totalSize);
+    assert.strictEqual(received.byteLength, totalSize);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -45,8 +43,8 @@ const stream = await clientSession.createBidirectionalStream({
 const w = stream.writer;
 
 // Initial canWrite should be true.
-strictEqual(w.canWrite, true);
-strictEqual(stream.budget, 2048);
+assert.strictEqual(w.canWrite, true);
+assert.strictEqual(stream.budget, 2048);
 
 let backpressureCount = 0;
 
@@ -59,13 +57,13 @@ for (let i = 0; i < numChunks; i++) {
 
     // drainableProtocol returns a promise when backpressured.
     const drain = w[dp]();
-    ok(drain instanceof Promise, 'drainableProtocol should return a Promise');
+    assert.ok(drain instanceof Promise, 'drainableProtocol should return a Promise');
 
     // The promise resolves when drain fires.
     await drain;
 
     // After drain, canWrite should be true.
-    ok(w.canWrite === true, `canWrite after drain should be true, got ${w.canWrite}`);
+    assert.ok(w.canWrite === true, `canWrite after drain should be true, got ${w.canWrite}`);
   }
 }
 
@@ -73,7 +71,7 @@ w.endSync();
 
 // Backpressure should have been hit with a 2KB budget
 // and 1KB chunks (every 2 chunks fills the buffer).
-ok(backpressureCount > 0, 'backpressure should have been hit');
+assert.ok(backpressureCount > 0, 'backpressure should have been hit');
 
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
 await Promise.all([stream.closed, serverDone.promise]);

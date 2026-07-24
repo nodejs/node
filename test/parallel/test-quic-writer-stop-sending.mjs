@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -27,7 +25,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     stream.stopSending(1n);
     serverReady.resolve();
     stream.writer.endSync();
-    await rejects(stream.closed, mustCall((err) => {
+    await assert.rejects(stream.closed, mustCall((err) => {
       assert.ok(err);
       return true;
     }));
@@ -51,7 +49,7 @@ await setTimeout(100);
 
 // After STOP_SENDING, the writer should be in an errored state.
 // writeSync returns false (refuses to accept data).
-strictEqual(w.writeSync(encoder.encode('rejected')), false);
+assert.strictEqual(w.writeSync(encoder.encode('rejected')), false);
 
 // The stream closes after the server sends FIN.
 await Promise.all([serverDone.promise, stream.closed]);

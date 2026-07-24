@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { ok, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -23,7 +21,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // Reset the stream from the server side.
     stream.resetStream(42n);
-    await rejects(stream.closed, mustCall((err) => {
+    await assert.rejects(stream.closed, mustCall((err) => {
       assert.ok(err);
       return true;
     }));
@@ -42,7 +40,7 @@ const stream = await clientSession.createBidirectionalStream({
 });
 
 // Set up the closed handler before the reset to avoid unhandled rejection.
-const closedPromise = rejects(stream.closed, mustCall((err) => {
+const closedPromise = assert.rejects(stream.closed, mustCall((err) => {
   assert.ok(err);
   return true;
 }));
@@ -54,7 +52,7 @@ await serverReady.promise;
 try {
   for await (const batch of stream) {
     // May receive some data before the reset arrives.
-    ok(Array.isArray(batch));
+    assert.ok(Array.isArray(batch));
   }
 } catch {
   // The iterator may throw when the reset arrives mid-iteration.

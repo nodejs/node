@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,7 +32,7 @@ await clientSession.opened;
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(encoder.encode('first'));
 
-  throws(() => stream.setBody(encoder.encode('second')), {
+  assert.throws(() => stream.setBody(encoder.encode('second')), {
     code: 'ERR_INVALID_STATE',
     message: /outbound already configured/,
   });
@@ -50,7 +48,7 @@ await clientSession.opened;
   const w = stream.writer;
   w.endSync();
 
-  throws(() => stream.setBody(encoder.encode('data')), {
+  assert.throws(() => stream.setBody(encoder.encode('data')), {
     code: 'ERR_INVALID_STATE',
     message: /writer already accessed/,
   });
