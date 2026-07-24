@@ -4,7 +4,7 @@
 // When a session is gracefully closing and an open stream encounters
 // an error, the session should still close cleanly without crashing.
 
-import { hasQuic, skip, mustCall, expectsError } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
 if (!hasQuic) {
@@ -28,11 +28,11 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   });
 }), {
   transportParams: { initialMaxStreamDataBidiRemote: 256 },
-  onerror: expectsError(),
+  onerror: mustNotCall(),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
-  onerror: expectsError(),
+  onerror: mustNotCall(),
 });
 await clientSession.opened;
 

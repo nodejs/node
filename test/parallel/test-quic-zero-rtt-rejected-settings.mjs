@@ -7,7 +7,7 @@
 // because the stored transport params are more permissive than
 // the current ones. The connection falls back to 1-RTT.
 
-import { hasQuic, skip, mustCall, expectsError } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import * as fixtures from '../common/fixtures.mjs';
@@ -81,7 +81,7 @@ const ep2 = await listen((serverSession) => {
     initialMaxStreamsBidi: 10,
     initialMaxData: 1048576,
   },
-  onerror: expectsError(),
+  onerror: mustNotCall(),
 });
 
 const cs2 = await connect(ep2.address, {
@@ -89,7 +89,7 @@ const cs2 = await connect(ep2.address, {
   verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
-  onerror: expectsError(),
+  onerror: mustNotCall(),
   onearlyrejected() {},
 });
 

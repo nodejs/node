@@ -56,7 +56,7 @@ async function getTicket(endpointOptions) {
       assert.ok(Buffer.isBuffer(ticket));
       savedTicket = ticket;
       gotTicket.resolve();
-    }),
+    }, 2),
     onnewtoken: mustCall((token) => {
       assert.ok(Buffer.isBuffer(token));
       savedToken = token;

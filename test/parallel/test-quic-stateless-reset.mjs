@@ -8,7 +8,7 @@
 //        send a stateless reset.
 // Global token bucket rate limits the total number of resets.
 
-import { hasQuic, skip, mustCall, expectsError } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, expectsError, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
 if (!hasQuic) {
@@ -40,7 +40,7 @@ const encoder = new TextEncoder();
       serverDestroyed.resolve();
     });
   }), {
-    onerror: expectsError(),
+    onerror: mustNotCall(),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -95,7 +95,7 @@ const encoder = new TextEncoder();
     });
   }), {
     endpoint: { disableStatelessReset: true },
-    onerror: expectsError(),
+    onerror: mustNotCall(),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -106,7 +106,7 @@ const encoder = new TextEncoder();
     transportParams: { maxIdleTimeout: 1 },
     // Onerror marks stream closed promises as handled so that the
     // idle-timeout stream destruction doesn't cause unhandled rejections.
-    onerror: expectsError(),
+    onerror: mustNotCall(),
   });
   await clientSession.opened;
 
@@ -157,7 +157,7 @@ const encoder = new TextEncoder();
     });
   }, 2), {
     endpoint: { statelessResetBurst: 1, statelessResetRate: 0 },
-    onerror: expectsError(),
+    onerror: mustNotCall(),
   });
 
   // The global token bucket rate limiter applies regardless of
@@ -198,7 +198,7 @@ const encoder = new TextEncoder();
     // destroys (no stateless reset will arrive, rate-limited).
     transportParams: { maxIdleTimeout: 1 },
     // Onerror marks stream closed promises as handled.
-    onerror: expectsError(),
+    onerror: mustNotCall(),
   });
   await client2.opened;
 

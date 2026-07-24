@@ -33,7 +33,7 @@ let serverSessionCount = 0;
 const serverEndpoint = await listen(mustCall((serverSession) => {
   const sessionNum = ++serverSessionCount;
   serverSession.onstream = mustCall((stream) =>
-    bytes.then((data) => {
+    bytes(stream).then((data) => {
       assert.ok(data.byteLength > 0);
 
       if (sessionNum === 1) {
