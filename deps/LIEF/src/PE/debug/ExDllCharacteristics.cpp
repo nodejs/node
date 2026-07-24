@@ -59,7 +59,7 @@ std::string ExDllCharacteristics::to_string() const {
   std::ostringstream os;
   using namespace fmt;
   os << Debug::to_string() << '\n'
-     << format("  Characteristics: {}", join(characteristics_list(), ", "));
+     << format("  Characteristics: {}", fmt::to_string(join(characteristics_list(), ", ")));
   return os.str();
 }
 
