@@ -22,18 +22,16 @@ import { performance, PerformanceObserver } from 'node:perf_hooks';
 
 const obs = new PerformanceObserver((items) => {
   console.log(items.getEntries()[0].duration);
-  performance.clearMarks();
 });
 obs.observe({ type: 'measure' });
 performance.measure('Start to Now');
 
 performance.mark('A');
-doSomeLongRunningProcess(() => {
-  performance.measure('A to Now', 'A');
+await new Promise((r) => setTimeout(r, 5000));
+performance.measure('A to Now', 'A');
 
-  performance.mark('B');
-  performance.measure('A to B', 'A', 'B');
-});
+performance.mark('B');
+performance.measure('A to B', 'A', 'B');
 ```
 
 ```cjs
@@ -511,9 +509,7 @@ Performance Entry.
 ## Class: `PerformanceMark`
 
 <!-- YAML
-added:
-  - v18.2.0
-  - v16.17.0
+added: v16.0.0
 -->
 
 * Extends: {PerformanceEntry}
@@ -538,9 +534,7 @@ Additional detail specified when creating with `Performance.mark()` method.
 ## Class: `PerformanceMeasure`
 
 <!-- YAML
-added:
-  - v18.2.0
-  - v16.17.0
+added: v16.7.0
 -->
 
 * Extends: {PerformanceEntry}
@@ -908,6 +902,24 @@ resources.
 
 The constructor of this class is not exposed to users directly.
 
+### `performanceResourceTiming.initiatorType`
+
+<!-- YAML
+added:
+  - v18.6.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {string}
+
+The string that represents the type of resource that initiated the
+performance entry, such as `'fetch'`.
+
 ### `performanceResourceTiming.workerStart`
 
 <!-- YAML
@@ -1073,6 +1085,27 @@ changes:
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts the handshake process to secure the current connection.
 
+### `performanceResourceTiming.nextHopProtocol`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {string}
+
+A string representing the network protocol used to fetch the resource, as
+identified by the [ALPN Protocol ID][]. When a proxy is used, if a tunnel
+connection is established, this returns the ALPN Protocol ID of the tunneled
+protocol. Otherwise, this returns the ALPN Protocol ID of the first hop to
+the proxy.
+
 ### `performanceResourceTiming.requestStart`
 
 <!-- YAML
@@ -1089,7 +1122,25 @@ changes:
 * Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
-before Node.js receives the first byte of the response from the server.
+before Node.js starts requesting the resource from the server.
+
+### `performanceResourceTiming.responseStart`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the first byte of the response from the server.
 
 ### `performanceResourceTiming.responseEnd`
 
@@ -1165,6 +1216,28 @@ changes:
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the message body, after removing any applied
 content-codings.
+
+### `performanceResourceTiming.deliveryType`
+
+<!-- YAML
+added: v22.2.0
+-->
+
+* Type: {string}
+
+A string representing how the resource was delivered. For example,
+resources delivered from the cache will return `'cache'`.
+
+### `performanceResourceTiming.responseStatus`
+
+<!-- YAML
+added: v22.2.0
+-->
+
+* Type: {number}
+
+A number representing the HTTP response status code returned when
+fetching the resource.
 
 ### `performanceResourceTiming.toJSON()`
 
@@ -1874,8 +1947,8 @@ added: v11.10.0
 
 * Type: {number}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of times the recorded value exceeded the `highest` recordable
+value of the histogram.
 
 ### `histogram.exceedsBigInt`
 
@@ -1887,8 +1960,8 @@ added:
 
 * Type: {bigint}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of times the recorded value exceeded the `highest` recordable
+value of the histogram.
 
 ### `histogram.max`
 
@@ -1898,7 +1971,7 @@ added: v11.10.0
 
 * Type: {number}
 
-The maximum recorded event loop delay.
+The maximum recorded value.
 
 ### `histogram.maxBigInt`
 
@@ -1910,7 +1983,7 @@ added:
 
 * Type: {bigint}
 
-The maximum recorded event loop delay.
+The maximum recorded value.
 
 ### `histogram.mean`
 
@@ -1920,7 +1993,7 @@ added: v11.10.0
 
 * Type: {number}
 
-The mean of the recorded event loop delays.
+The mean of the recorded values.
 
 ### `histogram.min`
 
@@ -1930,7 +2003,7 @@ added: v11.10.0
 
 * Type: {number}
 
-The minimum recorded event loop delay.
+The minimum recorded value.
 
 ### `histogram.minBigInt`
 
@@ -1942,7 +2015,7 @@ added:
 
 * Type: {bigint}
 
-The minimum recorded event loop delay.
+The minimum recorded value.
 
 ### `histogram.percentile(percentile)`
 
@@ -2006,7 +2079,7 @@ added: v11.10.0
 
 * Type: {number}
 
-The standard deviation of the recorded event loop delays.
+The standard deviation of the recorded values.
 
 ## Class: `ELDHistogram extends Histogram`
 
@@ -2352,6 +2425,7 @@ dns.lookup('localhost', () => {});
 dns.promises.resolve('localhost');
 ```
 
+[ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [Async Hooks]: async_hooks.md
 [Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
 [Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
