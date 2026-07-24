@@ -1381,6 +1381,18 @@ added:
 
 Enable experimental support for the QUIC protocol.
 
+### `--experimental-repl-typescript`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for TypeScript stripping in the REPL. Input that is
+valid JavaScript is evaluated as JavaScript before falling back to TypeScript
+type stripping.
+
 ### `--experimental-sea-config`
 
 <!-- YAML
@@ -3824,6 +3836,7 @@ one is included in the list below.
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
+* `--experimental-repl-typescript`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
