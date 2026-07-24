@@ -228,6 +228,10 @@ class DatabaseSync : public BaseObject {
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
 
+  void IncrementCallbackDepth() { ++callback_depth_; }
+  void DecrementCallbackDepth() { --callback_depth_; }
+  bool IsInCallback() const { return callback_depth_ > 0; }
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -241,6 +245,7 @@ class DatabaseSync : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  int callback_depth_ = 0;
 
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
@@ -396,6 +401,19 @@ class SQLTagStore : public BaseObject {
   BaseObjectWeakPtr<DatabaseSync> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   friend class StatementExecutionHelper;
+};
+
+class CallbackDepthGuard {
+ public:
+  explicit CallbackDepthGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementCallbackDepth();
+  }
+  ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
+  CallbackDepthGuard(const CallbackDepthGuard&) = delete;
+  CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
 };
 
 class UserDefinedFunction {
