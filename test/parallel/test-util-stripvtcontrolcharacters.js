@@ -37,8 +37,8 @@ tests.push(
   ['\u001B[4:3mUnderline\u001B[4:0m', 'Underline'],
 );
 
-// Malformed/truncated OSC sequences without any string terminator are left
-// unmatched rather than being partially stripped.
+// Unterminated OSC does not match the OSC alternative; the CSI alternative may
+// still consume a short prefix (here ESC ] 8 ;; h), leaving the remainder.
 tests.push(
   ['\u001B]8;;https://example.com/no-terminator', 'ttps://example.com/no-terminator'],
 );
