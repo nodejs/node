@@ -11,9 +11,6 @@ import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 import { setTimeout } from 'node:timers/promises';
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -21,8 +18,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
@@ -48,7 +45,7 @@ const cs1 = await connect(serverEndpoint.address, {
   }),
 });
 await Promise.all([cs1.opened, gotToken.promise]);
-ok(savedToken.length > 0);
+assert.ok(savedToken.length > 0);
 await cs1.close();
 
 // Wait for the token to expire.
@@ -64,7 +61,7 @@ const cs2 = await connect(serverEndpoint.address, {
 });
 await cs2.opened;
 // The connection succeeded despite the expired token.
-strictEqual(cs2.destroyed, false);
+assert.strictEqual(cs2.destroyed, false);
 await cs2.close();
 
 await serverEndpoint.close();

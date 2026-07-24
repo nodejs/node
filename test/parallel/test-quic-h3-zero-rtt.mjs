@@ -9,9 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { ok, strictEqual } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -21,8 +18,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -60,21 +57,21 @@ const cs1 = await connect(serverEndpoint.address, {
   servername: 'localhost',
   verifyPeer: 'manual',
   onsessionticket: mustCall(function(ticket) {
-    ok(Buffer.isBuffer(ticket));
-    ok(ticket.length > 0);
+    assert.ok(Buffer.isBuffer(ticket));
+    assert.ok(ticket.length > 0);
     savedTicket = ticket;
     gotTicket.resolve();
   }, 2),
   onnewtoken: mustCall(function(token) {
-    ok(Buffer.isBuffer(token));
+    assert.ok(Buffer.isBuffer(token));
     savedToken = token;
     gotToken.resolve();
   }),
 });
 
 const info1 = await cs1.opened;
-strictEqual(info1.earlyDataAttempted, false);
-strictEqual(info1.earlyDataAccepted, false);
+assert.strictEqual(info1.earlyDataAttempted, false);
+assert.strictEqual(info1.earlyDataAccepted, false);
 
 await Promise.all([gotTicket.promise, gotToken.promise]);
 
@@ -86,16 +83,16 @@ const s1 = await cs1.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers[':status'], '200');
   }),
 });
 const body1 = await bytes(s1);
-strictEqual(decoder.decode(body1), '/first');
+assert.strictEqual(decoder.decode(body1), '/first');
 await Promise.all([s1.closed, cs1.closed]);
 
 // Session ticket should have been received.
-ok(savedTicket);
-ok(savedToken);
+assert.ok(savedTicket);
+assert.ok(savedToken);
 
 // --- Second connection: 0-RTT with H3 ---
 const cs2 = await connect(serverEndpoint.address, {
@@ -114,20 +111,20 @@ const s2 = await cs2.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers[':status'], '200');
   }),
 });
 
 const info2 = await cs2.opened;
-strictEqual(info2.earlyDataAttempted, true);
-strictEqual(info2.earlyDataAccepted, true);
+assert.strictEqual(info2.earlyDataAttempted, true);
+assert.strictEqual(info2.earlyDataAccepted, true);
 
 const body2 = await bytes(s2);
-strictEqual(decoder.decode(body2), '/early');
+assert.strictEqual(decoder.decode(body2), '/early');
 await s2.closed;
 
 const earlyStream = await secondDone.promise;
-strictEqual(earlyStream.early, true);
+assert.strictEqual(earlyStream.early, true);
 
 await cs2.closed;
 await serverEndpoint.close();

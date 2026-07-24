@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -23,7 +21,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(new TextDecoder().decode(received), 'pending stream');
+    assert.strictEqual(new TextDecoder().decode(received), 'pending stream');
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -41,7 +39,7 @@ const stream = await clientSession.createBidirectionalStream({
 
 // The stream should initially be pending (no ID assigned yet).
 // On fast machines the handshake might already be done.
-strictEqual(typeof stream.pending, 'boolean');
+assert.strictEqual(typeof stream.pending, 'boolean');
 
 // The server's onstream fires only after the handshake completes AND
 // the pending stream opens. By the time we get data on the server,

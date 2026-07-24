@@ -10,8 +10,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -36,14 +34,14 @@ const { listen, connect } = await import('../common/quic.mjs');
   await client.opened;
 
   // Endpoint is alive while the session is active.
-  ok(!clientEndpoint.destroyed, 'endpoint should be alive');
+  assert.ok(!clientEndpoint.destroyed, 'endpoint should be alive');
 
   await client.close();
 
   // The endpoint's UDP handle is unref'd when all sessions close,
   // so it won't block process exit. Explicitly close it for cleanup.
   await clientEndpoint.close();
-  ok(clientEndpoint.destroyed, 'endpoint should be destroyed after close');
+  assert.ok(clientEndpoint.destroyed, 'endpoint should be destroyed after close');
 
   await serverEndpoint.close();
 }
@@ -65,15 +63,15 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // The endpoint should NOT be immediately destroyed — idle timer
   // is running.
-  ok(!clientEndpoint.destroyed,
-     'endpoint should still be alive during idle timeout');
+  assert.ok(!clientEndpoint.destroyed,
+            'endpoint should still be alive during idle timeout');
 
   // Wait for the idle timeout to fire (1 second + margin).
   // Use a ref'd timer to keep the event loop alive while the
   // unref'd idle timer runs.
   await setTimeout(2000);
-  ok(clientEndpoint.destroyed,
-     'endpoint should be destroyed after idle timeout');
+  assert.ok(clientEndpoint.destroyed,
+            'endpoint should be destroyed after idle timeout');
 
   await serverEndpoint.close();
 }

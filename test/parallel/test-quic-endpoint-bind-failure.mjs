@@ -11,9 +11,6 @@ import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -21,15 +18,15 @@ if (!hasQuic) {
 const { listen } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
 // Bind first endpoint to get an assigned port.
 const ep1 = await listen(mustNotCall(), { sni, alpn });
 const { port } = ep1.address;
-ok(port > 0);
+assert.ok(port > 0);
 
 // Attempt to listen on the same port — should fail with bind error.
 // listen() returns an endpoint that is immediately destroyed.
@@ -38,10 +35,10 @@ const ep2 = await listen(mustNotCall(), {
   alpn,
   endpoint: { address: `127.0.0.1:${port}` },
 });
-strictEqual(ep2.destroyed, true);
+assert.strictEqual(ep2.destroyed, true);
 
 // The bind failure surfaces as a rejected closed promise.
-await rejects(ep2.closed, {
+await assert.rejects(ep2.closed, {
   code: 'ERR_QUIC_ENDPOINT_CLOSED',
   message: /Bind failure/,
 });

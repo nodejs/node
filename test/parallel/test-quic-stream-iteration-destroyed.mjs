@@ -5,8 +5,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -32,7 +30,7 @@ stream.destroy();
 // Iterating a destroyed stream should immediately finish.
 const iter = stream[Symbol.asyncIterator]();
 const { done } = await iter.next();
-strictEqual(done, true);
+assert.strictEqual(done, true);
 
 await stream.closed;
 await clientSession.close();

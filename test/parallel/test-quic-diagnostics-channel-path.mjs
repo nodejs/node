@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,15 +18,15 @@ const clientChannelFired = Promise.withResolvers();
 
 // Subscribe to the path validation diagnostics channel.
 // Verify the client-side event fires with the correct properties.
-dc.subscribe('quic.session.path.validation', (msg) => {
-  ok(msg.session, 'message should have session');
-  ok(msg.result, 'message should have result');
-  ok(msg.newLocalAddress, 'message should have newLocalAddress');
-  ok(msg.newRemoteAddress, 'message should have newRemoteAddress');
+dc.subscribe('quic.session.path.validation', mustCall((msg) => {
+  assert.ok(msg.session, 'message should have session');
+  assert.ok(msg.result, 'message should have result');
+  assert.ok(msg.newLocalAddress, 'message should have newLocalAddress');
+  assert.ok(msg.newRemoteAddress, 'message should have newRemoteAddress');
   if (msg.preferredAddress === true) {
     clientChannelFired.resolve();
   }
-});
+}));
 
 const preferredEndpoint = await listen(mustNotCall(), {
   onpathvalidation() {},

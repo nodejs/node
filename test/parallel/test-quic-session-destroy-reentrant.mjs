@@ -29,8 +29,6 @@ import assert from 'node:assert';
 import diagnostics_channel from 'node:diagnostics_channel';
 import { setImmediate } from 'node:timers/promises';
 
-const { strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -61,10 +59,10 @@ const transportParams = { maxIdleTimeout: 1 };
   // `onerror` handler), the `#destroying` guard makes the second call
   // a true no-op so each channel publishes exactly once.
   const errSub = mustCall((msg) => {
-    strictEqual(msg.session, clientSession);
+    assert.strictEqual(msg.session, clientSession);
   });
   const closedSub = mustCall((msg) => {
-    strictEqual(msg.session, clientSession);
+    assert.strictEqual(msg.session, clientSession);
   });
   diagnostics_channel.subscribe('quic.session.error', errSub);
   diagnostics_channel.subscribe('quic.session.closed', closedSub);
@@ -72,7 +70,7 @@ const transportParams = { maxIdleTimeout: 1 };
   const testError = new Error('reentrant destroy test');
 
   clientSession.onerror = mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
     // Re-enter destroy synchronously from the error handler. This must
     // be a no-op because `#destroying` is already set; `destroyed` is
     // still false here because `#handle` is cleared at the end of
@@ -84,9 +82,9 @@ const transportParams = { maxIdleTimeout: 1 };
 
   clientSession.destroy(testError);
   // Once `destroy()` has returned, `destroyed` flips to true.
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
 
-  await rejects(clientSession.closed, testError);
+  await assert.rejects(clientSession.closed, testError);
 
   // Give the diagnostics_channel a tick to deliver any deferred messages.
   await setImmediate();
@@ -125,7 +123,7 @@ const transportParams = { maxIdleTimeout: 1 };
   const testError = new Error('cascade reentrant destroy test');
 
   stream.onerror = mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
     // Re-enter session.destroy from inside the stream's onerror. This
     // is happening DURING the session's stream cascade, so the session
     // is mid-destroy. The second destroy() call must be a no-op.
@@ -133,15 +131,15 @@ const transportParams = { maxIdleTimeout: 1 };
   });
 
   clientSession.onerror = mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   });
 
   clientSession.destroy(testError);
-  strictEqual(clientSession.destroyed, true);
-  strictEqual(stream.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(stream.destroyed, true);
 
-  await rejects(clientSession.closed, testError);
-  await rejects(stream.closed, testError);
+  await assert.rejects(clientSession.closed, testError);
+  await assert.rejects(stream.closed, testError);
 
   await serverDone.promise;
   await serverEndpoint.close();
@@ -167,7 +165,7 @@ const transportParams = { maxIdleTimeout: 1 };
   const testError = new Error('stream reentrant destroy test');
 
   stream.onerror = mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
     // Re-enter stream.destroy from inside its own onerror. The
     // `#destroying` flag traps the recursive call; `destroyed` (i.e.
     // `#handle === undefined`) is still false here because the handle
@@ -177,9 +175,9 @@ const transportParams = { maxIdleTimeout: 1 };
 
   stream.destroy(testError);
   // Once `destroy()` has returned, `destroyed` flips to true.
-  strictEqual(stream.destroyed, true);
+  assert.strictEqual(stream.destroyed, true);
 
-  await rejects(stream.closed, testError);
+  await assert.rejects(stream.closed, testError);
 
   clientSession.close();
   await clientSession.closed;

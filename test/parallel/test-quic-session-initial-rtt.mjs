@@ -6,8 +6,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const data = await bytes(stream);
-    ok(data.byteLength > 0);
+    assert.ok(data.byteLength > 0);
     stream.writer.endSync();
     await stream.closed;
     serverSession.close();
@@ -52,9 +50,9 @@ await serverDone.promise;
 // realistic value. On loopback it should be well under 10ms (10,000,000ns).
 // The stat is in nanoseconds.
 const smoothedRtt = clientSession.stats.smoothedRtt;
-ok(smoothedRtt > 0n, 'smoothedRtt should be non-zero after data exchange');
-ok(smoothedRtt < 10_000_000n,
-   `smoothedRtt should be under 10ms on loopback, got ${smoothedRtt}ns`);
+assert.ok(smoothedRtt > 0n, 'smoothedRtt should be non-zero after data exchange');
+assert.ok(smoothedRtt < 10_000_000n,
+          `smoothedRtt should be under 10ms on loopback, got ${smoothedRtt}ns`);
 
 await clientSession.close();
 await serverEndpoint.close();

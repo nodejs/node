@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,7 +24,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // The stream's onerror should fire with the throw from onreset.
     stream.onerror = mustCall((err) => {
-      strictEqual(err, testError);
+      assert.strictEqual(err, testError);
     });
 
     stream.onreset = () => {
@@ -36,7 +34,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     serverReady.resolve();
 
     // Stream closed rejects because the onreset throw destroyed it.
-    await rejects(stream.closed, testError);
+    await assert.rejects(stream.closed, testError);
     serverStreamDone.resolve();
   });
 }));

@@ -18,8 +18,6 @@
 import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -83,7 +81,7 @@ while (serverEndpoint.stats.versionNegotiationCount === 0n) {
 
 // Exactly one VN response: the oversized packet was dropped (not crashed, not
 // negotiated), the valid packet was negotiated.
-strictEqual(serverEndpoint.stats.versionNegotiationCount, 1n);
+assert.strictEqual(serverEndpoint.stats.versionNegotiationCount, 1n);
 
 socket.close();
 await serverEndpoint.close();

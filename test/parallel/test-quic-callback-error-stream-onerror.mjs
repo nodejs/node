@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -43,17 +41,17 @@ await clientSession.opened;
   let onerrorCalled = false;
   stream.onerror = mustCall((err) => {
     // Receives the original error.
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
     onerrorCalled = true;
   });
 
   stream.destroy(testError);
 
   // The onerror was called synchronously during destroy.
-  strictEqual(onerrorCalled, true);
+  assert.strictEqual(onerrorCalled, true);
 
   // The stream.closed rejects with the original error.
-  await rejects(stream.closed, testError);
+  await assert.rejects(stream.closed, testError);
 }
 
 // The stream.onerror not called when destroy() has no error.

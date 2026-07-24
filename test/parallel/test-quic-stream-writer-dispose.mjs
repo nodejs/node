@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,14 +32,14 @@ const stream = await clientSession.createBidirectionalStream();
 const w = stream.writer;
 
 // Writer is active — canWrite should be a boolean (not null).
-strictEqual(typeof w.canWrite, 'boolean');
+assert.strictEqual(typeof w.canWrite, 'boolean');
 
 // Symbol.dispose calls fail() if not already closed/errored.
 w[Symbol.dispose]();
 
 // After dispose, writer should be errored.
-strictEqual(w.canWrite, null);
-strictEqual(w.writeSync(encoder.encode('x')), false);
+assert.strictEqual(w.canWrite, null);
+assert.strictEqual(w.writeSync(encoder.encode('x')), false);
 
 // stream.closed resolves because fail() with default code 0
 // is treated as a clean close (no error).

@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -18,8 +15,8 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // Binding to a specific port.
 {
@@ -38,10 +35,10 @@ const cert = readKey('agent1-cert.pem');
 
   // The address should reflect what we bound to.
   const addr = serverEndpoint.address;
-  strictEqual(addr.address, '127.0.0.1');
-  strictEqual(addr.family, 'ipv4');
-  strictEqual(typeof addr.port, 'number');
-  ok(addr.port > 0, 'port should be assigned');
+  assert.strictEqual(addr.address, '127.0.0.1');
+  assert.strictEqual(addr.family, 'ipv4');
+  assert.strictEqual(typeof addr.port, 'number');
+  assert.ok(addr.port > 0, 'port should be assigned');
 
   // Verify a client can connect to the bound address.
   const clientSession = await connect(serverEndpoint.address, {

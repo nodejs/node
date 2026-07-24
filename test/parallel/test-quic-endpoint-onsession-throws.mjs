@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -35,7 +33,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // a handler attached. The throw inside `onsession` is delivered
   // synchronously from the C++ -> JS callback, so the rejection can
   // arrive on the very next microtask after `connect()` returns.
-  const closedAssertion = rejects(serverEndpoint.closed, sessionError);
+  const closedAssertion = assert.rejects(serverEndpoint.closed, sessionError);
 
   const clientSession = await connect(serverEndpoint.address, {
     transportParams,
@@ -49,7 +47,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // robust to network-dropped close packets and stops the event loop
   // from waiting on the client's idle timer to expire.
   clientSession.destroy();
-  await rejects(serverEndpoint.close(), sessionError);
+  await assert.rejects(serverEndpoint.close(), sessionError);
 }
 
 // -------------------------------------------------------------------
@@ -63,7 +61,7 @@ const transportParams = { maxIdleTimeout: 1 };
     throw sessionError;
   }), { transportParams, onerror() {} });
 
-  const closedAssertion = rejects(serverEndpoint.closed, sessionError);
+  const closedAssertion = assert.rejects(serverEndpoint.closed, sessionError);
 
   const clientSession = await connect(serverEndpoint.address, {
     transportParams,
@@ -72,5 +70,5 @@ const transportParams = { maxIdleTimeout: 1 };
   await closedAssertion;
 
   clientSession.destroy();
-  await rejects(serverEndpoint.close(), sessionError);
+  await assert.rejects(serverEndpoint.close(), sessionError);
 }

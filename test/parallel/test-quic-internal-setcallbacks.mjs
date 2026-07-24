@@ -2,8 +2,6 @@
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -40,7 +38,7 @@ const callbacks = {
 for (const fn of Object.keys(callbacks)) {
   // eslint-disable-next-line no-unused-vars
   const { [fn]: _, ...rest } = callbacks;
-  throws(() => quic.setCallbacks(rest), {
+  assert.throws(() => quic.setCallbacks(rest), {
     code: 'ERR_MISSING_ARGS',
   });
 }

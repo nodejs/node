@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,7 +43,7 @@ await clientSession.opened;
   const w = stream.writer;
   await w.write(encoder.encode('async write'));
   const n = w.endSync();
-  strictEqual(n, 11);
+  assert.strictEqual(n, 11);
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }
@@ -58,9 +56,9 @@ await clientSession.opened;
     encoder.encode('hello '),
     encoder.encode('writev'),
   ]);
-  strictEqual(result, true);
+  assert.strictEqual(result, true);
   const n = w.endSync();
-  strictEqual(n, 12);
+  assert.strictEqual(n, 12);
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }
@@ -74,7 +72,7 @@ await clientSession.opened;
     encoder.encode('writev'),
   ]);
   const n = w.endSync();
-  strictEqual(n, 12);
+  assert.strictEqual(n, 12);
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }
@@ -85,7 +83,7 @@ await clientSession.opened;
   const w = stream.writer;
   w.writeSync(encoder.encode('end async'));
   const n = await w.end();
-  strictEqual(n, 9);
+  assert.strictEqual(n, 9);
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }
@@ -95,14 +93,14 @@ await clientSession.opened;
   const w = stream.writer;
   // canWrite should be a boolean (false initially before flow
   // control window opens, or true if the window is already open).
-  strictEqual(typeof w.canWrite, 'boolean');
-  ok(w.canWrite !== null, `canWrite should not be null, got ${w.canWrite}`);
+  assert.strictEqual(typeof w.canWrite, 'boolean');
+  assert.ok(w.canWrite !== null, `canWrite should not be null, got ${w.canWrite}`);
   // drainableProtocol should return null when canWrite is true (has capacity),
   // or a promise when canWrite is false (backpressured). Either way, it
   // should not throw.
   const { drainableProtocol: dp } = await import('stream/iter');
   const drain = w[dp]();
-  ok(drain === null || drain instanceof Promise);
+  assert.ok(drain === null || drain instanceof Promise);
   w.writeSync(encoder.encode('capacity'));
   w.endSync();
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
@@ -116,16 +114,16 @@ await clientSession.opened;
   const testError = new Error('writer fail test');
   w.fail(testError);
   // After fail, canWrite is null.
-  strictEqual(w.canWrite, null);
+  assert.strictEqual(w.canWrite, null);
   // drainableProtocol returns null when errored.
   const { drainableProtocol: dp } = await import('stream/iter');
-  strictEqual(w[dp](), null);
+  assert.strictEqual(w[dp](), null);
   // endSync after fail returns -1 (errored).
-  strictEqual(w.endSync(), -1);
+  assert.strictEqual(w.endSync(), -1);
   // WriteSync after fail returns false.
-  strictEqual(w.writeSync(encoder.encode('x')), false);
+  assert.strictEqual(w.writeSync(encoder.encode('x')), false);
   // Write after fail throws with the original error.
-  await rejects(w.write(encoder.encode('x')), testError);
+  await assert.rejects(w.write(encoder.encode('x')), testError);
   // Don't await stream.closed here — the reset stream may not trigger
   // server onstream (no data was sent before fail), so the server
   // won't count it. The stream is cleaned up when the session closes.
@@ -137,8 +135,8 @@ await serverEndpoint.close();
 
 // Verify server received the right data.
 const decoder = new TextDecoder();
-strictEqual(decoder.decode(serverResults[0]), 'async write');
-strictEqual(decoder.decode(serverResults[1]), 'hello writev');
-strictEqual(decoder.decode(serverResults[2]), 'async writev');
-strictEqual(decoder.decode(serverResults[3]), 'end async');
-strictEqual(decoder.decode(serverResults[4]), 'capacity');
+assert.strictEqual(decoder.decode(serverResults[0]), 'async write');
+assert.strictEqual(decoder.decode(serverResults[1]), 'hello writev');
+assert.strictEqual(decoder.decode(serverResults[2]), 'async writev');
+assert.strictEqual(decoder.decode(serverResults[3]), 'end async');
+assert.strictEqual(decoder.decode(serverResults[4]), 'capacity');

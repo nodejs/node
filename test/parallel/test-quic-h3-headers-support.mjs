@@ -8,9 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { throws } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -19,35 +16,35 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 
 const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // Sending headers on non-H3 stream throws.
-    throws(() => stream.sendHeaders({ ':status': '200' }), { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.sendHeaders({ ':status': '200' }), { code: 'ERR_INVALID_STATE' });
 
     // Setting onheaders on non-H3 stream throws.
-    throws(() => stream.onheaders = () => {}, { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.onheaders = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting ontrailers on non-H3 stream throws.
-    throws(() => stream.ontrailers = () => {}, { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.ontrailers = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting oninfo on non-H3 stream throws.
-    throws(() => stream.oninfo = () => {}, { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.oninfo = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting onwanttrailers on non-H3 stream throws.
-    throws(() => stream.onwanttrailers = () => {}, { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.onwanttrailers = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // sendInformationalHeaders throws on non-H3.
-    throws(() => stream.sendInformationalHeaders({ ':status': '103' }), {
+    assert.throws(() => stream.sendInformationalHeaders({ ':status': '103' }), {
       code: 'ERR_INVALID_STATE',
     });
 
     // sendTrailers throws on non-H3.
-    throws(() => stream.sendTrailers({ 'x-trailer': 'value' }), { code: 'ERR_INVALID_STATE' });
+    assert.throws(() => stream.sendTrailers({ 'x-trailer': 'value' }), { code: 'ERR_INVALID_STATE' });
 
     stream.writer.endSync();
 
@@ -71,7 +68,7 @@ const stream = await clientSession.createBidirectionalStream({
 });
 
 // Client side — sending headers on non-H3 stream throws.
-throws(() => stream.sendHeaders({ ':method': 'GET' }), { code: 'ERR_INVALID_STATE' });
+assert.throws(() => stream.sendHeaders({ ':method': 'GET' }), { code: 'ERR_INVALID_STATE' });
 
 await serverDone.promise;
 await clientSession.close();

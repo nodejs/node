@@ -6,8 +6,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,7 +18,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   // The session is destroyed by the ondatagram throw. The closed promise
   // rejects with testError. Verify that and signal completion.
-  await rejects(serverSession.closed, testError);
+  await assert.rejects(serverSession.closed, testError);
   serverDone.resolve();
 }), {
   transportParams: { maxDatagramFrameSize: 1200 },
@@ -28,7 +26,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     throw testError;
   },
   onerror: mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   }),
 });
 

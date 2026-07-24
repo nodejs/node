@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual, deepStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -43,12 +41,12 @@ const serverEndpoint = await listen((serverSession) => {
 const cs1 = await connect(serverEndpoint.address, {
   transportParams: { maxDatagramFrameSize: 1200 },
   onsessionticket: mustCall((ticket) => {
-    ok(Buffer.isBuffer(ticket));
+    assert.ok(Buffer.isBuffer(ticket));
     savedTicket = ticket;
     gotTicket.resolve();
   }),
   onnewtoken: mustCall((token) => {
-    ok(Buffer.isBuffer(token));
+    assert.ok(Buffer.isBuffer(token));
     savedToken = token;
     gotToken.resolve();
   }),
@@ -69,13 +67,13 @@ const cs2 = await connect(serverEndpoint.address, {
 await cs2.sendDatagram(new Uint8Array([0xCA, 0xFE]));
 
 const info2 = await cs2.opened;
-strictEqual(info2.earlyDataAttempted, true);
-strictEqual(info2.earlyDataAccepted, true);
+assert.strictEqual(info2.earlyDataAttempted, true);
+assert.strictEqual(info2.earlyDataAccepted, true);
 
 // Verify the server received the datagram as early data.
 await serverGotDatagram.promise;
-deepStrictEqual(receivedDatagramData, Buffer.from([0xCA, 0xFE]));
-strictEqual(earlyDatagramReceived, true);
+assert.deepStrictEqual(receivedDatagramData, Buffer.from([0xCA, 0xFE]));
+assert.strictEqual(earlyDatagramReceived, true);
 
 await cs2.close();
 await serverEndpoint.close();

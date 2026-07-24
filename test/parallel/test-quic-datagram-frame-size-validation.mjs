@@ -9,9 +9,6 @@ import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,8 +16,8 @@ if (!hasQuic) {
 const { listen } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
@@ -40,7 +37,7 @@ const invalid = [
 
 for (const maxDatagramFrameSize of invalid) {
   const transportParams = { maxDatagramFrameSize };
-  await rejects(
+  await assert.rejects(
     listen(mustNotCall(), { sni, alpn, transportParams }),
     { code: 'ERR_INVALID_ARG_VALUE' },
     `listen should reject maxDatagramFrameSize: ${maxDatagramFrameSize}`,

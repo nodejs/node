@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,6 +26,6 @@ const clientSession = await connect(serverEndpoint.address, {
 await Promise.all([clientSession.opened, clientSession.closed]);
 
 // The session closed via idle timeout. Verify it was destroyed.
-strictEqual(clientSession.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
 
 await serverEndpoint.close();

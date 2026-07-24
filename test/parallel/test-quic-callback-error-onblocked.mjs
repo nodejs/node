@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -42,5 +40,5 @@ stream.onblocked = mustCall(() => {
 stream.setBody(new Uint8Array(4096));
 
 // The stream's closed promise should reject with the error from the throw.
-await rejects(stream.closed, testError);
+await assert.rejects(stream.closed, testError);
 await serverEndpoint.close();

@@ -22,8 +22,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -69,9 +67,9 @@ await serverHandshake.promise;
 // (rejects with the transport error decoded from the CONNECTION_CLOSE
 // frame) ends up as an unhandled rejection in the brief window before
 // this test gets back to awaiting them.
-const serverClosedAssertion = rejects(serverEndpoint.closed, serverError);
-const clientClosedAssertion = rejects(clientSession.closed, mustCall((err) => {
-  strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+const serverClosedAssertion = assert.rejects(serverEndpoint.closed, serverError);
+const clientClosedAssertion = assert.rejects(clientSession.closed, mustCall((err) => {
+  assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
   return true;
 }));
 

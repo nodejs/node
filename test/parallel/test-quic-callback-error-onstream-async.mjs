@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,7 +18,7 @@ const testError = new Error('async onstream rejection');
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onerror = mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   });
 
   serverSession.onstream = async () => {
@@ -28,7 +26,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   };
 
   // Session closed rejects with the error from the async rejection.
-  await rejects(serverSession.closed, testError);
+  await assert.rejects(serverSession.closed, testError);
 }), { transportParams: { maxIdleTimeout: 1 } });
 
 const clientSession = await connect(serverEndpoint.address, {

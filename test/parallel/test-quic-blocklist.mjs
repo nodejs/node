@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import net from 'node:net';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,18 +32,18 @@ const { listen, connect } = await import('../common/quic.mjs');
     handshakeTimeout: 500,
     verifyPeer: 'manual',
     onerror: mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+      assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
   });
 
   // The session should fail — the server never sees the packet.
-  await rejects(clientSession.opened, {
+  await assert.rejects(clientSession.opened, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   });
 
   // Verify the stat counter.
-  ok(serverEndpoint.stats.packetsBlocked > 0n,
-     'packetsBlocked should be non-zero');
+  assert.ok(serverEndpoint.stats.packetsBlocked > 0n,
+            'packetsBlocked should be non-zero');
 
   await serverEndpoint.close();
 }
@@ -72,8 +70,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   await clientSession.opened;
   await clientSession.close();
 
-  strictEqual(serverEndpoint.stats.packetsBlocked, 0n,
-              'No packets should be blocked for allowed address');
+  assert.strictEqual(serverEndpoint.stats.packetsBlocked, 0n); // No packets should be blocked for allowed address
 
   await serverEndpoint.close();
 }

@@ -13,8 +13,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,14 +24,14 @@ const serverResetSeen = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      strictEqual(err.errorCode, 66n);
+      assert.strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.strictEqual(err.errorCode, 66n);
       serverResetSeen.resolve();
     });
 
     // The peer's reset causes stream.closed to reject with the reset
     // error code.
-    await rejects(stream.closed, {
+    await assert.rejects(stream.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   });
@@ -47,7 +45,7 @@ const stream = await clientSession.createBidirectionalStream({
 });
 
 const err = new Error('explicit code via options');
-const clientClosedAssertion = rejects(stream.closed, err);
+const clientClosedAssertion = assert.rejects(stream.closed, err);
 
 // `options.code` (0x42n) takes precedence over the default that
 // would have been derived from `error` (which would be the session's

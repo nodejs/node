@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual, notStrictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -31,13 +28,13 @@ const handleSession = mustCall(async (serverSession) => {
 });
 
 function assertEqualAddress(addr1, addr2) {
-  strictEqual(addr1.address, addr2.address);
-  strictEqual(addr1.port, addr2.port);
-  strictEqual(addr1.family, addr2.family);
+  assert.strictEqual(addr1.address, addr2.address);
+  assert.strictEqual(addr1.port, addr2.port);
+  assert.strictEqual(addr1.family, addr2.family);
 }
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const sessionOptions = {
   ondatagram: mustCall((data) => {
@@ -48,12 +45,12 @@ const sessionOptions = {
     // The 'aborted' status only means that path validation is no longer
     // necessary for a number of reasons (usually ngtcp2 received a non-probing
     // packet on the new path).
-    notStrictEqual(result, 'failure');
+    assert.notStrictEqual(result, 'failure');
     assertEqualAddress(newLocal, preferredEndpoint.address);
     assertEqualAddress(oldLocal, serverEndpoint.address);
     assertEqualAddress(newRemote, oldRemote);
     // The preferred arg is only passed on client side
-    strictEqual(preferred, undefined);
+    assert.strictEqual(preferred, undefined);
     serverPathValidated.resolve();
   }),
   sni: { '*': { keys: [key], certs: [cert] } },
@@ -87,12 +84,12 @@ const clientSession = await connect(serverEndpoint.address, {
     if (++statusCount >= 4) allStatusDone.resolve();
   }, 4),
   onpathvalidation: mustCall((result, newLocal, newRemote, oldLocal, oldRemote, preferred) => {
-    strictEqual(result, 'success');
+    assert.strictEqual(result, 'success');
     assertEqualAddress(newLocal, clientSession.endpoint.address);
     assertEqualAddress(newRemote, preferredEndpoint.address);
-    strictEqual(oldLocal, null);
-    strictEqual(oldRemote, null);
-    strictEqual(preferred, true);
+    assert.strictEqual(oldLocal, null);
+    assert.strictEqual(oldRemote, null);
+    assert.strictEqual(preferred, true);
   }),
   endpoint: {
     address: {
@@ -120,8 +117,8 @@ await clientSession.sendDatagram(new Uint8Array([4]));
 
 await Promise.all([serverGot.promise, allStatusDone.promise]);
 
-strictEqual(clientSession.stats.datagramsSent, 4n);
-ok(clientSession.stats.datagramsAcknowledged >= 1n);
+assert.strictEqual(clientSession.stats.datagramsSent, 4n);
+assert.ok(clientSession.stats.datagramsAcknowledged >= 1n);
 
 await clientSession.closed;
 await serverEndpoint.close();

@@ -8,10 +8,8 @@
 // 0x100 | <tls_alert>. For `no_application_protocol` (alert 120 / 0x78) this
 // is 0x178 == 376.
 
-import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
+import { hasQuic, skip, mustNotCall, expectsError } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { rejects, strictEqual, match } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -25,11 +23,6 @@ const expected = {
   message: /no application protocol/
 };
 
-const onerror = mustCall((err) => {
-  strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-  strictEqual(err.errorCode, 376n);
-  match(err.message, /no application protocol/);
-});
 const transportParams = { maxIdleTimeout: 1 };
 
 // The handshake fails so the session is never surfaced to JS
@@ -43,12 +36,12 @@ const serverEndpoint = await listen(
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'nonexistent-protocol',
   transportParams,
-  onerror,
+  onerror: expectsError(expected),
 });
 
-await rejects(clientSession.opened, expected);
+await assert.rejects(clientSession.opened, expected);
 
 // The handshake should fail — opened may reject or never resolve.
 // The session should close with an error.
-await rejects(clientSession.closed, expected);
+await assert.rejects(clientSession.closed, expected);
 await serverEndpoint.close();

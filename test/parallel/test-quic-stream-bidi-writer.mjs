@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const done = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(decoder.decode(received), 'chunk1chunk2chunk3');
+    assert.strictEqual(decoder.decode(received), 'chunk1chunk2chunk3');
 
     stream.writer.endSync();
     await stream.closed;
@@ -41,22 +39,22 @@ const stream = await clientSession.createBidirectionalStream();
 const w = stream.writer;
 
 // Writer should be open.
-strictEqual(typeof w.canWrite, 'boolean');
+assert.strictEqual(typeof w.canWrite, 'boolean');
 
 // Write multiple chunks synchronously.
-strictEqual(w.writeSync(encoder.encode('chunk1')), true);
-strictEqual(w.writeSync(encoder.encode('chunk2')), true);
-strictEqual(w.writeSync(encoder.encode('chunk3')), true);
+assert.strictEqual(w.writeSync(encoder.encode('chunk1')), true);
+assert.strictEqual(w.writeSync(encoder.encode('chunk2')), true);
+assert.strictEqual(w.writeSync(encoder.encode('chunk3')), true);
 
 // End the write side — returns total bytes written.
 const totalWritten = w.endSync();
-strictEqual(totalWritten, 18); // 6 * 3
+assert.strictEqual(totalWritten, 18); // 6 * 3
 
 // After end, write should return false.
-strictEqual(w.writeSync(encoder.encode('nope')), false);
+assert.strictEqual(w.writeSync(encoder.encode('nope')), false);
 
 // canWrite should be null after close.
-strictEqual(w.canWrite, null);
+assert.strictEqual(w.canWrite, null);
 
 await Promise.all([stream.closed, done.promise]);
 await clientSession.close();

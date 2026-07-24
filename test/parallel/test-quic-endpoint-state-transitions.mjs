@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,8 +16,8 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 {
   const endpoint = new QuicEndpoint();
@@ -36,9 +33,9 @@ const cert = readKey('agent1-cert.pem');
   });
 
   // After listen, the endpoint should be listening.
-  strictEqual(serverEndpoint.listening, true);
-  strictEqual(serverEndpoint.closing, false);
-  strictEqual(serverEndpoint.destroyed, false);
+  assert.strictEqual(serverEndpoint.listening, true);
+  assert.strictEqual(serverEndpoint.closing, false);
+  assert.strictEqual(serverEndpoint.destroyed, false);
 
   const cs = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
@@ -50,10 +47,10 @@ const cert = readKey('agent1-cert.pem');
   // After close(), closing transitions to true. The endpoint is still
   // "listening" in the sense that it holds the socket, but closing is true.
   serverEndpoint.close();
-  strictEqual(serverEndpoint.closing, true);
+  assert.strictEqual(serverEndpoint.closing, true);
 
   await serverEndpoint.closed;
-  strictEqual(serverEndpoint.destroyed, true);
+  assert.strictEqual(serverEndpoint.destroyed, true);
 }
 
 // Binding to 0.0.0.0.
@@ -72,8 +69,8 @@ const cert = readKey('agent1-cert.pem');
   });
 
   const addr = serverEndpoint.address;
-  strictEqual(addr.address, '0.0.0.0');
-  ok(addr.port > 0);
+  assert.strictEqual(addr.address, '0.0.0.0');
+  assert.ok(addr.port > 0);
 
   // Connect via 127.0.0.1 since 0.0.0.0 listens on all interfaces.
   const cs = await connect(`127.0.0.1:${addr.port}`, {

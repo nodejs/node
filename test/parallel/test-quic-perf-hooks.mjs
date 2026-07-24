@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import { PerformanceObserver } from 'node:perf_hooks';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -68,31 +66,31 @@ const endpointEntries = entries.filter((e) => e.name === 'QuicEndpoint');
 const sessionEntries = entries.filter((e) => e.name === 'QuicSession');
 const streamEntries = entries.filter((e) => e.name === 'QuicStream');
 
-ok(endpointEntries.length >= 1, `Expected QuicEndpoint entries, got ${endpointEntries.length}`);
-ok(sessionEntries.length >= 2, `Expected >= 2 QuicSession entries, got ${sessionEntries.length}`);
-ok(streamEntries.length >= 2, `Expected >= 2 QuicStream entries, got ${streamEntries.length}`);
+assert.ok(endpointEntries.length >= 1, `Expected QuicEndpoint entries, got ${endpointEntries.length}`);
+assert.ok(sessionEntries.length >= 2, `Expected >= 2 QuicSession entries, got ${sessionEntries.length}`);
+assert.ok(streamEntries.length >= 2, `Expected >= 2 QuicStream entries, got ${streamEntries.length}`);
 
 // Verify common fields on all entries.
 for (const entry of entries) {
-  strictEqual(entry.entryType, 'quic');
-  strictEqual(typeof entry.startTime, 'number');
-  ok(entry.duration >= 0, `duration should be >= 0, got ${entry.duration}`);
-  ok(entry.detail, 'entry should have detail');
-  ok(entry.detail.stats, 'entry.detail should have stats');
+  assert.strictEqual(entry.entryType, 'quic');
+  assert.strictEqual(typeof entry.startTime, 'number');
+  assert.ok(entry.duration >= 0, `duration should be >= 0, got ${entry.duration}`);
+  assert.ok(entry.detail, 'entry should have detail');
+  assert.ok(entry.detail.stats, 'entry.detail should have stats');
 }
 
 // Verify session-specific detail fields.
 for (const entry of sessionEntries) {
   // The handshake may be undefined if destroyed before handshake completes,
   // but in this test both sessions complete handshakes.
-  ok(entry.detail.handshake, 'session entry should have handshake info');
-  strictEqual(typeof entry.detail.handshake.protocol, 'string');
-  strictEqual(typeof entry.detail.handshake.earlyDataAttempted, 'boolean');
-  strictEqual(typeof entry.detail.handshake.earlyDataAccepted, 'boolean');
+  assert.ok(entry.detail.handshake, 'session entry should have handshake info');
+  assert.strictEqual(typeof entry.detail.handshake.protocol, 'string');
+  assert.strictEqual(typeof entry.detail.handshake.earlyDataAttempted, 'boolean');
+  assert.strictEqual(typeof entry.detail.handshake.earlyDataAccepted, 'boolean');
 }
 
 // Verify stream-specific detail fields.
 for (const entry of streamEntries) {
-  ok(entry.detail.direction === 'bidi' || entry.detail.direction === 'uni',
-     `stream direction should be bidi or uni, got ${entry.detail.direction}`);
+  assert.ok(entry.detail.direction === 'bidi' || entry.detail.direction === 'uni',
+            `stream direction should be bidi or uni, got ${entry.detail.direction}`);
 }

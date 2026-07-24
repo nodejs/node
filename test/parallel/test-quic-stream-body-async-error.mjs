@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -37,7 +35,7 @@ const stream = await clientSession.createBidirectionalStream();
 
 // Attach the closed handler BEFORE setBody so the rejection from
 // stream.destroy(err) is caught before it becomes unhandled.
-const closedPromise = rejects(stream.closed, testError);
+const closedPromise = assert.rejects(stream.closed, testError);
 
 stream.setBody(failingSource());
 

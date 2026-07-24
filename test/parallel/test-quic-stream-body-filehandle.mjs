@@ -11,8 +11,6 @@ import { open } from 'node:fs/promises';
 
 const tmpdir = await import('../common/tmpdir.js');
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,7 +32,7 @@ writeFileSync(testFile, testContent);
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), testContent);
+      assert.strictEqual(decoder.decode(body), testContent);
       stream.writer.writeSync('ok');
       stream.writer.endSync();
       await stream.closed;
@@ -52,7 +50,7 @@ writeFileSync(testFile, testContent);
   });
 
   const response = await bytes(stream);
-  strictEqual(decoder.decode(response), 'ok');
+  assert.strictEqual(decoder.decode(response), 'ok');
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
   // FileHandle is closed automatically when the stream finishes.
@@ -65,7 +63,7 @@ writeFileSync(testFile, testContent);
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), testContent);
+      assert.strictEqual(decoder.decode(body), testContent);
       stream.writer.writeSync('ok');
       stream.writer.endSync();
       await stream.closed;
@@ -82,7 +80,7 @@ writeFileSync(testFile, testContent);
   stream.setBody(fh);
 
   const response = await bytes(stream);
-  strictEqual(decoder.decode(response), 'ok');
+  assert.strictEqual(decoder.decode(response), 'ok');
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
   // FileHandle is closed automatically when the stream finishes.

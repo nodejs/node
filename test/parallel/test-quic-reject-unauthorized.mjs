@@ -3,9 +3,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { strictEqual, ok, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -14,11 +11,11 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // rejectUnauthorized must be a boolean
-await rejects(connect({ port: 1234 }, {
+await assert.rejects(connect({ port: 1234 }, {
   alpn: 'quic-test',
   rejectUnauthorized: 'yes',
 }), {
@@ -26,22 +23,22 @@ await rejects(connect({ port: 1234 }, {
 });
 
 // verifyPeer must be one of 'strict', 'auto', 'manual'
-await rejects(connect({ port: 1234 }, {
+await assert.rejects(connect({ port: 1234 }, {
   alpn: 'quic-test',
   verifyPeer: 'invalid',
 }), {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
-const serverEndpoint = await listen(async (serverSession) => {
+const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onerror = () => {};
-  await rejects(serverSession.opened, (err) => {
-    ok(err.code === 'ERR_QUIC_TRANSPORT_ERROR' ||
-        err.code === 'ERR_INVALID_STATE');
-    return true;
-  });
-  serverSession.close();
-}, {
+  return assert.rejects(serverSession.opened, (err) =>
+    err.code === 'ERR_QUIC_TRANSPORT_ERROR' ||
+        err.code === 'ERR_INVALID_STATE',
+  ).then(mustCall(() => {
+    serverSession.close();
+  }));
+}), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['quic-test'],
 });
@@ -58,10 +55,10 @@ const serverEndpoint = await listen(async (serverSession) => {
 
   const info = await clientSession.opened;
   // Self-signed cert without CA should produce a validation error.
-  strictEqual(typeof info.validationErrorReason, 'string');
-  ok(info.validationErrorReason.length > 0);
-  strictEqual(typeof info.validationErrorCode, 'string');
-  ok(info.validationErrorCode.length > 0);
+  assert.strictEqual(typeof info.validationErrorReason, 'string');
+  assert.ok(info.validationErrorReason.length > 0);
+  assert.strictEqual(typeof info.validationErrorCode, 'string');
+  assert.ok(info.validationErrorCode.length > 0);
 
   await clientSession.close();
 }
@@ -75,7 +72,7 @@ const serverEndpoint = await listen(async (serverSession) => {
     // verifyPeer defaults to 'auto'
   });
 
-  await rejects(clientSession.opened, {
+  await assert.rejects(clientSession.opened, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   });
 }
@@ -89,11 +86,11 @@ const serverEndpoint = await listen(async (serverSession) => {
     verifyPeer: 'strict',
     // The TLS failure triggers onerror before opened rejects.
     onerror: mustCall((err) => {
-      ok(err, 'strict mode should fire onerror on invalid cert');
+      assert.ok(err, 'strict mode should fire onerror on invalid cert');
     }),
   });
 
-  await rejects(clientSession.opened, {
+  await assert.rejects(clientSession.opened, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   });
 }

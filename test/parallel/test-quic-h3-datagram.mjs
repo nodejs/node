@@ -10,9 +10,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { ok, strictEqual } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -23,8 +20,8 @@ const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 const { setTimeout: sleep } = await import('timers/promises');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const decoder = new TextDecoder();
 
 // Test 1: H3 datagrams with enableDatagrams: true on both sides.
@@ -48,11 +45,11 @@ const decoder = new TextDecoder();
     transportParams: { maxDatagramFrameSize: 100 },
     // Server echoes received datagram back to client.
     ondatagram: mustCall(function(data) {
-      ok(data instanceof Uint8Array);
-      strictEqual(data.byteLength, 3);
-      strictEqual(data[0], 10);
-      strictEqual(data[1], 20);
-      strictEqual(data[2], 30);
+      assert.ok(data instanceof Uint8Array);
+      assert.strictEqual(data.byteLength, 3);
+      assert.strictEqual(data[0], 10);
+      assert.strictEqual(data[1], 20);
+      assert.strictEqual(data[2], 30);
       // Echo it back.
       this.sendDatagram(new Uint8Array([42, 43, 44]));
       serverGotDatagram.resolve();
@@ -71,11 +68,11 @@ const decoder = new TextDecoder();
     transportParams: { maxDatagramFrameSize: 100 },
     // Client receives datagram from server.
     ondatagram: mustCall(function(data) {
-      ok(data instanceof Uint8Array);
-      strictEqual(data.byteLength, 3);
-      strictEqual(data[0], 42);
-      strictEqual(data[1], 43);
-      strictEqual(data[2], 44);
+      assert.ok(data instanceof Uint8Array);
+      assert.strictEqual(data.byteLength, 3);
+      assert.strictEqual(data[0], 42);
+      assert.strictEqual(data[1], 43);
+      assert.strictEqual(data[2], 44);
       clientGotDatagram.resolve();
     }),
   });
@@ -90,7 +87,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
 
@@ -99,7 +96,7 @@ const decoder = new TextDecoder();
 
   // H3 response body is received.
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await stream.closed;
 
   // Both sides received their datagram.
@@ -154,7 +151,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
 
@@ -162,12 +159,12 @@ const decoder = new TextDecoder();
   // SETTINGS (with h3_datagram=0) arrive, the client should know
   // the peer doesn't support H3 datagrams.
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'no-dgram');
+  assert.strictEqual(decoder.decode(body), 'no-dgram');
 
   // Attempt to send a datagram. Since the peer's H3 SETTINGS
   // indicate h3_datagram=0, this should return 0 (not sent).
   const dgId = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
-  strictEqual(dgId, 0n);
+  assert.strictEqual(dgId, 0n);
 
   await Promise.all([stream.closed, serverDone.promise]);
   clientSession.close();

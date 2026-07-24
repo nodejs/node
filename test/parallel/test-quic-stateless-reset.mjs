@@ -8,10 +8,8 @@
 //        send a stateless reset.
 // Global token bucket rate limits the total number of resets.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, expectsError, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { ok, strictEqual, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -31,7 +29,7 @@ const encoder = new TextEncoder();
       // Do a complete data exchange first so both sides are
       // fully at 1-RTT with all ACKs exchanged.
       const data = await bytes(stream);
-      ok(data.byteLength > 0);
+      assert.ok(data.byteLength > 0);
       stream.writer.endSync();
       await stream.closed;
 
@@ -42,15 +40,13 @@ const encoder = new TextEncoder();
       serverDestroyed.resolve();
     });
   }), {
-    onerror(err) { ok(err); },
+    onerror: mustNotCall(),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
     verifyPeer: 'manual',
-    onerror: mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-    }),
+    onerror: expectsError({ code: 'ERR_QUIC_TRANSPORT_ERROR' }),
   });
   await clientSession.opened;
 
@@ -73,12 +69,12 @@ const encoder = new TextEncoder();
   });
 
   // The client session should be closed by the stateless reset.
-  await rejects(clientSession.closed, {
+  await assert.rejects(clientSession.closed, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   });
 
-  ok(serverEndpoint.stats.statelessResetCount > 0n,
-     'Server should have sent a stateless reset');
+  assert.ok(serverEndpoint.stats.statelessResetCount > 0n,
+            'Server should have sent a stateless reset');
 
   await serverEndpoint.close();
 }
@@ -90,7 +86,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const data = await bytes(stream);
-      ok(data.byteLength > 0);
+      assert.ok(data.byteLength > 0);
       stream.writer.endSync();
       await stream.closed;
 
@@ -99,7 +95,7 @@ const encoder = new TextEncoder();
     });
   }), {
     endpoint: { disableStatelessReset: true },
-    onerror(err) { ok(err); },
+    onerror: mustNotCall(),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -110,7 +106,7 @@ const encoder = new TextEncoder();
     transportParams: { maxIdleTimeout: 1 },
     // Onerror marks stream closed promises as handled so that the
     // idle-timeout stream destruction doesn't cause unhandled rejections.
-    onerror(err) { ok(err); },
+    onerror: mustNotCall(),
   });
   await clientSession.opened;
 
@@ -133,8 +129,7 @@ const encoder = new TextEncoder();
   // via idle timeout instead.
   await clientSession.closed;
 
-  strictEqual(serverEndpoint.stats.statelessResetCount, 0n,
-              'No stateless reset should have been sent');
+  assert.strictEqual(serverEndpoint.stats.statelessResetCount, 0n); // No stateless reset should have been sent
 
   await serverEndpoint.close();
 }
@@ -153,7 +148,7 @@ const encoder = new TextEncoder();
 
     serverSession.onstream = mustCall(async (stream) => {
       const data = await bytes(stream);
-      ok(data.byteLength > 0);
+      assert.ok(data.byteLength > 0);
       stream.writer.endSync();
       await stream.closed;
 
@@ -162,7 +157,7 @@ const encoder = new TextEncoder();
     });
   }, 2), {
     endpoint: { statelessResetBurst: 1, statelessResetRate: 0 },
-    onerror(err) { ok(err); },
+    onerror: mustNotCall(),
   });
 
   // The global token bucket rate limiter applies regardless of
@@ -175,9 +170,7 @@ const encoder = new TextEncoder();
   const client1 = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
     verifyPeer: 'manual',
-    onerror: mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-    }),
+    onerror: expectsError({ code: 'ERR_QUIC_TRANSPORT_ERROR' }),
   });
   await client1.opened;
 
@@ -192,10 +185,9 @@ const encoder = new TextEncoder();
   const s1b = await client1.createBidirectionalStream({
     body: encoder.encode('after destroy 1'),
   });
-  await rejects(client1.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
+  await assert.rejects(client1.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
 
-  strictEqual(serverEndpoint.stats.statelessResetCount, 1n,
-              'First reset should have been sent');
+  assert.strictEqual(serverEndpoint.stats.statelessResetCount, 1n); // First reset should have been sent
 
   // --- Second session: rate-limited, no reset sent ---
 
@@ -206,7 +198,7 @@ const encoder = new TextEncoder();
     // destroys (no stateless reset will arrive, rate-limited).
     transportParams: { maxIdleTimeout: 1 },
     // Onerror marks stream closed promises as handled.
-    onerror(err) { ok(err); },
+    onerror: mustNotCall(),
   });
   await client2.opened;
 
@@ -226,10 +218,8 @@ const encoder = new TextEncoder();
   // The client closes via idle timeout (no stateless reset).
   await client2.closed;
 
-  strictEqual(serverEndpoint.stats.statelessResetCount, 1n,
-              'Second reset should have been rate-limited');
-  ok(serverEndpoint.stats.statelessResetRateLimited > 0n,
-     'Rate-limited counter should be non-zero');
+  assert.strictEqual(serverEndpoint.stats.statelessResetCount, 1n); // Second reset should have been rate-limited
+  assert.ok(serverEndpoint.stats.statelessResetRateLimited > 0); // Rate-limited counter should be non-zero
 
   await clientEndpoint.close();
   await serverEndpoint.close();

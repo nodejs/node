@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const preferredEndpoint = await listen(mustNotCall(), {});
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   // The server session closes with a transport error when the
   // client is destroyed by the throw. That's expected.
-  await rejects(serverSession.closed, {
+  await assert.rejects(serverSession.closed, {
     code: 'ERR_QUIC_TRANSPORT_ERROR',
   });
 }), {
@@ -42,13 +40,13 @@ const clientSession = await connect(serverEndpoint.address, {
   },
   onerror: mustCall((err) => {
     // The error from the throw should be delivered here.
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   }),
 });
 await clientSession.opened;
 
 // The session's closed should reject with the thrown error.
-await rejects(clientSession.closed, testError);
+await assert.rejects(clientSession.closed, testError);
 
 await serverEndpoint.close();
 await preferredEndpoint.close();

@@ -13,9 +13,6 @@ import { open } from 'node:fs/promises';
 
 const tmpdir = await import('../common/tmpdir.js');
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,8 +21,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const decoder = new TextDecoder();
 const testContent = 'Hello from a file!\nLine two.\n';
@@ -41,7 +38,7 @@ writeFileSync(testFile, testContent);
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), testContent);
+      assert.strictEqual(decoder.decode(body), testContent);
 
       await stream.closed;
       serverSession.close();
@@ -50,8 +47,8 @@ writeFileSync(testFile, testContent);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':method'], 'POST');
-      strictEqual(headers[':path'], '/upload');
+      assert.strictEqual(headers[':method'], 'POST');
+      assert.strictEqual(headers[':path'], '/upload');
 
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync('ok');
@@ -65,7 +62,7 @@ writeFileSync(testFile, testContent);
   });
 
   const info = await clientSession.opened;
-  strictEqual(info.protocol, 'h3');
+  assert.strictEqual(info.protocol, 'h3');
 
   const clientHeadersReceived = Promise.withResolvers();
 
@@ -79,7 +76,7 @@ writeFileSync(testFile, testContent);
     },
     body: fh,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
       clientHeadersReceived.resolve();
     }),
   });
@@ -87,7 +84,7 @@ writeFileSync(testFile, testContent);
   await clientHeadersReceived.promise;
 
   const responseBody = await bytes(stream);
-  strictEqual(decoder.decode(responseBody), 'ok');
+  assert.strictEqual(decoder.decode(responseBody), 'ok');
 
   await Promise.all([stream.closed, serverDone.promise]);
   clientSession.close();

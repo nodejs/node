@@ -9,10 +9,6 @@ import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { readKey } = fixtures;
-
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,14 +16,14 @@ if (!hasQuic) {
 const { listen } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
 dc.subscribe('quic.endpoint.error', mustCall((msg) => {
-  ok(msg.endpoint);
-  ok(msg.error);
+  assert.ok(msg.endpoint);
+  assert.ok(msg.error);
 }));
 
 // Create first endpoint to occupy a port.
@@ -42,8 +38,8 @@ const ep2 = await listen(mustNotCall(), {
 });
 
 // ep2 is destroyed due to bind failure.
-strictEqual(ep2.destroyed, true);
-await rejects(ep2.closed, {
+assert.strictEqual(ep2.destroyed, true);
+await assert.rejects(ep2.closed, {
   code: 'ERR_QUIC_ENDPOINT_CLOSED',
   message: /Bind failure/,
 });

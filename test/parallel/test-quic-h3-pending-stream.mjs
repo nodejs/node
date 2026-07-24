@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, deepStrictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,8 +16,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -40,8 +37,8 @@ const decoder = new TextDecoder();
     onheaders: mustCall(function(headers) {
       // Headers were enqueued before the stream opened
       // and should arrive correctly.
-      strictEqual(headers[':method'], 'GET');
-      strictEqual(headers[':path'], '/pending');
+      assert.strictEqual(headers[':method'], 'GET');
+      assert.strictEqual(headers[':path'], '/pending');
 
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode('ok'));
@@ -67,22 +64,22 @@ const decoder = new TextDecoder();
     priority: 'high',
     incremental: true,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], '200');
     }),
   });
 
   // Priority should reflect what was set even while pending.
-  deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+  assert.deepStrictEqual(stream.priority, { level: 'high', incremental: true });
 
   // Now wait for the handshake.
   await clientSession.opened;
 
   // Priority persists after stream opens.
-  deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+  assert.deepStrictEqual(stream.priority, { level: 'high', incremental: true });
 
   // Headers were sent and server responded.
   const body = await bytes(stream);
-  strictEqual(decoder.decode(body), 'ok');
+  assert.strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
   await clientSession.close();
   await serverEndpoint.close();

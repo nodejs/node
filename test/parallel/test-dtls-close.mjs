@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, throws } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +16,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const serverCert = readKey('agent1-cert.pem');
-const serverKey = readKey('agent1-key.pem');
-const ca = readKey('ca1-cert.pem');
+const serverCert = fixtures.readKey('agent1-cert.pem');
+const serverKey = fixtures.readKey('agent1-key.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 // Test 1: Graceful close from client side.
 {
@@ -48,7 +45,7 @@ const ca = readKey('ca1-cert.pem');
 
   // Graceful close.
   const closedPromise = session.close();
-  ok(closedPromise instanceof Promise);
+  assert.ok(closedPromise instanceof Promise);
   await closedPromise;
 
   // Wait for server to see the close.
@@ -80,7 +77,7 @@ const ca = readKey('ca1-cert.pem');
   session.destroy();
 
   // After destroy, send should fail.
-  throws(() => {
+  assert.throws(() => {
     session.send('should fail');
   }, /destroyed/i);
 

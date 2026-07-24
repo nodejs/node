@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -23,14 +21,14 @@ const serverReady = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall((stream) => {
-    rejects(stream.closed, (error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+    assert.rejects(stream.closed, (error) => {
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
       return true;
     }).then(mustCall());
 
     stream.onreset = mustCall((error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(error.message.includes('44'));
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.ok(error.message.includes('44'));
       serverSession.close();
       serverDone.resolve();
     });
@@ -56,9 +54,9 @@ await serverReady.promise;
 // but may not be fully acknowledged yet.
 stream.resetStream(44n);
 
-await rejects(stream.closed, (error) => {
-  strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-  ok(error.message.includes('44'));
+await assert.rejects(stream.closed, (error) => {
+  assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+  assert.ok(error.message.includes('44'));
   return true;
 });
 

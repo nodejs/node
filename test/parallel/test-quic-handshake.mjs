@@ -3,9 +3,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { partialDeepStrictEqual, strictEqual, ok } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -15,8 +12,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const check = {
   // The SNI value
@@ -37,7 +34,7 @@ const serverOpened = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.opened.then((info) => {
-    partialDeepStrictEqual(info, check);
+    assert.partialDeepStrictEqual(info, check);
     serverOpened.resolve();
     serverSession.close();
   }).then(mustCall());
@@ -47,10 +44,10 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 });
 
 // Buffer is not detached.
-strictEqual(cert.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
 // The server must have an address to connect to after listen resolves.
-ok(serverEndpoint.address !== undefined);
+assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
@@ -58,7 +55,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 
 const info = await clientSession.opened;
-partialDeepStrictEqual(info, check);
+assert.partialDeepStrictEqual(info, check);
 
 await serverOpened.promise;
 await clientSession.close();

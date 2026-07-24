@@ -14,8 +14,6 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok, deepStrictEqual, strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,9 +23,9 @@ const { bytes } = await import('stream/iter');
 
 // quic.stream.reset fires when a stream receives RESET_STREAM from the peer.
 dc.subscribe('quic.stream.reset', mustCall((msg) => {
-  ok(msg.stream, 'stream.reset should include stream');
-  ok(msg.session, 'stream.reset should include session');
-  ok(msg.error, 'stream.reset should include error');
+  assert.ok(msg.stream, 'stream.reset should include stream');
+  assert.ok(msg.session, 'stream.reset should include session');
+  assert.ok(msg.error, 'stream.reset should include error');
 }));
 
 const encoder = new TextEncoder();
@@ -36,8 +34,8 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(error.message.includes('42'));
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.ok(error.message.includes('42'));
 
       // The client reset its send side, but the server can still
       // send data on its side of the bidi stream.
@@ -46,7 +44,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
     // The stream's closed promise may reject because the client's
     // send side was reset. Either way, clean up.
-    await rejects(stream.closed, {
+    await assert.rejects(stream.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
     });
     serverSession.close();
@@ -70,13 +68,13 @@ stream.resetStream(42n);
 // The client should still be able to receive data from the server
 // on the readable side of this bidi stream.
 const received = await bytes(stream);
-deepStrictEqual(Buffer.from(received), Buffer.from('response'));
+assert.deepStrictEqual(Buffer.from(received), Buffer.from('response'));
 
 // stream.closed rejects with the reset error (the client's send
 // side was reset). Verify the error and consume the rejection.
-await stream.closed.catch((error) => {
-  strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-  ok(error.message.includes('42'));
+await assert.rejects(stream.closed, {
+  code: 'ERR_QUIC_APPLICATION_ERROR',
+  message: /42/,
 });
 await serverDone.promise;
 await clientSession.close();

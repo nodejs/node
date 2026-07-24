@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,7 +24,7 @@ for (const cc of ['reno', 'cubic', 'bbr']) {
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const data = await bytes(stream);
-      strictEqual(data.byteLength, payloadLength);
+      assert.strictEqual(data.byteLength, payloadLength);
       stream.writer.endSync();
       await stream.closed;
       serverSession.close();
@@ -45,7 +43,7 @@ for (const cc of ['reno', 'cubic', 'bbr']) {
   await Promise.all([stream.closed, serverDone.promise]);
 
   // Verify the session stats show congestion control was active.
-  ok(clientSession.stats.cwnd > 0n, `${cc}: cwnd should be > 0`);
+  assert.ok(clientSession.stats.cwnd > 0n, `${cc}: cwnd should be > 0`);
 
   await clientSession.closed;
   await serverEndpoint.close();

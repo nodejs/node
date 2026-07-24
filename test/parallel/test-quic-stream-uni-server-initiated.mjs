@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { deepStrictEqual, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -41,13 +39,13 @@ await clientSession.opened;
 clientSession.onstream = mustCall(async (stream) => {
   const received = await bytes(stream);
 
-  deepStrictEqual(received, expected);
-  strictEqual(decoder.decode(received), message);
+  assert.deepStrictEqual(received, expected);
+  assert.strictEqual(decoder.decode(received), message);
 
   // The receiving side of a uni stream should not be writable.
   // The writer should be pre-closed.
   const w = stream.writer;
-  strictEqual(w.canWrite, null);
+  assert.strictEqual(w.canWrite, null);
 
   await stream.closed;
   clientSession.close();
