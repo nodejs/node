@@ -3933,6 +3933,18 @@ Emitted when no more tests are queued for execution in watch mode.
 
 ### Event: `'test:watch:restarted'`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64457
+    description: Added the `file` property to the event data.
+-->
+
+* `data` {Object}
+  * `file` {string|undefined} The path of the file whose change triggered the
+    restart. This value is `undefined` when the triggering file cannot be
+    determined.
+
 Emitted when one or more tests are restarted due to a file change in watch mode.
 
 ## `getTestContext()`
