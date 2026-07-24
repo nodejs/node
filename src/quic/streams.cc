@@ -61,6 +61,8 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
+  /* Set when the stream has a stop sending event handler */                   \
+  V(WANTS_STOP_SENDING, wants_stop_sending, uint8_t)                           \
   /* Set when the stream has a trailers event handler */                       \
   V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
   /* True when 0-RTT early data was received */                                \
@@ -1774,19 +1776,11 @@ void Stream::ReceiveData(const uint8_t* data,
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
-  // STOP_SENDING from the peer asks us to stop sending. Per RFC 9000
-  // §3.5 the receiver SHOULD respond with RESET_STREAM, which is what
-  // ngtcp2_conn_shutdown_stream_write below schedules. If our
-  // writable side has already been shut down (e.g. we already sent
-  // RESET_STREAM ourselves or finished sending with FIN) there is
-  // nothing more to do here. The previous guard checked
-  // `state()->read_ended` which is unrelated to the writable side and
-  // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
-  // frame had been processed first within the same packet.
-  if (state()->write_ended) return;
+  // STOP_SENDING from the peer asks us to stop sending. The required
+  // RESET_STREAM response is scheduled automatically.
   Debug(this, "Received stop sending with error %s", error);
-  ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
   EndWritable();
+  EmitStopSending(error);
 }
 
 void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
@@ -1956,6 +1950,17 @@ void Stream::EmitReset(const QuicError& error) {
   if (!error.ToV8Value(env()).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_reset_callback(), 1, &err);
+}
+
+void Stream::EmitStopSending(const QuicError& error) {
+  if (!env()->can_call_into_js() || !state()->wants_stop_sending) {
+    return;
+  }
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> err;
+  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+
+  MakeCallback(BindingData::Get(env()).stream_stop_sending_callback(), 1, &err);
 }
 
 void Stream::EmitWantTrailers() {

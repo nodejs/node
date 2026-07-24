@@ -2033,8 +2033,7 @@ added: v23.8.0
 
 The callback to invoke when the peer aborts a direction of the stream by
 sending a `RESET_STREAM` frame (the peer abandons their writable side, so
-no further data will arrive on our readable side) or a `STOP_SENDING`
-frame (the peer asks us to stop writing on our writable side).
+no further data will arrive on our readable side).
 
 The callback receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame.
@@ -2044,6 +2043,21 @@ the application chooses how to react. Common patterns are: ignore (and
 continue using the still-active direction on a bidirectional stream),
 abort the other direction with [`writer.fail()`][], or tear down the
 whole stream with [`stream.destroy()`][]. Read/write.
+
+### `stream.onstopsending`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnStreamErrorCallback}
+
+The callback to invoke when the peer aborts a direction of the stream by
+sending a `STOP_SENDING` frame (the peer asks us to stop writing on our
+writable side).
+
+The callback receives a Node.js error whose `errorCode` (`bigint`)
+property carries the application error code from the wire frame. Read/write.
 
 ### `stream.headers`
 
@@ -3600,8 +3614,8 @@ functions. If a callback throws synchronously or returns a promise that
 rejects, the error is caught and the owning session or stream is destroyed
 with that error:
 
-* Stream callbacks (`onblocked`, `onreset`, `onheaders`, `ontrailers`,
-  `oninfo`, `onwanttrailers`): the stream is destroyed.
+* Stream callbacks (`onblocked`, `onreset`, `onstopsending`, `onheaders`,
+  `ontrailers`, `oninfo`, `onwanttrailers`): the stream is destroyed.
 * Session callbacks (`onapplication`, `onstream`, `ondatagram`,
   `ondatagramstatus`, `onpathvalidation`, `onsessionticket`,
   `onnewtoken`, `onversionnegotiation`, `onorigin`, `ongoaway`,
@@ -4470,10 +4484,9 @@ added: v26.2.0
 * `session` {quic.QuicSession}
 * `error` {any} The QUIC error associated with the reset.
 
-Published when a stream receives a STOP\_SENDING or RESET\_STREAM frame
-from the peer, indicating the peer has aborted the stream. This is a
-key signal for diagnosing application-level issues such as cancelled
-requests.
+Published when a stream receives a RESET\_STREAM frame from the peer,
+indicating the peer has aborted its sending direction. This is a key signal
+for diagnosing application-level issues such as cancelled requests.
 
 ### Channel: `quic.stream.blocked`
 
