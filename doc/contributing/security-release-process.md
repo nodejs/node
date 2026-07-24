@@ -77,6 +77,10 @@ The current security stewards are documented in the main Node.js
   * Make sure to have a green CI before requesting a CVE.
   * Check if there is a need to issue a CVE for any version that became
     EOL after the last security release through [this issue](https://github.com/nodejs/security-wg/issues/1419).
+  * If `cve_source: openjs-cna` is set in `.ncurc`, CVEs are reserved through
+    the OpenJS Foundation CNA instead of HackerOne. The HackerOne report is
+    updated with the CVE id either way. Publication to MITRE then becomes a
+    separate [Post-Release](#post-release) step.
 
 * [ ] 5\. **Choosing or Updating Release Date:**
   * Get agreement on the planned date for the release.
@@ -168,14 +172,25 @@ security announcements for more information.
 
 ## Post-Release
 
-* [ ] 1\. **Cleanup:**
+* [ ] 1\. **Publish CVEs to MITRE (OpenJS CNA path only):**
+  * Skip this step if `cve_source` is `hackerone` (the default) — HackerOne
+    publishes to MITRE automatically during disclosure.
+  * Run `git node security --publish-cve`. Posts each reserved CVE's v5.2
+    CNA Container to MITRE. Run this **before** `--cleanup`.
+  * **Safety:** MITRE rejects publication for CVEs assigned to a different
+    CNA, so cross-owner mistakes fail loud. But an accidental publication of
+    one of *your own* reserved CVEs goes through and becomes public with no
+    API to un-publish. Double-check the payload before confirming each one.
+
+* [ ] 2\. **Cleanup:**
   * [ ] `git node security --cleanup`. This command will:
   * Update next-security-release folder
   * Close all PRs and backports labeled with `Security Release`.
   * Close HackerOne reports:
     * Close Resolved
     * Request Disclosure
-    * Request publication of H1 CVE requests
+    * Request publication of H1 CVE requests _(skip when using OpenJS CNA —
+      already published)_.
     * In case the reporter doesn't accept the disclosure follow this process:
       Remove the original report reference within the reference text box and
       insert the public URL you would like to be attached to this CVE.
