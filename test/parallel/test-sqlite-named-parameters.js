@@ -118,6 +118,22 @@ suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
       message: /The "enabled" argument must be a boolean/,
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setAllowUnknownNamedParameters(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('options.allowUnknownNamedParameters', () => {
