@@ -319,6 +319,7 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
     session->runtimeAgent()->reportExecutionContextDestroyed(inspectedContext);
   });
   discardInspectedContext(groupId, contextId);
+  m_promiseHandlerTracker.makeWeakForContext(contextId);
 }
 
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
