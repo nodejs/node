@@ -1022,7 +1022,8 @@ The resolver can throw the following errors:
 > 2. If _specifier_ is a valid URL, then
 >    1. Set _resolved_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
-> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_, or _"../"_, then
+> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_, or _"../"_, or
+>    _specifier_ equals _"."_ or _".."_, then
 >    1. Set _resolved_ to the URL resolution of _specifier_ relative to
 >       _parentURL_.
 > 4. Otherwise, if _specifier_ starts with _"#"_, then
