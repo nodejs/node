@@ -191,6 +191,9 @@ static std::string GetErrorSource(Isolate* isolate,
 
 static std::atomic<bool> is_in_oom{false};
 static thread_local std::atomic<bool> is_retrieving_js_stacktrace{false};
+// This is thread-local because it only guards re-entrancy within the current
+// thread's uncaught-exception path; no cross-thread synchronization is needed.
+static thread_local bool is_in_uncaught_exception = false;
 MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
   if (isolate == nullptr) {
     return MaybeLocal<StackTrace>();
@@ -1278,6 +1281,26 @@ void TriggerUncaughtException(Isolate* isolate,
   CHECK(isolate->InContext());
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
+  // Re-entrancy guard: prevent infinite recursion when the JS-level
+  // exception handler (process._fatalException) itself triggers another
+  // exception through the inspector protocol, causing V8's pending message
+  // reporting to call TriggerUncaughtException reentrantly.
+  if (is_in_uncaught_exception) {
+    PrintToStderrAndFlush(
+        "FATAL ERROR: Re-entrant uncaught exception detected.\n"
+        "The exception handler threw an error while processing a\n"
+        "previous uncaught exception, likely due to an inspector\n"
+        "protocol issue. Aborting to prevent infinite recursion.\n" +
+        FormatCaughtException(isolate, context, error, message));
+    ABORT();
+  }
+  // RAII guard to ensure the flag is cleared when TriggerUncaughtException
+  // returns normally. Note: ABORT() and env->Exit() do not run this
+  // destructor, which is intentional — the process is terminating.
+  struct UncaughtExceptionGuard {
+    UncaughtExceptionGuard() { is_in_uncaught_exception = true; }
+    ~UncaughtExceptionGuard() { is_in_uncaught_exception = false; }
+  } uncaught_exception_guard;
   if (env == nullptr) {
     // This means that the exception happens before Environment is assigned
     // to the context e.g. when there is a SyntaxError in a per-context
