@@ -26,7 +26,6 @@ const ca = readKey('ca1-cert.pem');
 const serverAlpnChecked = Promise.withResolvers();
 
 const endpoint = listen(mustCall(async (session) => {
-  session.onmessage = () => {};
   await session.opened;
   // Server should see the negotiated ALPN protocol.
   strictEqual(session.alpnProtocol, 'coap');
@@ -54,3 +53,33 @@ await serverAlpnChecked.promise;
 
 await session.close();
 await endpoint.close();
+
+// ALPN with no protocol in common: the handshake still completes and neither
+// peer reports a negotiated protocol.
+{
+  const gotServerSession = Promise.withResolvers();
+
+  const server = listen(mustCall((s) => gotServerSession.resolve(s)), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    alpn: ['bar'],
+  });
+
+  const client = connect('127.0.0.1', server.address.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    alpn: ['foo'],
+  });
+
+  await client.opened;
+  const serverSession = await gotServerSession.promise;
+  await serverSession.opened;
+
+  strictEqual(client.alpnProtocol, undefined);
+  strictEqual(serverSession.alpnProtocol, undefined);
+
+  await client.close();
+  await server.close();
+}

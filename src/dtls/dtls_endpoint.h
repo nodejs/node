@@ -14,6 +14,7 @@
 #include <openssl/ssl.h>
 
 #include <unordered_map>
+#include <vector>
 
 #include "dtls.h"
 #include "dtls_context.h"
@@ -59,9 +60,15 @@ class DTLSEndpoint final : public HandleWrap {
   int Listen(DTLSContext* context);
 
   // Initiate a client connection to the given address.
+  // |servername|/|verify_host|/|verify_is_ip| configure SNI and peer identity
+  // verification on the client SSL before the handshake begins; see
+  // DTLSSession::Create.
   // Returns the created DTLSSession.
   BaseObjectPtr<DTLSSession> Connect(DTLSContext* context,
-                                     const SocketAddress& remote);
+                                     const SocketAddress& remote,
+                                     const char* servername = nullptr,
+                                     const char* verify_host = nullptr,
+                                     bool verify_is_ip = false);
 
   // Send a raw UDP datagram to the given address.
   // Called by DTLSSession to send encrypted packets.
@@ -129,6 +136,11 @@ class DTLSEndpoint final : public HandleWrap {
 
   uv_udp_t handle_;
 
+  // Reusable receive buffer for uv_udp_recv (see OnAlloc). libuv delivers one
+  // datagram at a time and OnRecv consumes each before the next OnAlloc, so a
+  // single buffer per endpoint avoids a heap allocation on every packet.
+  std::vector<char> recv_buf_;
+
   // Session table: maps remote address -> session.
   std::unordered_map<SocketAddress,
                      BaseObjectPtr<DTLSSession>,
@@ -143,6 +155,11 @@ class DTLSEndpoint final : public HandleWrap {
 
   AliasedStruct<DTLSEndpointStateData> state_;
   AliasedStruct<DTLSEndpointStats> stats_;
+
+  // Strong self-reference held while a graceful close/destroy is in flight, so
+  // the wrapper is not garbage-collected before OnClose() runs and reports the
+  // close. Cleared in OnClose().
+  BaseObjectPtr<DTLSEndpoint> self_ref_;
 
   bool listening_ = false;
   uint32_t mtu_ = 1200;  // Conservative default MTU for data payload

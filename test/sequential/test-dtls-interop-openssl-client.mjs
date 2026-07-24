@@ -8,7 +8,7 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import { createRequire } from 'module';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
-import { setTimeout } from 'node:timers/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 
 if (!hasCrypto) {
@@ -73,13 +73,13 @@ const timeout = setTimeout(() => {
 // Wait for the handshake to start (s_client writes TLS info to stdout),
 // then send data.
 await new Promise((resolve) => client.stdout.once('data', resolve));
-await setTimeout(500);
+await sleep(500);
 
 client.stdin.write('hello from openssl\n');
 
 // Wait for the server to receive and reply.
 await serverReceivedData.promise;
-await setTimeout(500);
+await sleep(500);
 
 // Close stdin so s_client exits.
 client.stdin.end();

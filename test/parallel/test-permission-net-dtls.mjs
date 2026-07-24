@@ -51,9 +51,16 @@ const ca = readFileSync(join(fixturesDir, 'ca1-cert.pem')).toString();
   );
 }
 
-// Test: Creating a DTLSEndpoint without connect/listen is allowed
-// since no network I/O occurs at construction time.
+// Test: Creating a DTLSEndpoint is allowed (no network I/O at construction
+// time), but bind() requires net permission.
 {
   const endpoint = new DTLSEndpoint();
   assert.ok(endpoint);
+  assert.throws(
+    () => endpoint.bind('127.0.0.1', 0),
+    {
+      code: 'ERR_ACCESS_DENIED',
+      permission: 'Net',
+    },
+  );
 }
