@@ -213,6 +213,8 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int fd;
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
+
   int err = uv_pipe_open(&wrap->handle_, fd);
   if (err == 0) wrap->set_fd(fd);
 
