@@ -3201,6 +3201,21 @@ void MacroAssembler::Float64Mod(DoubleRegister out, DoubleRegister left,
   bind(&done_mod);
 }
 
+void MacroAssembler::SelectWord(Register result, Register cond, Register v_true,
+                                Register v_false) {
+  if (v_false == zero_reg) {
+    maskeqz(result, v_true, cond);
+  } else if (v_true == zero_reg) {
+    masknez(result, v_false, cond);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    maskeqz(scratch, v_true, cond);
+    masknez(result, v_false, cond);
+    or_(result, scratch, result);
+  }
+}
+
 void MacroAssembler::CompareWord(Condition cond, Register dst, Register lhs,
                                  const Operand& rhs) {
   switch (cond) {
