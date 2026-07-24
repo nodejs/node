@@ -142,6 +142,37 @@ describe('when there is a long-lived signal', () => {
 
     run(1);
   });
+
+  it('drops observed dependent signals once they are transitively aborted', async () => {
+    const longLived = new AbortController();
+    const handler = () => {};
+    const size = () => {
+      const sym = Object.getOwnPropertySymbols(longLived.signal).find(
+        (s) => s.toString() === 'Symbol(kDependantSignals)'
+      );
+      return sym ? longLived.signal[sym].size : 0;
+    };
+
+    // Each composite observes the long-lived source and a per-request source,
+    // then is aborted through the per-request source without ever removing its
+    // listener. The aborted composites can never fire again, so the long-lived
+    // source's dependant set must not accumulate them. Using a helper keeps the
+    // last iteration's signals from lingering on the stack for the assertion.
+    const createObservedAbortedComposite = () => {
+      const perReq = new AbortController();
+      const composite = AbortSignal.any([perReq.signal, longLived.signal]);
+      composite.addEventListener('abort', handler);
+      perReq.abort();
+    };
+    for (let i = 0; i < limit; i++) {
+      createObservedAbortedComposite();
+    }
+
+    await gcUntil(
+      'observed dependents are dropped after transitive abort',
+      () => size() === 0,
+    );
+  });
 });
 
 it('does not prevent source signal from being GCed if it is short-lived', (t, done) => {
