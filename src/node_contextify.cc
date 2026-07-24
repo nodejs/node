@@ -1679,8 +1679,9 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
         code, filename, CachedCodeType::kCommonJS);
   }
   if (cache_entry != nullptr && cache_entry->cache != nullptr) {
-    // source will take ownership of cached_data.
-    cached_data = cache_entry->CopyCache();
+    // source only takes ownership of the cached_data wrapper - the
+    // underlying buffer is still owned by the compile cache entry.
+    cached_data = cache_entry->WrapCache();
   }
 
   ScriptCompiler::Source source(code, origin, cached_data);

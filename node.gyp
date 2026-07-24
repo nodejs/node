@@ -1103,6 +1103,22 @@
             '<@(linked_module_files)',
           ],
         },
+        {
+          'action_name': 'generate_compile_cache_zstd_dict',
+          'inputs': [
+            'src/compile_cache_zstd.dict',
+            'tools/generate_compile_cache_dict.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/compile_cache_zstd_dict.h',
+          ],
+          'action': [
+            '<(python)',
+            'tools/generate_compile_cache_dict.py',
+            'src/compile_cache_zstd.dict',
+            '<@(_outputs)',
+          ],
+        },
       ],
     }, # node_base
     {
@@ -1116,6 +1132,7 @@
         'src',
         'deps/v8/include',
         'deps/uv/include',
+        '<(SHARED_INTERMEDIATE_DIR)',  # for compile_cache_zstd_dict.h etc.
       ],
 
       'dependencies': [
