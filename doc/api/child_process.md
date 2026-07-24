@@ -242,6 +242,10 @@ can be used to specify the character encoding used to decode the stdout and
 stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
+> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
+> child process resources is documentation-only deprecated. See
+> [DEP0208](deprecations.md#dep0208-using-abortsignal-to-dispose-of-resources).
+
 ```cjs
 const { exec } = require('node:child_process');
 exec('cat *.js missing_file | wc -l', (error, stdout, stderr) => {
@@ -389,6 +393,10 @@ The `child_process.execFile()` function is similar to [`child_process.exec()`][]
 except that it does not spawn a shell by default. Rather, the specified
 executable `file` is spawned directly as a new process making it slightly more
 efficient than [`child_process.exec()`][].
+
+> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
+> child process resources is documentation-only deprecated. See
+> [DEP0208](deprecations.md#dep0208-using-abortsignal-to-dispose-of-resources).
 
 The same options as [`child_process.exec()`][] are supported. Since a shell is
 not spawned, behaviors such as I/O redirection and file globbing are not
@@ -585,6 +593,10 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
+> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
+> child process resources is documentation-only deprecated. See
+> [DEP0208](deprecations.md#dep0208-using-abortsignal-to-dispose-of-resources).
+
 If the `signal` option is enabled, calling `.abort()` on the corresponding
 `AbortController` is similar to calling `.kill()` on the child process except
 the error passed to the callback will be an `AbortError`:
@@ -734,6 +746,10 @@ Use `env` to specify environment variables that will be visible to the new
 process, the default is [`process.env`][].
 
 `undefined` values in `env` will be ignored.
+
+> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
+> child process resources is documentation-only deprecated. See
+> [DEP0208](deprecations.md#dep0208-using-abortsignal-to-dispose-of-resources).
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
