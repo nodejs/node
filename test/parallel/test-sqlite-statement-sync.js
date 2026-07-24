@@ -429,6 +429,98 @@ suite('StatementSync.prototype.expandedSQL', () => {
   });
 });
 
+suite('StatementSync.prototype.stat()', () => {
+  const counters = [
+    'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
+    'run', 'filterMiss', 'filterHit', 'memused',
+  ];
+
+  test('returns a number for every valid counter', (t) => {
+    using db = new DatabaseSync(nextDb());
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    for (const counter of counters) {
+      t.assert.strictEqual(typeof stmt.stat(counter), 'number');
+    }
+  });
+
+  test('counts virtual machine steps and runs after execution', (t) => {
+    using db = new DatabaseSync(nextDb());
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 5; i++) {
+      insert.run(i, `val-${i}`);
+    }
+    const stmt = db.prepare('SELECT * FROM data');
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    t.assert.strictEqual(stmt.stat('vmStep'), 0);
+    stmt.all();
+    t.assert.strictEqual(stmt.stat('run'), 1);
+    t.assert.ok(stmt.stat('vmStep') > 0);
+    t.assert.ok(stmt.stat('memused') > 0);
+  });
+
+  test('detects full table scans', (t) => {
+    using db = new DatabaseSync(nextDb());
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 10; i++) {
+      insert.run(i, `val-${i}`);
+    }
+
+    // Filtering on a non-indexed column forces a full table scan.
+    const scan = db.prepare('SELECT * FROM data WHERE val = ?');
+    scan.all('val-5');
+    t.assert.ok(scan.stat('fullscanStep') > 0);
+
+    // Filtering on the primary key uses the index; no full scan occurs.
+    const indexed = db.prepare('SELECT * FROM data WHERE key = ?');
+    indexed.all(5);
+    t.assert.strictEqual(indexed.stat('fullscanStep'), 0);
+  });
+
+  test('reading a counter does not reset it', (t) => {
+    using db = new DatabaseSync(nextDb());
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    stmt.all();
+    const first = stmt.stat('run');
+    t.assert.strictEqual(stmt.stat('run'), first);
+  });
+
+  test('throws if the counter argument is not a string', (t) => {
+    using db = new DatabaseSync(nextDb());
+    const stmt = db.prepare('SELECT 1');
+    t.assert.throws(() => stmt.stat(), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "counter" argument must be a string/,
+    });
+    t.assert.throws(() => stmt.stat(42), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "counter" argument must be a string/,
+    });
+  });
+
+  test('throws if the counter name is unknown', (t) => {
+    using db = new DatabaseSync(nextDb());
+    const stmt = db.prepare('SELECT 1');
+    t.assert.throws(() => stmt.stat('nope'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The "counter" argument is not a valid statistic name/,
+    });
+  });
+
+  test('throws if the statement is finalized', (t) => {
+    const db = new DatabaseSync(nextDb());
+    const stmt = db.prepare('SELECT 1');
+    db.close();
+    t.assert.throws(() => stmt.stat('run'), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
 suite('StatementSync.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', (t) => {
     const db = new DatabaseSync(nextDb());
