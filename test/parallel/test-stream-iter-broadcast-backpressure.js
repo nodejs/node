@@ -113,6 +113,28 @@ async function testBlockBackpressureContent() {
   assert.strictEqual(done.done, true);
 }
 
+async function testStrictBackpressureOverflow() {
+  const { writer } = broadcast({
+    budget: 16384,
+    backpressure: 'strict',
+  });
+
+  await writer.write(new Uint8Array(16384));
+  const pending = writer.write('b');
+
+  await assert.rejects(writer.write('c'), {
+    name: 'RangeError',
+    code: 'ERR_INVALID_STATE',
+  });
+
+  writer.fail();
+  await assert.rejects(pending, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: Failed',
+  });
+}
+
 // Writev async path
 async function testWritevAsync() {
   const { writer, broadcast: bc } = broadcast({ budget: 16384 });
@@ -141,6 +163,7 @@ Promise.all([
   testDropNewest(),
   testBlockBackpressure(),
   testBlockBackpressureContent(),
+  testStrictBackpressureOverflow(),
   testWritevAsync(),
   testEndSyncReturnValue(),
 ]).then(common.mustCall());
