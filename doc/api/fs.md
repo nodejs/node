@@ -1326,6 +1326,8 @@ No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
 
+`fsPromises.copyFile()` always dereferences symlinks.
+
 ```mjs
 import { copyFile, constants } from 'node:fs/promises';
 
@@ -2835,6 +2837,8 @@ already exists. No arguments other than a possible exception are given to the
 callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
+
+`fs.copyFile()` always dereferences symlinks.
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
@@ -5975,6 +5979,8 @@ Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
 atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
+
+`fs.copyFileSync()` always dereferences symlinks.
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
