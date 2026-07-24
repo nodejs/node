@@ -194,6 +194,23 @@ function verifyHttpResponse(response) {
   }));
 }
 
+function verifyHttpResponseWithEncoding(response) {
+  assert.strictEqual(response.statusCode, 200);
+  const chunks = [];
+
+  response.setEncoding('hex');
+  response.on('data', (chunk) => {
+    chunks.push(chunk);
+  });
+
+  response.on('end', common.mustCall(() => {
+    assert.strictEqual(
+      chunks.join(''),
+      Buffer.from('\nhello world\n').toString('hex'),
+    );
+  }));
+}
+
 function drainHttpResponse(response) {
   response.resume();
 }
@@ -342,6 +359,27 @@ async function testHttpsGet() {
   await assertResponseBody(responseReceived, '\nhello world\n');
 }
 
+async function testHttpResponseBodyWithEncoding() {
+  const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
+
+  http.get({
+    host: '127.0.0.1',
+    port: httpServer.address().port,
+    path: '/hello-world',
+    headers: requestHeaders,
+  }, common.mustCall(verifyHttpResponseWithEncoding));
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  await loadingFinishedFuture;
+  await assertResponseBody(responseReceived, '\nhello world\n');
+}
+
 async function testHttpError() {
   const url = `http://${addresses.INVALID_HOST}/`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
@@ -388,6 +426,8 @@ const testNetworkInspection = async () => {
   await testHttpPostWithAbsoluteUrlPath();
   session.removeAllListeners();
   await testHttpsGet();
+  session.removeAllListeners();
+  await testHttpResponseBodyWithEncoding();
   session.removeAllListeners();
   await testHttpError();
   session.removeAllListeners();
