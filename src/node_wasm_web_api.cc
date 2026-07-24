@@ -7,8 +7,6 @@
 namespace node {
 namespace wasm_web_api {
 
-using v8::ArrayBuffer;
-using v8::ArrayBufferView;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -17,6 +15,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::Uint8Array;
 using v8::Value;
 using v8::WasmStreaming;
 
@@ -98,27 +97,15 @@ void WasmStreamingObject::Push(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   Local<Value> chunk = args[0];
 
-  // The start of the memory section backing the ArrayBuffer(View), the offset
-  // of the ArrayBuffer(View) within the memory section, and its size in bytes.
-  const void* bytes;
-  size_t offset;
-  size_t size;
-
-  if (chunk->IsArrayBufferView()) [[likely]] {
-    Local<ArrayBufferView> view = chunk.As<ArrayBufferView>();
-    bytes = view->Buffer()->Data();
-    offset = view->ByteOffset();
-    size = view->ByteLength();
-  } else if (chunk->IsArrayBuffer()) [[likely]] {
-    Local<ArrayBuffer> buffer = chunk.As<ArrayBuffer>();
-    bytes = buffer->Data();
-    offset = 0;
-    size = buffer->ByteLength();
-  } else {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
-        Environment::GetCurrent(args),
-        "chunk must be an ArrayBufferView or an ArrayBuffer");
+  if (!chunk->IsUint8Array()) [[unlikely]] {
+    return node::THROW_ERR_INVALID_ARG_TYPE(Environment::GetCurrent(args),
+                                            "chunk must be a Uint8Array");
   }
+
+  Local<Uint8Array> view = chunk.As<Uint8Array>();
+  const void* bytes = view->Buffer()->Data();
+  size_t offset = view->ByteOffset();
+  size_t size = view->ByteLength();
 
   // Forward the data to V8. Internally, V8 will make a copy.
   obj->streaming_->OnBytesReceived(static_cast<const uint8_t*>(bytes) + offset,
