@@ -706,7 +706,9 @@ added:
 
 Disable the `Object.prototype.__proto__` property. If `mode` is `delete`, the
 property is removed entirely. If `mode` is `throw`, accesses to the
-property throw an exception with the code `ERR_PROTO_ACCESS`.
+property throw an exception with the code `ERR_PROTO_ACCESS`. If `mode` is
+`warn`, accesses to the property emit a deprecation warning while preserving
+existing behavior.
 
 ### `--disable-sigusr1`
 

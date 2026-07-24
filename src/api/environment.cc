@@ -788,6 +788,48 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
   THROW_ERR_PROTO_ACCESS(info.GetIsolate());
 }
 
+void EmitProtoWarn(Isolate* isolate) {
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  if (env->options()->pending_deprecation && env->EmitProtoWarning()) {
+    if (ProcessEmitDeprecationWarning(
+        env,
+        "Object.prototype.__proto__ is deprecated and will be removed in a future"
+        " version of Node.js. Use Object.getPrototypeOf() and "
+        "Object.setPrototypeOf() instead.",
+        "DeprecationWarning").IsNothing())
+    return;
+  }
+}
+
+void ProtoGetterWarn(Local<Name> property,
+                       const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  EmitProtoWarn(isolate);
+
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Value> receiver = info.This();
+
+  Local<Value> prototype;
+  if (!receiver->ToObject(context).ToLocalChecked()
+           ->GetPrototypeV2()
+           .ToLocal(&prototype)) {
+    return;
+  }
+
+  info.GetReturnValue().Set(prototype);
+}
+
+void ProtoSetterWarn(Local<Name> property,
+                       Local<Value> value,
+                       const PropertyCallbackInfo<void>& info) {
+  Isolate* isolate = info.GetIsolate();
+  EmitProtoWarn(isolate);
+
+  Local<Context> context = isolate->GetCurrentContext();
+  USE(info.This()->SetPrototypeV2(context, value));
+}
+
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 Maybe<void> InitializeContextRuntime(Local<Context> context) {
@@ -854,6 +896,15 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
     }
 
     PropertyDescriptor descriptor(thrower, thrower);
+    descriptor.set_enumerable(false);
+    descriptor.set_configurable(true);
+    if (prototype
+        ->DefineProperty(context, proto_string, descriptor)
+        .IsNothing()) {
+      return Nothing<void>();
+    }
+  } else if (per_process::cli_options->disable_proto == "warn") {
+    PropertyDescriptor descriptor(ProtoGetterWarn, ProtoSetterWarn);
     descriptor.set_enumerable(false);
     descriptor.set_configurable(true);
     if (prototype
