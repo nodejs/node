@@ -6036,6 +6036,11 @@ _RE_PATTERN_CONST_REF_PARAM = (
 )
 # Stream types.
 _RE_PATTERN_REF_STREAM_PARAM = r"(?:.*stream\s*&\s*" + _RE_PATTERN_IDENT + r")"
+# V8 Fast API types whose signatures are dictated by V8 and require a
+# non-const reference parameter; Node.js cannot change these.
+_RE_PATTERN_REF_V8_FAST_API_PARAM = (
+    r"(?:.*\b(?:v8::)?FastApiCallbackOptions\s*&\s*" + _RE_PATTERN_IDENT + r")"
+)
 
 
 def CheckLanguage(
@@ -6585,8 +6590,10 @@ def CheckForNonConstReference(filename, clean_lines, linenum, nesting_state, err
 
     decls = re.sub(r"{[^}]*}", " ", line)  # exclude function body
     for parameter in re.findall(_RE_PATTERN_REF_PARAM, decls):
-        if not re.match(_RE_PATTERN_CONST_REF_PARAM, parameter) and not re.match(
-            _RE_PATTERN_REF_STREAM_PARAM, parameter
+        if (
+            not re.match(_RE_PATTERN_CONST_REF_PARAM, parameter)
+            and not re.match(_RE_PATTERN_REF_STREAM_PARAM, parameter)
+            and not re.match(_RE_PATTERN_REF_V8_FAST_API_PARAM, parameter)
         ):
             error(
                 filename,
