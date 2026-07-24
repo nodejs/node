@@ -80,6 +80,33 @@ suite('data binding and mapping', () => {
       text: '',
       buf: new Uint8Array(),
     });
+
+    const nulls = { int: null, double: null, text: null, buf: null };
+    const undefObj = {
+        int: undefined,
+        double: undefined,
+        text: undefined,
+        buf: undefined,
+    };
+    const insertAnon = db.prepare('INSERT INTO types VALUES (?, ?, ?, ?, ?)');
+    const insertNamed = db.prepare(
+        'INSERT INTO types VALUES ($key, $int, $double, $text, $buf)'
+    );
+    t.assert.deepStrictEqual(
+        insertAnon.run(6, undefined, undefined, undefined, undefined),
+        { lastInsertRowid: 6, changes: 1 },
+    );
+    t.assert.deepStrictEqual(
+        insertNamed.run({ key: 7, ...undefObj }),
+        { lastInsertRowid: 7, changes: 1 },
+    );
+    t.assert.deepStrictEqual(
+        insertNamed.run({ key: 8 }),
+        { lastInsertRowid: 8, changes: 1 },
+    );
+    t.assert.deepStrictEqual(query.get(6), { __proto__: null, key: 6, ...nulls });
+    t.assert.deepStrictEqual(query.get(7), { __proto__: null, key: 7, ...nulls });
+    t.assert.deepStrictEqual(query.get(8), { __proto__: null, key: 8, ...nulls });
   });
 
   test('large strings are bound correctly', (t) => {
@@ -126,7 +153,6 @@ suite('data binding and mapping', () => {
     t.assert.strictEqual(setup, undefined);
 
     [
-      undefined,
       () => {},
       Symbol(),
       /foo/,
