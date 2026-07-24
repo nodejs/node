@@ -185,6 +185,7 @@ class SyncProcessRunner {
                           bool writable,
                           uv_buf_t input_buffer);
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
+  inline int AddStdioInheritStream(uint32_t child_fd, uv_stream_t* stream);
 
   static bool IsSet(v8::Local<v8::Value> value);
   v8::Maybe<int> CopyJsString(v8::Local<v8::Value> js_value,

@@ -65,3 +65,37 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
   ];
   assert.deepStrictEqual(retUTF8.output, stringifiedDefault);
 }
+
+{
+  // Verify support for stdio.wrap via using another child process stream.
+  // This is the same logic as in ch_sy.js, expressed as a deterministic test.
+  if (common.isWindows) {
+    common.skip('Not applicable on Windows');
+  }
+
+  const { spawn } = require('child_process');
+  const childA = spawn(
+    process.execPath,
+    ['-e', 'process.stdin.pipe(process.stdout);'],
+    { stdio: ['pipe', 'pipe', 'ignore'] }
+  );
+
+  let collected = '';
+  childA.stdout.setEncoding('utf8');
+  childA.stdout.on('data', (chunk) => { collected += chunk; });
+
+  childA.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+    assert.strictEqual(collected, 'hi');
+  }));
+
+  const result = spawnSync(
+    process.execPath,
+    ['-e', 'process.stdout.write("hi")'],
+    { stdio: ['inherit', childA.stdin, 'inherit'] }
+  );
+
+  assert.strictEqual(result.status, 0);
+  // Explicitly close the wrapped stream on the parent side so childA receives EOF.
+  childA.stdin.end();
+}
