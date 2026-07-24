@@ -869,5 +869,125 @@ async function tests() {
   }));
 }
 
+{
+  // Thenable chunks are awaited before delivery.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    r.push(Promise.resolve('unwrapped'));
+    r.push(null);
+
+    const it = r[Symbol.asyncIterator]();
+    const { value, done } = await it.next();
+    assert.strictEqual(done, false);
+    assert.strictEqual(value, 'unwrapped');
+  })().then(common.mustCall());
+}
+
+{
+  // A rejected thenable chunk tears down the iterator and the stream.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    const rejected = Promise.reject(new Error('kaboom'));
+    rejected.catch(() => {});
+    r.push(rejected);
+    r.push(null);
+
+    const it = r[Symbol.asyncIterator]();
+    await assert.rejects(it.next(), { message: 'kaboom' });
+    assert.strictEqual((await it.next()).done, true);
+    assert.strictEqual(r.destroyed, true);
+  })().then(common.mustCall());
+}
+
+{
+  // throw() rejects with the passed error, destroys the stream and
+  // completes the iterator.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    r.push('a');
+
+    const it = r[Symbol.asyncIterator]();
+    assert.strictEqual((await it.next()).value, 'a');
+    await assert.rejects(it.throw(new Error('kaboom')), { message: 'kaboom' });
+    assert.strictEqual(r.destroyed, true);
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
+{
+  // throw() before the first next() completes the iterator without
+  // touching the stream.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+    await assert.rejects(it.throw(new Error('kaboom')), { message: 'kaboom' });
+    assert.strictEqual(r.destroyed, false);
+    assert.strictEqual(r.listenerCount('readable'), 0);
+    assert.strictEqual((await it.next()).done, true);
+    r.destroy();
+  })().then(common.mustCall());
+}
+
+{
+  // Concurrent next() calls while waiting for data are served in order.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+
+    const p1 = it.next();
+    const p2 = it.next();
+    r.push('a');
+    r.push('b');
+    r.push(null);
+
+    assert.strictEqual((await p1).value, 'a');
+    assert.strictEqual((await p2).value, 'b');
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
+{
+  // return() while a next() is pending is processed after the pending
+  // next() settles, and destroys the stream.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+
+    const p1 = it.next();
+    const p2 = it.return();
+    r.push('a');
+
+    assert.strictEqual((await p1).value, 'a');
+    assert.deepStrictEqual(await p2, { done: true, value: undefined });
+    assert.strictEqual(r.destroyed, true);
+  })().then(common.mustCall());
+}
+
+{
+  // Draining a large number of queued next() calls must not overflow
+  // the call stack.
+  // Refs: https://github.com/nodejs/node/pull/64447#discussion_r3566240419
+  (async () => {
+    const count = 20_000;
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+
+    const requests = [];
+    for (let i = 0; i < count; i++) {
+      requests.push(it.next());
+    }
+    for (let i = 0; i < count; i++) {
+      r.push(i);
+    }
+    r.push(null);
+
+    const results = await Promise.all(requests);
+    for (let i = 0; i < count; i++) {
+      assert.deepStrictEqual(results[i], { done: false, value: i });
+    }
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
 // To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());
