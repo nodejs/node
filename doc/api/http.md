@@ -208,7 +208,9 @@ changes:
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
   * `proxyEnv` {Object|undefined} Environment variables for proxy configuration.
-    See [Built-in Proxy Support][] for details. **Default:** `undefined`
+    See [Built-in Proxy Support][] for details. **Default:** `undefined`; when
+    Node.js is configured to use the environment proxy, defaults to `process.env`
+    unless a falsy value (such as `null`) is passed to opt out.
     * `HTTP_PROXY` {string|undefined} URL for the proxy server that HTTP requests should use.
       If undefined, no proxy is used for HTTP requests.
     * `HTTPS_PROXY` {string|undefined} URL for the proxy server that HTTPS requests should use.
@@ -4554,12 +4556,22 @@ When Node.js creates the global agent, if the `NODE_USE_ENV_PROXY` environment v
 set to `1` or `--use-env-proxy` is enabled, the global agent will be constructed
 with `proxyEnv: process.env`, enabling proxy support based on the environment variables.
 
+The same fallback applies to any agent constructed without an explicit `proxyEnv`
+option, not just the global agent. To opt a specific agent out, pass a falsy
+`proxyEnv` value such as `null`:
+
+```js
+// Never uses the environment proxy, regardless of --use-env-proxy or NODE_USE_ENV_PROXY.
+const agent = new Agent({ proxyEnv: null });
+```
+
 To enable proxy support dynamically and globally, use [`http.setGlobalProxyFromEnv()`][].
 
 Custom agents can also be created with proxy support by passing a
 `proxyEnv` option when constructing the agent. The value can be `process.env`
 if they just want to inherit the configuration from the environment variables,
-or an object with specific setting overriding the environment.
+or an object with specific setting overriding the environment, or null
+to explicitly disable proxy support.
 
 The following properties of the `proxyEnv` are checked to configure proxy
 support.
