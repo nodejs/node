@@ -95,3 +95,41 @@ test('fast FFI string buffers survive reentrant callbacks', {
     lib.close();
   }
 });
+
+test('optimized buffer signatures preserve pointer-like conversions', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const asBuffer = lib.getFunction('pointer_to_usize', {
+    arguments: ['buffer'],
+    return: 'u64',
+  });
+  const asArrayBuffer = lib.getFunction('pointer_to_usize', {
+    arguments: ['arraybuffer'],
+    return: 'u64',
+  });
+
+  function callBuffer(value) {
+    return asBuffer(value);
+  }
+
+  function callArrayBuffer(value) {
+    return asArrayBuffer(value);
+  }
+
+  try {
+    for (let i = 0; i < 100_000; i++) {
+      assert.strictEqual(callBuffer(0n), 0n);
+      assert.strictEqual(callArrayBuffer(0n), 0n);
+    }
+
+    for (const call of [callBuffer, callArrayBuffer]) {
+      assert.strictEqual(call(null), 0n);
+      assert.strictEqual(call(undefined), 0n);
+      assert.notStrictEqual(call('ffi'), 0n);
+
+      const bytes = Buffer.alloc(1);
+      assert.strictEqual(call(bytes), ffi.getRawPointer(bytes));
+    }
+  } finally {
+    lib.close();
+  }
+});

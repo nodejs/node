@@ -61,6 +61,8 @@ bool SignatureNeedsRawPointerConversions(const FFIFunction& fn);
 bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn);
 bool IsPointerTypeName(const std::string& name);
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn);
+std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
+    const std::shared_ptr<FFIFunction>& fn);
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
     const std::shared_ptr<FFIFunction>& fn);
 std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn);
