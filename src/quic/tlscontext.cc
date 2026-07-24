@@ -3,6 +3,7 @@
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_tls_context.h>
 #include <crypto/crypto_util.h>
 #include <debug_utils-inl.h>
 #include <env-inl.h>
@@ -32,7 +33,6 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
-using ncrypto::X509Pointer;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
@@ -528,12 +528,6 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
-  // Only load system CA certificates if no custom CAs are provided.
-  // SSL_CTX_set_default_verify_paths involves filesystem I/O to read
-  // the system CA bundle.
-  if (options_.ca.empty()) {
-    SSL_CTX_set_default_verify_paths(ctx.get());
-  }
   if (options_.keylog) {
     SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
   }
@@ -551,30 +545,16 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   {
     ClearErrorOnReturn clear_error_on_return;
     if (options_.ca.empty()) {
-      auto store = crypto::GetOrCreateRootCertStore(env);
-      X509_STORE_up_ref(store);
-      SSL_CTX_set_cert_store(ctx.get(), store);
+      crypto::UseDefaultRootCertStore(env, ctx.get());
     } else {
       for (const auto& ca : options_.ca) {
         uv_buf_t buf = ca;
         if (buf.len == 0) {
-          auto store = crypto::GetOrCreateRootCertStore(env);
-          X509_STORE_up_ref(store);
-          SSL_CTX_set_cert_store(ctx.get(), store);
+          crypto::UseDefaultRootCertStore(env, ctx.get());
         } else {
           BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
           CHECK(bio);
-          X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-          while (
-              auto x509 = X509Pointer(PEM_read_bio_X509_AUX(
-                  bio.get(), nullptr, crypto::NoPasswordCallback, nullptr))) {
-            if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-              cert_store = crypto::NewRootCertStore(env);
-              SSL_CTX_set_cert_store(ctx.get(), cert_store);
-            }
-            CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
-            CHECK_EQ(1, SSL_CTX_add_client_CA(ctx.get(), x509.get()));
-          }
+          crypto::AddCACertificates(env, ctx.get(), bio);
         }
       }
     }
@@ -643,11 +623,7 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   {
     ClearErrorOnReturn clear_error_on_return;
     for (const auto& key : options_.keys) {
-      if (key.GetKeyType() != crypto::KeyType::kKeyTypePrivate) {
-        validation_error_ = "Invalid key";
-        return SSLCtxPointer();
-      }
-      if (!SSL_CTX_use_PrivateKey(ctx.get(), key.GetAsymmetricKey().get())) {
+      if (!crypto::UsePrivateKey(ctx.get(), key)) {
         validation_error_ = "Invalid key";
         return SSLCtxPointer();
       }
@@ -659,25 +635,10 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     for (const auto& crl : options_.crl) {
       uv_buf_t buf = crl;
       BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
-      DeleteFnPtr<X509_CRL, X509_CRL_free> crlptr(PEM_read_bio_X509_CRL(
-          bio.get(), nullptr, crypto::NoPasswordCallback, nullptr));
-
-      if (!crlptr) {
+      if (!crypto::AddCRL(env, ctx.get(), bio)) {
         validation_error_ = "Invalid CRL";
         return SSLCtxPointer();
       }
-
-      X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-      if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-        cert_store = crypto::NewRootCertStore(env);
-        SSL_CTX_set_cert_store(ctx.get(), cert_store);
-      }
-
-      CHECK_EQ(1, X509_STORE_add_crl(cert_store, crlptr.get()));
-      CHECK_EQ(
-          1,
-          X509_STORE_set_flags(
-              cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
     }
   }
 
