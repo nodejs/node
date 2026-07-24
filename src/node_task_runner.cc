@@ -249,6 +249,27 @@ FindPackageJson(const std::filesystem::path& cwd) {
   return {{package_json_path, raw_content, path_env_var}};
 }
 
+// Prints every "name: command" pair in the scripts object to the given stream.
+static void PrintScripts(FILE* out,
+                         simdjson::ondemand::object& scripts_object) {
+  // Reset the object to iterate from the beginning, in case it was read before.
+  scripts_object.reset();
+  simdjson::ondemand::value value;
+  for (auto field : scripts_object) {
+    std::string_view key_str;
+    std::string_view value_str;
+    if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+        !value.get_string().get(value_str)) {
+      fprintf(out,
+              "  %.*s: %.*s\n",
+              static_cast<int>(key_str.size()),
+              key_str.data(),
+              static_cast<int>(value_str.size()),
+              value_str.data());
+    }
+  }
+}
+
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
@@ -300,6 +321,15 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     return;
   }
 
+  // With no command (e.g. bare `node --run`), list the available scripts to
+  // stdout and exit successfully, mirroring `npm run`.
+  if (command_id.empty()) {
+    fprintf(stdout, "Available scripts are:\n");
+    PrintScripts(stdout, scripts_object);
+    result->exit_code_ = ExitCode::kNoFailure;
+    return;
+  }
+
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
   if (auto command_error =
@@ -317,23 +347,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
               command_id.data(),
               path.string().c_str());
       fprintf(stderr, "Available scripts are:\n");
-
-      // Reset the object to iterate over it again
-      scripts_object.reset();
-      simdjson::ondemand::value value;
-      for (auto field : scripts_object) {
-        std::string_view key_str;
-        std::string_view value_str;
-        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-            !value.get_string().get(value_str)) {
-          fprintf(stderr,
-                  "  %.*s: %.*s\n",
-                  static_cast<int>(key_str.size()),
-                  key_str.data(),
-                  static_cast<int>(value_str.size()),
-                  value_str.data());
-        }
-      }
+      PrintScripts(stderr, scripts_object);
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
