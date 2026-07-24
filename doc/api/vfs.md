@@ -486,6 +486,5 @@ fields use synthetic but stable values:
 [`fs.BigIntStats`]: fs.md#class-fsbigintstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md
-[`os.devNull`]: os.md#osdevnull
 [`vfs.mount()`]: #vfsmount
 [`vfs.unmount()`]: #vfsunmount
