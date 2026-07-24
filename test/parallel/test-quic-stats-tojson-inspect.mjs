@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { inspect } from 'node:util';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -21,12 +19,12 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   // Session stats toJSON and inspect.
   const sessionStatsJson = serverSession.stats.toJSON();
-  ok(sessionStatsJson);
-  strictEqual(typeof sessionStatsJson.createdAt, 'string');
-  strictEqual(typeof sessionStatsJson.bytesSent, 'string');
+  assert.ok(sessionStatsJson);
+  assert.strictEqual(typeof sessionStatsJson.createdAt, 'string');
+  assert.strictEqual(typeof sessionStatsJson.bytesSent, 'string');
 
   const sessionStatsInspect = inspect(serverSession.stats);
-  ok(sessionStatsInspect.includes('QuicSessionStats'));
+  assert.ok(sessionStatsInspect.includes('QuicSessionStats'));
 
   serverSession.onstream = mustCall(async (stream) => {
     for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
@@ -39,22 +37,22 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
 // Endpoint stats toJSON and inspect.
 const endpointStatsJson = serverEndpoint.stats.toJSON();
-ok(endpointStatsJson);
-strictEqual(typeof endpointStatsJson.createdAt, 'string');
+assert.ok(endpointStatsJson);
+assert.strictEqual(typeof endpointStatsJson.createdAt, 'string');
 
 const endpointStatsInspect = inspect(serverEndpoint.stats);
-ok(endpointStatsInspect.includes('QuicEndpointStats'));
+assert.ok(endpointStatsInspect.includes('QuicEndpointStats'));
 
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Client session stats.
 const clientStatsJson = clientSession.stats.toJSON();
-ok(clientStatsJson);
-strictEqual(typeof clientStatsJson.createdAt, 'string');
+assert.ok(clientStatsJson);
+assert.strictEqual(typeof clientStatsJson.createdAt, 'string');
 
 const clientStatsInspect = inspect(clientSession.stats);
-ok(clientStatsInspect.includes('QuicSessionStats'));
+assert.ok(clientStatsInspect.includes('QuicSessionStats'));
 
 const stream = await clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('test'),

@@ -117,6 +117,10 @@ export default [
           selector: 'CallExpression:matches([callee.type="Identifier"][callee.name="assert"], [callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"])[arguments.0.type="UnaryExpression"][arguments.0.operator="!"][arguments.0.argument.type="CallExpression"][arguments.0.argument.callee.type="MemberExpression"][arguments.0.argument.callee.object.regex][arguments.0.argument.callee.property.name="test"]',
           message: 'Use assert.doesNotMatch instead',
         },
+        {
+          selector: 'VariableDeclarator[init.type="Identifier"][init.name=/^(assert|fixtures)$/]',
+          message: 'Do not destructure or rename `assert` nor `fixtures`',
+        },
         ...((fixturesSpecifier) => [
           {
             selector: `ImportDeclaration[source.value=${fixturesSpecifier.toString().replace('(\\.js)?', '\\.mjs')}]:not(${[

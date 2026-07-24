@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -45,7 +43,7 @@ const s1 = await clientSession.createUnidirectionalStream({
 const s2 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 2'),
 });
-strictEqual(s2.pending, true);
+assert.strictEqual(s2.pending, true);
 
 // Wait for both to complete.
 await s1.closed;

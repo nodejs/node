@@ -6,8 +6,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,7 +26,7 @@ const clientSession = await connect(serverEndpoint.address, {
     throw testError;
   },
   onerror: mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   }),
 });
 await clientSession.opened;
@@ -37,5 +35,5 @@ await clientSession.opened;
 await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
 
 // The session's closed should reject with the error from the throw.
-await rejects(clientSession.closed, testError);
+await assert.rejects(clientSession.closed, testError);
 await serverEndpoint.close();

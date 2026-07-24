@@ -10,8 +10,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -30,11 +28,11 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     if (idx === 0) {
       // Promise<string> resolved to string data.
       const received = await text(stream);
-      strictEqual(received, 'resolved string');
+      assert.strictEqual(received, 'resolved string');
     } else if (idx === 1) {
       // Promise<null> closes the writable side.
       const received = await bytes(stream);
-      strictEqual(received.byteLength, 0);
+      assert.strictEqual(received.byteLength, 0);
     }
 
     stream.writer.endSync();

@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,12 +24,12 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 const clientSession = await connect(serverEndpoint.address, {
   transportParams,
   onerror: mustCall((err) => {
-    strictEqual(err, testError);
+    assert.strictEqual(err, testError);
   }),
 });
 await clientSession.opened;
 
 clientSession.destroy(testError);
 
-await rejects(clientSession.closed, testError);
+await assert.rejects(clientSession.closed, testError);
 await serverEndpoint.close();

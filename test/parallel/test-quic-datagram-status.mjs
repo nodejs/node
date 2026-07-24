@@ -9,9 +9,6 @@ import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 const { setTimeout } = await import('node:timers/promises');
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,8 +16,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverGot = Promise.withResolvers();
 const statusReceived = Promise.withResolvers();
@@ -48,9 +45,9 @@ const clientSession = await connect(serverEndpoint.address, {
   verifyPeer: 'manual',
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagramstatus: mustCall((id, status) => {
-    strictEqual(typeof id, 'bigint');
-    strictEqual(typeof status, 'string');
-    ok(
+    assert.strictEqual(typeof id, 'bigint');
+    assert.strictEqual(typeof status, 'string');
+    assert.ok(
       status === 'acknowledged' || status === 'lost' || status === 'abandoned',
       `status should be 'acknowledged', 'lost', or 'abandoned', got '${status}'`,
     );
@@ -68,9 +65,9 @@ const id = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
 await Promise.all([serverGot.promise, statusReceived.promise]);
 
 // The status callback should have been called with the same ID.
-strictEqual(statusId, id);
+assert.strictEqual(statusId, id);
 // On localhost the datagram should be acknowledged, not lost.
-strictEqual(statusValue, 'acknowledged');
+assert.strictEqual(statusValue, 'acknowledged');
 
 await clientSession.closed;
 

@@ -14,9 +14,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import * as fixtures from '../common/fixtures.mjs';
-const { readKey } = fixtures;
-
-const { ok, strictEqual, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -26,15 +23,15 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // quic.session.goaway fires when the peer sends GOAWAY.
 dc.subscribe('quic.session.goaway', mustCall((msg) => {
-  ok(msg.session, 'goaway should include session');
-  strictEqual(typeof msg.lastStreamId, 'bigint', 'goaway should include lastStreamId');
+  assert.ok(msg.session, 'goaway should include session');
+  assert.strictEqual(typeof msg.lastStreamId, 'bigint'); // `goaway` should include lastStreamId
 }));
 
 {
@@ -74,14 +71,14 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     verifyPeer: 'manual',
     // Ongoaway fires when the peer sends GOAWAY.
     ongoaway: mustCall(function(lastStreamId) {
-      strictEqual(lastStreamId, -1n);
+      assert.strictEqual(lastStreamId, -1n);
       goawayReceived.resolve();
     }),
   });
   await clientSession.opened;
 
   const onClientHeaders = mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers[':status'], '200');
     if (++clientHeaderCount === 2) {
       bothHeadersReceived.resolve();
     }
@@ -109,7 +106,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   // First stream completes immediately.
   const body1 = await bytes(stream1);
-  strictEqual(decoder.decode(body1), 'first');
+  assert.strictEqual(decoder.decode(body1), 'first');
 
   // Wait for both streams' headers to arrive on the client, confirming
   // the server has processed both requests.
@@ -124,7 +121,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
   await goawayReceived.promise;
 
   // After GOAWAY, new stream creation should fail.
-  await rejects(
+  await assert.rejects(
     clientSession.createBidirectionalStream({
       headers: {
         ':method': 'GET',
@@ -141,7 +138,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   // Second stream also completes despite GOAWAY.
   const body2 = await bytes(stream2);
-  strictEqual(decoder.decode(body2), 'second');
+  assert.strictEqual(decoder.decode(body2), 'second');
 
   // Both streams close cleanly.
   await Promise.all([stream1.closed, stream2.closed]);
