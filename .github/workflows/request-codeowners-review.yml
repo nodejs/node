@@ -1,0 +1,31 @@
+name: Request Codeowner Reviews
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  request-reviews:
+    name: Request Codeowner Reviews
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to request reviews and post comments
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Request Codeowner Reviews
+        uses: pkgjs/request-codeowner-review@d39b61c5e1399655dce6287b3b119af93dee235a # v1.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          output-mode: comment
