@@ -293,13 +293,35 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 ## Module loader integration
 
 Once a `VirtualFileSystem` is mounted, paths under the mount point
-participate in module resolution and loading. Both
-`require()` / `require.resolve()` (CommonJS) and `import` /
-`import.meta.resolve()` (ECMAScript modules) consult the VFS through
-the same toggleable hooks that `node:fs` uses, so files served from
-the VFS are first-class modules: `package.json` is honoured,
-extensionless files are sniffed for Wasm vs. JavaScript, conditional
-`exports` / `imports` work, and so on.
+participate in module resolution and loading. The [CommonJS
+resolution algorithm][] used by [`require()`][] and
+[`require.resolve()`][] and the [ES modules resolution algorithm][]
+used by `import` and [`import.meta.resolve()`][] are unchanged;
+instead, every file system operation those algorithms perform
+(existence probes, file reads, `package.json` lookups, real-path
+resolution) is dispatched on the path being probed: paths under a
+mount point are served by the owning VFS, and all other paths are
+served by the real file system. Files served from the VFS therefore
+behave as first-class modules: `package.json` is honoured,
+conditional [`"exports"`][] / [`"imports"`][] work, and so on.
+
+Because mounted paths live in a reserved namespace that cannot exist
+on disk, any given path is served either by exactly one VFS or by
+the real file system, never both. There is no search order or
+fallback between the two: if a path under a mount point does not
+exist in the VFS, resolution fails with `ENOENT` without consulting
+the disk, and a mounted layer never shadows a real directory.
+
+For resolution purposes the mount point behaves as a file system
+root: `package.json` scope lookups (for [`"type"`][],
+[`"exports"`][], [`"imports"`][], and the CommonJS directory
+[`"main"`][]) and [loading from `node_modules` folders][] stop at
+the mount point instead of continuing into the real file system
+([the global folders][], such as `NODE_PATH`, are legacy CommonJS
+behavior and still apply to `require()`). Absolute specifiers may
+cross the boundary in either direction: a module on the real file
+system can `require()` a mounted path, and a virtual module can
+`require()` a real one.
 
 ```cjs
 const vfs = require('node:vfs');
@@ -361,9 +383,6 @@ the caller's responsibility to avoid.
 added: v26.4.0
 -->
 
-The base class for all VFS providers. Subclasses implement the essential
-primitives (`open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
-`rename`, ...) and inherit default implementations of the derived
 The base class for all VFS providers. Subclasses implement the essential
 primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, etc.) and inherit default implementations of the derived
@@ -478,13 +497,24 @@ fields use synthetic but stable values:
 * `blocks` is `Math.ceil(size / 512)`.
 * Times default to the moment the entry was created/last modified.
 
+[CommonJS resolution algorithm]: modules.md#all-together
+[ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
+[`"exports"`]: packages.md#exports
+[`"imports"`]: packages.md#imports
+[`"main"`]: packages.md#main
+[`"type"`]: packages.md#type
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
 [`fs.BigIntStats`]: fs.md#class-fsbigintstats
 [`fs.Stats`]: fs.md#class-fsstats
+[`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
 [`node:fs`]: fs.md
+[`require()`]: modules.md#requireid
+[`require.resolve()`]: modules.md#requireresolverequest-options
 [`vfs.mount()`]: #vfsmount
 [`vfs.unmount()`]: #vfsunmount
+[loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
+[the global folders]: modules.md#loading-from-the-global-folders
