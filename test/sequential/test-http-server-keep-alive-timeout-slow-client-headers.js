@@ -10,6 +10,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 }, 2));
 
 server.keepAliveTimeout = common.platformTimeout(100);
+server.keepAliveTimeoutBuffer = common.platformTimeout(1000);
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
