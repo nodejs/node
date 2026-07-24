@@ -125,13 +125,10 @@ After mounting, files in the VFS can be accessed through the
 `node:fs` module and resolved through `require()` and `import`
 using paths under the returned mount point.
 
-Mount points always live inside a reserved namespace,
-`${os.devNull}/vfs/<layerId>`. Because [`os.devNull`][] is a
-character device (POSIX) or a device-namespace path (Windows) that
-cannot have child file system entries, no real file-system path can
-exist under this namespace: virtual paths never conflate with (or
-shadow) real paths, and the layer that owns a path is visible in the
-path itself.
+Mount points always live inside a reserved namespace that cannot have child file system entries,
+so virtual paths never conflate with (or shadow) real paths. The virtual path scheme is subject to
+change and users should not manually construct them based on assumptions. Instead, obtain
+them from what `vfs.mount()` returns or `vfs.mountPoint`.
 
 ```cjs
 const vfs = require('node:vfs');
