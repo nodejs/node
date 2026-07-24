@@ -4058,3 +4058,27 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
   delete Error[Symbol.hasInstance];
 }
+
+// Test that errors respect the depth option, same as other objects.
+{
+  // At depth: -1, errors should be abbreviated like [Object] for plain objects.
+  assert.strictEqual(inspect(new Error('msg'), { depth: -1 }), '[Error: msg]');
+  assert.strictEqual(inspect(new TypeError('bad'), { depth: -1 }), '[TypeError: bad]');
+  assert.strictEqual(inspect(new RangeError('oob'), { depth: -1 }), '[RangeError: oob]');
+
+  // No message → just [ErrorName]
+  assert.strictEqual(inspect(new Error(), { depth: -1 }), '[Error]');
+
+  // Custom name property
+  const customErr = new Error('test');
+  customErr.name = 'MyError';
+  assert.strictEqual(inspect(customErr, { depth: -1 }), '[MyError: test]');
+
+  // Errors nested inside an object at depth: 0 should be abbreviated,
+  // just as nested plain objects are shown as [Object].
+  const wrapper = { err: new TypeError('oops'), obj: { a: 1 } };
+  const result = inspect(wrapper, { depth: 0 });
+  assert.match(result, /\[TypeError: oops\]/);
+  assert.match(result, /\[Object\]/);
+  assert(!result.includes('    at '), 'stack trace should not appear at depth 0');
+}
