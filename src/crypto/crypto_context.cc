@@ -27,6 +27,7 @@
 #include <wincrypt.h>
 #endif
 
+#include <climits>
 #include <set>
 
 namespace node {
@@ -74,6 +75,11 @@ using v8::String;
 using v8::Value;
 
 namespace crypto {
+using X509StorePointer =
+    std::unique_ptr<X509_STORE, decltype(&X509_STORE_free)>;
+using X509StoreCtxPointer =
+    std::unique_ptr<X509_STORE_CTX, decltype(&X509_STORE_CTX_free)>;
+
 static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
@@ -839,6 +845,33 @@ static void LoadCertsFromDir(std::vector<X509*>* certs,
   }
 }
 
+static void LoadCertsFromOpenSSLDirs(std::vector<X509*>* certs,
+                                     std::string_view cert_dirs) {
+#ifdef _WIN32
+  static constexpr char kOpenSSLDirSeparator = ';';
+#elif defined(__VMS)
+  static constexpr char kOpenSSLDirSeparator = ',';
+#else
+  static constexpr char kOpenSSLDirSeparator = ':';
+#endif
+
+  size_t start = 0;
+  while (start <= cert_dirs.size()) {
+    size_t end = cert_dirs.find(kOpenSSLDirSeparator, start);
+    if (end == std::string_view::npos) {
+      end = cert_dirs.size();
+    }
+    if (end > start) {
+      std::string cert_dir(cert_dirs.substr(start, end - start));
+      LoadCertsFromDir(certs, cert_dir);
+    }
+    if (end == cert_dirs.size()) {
+      break;
+    }
+    start = end + 1;
+  }
+}
+
 // Loads CA certificates from the default certificate paths respected by
 // OpenSSL.
 void GetOpenSSLSystemCertificates(std::vector<X509*>* system_store_certs) {
@@ -863,7 +896,7 @@ void GetOpenSSLSystemCertificates(std::vector<X509*>* system_store_certs) {
   }
 
   if (!cert_dir.empty()) {
-    LoadCertsFromDir(system_store_certs, cert_dir.c_str());
+    LoadCertsFromOpenSSLDirs(system_store_certs, cert_dir);
   }
 }
 
@@ -1330,6 +1363,88 @@ void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static X509StorePointer NewOpenSSLDefaultCertificateStore(Environment* env) {
+  X509StorePointer store(X509_STORE_new(), X509_STORE_free);
+  if (!store) {
+    ThrowCryptoError(env, ERR_get_error(), "X509_STORE_new");
+    return {nullptr, X509_STORE_free};
+  }
+
+  if (X509_STORE_set_default_paths(store.get()) != 1) {
+    ThrowCryptoError(env, ERR_get_error(), "X509_STORE_set_default_paths");
+    return {nullptr, X509_STORE_free};
+  }
+
+  return store;
+}
+
+static MaybeLocal<Array> LookupCACertificatesByIssuer(Environment* env,
+                                                      X509_STORE* store,
+                                                      X509* cert) {
+  ClearErrorOnReturn clear_error_on_return;
+  X509StoreCtxPointer store_ctx(X509_STORE_CTX_new(), X509_STORE_CTX_free);
+  if (!store_ctx) {
+    ThrowCryptoError(env, ERR_get_error(), "X509_STORE_CTX_new");
+    return MaybeLocal<Array>();
+  }
+
+  if (X509_STORE_CTX_init(store_ctx.get(), store, cert, nullptr) != 1) {
+    ThrowCryptoError(env, ERR_get_error(), "X509_STORE_CTX_init");
+    return MaybeLocal<Array>();
+  }
+
+  X509* issuer = nullptr;
+  int ret = X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert);
+  if (ret < 0) {
+    ThrowCryptoError(env, ERR_get_error(), "X509_STORE_CTX_get1_issuer");
+    return MaybeLocal<Array>();
+  }
+
+  if (ret == 0) {
+    return Array::New(env->isolate());
+  }
+
+  auto cleanup_issuer = OnScopeLeave([issuer]() { X509_free(issuer); });
+  std::vector<X509*> certs{issuer};
+  return X509sToArrayOfStrings(env, certs.begin(), certs.end(), certs.size());
+}
+
+static void LookupCACertificates(const FunctionCallbackInfo<Value>& args,
+                                 X509StorePointer store) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString() || args[0]->IsArrayBufferView());
+
+  ByteSource input = ByteSource::FromStringOrBuffer(env, args[0]);
+  auto parsed_cert = X509Pointer::Parse(ncrypto::Buffer<const unsigned char>{
+      .data = input.data<unsigned char>(),
+      .len = input.size(),
+  });
+  Local<Array> results;
+  if (parsed_cert.value) {
+    if (LookupCACertificatesByIssuer(env, store.get(), parsed_cert.value.get())
+            .ToLocal(&results)) {
+      args.GetReturnValue().Set(results);
+    }
+    return;
+  }
+
+  return THROW_ERR_INVALID_ARG_VALUE(
+      env, "The \"cert\" argument must be a valid X.509 certificate");
+}
+
+void LookupDefaultCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509StorePointer store(NewRootCertStore(env), X509_STORE_free);
+  LookupCACertificates(args, std::move(store));
+}
+
+void LookupOpenSSLCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509StorePointer store = NewOpenSSLDefaultCertificateStore(env);
+  if (!store) return;
+  LookupCACertificates(args, std::move(store));
+}
+
 void GetExtraCACertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (extra_root_certs_file.empty()) {
@@ -1434,6 +1549,14 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                         GetBundledRootCertificates);
   SetMethodNoSideEffect(
       context, target, "getSystemCACertificates", GetSystemCACertificates);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "lookupDefaultCACertificates",
+                        LookupDefaultCACertificates);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "lookupOpenSSLCACertificates",
+                        LookupOpenSSLCACertificates);
   SetMethodNoSideEffect(
       context, target, "getExtraCACertificates", GetExtraCACertificates);
   SetMethod(context, target, "resetRootCertStore", ResetRootCertStore);
@@ -1489,6 +1612,8 @@ void SecureContext::RegisterExternalReferences(
 
   registry->Register(GetBundledRootCertificates);
   registry->Register(GetSystemCACertificates);
+  registry->Register(LookupDefaultCACertificates);
+  registry->Register(LookupOpenSSLCACertificates);
   registry->Register(GetExtraCACertificates);
   registry->Register(ResetRootCertStore);
   registry->Register(GetUserRootCertificates);
