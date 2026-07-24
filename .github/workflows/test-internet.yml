@@ -10,9 +10,13 @@ on:
     paths:
       - .github/workflows/test-internet.yml
       - test/internet/**
+      - test/common/internet.js
       - internal/dns/**
       - lib/dns.js
+      - lib/internal/dns/**
       - lib/net.js
+      - src/cares_wrap.cc
+      - src/cares_wrap.h
   push:
     branches:
       - main
@@ -22,9 +26,13 @@ on:
     paths:
       - .github/workflows/test-internet.yml
       - test/internet/**
+      - test/common/internet.js
       - internal/dns/**
       - lib/dns.js
+      - lib/internal/dns/**
       - lib/net.js
+      - src/cares_wrap.cc
+      - src/cares_wrap.h
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
