@@ -233,6 +233,7 @@ void UDPWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEADDR);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEPORT);
+  NODE_DEFINE_CONSTANT(constants, UV_UDP_LINUX_RECVERR);
   target->Set(context,
               env->constants_string(),
               constants).Check();
