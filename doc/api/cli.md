@@ -861,6 +861,19 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
+### `--enable-run-hooks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When used together with [`--run`][], also run the matching `"pre<script>"`
+lifecycle hook (if one exists in the `"scripts"` object) before the requested
+script. For example, `node --run build --enable-run-hooks` runs `prebuild`
+first, and only runs `build` if `prebuild` exits successfully. Positional
+arguments passed after `--` are forwarded to the requested script only, not to
+the hook. Without this flag, `--run` never runs lifecycle hooks.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -2686,7 +2699,8 @@ cases.
 Some features of other `run` implementations that are intentionally excluded
 are:
 
-* Running `pre` or `post` scripts in addition to the specified script.
+* Running `post` scripts in addition to the specified script. Running the
+  matching `pre` script is available as an opt-in via [`--enable-run-hooks`][].
 * Defining package manager-specific environment variables.
 
 #### Environment variables
@@ -4445,6 +4459,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
+[`--enable-run-hooks`]: #--enable-run-hooks
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
@@ -4457,6 +4472,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
+[`--run`]: #--run
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage

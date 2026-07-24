@@ -505,6 +505,12 @@ priority than \fB--dns-result-order\fR.
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 .
+.It Fl -enable-run-hooks
+When used together with \fB--run\fR, also run the matching \fB"pre<script>"\fR
+lifecycle hook (if one exists in the \fB"scripts"\fR object) before the
+requested script. The hook must exit successfully for the script to run, and
+positional arguments are forwarded to the requested script only, not the hook.
+.
 .It Fl -enable-source-maps
 Enable Source Map support for stack traces.
 When using a transpiler, such as TypeScript, stack traces thrown by an
