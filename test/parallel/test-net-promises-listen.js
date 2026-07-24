@@ -14,6 +14,25 @@ const { listen } = require('net/promises');
     server.close();
   }
 
+  // With no listen target, defaults to an ephemeral port (like
+  // `server.listen()` with no arguments) rather than throwing.
+  {
+    const server = await listen();
+    assert.strictEqual(server.listening, true);
+    assert.strictEqual(typeof server.address().port, 'number');
+    server.close();
+  }
+
+  // A target-less options bag still defaults to an ephemeral port while
+  // honoring other options such as `host`.
+  {
+    const server = await listen({ host: '127.0.0.1' });
+    assert.strictEqual(server.listening, true);
+    assert.strictEqual(server.address().address, '127.0.0.1');
+    assert.strictEqual(typeof server.address().port, 'number');
+    server.close();
+  }
+
   // The signal aborts the server for its entire lifetime, not just the
   // pending listen: aborting after it is listening closes the server.
   {
