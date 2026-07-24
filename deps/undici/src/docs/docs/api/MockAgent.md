@@ -17,6 +17,13 @@ registered on the {MockClient} or {MockPool} instances returned by
 `MockAgent` is set as the dispatcher (for example through
 [`setGlobalDispatcher()`][] or a per-request `dispatcher` option).
 
+> [!NOTE]
+> [`setGlobalDispatcher()`][] only affects undici APIs that use the global
+> dispatcher, such as `request()` and `fetch()`. It does not replace or
+> monkeypatch {Pool} or {Client} instances that were created separately. To test
+> code that accepts or creates a pool/client directly, pass the {MockPool} or
+> {MockClient} returned by [`mockAgent.get(origin)`][] into that code.
+
 ```mjs
 import { MockAgent } from 'undici'
 
@@ -137,6 +144,26 @@ console.log('response received', statusCode) // response received 200
 for await (const data of body) {
   console.log('data', data.toString('utf8')) // data foo
 }
+```
+
+```mjs displayName="Testing code that accepts a pool"
+import { MockAgent } from 'undici'
+
+async function getStatus (pool) {
+  const { statusCode } = await pool.request({
+    path: '/foo',
+    method: 'GET'
+  })
+
+  return statusCode
+}
+
+const mockAgent = new MockAgent()
+const mockPool = mockAgent.get('http://localhost:3000')
+
+mockPool.intercept({ path: '/foo', method: 'GET' }).reply(200)
+
+console.log(await getStatus(mockPool)) // 200
 ```
 
 ```mjs displayName="Returning a MockClient"
