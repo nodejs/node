@@ -207,6 +207,8 @@ test('closed libraries reject subsequent operations', () => {
   assert.throws(() => functions.add_i32(1, 2), /Library is closed/);
   assert.throws(() => lib.getFunction('add_i32', fixtureSymbols.add_i32), /Library is closed/);
   assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
+  assert.throws(() => lib.getFunctions({ add_i32: fixtureSymbols.add_i32 }), /Library is closed/);
+  assert.throws(() => lib.getSymbols(), /Library is closed/);
 });
 
 test('DynamicLibrary supports Symbol.dispose', () => {
