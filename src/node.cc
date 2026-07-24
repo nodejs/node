@@ -1221,6 +1221,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    CHECK_NOT_NULL(settings);
     OPENSSL_INIT_set_config_filename(settings, conf_file);
     OPENSSL_INIT_set_config_appname(settings, conf_section_name);
     OPENSSL_INIT_set_config_file_flags(settings,

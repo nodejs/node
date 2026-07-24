@@ -117,6 +117,7 @@ void InitCryptoOnce() {
   Mutex::ScopedLock fips_lock(fips_mutex);
 #ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+  CHECK_NOT_NULL(settings);
 
 #if OPENSSL_VERSION_MAJOR < 3
   // --openssl-config=...
