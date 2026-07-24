@@ -39,6 +39,27 @@ const additionalTestCases =
   }
 }
 
+test(function() {
+  const url = new URL('http:\u{1F600}xn-');
+  const href = url.href;
+  const setters = {
+    hostname: 'example.com',
+    host: 'example.com:8080',
+    protocol: 'https:',
+    pathname: '/path',
+    search: '?search',
+    hash: '#hash',
+    port: '8080',
+    username: 'username',
+    password: 'password',
+  };
+
+  for (const [property, value] of Object.entries(setters)) {
+    url[property] = value;
+    assert_equals(url.href, href, `Setting ${property} leaves the URL unchanged`);
+  }
+}, 'URL: setting properties with an unparsable serialized URL');
+
 {
   const url = new URL('http://example.com/');
   const obj = {
