@@ -216,8 +216,6 @@ executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
 
-**Note:** `import()` does not work when `useCodeCache` is `true`.
-
 ### Execution arguments
 
 The `execArgv` field can be used to specify Node.js-specific
@@ -451,8 +449,9 @@ injected main script with the following properties:
 
 <!-- TODO(joyeecheung): support and document module.registerHooks -->
 
-When using `"mainFormat": "module"`, `import()` can be used to dynamically
-load built-in modules. Attempting to use `import()` to load modules from
+`import()` can be used to dynamically load built-in modules in both
+CommonJS and ESM (`"mainFormat": "module"`) single executable applications.
+Attempting to use `import()` to load modules from
 the file system will throw an error.
 
 ### Using native addons in the injected main script
