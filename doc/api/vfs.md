@@ -156,6 +156,7 @@ signatures as their [`node:fs`][] counterparts:
 * `linkSync(existingPath, newPath)`
 * `chmodSync(path, mode)`
 * `chownSync(path, uid, gid)`
+* `lchownSync(path, uid, gid)`
 * `utimesSync(path, atime, mtime)`
 * `lutimesSync(path, atime, mtime)`
 * `mkdtempSync(prefix)`
