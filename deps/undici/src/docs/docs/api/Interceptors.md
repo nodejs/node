@@ -32,6 +32,65 @@ const client = new Client('https://example.com').compose(
 
 ---
 
+## Custom interceptors
+
+Custom interceptors use the same shape as
+[`dispatcher.compose()`](./Dispatcher.md#dispatchercomposeinterceptors-interceptor):
+an interceptor takes a `dispatch` function and returns another dispatch-like
+function with the same `(options, handler)` signature.
+
+When an interceptor wraps the handler, forward the callbacks that it does not
+handle itself. The complete handler callback list is documented under
+[`dispatcher.dispatch(options, handler)`](./Dispatcher.md#dispatcherdispatchoptions-handler).
+
+```js
+import { Agent } from 'undici'
+
+const timingInterceptor = dispatch => {
+  return (options, handler) => {
+    const started = performance.now()
+
+    return dispatch(options, {
+      ...handler,
+      onResponseStart (controller, statusCode, headers, statusMessage) {
+        const duration = Math.round(performance.now() - started)
+        const method = options.method ?? 'GET'
+        const origin = options.origin ?? ''
+
+        console.log(`${method} ${origin}${options.path} -> ${statusCode} in ${duration}ms`)
+
+        return handler.onResponseStart?.(
+          controller,
+          statusCode,
+          headers,
+          statusMessage
+        )
+      },
+      onResponseError (controller, error) {
+        const duration = Math.round(performance.now() - started)
+
+        console.error(`request failed after ${duration}ms`, error)
+
+        return handler.onResponseError?.(controller, error)
+      }
+    })
+  }
+}
+
+const dispatcher = new Agent().compose(timingInterceptor)
+
+const { body } = await dispatcher.request({
+  origin: 'https://example.com',
+  path: '/',
+  method: 'GET'
+})
+
+await body.dump()
+await dispatcher.close()
+```
+
+---
+
 ## `interceptors.dump([opts])`
 
 Reads and discards the response body up to a configurable size limit. Useful

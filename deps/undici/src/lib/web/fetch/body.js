@@ -16,6 +16,7 @@ const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 const { parseJSONFromBytes } = require('../infra')
 const { utf8DecodeBytes } = require('../../encoding')
+const { ReadableStreamTee } = require('node:stream/web')
 
 const textEncoder = new TextEncoder()
 function noop () {}
@@ -279,7 +280,7 @@ function cloneBody (body) {
   // https://fetch.spec.whatwg.org/#concept-body-clone
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
-  const { 0: out1, 1: out2 } = body.stream.tee()
+  const { 0: out1, 1: out2 } = ReadableStreamTee?.(body.stream, true) ?? body.stream.tee()
 
   // 2. Set body’s stream to out1.
   body.stream = out1

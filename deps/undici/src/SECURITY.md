@@ -87,6 +87,17 @@ meet the following criteria:
 * Dependencies installed by the application.
 * The DNS resolution results provided by the operating system or configured
   resolvers.
+* The network environment in which the process runs, including any private or
+  internal networks it can reach, for the privacy of traffic on that network.
+  Deployments that require stronger isolation, monitoring, or egress controls
+  are responsible for providing them.
+* Any proxy server configured by the application, runtime, or environment.
+  Proxies are trusted network intermediaries and must be authorized by the
+  relevant network or deployment authority. Undici's proxy support is for
+  routing traffic through such proxies, for example to reach external networks
+  through a firewall; it is not intended to provide anonymity, hide traffic, or
+  bypass organizational, regulatory, or legal controls. Untrusted proxies are
+  outside the supported threat model.
 
 In other words, if untrusted data passing through undici to the application
 can trigger actions other than those documented for the APIs, there is likely
@@ -171,6 +182,16 @@ lead to a loss of confidentiality, integrity, or availability.
   disabling TLS verification, ignoring errors, or passing unsanitized user
   input to request options) are the application's responsibility, not
   vulnerabilities in undici.
+
+#### Unauthorized or untrusted proxy use
+
+* If an application configures undici to use a proxy that is untrusted,
+  malicious, or not authorized by the relevant network or deployment authority,
+  any resulting privacy loss, policy bypass, regulatory exposure, traffic
+  manipulation, or unavailability is the deployment's responsibility. Undici
+  cannot determine whether a proxy is authorized for a user's network or
+  jurisdiction, and preventing use of proxies to hide traffic or evade controls
+  is a non-goal.
 
 ## Receiving security updates
 

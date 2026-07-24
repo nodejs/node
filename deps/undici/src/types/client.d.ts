@@ -33,7 +33,7 @@ export declare namespace Client {
   export interface Options {
     /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
-    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
+    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     headersTimeout?: number;
     /** @deprecated unsupported socketTimeout, use headersTimeout & bodyTimeout instead */
     socketTimeout?: never;
@@ -41,7 +41,7 @@ export declare namespace Client {
     requestTimeout?: never;
     /** The timeout for establishing a socket connection, in milliseconds. Use `0` to disable it entirely. Default: `10e3` milliseconds (10s). */
     connectTimeout?: number;
-    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). */
+    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     bodyTimeout?: number;
     /** @deprecated unsupported idleTimeout, use keepAliveTimeout instead */
     idleTimeout?: never;

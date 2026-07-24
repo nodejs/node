@@ -408,6 +408,11 @@ For more information about their behavior, please reference the body mixin from 
 
 This section documents our most commonly used API methods. Additional APIs are documented in their own files within the [docs](./docs/) folder and are accessible via the navigation list on the left side of the docs site.
 
+For the top-level APIs below, the `url` argument supplies the request origin and
+path. Do not pass `origin` or `path` in the second `options` argument. The linked
+`Dispatcher` option types include those fields because dispatcher methods are
+lower-level APIs that do not receive a separate `url` argument.
+
 ### `undici.request([url, options]): Promise`
 
 Arguments:

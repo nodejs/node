@@ -157,9 +157,10 @@ function completeRequest (client, request, resetPendingIdx = false) {
   const queue = client[kQueue]
   const runningIdx = client[kRunningIdx]
 
-  // In-order completion: advance the running index instead of splicing.
-  // The client's resume loop compacts the queue once the index grows.
+  // In-order completion: clear the request and advance without splicing.
+  // The client's resume loop compacts cleared slots once the index grows.
   if (runningIdx < client[kPendingIdx] && queue[runningIdx] === request) {
+    queue[runningIdx] = null
     client[kRunningIdx] = runningIdx + 1
     return
   }
@@ -246,7 +247,6 @@ function connectH2 (client, socket) {
 
   util.addListener(session, 'error', onHttp2SessionError)
   util.addListener(session, 'frameError', onHttp2FrameError)
-  util.addListener(session, 'end', onHttp2SessionEnd)
   util.addListener(session, 'goaway', onHttp2SessionGoAway)
   util.addListener(session, 'close', onHttp2SessionClose)
   util.addListener(session, 'remoteSettings', onHttp2RemoteSettings)
@@ -322,16 +322,6 @@ function connectH2 (client, socket) {
           // Don't dispatch an upgrade until all preceding requests have completed.
           // Possibly, we do not have remote settings confirmed yet.
           if ((request.upgrade === 'websocket' || request.method === 'CONNECT') && session[kRemoteSettings] === false) return true
-          // Request with stream or iterator body can error while other requests
-          // are inflight and indirectly error those as well.
-          // Ensure this doesn't happen by waiting for inflight
-          // to complete before dispatching.
-
-          // Request with stream or iterator body cannot be retried.
-          // Ensure that no other requests are inflight and
-          // could cause failure.
-          if (util.bodyLength(request.body) !== 0 &&
-            (util.isStream(request.body) || util.isAsyncIterable(request.body) || util.isFormDataLike(request.body))) return true
         } else {
           return (request.upgrade === 'websocket' || request.method === 'CONNECT') && session[kRemoteSettings] === false
         }
@@ -505,12 +495,6 @@ function onHttp2FrameError (type, code, id) {
   }
 }
 
-function onHttp2SessionEnd () {
-  const err = new SocketError('other side closed', util.getSocketInfo(this[kSocket]))
-  this.destroy(err)
-  util.destroy(this[kSocket], err)
-}
-
 /**
  * This is the root cause of #3011
  * We need to handle GOAWAY frames properly, and trigger the session close
@@ -654,7 +638,7 @@ function onHttp2SocketError (err) {
     return
   }
 
-  this[kClient][kOnError](err)
+  this[kHTTP2Session]?.[kClient]?.[kOnError](err)
 }
 
 function onHttp2SocketEnd () {
@@ -688,20 +672,24 @@ function onUpgradeStreamClose () {
   closeStreamSession(this)
 }
 
-function onRequestStreamClose () {
+// Idempotent terminal cleanup, called from both 'end' and 'close': the
+// null-state guard no-ops the later call.
+function completeRequestStream () {
   const state = this[kRequestStreamState]
 
-  if (state) {
-    // Release the stream first so request references are cleared,
-    // then complete the response with trailers if available.
-    releaseRequestStream(this)
-
-    if (state.pendingEnd && !state.request.aborted && !state.request.completed) {
-      state.request.onResponseEnd(state.trailers || {})
-      finalizeRequest(state)
-    }
+  if (state == null) {
+    return
   }
 
+  // Release the stream first so request references are cleared,
+  // then complete the response with trailers if available.
+  releaseRequestStream(this)
+
+  if (state.pendingEnd && !state.request.aborted && !state.request.completed) {
+    state.request.onResponseEnd(state.trailers || {})
+  }
+
+  finalizeRequest(state)
   closeStreamSession(this)
   this[kRequestStreamState] = null
 }
@@ -943,14 +931,14 @@ function writeH2 (client, request) {
       // close() alone leaves cleanup waiting on the 'close' event; on a busy,
       // long-lived multiplexed session that event can fail to fire, leaving the
       // native Http2Stream (and the whole request graph it pins) alive for the
-      // session's life. Destroy the stream to release the handle
-      // deterministically, but defer it by a setImmediate so the RST_STREAM
-      // frame queued by close() gets a chance to be written first.
-      setImmediate(() => {
-        if (!stream.destroyed) {
-          util.destroy(stream)
-        }
-      })
+      // session's life. Destroy the stream synchronously to release the handle
+      // deterministically. Deferring the destroy (e.g. via setImmediate) leaks
+      // the same way when the event loop is stalled and the callback never runs
+      // under abort churn (#5558); close() has already queued the RST_STREAM
+      // frame on the native session, so a synchronous destroy still sends it.
+      if (!stream.destroyed) {
+        util.destroy(stream)
+      }
 
       // We move the running index to the next request
       client[kOnError](err)
@@ -1137,7 +1125,7 @@ function writeH2 (client, request) {
   }
 
   stream[kHTTP2Session] = session
-  stream.on('close', onRequestStreamClose)
+  stream.on('close', completeRequestStream)
 
   bindRequestToStream(request, stream, releaseRequestStream)
   if (expectContinue) {
@@ -1280,13 +1268,16 @@ function onEnd () {
 
   stream.off('end', onEnd)
 
-  // If we received a response, this is a normal completion.
-  // Defer actual completion to onRequestStreamClose so that
-  // onTrailers (which may fire after 'end' on Windows) can
-  // store trailers first.
+  // onTrailers (which may fire after 'end' on Windows) has already stored
+  // trailers on the state by now, so completing here still delivers them.
   if (state.responseReceived) {
     if (!request.aborted && !request.completed) {
       state.pendingEnd = true
+
+      // Complete on 'end': a blocked event loop can keep the stream's 'close'
+      // from firing, stranding its buffers until OOM. Idempotent, so a later
+      // 'close' no-ops.
+      completeRequestStream.call(stream)
     }
   } else {
     // Stream ended without receiving a response - this is an error
@@ -1357,7 +1348,7 @@ function onTrailers (trailers) {
     return
   }
 
-  // Store trailers for onRequestStreamClose to use when completing
+  // Store trailers for completeRequestStream to use when completing
   state.trailers = trailers
 }
 

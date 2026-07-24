@@ -45,9 +45,7 @@ class Response {
   static json (data, init = undefined) {
     webidl.argumentLengthCheck(arguments, 1, 'Response.json')
 
-    if (init !== null) {
-      init = webidl.converters.ResponseInit(init)
-    }
+    init = webidl.converters.ResponseInit(init)
 
     // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
     const bytes = textEncoder.encode(

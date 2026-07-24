@@ -456,7 +456,13 @@ function headerValueEquals (lhs, rhs) {
       return false
     }
 
-    return lhs.every((x, i) => x === rhs[i])
+    for (let i = 0; i < lhs.length; i++) {
+      if (lhs[i] !== rhs[i]) {
+        return false
+      }
+    }
+
+    return true
   }
 
   return lhs === rhs

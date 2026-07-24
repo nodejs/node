@@ -136,7 +136,8 @@ The reply behaviour of a matching request is defined through the returned
   computing all reply options dynamically rather than just the body.
   * `callback` {Function} A `(opts: MockResponseCallbackOptions) =>
     { statusCode, data, responseOptions }` function invoked with the incoming
-    request.
+    request. The callback may be asynchronous; a returned promise is awaited
+    and must resolve to the same shape.
   * Returns: {MockScope}
 * `replyWithError(error)` {Function} Defines an error for a matching request to
   throw.
@@ -260,6 +261,32 @@ console.log('response received', statusCode) // response received 200
 
 for await (const data of body) {
   console.log('data', data.toString('utf8')) // {"message":"hello world!"}
+}
+```
+
+```mjs displayName="Reply with an asynchronous options callback"
+import { readFile } from 'node:fs/promises'
+import { MockAgent, setGlobalDispatcher, request } from 'undici'
+
+const mockAgent = new MockAgent()
+setGlobalDispatcher(mockAgent)
+
+const mockPool = mockAgent.get('http://localhost:3000')
+
+mockPool.intercept({
+  path: '/fixture',
+  method: 'GET'
+}).reply(async ({ path }) => ({
+  statusCode: 200,
+  data: await readFile(new URL('./fixture.json', import.meta.url))
+}))
+
+const { statusCode, body } = await request('http://localhost:3000/fixture')
+
+console.log('response received', statusCode) // response received 200
+
+for await (const data of body) {
+  console.log('data', data.toString('utf8')) // contents of fixture.json
 }
 ```
 
