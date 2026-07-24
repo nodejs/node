@@ -1,6 +1,6 @@
 'use strict';
 // Flags: --no-warnings --expose-internals
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
 const { Duplex, Writable } = require('stream');
@@ -8,6 +8,13 @@ const {
   newWritableStreamFromStreamWritable,
   newReadableWritablePairFromDuplex,
 } = require('internal/webstreams/adapters');
+
+function isSameError(expected) {
+  return common.mustCall((actual) => {
+    assert.strictEqual(actual, expected);
+    return true;
+  });
+}
 
 // Verify that when the underlying Node.js stream throws synchronously from
 // write(), the writable web stream properly rejects but does not destroy
@@ -32,6 +39,72 @@ test('WritableStream from Node.js stream handles sync write throw', async () => 
 
   // Standalone writable should not be destroyed on sync write error
   assert.strictEqual(writable.destroyed, false);
+});
+
+test('WritableStream from Node.js stream handles async write error', async () => {
+  const error = new Error('boom');
+  const writable = new Writable({
+    write(_chunk, _encoding, callback) {
+      setImmediate(callback, error);
+    },
+  });
+  const writer = Writable.toWeb(writable).getWriter();
+
+  await Promise.all([
+    assert.rejects(writer.write(Buffer.from('hello')), isSameError(error)),
+    assert.rejects(writer.closed, isSameError(error)),
+  ]);
+});
+
+test('WritableStream aborts while a native write is pending', async () => {
+  const error = new Error('abort');
+  let finishWrite;
+  let startWrite;
+  const writeStarted = new Promise((resolve) => {
+    startWrite = resolve;
+  });
+  const writable = new Writable({
+    write(_chunk, _encoding, callback) {
+      finishWrite = callback;
+      startWrite();
+    },
+  });
+  const writer = Writable.toWeb(writable).getWriter();
+  const writePromise = writer.write(Buffer.from('hello'));
+  await writeStarted;
+
+  const writeRejected = assert.rejects(writePromise, isSameError(error));
+  const closedRejected = assert.rejects(writer.closed, isSameError(error));
+  await Promise.all([
+    writer.abort(error),
+    writeRejected,
+    closedRejected,
+  ]);
+
+  finishWrite();
+  await new Promise(setImmediate);
+  assert.strictEqual(writable.destroyed, true);
+});
+
+test('WritableStream handles destruction while a write is pending', async () => {
+  const error = new Error('destroy');
+  let startWrite;
+  const writeStarted = new Promise((resolve) => {
+    startWrite = resolve;
+  });
+  const writable = new Writable({
+    write(_chunk, _encoding, _callback) {
+      startWrite();
+    },
+  });
+  const writer = Writable.toWeb(writable).getWriter();
+  const writePromise = writer.write(Buffer.from('hello'));
+  await writeStarted;
+
+  const writeRejected = assert.rejects(writePromise, isSameError(error));
+  const closedRejected = assert.rejects(writer.closed, isSameError(error));
+  writable.destroy(error);
+  await Promise.all([writeRejected, closedRejected]);
 });
 
 test('Duplex-backed pair does NOT destroy on sync write throw', async () => {
