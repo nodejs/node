@@ -377,14 +377,20 @@ git checkout -b v1.2.3-proposal upstream/v1.x-staging
 You can also run:
 
 ```bash
-git node release -S --prepare --security=../vulnerabilities.json --filterLabel vX.x
+git node release -S --prepare --security=../vulnerabilities.json
 ```
+
+The `--security` flag takes the path to the `vulnerabilities.json` file (or to
+the root of the `security-release` repository). The reports and dependency
+updates to cherry-pick are selected automatically from each entry's
+`affectedVersions` mapping for the release line you are on, and the matching
+`CVE-ID` trailers are added from the same file.
 
 Example:
 
 ```bash
 git checkout v20.x
-git node release -S --prepare --security=../vulnerabilities.json --filterLabel v20.x
+git node release -S --prepare --security=../vulnerabilities.json
 ```
 
 to automate the remaining steps until step 6 or you can perform it manually
@@ -392,7 +398,7 @@ following the below steps. For semver-minors, you can pass the new version
 explicitly with `--newVersion` arg:
 
 ```bash
-git node release -S --prepare --security=../vulnerabilities.json --filterLabel v20.x --newVersion 20.20.0
+git node release -S --prepare --security=../vulnerabilities.json --newVersion 20.20.0
 ```
 
 <details>
