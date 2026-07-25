@@ -50,3 +50,14 @@ assert.throws(() => {
   assert.strictEqual(result.pathname.input, '/test');
   assert.strictEqual(result.pathname.groups.value, 'test');
 }
+
+{
+  const result = new URLPattern({ pathname: '/:one/:two/:three' })
+    .exec('https://example.com/a/b/c');
+
+  assert.deepStrictEqual(Object.entries(result.pathname.groups), [
+    ['one', 'a'],
+    ['two', 'b'],
+    ['three', 'c'],
+  ]);
+}
