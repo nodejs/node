@@ -486,6 +486,7 @@ Maybe<bool> Message::Serialize(Environment* env,
   delegate.serializer = &serializer;
 
   LocalVector<ArrayBuffer> array_buffers(env->isolate());
+  array_buffers.reserve(transfer_list_v.length());
   for (uint32_t i = 0; i < transfer_list_v.length(); ++i) {
     Local<Value> entry_val = transfer_list_v[i];
     if (!entry_val->IsObject()) {
