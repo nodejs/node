@@ -17,6 +17,8 @@ and the TSC on a 6-month basis.
 Version from the [mini-summit](https://github.com/nodejs/next-10/issues/1)
 on October 1st 2022.
 
+Last reviewed: July 2026
+
 ## Modern HTTP
 
 _Present in: 2021_
@@ -28,19 +30,6 @@ source of vulnerabilities. We must work towards an
 implementation that is easier to support and makes it easier to integrate
 the new HTTP versions (HTTP3, QUIC) and to support efficient
 implementations of different versions concurrently.
-
-## Suitable types for end-users
-
-_Present in: 2021_
-
-Using typings with JavaScript can allow a richer experience when using Visual
-Studio Code (or any other IDEs) environments, more complete documentation
-of APIs and the ability to identify and resolve errors earlier in the
-development process. These benefits are important to a large number of Node.js
-developers (maybe 50%).  Further typing support may be important
-to enterprises that are considering expanding their preferred platforms to
-include Node.js. It is, therefore, important that the Node.js project work
-to ensure there are good typings available for the public Node.js APIs.
 
 ## Documentation
 
