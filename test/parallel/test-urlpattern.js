@@ -74,3 +74,19 @@ assert.throws(() => {
   assert.strictEqual(result.pathname.input, '/test');
   assert.strictEqual(result.pathname.groups.value, 'test');
 }
+
+{
+  const input = new URLPattern({ pathname: '/x' })
+    .exec({
+      protocol: 'https',
+      pathname: '/x',
+      username: undefined,
+    }).inputs[0];
+
+  assert.deepStrictEqual(Object.keys(input), ['pathname', 'protocol']);
+  assert.strictEqual('username' in input, false);
+  assert.deepStrictEqual({ ...input }, {
+    pathname: '/x',
+    protocol: 'https',
+  });
+}
