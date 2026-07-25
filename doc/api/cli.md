@@ -733,7 +733,7 @@ added:
   - v20.11.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Disable specific process warnings by `code` or `type`.
 
