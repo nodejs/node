@@ -17,6 +17,30 @@ assert.throws(() => {
   message: 'boom',
 });
 
+{
+  const accessed = [];
+  const expected = [
+    'baseURL',
+    'hash',
+    'hostname',
+    'password',
+    'pathname',
+    'port',
+    'protocol',
+    'search',
+    'username',
+  ];
+  const init = new Proxy({}, {
+    get(target, name, receiver) {
+      accessed.push(name);
+      return Reflect.get(target, name, receiver);
+    },
+  });
+
+  new URLPattern(init);
+  assert.deepStrictEqual(accessed, expected);
+}
+
 // Verify that if an error is thrown while accessing the ignoreCase
 // option, the error is appropriately propagated.
 assert.throws(() => {

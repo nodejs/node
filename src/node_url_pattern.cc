@@ -359,15 +359,15 @@ std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
     Environment* env, Local<Object> obj) {
   ada::url_pattern_init init{};
   Local<String> components[] = {
-      env->protocol_string(),
-      env->username_string(),
-      env->password_string(),
-      env->hostname_string(),
-      env->port_string(),
-      env->pathname_string(),
-      env->search_string(),
-      env->hash_string(),
       env->base_url_string(),
+      env->hash_string(),
+      env->hostname_string(),
+      env->password_string(),
+      env->pathname_string(),
+      env->port_string(),
+      env->protocol_string(),
+      env->search_string(),
+      env->username_string(),
   };
   auto isolate = env->isolate();
   const auto set_parameter = [&](std::string_view key, std::string_view value) {
