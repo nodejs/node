@@ -50,7 +50,7 @@ bool IsRsaPssDigestEncodable(const Digest& digest) {
 
   const ASN1_OBJECT* object = OBJ_nid2obj(nid);
   return object != nullptr && OBJ_length(object) > 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(digest);
   return true;
 #endif
@@ -82,10 +82,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       return {};
     }
 
-    // TODO(tniessen): This appears to only be necessary in OpenSSL 3, while
-    // OpenSSL 1.1.1 behaves as recommended by RFC 8017 and defaults the MGF1
-    // hash algorithm to the RSA-PSS hashAlgorithm. Remove this code if the
-    // behavior of OpenSSL 3 changes.
+    // OpenSSL does not default the MGF1 hash algorithm to the RSA-PSS
+    // hashAlgorithm as recommended by RFC 8017, so set it explicitly.
     auto& mgf1_md = params->params.mgf1_md;
     if (!mgf1_md && params->params.md) {
       mgf1_md = params->params.md;
@@ -399,7 +397,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   ncrypto::Rsa rsa_view;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   RSAPointer rsa(RSA_new());
   if (!rsa) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create RSA pointer");
@@ -513,7 +511,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(rsa_view);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
 #endif
   if (!pkey) {

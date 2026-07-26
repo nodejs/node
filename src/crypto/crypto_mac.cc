@@ -522,7 +522,7 @@ Mac::Mac(Environment* env,
       has_output_length_(has_output_length) {
   MakeWeak();
 }
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 Mac::Mac(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
   MakeWeak();
 }
@@ -531,7 +531,7 @@ Mac::Mac(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
 void Mac::MemoryInfo(MemoryTracker* tracker) const {
 #if OPENSSL_WITH_EVP_MAC
   tracker->TrackFieldWithSize("context", context_ ? kSizeOf_EVP_MAC_CTX : 0);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   static_cast<void>(tracker);
 #endif
 }
@@ -570,7 +570,7 @@ void Mac::New(const FunctionCallbackInfo<Value>& args) {
           std::move(initialized.context),
           initialized.output_size,
           initialized.has_output_length);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
 #endif
@@ -585,7 +585,7 @@ void Mac::MacUpdate(const FunctionCallbackInfo<Value>& args) {
                  size_t length) {
                 args.GetReturnValue().Set(mac->MacUpdate(data, length));
               });
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
 #endif
@@ -613,7 +613,7 @@ void Mac::MacFinal(const FunctionCallbackInfo<Value>& args) {
           .ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   THROW_ERR_CRYPTO_MAC_NOT_SUPPORTED(Environment::GetCurrent(args),
                                      "MAC is not supported");
 #endif
@@ -627,7 +627,7 @@ void Mac::GetMacs(const FunctionCallbackInfo<Value>& args) {
   if (ToV8Value(context, GetSupportedMacAlgorithms(env)).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   args.GetReturnValue().Set(Array::New(args.GetIsolate(), 0));
 #endif
 }
