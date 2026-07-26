@@ -1625,6 +1625,10 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t source_offset = args[3].As<Uint32>()->Value();
   size_t bytes_to_copy = args[4].As<Uint32>()->Value();
 
+  // Assert the offsets are within bounds before the subtractions below, which
+  // would otherwise underflow and defeat the bytes_to_copy bounds checks.
+  CHECK_LE(destination_offset, destination_byte_length);
+  CHECK_LE(source_offset, source_byte_length);
   CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
   CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
 
