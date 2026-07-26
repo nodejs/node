@@ -734,7 +734,7 @@ added:
   changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/64742
-    description: The `--disable-warning` flags are now stable.
+    description: The `--disable-warning` flag is now stable.
 -->
 
 > Stability: 2 - Stable
