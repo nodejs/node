@@ -19,7 +19,7 @@ class CacheRevalidationHandler {
   #successful = false
 
   /**
-   * @type {((boolean, any) => void) | null}
+   * @type {((success: boolean, context?: any, statusCode?: number, headers?: import('../../types/header.d.ts').IncomingHttpHeaders) => void) | null}
    */
   #callback
 
@@ -36,7 +36,7 @@ class CacheRevalidationHandler {
   #allowErrorStatusCodes
 
   /**
-   * @param {(boolean) => void} callback Function to call if the cached value is valid
+   * @param {(success: boolean, context?: any, statusCode?: number, headers?: import('../../types/header.d.ts').IncomingHttpHeaders) => void} callback Function to call if the cached value is valid
    * @param {import('../../types/dispatcher.d.ts').default.DispatchHandlers} handler
    * @param {boolean} allowErrorStatusCodes
    */
@@ -71,7 +71,7 @@ class CacheRevalidationHandler {
     // https://datatracker.ietf.org/doc/html/rfc5861#section-4
     this.#successful = statusCode === 304 ||
       (this.#allowErrorStatusCodes && statusCode >= 500 && statusCode <= 504)
-    this.#callback(this.#successful, this.#context)
+    this.#callback(this.#successful, this.#context, statusCode, headers)
     this.#callback = null
 
     if (this.#successful) {
@@ -109,6 +109,16 @@ class CacheRevalidationHandler {
     }
 
     if (this.#callback) {
+      // Serve the stale cached response on a connection error, per stale-if-error:
+      //  RFC 5861 counts an unreachable origin (a would-be 5xx) as an error.
+      // https://datatracker.ietf.org/doc/html/rfc5861#section-4
+      if (this.#allowErrorStatusCodes) {
+        this.#successful = true
+        this.#callback(true, this.#context)
+        this.#callback = null
+        return
+      }
+
       this.#callback(false)
       this.#callback = null
     }
