@@ -10,7 +10,7 @@ const { X509Certificate } = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 // Test that all certificate chains provided by the reporter are rejected.
 {
@@ -59,8 +59,8 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
     'IP Address:8.8.8.8',
     'IP Address:8.8.4.4',
     // For backward-compatibility, include invalid IP address lengths.
-    hasOpenSSL(3) ? 'IP Address:<invalid length=5>' : 'IP Address:<invalid>',
-    hasOpenSSL(3) ? 'IP Address:<invalid length=6>' : 'IP Address:<invalid>',
+    isBoringSSL ? 'IP Address:<invalid>' : 'IP Address:<invalid length=5>',
+    isBoringSSL ? 'IP Address:<invalid>' : 'IP Address:<invalid length=6>',
     // IPv6 addresses are represented as OpenSSL does.
     'IP Address:A0B:C0D:E0F:0:0:0:7A7B:7C7D',
     // Regular email addresses don't require escaping.
@@ -88,22 +88,22 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
     // This is an OID that will likely never be assigned to anything, thus
     // OpenSSL should not know it.
     'Registered ID:1.3.9999.12.34',
-    hasOpenSSL(3) ?
+    !isBoringSSL ?
       'othername:XmppAddr:abc123' :
       'othername:<unsupported>',
-    hasOpenSSL(3) ?
+    !isBoringSSL ?
       'othername:"XmppAddr:abc123\\u002c DNS:good.example.com"' :
       'othername:<unsupported>',
-    hasOpenSSL(3) ?
+    !isBoringSSL ?
       'othername:"XmppAddr:good.example.com\\u0000abc123"' :
       'othername:<unsupported>',
     // This is unsupported because the OID is not recognized.
     'othername:<unsupported>',
-    hasOpenSSL(3) ? 'othername:SRVName:abc123' : 'othername:<unsupported>',
+    isBoringSSL ? 'othername:<unsupported>' : 'othername:SRVName:abc123',
     // This is unsupported because it is an SRVName with a UTF8String value,
     // which is not allowed for SRVName.
     'othername:<unsupported>',
-    hasOpenSSL(3) ?
+    !isBoringSSL ?
       'othername:"SRVName:abc\\u0000def"' :
       'othername:<unsupported>',
   ];
@@ -173,7 +173,7 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
         ],
       },
     },
-    hasOpenSSL(3) ? {
+    !isBoringSSL ? {
       text: 'OCSP - othername:XmppAddr:good.example.com\n' +
             'OCSP - othername:<unsupported>\n' +
             'OCSP - othername:SRVName:abc123',
@@ -196,7 +196,7 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
         ],
       },
     },
-    hasOpenSSL(3) ? {
+    !isBoringSSL ? {
       text: 'OCSP - othername:"XmppAddr:good.example.com\\u0000abc123"',
       legacy: {
         'OCSP - othername': [
@@ -222,7 +222,7 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
     // Test the subjectAltName property of the X509Certificate API.
     const cert = new X509Certificate(pem);
     assert.strictEqual(cert.infoAccess,
-                       `${expected.text}${hasOpenSSL(3) ? '' : '\n'}`);
+                       `${expected.text}${isBoringSSL ? '\n' : ''}`);
 
     // Test that the certificate obtained by checkServerIdentity has the correct
     // subjectaltname property.

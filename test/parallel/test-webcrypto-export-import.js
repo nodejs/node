@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -221,7 +221,7 @@ const {
 }
 
 // Import/Export KMAC Secret Key
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   async function test(name) {
     const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
