@@ -5,7 +5,7 @@ if (!common.hasCrypto) common.skip('missing crypto');
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL3, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const fips3 = hasFIPS(3);
 
@@ -140,7 +140,7 @@ if (!fips3) {
   assert.ok(additionalCertificates[0] instanceof crypto.X509Certificate);
 }
 
-if (hasOpenSSL3) {
+if (!isBoringSSL) {
   // Legacy algorithms (RC2-40-CBC) throw a recognizable, actionable error
   // rather than a bare OpenSSL string. Mirrors the behavior added for the
   // TLS path in https://github.com/nodejs/node/pull/54485.
