@@ -206,15 +206,13 @@ on your Linux distribution.
 
 #### OpenSSL asm support
 
-OpenSSL-1.1.1 requires the following assembler version for use of asm
+OpenSSL requires the following assembler version for use of asm
 support on x86\_64 and ia32.
 
 For use of AVX-512,
 
 * gas (GNU assembler) version 2.26 or higher
 * nasm version 2.11.8 or higher in Windows
-
-AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
 
 For use of AVX2,
 
@@ -223,7 +221,7 @@ For use of AVX2,
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Please refer to <https://docs.openssl.org/1.1.1/man3/OPENSSL_ia32cap/> for details.
+Please refer to <https://docs.openssl.org/master/man3/OPENSSL_ia32cap/> for details.
 
 If compiling without one of the above, use `configure` with the
 `--openssl-no-asm` flag. Otherwise, `configure` will fail.
@@ -1134,6 +1132,10 @@ A number of `configure` options are provided to support this use case.
   (run `./configure --help` to get the complete list). They
   provide the ability to set the path to an external JavaScript file
   for the dependency to be used at runtime.
+
+When building with `--shared-openssl`, Node.js requires OpenSSL 3.0 or later.
+Support for building against OpenSSL 1.x was removed in Node.js 27.0.0, and
+`configure` fails if an older version is detected.
 
 It is the responsibility of any distribution
 shipping with these options to:
