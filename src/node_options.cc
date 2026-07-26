@@ -1502,7 +1502,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
 #endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   AddOption("--openssl-legacy-provider",
             "enable OpenSSL 3.0 legacy provider",
             &PerProcessOptions::openssl_legacy_provider,
@@ -1512,7 +1512,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::openssl_shared_config,
             kAllowedInEnvvar);
 
-#endif  // OPENSSL_VERSION_MAJOR
+#endif  // HAVE_OPENSSL && !OPENSSL_IS_BORINGSSL
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "
             "'off' (the default value, meaning do not map), "

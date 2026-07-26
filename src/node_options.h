@@ -380,7 +380,7 @@ class PerProcessOptions : public Options {
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
 #endif
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   bool openssl_legacy_provider = false;
   bool openssl_shared_config = false;
 #endif
