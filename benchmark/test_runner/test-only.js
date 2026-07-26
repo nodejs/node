@@ -17,13 +17,8 @@ const bench = common.createBenchmark(main, {
 });
 
 async function run({ n, selected }) {
-  // eslint-disable-next-line no-unused-vars
-  let avoidV8Optimization;
-
   for (let i = 0; i < selected; i++) {
-    test(`selected-${i}`, { only: true }, () => {
-      avoidV8Optimization = i;
-    });
+    test(`selected-${i}`, { only: true }, () => {});
   }
 
   for (let i = 0; i < n; i++) {
