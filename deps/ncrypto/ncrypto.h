@@ -29,6 +29,11 @@
   (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
 #endif
 
+// BoringSSL reports itself as OpenSSL 1.1.1, so it has to be excluded here.
+#if !defined(OPENSSL_IS_BORINGSSL) && !OPENSSL_VERSION_PREREQ(3, 0)
+#error "OpenSSL 1.x is no longer supported, v3.0.0 or later is required."
+#endif
+
 // BoringSSL declares the EVP_*_do_all* APIs, but their implementation may
 // live in libdecrepit. This matches standalone ncrypto's build flag.
 #ifndef NCRYPTO_BSSL_LIBDECREPIT_MISSING
@@ -43,31 +48,17 @@
 
 // Backend split:
 // - OpenSSL >= 3 uses provider APIs and hides deprecated low-level objects.
-// - BoringSSL has its own API-compatible branch.
-// - OpenSSL < 3 remains the legacy fallback branch.
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 1
-#else
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 0
-#endif
-
+// - BoringSSL has its own API-compatible branch and keeps using the legacy
+//   low-level key types.
 #ifdef OPENSSL_IS_BORINGSSL
 #define NCRYPTO_USE_BORINGSSL 1
+#define NCRYPTO_USE_OPENSSL3_PROVIDER 0
 #else
 #define NCRYPTO_USE_BORINGSSL 0
+#define NCRYPTO_USE_OPENSSL3_PROVIDER 1
 #endif
 
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER && !NCRYPTO_USE_BORINGSSL
-#define NCRYPTO_USE_LEGACY_OPENSSL 1
-#else
-#define NCRYPTO_USE_LEGACY_OPENSSL 0
-#endif
-
-#if NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 1
-#else
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 0
-#endif
+#define NCRYPTO_USE_LEGACY_KEY_TYPES NCRYPTO_USE_BORINGSSL
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 #include <openssl/core_names.h>
@@ -75,13 +66,7 @@
 #include <openssl/param_build.h>
 #endif
 
-// The FIPS-related functions are only available
-// when the OpenSSL itself was compiled with FIPS support.
-#if defined(OPENSSL_FIPS) && !OPENSSL_VERSION_PREREQ(3, 0)
-#include <openssl/fips.h>
-#endif  // OPENSSL_FIPS
-
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_AES_OCB 1
 #else
 #define OPENSSL_WITH_AES_OCB 0
@@ -93,13 +78,9 @@
 #define OPENSSL_WITH_ARGON2 0
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0) || defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_KEM 1
-#else
-#define OPENSSL_WITH_KEM 0
-#endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_EVP_MAC 1
 #else
 #define OPENSSL_WITH_EVP_MAC 0
@@ -164,7 +145,7 @@
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OSSL3_CONST const
 #else
 #define OSSL3_CONST
