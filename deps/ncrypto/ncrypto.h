@@ -32,6 +32,11 @@
   (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
 #endif
 
+// BoringSSL reports itself as OpenSSL 1.1.1, so it has to be excluded here.
+#if !defined(OPENSSL_IS_BORINGSSL) && !OPENSSL_VERSION_PREREQ(3, 0)
+#error "OpenSSL 1.x is no longer supported, v3.0.0 or later is required."
+#endif
+
 // BoringSSL declares the EVP_*_do_all* APIs, but their implementation may
 // live in libdecrepit. This matches standalone ncrypto's build flag.
 #ifndef NCRYPTO_BSSL_LIBDECREPIT_MISSING
@@ -45,46 +50,26 @@
 #endif
 
 // Backend split:
-// - OpenSSL >= 3 uses provider APIs and hides deprecated low-level objects.
-// - BoringSSL has its own API-compatible branch.
-// - OpenSSL < 3 remains the legacy fallback branch.
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 1
-#else
-#define NCRYPTO_USE_OPENSSL3_PROVIDER 0
-#endif
-
+// - OpenSSL uses provider APIs and hides deprecated low-level objects.
+// - BoringSSL has its own API-compatible branch and keeps using the legacy
+//   low-level key types.
 #ifdef OPENSSL_IS_BORINGSSL
 #define NCRYPTO_USE_BORINGSSL 1
+#define NCRYPTO_USE_OPENSSL_PROVIDER 0
 #else
 #define NCRYPTO_USE_BORINGSSL 0
+#define NCRYPTO_USE_OPENSSL_PROVIDER 1
 #endif
 
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER && !NCRYPTO_USE_BORINGSSL
-#define NCRYPTO_USE_LEGACY_OPENSSL 1
-#else
-#define NCRYPTO_USE_LEGACY_OPENSSL 0
-#endif
+#define NCRYPTO_USE_LEGACY_KEY_TYPES NCRYPTO_USE_BORINGSSL
 
-#if NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_LEGACY_OPENSSL
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 1
-#else
-#define NCRYPTO_USE_LEGACY_KEY_TYPES 0
-#endif
-
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #include <openssl/core_names.h>
 #include <openssl/encoder.h>
 #include <openssl/param_build.h>
 #endif
 
-// The FIPS-related functions are only available
-// when the OpenSSL itself was compiled with FIPS support.
-#if defined(OPENSSL_FIPS) && !OPENSSL_VERSION_PREREQ(3, 0)
-#include <openssl/fips.h>
-#endif  // OPENSSL_FIPS
-
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_AES_OCB 1
 #else
 #define OPENSSL_WITH_AES_OCB 0
@@ -96,19 +81,15 @@
 #define OPENSSL_WITH_ARGON2 0
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0) || defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_KEM 1
-#else
-#define OPENSSL_WITH_KEM 0
-#endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_EVP_MAC 1
 #else
 #define OPENSSL_WITH_EVP_MAC 0
 #endif
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_AES_SIV 1
 #else
 #define OPENSSL_WITH_AES_SIV 0
@@ -167,7 +148,7 @@
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if !defined(OPENSSL_IS_BORINGSSL)
 #define OSSL3_CONST const
 #else
 #define OSSL3_CONST
@@ -404,7 +385,7 @@ class Digest final {
   Digest(const Digest& other);
   Digest& operator=(const Digest& other);
   inline Digest& operator=(const EVP_MD* md) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     fetched_md_.reset();
 #endif
     md_ = md;
@@ -429,7 +410,7 @@ class Digest final {
 
  private:
   const EVP_MD* md_ = nullptr;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md);
   DeleteFnPtr<EVP_MD, EVP_MD_free> fetched_md_;
 #endif
@@ -462,7 +443,7 @@ class DigestCache final {
 
   Result lookup(const char* name, uint64_t generation) const;
   inline Result lookup(int32_t id, uint64_t generation) const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (generation_ != generation || id == -1) return {};
     const uint32_t unsigned_id = static_cast<uint32_t>(id);
     if (unsigned_id < first_id_) return {};
@@ -481,7 +462,7 @@ class DigestCache final {
 
  private:
   uint64_t generation_ = 0;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
 
   // IDs are not reused across generations because JavaScript caches them
@@ -507,14 +488,14 @@ class CipherCache final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(CipherCache)
 
   const EVP_CIPHER* lookup(const char* name, uint64_t generation);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const EVP_CIPHER* insert(const char* name,
                            DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>&& cipher,
                            uint64_t generation);
 #endif
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   using EVPCipherPointer = DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>;
 
   uint64_t generation_ = 0;
@@ -548,7 +529,7 @@ class Cipher final {
   Cipher(const Cipher& other);
   Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     fetched_cipher_.reset();
 #endif
     cipher_ = cipher;
@@ -643,7 +624,7 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif
@@ -655,14 +636,14 @@ class Cipher final {
 class Dsa final {
  public:
   Dsa();
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Dsa(const EVP_PKEY* pkey);
 #else
   Dsa(OSSL3_CONST DSA* dsa);
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline operator bool() const {
     return dsa_;
   }
@@ -679,7 +660,7 @@ class Dsa final {
   size_t getDivisorLength() const;
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   bool dsa_ = false;
   DeleteFnPtr<BIGNUM, BN_free> p_;
   DeleteFnPtr<BIGNUM, BN_free> q_;
@@ -694,14 +675,14 @@ class Dsa final {
 class Rsa final {
  public:
   Rsa();
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Rsa(const EVP_PKEY* pkey);
 #else
   Rsa(OSSL3_CONST RSA* rsa);
 #endif
   NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline operator bool() const {
     return rsa_;
   }
@@ -754,7 +735,7 @@ class Rsa final {
                              const Buffer<const void> in);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   bool rsa_ = false;
   bool rsa_pss_ = false;
   DeleteFnPtr<BIGNUM, BN_free> n_;
@@ -774,7 +755,7 @@ class Rsa final {
 class Ec final {
  public:
   Ec();
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit Ec(const EVP_PKEY* pkey);
 #else
   Ec(OSSL3_CONST EC_KEY* key);
@@ -797,7 +778,7 @@ class Ec final {
   static bool GetCurves(GetCurveCallback callback);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> ec_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
   point_conversion_form_t form_ = POINT_CONVERSION_UNCOMPRESSED;
@@ -1145,7 +1126,7 @@ class EVPKeyPointer final {
                                   const Buffer<const unsigned char>& data);
 #endif
   static EVPKeyPointer NewDH(DHPointer&& dh);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   static EVPKeyPointer NewRSA(const Rsa& rsa);
 #else
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
@@ -1310,7 +1291,7 @@ class DHPointer final {
   static DHPointer New(size_t bits, unsigned int generator);
 
   DHPointer() = default;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   explicit DHPointer(EVPKeyPointer&& key, const char* group_name = nullptr);
   DHPointer(BignumPointer&& p, BignumPointer&& g, const char* group_name);
 #else
@@ -1321,7 +1302,7 @@ class DHPointer final {
   NCRYPTO_DISALLOW_COPY(DHPointer)
   ~DHPointer();
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline bool operator==(std::nullptr_t) noexcept {
     return !operator bool();
   }
@@ -1390,7 +1371,7 @@ class DHPointer final {
                                const EVPKeyPointer& theirKey);
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> dh_;
   BignumPointer p_;
   BignumPointer g_;
@@ -1718,7 +1699,7 @@ class ECKeyPointer final {
   NCRYPTO_DISALLOW_COPY(ECKeyPointer)
   ~ECKeyPointer();
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   inline bool operator==(std::nullptr_t) noexcept {
     return group_ == nullptr;
   }
@@ -1762,7 +1743,7 @@ class ECKeyPointer final {
 #endif
 
  private:
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
   DeleteFnPtr<BIGNUM, BN_clear_free> priv_;

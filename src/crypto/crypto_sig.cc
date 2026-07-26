@@ -8,7 +8,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "openssl/ec.h"
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
 #endif
@@ -405,7 +405,7 @@ bool MayBeSM2Key(const EVPKeyPointer& key) {
   if (key.id() == EVP_PKEY_SM2) return true;
   if (key.id() != EVP_PKEY_EC) return false;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // An ECKeyPointer would also need the public point, which a provider-backed
   // key need not expose.
   char group_name[64];

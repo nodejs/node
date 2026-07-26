@@ -40,7 +40,7 @@ using v8::Value;
 namespace crypto {
 namespace {
 bool IsRsaPssDigestEncodable(const Digest& digest) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const int nid = EVP_MD_type(digest.get());
   if (nid == NID_undef) return false;
 
@@ -365,7 +365,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   ncrypto::Rsa rsa_view;
 #else
   RSAPointer rsa(RSA_new());
@@ -437,7 +437,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     }
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(rsa_view);
 #else
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
