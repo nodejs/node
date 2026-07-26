@@ -477,7 +477,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     {
       node::errors::TryCatchScope try_catch(env);
       if (value->IsObject()) {
-        then_key = FIXED_ONE_BYTE_STRING(env->isolate(), "then");
+        then_key = env->then_string();
         v8::Local<v8::Object> object = value.As<v8::Object>();
         v8::Maybe<bool> has_own_then =
             object->HasOwnProperty(context, then_key);

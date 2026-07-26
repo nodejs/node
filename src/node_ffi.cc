@@ -1210,7 +1210,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
         DynamicLibrary::kInternalFieldCount);
 
     tmpl->InstanceTemplate()->SetAccessorProperty(
-        FIXED_ONE_BYTE_STRING(isolate, "path"),
+        env->path_string(),
         FunctionTemplate::New(env->isolate(), DynamicLibrary::GetPath),
         Local<FunctionTemplate>(),
         attributes);

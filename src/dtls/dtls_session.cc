@@ -622,7 +622,7 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> info = Object::New(env->isolate());
   info->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "name"),
+            env->name_string(),
             String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_name(cipher))
                 .ToLocalChecked())
       .Check();
@@ -633,7 +633,7 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
               .ToLocalChecked())
       .Check();
   info->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "version"),
+            env->version_string(),
             String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_version(cipher))
                 .ToLocalChecked())
       .Check();

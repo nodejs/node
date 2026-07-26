@@ -82,6 +82,7 @@
   V(__dirname_string, "__dirname")                                             \
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
+  V(algorithm_string, "algorithm")                                             \
   V(aliases_string, "aliases")                                                 \
   V(allow_bare_named_params_string, "allowBareNamedParameters")                \
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
@@ -93,6 +94,7 @@
   V(backup_string, "backup")                                                   \
   V(base_string, "base")                                                       \
   V(base_url_string, "baseURL")                                                \
+  V(brotli_string, "brotli")                                                   \
   V(buffer_string, "buffer")                                                   \
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
@@ -100,6 +102,7 @@
   V(cached_data_produced_string, "cachedDataProduced")                         \
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
+  V(cause_string, "cause")                                                     \
   V(change_string, "change")                                                   \
   V(changes_string, "changes")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
@@ -180,6 +183,7 @@
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
   V(external_stream_string, "_externalStream")                                 \
+  V(extractable_string, "extractable")                                         \
   V(family_string, "family")                                                   \
   V(fatal_exception_string, "_fatalException")                                 \
   V(fd_string, "fd")                                                           \
@@ -215,6 +219,7 @@
   V(ignore_string, "ignore")                                                   \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
+  V(internal_crypto_keys_string, "internal/crypto/keys")                       \
   V(inverse_string, "inverse")                                                 \
   V(ipv4_string, "IPv4")                                                       \
   V(ipv6_string, "IPv6")                                                       \
@@ -264,6 +269,7 @@
   V(node_string, "node")                                                       \
   V(object_string, "Object")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
+  V(ok_string, "ok")                                                           \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
   V(onclienthello_string, "onclienthello")                                     \
@@ -287,10 +293,14 @@
   V(onwrite_string, "onwrite")                                                 \
   V(ongracefulclosecomplete_string, "ongracefulclosecomplete")                 \
   V(openssl_error_stack, "opensslErrorStack")                                  \
+  V(operationerror_string, "OperationError")                                   \
   V(options_string, "options")                                                 \
   V(original_string, "original")                                               \
   V(output_string, "output")                                                   \
   V(overlapped_string, "overlapped")                                           \
+  V(p256_string, "P-256")                                                      \
+  V(p384_string, "P-384")                                                      \
+  V(p521_string, "P-521")                                                      \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
@@ -333,6 +343,7 @@
   V(return_arrays_string, "returnArrays")                                      \
   V(return_string, "return")                                                   \
   V(salt_length_string, "saltLength")                                          \
+  V(secp256k1_string, "secp256k1")                                             \
   V(search_string, "search")                                                   \
   V(servername_string, "servername")                                           \
   V(session_id_string, "sessionId")                                            \
@@ -361,6 +372,7 @@
   V(syscall_string, "syscall")                                                 \
   V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
+  V(then_string, "then")                                                       \
   V(thread_id_string, "threadId")                                              \
   V(thread_name_string, "threadName")                                          \
   V(tls_group_string, "TLSGroup")                                              \
@@ -379,6 +391,7 @@
   V(uid_string, "uid")                                                         \
   V(unknown_string, "<unknown>")                                               \
   V(url_string, "url")                                                         \
+  V(usages_string, "usages")                                                   \
   V(username_string, "username")                                               \
   V(value_string, "value")                                                     \
   V(verify_error_string, "verifyError")                                        \
@@ -388,7 +401,9 @@
   V(wrap_string, "wrap")                                                       \
   V(writable_string, "writable")                                               \
   V(write_host_object_string, "_writeHostObject")                              \
-  V(write_queue_size_string, "writeQueueSize")
+  V(write_queue_size_string, "writeQueueSize")                                 \
+  V(zlib_string, "zlib")                                                       \
+  V(zstd_string, "zstd")
 
 #define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(a_record_template, v8::DictionaryTemplate)                                 \
