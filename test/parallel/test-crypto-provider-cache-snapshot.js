@@ -5,13 +5,13 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('node:assert');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { buildSnapshot, runWithSnapshot } = require('../common/snapshot');
 
-if (!hasOpenSSL(3) || isBoringSSL)
-  common.skip('this test requires OpenSSL 3.x');
+if (isBoringSSL)
+  common.skip('OpenSSL provider support is required');
 
 const entry = fixtures.path('snapshot', 'crypto-provider-cache.js');
 const buildEnv = {

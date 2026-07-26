@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(function() {
   c.on('data', function() {
     // We must consume all data sent by the server. Otherwise the
     // end event will not be sent and the test will hang.
-    // For example, when compiled with OpenSSL32 we see the
+    // For example, when compiled with OpenSSL 3.2 we see the
     // following response '15 03 03 00 02 02 16' which
     // decodes as a fatal (0x02) TLS error alert number 22 (0x16),
     // which corresponds to TLS1_AD_RECORD_OVERFLOW which matches
@@ -51,7 +51,7 @@ server.listen(0, common.mustCall(function() {
     // but the TLS spec seems to indicate there should be one
     // https://datatracker.ietf.org/doc/html/rfc8446#page-85
     // and error handling seems to have been re-written/improved
-    // in OpenSSL32. Consuming the data allows the test to pass
+    // in OpenSSL 3.2. Consuming the data allows the test to pass
     // either way.
   });
 
