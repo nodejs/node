@@ -81,7 +81,7 @@ namespace {
 // that the user user Connection::VerifyError after the `secure`
 // callback has been made.
 int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
-  // From https://www.openssl.org/docs/man1.1.1/man3/SSL_verify_cb:
+  // From https://www.openssl.org/docs/man3.0/man3/SSL_verify_cb:
   //
   //   If VerifyCallback returns 1, the verification process is continued. If
   //   VerifyCallback always returns 1, the TLS/SSL handshake will not be
@@ -540,9 +540,9 @@ void TLSWrap::InitSSL() {
   SSL_set_mode(ssl_.get(), SSL_MODE_RELEASE_BUFFERS);
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
-  // This is default in 1.1.1, but set it anyway, Cycle() doesn't currently
-  // re-call ClearIn() if SSL_read() returns SSL_ERROR_WANT_READ, so data can be
-  // left sitting in the incoming enc_in_ and never get processed.
+  // Set SSL_MODE_AUTO_RETRY explicitly because Cycle() doesn't currently
+  // re-call ClearIn() if SSL_read() returns SSL_ERROR_WANT_READ, so data can
+  // be left sitting in the incoming enc_in_ and never get processed.
   // - https://wiki.openssl.org/index.php/TLS1.3#Non-application_data_records
   SSL_set_mode(ssl_.get(), SSL_MODE_AUTO_RETRY);
 
@@ -674,8 +674,8 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
     }
   }
 
-  // SSL_CB_HANDSHAKE_START and SSL_CB_HANDSHAKE_DONE are called
-  // sending HelloRequest in OpenSSL-1.1.1.
+  // SSL_CB_HANDSHAKE_START and SSL_CB_HANDSHAKE_DONE are called when sending
+  // HelloRequest.
   // We need to check whether this is in a renegotiation state or not.
   if (where & SSL_CB_HANDSHAKE_DONE && !SSL_renegotiate_pending(ssl)) {
     Debug(c, "SSLInfoCallback(SSL_CB_HANDSHAKE_DONE);");

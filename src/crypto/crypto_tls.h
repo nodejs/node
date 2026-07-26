@@ -138,7 +138,7 @@ class TLSWrap : public AsyncWrap,
   }
 
  private:
-  // OpenSSL structures are opaque. Estimate SSL memory size for OpenSSL 1.1.1b:
+  // OpenSSL structures are opaque. Estimate SSL memory usage:
   //   SSL: 6224
   //   SSL->SSL3_STATE: 1040
   //   ...some buffers: 42 * 1024

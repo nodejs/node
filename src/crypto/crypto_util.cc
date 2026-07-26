@@ -19,7 +19,7 @@
 #include <mutex>
 #include "math.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 #include "openssl/provider.h"
 #endif
 
@@ -453,7 +453,7 @@ std::optional<std::string> ProcessFipsOptions() {
   const bool force_fips = per_process::cli_options->force_fips_crypto;
   if (!enable_fips && !force_fips) return std::nullopt;
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   // Whether FIPS-approved implementations are reachable is decided by the
   // OpenSSL configuration, not by Node.js. Refuse to start rather than
   // restrict the default property query to a provider that is not there,
@@ -507,15 +507,6 @@ void InitCryptoOnce() {
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
   CHECK_NOT_NULL(settings);
 
-#if OPENSSL_VERSION_MAJOR < 3
-  // --openssl-config=...
-  if (!per_process::cli_options->openssl_config.empty()) {
-    const char* conf = per_process::cli_options->openssl_config.c_str();
-    OPENSSL_INIT_set_config_filename(settings, conf);
-  }
-#endif
-
-#if OPENSSL_VERSION_MAJOR >= 3
   // --openssl-legacy-provider
   if (per_process::cli_options->openssl_legacy_provider) {
     OSSL_PROVIDER* legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
@@ -523,7 +514,6 @@ void InitCryptoOnce() {
       fprintf(stderr, "Unable to load legacy provider.\n");
     }
   }
-#endif
 
   OPENSSL_init_ssl(0, settings);
   InstallFipsIndicatorCallback();
