@@ -62,7 +62,10 @@ constexpr T NumBitsToBytes(T bits) {
   return (bits / CHAR_BIT) + ((CHAR_BIT - 1 + (bits % CHAR_BIT)) / CHAR_BIT);
 }
 
-bool ProcessFipsOptions();
+// Applies the FIPS related command line options. Returns a description of
+// what went wrong, or std::nullopt when there was nothing to do or the
+// options were applied successfully.
+std::optional<std::string> ProcessFipsOptions();
 
 bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
