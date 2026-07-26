@@ -1634,7 +1634,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(sc->ctx_.get(),
                                        TicketCompatibilityCallback);
 #else
@@ -1946,7 +1946,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     if (!bio)
       return;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
     if (params && params.id() == EVP_PKEY_DH) dh.reset(params.release());
 #else
@@ -1970,7 +1970,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   EVPKeyPointer dh_pkey(dh.release());
   if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
 #else
@@ -1979,7 +1979,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   dh_pkey.release();
 #endif
 }
@@ -2384,7 +2384,7 @@ void SecureContext::EnableTicketKeyCallback(
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
 #else
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
@@ -2392,7 +2392,7 @@ void SecureContext::EnableTicketKeyCallback(
 }
 
 namespace {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 bool InitTicketHmac(EVP_MAC_CTX* hctx,
                     const unsigned char* key,
                     size_t key_len) {
@@ -2416,7 +2416,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                      unsigned char* name,
                                      unsigned char* iv,
                                      EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                      EVP_MAC_CTX* hctx,
 #else
                                      HMAC_CTX* hctx,
@@ -2513,7 +2513,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
                                                EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                                EVP_MAC_CTX* hctx,
 #else
                                                HMAC_CTX* hctx,

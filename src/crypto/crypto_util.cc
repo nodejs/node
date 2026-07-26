@@ -934,7 +934,7 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const char* fs = nullptr;
 #else
   const char* fs = ERR_func_error_string(err);

@@ -916,7 +916,7 @@ void TLSWrap::ClearOut() {
             return;
 
           const char* ls = ERR_lib_error_string(ssl_err);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
           const char* fs = nullptr;
 #else
           const char* fs = ERR_func_error_string(ssl_err);
