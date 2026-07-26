@@ -31,7 +31,7 @@ const mode = process.env.NODE_TEST_FIPS_FORCE_MODE;
 if (!hasOpenSSL(3, 4)) {
   common.skip('OpenSSL 3.4 or later is required');
 } else if (!hasFIPS(3, 4)) {
-  common.skip('an active OpenSSL 3.4+ FIPS provider is required');
+  common.skip('an active OpenSSL FIPS provider is required');
 } else if (mode === 'provider') {
   assertSerializedMode(mode);
   assert.strictEqual(

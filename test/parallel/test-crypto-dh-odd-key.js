@@ -27,12 +27,12 @@ if (!common.hasCrypto) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 function test() {
   const odd = Buffer.alloc(39, 'A');
 
-  const size = hasFIPS(3) ? 2048 : (hasOpenSSL(3) ? 1024 : 32);
+  const size = hasFIPS(3) ? 2048 : (isBoringSSL ? 32 : 1024);
   const c = crypto.createDiffieHellman(size);
   c.setPrivateKey(odd);
   c.generateKeys();
