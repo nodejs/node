@@ -15,9 +15,8 @@ if builtins.currentSystem == "x86_64-darwin" then
 else
   nixpkgs
   // {
-    # OpenSSL 1.1.x and 3.0.x were removed from unstable, we want to keep testing with it
+    # OpenSSL 3.0.x was removed from unstable, but we want to keep testing it.
     inherit (import ./pkgs-26.05.nix arg)
-      openssl_1_1
       openssl_3
       ;
 
