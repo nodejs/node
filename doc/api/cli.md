@@ -731,6 +731,10 @@ Disable the ability of starting a debugging session by sending a
 added:
   - v21.3.0
   - v20.11.0
+  changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64742
+    description: The `--disable-warning` flags are now stable.
 -->
 
 > Stability: 2 - Stable
