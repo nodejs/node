@@ -23,12 +23,12 @@ const bench = common.createBenchmark(main, {
   flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
 });
 
+const noop = () => {};
+
 const allTests = {
-  'none': (loopAmount, avoidV8Optimization) => {
+  'none': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
-      it(`${i}`, () => {
-        avoidV8Optimization = i;
-      });
+      it(`${i}`, noop);
     }
 
     return finished(reporter);
@@ -51,58 +51,50 @@ const allTests = {
 
     return finished(reporter);
   },
-  'skip-method': (loopAmount, avoidV8Optimization) => {
+  'skip-method': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
       it(`${i}`, (t) => {
-        avoidV8Optimization = i;
         t.skip();
       });
     }
 
     return finished(reporter);
   },
-  'skip-method-with-message': (loopAmount, avoidV8Optimization) => {
+  'skip-method-with-message': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
       it(`${i}`, (t) => {
-        avoidV8Optimization = i;
         t.skip('skip reason');
       });
     }
 
     return finished(reporter);
   },
-  'todo': (loopAmount, avoidV8Optimization) => {
+  'todo': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
-      it(`${i}`, { todo: true }, () => {
-        avoidV8Optimization = i;
-      });
+      it(`${i}`, { todo: true }, noop);
     }
 
     return finished(reporter);
   },
-  'todo-with-message': (loopAmount, avoidV8Optimization) => {
+  'todo-with-message': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
-      it(`${i}`, { todo: 'todo reason' }, () => {
-        avoidV8Optimization = i;
-      });
+      it(`${i}`, { todo: 'todo reason' }, noop);
     }
 
     return finished(reporter);
   },
-  'todo-method': (loopAmount, avoidV8Optimization) => {
+  'todo-method': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
       it(`${i}`, (t) => {
-        avoidV8Optimization = i;
         t.todo();
       });
     }
 
     return finished(reporter);
   },
-  'todo-method-with-message': (loopAmount, avoidV8Optimization) => {
+  'todo-method-with-message': (loopAmount) => {
     for (let i = 0; i < loopAmount; i++) {
       it(`${i}`, (t) => {
-        avoidV8Optimization = i;
         t.todo('todo reason');
       });
     }
@@ -112,13 +104,11 @@ const allTests = {
 };
 
 function main({ n, option }) {
-  // eslint-disable-next-line prefer-const
-  let avoidV8Optimization = 0;
   const runOption = allTests[option];
 
   bench.start();
 
-  runOption(n, avoidV8Optimization).then(() => {
+  runOption(n).then(() => {
     bench.end(n);
   });
 }

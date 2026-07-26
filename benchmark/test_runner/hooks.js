@@ -27,16 +27,13 @@ const hookList = {
   afterEach: afterEach,
 };
 
-function run(loopAmount, avoidV8Optimization, hookFn) {
+const noop = () => {};
+
+function run(loopAmount, hookFn) {
   for (let i = 0; i < loopAmount; i++) {
     describe(`${i}`, () => {
-      hookFn(() => {
-        avoidV8Optimization = i;
-      });
-
-      it(`${i}`, () => {
-        avoidV8Optimization = i;
-      });
+      hookFn(noop);
+      it(`${i}`, noop);
     });
   }
 
@@ -44,13 +41,11 @@ function run(loopAmount, avoidV8Optimization, hookFn) {
 }
 
 function main(params) {
-  // eslint-disable-next-line prefer-const
-  let avoidV8Optimization = 0;
   const hookFn = hookList[params.hook];
 
   bench.start();
 
-  run(params.n, avoidV8Optimization, hookFn).then(() => {
+  run(params.n, hookFn).then(() => {
     bench.end(params.n);
   });
 }
