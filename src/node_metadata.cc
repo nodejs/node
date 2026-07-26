@@ -68,7 +68,7 @@ static constexpr size_t search(const char* s, char c, size_t n = 0) {
 
 static inline std::string GetOpenSSLVersion() {
   // sample openssl version string format
-  // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
+  // for reference: "OpenSSL 3.5.7 9 Jun 2026"
   const char* version = OpenSSL_version(OPENSSL_VERSION);
   const size_t first_space = search(version, ' ');
 

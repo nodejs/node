@@ -43,7 +43,7 @@ constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
   V(OCB_128, AES_Cipher, ncrypto::Cipher::AES_128_OCB())                       \
   V(OCB_192, AES_Cipher, ncrypto::Cipher::AES_192_OCB())                       \
   V(OCB_256, AES_Cipher, ncrypto::Cipher::AES_256_OCB())
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 #define VARIANTS_OCB(V)
 #endif
 

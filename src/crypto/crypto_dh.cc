@@ -81,20 +81,14 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
 void PutDhError(int reason) {
 #ifdef OPENSSL_IS_BORINGSSL
   OPENSSL_PUT_ERROR(DH, reason);
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
-  ERR_raise(ERR_LIB_DH, reason);
 #else
-  ERR_put_error(ERR_LIB_DH, 0, reason, __FILE__, __LINE__);
+  ERR_raise(ERR_LIB_DH, reason);
 #endif
 }
 
-#if defined(OPENSSL_IS_BORINGSSL) || !NCRYPTO_USE_OPENSSL3_PROVIDER
-void PutBnError(int reason) {
 #ifdef OPENSSL_IS_BORINGSSL
+void PutBnError(int reason) {
   OPENSSL_PUT_ERROR(BN, reason);
-#else
-  ERR_put_error(ERR_LIB_BN, 0, reason, __FILE__, __LINE__);
-#endif
 }
 #endif
 
@@ -123,12 +117,8 @@ void New(const FunctionCallbackInfo<Value>& args) {
     int32_t bits = args[0].As<Int32>()->Value();
     if (bits < 2) {
 #ifndef OPENSSL_IS_BORINGSSL
-#if OPENSSL_VERSION_MAJOR >= 3
       PutDhError(DH_R_MODULUS_TOO_SMALL);
-#else
-      PutBnError(BN_R_BITS_TOO_SMALL);
-#endif  // OPENSSL_VERSION_MAJOR >= 3
-#else   // OPENSSL_IS_BORINGSSL
+#elif defined(OPENSSL_IS_BORINGSSL)
       PutBnError(BN_R_BITS_TOO_SMALL);
 #endif  // OPENSSL_IS_BORINGSSL
       return ThrowCryptoError(env, ERR_get_error(), "Invalid prime length");
