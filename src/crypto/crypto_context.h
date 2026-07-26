@@ -173,7 +173,7 @@ class SecureContext final : public BaseObject {
                                unsigned char* name,
                                unsigned char* iv,
                                EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                EVP_MAC_CTX* hctx,
 #else
                                HMAC_CTX* hctx,
@@ -184,7 +184,7 @@ class SecureContext final : public BaseObject {
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                          EVP_MAC_CTX* hctx,
 #else
                                          HMAC_CTX* hctx,
