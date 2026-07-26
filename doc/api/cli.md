@@ -1010,9 +1010,8 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
-`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
-Node.js must be built against a FIPS-capable OpenSSL.
+Enable [FIPS mode][] at startup. A configured provider named `fips` must be
+available and initialize successfully.
 
 ### `--enable-fips-indicator-events`
 
@@ -2453,8 +2452,7 @@ added: v6.9.0
 -->
 
 Load an OpenSSL configuration file on startup. The file can activate an
-OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
-[FIPS mode][].
+OpenSSL FIPS provider. See [FIPS mode][].
 
 This option takes precedence over the `OPENSSL_CONF` environment variable.
 
@@ -2466,7 +2464,7 @@ added:
   - v16.17.0
 -->
 
-Enable OpenSSL 3.0 legacy provider. For more information please see
+Enable OpenSSL's legacy provider. For more information please see
 [OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--openssl-shared-config`
