@@ -51,7 +51,7 @@
 #if HAVE_OPENSSL
 #include "ncrypto.h"
 #include "node_crypto.h"
-#if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
+#if !defined(OPENSSL_IS_BORINGSSL) && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
 // OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
 // non-deprecated OPENSSL_INIT settings API still accepts the flag value.
 #define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
@@ -1305,7 +1305,6 @@ InitializeOncePerProcessInternal(
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL
 #ifndef OPENSSL_IS_BORINGSSL
-#if OPENSSL_VERSION_MAJOR >= 3
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
@@ -1321,6 +1320,7 @@ InitializeOncePerProcessInternal(
 
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
+    //
     // Call OPENSSL_init_crypto to initialize OPENSSL_INIT_LOAD_CONFIG to
     // avoid the default behavior where errors raised during the parsing of the
     // OpenSSL configuration file are not propagated and cannot be detected.
@@ -1377,11 +1377,7 @@ InitializeOncePerProcessInternal(
                                    GetOpenSSLErrorString());
       return result;
     }
-#else  // OPENSSL_VERSION_MAJOR < 3
-    if (FIPS_mode()) {
-      OPENSSL_init();
-    }
-#endif
+
     if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
