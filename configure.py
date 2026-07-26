@@ -1392,8 +1392,9 @@ def try_check_compiler(cc, lang):
 #
 # The version of asm compiler is needed for building openssl asm files.
 # See deps/openssl/openssl.gypi for detail.
-# Commands and regular expressions to obtain its version number are taken from
-# https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
+# Commands and regular expressions to obtain its version number mirror the
+# bundled OpenSSL assembler scripts, including
+# deps/openssl/openssl/crypto/sha/asm/sha512-x86_64.pl.
 #
 def get_version_helper(cc, regexp):
   try:
@@ -2322,15 +2323,15 @@ def configure_openssl(o):
   if not options.shared_openssl and not options.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
 
-    # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
-    # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
-    openssl110_asm_supported = \
+    # Check for an assembler that supports the instructions used by OpenSSL.
+    # See deps/openssl/openssl/INSTALL.md for its toolchain requirements.
+    openssl_asm_supported = \
       ('gas_version' in variables and Version(variables['gas_version']) >= Version('2.23')) or \
       ('xcode_version' in variables and Version(variables['xcode_version']) >= Version('5.0')) or \
       ('llvm_version' in variables and Version(variables['llvm_version']) >= Version('3.3')) or \
       ('nasm_version' in variables and Version(variables['nasm_version']) >= Version('2.10'))
 
-    if is_x86 and not openssl110_asm_supported:
+    if is_x86 and not openssl_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
        --openssl-no-asm.
        Please refer to BUILDING.md''')
@@ -2353,6 +2354,14 @@ def configure_openssl(o):
 
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
+
+  # BoringSSL identifies itself as OpenSSL 1.1.1 and is exempt from this check.
+  # A version of 0 means detection failed, which is already warned about in
+  # get_openssl_version() and is caught at compile time by ncrypto.h.
+  openssl_version = o['variables']['openssl_version']
+  if o['variables']['openssl_is_boringssl'] == 'false' and \
+     0 < openssl_version < 0x30000000:
+    error('OpenSSL 1.x is no longer supported, v3.0.0 or later is required.')
 
 def configure_lief(o):
   if options.without_lief:
