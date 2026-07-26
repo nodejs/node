@@ -327,8 +327,7 @@ bool GetAsymmetricKeyDetail(Environment* env,
   }
   const auto& pkey = key.GetAsymmetricKey();
   const auto* algorithm = pkey.getAlgorithm();
-  // Preserve RSA2 support on legacy backends without exposing its numeric ID.
-  if (algorithm != nullptr ? algorithm->isRsa() : pkey.isRsaVariant()) {
+  if (algorithm != nullptr && algorithm->isRsa()) {
     return GetRsaKeyDetail(env, key, target);
   }
   if (algorithm == &KeyAlgorithm::DSA) return GetDsaKeyDetail(env, key, target);
