@@ -268,7 +268,8 @@ parser.add_argument('--openssl-is-fips',
     action='store_true',
     dest='openssl_is_fips',
     default=None,
-    help='specifies that the OpenSSL library is FIPS compatible')
+    help='specifies that the shared OpenSSL library is FIPS capable '
+         '(requires --shared-openssl)')
 
 parser.add_argument('--openssl-use-def-ca-store',
     action='store_true',
@@ -2289,7 +2290,6 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
-  variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -2344,11 +2344,11 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
   if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
-
-  if options.openssl_is_fips and not options.shared_openssl:
-    variables['node_fipsinstall'] = b(True)
 
   configure_library('openssl', o)
 
