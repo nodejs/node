@@ -1606,7 +1606,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
 #endif
 
@@ -1625,9 +1625,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   CHECK(SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version));
   CHECK(SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version));
 
-  // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
-  // exposed in the public API. To retain compatibility, install a callback
-  // which restores the old algorithm.
+  // The ticket key size changed after the original size was exposed in the
+  // public API. To retain compatibility, install a callback which restores
+  // the old algorithm.
   if (!ncrypto::CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_))) {
@@ -2282,7 +2282,7 @@ done:
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
       // OpenSSL's "unsupported" error without any context is very
       // common and not very helpful, so we override it:

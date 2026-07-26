@@ -424,7 +424,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(force_fips_crypto) = false;
   std::string force_fips_crypto_policy = "provider";
 #endif  // HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   DEFINE_BOOL_FIELD(openssl_legacy_provider) = false;
   DEFINE_BOOL_FIELD(openssl_shared_config) = false;
 #endif
