@@ -7,7 +7,7 @@ const assert = require('assert');
 const { constants } = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const { connect, keys } = require(fixtures.path('tls-connect'));
 
@@ -90,16 +90,10 @@ test(aes128, aes256, undefined);
 const duplicates = `${aes256} \t:${aes256}`;
 test(duplicates, duplicates, aes256);
 
-// OpenSSL 1.1.1 rejects unknown TLS 1.3 cipher names. OpenSSL 3 and BoringSSL
-// ignore them and do not interpret exclusion rules in the TLS 1.3 list.
+// Unknown TLS 1.3 cipher names are ignored, and exclusion rules are not
+// interpreted in the TLS 1.3 list.
 const list = `TLS_UNKNOWN:!${aes128}:${duplicates}`;
-if (hasOpenSSL(3) || isBoringSSL) {
-  test(list, list, aes256);
-} else {
-  assert.throws(() => tls.createSecureContext({ ciphers: list }), {
-    code: 'ERR_SSL_NO_CIPHER_MATCH',
-  });
-}
+test(list, list, aes256);
 for (const ciphers of ['TLS_UNKNOWN', `!${aes128}`]) {
   assert.throws(() => tls.createSecureContext({ ciphers }), {
     code: 'ERR_SSL_NO_CIPHER_MATCH',
