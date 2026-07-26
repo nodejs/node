@@ -35,7 +35,7 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
                                       "any errors on the OpenSSL error stack\n";
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 TEST_F(NodeCryptoEnv, ExportIncompleteRsaPrivateKeyAsJwk) {
   v8::HandleScope handle_scope(isolate_);
   Argv argv;
