@@ -226,7 +226,7 @@ void SaveSupportedProviderHashAlgorithms(EVP_MD* md, void* arg) {
   EVP_MD_names_do_all(md, SaveSupportedProviderHashName, &context);
 }
 
-#else
+#elif NCRYPTO_USE_BORINGSSL
 void SaveSupportedHashAlgorithms(const EVP_MD* md,
                                  const char* from,
                                  const char* to,
@@ -253,7 +253,7 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
       // later lookups instead of throwing them away immediately.
       EVP_MD_do_all_sorted(SaveSupportedHashAlgorithmsAndCacheMD, env);
       EVP_MD_do_all_provided(nullptr, SaveSupportedProviderHashAlgorithms, env);
-#else
+#elif NCRYPTO_USE_BORINGSSL
       EVP_MD_do_all_sorted(SaveSupportedHashAlgorithms, env);
 #endif
     }
@@ -345,7 +345,7 @@ const EVP_MD* GetDigestImplementation(
     return digest_owner->get();
   }
   return nullptr;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   Utf8Value utf8(env->isolate(), algorithm);
   return ncrypto::getDigestByName(*utf8);
 #endif
@@ -354,7 +354,7 @@ const EVP_MD* GetDigestImplementation(
 void MarkInvalidXofLength() {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   ERR_raise(ERR_LIB_EVP, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
 #endif
 }
@@ -369,7 +369,7 @@ void MarkInvalidXofLength() {
 bool IsShakeDigest(const EVP_MD* md) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVP_MD_is_a(md, "SHAKE128") || EVP_MD_is_a(md, "SHAKE256");
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const char* name = OBJ_nid2sn(EVP_MD_type(md));
   return name != nullptr &&
          (strcmp(name, "SHAKE128") == 0 || strcmp(name, "SHAKE256") == 0);
@@ -540,7 +540,7 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
       }
       if (env->isolate()->HasPendingException()) return;
     }
-#else
+#elif NCRYPTO_USE_BORINGSSL
     Utf8Value utf8(env->isolate(), args[0]);
     return OneShotDigestWithMD(
         env, args, ncrypto::getDigestByName(*utf8), nullptr);

@@ -70,7 +70,7 @@
 #define RSA_PSS_SALTLEN_AUTO -2
 #endif
 
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 // OpenSSL hides these deprecated DH check constants under
 // OPENSSL_NO_DEPRECATED, but the numeric verifyError values remain public API.
 #if !defined(DH_CHECK_P_NOT_PRIME)
@@ -87,7 +87,7 @@
 #endif
 #endif
 #ifndef OPENSSL_NO_ENGINE
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 // Engine constants remain public API while engine implementation lives in the
 // dedicated compatibility target.
 #define ENGINE_METHOD_RSA (unsigned int)0x0001
