@@ -66,6 +66,10 @@ class UnionBytes {
   UnionBytes& operator=(UnionBytes&&) = default;
 
   bool is_one_byte() const { return one_byte_resource_ != nullptr; }
+  size_t length() const {
+    return is_one_byte() ? one_byte_resource_->length()
+                         : two_byte_resource_->length();
+  }
 
   v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) const;
 
