@@ -1857,7 +1857,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
 #endif
 
@@ -1876,9 +1876,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   CHECK(SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version));
   CHECK(SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version));
 
-  // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
-  // exposed in the public API. To retain compatibility, install a callback
-  // which restores the old algorithm.
+  // The ticket key size changed after the original size was exposed in the
+  // public API. To retain compatibility, install a callback which restores
+  // the old algorithm.
   if (!ncrypto::CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_))) {
@@ -1888,7 +1888,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(sc->ctx_.get(),
                                        TicketCompatibilityCallback);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
 #endif
 }
@@ -2200,7 +2200,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
     EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
     if (params && params.isA(KeyAlgorithm::DH)) dh.reset(params.release());
-#else
+#elif NCRYPTO_USE_BORINGSSL
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
 #endif
   }
@@ -2224,7 +2224,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   EVPKeyPointer dh_pkey(dh.release());
   if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
 #endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
@@ -2438,12 +2438,12 @@ void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 // The historical error shape for the TLS `pfx` option: the OpenSSL reason
-// string, except for OpenSSL 3's bare "unsupported" error, which on its own
+// string, except for OpenSSL's bare "unsupported" error, which on its own
 // says nothing useful.
 // TODO(@jasnell): Should this use ThrowCryptoError?
 // NOLINTNEXTLINE(runtime/int) -- matches ERR_get_error()
 void ThrowPFXError(Environment* env, unsigned long err) {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
     return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
         env, "Unsupported PKCS12 PFX data");
@@ -2622,7 +2622,7 @@ void SecureContext::EnableTicketKeyCallback(
 
 #if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
 #endif
 }
@@ -2641,7 +2641,7 @@ bool InitTicketHmac(EVP_MAC_CTX* hctx,
   };
   return EVP_MAC_init(hctx, key, key_len, params) == 1;
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 bool InitTicketHmac(HMAC_CTX* hctx, const unsigned char* key, size_t key_len) {
   return HMAC_Init_ex(hctx, key, key_len, Digest::SHA256, nullptr) == 1;
 }
@@ -2654,7 +2654,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                      EVP_CIPHER_CTX* ectx,
 #if NCRYPTO_USE_OPENSSL_PROVIDER
                                      EVP_MAC_CTX* hctx,
-#else
+#elif NCRYPTO_USE_BORINGSSL
                                      HMAC_CTX* hctx,
 #endif
                                      int enc) {
@@ -2751,7 +2751,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                EVP_CIPHER_CTX* ectx,
 #if NCRYPTO_USE_OPENSSL_PROVIDER
                                                EVP_MAC_CTX* hctx,
-#else
+#elif NCRYPTO_USE_BORINGSSL
                                                HMAC_CTX* hctx,
 #endif
                                                int enc) {
