@@ -257,8 +257,8 @@ jobs:
       # the matrix-selected nixpkgs attribute (e.g. `openssl_3_6`). All
       # other shared libs (brotli, cares, libuv, …) keep their defaults.
       # `permittedInsecurePackages` whitelists just the matrix-selected
-      # release (e.g. `openssl-1.1.1w`) so EOL-with-extended-support
-      # cycles evaluate without relaxing nixpkgs' meta check globally.
+      # release so EOL-with-extended-support cycles evaluate without relaxing
+      # nixpkgs' meta check globally.
       extra-nix-flags: |
         --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8-aarch64-linux.nar)"' || 'true' }} \
         --arg sharedLibDeps "(import $TAR_DIR/tools/nix/sharedLibDeps.nix {}) // {
