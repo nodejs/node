@@ -1,4 +1,4 @@
-// Flags: --experimental-sqlite
+// Flags: --expose-gc --experimental-sqlite
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
@@ -587,6 +587,36 @@ test('session.close() - closing twice', (t) => {
     name: 'Error',
     message: 'session is not open'
   });
+});
+
+test('session - keeps its database alive after the db handle is dropped', async (t) => {
+  const { gcUntil, onGC } = require('../common/gc');
+
+  // The DatabaseSync handle is created in a nested scope and never referenced
+  // again, so the returned session is the only thing keeping it reachable.
+  let dbCollected = false;
+  const session = (() => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+    onGC(database, { ongc: () => { dbCollected = true; } });
+    const s = database.createSession();
+    database.exec("INSERT INTO data VALUES (1, 'hello')");
+    return s;
+  })();
+
+  // The session must keep the database alive across GC. Previously it held
+  // only a weak reference, so the database could be collected and using the
+  // session afterwards dereferenced a dangling pointer and crashed.
+  await gcUntil('database is collected', () => dbCollected, 5).then(
+    () => { throw new Error('session did not keep its database alive'); },
+    () => {}, // Expected: the database is never collected, so gcUntil rejects.
+  );
+  t.assert.strictEqual(dbCollected, false);
+
+  // The database is still open and usable through the still-alive session.
+  const changeset = session.changeset();
+  t.assert.ok(changeset.byteLength > 0);
+  session.close();
 });
 
 test('session supports ERM', (t) => {
