@@ -1101,6 +1101,9 @@ added:
   - v22.15.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64748
+    description: Multiple concatenated zstd frames are decoded now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/64599
     description: The `dictionary` option can be a `TypedArray`, `DataView`, or
                  `ArrayBuffer`.
@@ -1124,7 +1127,10 @@ Each Zstd-based class takes an `options` object. All options are optional.
   to improve compression efficiency when compressing or decompressing data that
   shares common patterns with the dictionary.
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  input remains after the first complete compressed stream. **Default:** `false`
+  trailing input is detected after the end of the compressed stream. This
+  includes unreadable bytes and additional zstd frames following the first
+  frame, which are otherwise decoded as part of the same stream.
+  **Default:** `false`
 
 For example:
 

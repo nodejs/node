@@ -307,6 +307,7 @@ class ZstdContext : public MemoryRetainer {
   // Streaming-related, should be available for all compression libraries:
   void SetBuffers(const char* in, uint32_t in_len, char* out, uint32_t out_len);
   void SetFlush(int flush);
+  void SetRejectGarbageAfterEnd(bool reject_garbage_after_end);
   void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
   CompressionError GetErrorInfo() const;
 
@@ -315,6 +316,7 @@ class ZstdContext : public MemoryRetainer {
 
  protected:
   ZSTD_EndDirective flush_ = ZSTD_e_continue;
+  bool reject_garbage_after_end_ = false;
 
   ZSTD_inBuffer input_ = {nullptr, 0, 0};
   ZSTD_outBuffer output_ = {nullptr, 0, 0};
@@ -941,9 +943,9 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
   }
 
   static void Init(const FunctionCallbackInfo<Value>& args) {
-    CHECK((args.Length() == 4 || args.Length() == 5) &&
-          "init(params, pledgedSrcSize, writeResult, writeCallback[, "
-          "dictionary])");
+    CHECK((args.Length() == 5 || args.Length() == 6) &&
+          "init(params, pledgedSrcSize, writeResult, writeCallback, "
+          "dictionary[, rejectGarbageAfterEnd])");
 
     ZstdStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
@@ -980,7 +982,7 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     AllocScope alloc_scope(wrap);
     std::string_view dictionary;
     ArrayBufferViewContents<char> contents;
-    if (args.Length() == 5 && !args[4]->IsUndefined()) {
+    if (!args[4]->IsUndefined()) {
       if (!args[4]->IsArrayBufferView()) {
         THROW_ERR_INVALID_ARG_TYPE(
             wrap->env(), "dictionary must be an ArrayBufferView if provided");
@@ -995,6 +997,11 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
       wrap->EmitError(err);
       THROW_ERR_ZLIB_INITIALIZATION_FAILED(wrap->env(), err.message);
       return;
+    }
+
+    if (args.Length() == 6) {
+      CHECK(args[5]->IsBoolean());
+      wrap->context()->SetRejectGarbageAfterEnd(args[5]->IsTrue());
     }
 
     CHECK(args[0]->IsUint32Array());
@@ -1624,6 +1631,10 @@ void ZstdContext::SetFlush(int flush) {
   flush_ = static_cast<ZSTD_EndDirective>(flush);
 }
 
+void ZstdContext::SetRejectGarbageAfterEnd(bool reject_garbage_after_end) {
+  reject_garbage_after_end_ = reject_garbage_after_end;
+}
+
 void ZstdContext::GetAfterWriteOffsets(uint32_t* avail_in,
                                        uint32_t* avail_out) const {
   *avail_in = input_.size - input_.pos;
@@ -1765,15 +1776,21 @@ void ZstdDecompressContext::DoThreadPoolWork() {
     return;
   }
 
-  size_t const ret = ZSTD_decompressStream(dctx_.get(), &output_, &input_);
-  if (ZSTD_isError(ret)) {
-    frame_complete_ = false;
-    error_ = ZSTD_getErrorCode(ret);
-    error_code_string_ = ZstdStrerror(error_);
-    error_string_ = ZSTD_getErrorString(error_);
-  } else {
+  do {
+    size_t const ret = ZSTD_decompressStream(dctx_.get(), &output_, &input_);
+    if (ZSTD_isError(ret)) {
+      frame_complete_ = false;
+      error_ = ZSTD_getErrorCode(ret);
+      error_code_string_ = ZstdStrerror(error_);
+      error_string_ = ZSTD_getErrorString(error_);
+      return;
+    }
     frame_complete_ = ret == 0;
-  }
+    // A single input buffer may hold several concatenated frames. Keep decoding
+    // while one frame ends with input still pending and output space to fill,
+    // unless trailing input is meant to be rejected as garbage.
+  } while (frame_complete_ && !reject_garbage_after_end_ &&
+           input_.pos < input_.size && output_.pos < output_.size);
 }
 
 CompressionError ZstdDecompressContext::GetErrorInfo() const {
