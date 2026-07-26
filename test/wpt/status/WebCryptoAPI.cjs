@@ -30,7 +30,7 @@ function skipSubtests(...entries) {
   }
 }
 
-if (!hasOpenSSL(3, 0)) {
+if (isBoringSSL) {
   skip(
     'modern-algos/encrypt_decrypt/aes_ocb.https.any.js',
     'modern-algos/generateKey/failures_AES-OCB.https.any.js',

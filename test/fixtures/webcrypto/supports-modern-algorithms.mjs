@@ -13,8 +13,8 @@ const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const cshake128 = crypto.getHashes().includes('cshake128');
 const cshake256 = crypto.getHashes().includes('cshake256');
-const ocb = hasOpenSSL(3) && crypto.getCiphers().includes('aes-128-ocb');
-const kmac = hasOpenSSL(3) && crypto.getMacs().includes('kmac128');
+const ocb = !isBoringSSL && crypto.getCiphers().includes('aes-128-ocb');
+const kmac = !isBoringSSL && crypto.getMacs().includes('kmac128');
 const hybridKems = !fips && pqc && (!boringSSL || shake256);
 
 

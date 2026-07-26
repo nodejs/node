@@ -31,7 +31,7 @@ const ca = readFileSync(fixtures.path('keys', 'ca1-cert.pem'));
 const privateKey = createPrivateKey(key);
 
 if (!isBoringSSL) {
-  const expectedPubkeys = hasOpenSSL(3) ? [
+  const expectedPubkeys = [
     [
       'rsa_pss_cert_2048.pem',
       292,
@@ -41,17 +41,6 @@ if (!isBoringSSL) {
       'rsa_pss_cert_2048_sha256_sha256_16.pem',
       342,
       'da0bcd53fbe3969c7cc2730f86abc34e0e1c340264bbdfa3faf01484c2eeece0',
-    ],
-  ] : [
-    [
-      'rsa_pss_cert_2048.pem',
-      294,
-      '4d4f2f076aced4f0df922b84b466b0a60ba4cb50a23d695ae12ddc5fff7aca14',
-    ],
-    [
-      'rsa_pss_cert_2048_sha256_sha256_16.pem',
-      294,
-      'd37942c3bd02bc25c724fcd31efd647824e536c13d62d9ad0b5db8c0900d3cba',
     ],
   ];
 
@@ -90,7 +79,7 @@ emailAddress=ry@tinyclouds.org`;
 
 let infoAccessCheck = `OCSP - URI:http://ocsp.nodejs.org/
 CA Issuers - URI:http://ca.nodejs.org/ca.cert`;
-if (!hasOpenSSL(3))
+if (isBoringSSL)
   infoAccessCheck += '\n';
 
 const der = Buffer.from(
@@ -519,7 +508,7 @@ UcXd/5qu2GhokrKU2cPttU+XAN2Om6a0
     assert.strictEqual(child.status, 0, child.stderr || child.stdout);
 
     assert.throws(() => cert.publicKey, {
-      message: hasOpenSSL(3) ? /decode error/ : /wrong tag/,
+      message: /decode error/,
       name: 'Error'
     });
 

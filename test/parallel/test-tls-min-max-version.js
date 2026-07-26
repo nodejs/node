@@ -43,9 +43,9 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   }
 
   let ciphers;
-  if (hasOpenSSL(3) && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
-      proto === 'TLSv1_1_method' || proto === 'TLSv1_method' ||
-      sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method')) {
+  if (!isBoringSSL && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
+                      proto === 'TLSv1_1_method' || proto === 'TLSv1_method' ||
+                      sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method')) {
     if (serr !== 'ERR_SSL_UNSUPPORTED_PROTOCOL')
       ciphers = 'ALL@SECLEVEL=0';
   }
@@ -179,15 +179,11 @@ for (const [method, version] of [
   test(U, U, 'TLS_method', U, U, method, ...expected);
 }
 
-// OpenSSL 1.1.1 and 3.0 use a different error code and alert (sent to the
-// client) when no protocols are enabled on the server.
 // BoringSSL closes the connection without sending an alert in this case.
 const NO_PROTOCOLS_AVAILABLE_SERVER = isBoringSSL ?
-  'ERR_SSL_NO_SUPPORTED_VERSIONS_ENABLED' : hasOpenSSL(3) ?
-    'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
+  'ERR_SSL_NO_SUPPORTED_VERSIONS_ENABLED' : 'ERR_SSL_NO_PROTOCOLS_AVAILABLE';
 const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = isBoringSSL ?
-  'ECONNRESET' : hasOpenSSL(3) ?
-    'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
+  'ECONNRESET' : 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION';
 const NO_PROTOCOLS_AVAILABLE_CLIENT = isBoringSSL ?
   'ERR_SSL_NO_SUPPORTED_VERSIONS_ENABLED' : 'ERR_SSL_NO_PROTOCOLS_AVAILABLE';
 const NO_PROTOCOLS_AVAILABLE_CLIENT_ALERT = isBoringSSL ?

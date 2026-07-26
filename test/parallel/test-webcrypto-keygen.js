@@ -177,7 +177,7 @@ if (!isBoringSSL) {
   common.printSkipMessage('Skipping unsupported test cases');
 }
 
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   vectors['AES-OCB'] = {
     algorithm: { length: 256 },
     result: 'CryptoKey',
