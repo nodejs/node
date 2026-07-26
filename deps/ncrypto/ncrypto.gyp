@@ -13,9 +13,6 @@
       'OPENSSL_API_COMPAT=30000',
       'OPENSSL_NO_DEPRECATED',
     ],
-    'ncrypto_legacy_openssl_defines': [
-      'OPENSSL_API_COMPAT=0x10100000L',
-    ],
     'ncrypto_engine_defines': [
       'OPENSSL_API_COMPAT=30000',
       'OPENSSL_SUPPRESS_DEPRECATED',
@@ -36,23 +33,18 @@
           'NCRYPTO_BSSL_LIBDECREPIT_MISSING=<(ncrypto_bssl_libdecrepit_missing)',
         ],
         'conditions': [
-          ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
-            'defines!': [ '<@(ncrypto_legacy_openssl_defines)' ],
+          ['openssl_is_boringssl=="false"', {
             'defines': [ '<@(ncrypto_strict_defines)' ],
           }],
         ],
       },
       'sources': [ '<@(ncrypto_sources)' ],
       'conditions': [
-        ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
-          'defines!': [ '<@(ncrypto_legacy_openssl_defines)' ],
+        ['openssl_is_boringssl=="false"', {
           'defines': [ '<@(ncrypto_strict_defines)' ],
           'dependencies': [
             'ncrypto_engine',
           ],
-        }],
-        ['openssl_is_boringssl=="false" and openssl_version < 0x3000000f', {
-          'sources': [ '<@(ncrypto_engine_sources)' ],
         }],
         ['node_shared_openssl=="false"', {
           'dependencies': [
@@ -63,7 +55,7 @@
     },
   ],
   'conditions': [
-    ['openssl_is_boringssl=="false" and openssl_version >= 0x3000000f', {
+    ['openssl_is_boringssl=="false"', {
       'targets': [
         {
           'target_name': 'ncrypto_engine',
