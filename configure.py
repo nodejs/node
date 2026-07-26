@@ -2339,6 +2339,14 @@ def configure_openssl(o):
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
 
+  # BoringSSL identifies itself as OpenSSL 1.1.1 and is exempt from this check.
+  # A version of 0 means detection failed, which is already warned about in
+  # get_openssl_version() and is caught at compile time by ncrypto.h.
+  openssl_version = o['variables']['openssl_version']
+  if o['variables']['openssl_is_boringssl'] == 'false' and \
+     0 < openssl_version < 0x30000000:
+    error('OpenSSL 1.x is no longer supported, v3.0.0 or later is required.')
+
 def configure_lief(o):
   if options.without_lief:
     if options.shared_lief:
