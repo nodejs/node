@@ -30,10 +30,10 @@ if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3)) {
-  common.skip('Too slow when dynamically linked against OpenSSL 1.1.1');
+if (isBoringSSL) {
+  common.skip('BoringSSL does not support all tested MODP groups');
 }
 
 const assert = require('assert');

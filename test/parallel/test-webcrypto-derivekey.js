@@ -6,7 +6,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -191,7 +191,7 @@ const fips4 = hasFIPS(4);
     common.printSkipMessage('Skipping unsupported SHA-3 test cases');
   }
 
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     vectors.push(
       ['KMAC128', 'sign', 128],
       [{ name: 'KMAC128', length: 384 }, 'sign', 384],
@@ -251,7 +251,7 @@ const fips4 = hasFIPS(4);
     common.printSkipMessage('Skipping unsupported SHA-3 test cases');
   }
 
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     vectors.push(
       ['KMAC128', 'sign', 128],
       [{ name: 'KMAC128', length: 384 }, 'sign', 384],
@@ -284,7 +284,7 @@ const fips4 = hasFIPS(4);
   })().then(common.mustCall());
 }
 
-if (hasOpenSSL(3) && !hasFIPS()) {
+if (!isBoringSSL && !hasFIPS()) {
   (async () => {
     const derivedKeyAlgorithm = { name: 'KMAC128', length: 0 };
     const usages = ['sign'];

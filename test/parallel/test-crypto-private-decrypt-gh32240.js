@@ -15,8 +15,8 @@ const {
 } = require('crypto');
 
 const {
-  hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 const fips3 = hasFIPS(3);
@@ -64,8 +64,8 @@ function decrypt(key) {
 }
 
 decrypt(pkey);
-assert.throws(() => decrypt(pkeyEncrypted), hasOpenSSL(3) ?
+assert.throws(() => decrypt(pkeyEncrypted), isBoringSSL ?
+  { code: 'ERR_MISSING_PASSPHRASE' } :
   { message: 'error:07880109:common libcrypto routines::interrupted or ' +
-             'cancelled' } :
-  { code: 'ERR_MISSING_PASSPHRASE' });
+             'cancelled' });
 decrypt(pkey);  // Should not throw.

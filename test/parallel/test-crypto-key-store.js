@@ -2,9 +2,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasFIPS, hasOpenSSL } = require('../common/crypto');
-if (!hasOpenSSL(3))
-  common.skip('requires OpenSSL 3.x');
+const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
+  common.skip('OpenSSL provider support is required');
 
 // Verifies that crypto.createPrivateKey() can pass a WHATWG URL (here a file:
 // URI) to an OpenSSL STORE loader, and that the resulting KeyObject works for

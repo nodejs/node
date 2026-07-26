@@ -1,16 +1,17 @@
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto) {
-  common.skip('missing crypto, or OpenSSL version lower than 3');
+  common.skip('missing crypto');
 }
 
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
-if (!hasOpenSSL(3)) {
-  common.skip('missing crypto, or OpenSSL version lower than 3');
+if (isBoringSSL) {
+  common.skip('this test requires OpenSSL');
 }
 
 const fixtures = require('../common/fixtures');
@@ -152,7 +153,7 @@ if (hasFIPS(3)) {
 
   // TLS_AES_128_CCM_8_SHA256 & TLS_AES_128_CCM_SHA256 are not enabled by
   // default, but work.
-  // However, for OpenSSL32 AES_128 is not enabled due to the
+  // However, for OpenSSL 3.2 AES_128 is not enabled due to the
   // default security level
   if (!hasOpenSSL(3, 2)) {
     test('TLS_AES_128_CCM_8_SHA256', U,

@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
@@ -38,13 +38,13 @@ if (!isBoringSSL) {
   common.printSkipMessage('Skipping unsupported test cases');
 }
 
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   kDerivedKeyTypes.push(
     ['AES-OCB', 128, undefined, 'encrypt', 'decrypt'],
     ['AES-OCB', 256, undefined, 'encrypt', 'decrypt'],
   );
 } else {
-  common.printSkipMessage('Skipping unsupported test cases');
+  common.printSkipMessage('Skipping AES-OCB test cases unsupported by BoringSSL');
 }
 
 const kDerivedKeys = {

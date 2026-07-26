@@ -79,11 +79,9 @@ if (fips30) {
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: hasOpenSSL(3) ?
-    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
-    isBoringSSL ?
-      'error:0600006d:public key routines:OPENSSL_internal:ILLEGAL_OR_UNSUPPORTED_PADDING_MODE' :
-      'bye, bye, error stack' });
+  }, { message: isBoringSSL ?
+    'error:0600006d:public key routines:OPENSSL_internal:ILLEGAL_OR_UNSUPPORTED_PADDING_MODE' :
+    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -374,19 +372,12 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, hasOpenSSL(3) ? {
-    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
-    message: /illegal or unsupported padding mode/,
-  } : isBoringSSL ? {
+  }, isBoringSSL ? {
     code: 'ERR_OSSL_EVP_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /ILLEGAL_OR_UNSUPPORTED_PADDING_MODE/,
   } : {
-    code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
-    opensslErrorStack: [
-      'error:06089093:digital envelope routines:EVP_PKEY_CTX_ctrl:' +
-      'command not supported',
-    ],
   });
 }
 
@@ -682,7 +673,7 @@ if (hasOpenSSL(3, 2)) {
 
 // Preserve the current behavior from https://github.com/nodejs/node/issues/53761:
 // one-shot verify does not accept SM2 signatures produced by the streaming path.
-if (hasOpenSSL(3) && crypto.getHashes().includes('sm3')) {
+if (!isBoringSSL && crypto.getHashes().includes('sm3')) {
   const data = Buffer.from('AABB');
   const privateKey = crypto.createPrivateKey(`-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQgbjCNHopgvyGVfLaP

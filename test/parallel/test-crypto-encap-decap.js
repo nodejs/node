@@ -16,11 +16,6 @@ const { promisify } = require('util');
 const isBoringSSL = commonIsBoringSSL;
 const isFips = hasFIPS(3);
 
-if (!hasOpenSSL(3) && !isBoringSSL) {
-  assert.throws(() => crypto.encapsulate(), { code: 'ERR_CRYPTO_KEM_NOT_SUPPORTED' });
-  return;
-}
-
 assert.throws(() => crypto.encapsulate(), { code: 'ERR_INVALID_ARG_TYPE',
                                             message: /The "key" argument must be of type/ });
 assert.throws(() => crypto.decapsulate(), { code: 'ERR_INVALID_ARG_TYPE',
@@ -28,7 +23,7 @@ assert.throws(() => crypto.decapsulate(), { code: 'ERR_INVALID_ARG_TYPE',
 
 const keys = {
   'rsa': {
-    supported: hasOpenSSL(3), // RSASVE was added in 3.0
+    supported: !isBoringSSL, // BoringSSL does not support RSASVE
     publicKey: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     privateKey: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     sharedSecretLength: 256,

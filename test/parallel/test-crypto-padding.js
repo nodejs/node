@@ -26,7 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 // Input data.
 const ODD_LENGTH_PLAIN = 'Hello node world!';
@@ -83,14 +83,14 @@ assert.strictEqual(enc(EVEN_LENGTH_PLAIN, true), EVEN_LENGTH_ENCRYPTED);
 assert.throws(function() {
   // Input must have block length %.
   enc(ODD_LENGTH_PLAIN, false);
-}, hasOpenSSL(3) ? {
-  message: /wrong[\s_]final[\s_]block[\s_]length/i,
-  code: /ERR_OSSL(_EVP)?_WRONG_FINAL_BLOCK_LENGTH/,
-  reason: /wrong[\s_]final[\s_]block[\s_]length/i,
-} : {
+}, isBoringSSL ? {
   message: /data[\s_]not[\s_]multiple[\s_]of[\s_]block[\s_]length/i,
   code: /ERR_OSSL(_EVP)?_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH/,
   reason: /data[\s_]not[\s_]multiple[\s_]of[\s_]block[\s_]length/i,
+} : {
+  message: /wrong[\s_]final[\s_]block[\s_]length/i,
+  code: /ERR_OSSL(_EVP)?_WRONG_FINAL_BLOCK_LENGTH/,
+  reason: /wrong[\s_]final[\s_]block[\s_]length/i,
 }
 );
 
