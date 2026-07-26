@@ -9,7 +9,7 @@ const fixtures = require('../common/fixtures');
 const crypto = require('crypto');
 
 if (!crypto.getFips()) {
-  common.skip('node compiled without FIPS OpenSSL.');
+  common.skip('OpenSSL is not configured for FIPS mode');
 }
 
 const assert = require('assert');
