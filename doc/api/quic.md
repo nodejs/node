@@ -2914,7 +2914,7 @@ await listen((session) => { /* ... */ }, {
 });
 ```
 
-#### `sessionOptions.ca` (client only)
+#### `sessionOptions.ca`
 
 <!-- YAML
 added: v23.8.0
@@ -2922,8 +2922,7 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CA certificates to use for client sessions. For server sessions, CA
-certificates are specified per-identity in the [`sessionOptions.sni`][] map.
+The CA certificates to use for sessions.
 
 #### `sessionOptions.cc`
 
@@ -2987,7 +2986,7 @@ added: v23.8.0
 
 The list of supported TLS 1.3 cipher algorithms.
 
-#### `sessionOptions.crl` (client only)
+#### `sessionOptions.crl`
 
 <!-- YAML
 added: v23.8.0
@@ -2995,8 +2994,7 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CRL to use for client sessions. For server sessions, CRLs are specified
-per-identity in the [`sessionOptions.sni`][] map.
+The CRL to use for sessions.
 
 #### `sessionOptions.enableEarlyData`
 
@@ -3290,7 +3288,6 @@ contain:
 * `keys` {KeyObject|KeyObject\[]} The TLS private keys. **Required.**
 * `certs` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
   The TLS certificates. **Required.**
-  Optional certificate revocation lists.
 * `verifyPrivateKey` {boolean} Verify the private key. Default: `false`.
 * `port` {number} The port to advertise in ORIGIN frames (RFC 9412) for
   this host name. **Default:** `443`. Only used for HTTP/3 sessions.
@@ -3304,7 +3301,7 @@ const endpoint = await listen(callback, {
   sni: {
     '*': { keys: [defaultKey], certs: [defaultCert] },
     'api.example.com': { keys: [apiKey], certs: [apiCert], port: 8443 },
-    'www.example.com': { keys: [wwwKey], certs: [wwwCert], ca: [customCA] },
+    'www.example.com': { keys: [wwwKey], certs: [wwwCert] },
     'internal.example.com': { keys: [intKey], certs: [intCert], authoritative: false },
   },
 });
