@@ -80,14 +80,18 @@ class URLPattern : public BaseObject {
 
   class URLPatternResult {
    public:
-    static v8::MaybeLocal<v8::Value> ToJSValue(
-        Environment* env, const ada::url_pattern_result& result);
+     static v8::MaybeLocal<v8::Value> ToJSValue(
+         Environment* env,
+         const ada::url_pattern_result& result,
+         const ada::url_pattern<URLPatternRegexProvider>& url_pattern);
   };
 
   class URLPatternComponentResult {
    public:
-    static v8::MaybeLocal<v8::Object> ToJSObject(
-        Environment* env, const ada::url_pattern_component_result& result);
+     static v8::MaybeLocal<v8::Object> ToJSObject(
+         Environment* env,
+         const ada::url_pattern_component_result& result,
+         const std::vector<std::string>& group_name_list);
   };
 
  private:
