@@ -1042,14 +1042,20 @@ using the following configure option:
 
 ## Building Node.js with FIPS-compliant OpenSSL
 
-Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
-[OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
-It is not necessary to rebuild Node.js to enable support for FIPS.
+Node.js can use an OpenSSL FIPS provider via
+[OpenSSL's provider model](https://docs.openssl.org/master/man7/crypto/#openssl-providers),
+whether OpenSSL is linked statically or dynamically. It is not necessary to
+rebuild Node.js to do so; the provider and the OpenSSL configuration that
+activates it are supplied at runtime.
 
-When using OpenSSL 1.1.1, Node.js must be built against a FIPS-capable OpenSSL.
+Node.js does not build a FIPS provider. OpenSSL requires that a FIPS provider
+be built from a release that carries a FIPS certificate, so a provider built
+as part of the Node.js build would have no validation status.
 
-See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
-enable FIPS support in Node.js.
+`./configure --openssl-is-fips` only records that the OpenSSL being linked is
+FIPS capable, and requires `--shared-openssl`.
+
+See [FIPS mode](doc/api/crypto.md#fips-mode) for how to configure it.
 
 ## Building Node.js with Temporal support
 
