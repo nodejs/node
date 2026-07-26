@@ -182,8 +182,8 @@ On the client connection, a custom `checkServerIdentity` should be passed
 because the default one will fail in the absence of a certificate.
 
 According to the [RFC 4279][], PSK identities up to 128 bytes in length and
-PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
-maximum identity size is 128 bytes, and maximum PSK length is 256 bytes.
+PSKs up to 64 bytes in length must be supported. In OpenSSL the maximum
+identity size is 128 bytes, and the maximum PSK length is 256 bytes.
 
 The current implementation doesn't support asynchronous PSK callbacks due to the
 limitations of the underlying OpenSSL API.
@@ -1236,7 +1236,7 @@ For example, a TLSv1.2 protocol with AES256-SHA cipher:
 ```
 
 See
-[SSL\_CIPHER\_get\_name](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
+[SSL\_CIPHER\_get\_name](https://www.openssl.org/docs/man3.0/man3/SSL_CIPHER_get_name.html)
 for more information.
 
 ### `tlsSocket.getEphemeralKeyInfo()`
@@ -1488,7 +1488,7 @@ added: v12.11.0
   the client in the order of decreasing preference.
 
 See
-[SSL\_get\_shared\_sigalgs](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_shared_sigalgs.html)
+[SSL\_get\_shared\_sigalgs](https://www.openssl.org/docs/man3.0/man3/SSL_get_shared_sigalgs.html)
 for more information.
 
 ### `tlsSocket.getTLSTicket()`
@@ -2077,7 +2077,7 @@ changes:
     The list can contain digest algorithms (`SHA256`, `MD5` etc.), public key
     algorithms (`RSA-PSS`, `ECDSA` etc.), combination of both (e.g
     'RSA+SHA384') or TLS v1.3 scheme names (e.g. `rsa_pss_pss_sha512`).
-    See [OpenSSL man pages](https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set1_sigalgs_list.html)
+    See [OpenSSL man pages](https://www.openssl.org/docs/man3.0/man3/SSL_CTX_set1_sigalgs_list.html)
     for more info.
   * `ciphers` {string} Cipher suite specification, replacing the default. For
     more information, see [Modifying the default TLS cipher suite][]. Permitted
@@ -2584,7 +2584,7 @@ added: v0.11.3
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
 [RFC 8879]: https://tools.ietf.org/html/rfc8879
-[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
+[SSL_METHODS]: https://www.openssl.org/docs/man3.0/man7/ssl.html#Dealing-with-Protocol-Methods
 [Session Resumption]: #session-resumption
 [Stream]: stream.md#stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
@@ -2601,8 +2601,8 @@ added: v0.11.3
 [`Duplex`]: stream.md#class-streamduplex
 [`NODE_EXTRA_CA_CERTS`]: cli.md#node_extra_ca_certsfile
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
-[`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
-[`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
+[`SSL_export_keying_material`]: https://www.openssl.org/docs/man3.0/man3/SSL_export_keying_material.html
+[`SSL_get_version`]: https://www.openssl.org/docs/man3.0/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.md#cryptogetcurves
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`net.Server.address()`]: net.md#serveraddress
@@ -2637,6 +2637,6 @@ added: v0.11.3
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #certificate-object
-[cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
+[cipher list format]: https://www.openssl.org/docs/man3.0/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
