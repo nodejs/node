@@ -32,7 +32,7 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 let iterations = 2000;
 if (hasFIPS(3)) {
@@ -46,11 +46,11 @@ if (hasFIPS(3)) {
 }
 
 let createDH;
-if (hasOpenSSL(3)) {
-  // OpenSSL 3 recognizes named groups without validating their primes.
+if (!isBoringSSL) {
+  // OpenSSL recognizes named groups without validating their primes.
   createDH = () => crypto.getDiffieHellman('modp14');
 } else {
-  // Other backends validate each peer's parameters, so keep them small.
+  // BoringSSL validates each peer's parameters, so keep them small.
   const length = crypto.getFips() === 1 ? 1024 : 256;
   const prime = crypto.createDiffieHellman(length).getPrime();
   createDH = () => crypto.createDiffieHellman(prime);

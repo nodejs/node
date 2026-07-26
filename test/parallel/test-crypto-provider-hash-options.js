@@ -11,7 +11,7 @@ if (!common.hasCrypto) {
 
 if (Number(process.versions.openssl.split('.')[0]) < 4 ||
     isBoringSSL) {
-  common.skip('OpenSSL 4 provider support is required');
+  common.skip('OpenSSL 4.0 or later is required');
 }
 
 const assert = require('node:assert');
