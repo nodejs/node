@@ -32,7 +32,7 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 let p;
 let iterations = 2000;
@@ -51,7 +51,7 @@ if (hasFIPS(3)) {
 } else {
   // FIPS requires length >= 1024, but small parameters keep this pummel test
   // from timing out in ordinary CI.
-  const length = crypto.getFips() === 1 ? 1024 : (hasOpenSSL(3) ? 512 : 256);
+  const length = crypto.getFips() === 1 ? 1024 : (isBoringSSL ? 256 : 512);
   p = crypto.createDiffieHellman(length).getPrime();
 }
 

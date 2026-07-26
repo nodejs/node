@@ -5,11 +5,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const {
   DH_CHECK_P_NOT_PRIME,
   DH_CHECK_P_NOT_SAFE_PRIME,
-  DH_NOT_SUITABLE_GENERATOR,
 } = crypto.constants;
 
 // Second OAKLEY group, see
@@ -68,7 +67,7 @@ const bad_dh = isBoringSSL ?
   crypto.createDiffieHellman('02', 'hex');
 assert.notStrictEqual(bad_dh.verifyError, 0);
 
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   const smallSafePrime = crypto.createDiffieHellman(
     Buffer.from([23]), Buffer.from([2]));
   assert.notStrictEqual(smallSafePrime.verifyError, 0);
@@ -77,11 +76,6 @@ if (hasOpenSSL(3)) {
     () => crypto.createDiffieHellman(Buffer.from(p, 'hex'),
                                      Buffer.from(p, 'hex')),
     { code: 'ERR_OSSL_DH_BAD_GENERATOR' });
-} else if (!isBoringSSL) {
-  assert.strictEqual(
-    crypto.createDiffieHellman(Buffer.from(p, 'hex'),
-                               Buffer.from(p, 'hex')).verifyError,
-    DH_NOT_SUITABLE_GENERATOR);
 }
 
 const availableCurves = new Set(crypto.getCurves());
@@ -269,7 +263,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   crypto.createSign('SHA256').sign(ecPrivateKey);
 }
 
-if (hasFIPS(3) && availableCurves.has('secp256k1')) {
+if (hasFIPS() && availableCurves.has('secp256k1')) {
   const originalFips = crypto.getFips();
 
   try {

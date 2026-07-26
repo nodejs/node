@@ -813,7 +813,7 @@ for (const test of TEST_CASES) {
     } catch (err) {
       // OpenSSL without https://github.com/openssl/openssl/pull/32427
       // cannot finalize an empty CCM message unless update() was called.
-      if (hasOpenSSL(3)) {
+      if (!isBoringSSL) {
         assert.strictEqual(err.code, 'ERR_OSSL_TAG_NOT_SET');
       } else {
         assert.match(err.message, /Unsupported state/);

@@ -15,7 +15,6 @@ if (common.isASan) {
 
 const {
   isBoringSSL,
-  hasOpenSSL,
   hasFIPS,
 } = require('../common/crypto');
 
@@ -29,7 +28,6 @@ const fixtures = require('../common/fixtures');
 const {
   secureHeapUsed,
   createDiffieHellman,
-  getFips,
 } = require('crypto');
 
 if (process.argv[2] === 'child') {
@@ -43,8 +41,7 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(a.used, 0);
 
   {
-    const size = hasFIPS(3) ?
-      2048 : (getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
+    const size = hasFIPS(3) ? 2048 : 1024;
     const dh1 = createDiffieHellman(size);
     const p1 = dh1.getPrime('buffer');
     const dh2 = createDiffieHellman(p1, 'buffer');

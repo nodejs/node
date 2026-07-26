@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
@@ -101,11 +101,11 @@ for (const asymmetricKeyType of [
 
   if (!hasOpenSSL(3, 5)) {
     assert.throws(() => createPublicKey(keys.public), {
-      code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
+      code: isBoringSSL ? 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM' : 'ERR_OSSL_EVP_DECODE_ERROR',
     });
 
     assert.throws(() => createPrivateKey(keys.private), {
-      code: hasOpenSSL(3) ? 'ERR_OSSL_UNSUPPORTED' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
+      code: isBoringSSL ? 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM' : 'ERR_OSSL_UNSUPPORTED',
     });
   } else {
     const publicKey = createPublicKey(keys.public);

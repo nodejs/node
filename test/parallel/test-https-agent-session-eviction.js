@@ -84,7 +84,7 @@ function second(server, session) {
   // Offering the cached session to a server using another TLS version should
   // not prevent a fresh connection.
   req.on('response', common.mustCall(function(res) {
-    // The test is now complete for OpenSSL 1.1.0.
+    // The test is now complete.
     server.close();
   }));
 
