@@ -106,7 +106,7 @@ class SecureContext final : public BaseObject {
   static const int kTicketKeyIVIndex = 4;
 
  protected:
-  // OpenSSL structures are opaque. This is sizeof(SSL_CTX) for OpenSSL 1.1.1b:
+  // OpenSSL structures are opaque. Estimate SSL_CTX memory usage:
   static const int64_t kExternalSize = 1024;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -980,7 +980,7 @@ bool ByteLengthToBitLength(size_t byte_length, size_t* bit_length) {
 }
 
 KeccakKmacXof NewKeccakKmacXof(bool use_128_bits) {
-  // OpenSSL 3.x exposes the cSHAKE/KMAC suffix primitive as KECCAK-KMAC-*.
+  // OpenSSL exposes the cSHAKE/KMAC suffix primitive as KECCAK-KMAC-*.
   const char* digest_name = use_128_bits ? OSSL_DIGEST_NAME_KECCAK_KMAC128
                                          : OSSL_DIGEST_NAME_KECCAK_KMAC256;
   auto digest = std::unique_ptr<EVP_MD, decltype(&EVP_MD_free)>{

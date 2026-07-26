@@ -60,8 +60,8 @@ PKCS12ParseResult ParsePKCS12Bundle(const BIOPointer& bio, const char* pass) {
       return PKCS12ParseResult(PKCS12ParseError::NOT_RECOGNIZED, err);
     }
 #endif
-#if OPENSSL_VERSION_MAJOR >= 3
-    // OpenSSL 3 reports algorithms that moved to the legacy provider as a
+#ifndef OPENSSL_IS_BORINGSSL
+    // OpenSSL reports algorithms that moved to the legacy provider as a
     // bare "unsupported" error.
     if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
       return PKCS12ParseResult(PKCS12ParseError::UNSUPPORTED_ALGORITHM, err);
