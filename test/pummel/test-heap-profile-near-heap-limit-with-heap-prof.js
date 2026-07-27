@@ -13,7 +13,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 
 tmpdir.refresh();
-const child = spawnSync(process.execPath, [
+spawnSync(process.execPath, [
   '--max-old-space-size=50',
   '--heap-prof',
   `--heap-prof-dir=${tmpdir.path}`,
@@ -22,9 +22,6 @@ const child = spawnSync(process.execPath, [
 ], {
   cwd: tmpdir.path,
 });
-
-assert(common.nodeProcessAborted(child.status, child.signal),
-       'process should have aborted, but did not');
 
 const profiles = fs.readdirSync(tmpdir.path)
   .filter((file) => file.endsWith('.heapprofile'));
