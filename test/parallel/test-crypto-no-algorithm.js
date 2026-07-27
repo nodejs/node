@@ -26,6 +26,24 @@ if (isMainThread) {
              `did not find ${expected} in ${err.opensslErrorStack}`);
     }
   }));
+
+  const derivations = [
+    ['HKDF', () => crypto.hkdfSync('sha256', Buffer.alloc(32), Buffer.alloc(8),
+                                   Buffer.alloc(0), 32)],
+    ['PBKDF2', () => crypto.pbkdf2Sync('secret', Buffer.alloc(16), 1000, 32,
+                                       'sha256')],
+  ];
+  for (const { 0: name, 1: derive } of derivations) {
+    try {
+      derive();
+    } catch (err) {
+      assert.match(err.message, /derivation failed/);
+      assert.strictEqual(err.code, 'ERR_OSSL_EVP_UNSUPPORTED', `${name}: ${err.code}`);
+      const expected = /digital envelope routines::unsupported/;
+      assert(err.opensslErrorStack.some((msg) => expected.test(msg)),
+             `${name}: did not find ${expected} in ${err.opensslErrorStack}`);
+    }
+  }
 }
 
 {
