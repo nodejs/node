@@ -661,6 +661,12 @@ std::optional<std::string> FileURLToPath(Environment* env,
     return "\\\\" + ada::idna::to_unicode(hostname) + decoded_pathname;
   }
 
+  if (decoded_pathname.size() < 3) {
+    THROW_ERR_INVALID_FILE_URL_PATH(env->isolate(),
+                                    "File URL path must be absolute");
+    return std::nullopt;
+  }
+
   char letter = decoded_pathname[1] | 0x20;
   char sep = decoded_pathname[2];
 
