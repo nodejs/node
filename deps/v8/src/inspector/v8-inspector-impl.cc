@@ -326,6 +326,7 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
         inspectedContext.get());
   });
   discardInspectedContext(groupId, contextId);
+  m_promiseHandlerTracker.makeWeakForContext(contextId);
 }
 
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
