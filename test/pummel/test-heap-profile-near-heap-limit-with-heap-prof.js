@@ -15,21 +15,24 @@ const fs = require('fs');
 tmpdir.refresh();
 const child = spawnSync(process.execPath, [
   '--max-old-space-size=50',
-  fixtures.path('workload', 'heap-profile-and-snapshot-near-heap-limit.js'),
+  '--heap-prof',
+  `--heap-prof-dir=${tmpdir.path}`,
+  `--diagnostic-dir=${tmpdir.path}`,
+  fixtures.path('workload', 'heap-profile-near-heap-limit-with-heap-prof.js'),
 ], {
   cwd: tmpdir.path,
 });
 
 console.log(child.stdout.toString());
-const stderr = child.stderr.toString();
-console.log(stderr);
+console.log(child.stderr.toString());
 assert(common.nodeProcessAborted(child.status, child.signal),
        'process should have aborted, but did not');
 
-const files = fs.readdirSync(tmpdir.path);
-const snapshots = files.filter((f) => f.endsWith('.heapsnapshot'));
-const profiles = files.filter((f) => f.endsWith('.heapprofile'));
-
-assert(snapshots.length === 1 ||
-       stderr.includes('Not generating snapshots because it\'s too risky'));
+const profiles = fs.readdirSync(tmpdir.path)
+  .filter((file) => file.endsWith('.heapprofile'));
 assert.strictEqual(profiles.length, 1);
+
+const profile = JSON.parse(
+  fs.readFileSync(tmpdir.resolve(profiles[0]), 'utf8'));
+assert(profile.head);
+assert(profile.samples.length > 0);

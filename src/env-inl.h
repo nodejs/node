@@ -905,6 +905,10 @@ inline void Environment::set_heap_snapshot_near_heap_limit(uint32_t limit) {
   heap_snapshot_near_heap_limit_ = limit;
 }
 
+inline void Environment::set_heap_profile_near_heap_limit(uint32_t limit) {
+  heap_profile_near_heap_limit_ = limit;
+}
+
 inline bool Environment::is_in_heapsnapshot_heap_limit_callback() const {
   return is_in_heapsnapshot_heap_limit_callback_;
 }
@@ -933,16 +937,9 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
   }
 }
 
-inline void Environment::AddHeapProfileNearHeapLimitCallback(
-    uint32_t max_extensions,
-    size_t extension_size,
-    v8::Local<v8::Function> callback) {
+inline void Environment::AddHeapProfileNearHeapLimitCallback() {
   DCHECK(!heap_profile_near_heap_limit_callback_added_);
   const bool was_registered = heapsnapshot_near_heap_limit_callback_added_;
-  heap_profile_near_heap_limit_max_extensions_ = max_extensions;
-  heap_profile_near_heap_limit_extension_size_ = extension_size;
-  heap_profile_near_heap_limit_extensions_used_ = 0;
-  heap_profile_near_heap_limit_callback_.Reset(isolate_, callback);
   heap_profile_near_heap_limit_callback_added_ = true;
   if (!was_registered) {
     isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
@@ -950,13 +947,13 @@ inline void Environment::AddHeapProfileNearHeapLimitCallback(
   }
 }
 
-inline void Environment::RemoveHeapProfileNearHeapLimitCallback() {
+inline void Environment::RemoveHeapProfileNearHeapLimitCallback(
+    size_t heap_limit) {
   DCHECK(heap_profile_near_heap_limit_callback_added_);
   heap_profile_near_heap_limit_callback_added_ = false;
-  heap_profile_near_heap_limit_callback_.Reset();
   if (!heapsnapshot_near_heap_limit_callback_added_) {
     isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                          0);
+                                          heap_limit);
   }
 }
 

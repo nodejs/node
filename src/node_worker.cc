@@ -280,6 +280,7 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
   Environment* env = worker->env();
   if (env != nullptr) {
     DCHECK(!env->is_in_heapsnapshot_heap_limit_callback());
+    DCHECK(!env->is_in_heap_profile_near_heap_limit_callback());
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Throwing ERR_WORKER_OUT_OF_MEMORY, "
@@ -328,6 +329,7 @@ void Worker::Run() {
         this->env_ = nullptr;
       }
 
+      env_->isolate()->GetHeapProfiler()->StopSamplingHeapProfiler();
       env_.reset();
     });
 

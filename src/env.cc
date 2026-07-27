@@ -9,6 +9,7 @@
 #include "node_context_data.h"
 #include "node_contextify.h"
 #include "node_errors.h"
+#include "node_file_utils.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
@@ -34,6 +35,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 
 namespace node {
@@ -1049,7 +1051,7 @@ Environment::~Environment() {
     RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
   if (heap_profile_near_heap_limit_callback_added_) {
-    RemoveHeapProfileNearHeapLimitCallback();
+    RemoveHeapProfileNearHeapLimitCallback(0);
   }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
@@ -2111,6 +2113,19 @@ size_t Environment::NearHeapLimitCallback(void* data,
                                           size_t current_heap_limit,
                                           size_t initial_heap_limit) {
   auto* env = static_cast<Environment*>(data);
+
+  // Profile and snapshot generation can allocate and invoke this callback
+  // recursively. Only extend the heap for the operation already in progress;
+  // do not start the other diagnostic from the nested invocation.
+  if (env->is_in_heapsnapshot_heap_limit_callback_) {
+    return HeapSnapshotNearHeapLimitCallback(
+        data, current_heap_limit, initial_heap_limit);
+  }
+  if (env->is_in_heap_profile_near_heap_limit_callback_) {
+    return HeapProfileNearHeapLimitCallback(
+        data, current_heap_limit, initial_heap_limit);
+  }
+
   size_t new_limit = current_heap_limit;
   if (env->heapsnapshot_near_heap_limit_callback_added_) {
     new_limit = std::max(new_limit,
@@ -2256,78 +2271,80 @@ size_t Environment::HeapSnapshotNearHeapLimitCallback(
 size_t Environment::HeapProfileNearHeapLimitCallback(
     void* data, size_t current_heap_limit, size_t initial_heap_limit) {
   auto* env = static_cast<Environment*>(data);
-  const size_t extension = env->heap_profile_near_heap_limit_extension_size_;
-  const uint32_t max = env->heap_profile_near_heap_limit_max_extensions_;
 
-  // Capture is already in progress.
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "Invoked HeapProfileNearHeapLimitCallback, processing=%d, "
+        "current_limit=%" PRIu64 ", "
+        "initial_limit=%" PRIu64 "\n",
+        env->is_in_heap_profile_near_heap_limit_callback_,
+        static_cast<uint64_t>(current_heap_limit),
+        static_cast<uint64_t>(initial_heap_limit));
+
+  const size_t max_young_gen_size = env->isolate_data()->max_young_gen_size;
+  const size_t new_limit = current_heap_limit + max_young_gen_size;
+
   if (env->is_in_heap_profile_near_heap_limit_callback_) {
-    return current_heap_limit + extension;
-  }
-
-  // Budget spent. Refuse further extensions; DeliverHeapProfileNearHeapLimit
-  // uninstalls the callback once the last pending payload has been flushed.
-  if (env->heap_profile_near_heap_limit_extensions_used_ >= max) {
-    return current_heap_limit;
+    return new_limit;
   }
 
   env->is_in_heap_profile_near_heap_limit_callback_ = true;
   auto reset_in_callback = OnScopeLeave(
       [env]() { env->is_in_heap_profile_near_heap_limit_callback_ = false; });
+  auto restore_initial_limit = OnScopeLeave(
+      [env]() { env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95); });
+  auto uninstall_callback = [env]() {
+    env->RemoveHeapProfileNearHeapLimitCallback(0);
+  };
 
-  // If the sampler is not running there is nothing to deliver; let V8 abort.
-  std::ostringstream out_stream;
-  if (!node::SerializeHeapProfile(env->isolate(), out_stream)) {
-    env->RemoveHeapProfileNearHeapLimitCallback();
-    return current_heap_limit;
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path_);
+  }
+  DiagnosticFilename name(env, "Heap", "heapprofile");
+  std::string filename = dir + kPathSeparator + (*name);
+
+  Debug(env, DebugCategory::DIAGNOSTICS, "Writing %s...\n", *name);
+
+  std::ostringstream out;
+  if (!node::SerializeHeapProfile(env->isolate(), out)) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "No sampling heap profile active; uninstalling callback.\n");
+    uninstall_callback();
+    return new_limit;
   }
 
-  // Keep only the newest profile if V8 reaches the limit again. Delivery
-  // runs at the next V8 safe point via RequestInterrupt — more prompt than
-  // SetImmediate under memory pressure, since a tight allocating loop may
-  // not tick the event loop before V8 aborts.
-  const bool should_schedule_delivery =
-      env->heap_profile_near_heap_limit_pending_.empty();
-  env->heap_profile_near_heap_limit_pending_ = out_stream.str();
-  if (should_schedule_delivery) {
-    env->isolate()->RequestInterrupt(
-        [](v8::Isolate*, void* data) {
-          Environment::DeliverHeapProfileNearHeapLimit(
-              static_cast<Environment*>(data));
-        },
-        env);
+  std::string profile = std::move(out).str();
+  uv_buf_t buffer = uv_buf_init(profile.data(), profile.size());
+  const int err = WriteFileSync(filename.c_str(), buffer);
+  if (err != 0) {
+    FPrintF(stderr,
+            "Failed to write heap profile %s: %s\n",
+            filename,
+            uv_strerror(err));
+    uninstall_callback();
+    return new_limit;
   }
 
-  env->heap_profile_near_heap_limit_extensions_used_ += 1;
+  env->heap_limit_profile_taken_ += 1;
+  FPrintF(stderr, "Wrote heap profile to %s\n", filename);
 
-  return current_heap_limit + extension;
-}
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "%" PRIu32 "/%" PRIu32 " heap profiles written.\n",
+        env->heap_limit_profile_taken_,
+        env->heap_profile_near_heap_limit_);
 
-void Environment::DeliverHeapProfileNearHeapLimit(Environment* env) {
-  Isolate* isolate = env->isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = env->context();
-  v8::Context::Scope context_scope(context);
+  if (env->heap_limit_profile_taken_ == env->heap_profile_near_heap_limit_) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Removing the near heap limit callback");
+    uninstall_callback();
+  }
 
-  std::string payload = std::move(env->heap_profile_near_heap_limit_pending_);
-  auto uninstall_if_spent = OnScopeLeave([env]() {
-    if (!env->heap_profile_near_heap_limit_callback_added_) return;
-    if (env->heap_profile_near_heap_limit_extensions_used_ <
-        env->heap_profile_near_heap_limit_max_extensions_) {
-      return;
-    }
-    env->RemoveHeapProfileNearHeapLimitCallback();
-  });
-
-  if (payload.empty()) return;
-  if (env->heap_profile_near_heap_limit_callback_.IsEmpty()) return;
-
-  v8::Local<v8::Function> callback =
-      env->heap_profile_near_heap_limit_callback_.Get(isolate);
-  v8::Local<v8::Value> arg;
-  if (!ToV8Value(context, payload, isolate).ToLocal(&arg)) return;
-  v8::Local<v8::Value> argv[] = {arg};
-  USE(node::MakeCallback(
-      isolate, context->Global(), callback, arraysize(argv), argv, {0, 0}));
+  // Returning a larger value is required by V8 even after the final write.
+  return new_limit;
 }
 
 inline size_t Environment::SelfSize() const {

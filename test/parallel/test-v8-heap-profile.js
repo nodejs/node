@@ -44,19 +44,11 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
   });
 
-assert.throws(() => v8.setHeapProfileNearHeapLimit(), {
-  code: 'ERR_INVALID_ARG_TYPE',
-});
-assert.throws(() => v8.setHeapProfileNearHeapLimit(() => {}, {
-  maxExtensions: 0,
-}), {
-  code: 'ERR_OUT_OF_RANGE',
-});
-assert.throws(() => v8.setHeapProfileNearHeapLimit(() => {}, {
-  extensionSize: 0,
-}), {
-  code: 'ERR_OUT_OF_RANGE',
-});
+const invalidLimits = [-1, 0, '', {}, NaN, undefined];
+for (const value of invalidLimits) {
+  assert.throws(() => v8.setHeapProfileNearHeapLimit(value),
+                /ERR_INVALID_ARG_TYPE|ERR_OUT_OF_RANGE/);
+}
 
 // Default params.
 {
@@ -90,8 +82,8 @@ assert.throws(() => v8.setHeapProfileNearHeapLimit(() => {}, {
 
 // Profile and snapshot near-heap-limit callbacks coexist.
 {
-  v8.setHeapProfileNearHeapLimit(() => {});
-  v8.setHeapProfileNearHeapLimit(() => {});  // no-op
+  v8.setHeapProfileNearHeapLimit(1);
+  v8.setHeapProfileNearHeapLimit(1);   // no-op
   v8.setHeapSnapshotNearHeapLimit(1);
-  v8.setHeapSnapshotNearHeapLimit(1);        // no-op
+  v8.setHeapSnapshotNearHeapLimit(1);  // no-op
 }

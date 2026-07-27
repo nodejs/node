@@ -205,20 +205,12 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 3);
   CHECK(args[0]->IsUint32());
-  CHECK(args[1]->IsNumber());
-  CHECK(args[2]->IsFunction());
-
-  const uint32_t max_extensions = args[0].As<Uint32>()->Value();
-  const double extension_size = args[1].As<Number>()->Value();
-  CHECK_GT(max_extensions, 0);
-  CHECK_GT(extension_size, 0);
-
-  env->AddHeapProfileNearHeapLimitCallback(max_extensions,
-                                           static_cast<size_t>(extension_size),
-                                           args[2].As<v8::Function>());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  CHECK_GT(limit, 0);
+  env->AddHeapProfileNearHeapLimitCallback();
+  env->set_heap_profile_near_heap_limit(limit);
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {

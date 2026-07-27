@@ -11,11 +11,6 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
-const path = require('path');
-const env = {
-  ...process.env,
-  NODE_DEBUG_NATIVE: 'diagnostics',
-};
 
 tmpdir.refresh();
 const child = spawnSync(process.execPath, [
@@ -23,14 +18,18 @@ const child = spawnSync(process.execPath, [
   fixtures.path('workload', 'heap-profile-near-heap-limit.js'),
 ], {
   cwd: tmpdir.path,
-  env,
 });
-// Surface the V8 abort trace when the assertions below fail.
+
 console.log(child.stdout.toString());
 console.log(child.stderr.toString());
-assert.strictEqual(child.status, 0);
+assert(common.nodeProcessAborted(child.status, child.signal),
+       'process should have aborted, but did not');
+
+const profiles = fs.readdirSync(tmpdir.path)
+  .filter((file) => file.endsWith('.heapprofile'));
+assert.strictEqual(profiles.length, 1);
 
 const profile = JSON.parse(
-  fs.readFileSync(path.join(tmpdir.path, 'oom.heapprofile'), 'utf8'));
+  fs.readFileSync(tmpdir.resolve(profiles[0]), 'utf8'));
 assert(profile.head);
 assert(profile.samples.length > 0);
