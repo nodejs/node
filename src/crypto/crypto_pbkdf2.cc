@@ -139,6 +139,7 @@ bool PBKDF2Traits::DeriveBits(Environment* env,
                             params.length);
 
   if (!dp) {
+    errors->Capture();
     errors->Insert(NodeCryptoError::PBKDF2_FAILED);
     return false;
   }

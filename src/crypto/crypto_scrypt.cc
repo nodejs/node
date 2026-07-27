@@ -137,6 +137,7 @@ bool ScryptTraits::DeriveBits(Environment* env,
       params.length);
 
   if (!dp) {
+    errors->Capture();
     errors->Insert(NodeCryptoError::SCRYPT_FAILED);
     return false;
   }

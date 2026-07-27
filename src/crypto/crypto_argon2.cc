@@ -150,6 +150,7 @@ bool Argon2Traits::DeriveBits(Environment* env,
                             config.type);
 
   if (!dp) {
+    errors->Capture();
     errors->Insert(NodeCryptoError::ARGON2_FAILED);
     return false;
   }

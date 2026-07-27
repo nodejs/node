@@ -29,19 +29,31 @@ const empty = Buffer.alloc(0);
 
 // Parameters that OpenSSL's Argon2 KDF rejects.
 const badParams = [
-  { lanes: 0, keylen: 32, memcost: 16, iter: 1 },  // lanes < 1
-  { lanes: 1, keylen: 32, memcost: 0, iter: 1 },   // memcost == 0
-  { lanes: 1, keylen: 32, memcost: 16, iter: 0 },  // iter == 0
+  { lanes: 0, keylen: 32, memcost: 16, iter: 1,
+    code: 'ERR_OSSL_INVALID_THREAD_POOL_SIZE', reason: /invalid thread pool size/ },
+  { lanes: 1, keylen: 32, memcost: 0, iter: 1,
+    code: 'ERR_OSSL_INVALID_MEMORY_SIZE', reason: /invalid memory size/ },
+  { lanes: 1, keylen: 32, memcost: 16, iter: 0,
+    code: 'ERR_OSSL_INVALID_ITERATION_COUNT', reason: /invalid iteration count/ },
 ];
 
-for (const { lanes, keylen, memcost, iter } of badParams) {
+function assertError(err, { code, reason }) {
+  assert.ok(err);
+  assert.match(err.message, /Argon2 derivation failed/);
+  assert.strictEqual(err.code, code);
+  assert.ok(err.opensslErrorStack.some((msg) => reason.test(msg)),
+            `did not find ${reason} in ${err.opensslErrorStack}`);
+}
+
+for (const params of badParams) {
+  const { lanes, keylen, memcost, iter } = params;
+
   {
     const job = new Argon2Job(
       kCryptoJobSync, pass, salt, lanes, keylen, memcost, iter,
       empty, empty, kTypeArgon2id);
     const { 0: err, 1: result } = job.run();
-    assert.ok(err);
-    assert.match(err.message, /Argon2 derivation failed/);
+    assertError(err, params);
     assert.strictEqual(result, undefined);
   }
 
@@ -50,8 +62,7 @@ for (const { lanes, keylen, memcost, iter } of badParams) {
       kCryptoJobAsync, pass, salt, lanes, keylen, memcost, iter,
       empty, empty, kTypeArgon2id);
     job.ondone = common.mustCall((err, result) => {
-      assert.ok(err);
-      assert.match(err.message, /Argon2 derivation failed/);
+      assertError(err, params);
       assert.strictEqual(result, undefined);
     });
     job.run();
