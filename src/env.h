@@ -1057,6 +1057,7 @@ class Environment final : public MemoryRetainer {
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
   inline bool is_in_heapsnapshot_heap_limit_callback() const;
   inline void set_heap_profile_near_heap_limit(uint32_t limit);
+  inline bool is_in_heap_profile_near_heap_limit_callback() const;
 
   inline bool report_exclude_env() const;
 

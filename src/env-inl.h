@@ -913,6 +913,10 @@ inline bool Environment::is_in_heapsnapshot_heap_limit_callback() const {
   return is_in_heapsnapshot_heap_limit_callback_;
 }
 
+inline bool Environment::is_in_heap_profile_near_heap_limit_callback() const {
+  return is_in_heap_profile_near_heap_limit_callback_;
+}
+
 inline bool Environment::report_exclude_env() const {
   return options_->report_exclude_env;
 }
