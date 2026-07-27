@@ -5,6 +5,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const util = require('util');
 
+common.skipIfPerfettoEnabled();
+
 const tests = { __proto__: null };
 
 let gid = 1;

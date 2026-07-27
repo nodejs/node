@@ -5,6 +5,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const util = require('util');
 
+common.skipIfPerfettoEnabled();
+
 const CODE =
   'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 

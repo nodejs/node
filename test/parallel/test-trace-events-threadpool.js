@@ -6,6 +6,8 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const { scheduler } = require('timers/promises');
 
+common.skipIfPerfettoEnabled();
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
