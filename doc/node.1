@@ -1166,6 +1166,7 @@ developers may leverage to detect deprecated API usage.
 .It Fl -permission
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
+
 .Bl -bullet
 .It
 File System - manageable through
@@ -1185,9 +1186,19 @@ FFI - manageable through \fB--allow-ffi\fR flag
 .El
 .
 .It Fl -permission-audit
-Enable audit only for the permission model. When enabled, permission checks
-are performed but access is not denied. Instead, a warning is emitted for
-each permission violation via diagnostics channel.
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is \fBnot\fR denied — no \fBERR_ACCESS_DENIED\fR error is
+thrown. Instead, each permission violation is published through the
+\fBnode:diagnostics_channel\fR module, and execution continues normally.
+This flag does not require \fB--permission\fR to be specified. The
+\fB--allow-*\fR flags are not needed in audit mode, since no
+access is denied.
+Audit mode is useful for discovering what permissions your application
+requires before deploying with \fB--permission\fR. See the
+Permission Model documentation for the list of diagnostics channel names
+and the message format.
+If both \fB--permission\fR and \fB--permission-audit\fR are specified,
+\fB--permission\fR takes precedence and the Permission Model runs in enforce mode.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and
