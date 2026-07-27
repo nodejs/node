@@ -4,6 +4,8 @@
 const common = require('../common');
 const { isMainThread } = require('worker_threads');
 
+common.skipIfPerfettoEnabled();
+
 if (!isMainThread) {
   // https://github.com/nodejs/node/issues/22767
   common.skip('This test only works on a main thread');
