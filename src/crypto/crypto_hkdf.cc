@@ -127,6 +127,7 @@ bool HKDFTraits::DeriveBits(Environment* env,
                           },
                           params.length);
   if (!dp) {
+    errors->Capture();
     errors->Insert(NodeCryptoError::HKDF_FAILED);
     return false;
   }
