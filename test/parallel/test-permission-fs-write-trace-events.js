@@ -5,6 +5,7 @@ const common = require('../common');
 const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const { isMainThread } = require('worker_threads');
 
+common.skipIfPerfettoEnabled();
 if (!isMainThread) {
   common.skip('This test only works on a main thread');
 }

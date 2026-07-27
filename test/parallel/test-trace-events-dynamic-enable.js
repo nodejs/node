@@ -4,6 +4,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.skipIfPerfettoEnabled();
 
 const { isMainThread } = require('worker_threads');
 
