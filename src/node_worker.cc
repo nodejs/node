@@ -329,7 +329,6 @@ void Worker::Run() {
         this->env_ = nullptr;
       }
 
-      env_->isolate()->GetHeapProfiler()->StopSamplingHeapProfiler();
       env_.reset();
     });
 
