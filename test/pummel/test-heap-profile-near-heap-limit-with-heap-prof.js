@@ -23,8 +23,6 @@ const child = spawnSync(process.execPath, [
   cwd: tmpdir.path,
 });
 
-console.log(child.stdout.toString());
-console.log(child.stderr.toString());
 assert(common.nodeProcessAborted(child.status, child.signal),
        'process should have aborted, but did not');
 
