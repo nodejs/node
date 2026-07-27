@@ -2793,15 +2793,24 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
   }
 
-  // creates a new library context to avoid locking when running concurrently
-  auto ctx = DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
-  if (!ctx) {
-    return {};
-  }
+  // A new library context is only needed for OSSL_set_max_threads(), which is
+  // per-context. It inherits no configuration, so availability is checked
+  // against the default context, otherwise Argon2 works in FIPS mode.
+  DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx;
+  if (lanes > 1) {
+    if (!DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
+            EVP_KDF_fetch(nullptr, algorithm.data(), nullptr)}) {
+      return {};
+    }
 
-  // required if threads > 1
-  if (lanes > 1 && OSSL_set_max_threads(ctx.get(), lanes) != 1) {
-    return {};
+    ctx.reset(OSSL_LIB_CTX_new());
+    if (!ctx) {
+      return {};
+    }
+
+    if (OSSL_set_max_threads(ctx.get(), lanes) != 1) {
+      return {};
+    }
   }
 
   auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
