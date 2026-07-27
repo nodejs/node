@@ -1633,7 +1633,14 @@ static ExitCode StartInternal(int argc, char** argv) {
 
 int Start(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
+  std::vector<std::string> errors;
+  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv, &errors);
+  if (!errors.empty()) {
+    for (const std::string& error : errors) {
+      FPrintF(stderr, "%s: %s\n", argv[0], error);
+    }
+    return static_cast<int>(ExitCode::kInvalidCommandLineArgument);
+  }
 #endif
   return static_cast<int>(StartInternal(argc, argv));
 }
