@@ -1,16 +1,30 @@
 'use strict';
 
-// This test verifies the guards that reject transferring a net.Socket or
-// net.Server that is not in a clean, movable state. Serialization is triggered
-// with a MessageChannel, so no worker thread is required.
+// This test verifies the guards that reject transferring a net.Socket,
+// net.Server or net.BoundSocket that is not in a clean, movable state.
+// Serialization is triggered with a MessageChannel, so no worker thread is
+// required.
 
 const common = require('../common');
 
 const assert = require('assert');
 const net = require('net');
 const { MessageChannel } = require('worker_threads');
+const tmpdir = require('../common/tmpdir');
+
+tmpdir.refresh();
 
 const { port1 } = new MessageChannel();
+
+// A pipe BoundSocket is not transferable; only TCP binds can move between
+// event loops.
+{
+  const bound = new net.BoundSocket({ path: common.PIPE });
+  assert.throws(() => port1.postMessage({ bound }, [bound]), {
+    code: 'ERR_WORKER_HANDLE_NOT_TRANSFERABLE',
+  });
+  bound.close();
+}
 
 // A Server that is not listening (no handle) cannot be transferred.
 {
@@ -18,6 +32,25 @@ const { port1 } = new MessageChannel();
   assert.throws(() => port1.postMessage({ server }, [server]), {
     code: 'ERR_WORKER_HANDLE_NOT_TRANSFERABLE',
   });
+}
+
+// A closed BoundSocket no longer owns a handle and cannot be transferred.
+{
+  const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
+  bound.close();
+  assert.throws(() => port1.postMessage({ bound }, [bound]), {
+    code: 'ERR_WORKER_HANDLE_NOT_TRANSFERABLE',
+  });
+}
+
+// An adopted BoundSocket no longer owns a handle and cannot be transferred.
+{
+  const bound = new net.BoundSocket({ host: '127.0.0.1', port: 0 });
+  const socket = new net.Socket({ handle: bound });
+  assert.throws(() => port1.postMessage({ bound }, [bound]), {
+    code: 'ERR_WORKER_HANDLE_NOT_TRANSFERABLE',
+  });
+  socket.destroy();
 }
 
 // A Socket that has already consumed data cannot be transferred, because that

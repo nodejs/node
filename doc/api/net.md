@@ -789,6 +789,13 @@ server.listen(8000);
 A listening [`net.Server`][] can be transferred the same way, which moves the
 listening socket itself (and its pending accept queue) to the receiving thread.
 
+An un-adopted TCP [`BoundSocket`][] can also be transferred, which moves the
+bound (but not yet listening or connected) socket. This allows a port to be
+reserved synchronously on one thread and adopted by a server or outgoing
+connection on another. Pipe binds are not transferable. After the transfer, the
+source `BoundSocket` behaves as if it had been adopted: `address()`, `fd()` and
+`close()` throw [`ERR_SOCKET_HANDLE_ADOPTED`][].
+
 ### `new net.Socket([options])`
 
 <!-- YAML
@@ -1718,6 +1725,13 @@ file system entry; abstract and TCP binds have none to remove.
 When a pipe `BoundSocket` bound to a source `path` is adopted as a client, that
 path is reported as the socket's `localAddress` once it connects.
 
+An un-adopted TCP `BoundSocket` can be moved to another thread by listing it in
+the `transferList` of a [`worker_threads`][] `postMessage()` call, see
+[Transferring TCP handles to other threads][]. It can likewise be sent to a
+child process as the `sendHandle` argument of [`subprocess.send()`][]. In both
+cases the source is left in the adopted state. Pipe binds cannot be moved
+either way.
+
 When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
 issued synchronously, so [`socket.localAddress`][] is resolved once
 [`socket.connect()`][] returns. Connection failures are still reported via a
@@ -2345,6 +2359,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`subprocess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
 [`worker_threads`]: worker_threads.md
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
