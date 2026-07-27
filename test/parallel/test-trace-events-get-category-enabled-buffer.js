@@ -10,6 +10,8 @@ try {
   common.skip('missing trace events');
 }
 
+common.skipIfPerfettoEnabled();
+
 const { createTracing, getEnabledCategories } = require('trace_events');
 const assert = require('assert');
 

@@ -30,6 +30,30 @@ std::set<std::string> flatten(
   return result;
 }
 
+void perfetto_log_callback(perfetto::LogMessageCallbackArgs args) {
+  const char* level_str = "UNKNOWN";
+  switch (args.level) {
+    case perfetto::base::kLogDebug:
+      level_str = "DEBUG";
+      break;
+    case perfetto::base::kLogInfo:
+      level_str = "INFO";
+      break;
+    case perfetto::base::kLogImportant:
+      level_str = "IMPORTANT";
+      break;
+    case perfetto::base::kLogError:
+      level_str = "ERROR";
+      break;
+  }
+  per_process::Debug(DebugCategory::PERFETTO,
+                     "[%s] %s:%d: %s\n",
+                     level_str,
+                     args.filename,
+                     args.line,
+                     args.message);
+}
+
 }  // namespace
 
 // Writes trace chunks to a file, rotating by size. It deliberately uses the
@@ -252,6 +276,7 @@ PerfettoTracingAgent::PerfettoTracingAgent() {
   // Set up the in-process backend that the tracing controller will connect
   // to.
   perfetto::TracingInitArgs init_args;
+  init_args.log_message_callback = perfetto_log_callback;
   init_args.backends = perfetto::BackendType::kInProcessBackend;
   perfetto::Tracing::Initialize(init_args);
 

@@ -5,6 +5,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+common.skipIfPerfettoEnabled();
+
 // Tests that node.console trace events for counters and time methods are
 // emitted as expected.
 

@@ -7,6 +7,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+common.skipIfPerfettoEnabled();
+
 // This tests the emission of node.environment trace events
 
 const names = new Set([
