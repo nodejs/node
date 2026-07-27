@@ -2681,8 +2681,6 @@ DataPointer hkdf(const Digest& md,
                  const Buffer<const unsigned char>& info,
                  const Buffer<const unsigned char>& salt,
                  size_t length) {
-  ClearErrorOnReturn clearErrorOnReturn;
-
   if (!checkHkdfLength(md, length) || info.len > INT_MAX ||
       salt.len > INT_MAX) {
     return {};
@@ -2753,8 +2751,6 @@ DataPointer scrypt(const Buffer<const char>& pass,
                    uint64_t p,
                    uint64_t maxmem,
                    size_t length) {
-  ClearErrorOnReturn clearErrorOnReturn;
-
   if (pass.len > INT_MAX || salt.len > INT_MAX) {
     return {};
   }
@@ -2781,8 +2777,6 @@ DataPointer pbkdf2(const Digest& md,
                    const Buffer<const unsigned char>& salt,
                    uint32_t iterations,
                    size_t length) {
-  ClearErrorOnReturn clearErrorOnReturn;
-
   if (pass.len > INT_MAX || salt.len > INT_MAX || length > INT_MAX) {
     return {};
   }
@@ -2814,8 +2808,6 @@ DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& secret,
                    const Buffer<const unsigned char>& ad,
                    Argon2Type type) {
-  ClearErrorOnReturn clearErrorOnReturn;
-
   std::string_view algorithm;
   switch (type) {
     case Argon2Type::ARGON2I:
