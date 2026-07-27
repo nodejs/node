@@ -912,10 +912,9 @@ void DatabaseSync::RemoveBackup(BackupJob* job) {
 void DatabaseSync::DeleteSessions() {
   // all attached sessions need to be deleted before the database is closed
   // https://www.sqlite.org/session/sqlite3session_create.html
-  for (auto* session : sessions_) {
-    sqlite3session_delete(session);
+  while (!sessions_.empty()) {
+    (*sessions_.begin())->Delete();
   }
-  sessions_.clear();
 }
 
 DatabaseSync::~DatabaseSync() {
@@ -2118,13 +2117,22 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   sqlite3_session* pSession;
   int r = sqlite3session_create(db->connection_, db_name.c_str(), &pSession);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  db->sessions_.insert(pSession);
+  bool wrapper_owns_session = false;
+  auto delete_session_on_failure = OnScopeLeave([&]() {
+    if (!wrapper_owns_session) {
+      sqlite3session_delete(pSession);
+    }
+  });
 
   r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
   BaseObjectPtr<Session> session =
       Session::Create(env, BaseObjectPtr<DatabaseSync>(db), pSession);
+  if (!session) {
+    return;
+  }
+  wrapper_owns_session = true;
   args.GetReturnValue().Set(session->object());
 }
 
@@ -3807,6 +3815,7 @@ Session::Session(Environment* env,
     : BaseObject(env, object),
       session_(session),
       database_(std::move(database)) {
+  database_->sessions_.insert(this);
   MakeWeak();
 }
 
@@ -3899,10 +3908,12 @@ void Session::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Session::Delete() {
-  if (!database_ || !database_->connection_ || session_ == nullptr) return;
+  if (session_ == nullptr) return;
   sqlite3session_delete(session_);
-  database_->sessions_.erase(session_);
   session_ = nullptr;
+  if (database_) {
+    database_->sessions_.erase(this);
+  }
 }
 
 void DefineConstants(Local<Object> target) {
