@@ -73,6 +73,15 @@ using v8::Signature;
 using v8::String;
 using v8::Value;
 
+static std::optional<std::string> ToUSVString(Environment* env,
+                                              Local<Value> value) {
+  Local<String> string;
+  if (!value->ToString(env->context()).ToLocal(&string)) {
+    return std::nullopt;
+  }
+  return Utf8Value(env->isolate(), string).ToString();
+}
+
 std::optional<URLPatternRegexProvider::regex_type>
 URLPatternRegexProvider::create_instance(std::string_view pattern,
                                          bool ignore_case) {
@@ -206,10 +215,6 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
   // uses the default value (empty init).
   if (args[0]->IsNullOrUndefined()) {
     init = ada::url_pattern_init{};
-  } else if (args[0]->IsString()) {
-    BufferValue input_buffer(env->isolate(), args[0]);
-    CHECK_NOT_NULL(*input_buffer);
-    input = input_buffer.ToString();
   } else if (args[0]->IsObject()) {
     init = URLPatternInit::FromJsObject(env, args[0].As<Object>());
     // If init does not have a value here, the implication is that an
@@ -217,30 +222,18 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
     // early. If we don't, the error thrown will be swallowed.
     if (!init) return;
   } else {
-    THROW_ERR_INVALID_ARG_TYPE(env, "Input must be an object or a string");
-    return;
+    input = ToUSVString(env, args[0]);
+    if (!input) return;
   }
 
   // Per WebIDL overload resolution:
   // With 3+ args, it's always overload 1: (input, baseURL, options)
-  // With 2 args, if arg1 is string, it is overload 1 (baseURL),
-  //   otherwise overload 2 (options)
+  // With 2 args, primitive values other than null and undefined select
+  //   overload 1 (baseURL); objects, null, and undefined select overload 2
+  //   (options).
   if (args.Length() >= 3) {
-    // arg1 is baseURL. Per WebIDL, null/undefined are stringified for
-    // USVString ("null"/"undefined"), which will be rejected as invalid
-    // URLs by ada downstream.
-    if (args[1]->IsString()) {
-      BufferValue base_url_buffer(env->isolate(), args[1]);
-      CHECK_NOT_NULL(*base_url_buffer);
-      base_url = base_url_buffer.ToString();
-    } else if (args[1]->IsNull()) {
-      base_url = std::string("null");
-    } else if (args[1]->IsUndefined()) {
-      base_url = std::string("undefined");
-    } else {
-      THROW_ERR_INVALID_ARG_TYPE(env, "second argument must be a string");
-      return;
-    }
+    base_url = ToUSVString(env, args[1]);
+    if (!base_url) return;
 
     // arg2 is options. Per WebIDL, null/undefined for a dictionary
     // uses the default value (empty dict).
@@ -254,22 +247,15 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       if (!options) return;
     }
   } else if (args.Length() == 2) {
-    // Overload resolution: string is overload 1 (baseURL),
-    // otherwise overload 2 (options).
-    if (args[1]->IsString()) {
-      BufferValue base_url_buffer(env->isolate(), args[1]);
-      CHECK_NOT_NULL(*base_url_buffer);
-      base_url = base_url_buffer.ToString();
-    } else if (args[1]->IsNullOrUndefined()) {
+    if (args[1]->IsNullOrUndefined()) {
       // Overload 2, options uses default.
     } else if (args[1]->IsObject()) {
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[1].As<Object>());
       if (!options) return;
     } else {
-      THROW_ERR_INVALID_ARG_TYPE(env,
-                                 "second argument must be a string or object");
-      return;
+      base_url = ToUSVString(env, args[1]);
+      if (!base_url) return;
     }
   }
 
@@ -394,16 +380,16 @@ std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
   Local<Value> value;
   for (const auto& component : components) {
     Utf8Value key(isolate, component);
-    if (obj->Get(env->context(), component).ToLocal(&value)) {
-      if (value->IsString()) {
-        Utf8Value utf8_value(isolate, value);
-        set_parameter(key.ToStringView(), utf8_value.ToStringView());
-      }
-    } else {
+    if (!obj->Get(env->context(), component).ToLocal(&value)) {
       // If ToLocal failed then we assume an error occurred,
       // bail out early to propagate the error.
       return std::nullopt;
     }
+    if (value->IsUndefined()) continue;
+
+    auto converted = ToUSVString(env, value);
+    if (!converted) return std::nullopt;
+    set_parameter(key.ToStringView(), *converted);
   }
   return init;
 }
@@ -581,30 +567,20 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
   std::string input_base;
   if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
     input = ada::url_pattern_init{};
-  } else if (args[0]->IsString()) {
-    Utf8Value input_value(env->isolate(), args[0].As<String>());
-    input_base = input_value.ToString();
-    input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
     auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
     if (!maybeInput.has_value()) return;
     input = std::move(*maybeInput);
   } else {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env, "URLPattern input needs to be a string or an object");
-    return;
+    auto input_value = ToUSVString(env, args[0]);
+    if (!input_value) return;
+    input_base = std::move(*input_value);
+    input = std::string_view(input_base);
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    if (args[1]->IsNull()) {
-      baseURL = std::string("null");
-    } else if (args[1]->IsString()) {
-      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-      baseURL = base_url_value.ToStringView();
-    } else {
-      THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
-      return;
-    }
+    baseURL = ToUSVString(env, args[1]);
+    if (!baseURL) return;
   }
 
   Local<Value> result;
@@ -627,30 +603,20 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
   std::string input_base;
   if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
     input = ada::url_pattern_init{};
-  } else if (args[0]->IsString()) {
-    Utf8Value input_value(env->isolate(), args[0].As<String>());
-    input_base = input_value.ToString();
-    input = std::string_view(input_base);
   } else if (args[0]->IsObject()) {
     auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
     if (!maybeInput.has_value()) return;
     input = std::move(*maybeInput);
   } else {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env, "URLPattern input needs to be a string or an object");
-    return;
+    auto input_value = ToUSVString(env, args[0]);
+    if (!input_value) return;
+    input_base = std::move(*input_value);
+    input = std::string_view(input_base);
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    if (args[1]->IsNull()) {
-      baseURL = std::string("null");
-    } else if (args[1]->IsString()) {
-      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-      baseURL = base_url_value.ToStringView();
-    } else {
-      THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
-      return;
-    }
+    baseURL = ToUSVString(env, args[1]);
+    if (!baseURL) return;
   }
 
   std::optional<std::string_view> baseURL_opt =
