@@ -2,7 +2,7 @@
   'variables': {
     'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
-    'temporal_capi_dir': 'temporal_capi',
+    'temporal_capi_dir': 'temporal_capi-v0_2',
     'cargo_rust_target%': '',
   },
   'conditions': [

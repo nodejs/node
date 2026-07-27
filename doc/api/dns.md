@@ -867,6 +867,10 @@ treated separately.
 
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64268
+    description: Reverse lookups no longer consult hosts files.
 -->
 
 * `ip` {string}

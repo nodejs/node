@@ -19,6 +19,18 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 # https://github.com/nodejs/build/issues/3043
 test-snapshot-incompatible: SKIP
 
+# There's a bug in CDP where `replMode: true` causes the Inspector
+# to collect its `Runtime.evaluate` promise before the evaluation
+# is complete. This test intentionally runs multiple REPL instances
+# in parallel, which significantly increases the likelihood of a
+# garbage collection occurring while an evaluation is still pending.
+# In normal usage, users typically don't create multiple REPLs
+# simultaneously, so this race is much much less likely to occur.
+# https://github.com/nodejs/node/issues/64595
+# https://issues.chromium.org/issues/536271637
+# https://ci.nodejs.org/job/node-stress-single-test/800 (38/1000)
+test-repl-user-error-handler: PASS, FLAKY
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/59090
 test-inspector-network-fetch: PASS, FLAKY
