@@ -204,8 +204,7 @@ class InjectedScript::ProtocolPromiseHandler {
                            PromiseHandlerTracker::DiscardReason::kFulfilled);
   }
 
-  ProtocolPromiseHandler(PromiseHandlerTracker::Id id,
-                         V8InspectorSessionImpl* session,
+  ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
                          std::unique_ptr<WrapOptions> wrapOptions,
                          bool replMode, bool throwOnSideEffect,
@@ -220,7 +219,13 @@ class InjectedScript::ProtocolPromiseHandler {
         m_replMode(replMode),
         m_throwOnSideEffect(throwOnSideEffect),
         m_callback(std::move(callback)),
-        m_evaluationResult(m_inspector->isolate(), evaluationResult) {
+        m_evaluationResult(m_inspector->isolate(), evaluationResult) {}
+
+  void makeWeak(PromiseHandlerTracker::Id id) {
+    if (m_isActive || m_evaluationResult.IsEmpty() ||
+        m_evaluationResult.IsWeak()) {
+      return;
+    }
     m_evaluationResult.SetWeak(reinterpret_cast<PromiseHandlerTracker::Id*>(id),
                                cleanup, v8::WeakCallbackType::kParameter);
   }
@@ -238,6 +243,7 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
   void thenCallback(v8::Local<v8::Value> value) {
+    m_isActive = true;
     // We don't need the m_evaluationResult in the `thenCallback`, but we also
     // don't want `cleanup` running in case we re-enter JS.
     m_evaluationResult.Reset();
@@ -285,9 +291,10 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
+    m_isActive = true;
     // Hold strongly onto m_evaluationResult now to prevent `cleanup` from
     // running in case any code below triggers GC.
-    m_evaluationResult.ClearWeak();
+    if (m_evaluationResult.IsWeak()) m_evaluationResult.ClearWeak();
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
@@ -393,6 +400,7 @@ class InjectedScript::ProtocolPromiseHandler {
   std::unique_ptr<WrapOptions> m_wrapOptions;
   bool m_replMode;
   bool m_throwOnSideEffect;
+  bool m_isActive = false;
   std::weak_ptr<EvaluateCallback> m_callback;
   v8::Global<v8::Promise> m_evaluationResult;
 };
@@ -1190,8 +1198,7 @@ template <typename... Args>
 PromiseHandlerTracker::Id PromiseHandlerTracker::create(Args&&... args) {
   Id id = m_lastUsedId++;
   InjectedScript::ProtocolPromiseHandler* handler =
-      new InjectedScript::ProtocolPromiseHandler(id,
-                                                 std::forward<Args>(args)...);
+      new InjectedScript::ProtocolPromiseHandler(std::forward<Args>(args)...);
   m_promiseHandlers.emplace(id, handler);
   return id;
 }
@@ -1223,6 +1230,30 @@ InjectedScript::ProtocolPromiseHandler* PromiseHandlerTracker::get(
   if (iter == m_promiseHandlers.end()) return nullptr;
 
   return iter->second.get();
+}
+
+void PromiseHandlerTracker::makeWeakForContext(int executionContextId) {
+  for (auto& [id, handler] : m_promiseHandlers) {
+    if (handler->m_executionContextId == executionContextId) {
+      handler->makeWeak(id);
+    }
+  }
+}
+
+void PromiseHandlerTracker::makeWeakForObjectGroup(
+    int sessionId, const String16& objectGroup) {
+  for (auto& [id, handler] : m_promiseHandlers) {
+    if (handler->m_sessionId == sessionId &&
+        handler->m_objectGroup == objectGroup) {
+      handler->makeWeak(id);
+    }
+  }
+}
+
+void PromiseHandlerTracker::makeWeakForSession(int sessionId) {
+  for (auto& [id, handler] : m_promiseHandlers) {
+    if (handler->m_sessionId == sessionId) handler->makeWeak(id);
+  }
 }
 
 void PromiseHandlerTracker::sendFailure(
