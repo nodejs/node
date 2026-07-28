@@ -26,3 +26,27 @@ assert.throws(() => {
 }, {
   message: 'boom'
 });
+
+{
+  const result = new URLPattern({ pathname: '/:value' })
+    .exec('https://example.com/test');
+
+  assert.deepStrictEqual(Object.keys(result), [
+    'hash',
+    'hostname',
+    'inputs',
+    'password',
+    'pathname',
+    'port',
+    'protocol',
+    'search',
+    'username',
+  ]);
+  assert.deepStrictEqual(Object.keys(result.pathname), [
+    'groups',
+    'input',
+  ]);
+  assert.strictEqual(result.hostname.input, 'example.com');
+  assert.strictEqual(result.pathname.input, '/test');
+  assert.strictEqual(result.pathname.groups.value, 'test');
+}
