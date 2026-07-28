@@ -731,9 +731,13 @@ Disable the ability of starting a debugging session by sending a
 added:
   - v21.3.0
   - v20.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64742
+    description: The `--disable-warning` flag is now stable.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Disable specific process warnings by `code` or `type`.
 
