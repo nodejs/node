@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_H_
 #define V8_OBJECTS_JS_FUNCTION_H_
 
+#include <atomic>
 #include <optional>
 
 #include "src/objects/code-kind.h"
@@ -17,15 +18,12 @@ namespace v8::internal {
 
 class AbstractCode;
 class ClosureFeedbackCellArray;
-
-#include "torque-generated/src/objects/js-function-tq.inc"
+class Tuple2;
 
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
-class JSFunctionOrBoundFunctionOrWrappedFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunctionOrWrappedFunction<
-          JSFunctionOrBoundFunctionOrWrappedFunction, JSObject> {
+V8_OBJECT class JSFunctionOrBoundFunctionOrWrappedFunction : public JSObject {
  public:
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -37,19 +35,32 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
       DirectHandle<JSReceiver> target, DirectHandle<String> prefix,
       int arg_count);
 
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
-};
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSFunctionOrBoundFunctionOrWrappedFunction::kHeaderSize =
+    sizeof(JSFunctionOrBoundFunctionOrWrappedFunction);
 
 // JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<
-          JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+V8_OBJECT class JSBoundFunction
+    : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSBoundFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              DirectHandle<JSBoundFunction> function);
+  static Maybe<uint32_t> GetLength(Isolate* isolate,
+                                   DirectHandle<JSBoundFunction> function);
+
+  inline Tagged<JSCallable> bound_target_function() const;
+  inline void set_bound_target_function(
+      Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> bound_this() const;
+  inline void set_bound_this(Tagged<Object> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> bound_arguments() const;
+  inline void set_bound_arguments(Tagged<FixedArray> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -60,22 +71,36 @@ class JSBoundFunction
   static DirectHandle<String> ToString(Isolate* isolate,
                                        DirectHandle<JSBoundFunction> function);
 
-  TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<JSCallable> bound_target_function_;
+  TaggedMember<Object> bound_this_;
+  TaggedMember<FixedArray> bound_arguments_;
+} V8_OBJECT_END;
+
+inline constexpr int JSBoundFunction::kHeaderSize = sizeof(JSBoundFunction);
 
 // JSWrappedFunction describes a wrapped function exotic object.
-class JSWrappedFunction
-    : public TorqueGeneratedJSWrappedFunction<
-          JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+V8_OBJECT class JSWrappedFunction
+    : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSWrappedFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              DirectHandle<JSWrappedFunction> function);
+  static Maybe<uint32_t> GetLength(Isolate* isolate,
+                                   DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
   static MaybeDirectHandle<Object> Create(
       Isolate* isolate, DirectHandle<NativeContext> creation_context,
       DirectHandle<JSReceiver> value);
+
+  inline Tagged<JSCallable> wrapped_target_function() const;
+  inline void set_wrapped_target_function(
+      Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<NativeContext> context() const;
+  inline void set_context(Tagged<NativeContext> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_PRINTER(JSWrappedFunction)
@@ -86,18 +111,26 @@ class JSWrappedFunction
   static DirectHandle<String> ToString(
       Isolate* isolate, DirectHandle<JSWrappedFunction> function);
 
-  TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<JSCallable> wrapped_target_function_;
+  TaggedMember<NativeContext> context_;
+} V8_OBJECT_END;
+
+inline constexpr int JSWrappedFunction::kHeaderSize = sizeof(JSWrappedFunction);
 
 enum class BudgetModification { kReduce, kRaise, kReset };
 
 // JSFunction describes JavaScript functions.
-class JSFunction : public TorqueGeneratedJSFunction<
-                       JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+// This abstract class represents JS function objects with and without
+// prototype. Respective subclass defines the layout of the object in memory
+// but all the JSFunction related logic lives in this class.
+V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
-  // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
-                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      prototype_or_initial_map,
+      Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>)
 
   void TraceOptimizationStatus(const char* reason, ...);
 
@@ -108,6 +141,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBindAndWrap = 2;
+  static const int kLengthDescriptorIndex = 0;
+  static const int kNameDescriptorIndex = 1;
 
   static DirectHandle<Object> GetFunctionPrototype(
       Isolate* isolate, DirectHandle<JSFunction> function);
@@ -116,12 +151,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<Context> context();
   DECL_RELAXED_GETTER(context, Tagged<Context>)
   inline bool has_context() const;
-  using TorqueGeneratedClass::context;
-  using TorqueGeneratedClass::set_context;
   DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
+  inline void set_context(Tagged<Context> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline Tagged<JSGlobalProxy> global_proxy();
   inline Tagged<NativeContext> native_context();
-  inline int length();
+  inline uint32_t length();
 
   static Handle<String> GetName(Isolate* isolate,
                                 DirectHandle<JSFunction> function);
@@ -149,9 +184,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Returns the raw content of the Code field. When reading from a background
   // thread, the code field may still be uninitialized, in which case the field
   // contains Smi::zero().
-  inline Tagged<Object> raw_code(IsolateForSandbox isolate) const;
-  inline Tagged<Object> raw_code(IsolateForSandbox isolate,
-                                 AcquireLoadTag) const;
+  inline Tagged<Union<Smi, Code>> raw_code(IsolateForSandbox isolate) const;
+  inline Tagged<Union<Smi, Code>> raw_code(IsolateForSandbox isolate,
+                                           AcquireLoadTag tag) const;
 
   // Returns the address of the function code's instruction start.
   inline Address instruction_start(IsolateForSandbox isolate) const;
@@ -162,8 +197,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
   static inline JSDispatchHandle AllocateDispatchHandle(
-      Handle<JSFunction> function, Isolate* isolate, uint16_t parameter_count,
-      DirectHandle<Code> code,
+      DirectHandle<JSFunction> function, Isolate* isolate,
+      uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle() const;
@@ -341,12 +376,13 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Tagged<Map>)
+  inline bool TryGetInitialMap(Tagged<Map>* out_initial_map) const;
 
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            DirectHandle<Map> map,
+                            DirectHandle<Map> initial_map,
                             DirectHandle<JSPrototype> prototype);
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            DirectHandle<Map> map,
+                            DirectHandle<Map> initial_map,
                             DirectHandle<JSPrototype> prototype,
                             DirectHandle<JSFunction> constructor);
 
@@ -376,23 +412,44 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field
-  // until an initial map is needed.
+  // until an initial map is needed. In case the prototype value is
+  // not a JSReceiver, it's wrapped in a Tuple2, containing
+  // <Map|JSReceiver, JSAny && !JSReceiver>, where the first value is the
+  // initial map or instance prototype value, and the second one is the
+  // non-instance prototype value.
+
+  // Returns true if the function has a prototype value set.
   DECL_GETTER(has_prototype, bool)
+  DECL_GETTER(prototype, Tagged<JSAny>)
+
+  // Returns true if the function has an initialized instance prototype value
+  // (the prototype that will be set as __proto__ for instances created by this
+  // function).
   DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Tagged<Object>)
-  DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
+  DECL_GETTER(instance_prototype, Tagged<JSReceiver>)
+
+  // Returns true if the function has a prototype but it's not a JSReceiver.
+  DECL_GETTER(has_non_instance_prototype, bool)
+
+  // Returns true if this function's kind guarantees that it has a
+  // non-configurable "prototype" property.
   DECL_GETTER(has_prototype_property, bool)
+  // Returns true if accessing function's "prototype" property requires a
+  // property lookup (i.e. the function kind does not guarantee that it has
+  // a non-configurable "prototype" property).
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
+
+  // Returns instance prototype object based on function's kind which should
+  // be used when function is in non-instance prototype mode.
+  // See https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor and
+  // https://tc39.es/ecma262/#sec-getprototypefromconstructor.
+  DECL_GETTER(GetIntrinsicDefaultProto, Tagged<JSReceiver>)
+
   static void SetPrototype(Isolate* isolate, DirectHandle<JSFunction> function,
                            DirectHandle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled(IsolateForSandbox isolate) const;
-
-  static int GetHeaderSize(bool function_has_prototype_slot) {
-    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
-                                       : JSFunction::kSizeWithoutPrototype;
-  }
 
   std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
@@ -402,7 +459,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
       Isolate* isolate, DirectHandle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
                                           int requested_embedder_fields,
                                           int requested_in_object_properties,
                                           int* instance_size,
@@ -425,8 +481,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.
-  static DirectHandle<String> GetDebugName(Isolate* isolate,
-                                           DirectHandle<JSFunction> function);
+  static DirectHandle<String> GetDebugName(
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      AllowAllocation allow_allocation = AllowAllocation{true});
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
@@ -444,11 +501,15 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // info.
   CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
- private:
-  // JSFunction doesn't have a fixed header size:
-  // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
-  static const int kHeaderSize;
+#if TAGGED_SIZE_8_BYTES
+  static const int kPaddingOffset;
+  static const int kPaddingOffsetEnd;
+#endif
 
+ private:
+  // The bottleneck for decoding the prototype_or_initial_map field.
+  struct PrototypeOrInitialMapData;
+  inline bool TryGetPrototypeOrInitialMap(PrototypeOrInitialMapData* out) const;
 
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
@@ -461,12 +522,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
-  // Hide generated accessors; custom accessors are called "shared".
-  DECL_ACCESSORS(shared_function_info, Tagged<SharedFunctionInfo>)
-
-  // Hide generated accessors; custom accessors are called "raw_feedback_cell".
-  DECL_ACCESSORS(feedback_cell, Tagged<FeedbackCell>)
-
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.
   // Note that attached code objects that are marked_for_deoptimization are not
@@ -477,11 +532,70 @@ class JSFunction : public TorqueGeneratedJSFunction<
   CodeKinds GetAttachedCodeKinds(IsolateForSandbox isolate) const;
 
  public:
-  static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = TorqueGeneratedClass::kHeaderSize;
+  JSDispatchHandleMember dispatch_handle_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t padding_;
+#endif
+  TaggedMember<SharedFunctionInfo> shared_function_info_;
+  TaggedMember<Context> context_;
+  TaggedMember<FeedbackCell> feedback_cell_;
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSFunction)
-};
+#if TAGGED_SIZE_8_BYTES
+inline constexpr int JSFunction::kPaddingOffset =
+    offsetof(JSFunction, padding_);
+inline constexpr int JSFunction::kPaddingOffsetEnd =
+    offsetof(JSFunction, padding_) + sizeof(uint32_t) - 1;
+#endif
+
+// Defines layout of JavaScript functions without prototype.
+V8_OBJECT class JSFunctionWithoutPrototype : public JSFunction {
+ public:
+  static const int kHeaderSize;
+  static const int kMinSize;
+  DECL_PRINTER(JSFunctionWithoutPrototype)
+  DECL_VERIFIER(JSFunctionWithoutPrototype)
+} V8_OBJECT_END;
+
+inline constexpr int JSFunctionWithoutPrototype::kHeaderSize =
+    sizeof(JSFunctionWithoutPrototype);
+inline constexpr int JSFunctionWithoutPrototype::kMinSize =
+    sizeof(JSFunctionWithoutPrototype);
+
+// Defines layout of JavaScript functions with prototype.
+V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
+ public:
+  static const int kHeaderSize;
+  static const int kMinSize;
+
+  // The field can be in the following states:
+  //  - TheHole - function's prototype was never accessed and thus it's not
+  //      initialized yet,
+  //  - JSReceiver - function has an instance prototype but initial map was
+  //      not created yet (in this case the value is the prototype),
+  //  - Map - this is the function's initial map and the function has an
+  //      instance prototype,
+  //  - Tuple2<Map|JSReceiver, JSAny && !JSReceiver> - function has a
+  //      non-instance prototype, value1 contains initial map or instance
+  //      prototype value, value2 contains the non-instance prototype value.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      prototype_or_initial_map,
+      Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>)
+
+  DECL_PRINTER(JSFunctionWithPrototype)
+  DECL_VERIFIER(JSFunctionWithPrototype)
+
+ public:
+  TaggedMember<Object> prototype_or_initial_map_;
+} V8_OBJECT_END;
+
+inline constexpr int JSFunctionWithPrototype::kHeaderSize =
+    sizeof(JSFunctionWithPrototype);
+inline constexpr int JSFunctionWithPrototype::kMinSize =
+    sizeof(JSFunctionWithPrototype);
+
+V8_OBJECT class JSClassConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace v8::internal
 

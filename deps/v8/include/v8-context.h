@@ -403,6 +403,14 @@ class V8_EXPORT Context : public Data {
   void SetAbortScriptExecution(AbortScriptExecutionCallback callback);
 
   /**
+   * Set callback for getting high resolution timestamps in Temporal.
+   */
+  using TemporalHostSystemUTCEpochNanosecondsCallback =
+      int64_t (*)(Local<Context> context);
+  void SetTemporalHostSystemUTCEpochNanosecondsCallback(
+      TemporalHostSystemUTCEpochNanosecondsCallback callback);
+
+  /**
    * Set or clear hooks to be invoked for promise lifecycle operations.
    * To clear a hook, set it to an empty v8::Function. Each function will
    * receive the observed promise as the first argument. If a chaining

@@ -38,7 +38,7 @@ class UnwindingWin64Callbacks {
     CHECK_GE(stack_frames, 15);
   }
   static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info) {}
+                     const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
 
  private:
   // Windows-specific code to walk the stack starting from the current

@@ -81,7 +81,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
                                  expected_res)                           \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name) {               \
-    i::v8_flags.riscv_c_extension = true;                                \
+    if (!CpuFeatures::IsSupported(RVC)) return;                          \
                                                                          \
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };       \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);            \
@@ -1081,7 +1081,7 @@ TEST_F(AssemblerRISCV32Test, RISCV9) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(zero_reg));
@@ -1152,7 +1152,7 @@ TEST_F(AssemblerRISCV32Test, NAN_BOX) {
 
 TEST_F(AssemblerRISCV32Test, RVC_CI) {
   // Test RV64C extension CI type instructions.
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   // Test c.addi
   {
@@ -1197,7 +1197,7 @@ TEST_F(AssemblerRISCV32Test, RVC_CI) {
 }
 
 TEST_F(AssemblerRISCV32Test, RVC_CIW) {
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   // Test c.addi4spn
   {
@@ -1214,7 +1214,7 @@ TEST_F(AssemblerRISCV32Test, RVC_CIW) {
 
 TEST_F(AssemblerRISCV32Test, RVC_CR) {
   // Test RV64C extension CR type instructions.
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   // Test c.add
   {
@@ -1229,7 +1229,7 @@ TEST_F(AssemblerRISCV32Test, RVC_CR) {
 
 TEST_F(AssemblerRISCV32Test, RVC_CA) {
   // Test RV64C extension CA type instructions.
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   // Test c.sub
   {
@@ -1274,7 +1274,7 @@ TEST_F(AssemblerRISCV32Test, RVC_CA) {
 
 TEST_F(AssemblerRISCV32Test, RVC_LOAD_STORE_SP) {
   // Test RV32C extension flwsp/fswsp, lwsp/swsp.
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   {
     auto fn = [](MacroAssembler& assm) {
@@ -1297,7 +1297,7 @@ TEST_F(AssemblerRISCV32Test, RVC_LOAD_STORE_SP) {
 
 TEST_F(AssemblerRISCV32Test, RVC_LOAD_STORE_COMPRESSED) {
   // Test RV64C extension fld,  lw, ld.
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
@@ -1328,7 +1328,7 @@ TEST_F(AssemblerRISCV32Test, RVC_LOAD_STORE_COMPRESSED) {
 }
 
 TEST_F(AssemblerRISCV32Test, RVC_JUMP) {
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   Label L, C;
   auto fn = [&L, &C](MacroAssembler& assm) {
@@ -1353,7 +1353,7 @@ TEST_F(AssemblerRISCV32Test, RVC_JUMP) {
 
 TEST_F(AssemblerRISCV32Test, RVC_CB) {
   // Test RV64C extension CI type instructions.
-  v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
 
   // Test c.srai
   {
@@ -1378,7 +1378,7 @@ TEST_F(AssemblerRISCV32Test, RVC_CB) {
 }
 
 TEST_F(AssemblerRISCV32Test, RVC_CB_BRANCH) {
-  v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
   // Test floating point compare and
   // branch instructions.
 
@@ -1453,7 +1453,7 @@ TEST_F(AssemblerRISCV32Test, TARGET_ADDR) {
   uint32_t buffer[2] = {0x01234837,   // lui     a6,0x1234
                         0x56780813};  // addi    a6,a6,1383
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   Address res = __ target_constant_address_at(static_cast<Address>(addr));
@@ -1468,7 +1468,7 @@ TEST_F(AssemblerRISCV32Test, SET_TARGET_ADDR) {
   uint32_t buffer[6] = {0x091ab37,  0x2b330213, 0x00b21213,
                         0x62626213, 0x00621213, 0x02b26213};
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   __ set_target_value_at(static_cast<Address>(addr), 0xba987654L, nullptr,
@@ -1769,7 +1769,7 @@ TEST_F(AssemblerRISCV32Test, li_estimate) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   for (auto p : immediates) {
     Label a;
     assm.bind(&a);
@@ -1782,7 +1782,7 @@ TEST_F(AssemblerRISCV32Test, li_estimate) {
 
 #define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arry)                      \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##stname##ldname##SEW) {          \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
                                                                              \
@@ -1803,7 +1803,7 @@ TEST_F(AssemblerRISCV32Test, li_estimate) {
 UTEST_LOAD_STORE_RVV(vl, vs, E8, compiler::ValueHelper::GetVector<int8_t>())
 
 TEST_F(AssemblerRISCV32Test, RVV_VFMV) {
-  if (!CpuFeatures::IsSupported(RISCV_SIMD)) {
+  if (!CpuFeatures::IsSupported(RVV)) {
     return;
   }
 
@@ -1825,7 +1825,7 @@ TEST_F(AssemblerRISCV32Test, RVV_VFMV) {
 }
 
 TEST_F(AssemblerRISCV32Test, RVV_VFMV_signaling_NaN) {
-  if (!CpuFeatures::IsSupported(RISCV_SIMD)) {
+  if (!CpuFeatures::IsSupported(RVV)) {
     return;
   }
 
@@ -1863,7 +1863,7 @@ TEST_F(AssemblerRISCV32Test, RVV_VFMV_signaling_NaN) {
 }
 
 TEST_F(AssemblerRISCV32Test, RVV_VFNEG_signaling_NaN) {
-  if (!CpuFeatures::IsSupported(RISCV_SIMD)) {
+  if (!CpuFeatures::IsSupported(RVV)) {
     return;
   }
 
@@ -1908,7 +1908,7 @@ TEST_F(AssemblerRISCV32Test, RVV_VFNEG_signaling_NaN) {
 // register
 #define UTEST_RVV_VF_MV_FORM_WITH_RES(instr_name, reg1, reg2, width, type)    \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width) {          \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                              \
+    if (!CpuFeatures::IsSupported(RVV)) {                              \
       return;                                                                 \
     }                                                                         \
                                                                               \
@@ -1932,7 +1932,7 @@ TEST_F(AssemblerRISCV32Test, RVV_VFNEG_signaling_NaN) {
     }                                                                         \
   }                                                                           \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width##_##sNaN) { \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                              \
+    if (!CpuFeatures::IsSupported(RVV)) {                              \
       return;                                                                 \
     }                                                                         \
                                                                               \
@@ -1969,7 +1969,7 @@ inline int32_t ToImm5(int32_t v) {
 // Tests for vector integer arithmetic instructions between vector and vector
 #define UTEST_RVV_VI_VV_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width) {        \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                            \
+    if (!CpuFeatures::IsSupported(RVV)) {                            \
       return;                                                               \
     }                                                                       \
                                                                             \
@@ -1994,7 +1994,7 @@ inline int32_t ToImm5(int32_t v) {
 // Tests for vector integer arithmetic instructions between vector and scalar
 #define UTEST_RVV_VI_VX_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width) {        \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                            \
+    if (!CpuFeatures::IsSupported(RVV)) {                            \
       return;                                                               \
     }                                                                       \
                                                                             \
@@ -2019,7 +2019,7 @@ inline int32_t ToImm5(int32_t v) {
 // immediate
 #define UTEST_RVV_VI_VI_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width) {        \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                            \
+    if (!CpuFeatures::IsSupported(RVV)) {                            \
       return;                                                               \
     }                                                                       \
                                                                             \
@@ -2134,7 +2134,7 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
 // vector and vector
 #define UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, expect_res)              \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_##instr_name) {           \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                           \
+    if (!CpuFeatures::IsSupported(RVV)) {                           \
       return;                                                              \
     }                                                                      \
                                                                            \
@@ -2159,7 +2159,7 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
     }                                                                      \
   }                                                                        \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_DOUBLE_##instr_name) {          \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                           \
+    if (!CpuFeatures::IsSupported(RVV)) {                           \
       return;                                                              \
     }                                                                      \
                                                                            \
@@ -2191,7 +2191,7 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
 // vector and scalar
 #define UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, array, expect_res)    \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name) {              \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                        \
+    if (!CpuFeatures::IsSupported(RVV)) {                        \
       return;                                                           \
     }                                                                   \
                                                                         \
@@ -2236,7 +2236,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
 #define UTEST_RVV_VFW_VV_FORM_WITH_RES(instr_name, tested_op, is_first_double, \
                                        check_fn)                               \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_WIDENING_##instr_name) {      \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                               \
+    if (!CpuFeatures::IsSupported(RVV)) {                               \
       return;                                                                  \
     }                                                                          \
                                                                                \
@@ -2278,7 +2278,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
 #define UTEST_RVV_VFW_VF_FORM_WITH_RES(instr_name, tested_op, is_first_double, \
                                        check_fn)                               \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_WIDENING_##instr_name) {      \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                               \
+    if (!CpuFeatures::IsSupported(RVV)) {                               \
       return;                                                                  \
     }                                                                          \
                                                                                \
@@ -2361,7 +2361,7 @@ UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
 #define UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(instr_name, float_array,       \
                                            double_array, expect_res)      \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_WIDENING_##instr_name) { \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                          \
+    if (!CpuFeatures::IsSupported(RVV)) {                          \
       return;                                                             \
     }                                                                     \
                                                                           \
@@ -2401,7 +2401,7 @@ UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
 #define UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(instr_name, float_array,       \
                                            double_array, expect_res)      \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_WIDENING_##instr_name) { \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                          \
+    if (!CpuFeatures::IsSupported(RVV)) {                          \
       return;                                                             \
     }                                                                     \
                                                                           \
@@ -2462,7 +2462,7 @@ UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmsac_vf, ARRAY_FLOAT, ARRAY_DOUBLE,
 // between vectors
 #define UTEST_RVV_FMA_VV_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name) {                   \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
                                                                              \
@@ -2489,7 +2489,7 @@ UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmsac_vf, ARRAY_FLOAT, ARRAY_DOUBLE,
 // between vectors and scalar
 #define UTEST_RVV_FMA_VF_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name) {                   \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
                                                                              \
@@ -2553,7 +2553,7 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
 // Tests for vector Widening Floating-Point Reduction Instructions
 #define UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(instr_name)                 \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_FLOAT_WIDENING_##instr_name) { \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                          \
+    if (!CpuFeatures::IsSupported(RVV)) {                          \
       return;                                                             \
     }                                                                     \
                                                                           \
@@ -2627,7 +2627,7 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 
 #define UTEST_RVV_VNCLIP_E32M2_E16M1(instr_name, sign)                       \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_E32M2_E16M1) {     \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
     constexpr FPURoundingMode vxrm = RNE;                                    \
@@ -2670,7 +2670,7 @@ UTEST_RVV_VNCLIP_E32M2_E16M1(vnclip_vi, )
                                        array, expect_res)                   \
   TEST_F(AssemblerRISCV32Test,                                              \
          RISCV_UTEST_##instr_name##_##width##_##frac_width) {               \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                            \
+    if (!CpuFeatures::IsSupported(RVV)) {                            \
       return;                                                               \
     }                                                                       \
     uint32_t n = CpuFeatures::vlen() / width;                               \
@@ -2733,7 +2733,7 @@ static constexpr float float_sNaN[] = {
 #define UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES(number, type, int_type, width, \
                                               array, expect_res)             \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vfmerge_vf_##type##_##number) {   \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
     uint32_t n = CpuFeatures::vlen() / width;                                \
@@ -2779,7 +2779,7 @@ UTEST_RVV_VF_VFMERGE_VF_FORM_WITH_RES(4, float, int32_t, 32,
 // Test for vslidedown_vi
 #define UTEST_RVV_VP_VSLIDEDOWN_VI_FORM_WITH_RES(type, width, array, offset) \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vslidedown_vi_##type) {           \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
     uint32_t n = CpuFeatures::vlen() / width;                                \
@@ -2816,7 +2816,7 @@ UTEST_RVV_VP_VSLIDEDOWN_VI_FORM_WITH_RES(uint8_t, 8, ARRAY(uint8_t), offset)
 // Test for vslideup_vi
 #define UTEST_RVV_VP_VSLIDEUP_VI_FORM_WITH_RES(type, width, array, offset) \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vslideup_vi_##type) {           \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                           \
+    if (!CpuFeatures::IsSupported(RVV)) {                           \
       return;                                                              \
     }                                                                      \
     uint32_t n = CpuFeatures::vlen() / width;                              \
@@ -2852,7 +2852,7 @@ UTEST_RVV_VP_VSLIDEUP_VI_FORM_WITH_RES(uint8_t, 8, ARRAY(uint8_t), offset)
 
 #define UTEST_RVV_VP_VSLIDEDOWN_VX_FORM_WITH_RES(type, width, array)         \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vslidedown_vx_##type) {           \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
     uint32_t n = CpuFeatures::vlen() / width;                                \
@@ -2891,7 +2891,7 @@ UTEST_RVV_VP_VSLIDEDOWN_VX_FORM_WITH_RES(uint8_t, 8, ARRAY(uint8_t))
 // Test for vslideup_vx
 #define UTEST_RVV_VP_VSLIDEUP_VX_FORM_WITH_RES(type, width, array)           \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vslideup_vx_##type) {             \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                             \
+    if (!CpuFeatures::IsSupported(RVV)) {                             \
       return;                                                                \
     }                                                                        \
     uint32_t n = CpuFeatures::vlen() / width;                                \
@@ -2930,7 +2930,7 @@ UTEST_RVV_VP_VSLIDEUP_VX_FORM_WITH_RES(uint8_t, 8, ARRAY(uint8_t))
 #define UTEST_RVV_VP_VSLIDE1_VX_FORM_WITH_RES(instr_name, type, width, array, \
                                               expect_res)                     \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##type) {           \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                              \
+    if (!CpuFeatures::IsSupported(RVV)) {                              \
       return;                                                                 \
     }                                                                         \
     uint32_t n = CpuFeatures::vlen() / width;                                 \
@@ -3001,7 +3001,7 @@ UTEST_RVV_VP_VSLIDE1_VX_FORM_WITH_RES(vslide1up_vx, uint8_t, 8, ARRAY(uint8_t),
 #define UTEST_RVV_VP_VSLIDE1_VF_FORM_WITH_RES(instr_name, type, width, fval,  \
                                               array, expect_res)              \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_##instr_name##_##width##_##fval) { \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                              \
+    if (!CpuFeatures::IsSupported(RVV)) {                              \
       return;                                                                 \
     }                                                                         \
     uint32_t n = CpuFeatures::vlen() / width;                                 \
@@ -3058,7 +3058,7 @@ UTEST_RVV_VP_VSLIDE1_VF_FORM_WITH_RES(vfslide1up_vf, int32_t, 32, 0x7F400000,
 
 #define UTEST_VFIRST_M_WITH_WIDTH(width)                            \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vfirst_m_##width) {      \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                    \
+    if (!CpuFeatures::IsSupported(RVV)) {                    \
       return;                                                       \
     }                                                               \
     constexpr int32_t vlen = 128;                                   \
@@ -3086,7 +3086,7 @@ UTEST_VFIRST_M_WITH_WIDTH(8)
 
 #define UTEST_VCPOP_M_WITH_WIDTH(width)                               \
   TEST_F(AssemblerRISCV32Test, RISCV_UTEST_vcpop_m_##width) {         \
-    if (!CpuFeatures::IsSupported(RISCV_SIMD)) {                      \
+    if (!CpuFeatures::IsSupported(RVV)) {                      \
       return;                                                         \
     }                                                                 \
     uint32_t vlen = CpuFeatures::vlen();                              \
@@ -3111,7 +3111,7 @@ UTEST_VCPOP_M_WITH_WIDTH(16)
 UTEST_VCPOP_M_WITH_WIDTH(8)
 
 TEST_F(AssemblerRISCV32Test, RISCV_UTEST_WasmRvvS128const) {
-  if (!CpuFeatures::IsSupported(RISCV_SIMD)) {
+  if (!CpuFeatures::IsSupported(RVV)) {
     return;
   }
 

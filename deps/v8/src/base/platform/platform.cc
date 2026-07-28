@@ -12,6 +12,9 @@ namespace {
 // A pointer to current thread's stack beginning.
 thread_local void* thread_stack_start = nullptr;
 
+// A pointer to current thread's reserved stack limit.
+thread_local void* thread_reserved_stack_limit = nullptr;
+
 }  // namespace
 
 // static
@@ -20,6 +23,14 @@ Stack::StackSlot Stack::GetStackStartUnchecked() {
     thread_stack_start = ObtainCurrentThreadStackStart();
   }
   return thread_stack_start;
+}
+
+// static
+Stack::StackSlot Stack::GetReservedStackLimit() {
+  if (!thread_reserved_stack_limit) {
+    thread_reserved_stack_limit = ObtainCurrentThreadStackReservedLimit();
+  }
+  return thread_reserved_stack_limit;
 }
 
 // static

@@ -38,7 +38,7 @@ builder.addFunction("crash", kSig_v_v).exportFunc().addBody([
   kExprEnd,  // loop
 ]);
 
-let array_type = builder.addArray(wasmRefNullType(kSig_i_i), true);
+let array_type = builder.addArray(wasmRefNullType(kSig_i_i));
 builder.addFunction("array", kSig_l_v).exportFunc()
   .addLocals(kWasmI64, 10)
   .addBody([

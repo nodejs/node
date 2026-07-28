@@ -27,8 +27,7 @@ std::unique_ptr<TurbofanCompilationJob> NewCompilationJob(
 
 // Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    bool receiver_is_first_param) {
+    Isolate* isolate, const wasm::CanonicalSig* sig) {
   FATAL(
       "compiler::NewJSToWasmCompilationJob must not be called when Turbofan is "
       "disabled (`v8_enable_turbofan = false`)");

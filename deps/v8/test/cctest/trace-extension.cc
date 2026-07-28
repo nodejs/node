@@ -29,6 +29,7 @@
 
 #include "include/v8-profiler.h"
 #include "include/v8-template.h"
+#include "src/api/api.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/tick-sample.h"

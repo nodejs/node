@@ -18,26 +18,38 @@ namespace internal {
 
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/arguments-tq.inc"
-
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
-class JSArgumentsObject
-    : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
+V8_OBJECT class JSArgumentsObject : public JSObject {
  public:
   DECL_VERIFIER(JSArgumentsObject)
   DECL_PRINTER(JSArgumentsObject)
-  TQ_OBJECT_CONSTRUCTORS(JSArgumentsObject)
-};
+
+  // Defined out-of-line below the class so `sizeof` on the still-incomplete
+  // type can appear in an initializer.
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSArgumentsObject::kHeaderSize = sizeof(JSArgumentsObject);
 
 // JSSloppyArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds in-object properties for "length" and "callee".
-class JSSloppyArgumentsObject
-    : public TorqueGeneratedJSSloppyArgumentsObject<JSSloppyArgumentsObject,
-                                                    JSArgumentsObject> {
+// Shape-style: no own C++ storage; fields live in the parent
+// JSArgumentsObject's in-object property slots at fixed offsets past
+// JSArgumentsObject::kHeaderSize.
+class JSSloppyArgumentsObject : public JSArgumentsObject {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static const int kCalleeIndex = kLengthIndex + 1;
+  // Slot indices of the in-object properties, relative to the parent's
+  // kHeaderSize.
+  static constexpr int kLengthSlotIndex = 0;
+  static constexpr int kCalleeSlotIndex = 1;
+  static constexpr int kInObjectPropertyCount = 2;
+
+  static constexpr int kLengthOffset =
+      JSArgumentsObject::kHeaderSize + kLengthSlotIndex * kTaggedSize;
+  static constexpr int kCalleeOffset =
+      JSArgumentsObject::kHeaderSize + kCalleeSlotIndex * kTaggedSize;
+  static constexpr int kSize =
+      JSArgumentsObject::kHeaderSize + kInObjectPropertyCount * kTaggedSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
@@ -45,13 +57,15 @@ class JSSloppyArgumentsObject
 
 // JSStrictArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds an in-object property for "length".
-class JSStrictArgumentsObject
-    : public TorqueGeneratedJSStrictArgumentsObject<JSStrictArgumentsObject,
-                                                    JSArgumentsObject> {
+class JSStrictArgumentsObject : public JSArgumentsObject {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static_assert(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
+  static constexpr int kLengthSlotIndex = 0;
+  static constexpr int kInObjectPropertyCount = 1;
+
+  static constexpr int kLengthOffset =
+      JSArgumentsObject::kHeaderSize + kLengthSlotIndex * kTaggedSize;
+  static constexpr int kSize =
+      JSArgumentsObject::kHeaderSize + kInObjectPropertyCount * kTaggedSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
@@ -65,28 +79,19 @@ class JSStrictArgumentsObject
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry
-    : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
-                                                  Struct> {
+V8_OBJECT class AliasedArgumentsEntry : public Struct {
  public:
+  inline int aliased_context_slot() const;
+  inline void set_aliased_context_slot(int value);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
-};
+  DECL_PRINTER(AliasedArgumentsEntry)
+  DECL_VERIFIER(AliasedArgumentsEntry)
 
-class SloppyArgumentsElementsShape final : public AllStatic {
  public:
-  using ElementT = UnionOf<Smi, Hole>;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex =
-      RootIndex::kSloppyArgumentsElementsMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Context> context_;
-    TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
-  });
-};
+  TaggedMember<Smi> aliased_context_slot_;
+} V8_OBJECT_END;
 
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS, dividing
 // arguments into two types for a given SloppyArgumentsElements object:
@@ -138,10 +143,13 @@ class SloppyArgumentsElementsShape final : public AllStatic {
 // the outer JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-class SloppyArgumentsElements
-    : public TaggedArrayBase<SloppyArgumentsElements,
-                             SloppyArgumentsElementsShape> {
+V8_OBJECT class SloppyArgumentsElements
+    : public TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>> {
+  using Super = TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>>;
+
  public:
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kSloppyArgumentsElementsMap;
   inline Tagged<Context> context() const;
   inline void set_context(Tagged<Context> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -163,7 +171,18 @@ class SloppyArgumentsElements
   DECL_VERIFIER(SloppyArgumentsElements)
 
   class BodyDescriptor;
-};
+
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size) +
+      2 * kTaggedSize;
+
+ public:
+  // length_ / optional_padding_ live in FixedArrayBase.
+  TaggedMember<Context> context_;
+  TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

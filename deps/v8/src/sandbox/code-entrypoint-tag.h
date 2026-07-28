@@ -58,14 +58,8 @@ enum CodeEntrypointTag : uint64_t {
   // Tag to use for Code objects corresponding to currently disabled builtins.
   kDisabledBuiltinEntrypointTag = uint64_t{0xfd} << kCodeEntrypointTagShift,
 
-  // Tag to use for uninitialized code pointer table entries. This ensures
-  // that the uninitialized value is unusable until the actual one is stored
-  // by CodePointerTable::SetEntrypoint().
-  kUninitializedEntrypointTag = uint64_t{0xfe} << kCodeEntrypointTagShift,
-  // Tag to use for code that will never be called indirectly via the CPT.
+  // Sentinel tag to use for code that should never be called.
   kInvalidEntrypointTag = uint64_t{0xff} << kCodeEntrypointTagShift,
-  // Tag used internally by the code pointer table to mark free entries.
-  kFreeCodePointerTableEntryTag = uint64_t{0xffff} << kCodeEntrypointTagShift,
 };
 
 }  // namespace internal

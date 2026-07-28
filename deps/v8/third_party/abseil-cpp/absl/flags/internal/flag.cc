@@ -443,7 +443,7 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic: {
-      return absl::make_unique<FlagState>(
+      return std::make_unique<FlagState>(
           *this, OneWordValue().load(std::memory_order_acquire), modified,
           on_command_line, ModificationCount());
     }
@@ -454,11 +454,11 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
           seq_lock_.TryRead(cloned, AtomicBufferValue(), Sizeof(op_));
       assert(success);
       static_cast<void>(success);
-      return absl::make_unique<FlagState>(*this, cloned, modified,
-                                          on_command_line, ModificationCount());
+      return std::make_unique<FlagState>(*this, cloned, modified,
+                                         on_command_line, ModificationCount());
     }
     case FlagValueStorageKind::kHeapAllocated: {
-      return absl::make_unique<FlagState>(
+      return std::make_unique<FlagState>(
           *this,
           flags_internal::Clone(
               op_, PtrStorage().load(std::memory_order_acquire).Ptr()),

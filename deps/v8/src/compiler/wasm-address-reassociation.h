@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE WasmAddressReassociation final {
   WasmAddressReassociation& operator=(const WasmAddressReassociation&) = delete;
 
   void Optimize();
-  void VisitProtectedMemOp(Node* node, NodeId effect_chain);
+  void VisitTrappingMemOp(Node* node, NodeId effect_chain);
 
  private:
   // Use the ids of nodes that represent a base and offset, together with an

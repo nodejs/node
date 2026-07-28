@@ -7,6 +7,8 @@
 // Note: These tests are in a separate test file because the tests dynamically
 // change the isolate in terms of allow_wasm_code_gen_callback.
 
+#include <span>
+
 #include "src/api/api-inl.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -55,7 +57,7 @@ void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
   builder->WriteTo(buffer);
 }
 
-bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {
+bool TestModule(Isolate* isolate, std::span<const uint8_t> wire_bytes) {
   HandleScope scope(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Local<v8::Context> context = Utils::ToLocal(isolate->native_context());
@@ -96,7 +98,7 @@ TEST(PropertiesOfCodegenCallbacks) {
   Zone zone(&allocator, ZONE_NAME);
   ZoneBuffer buffer(&zone);
   BuildTrivialModule(&zone, &buffer);
-  v8::MemorySpan<const uint8_t> wire_bytes = {buffer.begin(), buffer.size()};
+  std::span<const uint8_t> wire_bytes{buffer};
   Isolate* isolate = CcTest::InitIsolateOnce();
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -112,9 +114,7 @@ TEST(PropertiesOfCodegenCallbacks) {
 }
 
 TEST(WasmModuleObjectCompileFailure) {
-  const uint8_t wire_bytes_arr[] = {0xDE, 0xAD, 0xBE, 0xEF};
-  v8::MemorySpan<const uint8_t> wire_bytes = {wire_bytes_arr,
-                                              arraysize(wire_bytes_arr)};
+  const uint8_t wire_bytes[] = {0xDE, 0xAD, 0xBE, 0xEF};
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   CHECK(!TestModule(isolate, wire_bytes));

@@ -101,6 +101,27 @@ class ExecuteStringTask : public TaskRunner::Task {
   int context_group_id_;
 };
 
+class ExecuteWrappedStringTask : public TaskRunner::Task {
+ public:
+  ExecuteWrappedStringTask(v8::Isolate* isolate, int context_group_id,
+                           const std::vector<uint16_t>& expression,
+                           v8::Local<v8::String> name)
+      : expression_(expression),
+        name_(ToVector(isolate, name)),
+        context_group_id_(context_group_id) {}
+
+  ~ExecuteWrappedStringTask() override = default;
+  ExecuteWrappedStringTask(const ExecuteWrappedStringTask&) = delete;
+  ExecuteWrappedStringTask& operator=(const ExecuteWrappedStringTask&) = delete;
+  bool is_priority_task() override { return false; }
+  void Run(InspectorIsolateData* data) override;
+
+ private:
+  std::vector<uint16_t> expression_;
+  std::vector<uint16_t> name_;
+  int context_group_id_;
+};
+
 class SetTimeoutTask : public TaskRunner::Task {
  public:
   SetTimeoutTask(int context_group_id, v8::Isolate* isolate,

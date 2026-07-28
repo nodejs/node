@@ -20,8 +20,10 @@
 #include <deque>
 #include <forward_list>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -29,7 +31,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/strings/str_cat.h"
 
@@ -434,6 +438,51 @@ TEST(ChunkedQueue, ResizeValue) {
   EXPECT_EQ(2, q.size());
 }
 
+template <class T>
+struct LimitedAllocator {
+  using value_type = T;
+  int* alloc_count;
+  int max_allocs;
+
+  explicit LimitedAllocator(int* count, int max)
+      : alloc_count(count), max_allocs(max) {}
+  template <class U>
+  LimitedAllocator(const LimitedAllocator<U>& other)
+      : alloc_count(other.alloc_count), max_allocs(other.max_allocs) {}
+
+  T* allocate(size_t n) {
+    if (*alloc_count >= max_allocs) {
+      absl::ThrowStdBadAlloc();
+    }
+    ++*alloc_count;
+    return std::allocator<T>().allocate(n);
+  }
+
+  void deallocate(T* p, size_t n) {
+    std::allocator<T>().deallocate(p, n);
+  }
+
+  template <class U>
+  bool operator==(const LimitedAllocator<U>& other) const {
+    return alloc_count == other.alloc_count;
+  }
+  template <class U>
+  bool operator!=(const LimitedAllocator<U>& other) const {
+    return !(*this == other);
+  }
+};
+
+TEST(ChunkedQueue, ResizeOverflowSafe) {
+  int alloc_count = 0;
+  absl::chunked_queue<int64_t, 0, 0, LimitedAllocator<int64_t>> q(
+      LimitedAllocator<int64_t>(&alloc_count, 5));
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(q.resize(std::numeric_limits<size_t>::max()), std::bad_alloc);
+#else
+  EXPECT_DEATH_IF_SUPPORTED(q.resize(std::numeric_limits<size_t>::max()), "");
+#endif
+}
+
 TEST(ChunkedQueue, MaxSize) {
   absl::chunked_queue<int64_t> q;
   EXPECT_GE(q.max_size(),
@@ -525,8 +574,8 @@ TEST(ChunkedQueue, IteratorDefaultConstructor) {
 TEST(ChunkedQueue, IteratorConversion) {
   using ConstIter = absl::chunked_queue<int64_t>::const_iterator;
   using Iter = absl::chunked_queue<int64_t>::iterator;
-  EXPECT_FALSE((std::is_convertible<ConstIter, Iter>::value));
-  EXPECT_TRUE((std::is_convertible<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_convertible_v<ConstIter, Iter>));
+  EXPECT_TRUE((std::is_convertible_v<Iter, ConstIter>));
   absl::chunked_queue<int64_t> q;
   ConstIter it1 = q.begin();
   ConstIter it2 = q.cbegin();
@@ -534,7 +583,7 @@ TEST(ChunkedQueue, IteratorConversion) {
   it1 = q.end();
   it2 = q.cend();
   it3 = q.end();
-  EXPECT_FALSE((std::is_assignable<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_assignable_v<Iter, ConstIter>));
 }
 
 struct TestEntry {
@@ -755,6 +804,7 @@ TEST(ChunkedQueue, Hardening) {
     GTEST_SKIP() << "Not a hardened build";
   }
 
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::chunked_queue<int> q;
   EXPECT_DEATH_IF_SUPPORTED(q.front(), "");
   EXPECT_DEATH_IF_SUPPORTED(q.back(), "");
@@ -764,5 +814,58 @@ TEST(ChunkedQueue, Hardening) {
   EXPECT_DEATH_IF_SUPPORTED(cq.front(), "");
   EXPECT_DEATH_IF_SUPPORTED(cq.back(), "");
 }
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+struct ThrowingCtor {
+  int* ctor_count;
+  int* dtor_count;
+  int value;
+
+  explicit ThrowingCtor(int v, bool should_throw, int* c_count, int* d_count)
+      : ctor_count(c_count), dtor_count(d_count), value(v) {
+    if (should_throw) {
+      throw 0;
+    }
+    ++*ctor_count;
+  }
+  ThrowingCtor(const ThrowingCtor& other)
+      : ctor_count(other.ctor_count),
+        dtor_count(other.dtor_count),
+        value(other.value) {
+    ++*ctor_count;
+  }
+  ThrowingCtor(ThrowingCtor&& other) noexcept
+      : ctor_count(other.ctor_count),
+        dtor_count(other.dtor_count),
+        value(other.value) {
+    ++*ctor_count;
+  }
+  ~ThrowingCtor() { ++*dtor_count; }
+};
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceBack) {
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+  q.emplace_back(10, false, &ctor_count, &dtor_count);
+  q.emplace_back(20, false, &ctor_count, &dtor_count);
+  ASSERT_EQ(q.size(), 2);
+  ASSERT_EQ(ctor_count, 2);
+  ASSERT_EQ(dtor_count, 0);
+
+  try {
+    q.emplace_back(30, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_EQ(q.size(), 2);
+  EXPECT_EQ(ctor_count, 2);
+  EXPECT_EQ(dtor_count, 0);
+
+  q.clear();
+  EXPECT_EQ(q.size(), 0);
+  EXPECT_EQ(dtor_count, 2);
+}
+#endif
 
 }  // namespace

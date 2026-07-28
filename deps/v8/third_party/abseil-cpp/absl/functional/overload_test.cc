@@ -17,12 +17,12 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <variant>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 
 namespace {
 
@@ -145,32 +145,32 @@ TEST(OverloadTest, DispatchConsidersSfinae) {
 }
 
 TEST(OverloadTest, VariantVisitDispatchesCorrectly) {
-  absl::variant<int, double, std::string> v(1);
+  std::variant<int, double, std::string> v(1);
   auto overloaded = absl::Overload{
       [](int) -> absl::string_view { return "int"; },
       [](double) -> absl::string_view { return "double"; },
       [](const std::string&) -> absl::string_view { return "string"; },
   };
 
-  EXPECT_EQ("int", absl::visit(overloaded, v));
+  EXPECT_EQ("int", std::visit(overloaded, v));
   v = 1.1;
-  EXPECT_EQ("double", absl::visit(overloaded, v));
+  EXPECT_EQ("double", std::visit(overloaded, v));
   v = "hello";
-  EXPECT_EQ("string", absl::visit(overloaded, v));
+  EXPECT_EQ("string", std::visit(overloaded, v));
 }
 
 TEST(OverloadTest, VariantVisitWithAutoFallbackDispatchesCorrectly) {
-  absl::variant<std::string, int32_t, int64_t> v(int32_t{1});
+  std::variant<std::string, int32_t, int64_t> v(int32_t{1});
   auto overloaded = absl::Overload{
       [](const std::string& s) { return s.size(); },
       [](const auto& s) { return sizeof(s); },
   };
 
-  EXPECT_EQ(4, absl::visit(overloaded, v));
+  EXPECT_EQ(4, std::visit(overloaded, v));
   v = int64_t{1};
-  EXPECT_EQ(8, absl::visit(overloaded, v));
+  EXPECT_EQ(8, std::visit(overloaded, v));
   v = std::string("hello");
-  EXPECT_EQ(5, absl::visit(overloaded, v));
+  EXPECT_EQ(5, std::visit(overloaded, v));
 }
 
 // This API used to be exported as a function, so it should also work fine to
@@ -180,14 +180,14 @@ TEST(OverloadTest, UseWithParentheses) {
       absl::Overload([](const std::string& s) { return s.size(); },
                      [](const auto& s) { return sizeof(s); });
 
-  absl::variant<std::string, int32_t, int64_t> v(int32_t{1});
-  EXPECT_EQ(4, absl::visit(overloaded, v));
+  std::variant<std::string, int32_t, int64_t> v(int32_t{1});
+  EXPECT_EQ(4, std::visit(overloaded, v));
 
   v = int64_t{1};
-  EXPECT_EQ(8, absl::visit(overloaded, v));
+  EXPECT_EQ(8, std::visit(overloaded, v));
 
   v = std::string("hello");
-  EXPECT_EQ(5, absl::visit(overloaded, v));
+  EXPECT_EQ(5, std::visit(overloaded, v));
 }
 
 TEST(OverloadTest, HasConstexprConstructor) {

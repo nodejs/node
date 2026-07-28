@@ -49,6 +49,7 @@ constexpr const char* ToString(StepOrigin step_origin) {
     case StepOrigin::kTask:
       return "task";
   }
+  UNREACHABLE();
 }
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {

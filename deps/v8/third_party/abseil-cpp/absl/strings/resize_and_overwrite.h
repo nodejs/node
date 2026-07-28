@@ -53,9 +53,10 @@
 
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 
 #if defined(__cpp_lib_string_resize_and_overwrite) && \
     __cpp_lib_string_resize_and_overwrite >= 202110L
@@ -124,7 +125,7 @@ struct has_Resize_and_overwrite<
 template <typename T, typename Op>
 void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   if (ABSL_PREDICT_FALSE(n > str.max_size())) {
-    absl::base_internal::ThrowStdLengthError("absl::StringResizeAndOverwrite");
+    ThrowStdLengthError("absl::StringResizeAndOverwrite");
   }
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   auto old_size = str.size();
@@ -135,10 +136,13 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
     ABSL_ANNOTATE_MEMORY_IS_UNINITIALIZED(str.data() + old_size, n - old_size);
   }
 #endif
-  auto new_size = std::move(op)(str.data(), n);
-  ABSL_HARDENING_ASSERT(new_size >= 0 && new_size <= n);
-  ABSL_HARDENING_ASSERT(str.data()[n] == typename T::value_type{});
-  str.erase(static_cast<typename T::size_type>(new_size));
+  typename T::size_type new_size =
+      static_cast<typename T::size_type>(std::move(op)(str.data(), n));
+  absl::base_internal::HardeningAssertGE(new_size, typename T::size_type{0});
+  absl::base_internal::HardeningAssertLE(new_size, n);
+  absl::base_internal::HardeningAssert(str.data()[n] ==
+                                       typename T::value_type{});
+  str.erase(new_size);
 }
 
 template <typename T, typename Op>

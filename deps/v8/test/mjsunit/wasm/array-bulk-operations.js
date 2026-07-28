@@ -8,7 +8,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI32, false);
+  let array = builder.addArray(kWasmI32, {mutable: false});
 
   // Parameters: array, starting index, value, length.
   builder.addFunction(
@@ -28,8 +28,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(wasmRefNullType(struct), true);
-  let array16 = builder.addArray(kWasmI16, true);
+  let array = builder.addArray(wasmRefNullType(struct));
+  let array16 = builder.addArray(kWasmI16);
 
   builder.addFunction(
       "make_array", makeSig([kWasmI32], [wasmRefType(array)]))
@@ -114,7 +114,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(wasmRefType(struct), true);
+  let array = builder.addArray(wasmRefType(struct));
 
   builder.addFunction(
       "make_array", makeSig([wasmRefType(struct), kWasmI32],
@@ -150,7 +150,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI16, true);
+  let array = builder.addArray(kWasmI16);
 
   builder.addMemory(10, 10);
 
@@ -253,7 +253,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   let passive = builder.addPassiveDataSegment([0, 1, 2, 3, 4, 5]);
 
@@ -286,7 +286,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI16, false);
+  let array = builder.addArray(kWasmI16, {mutable: false});
 
   let passive = builder.addPassiveDataSegment([0, 1, 2, 3, 4, 5]);
 
@@ -306,7 +306,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let sig = builder.addType(kSig_i_i);
-  let array = builder.addArray(wasmRefNullType(sig), true);
+  let array = builder.addArray(wasmRefNullType(sig));
 
   let table = builder.addTable(wasmRefNullType(sig), 10, 10);
 
@@ -419,7 +419,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmFuncRef, false);
+  let array = builder.addArray(kWasmFuncRef, {mutable: false});
 
   let elem1 = builder.addFunction("succ", kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add]);
@@ -444,7 +444,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   builder.addFunction(
       // initial value, length, index to check

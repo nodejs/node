@@ -10,6 +10,23 @@ namespace compiler {
 
 bool InstructionScheduler::SchedulerSupported() { return true; }
 
+ResourceAllocation InstructionScheduler::GetResourceTable() {
+  std::array units = std::to_array<ResourceAllocation::TableEntry>({
+      {ArchInstResource::kFetch, 1},
+      {ArchInstResource::kIntSingle, 1},
+      {ArchInstResource::kIntMulti, 1},
+      {ArchInstResource::kFP, 1},
+      {ArchInstResource::kLoad, 1},
+      {ArchInstResource::kStore, 1},
+  });
+  return ResourceAllocation(units);
+}
+
+ArchInstResource InstructionScheduler::GetInstructionResource(
+    const Instruction* instr) {
+  return ArchInstResource::kIntSingle;
+}
+
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
@@ -17,6 +34,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kHasSideEffect;
     case kX64Add:
     case kX64Add32:
+    case kX64Add128:
+    case kX64Sub128:
     case kX64And:
     case kX64And32:
     case kX64Cmp:
@@ -34,11 +53,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Sub:
     case kX64Sub32:
     case kX64Imul:
+    case kX64ImulWide:
+    case kX64UmulWide:
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
-    case kX64ImulHigh64:
-    case kX64UmulHigh64:
     case kX64Not:
     case kX64Not32:
     case kX64Neg:
@@ -454,11 +473,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kSSEFloat64Mul:
       return 5;
     case kX64Imul:
+    case kX64ImulWide:
+    case kX64UmulWide:
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
-    case kX64ImulHigh64:
-    case kX64UmulHigh64:
     case kX64Float32Abs:
     case kX64Float32Neg:
     case kX64Float64Abs:

@@ -32,7 +32,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-engine-globals.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -56,7 +56,7 @@ class V8NameConverter : public disasm::NameConverter {
   Isolate* isolate_;
   CodeReference code_;
 
-  base::EmbeddedVector<char, 128> v8_buffer_;
+  mutable base::EmbeddedVector<char, 128> v8_buffer_;
 
   // Map from root-register relative offset of the external reference value to
   // the external reference name (stored in the external reference table).
@@ -244,7 +244,7 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    ShortPrint(relocinfo->target_object(isolate), &accumulator);
+    ShortPrint(relocinfo->target_object(), &accumulator);
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
     const bool is_compressed = RelocInfo::IsCompressedEmbeddedObject(rmode);
     out << "    ;; " << (is_compressed ? "(compressed) " : "")
@@ -282,10 +282,12 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     }
 #if V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
-    // Host is isolate-independent, try wasm native module instead.
-    const char* runtime_stub_name = Builtins::name(
+    Builtin builtin =
         host.as_wasm_code()->native_module()->GetBuiltinInJumptableSlot(
-            relocinfo->wasm_stub_call_address()));
+            relocinfo->wasm_stub_call_address());
+    const char* runtime_stub_name = builtin == Builtin::kNoBuiltinId
+                                        ? "<unknown wasm stub>"
+                                        : Builtins::name(builtin);
     out << "    ;; wasm stub: " << runtime_stub_name;
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {

@@ -59,7 +59,7 @@ bool HeapLayout::InYoungGeneration(Tagged<HeapObject> object) {
 }
 
 // static
-bool HeapLayout::InYoungGeneration(const HeapObjectLayout* object) {
+bool HeapLayout::InYoungGeneration(const HeapObject* object) {
   return InYoungGeneration(Tagged<HeapObject>(object));
 }
 

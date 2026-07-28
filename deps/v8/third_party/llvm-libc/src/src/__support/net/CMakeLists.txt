@@ -1,0 +1,19 @@
+add_object_library(
+  address
+  HDRS
+    address.h
+  SRCS
+    address.cpp
+  DEPENDS
+    libc.hdr.types.in_addr_t
+    libc.hdr.types.struct_in_addr
+    libc.hdr.types.struct_in6_addr
+    libc.hdr.inet_address_macros
+    libc.src.__support.common
+    libc.src.__support.ctype_utils
+    libc.src.__support.CPP.optional
+    libc.src.__support.CPP.span
+    libc.src.__support.libc_assert
+    libc.src.__support.str_to_integer
+    libc.src.string.memory_utils.inline_memcpy
+)

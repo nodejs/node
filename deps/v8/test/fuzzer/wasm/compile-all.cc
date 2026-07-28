@@ -29,7 +29,7 @@ V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // shared-everything-threads fuzzing.
   i::v8_flags.shared_heap = true;
   i::v8_flags.shared_strings = true;
-  i::v8_flags.experimental_wasm_shared = true;
+  i::v8_flags.wasm_shared = true;
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;

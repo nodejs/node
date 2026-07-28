@@ -10,7 +10,7 @@
 namespace v8 {
 namespace {
 
-using RegExpFlag = internal::RegExpFlag;
+using RegExpFlag = internal::regexp::Flag;
 
 template <class T>
 class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
@@ -24,7 +24,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
   }
   ~RegExpTest() override = default;
 
-  void RunRegExp(const std::string&, const i::RegExpFlags&,
+  void RunRegExp(const std::string&, const i::regexp::Flags&,
                  const std::vector<T>&);
 
  protected:
@@ -38,7 +38,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
 };
 
 // Domain over all combinations of regexp flags.
-static fuzztest::Domain<i::RegExpFlags> ArbitraryFlags() {
+static fuzztest::Domain<i::regexp::Flags> ArbitraryFlags() {
   // The unicode and unicode_sets bits are incompatible.
   auto bits_supporting_unicode = fuzztest::BitFlagCombinationOf(
       {RegExpFlag::kHasIndices, RegExpFlag::kGlobal, RegExpFlag::kIgnoreCase,
@@ -51,11 +51,11 @@ static fuzztest::Domain<i::RegExpFlags> ArbitraryFlags() {
   auto bits =
       fuzztest::OneOf(bits_supporting_unicode, bits_supporting_unicode_sets);
   auto flags = fuzztest::Map(
-      [](auto bits) { return static_cast<i::RegExpFlags>(bits); }, bits);
+      [](auto bits) { return static_cast<i::regexp::Flags>(bits); }, bits);
 
   // Filter out any other incompatibilities.
   return fuzztest::Filter(
-      [](i::RegExpFlags f) { return i::RegExp::VerifyFlags(f); }, flags);
+      [](i::regexp::Flags f) { return i::RegExp::VerifyFlags(f); }, flags);
 }
 
 // Domain over bytes for a test string to test regular expressions on.
@@ -109,7 +109,7 @@ void RegExpTest<T>::Test(i::DirectHandle<i::JSRegExp> regexp,
 
 template <class T>
 void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
-                              const i::RegExpFlags& flags,
+                              const i::regexp::Flags& flags,
                               const std::vector<T>& test_input) {
   CHECK(!i_isolate_->has_exception());
   if (regexp_input.size() > INT_MAX) return;

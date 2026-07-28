@@ -71,6 +71,12 @@ struct FlatHashSetPolicy;
 // * Contains a `capacity()` member function indicating the number of element
 //   slots (open, deleted, and empty) within the hash set.
 // * Returns `void` from the `erase(iterator)` overload.
+// * Constructors accept reservation size as an optional argument instead of
+//   bucket count. Reservation size is the number of elements that fits in the
+//   set before rehash.
+// * insert/emplace and other modification functions return special iterator
+//   that doesn't support iteration. std::next(it) for such iterators would
+//   always point to the end().
 //
 // By default, `flat_hash_set` uses the `absl::Hash` hashing framework. All
 // fundamental and Abseil types that support the `absl::Hash` framework have a
@@ -167,16 +173,28 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_set
   //   // Move is guaranteed efficient
   //   absl::flat_hash_set<std::string> set5(std::move(set4));
   //
+  //   // After the move, set4 is in a valid but unspecified state. The only
+  //   // operations guaranteed to be safe on a moved-from set are destruction,
+  //   // assignment, and clear(). Any other operation (e.g. size(), empty(),
+  //   // iteration) results in undefined behavior.
+  //
   // * Move assignment operator
   //
   //   // May be efficient if allocators are compatible
   //   absl::flat_hash_set<std::string> set6;
   //   set6 = std::move(set5);
   //
+  //   // Same moved-from guarantees apply to set5 after this operation.
+  //
   // * Range constructor
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::flat_hash_set<std::string> set7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::flat_hash_set<std::string> set8(std::from_range, v);
   flat_hash_set() {}
   using Base::Base;
 
@@ -512,18 +530,20 @@ namespace container_internal {
 // There is no guarantees on the order of the function calls.
 // Erasure and/or insertion of elements in the function is not allowed.
 template <typename T, typename H, typename E, typename A, typename Function>
-decay_t<Function> c_for_each_fast(const flat_hash_set<T, H, E, A>& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(const flat_hash_set<T, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename T, typename H, typename E, typename A, typename Function>
-decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>& c, Function&& f) {
+std::decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename T, typename H, typename E, typename A, typename Function>
-decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>&& c, Function&& f) {
+std::decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>&& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
@@ -545,14 +565,14 @@ struct FlatHashSetPolicy {
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    absl::allocator_traits<Allocator>::construct(*alloc, slot,
-                                                 std::forward<Args>(args)...);
+    std::allocator_traits<Allocator>::construct(*alloc, slot,
+                                                std::forward<Args>(args)...);
   }
 
   // Return std::true_type in case destroy is trivial.
   template <class Allocator>
   static auto destroy(Allocator* alloc, slot_type* slot) {
-    absl::allocator_traits<Allocator>::destroy(*alloc, slot);
+    std::allocator_traits<Allocator>::destroy(*alloc, slot);
     return IsDestructionTrivial<Allocator, slot_type>();
   }
 

@@ -59,6 +59,9 @@
   # Too slow with --enable-slow-asserts.
   'array-iterate-backwards': [SKIP],
 }],  # 'mode == debug'
+['lower_limits_mode', {
+  'string-replacement-outofmemory': [SKIP],
+}],  # lower_limits_mode
 ['simulator_run', {
   # Skip tests that timeout with turbofan.
   'array-iterate-backwards': [PASS, NO_VARIANTS],

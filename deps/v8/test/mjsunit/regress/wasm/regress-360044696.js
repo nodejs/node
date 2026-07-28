@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
 // Flags: --allow-natives-syntax --wasm-inlining-ignore-call-counts
 // The following flags are not needed but simplify the graph while still
 // reproducing the bug:
@@ -12,10 +11,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestSpeculativeInliningInstanceCacheReturnCallRef() {
   const builder = new WasmModuleBuilder();
-  let $struct2 =
-    builder.addStruct([makeField(kWasmI32, false)], kNoSuperType, false);
+  let $struct2 = builder.addStruct([makeField(kWasmI32, false)]);
   builder.startRecGroup();
-  let $array4 = builder.addArray(kWasmI32, true, kNoSuperType, false);
+  let $array4 = builder.addArray(kWasmI32);
   let $sig5 = builder.addType(makeSig([], [kWasmI32]));
   builder.endRecGroup();
   let callee_017 = builder.addFunction(undefined, $sig5);

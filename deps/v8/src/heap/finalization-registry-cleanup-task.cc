@@ -64,7 +64,7 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::TryCatch catcher(v8_isolate);
   catcher.SetVerbose(true);
-  std::unique_ptr<MicrotasksScope> microtasks_scope;
+  std::optional<MicrotasksScope> microtasks_scope;
   MicrotaskQueue* microtask_queue =
       finalization_registry->native_context()->microtask_queue();
   if (!microtask_queue) microtask_queue = isolate->default_microtask_queue();
@@ -73,8 +73,8 @@ void FinalizationRegistryCleanupTask::RunInternal() {
     // InvokeFinalizationRegistryCleanupFromTask will call into V8 API methods,
     // so we need a valid microtasks scope on the stack to avoid running into
     // the CallDepthScope check.
-    microtasks_scope.reset(new v8::MicrotasksScope(
-        v8_isolate, microtask_queue, v8::MicrotasksScope::kDoNotRunMicrotasks));
+    microtasks_scope.emplace(v8_isolate, microtask_queue,
+                             v8::MicrotasksScope::kDoNotRunMicrotasks);
   }
 
   // Exceptions are reported via the message handler. This is ensured by the

@@ -27,6 +27,7 @@ std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep) {
     case MaybeRegisterRepresentation::None():
       return os << "None";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
@@ -71,10 +72,13 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
       return os << "IndirectPointer";
     case MemoryRepresentation::SandboxedPointer():
       return os << "SandboxedPointer";
+    case MemoryRepresentation::TrustedPointer():
+      return os << "TrustedPointer";
     case MemoryRepresentation::Simd128():
       return os << "Simd128";
     case MemoryRepresentation::Simd256():
       return os << "Simd256";
   }
+  UNREACHABLE();
 }
 }  // namespace v8::internal::compiler::turboshaft

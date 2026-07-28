@@ -231,7 +231,7 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   // relevant, allow this.
   i::v8_flags.freeze_flags_after_init = false;
 
-  v8::V8::InitializeICUDefaultLocation(exec_path);
+  CHECK(v8::V8::InitializeICUDefaultLocation(exec_path));
   v8::V8::InitializeExternalStartupData(exec_path);
   v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();

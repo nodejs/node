@@ -9,6 +9,8 @@
 
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
+#include "src/objects/pod-array.h"
 #include "src/utils/boxed-float.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -348,7 +350,7 @@ class DeoptimizationData : public ProtectedFixedArray {
 
   inline void SetBytecodeOffset(int i, BytecodeOffset value);
 
-  inline int DeoptCount() const;
+  inline uint32_t DeoptCount() const;
 
   static const int kNotInlinedIndex = -1;
 

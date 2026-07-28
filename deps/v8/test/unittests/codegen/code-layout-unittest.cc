@@ -15,6 +15,11 @@ using CodeLayoutTest = TestWithContext;
 namespace internal {
 
 TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
+#ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
+  // The hardcoded buffer used in this test will fail validation.
+  v8_flags.validate_generated_code = false;
+#endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
+
   HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.
@@ -58,6 +63,11 @@ TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
 }
 
 TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
+#ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
+  // The hardcoded buffers used in this test will fail validation.
+  v8_flags.validate_generated_code = false;
+#endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
+
   HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.

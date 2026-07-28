@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
@@ -196,6 +197,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
           return os << "(*)";
       }
+      UNREACHABLE();
     }
     case InstructionOperand::CONSTANT:
       return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
@@ -212,6 +214,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case ImmediateOperand::INDEXED_IMM:
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
+      UNREACHABLE();
     }
     case InstructionOperand::PENDING:
       return os << "[pending: " << PendingOperand::cast(op).next() << "]";
@@ -758,6 +761,9 @@ static InstructionBlock* InstructionBlockFor(
   }
   std::reverse(instr_block->predecessors().begin(),
                instr_block->predecessors().end());
+#ifdef BUILTIN_BLOCK_POSITION
+  instr_block->set_pgo_execution_count(block->pgo_execution_count());
+#endif
   return instr_block;
 }
 
@@ -992,6 +998,9 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       immediates_(zone()),
       rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
+#ifdef BUILTIN_BLOCK_POSITION
+      instruction_permutation_(zone()),
+#endif
       next_virtual_register_(0),
       reference_maps_(zone()),
       representations_(zone()),
@@ -1076,6 +1085,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MachineRepresentation InstructionSequence::GetRepresentation(
@@ -1378,6 +1388,7 @@ std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
     case StateValueKind::kStringConcat:
       return os << "StringConcat";
   }
+  UNREACHABLE();
 }
 
 void StateValueDescriptor::Print(std::ostream& os) const {

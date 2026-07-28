@@ -208,7 +208,7 @@ TEST(LogEntryTest, EmptyFields) {
 TEST(LogEntryTest, NegativeFields) {
   // When Abseil's minimum C++ version is C++17, this conditional can be
   // converted to a constexpr if and the static_cast below removed.
-  if (std::is_signed<absl::LogEntry::tid_t>::value) {
+  if (std::is_signed_v<absl::LogEntry::tid_t>) {
     LogEntryTestPeer entry(
         "foo.cc", -1234, kUsePrefix, absl::LogSeverity::kInfo,
         "2020-01-02T03:04:05.6789", static_cast<absl::LogEntry::tid_t>(-451),
@@ -318,7 +318,7 @@ TEST(LogEntryTest, LongFields) {
 TEST(LogEntryTest, LongNegativeFields) {
   // When Abseil's minimum C++ version is C++17, this conditional can be
   // converted to a constexpr if and the static_cast below removed.
-  if (std::is_signed<absl::LogEntry::tid_t>::value) {
+  if (std::is_signed_v<absl::LogEntry::tid_t>) {
     LogEntryTestPeer entry(
         "I am the very model of a modern Major-General / "
         "I've information vegetable, animal, and mineral.",

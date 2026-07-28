@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/heap-statistics-collector.h"
+#include "src/heap/cppgc-internal/heap-statistics-collector.h"
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/persistent.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc-internal/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -39,7 +39,7 @@ const char* StrErrorAdaptor(int errnum, char* buf, size_t buflen) {
   // The type of `ret` is platform-specific; both of these branches must compile
   // either way but only one will execute on any given platform:
   auto ret = strerror_r(errnum, buf, buflen);
-  if (std::is_same<decltype(ret), int>::value) {
+  if (std::is_same_v<decltype(ret), int>) {
     // XSI `strerror_r`; `ret` is `int`:
     if (ret) *buf = '\0';
     return buf;

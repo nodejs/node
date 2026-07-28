@@ -84,6 +84,7 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   //   r0, r2, r6: param1, param2, param3
   //   lr (== r14): internal usage of the caller
   // in the following FP-relative order: [lr, r6, r3, r2, r0].
+  static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
 

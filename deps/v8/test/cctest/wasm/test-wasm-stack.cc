@@ -134,7 +134,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
   uint32_t js_throwing_index = 0;
-  WasmRunner<void> r(execution_tier, kWasmOrigin, &import);
+  WasmRunner<void> r(execution_tier, &import);
 
   // Add a nop such that we don't always get position 1.
   r.Build({WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index)});
@@ -175,7 +175,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 // Trigger a trap in wasm, stack should contain a source url.
 WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
+  WasmRunner<int> r(execution_tier, nullptr, "main");
 
   std::vector<uint8_t> trap_code(1, kExprUnreachable);
   r.Build(trap_code.data(), trap_code.data() + trap_code.size());
@@ -215,7 +215,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Extract stack trace from the exception.
   DirectHandle<FixedArray> stack_trace_object =
       isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
-  CHECK_NE(0, stack_trace_object->length());
+  CHECK_NE(0u, stack_trace_object->length().value());
   DirectHandle<CallSiteInfo> stack_frame(
       Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 
@@ -236,7 +236,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     // Test a position with 1, 2 or 3 bytes needed to represent it.
     int unreachable_pos = 1 << (8 * pos_shift);
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
+    WasmRunner<int> r(execution_tier, nullptr, "main");
 
     std::vector<uint8_t> trap_code(unreachable_pos + 1, kExprNop);
     trap_code[unreachable_pos] = kExprUnreachable;

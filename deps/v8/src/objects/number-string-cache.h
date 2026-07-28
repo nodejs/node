@@ -26,12 +26,13 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 
   static constexpr int kEntryKeyIndex = 0;
   static constexpr int kEntryValueIndex = 1;
-  static constexpr int kEntrySize = 2;
+  static constexpr uint32_t kEntrySize = 2;
 
-  static constexpr int kInitialSize = 128;
+  static constexpr uint32_t kInitialSize = 128;
 
   // Maximal allowed capacity in number of entries.
-  static constexpr int kMaxCapacity = FixedArray::kMaxCapacity / kEntrySize;
+  static constexpr uint32_t kMaxCapacity =
+      FixedArray::kMaxCapacity / kEntrySize;
 
   inline uint32_t capacity() const;
 
@@ -60,7 +61,7 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 
   template <class IsolateT>
   static inline DirectHandle<SmiStringCache> New(IsolateT* isolate,
-                                                 int capacity);
+                                                 uint32_t capacity);
 
  protected:
   using Super::capacity;
@@ -71,14 +72,14 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 } V8_OBJECT_END;
 
 // Used for mapping raw doubles to Strings.
-V8_OBJECT class DoubleStringCache : public HeapObjectLayout {
+V8_OBJECT class DoubleStringCache : public HeapObject {
  public:
   V8_OBJECT struct Entry {
     UnalignedDoubleMember key_;
     TaggedMember<UnionOf<Smi, String>> value_;
   } V8_OBJECT_END;
 
-  using Header = HeapObjectLayout;
+  using Header = HeapObject;
 
   // Empty entries are initialized with this sentinel (both key and value).
   static constexpr Tagged<Smi> kEmptySentinel = Smi::zero();

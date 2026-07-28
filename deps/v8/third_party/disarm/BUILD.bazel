@@ -1,0 +1,45 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+genrule(
+    name = "generate_disarm_tables",
+    srcs = [
+        "src/desc.txt",
+        "src/feat.txt",
+    ],
+    outs = [
+        "src/disarm64-public.inc",
+        "src/disarm64-private.inc",
+    ],
+    cmd = "python3 $(execpath src/parse.py) $(location src/disarm64-public.inc) $(location src/disarm64-private.inc) $(location src/desc.txt) --feature-desc $(location src/feat.txt) --encode-in-header --features all",
+    tools = ["src/parse.py"],
+)
+
+cc_library(
+    name = "disarm",
+    srcs = [
+        "src/classify.c",
+        "src/decode.c",
+        "src/encode.c",
+        "src/format.c",
+        ":generate_disarm_tables",
+    ],
+    hdrs = [
+        "src/disarm64.h",
+    ],
+    includes = [
+        "src",
+    ],
+    copts = select({
+        "@v8//bazel/config:is_clang": [
+            "-Wno-unused-parameter",
+            "-Wno-shorten-64-to-32",
+            "-std=c99",
+        ],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

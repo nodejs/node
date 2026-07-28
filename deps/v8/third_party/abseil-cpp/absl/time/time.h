@@ -134,11 +134,10 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
                                                            std::ratio<3600>);
 template <typename T>
-using EnableIfIntegral = typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, int>::type;
+using EnableIfIntegral =
+    std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T>, int>;
 template <typename T>
-using EnableIfFloat =
-    typename std::enable_if<std::is_floating_point<T>::value, int>::type;
+using EnableIfFloat = std::enable_if_t<std::is_floating_point_v<T>, int>;
 }  // namespace time_internal
 
 // Duration
@@ -1064,11 +1063,6 @@ bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
 // Unparses a Time value into a command-line string representation using
 // the format specified by `absl::ParseTime()`.
 std::string AbslUnparseFlag(Time t);
-
-ABSL_DEPRECATED("Use AbslParseFlag() instead.")
-bool ParseFlag(const std::string& text, Time* t, std::string* error);
-ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
-std::string UnparseFlag(Time t);
 
 // TimeZone
 //

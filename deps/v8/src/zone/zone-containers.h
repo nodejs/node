@@ -14,8 +14,10 @@
 #include <queue>
 #include <set>
 #include <stack>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
@@ -336,7 +338,11 @@ class ZoneVector {
       size_t count = last - first;
       size_t assignable;
       position = PrepareForInsertion(pos, count, &assignable);
-      if (!base::TryTrivialCopy(first, first + count, position)) {
+      if constexpr (std::is_trivially_copyable_v<T> && std::is_pointer_v<It> &&
+                    std::is_same_v<std::remove_cv_t<std::remove_pointer_t<It>>,
+                                   std::remove_cv_t<T>>) {
+        base::MemCopy(position, first, count * sizeof(T));
+      } else {
         CopyingOverwrite(position, first, first + assignable);
         CopyToNewStorage(position + assignable, first + assignable, last);
       }
@@ -445,7 +451,8 @@ class ZoneVector {
   }
 
   V8_INLINE void CopyToNewStorage(T* dst, const T* src, const T* src_end) {
-    if (base::TryTrivialCopy(src, src_end, dst)) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      base::MemCopy(dst, src, (src_end - src) * sizeof(T));
       return;
     }
     for (; src < src_end; dst++, src++) {
@@ -454,7 +461,8 @@ class ZoneVector {
   }
 
   V8_INLINE void MoveToNewStorage(T* dst, T* src, const T* src_end) {
-    if (base::TryTrivialCopy(src, src_end, dst)) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      base::MemCopy(dst, src, (src_end - src) * sizeof(T));
       return;
     }
     for (; src < src_end; dst++, src++) {
@@ -464,7 +472,8 @@ class ZoneVector {
   }
 
   V8_INLINE void CopyingOverwrite(T* dst, const T* src, const T* src_end) {
-    if (base::TryTrivialMove(src, src_end, dst)) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      base::MemMove(dst, src, (src_end - src) * sizeof(T));
       return;
     }
     for (; src < src_end; dst++, src++) {
@@ -473,7 +482,8 @@ class ZoneVector {
   }
 
   V8_INLINE void MovingOverwrite(T* dst, T* src, const T* src_end) {
-    if (base::TryTrivialMove(src, src_end, dst)) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      base::MemMove(dst, src, (src_end - src) * sizeof(T));
       return;
     }
     for (; src < src_end; dst++, src++) {

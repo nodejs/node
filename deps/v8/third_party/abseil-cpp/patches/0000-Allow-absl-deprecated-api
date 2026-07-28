@@ -1,0 +1,22 @@
+Allow code deprecated with ABSL_DEPRECATED_AND_INLINE to be used in chromium,
+This extends transition time from deprecated api to new one.
+That is particulary helpful when symbols are deprecated in abseil, and various third party
+code first need to be updated to work with new version of abseil, then the new version
+of such library need to be rolled into chromium.
+---
+diff --git a/third_party/abseil-cpp/absl/base/macros.h b/third_party/abseil-cpp/absl/base/macros.h
+index 392b7b8f7a526..7c9594bf26121 100644
+--- a/third_party/abseil-cpp/absl/base/macros.h
++++ b/third_party/abseil-cpp/absl/base/macros.h
+@@ -230,7 +230,10 @@ ABSL_NAMESPACE_END
+ // `ABSL_REFACTOR_INLINE` is preferred because it provides a more informative
+ // deprecation message to developers, especially those that do not have access
+ // to the automated refactoring capabilities of go/cpp-inliner.
+-#define ABSL_DEPRECATE_AND_INLINE() [[deprecated]] ABSL_REFACTOR_INLINE
++// In chromium this macro doesn't add [[deprecated]] attribute as chromium disallows to
++// use deprecated code. By removing this attribute other third party libraries get more
++// time to migrate from deprecated api to something newer.
++#define ABSL_DEPRECATE_AND_INLINE() ABSL_REFACTOR_INLINE
+ 
+ // Requires the compiler to prove that the size of the given object is at least
+ // the expected amount.

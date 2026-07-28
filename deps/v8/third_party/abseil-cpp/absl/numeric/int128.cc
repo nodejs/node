@@ -90,7 +90,7 @@ inline void DivModImpl(uint128 dividend, uint128 divisor, uint128* quotient_ret,
 
 template <typename T>
 uint128 MakeUint128FromFloat(T v) {
-  static_assert(std::is_floating_point<T>::value, "");
+  static_assert(std::is_floating_point_v<T>, "");
 
   // Rounding behavior is towards zero, same as for built-in types.
 

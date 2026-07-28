@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --stress-wasm-code-gc
-// Flags: --experimental-wasm-growable-stacks --enable-testing-opcode-in-wasm
+// Flags: --wasm-growable-stacks --enable-testing-opcode-in-wasm
 // Flags: --no-wasm-lazy-compilation
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');

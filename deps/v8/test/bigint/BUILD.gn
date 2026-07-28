@@ -14,6 +14,8 @@ v8_executable("bigint_shell") {
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
+  public_deps = [ "../../:v8_abseil" ]
+
   data = [
     "testcfg.py",
     "bigint.status",

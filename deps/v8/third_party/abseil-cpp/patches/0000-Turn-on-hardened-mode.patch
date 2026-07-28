@@ -1,0 +1,15 @@
+Enable various hardening checks in absl which would otherwise be UB.
+---
+diff --git a/third_party/abseil-cpp/absl/base/options.h b/third_party/abseil-cpp/absl/base/options.h
+index 71bafb39f2124..212891c5067f1 100644
+--- a/third_party/abseil-cpp/absl/base/options.h
++++ b/third_party/abseil-cpp/absl/base/options.h
+@@ -179,6 +179,6 @@
+ // checks enabled by this option may abort the program in a different way and
+ // log additional information when `NDEBUG` is not defined.
+
+-#define ABSL_OPTION_HARDENED 0
++#define ABSL_OPTION_HARDENED 1
+
+ #endif  // ABSL_BASE_OPTIONS_H_
+

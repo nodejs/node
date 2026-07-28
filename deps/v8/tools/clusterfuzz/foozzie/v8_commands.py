@@ -23,7 +23,7 @@ DEFAULT_FLAGS = [
     '--experimental-fuzzing',
     '--js-staging',
     '--wasm-staging',
-    '--no-wasm-async-compilation',
+    '--wasm-num-compilation-tasks=0',
     # Limit wasm memory to just below 2GiB, to avoid differences between 32-bit
     # and 64-bit builds.
     '--wasm-max-mem-pages=32767',

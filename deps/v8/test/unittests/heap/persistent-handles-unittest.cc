@@ -4,6 +4,7 @@
 
 #include "src/handles/persistent-handles.h"
 
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

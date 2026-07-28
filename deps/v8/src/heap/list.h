@@ -108,10 +108,11 @@ class List {
     element->list_node().set_next(other_next);
     element->list_node().set_prev(other);
     other->list_node().set_next(element);
-    if (other_next)
+    if (other_next) {
       other_next->list_node().set_prev(element);
-    else
+    } else {
       back_ = element;
+    }
   }
 
   void InsertBefore(T* element, T* other) {

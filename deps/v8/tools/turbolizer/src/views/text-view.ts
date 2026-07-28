@@ -149,7 +149,7 @@ export abstract class TextView extends PhaseView {
     this.blockSelections.selectElements(scrollIntoView, scrollDiv);
     this.instructionSelections.selectElements(scrollIntoView, scrollDiv);
     this.nodeSelections.selectElements(scrollIntoView, scrollDiv);
-    
+
     if (this.rangeViewSelectionHandler !== undefined) {
       this.rangeViewSelectionHandler.updateBackground();
     }

@@ -20,17 +20,50 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-date-time-format-tq-inl.inc"
+Tagged<String> JSDateTimeFormat::locale() const { return locale_.load(); }
+void JSDateTimeFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDateTimeFormat)
+Tagged<Managed<icu::Locale>> JSDateTimeFormat::icu_locale() const {
+  return Cast<Managed<icu::Locale>>(icu_locale_.load());
+}
+void JSDateTimeFormat::set_icu_locale(Tagged<Managed<icu::Locale>> value,
+                                      WriteBarrierMode mode) {
+  icu_locale_.store(this, value, mode);
+}
 
-ACCESSORS(JSDateTimeFormat, icu_locale, Tagged<Managed<icu::Locale>>,
-          kIcuLocaleOffset)
-ACCESSORS(JSDateTimeFormat, icu_simple_date_format,
-          Tagged<Managed<icu::SimpleDateFormat>>, kIcuSimpleDateFormatOffset)
-ACCESSORS(JSDateTimeFormat, icu_date_interval_format,
-          Tagged<Managed<icu::DateIntervalFormat>>,
-          kIcuDateIntervalFormatOffset)
+Tagged<Managed<icu::SimpleDateFormat>>
+JSDateTimeFormat::icu_simple_date_format() const {
+  return Cast<Managed<icu::SimpleDateFormat>>(icu_simple_date_format_.load());
+}
+void JSDateTimeFormat::set_icu_simple_date_format(
+    Tagged<Managed<icu::SimpleDateFormat>> value, WriteBarrierMode mode) {
+  icu_simple_date_format_.store(this, value, mode);
+}
+
+Tagged<Managed<icu::DateIntervalFormat>>
+JSDateTimeFormat::icu_date_interval_format() const {
+  return Cast<Managed<icu::DateIntervalFormat>>(
+      icu_date_interval_format_.load());
+}
+void JSDateTimeFormat::set_icu_date_interval_format(
+    Tagged<Managed<icu::DateIntervalFormat>> value, WriteBarrierMode mode) {
+  icu_date_interval_format_.store(this, value, mode);
+}
+
+Tagged<UnionOf<JSFunction, Undefined>> JSDateTimeFormat::bound_format() const {
+  return bound_format_.load();
+}
+void JSDateTimeFormat::set_bound_format(
+    Tagged<UnionOf<JSFunction, Undefined>> value, WriteBarrierMode mode) {
+  bound_format_.store(this, value, mode);
+}
+
+int JSDateTimeFormat::flags() const { return flags_.load().value(); }
+void JSDateTimeFormat::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 BIT_FIELD_ACCESSORS(JSDateTimeFormat, flags, has_to_locale_string_time_zone,
                     JSDateTimeFormat::HasToLocaleStringTimeZoneBit)

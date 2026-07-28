@@ -18,7 +18,7 @@ assertEquals(
     new Intl.DateTimeFormat(["en-u-hc-h24-nu-arab"]).resolvedOptions().locale
 );
 
-// https://tc39.github.io/ecma402/#sec-intl.datetimeformat-internal-slots
+// https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
 // invalid hc should be removed
 // [[LocaleData]][locale].hc must be « null, "h11", "h12", "h23", "h24" » for all locale values.
 assertEquals(

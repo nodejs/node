@@ -66,6 +66,11 @@ FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
   }
 }
 
+int FrameAccessState::GetSPSlotCount() const {
+  return (has_frame() ? frame_->GetTotalFrameSlotCount() : kElidedFrameSlots) +
+         sp_delta();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

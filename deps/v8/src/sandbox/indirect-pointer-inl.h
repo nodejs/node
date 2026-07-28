@@ -11,7 +11,6 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
@@ -24,24 +23,12 @@ V8_INLINE void InitSelfIndirectPointerField(
     TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kIndirectPointerNullTag);
-  // TODO(saelo): in the future, we might want to CHECK here or in
-  // AllocateAndInitializeEntry that the host lives in trusted space.
 
-  IndirectPointerHandle handle;
-  if (tag == kCodeIndirectPointerTag) {
-    CodePointerTable::Space* space =
-        isolate.GetCodePointerTableSpaceFor(field_address);
-    handle =
-        IsolateGroup::current()
-            ->code_pointer_table()
-            ->AllocateAndInitializeEntry(space, host.address(), kNullAddress,
-                                         kUninitializedEntrypointTag);
-  } else {
-    TrustedPointerTable::Space* space =
-        isolate.GetTrustedPointerTableSpaceFor(tag);
-    handle = isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
-        space, host.ptr(), tag, opt_publishing_scope);
-  }
+  TrustedPointerTable::Space* space =
+      isolate.GetTrustedPointerTableSpaceFor(tag, host.address());
+  IndirectPointerHandle handle =
+      isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
+          space, host.ptr(), tag, opt_publishing_scope);
 
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads
@@ -55,40 +42,17 @@ V8_INLINE void InitSelfIndirectPointerField(
 
 #ifdef V8_ENABLE_SANDBOX
 template <IndirectPointerTagRange tag_range>
-V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
+V8_INLINE Tagged<Object> ResolveIndirectPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
   const TrustedPointerTable& table =
       isolate.GetTrustedPointerTableFor(tag_range);
   return Tagged<Object>(table.Get(handle, tag_range));
 }
 
-V8_INLINE Tagged<Object> ResolveCodePointerHandle(
-    IndirectPointerHandle handle) {
-  CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
-  return Tagged<Object>(table->GetCodeObject(handle));
-}
-
 template <IndirectPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
                                                    IsolateForSandbox isolate) {
-  // Resolve the handle. The tag implies the pointer table to use.
-  if constexpr (tag_range == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    // In this case we need to check if the handle is a code pointer handle and
-    // select the appropriate table based on that.
-    if (tag_range.Contains(kCodeIndirectPointerTag) &&
-        (handle & kCodePointerHandleMarker)) {
-      return ResolveCodePointerHandle(handle);
-    } else {
-      DCHECK(!(handle & kCodePointerHandleMarker));
-      // TODO(saelo): once we have type tagging for entries in the trusted
-      // pointer table, we could ASSUME that the top bits of the tag match the
-      // instance type, which might allow the compiler to optimize subsequent
-      // instance type checks.
-      return ResolveTrustedPointerHandle<tag_range>(handle, isolate);
-    }
-  }
+  return ResolveIndirectPointerHandle<tag_range>(handle, isolate);
 }
 
 #endif  // V8_ENABLE_SANDBOX

@@ -95,14 +95,20 @@ TEST_F(WasmCallDescriptorTest, Regress_1174500) {
   EXPECT_EQ(MachineType::Float32(), last_param.GetType());
   EXPECT_EQ(-1, last_param.GetLocation());
 
+  LinkageLocation return_location = desc->GetReturnLocation(kReturns - 1);
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_PPC64)
+  // On these platforms, S128 values are passed/returned in registers.
+  EXPECT_TRUE(return_location.IsRegister());
+#else
   // The stack return slot should be right above our last parameter, and any
   // argument padding slots. The return slot itself should not be padded.
   const int padding = ShouldPadArguments(1);
   const int first_return_slot = -1 - (padding + 1);
-  LinkageLocation return_location = desc->GetReturnLocation(kReturns - 1);
   EXPECT_TRUE(return_location.IsCallerFrameSlot());
   EXPECT_EQ(MachineType::Simd128(), return_location.GetType());
   EXPECT_EQ(first_return_slot, return_location.GetLocation());
+#endif
 }
 
 }  // namespace wasm

@@ -1,0 +1,5 @@
+Test session disconnect during exception wrapping.
+victim session id = 1
+[controller] paused -> stock utils.disconnectSession(victim)
+[controller] victim freed; resuming nested loop
+Reached post-wait (unexpected under ASan if bug fires).

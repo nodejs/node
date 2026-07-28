@@ -4,6 +4,7 @@
 
 type TieringState extends uint16 constexpr 'TieringState';
 
+@cppScope('FeedbackVector')
 bitfield struct FeedbackVectorFlags extends uint16 {
   tiering_in_progress: bool: 1 bit;
   osr_tiering_in_progress: bool: 1 bit;
@@ -11,6 +12,7 @@ bitfield struct FeedbackVectorFlags extends uint16 {
   all_your_bits_are_belong_to_jgruber: uint32: 13 bit;
 }
 
+@cppScope('FeedbackVector')
 bitfield struct OsrState extends uint8 {
   // The layout is chosen s.t. osr_urgency and
   // maybe_has_(maglev|turbofan)_osr_code can be loaded with a single load
@@ -25,12 +27,11 @@ bitfield struct OsrState extends uint8 {
 }
 
 @cppObjectLayoutDefinition
-extern class ClosureFeedbackCellArray extends HeapObject {
-  const length: Smi;
+extern class ClosureFeedbackCellArray extends FixedArrayBase {
   objects[length]: FeedbackCell;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
@@ -44,4 +45,8 @@ extern class FeedbackVector extends HeapObject {
   @cppRelaxedLoad @cppRelaxedStore raw_feedback_slots[length]: MaybeObject;
 }
 
-extern class FeedbackMetadata extends HeapObject;
+@cppObjectLayoutDefinition
+extern class FeedbackMetadata extends HeapObject {
+  slot_count: int32;
+  create_closure_slot_count: int32;
+}

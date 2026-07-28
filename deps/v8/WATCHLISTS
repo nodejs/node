@@ -101,7 +101,7 @@
                   '|bazel/',
     },
     'cppgc': {
-      'filepath': 'src/heap/cppgc/' \
+      'filepath': 'src/heap/cppgc-internal/' \
                   '|src/heap/cppgc-js/' \
                   '|include/cppgc/' \
                   '|test/unittests/heap/cppgc/' \
@@ -109,6 +109,9 @@
     },
     'trap-handler': {
       'filepath': 'src/trap-handler/',
+    },
+    'agents': {
+      'filepath': 'agents/',
     },
   },
 
@@ -149,7 +152,7 @@
     ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
-      'v8-merges@googlegroups.com',
+      # 'v8-merges@googlegroups.com',
     ],
     'wasm': [
       'wasm-v8@google.com',
@@ -188,6 +191,9 @@
       'clemensb@chromium.org',
       'mark@chromium.org',
       'mseaborn@chromium.org',
+    ],
+    'agents': [
+      'mrcvtl@chromium.org',
     ],
   },
 }

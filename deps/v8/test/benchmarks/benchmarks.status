@@ -78,6 +78,14 @@
   'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }],
 
+['variant == validate_generated_code and simulator_run', {
+  # Too slow to validate_generated_code on simulators.
+  'octane/earley-boyer': [SKIP],
+  'octane/regexp': [SKIP],
+  'octane/typescript': [SKIP],
+  'octane/zlib': [SKIP],
+}],
+
 ['variant == jitless', {
   # Too slow for jitless mode.
   'kraken/audio-fft': [PASS, ['mode == debug', SKIP]],

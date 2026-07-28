@@ -40,10 +40,15 @@ bool IsJSCompatibleSignature(const CanonicalSig* sig) {
         case GenericKind::kNoExn:
         case GenericKind::kCont:
         case GenericKind::kNoCont:
+        case GenericKind::kWaitqueue:
+        case GenericKind::kNoWaitqueue:
           return false;
         default:
           break;
       }
+    } else if (type.has_index() &&
+               type.ref_type_kind() == i::wasm::RefTypeKind::kCont) {
+      return false;
     }
   }
   return true;

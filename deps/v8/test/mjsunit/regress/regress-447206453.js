@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbolev --turbolev-inline-js-wasm-wrappers --allow-natives-syntax
+// Flags: --turbolev --wasm-in-js-inlining-wrapper --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
-let array_type_index = builder.addArray(kWasmI32, true);
+let array_type_index = builder.addArray(kWasmI32);
 
 builder.addFunction('createArray', makeSig([kWasmI32], [kWasmExternRef]))
 .addBody([

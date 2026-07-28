@@ -1,0 +1,52 @@
+header: sys/epoll.h
+standards:
+  - linux
+macros:
+  - macro_name: EPOLLIN
+    macro_header: sys-epoll-macros.h
+types:
+  - type_name: struct_epoll_event
+  - type_name: struct_epoll_data
+  - type_name: sigset_t
+  - type_name: struct_timespec
+enums: []
+objects: []
+functions:
+  - name: epoll_create
+    return_type: int
+    arguments:
+      - type: int
+  - name: epoll_create1
+    return_type: int
+    arguments:
+      - type: int
+  - name: epoll_ctl
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+      - type: struct epoll_event *
+  - name: epoll_pwait
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct epoll_event *
+      - type: int
+      - type: int
+      - type: const sigset_t *
+  - name: epoll_pwait2
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct epoll_event *
+      - type: int
+      - type: const struct timespec *
+      - type: const sigset_t *
+  - name: epoll_wait
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct epoll_event *
+      - type: int
+      - type: int

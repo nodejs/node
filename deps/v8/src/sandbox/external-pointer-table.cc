@@ -129,8 +129,9 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
     FreelistHead empty_freelist;
     from_space->freelist_head_.store(empty_freelist, std::memory_order_relaxed);
 
-    for (Address field : from_space->invalidated_fields_)
+    for (Address field : from_space->invalidated_fields_) {
       space->invalidated_fields_.push_back(field);
+    }
     from_space->ClearInvalidatedFields();
   }
 
@@ -144,11 +145,6 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
   // stopped.
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
-  auto AddToFreelist = [&](uint32_t entry_index) {
-    at(entry_index).MakeFreelistEntry(current_freelist_head);
-    current_freelist_head = entry_index;
-    current_freelist_length++;
-  };
 
   std::vector<Segment> segments_to_deallocate;
   while (auto current = segments_iter.Next()) {
@@ -159,83 +155,11 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
         compaction.success &&
         segment.first_entry() >= compaction.start_of_evacuation_area;
 
-    // Remember the state of the freelist before this segment in case this
-    // segment turns out to be completely empty and we deallocate it.
-    uint32_t previous_freelist_head = current_freelist_head;
-    uint32_t previous_freelist_length = current_freelist_length;
-
-    // Process every entry in this segment, again going top to bottom.
-    for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
-      auto payload = at(i).GetRawPayload();
-      if (payload.ContainsEvacuationEntry()) {
-        // Segments that will be evacuated cannot contain evacuation entries
-        // into which other entries would be evacuated.
-        DCHECK(!segment_will_be_evacuated);
-
-        // An evacuation entry contains the address of the external pointer
-        // field that owns the entry that is to be evacuated.
-        Address handle_location =
-            payload.ExtractEvacuationEntryHandleLocation();
-        DCHECK_NE(handle_location, kNullAddress);
-
-        // The external pointer field may have been invalidated in the meantime
-        // (for example if the host object has been in-place converted to a
-        // different type of object). In that case, the field no longer
-        // contains an external pointer handle and we therefore cannot evacuate
-        // the old entry. This is fine as the entry is guaranteed to be dead.
-        if (space->FieldWasInvalidated(handle_location)) {
-          // In this case, we must, however, free the evacuation entry.
-          // Otherwise, we would be left with effectively a stale evacuation
-          // entry that we'd try to process again during the next GC.
-          AddToFreelist(i);
-          continue;
-        }
-
-        // Resolve the evacuation entry: take the pointer to the handle from the
-        // evacuation entry, copy the entry to its new location, and finally
-        // update the handle to point to the new entry.
-        //
-        // While we now know that the entry being evacuated is free, we don't
-        // add it to (the start of) the freelist because that would immediately
-        // cause new fragmentation when the next entry is allocated. Instead, we
-        // assume that the segments out of which entries are evacuated will all
-        // be decommitted anyway after this loop, which is usually the case
-        // unless compaction was already aborted during marking.
-        ResolveEvacuationEntryDuringSweeping(
-            i, reinterpret_cast<ExternalPointerHandle*>(handle_location),
-            compaction.start_of_evacuation_area);
-
-        // The entry must now contain an external pointer and be unmarked as
-        // the entry that was evacuated must have been processed already (it
-        // is in an evacuated segment, which are processed first as they are
-        // at the end of the space). This will have cleared the marking bit.
-        DCHECK(at(i).HasExternalPointer(kAnyExternalPointerTagRange));
-        DCHECK(!at(i).GetRawPayload().HasMarkBitSet());
-      } else if (!payload.HasMarkBitSet()) {
-        FreeManagedResourceIfPresent(i);
-        AddToFreelist(i);
-      } else {
-        auto new_payload = payload;
-        new_payload.ClearMarkBit();
-        at(i).SetRawPayload(new_payload);
-      }
-
-      // We must have resolved all evacuation entries. Otherwise, we'll try to
-      // process them again during the next GC, which would cause problems.
-      DCHECK(!at(i).HasEvacuationEntry());
-    }
-
-    // If a segment is completely empty, or if all live entries will be
-    // evacuated out of it at the end of this loop, free the segment.
-    // Note: for segments that will be evacuated, we could avoid building up a
-    // freelist, but it's probably not worth the effort.
-    uint32_t free_entries = current_freelist_length - previous_freelist_length;
-    bool segment_is_empty = free_entries == kEntriesPerSegment;
-    if (segment_is_empty || segment_will_be_evacuated) {
+    if (SweepAndCompactSegment(
+            space, segment, compaction.start_of_evacuation_area,
+            segment_will_be_evacuated, &current_freelist_head,
+            &current_freelist_length)) {
       segments_to_deallocate.push_back(segment);
-      // Restore the state of the freelist before this segment.
-      current_freelist_head = previous_freelist_head;
-      current_freelist_length = previous_freelist_length;
     }
   }
 
@@ -243,15 +167,11 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
 
   // We cannot deallocate the segments during the above loop, so do it now.
   for (auto segment : segments_to_deallocate) {
-#ifdef DEBUG
-    // There should not be any live entries in the segments we are freeing.
-    // TODO(saelo): we should be able to assert here that we're not freeing any
-    // entries here. Otherwise, we'd have to FreeManagedResourceIfPresent.
-    // for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--)
-    // {
-    //  CHECK(!at(i).HasExternalPointer(kAnyExternalPointerTag));
-    //}
-#endif
+    // Ensure any managed resources in deallocated segments are freed even if
+    // their evacuation bailed out.
+    for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
+      FreeManagedResourceIfPresent(i);
+    }
     FreeTableSegment(segment);
     space->segments_.erase(segment);
   }
@@ -277,34 +197,27 @@ uint32_t ExternalPointerTable::Sweep(Space* space, Counters* counters) {
   return SweepAndCompact(space, counters);
 }
 
-void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
-    uint32_t new_index, ExternalPointerHandle* handle_location,
-    uint32_t start_of_evacuation_area) {
-  // We must have a valid handle here. If this fails, it might mean that an
-  // object with external pointers was in-place converted to another type of
-  // object without informing the external pointer table.
-  ExternalPointerHandle old_handle = *handle_location;
-  CHECK(IsValidHandle(old_handle));
+void ExternalPointerTable::Verify(Isolate* isolate, Space* space) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto payload = at(index).GetRawPayload();
+    ExternalPointerTag tag = payload.ExtractTag();
+    if (tag == kExternalPointerFreeEntryTag ||
+        tag == kExternalPointerEvacuationEntryTag ||
+        tag == kExternalPointerZappedEntryTag) {
+      return;
+    }
 
-  uint32_t old_index = HandleToIndex(old_handle);
-  ExternalPointerHandle new_handle = IndexToHandle(new_index);
+    Address pointer = payload.Untag(tag);
+    if (pointer == kNullAddress) return;
 
-  // The compaction algorithm always moves an entry from the evacuation area to
-  // the front of the table. These DCHECKs verify this invariant.
-  DCHECK_GE(old_index, start_of_evacuation_area);
-  DCHECK_LT(new_index, start_of_evacuation_area);
-  auto& new_entry = at(new_index);
-  at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);
-  *handle_location = new_handle;
-
-  // If this entry references a managed resource, update the resource to
-  // reference the new entry.
-  if (Address addr = at(new_index).ExtractManagedResourceOrNull()) {
-    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
-    DCHECK_EQ(resource->ept_entry_, old_handle);
-    resource->ept_entry_ = new_handle;
-  }
+    // We don't know the C++ type of the referenced object, so we cannot do
+    // much verification on it. What we can do is try to load the first byte of
+    // the object (we assume we don't have zero-sized objects). This way, we
+    // can at least detect issues like use-after-free on ASan builds.
+    USE(*reinterpret_cast<const uint8_t*>(pointer));
+  });
 }
+
 
 #ifdef OBJECT_PRINT
 

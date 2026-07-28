@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax
 // Flags: --no-enable-experimental-regexp-engine
 // Flags: --enable-experimental-regexp-engine-on-excessive-backtracks
-// Flags: --regexp-tier-up --regexp-tier-up-ticks 1
+// Flags: --regexp-tier-up --regexp-tier-up-ticks=1
 
 // We should report accurate results on patterns for which irregexp suffers
 // from catastrophic backtracking.

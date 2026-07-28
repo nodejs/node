@@ -317,7 +317,7 @@ v8::Intercepted NamedGetter(Local<Name> property,
 }
 
 v8::Intercepted NamedSetter(Local<Name> property, Local<Value> value,
-                            const PropertyCallbackInfo<void>& info) {
+                            const PropertyCallbackInfo<v8::Boolean>& info) {
   CHECK(g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -374,7 +374,7 @@ v8::Intercepted IndexedGetter(uint32_t index,
 }
 
 v8::Intercepted IndexedSetter(uint32_t index, Local<Value> value,
-                              const PropertyCallbackInfo<void>& info) {
+                              const PropertyCallbackInfo<v8::Boolean>& info) {
   CHECK(g_expect_interceptor_call);
   if (index == 7) {
     Isolate* isolate = info.GetIsolate();
@@ -448,7 +448,7 @@ v8::Intercepted NamedGetterThrowsException(
 
 v8::Intercepted NamedSetterThrowsException(
     Local<Name> property, Local<Value> value,
-    const PropertyCallbackInfo<void>& info) {
+    const PropertyCallbackInfo<v8::Boolean>& info) {
   Isolate* isolate = info.GetIsolate();
   isolate->ThrowException(v8_str(isolate, "exception"));
   return v8::Intercepted::kYes;
@@ -463,7 +463,7 @@ v8::Intercepted IndexedGetterThrowsException(
 
 v8::Intercepted IndexedSetterThrowsException(
     uint32_t index, Local<Value> value,
-    const PropertyCallbackInfo<void>& info) {
+    const PropertyCallbackInfo<v8::Boolean>& info) {
   Isolate* isolate = info.GetIsolate();
   isolate->ThrowException(v8_str(isolate, "exception"));
   return v8::Intercepted::kYes;
@@ -476,7 +476,7 @@ void GetCrossContextInt(Local<Name> property,
 }
 
 void SetCrossContextInt(Local<Name> property, Local<Value> value,
-                        const PropertyCallbackInfo<void>& info) {
+                        const PropertyCallbackInfo<v8::Boolean>& info) {
   CHECK(!g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();

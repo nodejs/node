@@ -36,15 +36,17 @@
 #include <memory>
 #include <unordered_map>
 
+#include "include/cppgc/macros.h"
+#include "include/cppgc/persistent.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/inspector/v8-console.h"
 
 namespace v8_inspector {
 
 class InspectedContext;
-class V8Console;
 class V8ConsoleMessageStorage;
 class V8Debugger;
 class V8DebuggerAgentImpl;
@@ -92,7 +94,7 @@ class V8InspectorImpl : public V8Inspector {
                                                     SessionPauseState) override;
   std::shared_ptr<V8InspectorSession> connectShared(
       int contextGroupId, V8Inspector::ManagedChannel*, StringView state,
-      ClientTrustLevel, SessionPauseState) override;
+      ClientTrustLevel, SessionPauseState, V8EmbedderState = {}) override;
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
@@ -132,12 +134,14 @@ class V8InspectorImpl : public V8Inspector {
   void muteExceptions(int contextGroupId);
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
+  V8ConsoleMessageStorage* consoleMessageStorage(int contextGroupId);
   bool hasConsoleMessageStorage(int contextGroupId);
   void discardInspectedContext(int contextGroupId, int contextId);
   void disconnect(V8InspectorSessionImpl*);
   V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
-  InspectedContext* getContext(int groupId, int contextId) const;
-  InspectedContext* getContext(int contextId) const;
+  std::shared_ptr<InspectedContext> getContext(int groupId,
+                                               int contextId) const;
+  std::shared_ptr<InspectedContext> getContext(int contextId) const;
   V8_EXPORT_PRIVATE V8Console* console();
   void forEachContext(int contextGroupId,
                       const std::function<void(InspectedContext*)>& callback);
@@ -151,6 +155,8 @@ class V8InspectorImpl : public V8Inspector {
   getAssociatedExceptionDataForProtocol(v8::Local<v8::Value> exception);
 
   class EvaluateScope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit EvaluateScope(const InjectedScript::Scope& scope);
     ~EvaluateScope();
@@ -170,7 +176,7 @@ class V8InspectorImpl : public V8Inspector {
   V8InspectorSessionImpl* connectImpl(int contextGroupId,
                                       V8Inspector::ManagedChannel*,
                                       StringView state, ClientTrustLevel,
-                                      SessionPauseState);
+                                      SessionPauseState, V8EmbedderState);
 
   v8::Isolate* m_isolate;
   V8InspectorClient* m_client;
@@ -186,7 +192,7 @@ class V8InspectorImpl : public V8Inspector {
   MuteExceptionsMap m_muteExceptionsMap;
 
   using ContextByIdMap =
-      std::unordered_map<int, std::unique_ptr<InspectedContext>>;
+      std::unordered_map<int, std::shared_ptr<InspectedContext>>;
   using ContextsByGroupMap =
       std::unordered_map<int, std::unique_ptr<ContextByIdMap>>;
   ContextsByGroupMap m_contexts;
@@ -203,7 +209,7 @@ class V8InspectorImpl : public V8Inspector {
   std::unordered_map<int, int> m_contextIdToGroupIdMap;
   std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
-  std::unique_ptr<V8Console> m_console;
+  cppgc::Persistent<V8Console> m_console;
   PromiseHandlerTracker m_promiseHandlerTracker;
 };
 

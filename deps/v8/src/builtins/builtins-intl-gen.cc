@@ -75,13 +75,12 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
     kToLocaleLowerCase,
   };
   void ToLowerCaseImpl(TNode<String> string, TNode<Object> maybe_locales,
-                       TNode<ContextOrEmptyContext> context,
-                       ToLowerCaseKind kind,
+                       TNode<Context> context, ToLowerCaseKind kind,
                        std::function<void(TNode<JSAny>)> ReturnFct);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto context = Parameter<Context>(Descriptor::kContext);
   auto string = Parameter<String>(Descriptor::kString);
   ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
@@ -90,7 +89,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
 #if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto context = Parameter<Context>(Descriptor::kContext);
   auto string = Parameter<String>(Descriptor::kString);
   ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
@@ -98,6 +97,7 @@ TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
 }
 #endif
 
+// https://tc39.es/ecma262/#sec-string.prototype.tolowercase
 TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -108,6 +108,7 @@ TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   Return(CallBuiltin(Builtin::kStringToLowerCaseIntl, context, string));
 }
 
+// https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
 TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
   TNode<Int32T> argc =
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
@@ -122,10 +123,11 @@ TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
                   [&args](TNode<JSAny> ret) { args.PopAndReturn(ret); });
 }
 
+// This needs a Context because it can throw, because there is one case where
+// it can grow the string's length: "\u0130".toLowerCase().length == 2.
 void IntlBuiltinsAssembler::ToLowerCaseImpl(
-    TNode<String> string, TNode<Object> maybe_locales,
-    TNode<ContextOrEmptyContext> context, ToLowerCaseKind kind,
-    std::function<void(TNode<JSAny>)> ReturnFct) {
+    TNode<String> string, TNode<Object> maybe_locales, TNode<Context> context,
+    ToLowerCaseKind kind, std::function<void(TNode<JSAny>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
@@ -210,7 +212,7 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
 
           Increment(&var_cursor);
         },
-        kCharSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        kCharSize, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 
     // Return the original string if it remained unchanged in order to preserve
     // e.g. internalization and private symbols (such as the preserved object
@@ -280,6 +282,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
   }
 }
 
+// https://tc39.es/ecma402/#sec-intl-list-format.prototype.format
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {
   ListFormatCommon(
       Parameter<Context>(Descriptor::kContext),
@@ -287,6 +290,7 @@ TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {
       Runtime::kFormatList, "Intl.ListFormat.prototype.format");
 }
 
+// https://tc39.es/ecma402/#sec-intl-list-format.prototype.formattoparts
 TF_BUILTIN(ListFormatPrototypeFormatToParts, IntlBuiltinsAssembler) {
   ListFormatCommon(
       Parameter<Context>(Descriptor::kContext),

@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"

@@ -18,10 +18,10 @@ static_assert(
 #include "src/base/flags.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/heap/cppgc-internal/heap-base.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "src/heap/cppgc-js/cross-heap-remembered-set.h"
-#include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/js-objects.h"
@@ -110,7 +110,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   CppHeap(v8::Platform*,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&,
-          cppgc::Heap::MarkingType, cppgc::Heap::SweepingType);
+          cppgc::Heap::MarkingType, cppgc::Heap::SweepingType,
+          std::optional<cppgc::StackStartMarker>);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -172,7 +173,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   size_t used_size() const {
     return used_size_.load(std::memory_order_relaxed);
   }
-  size_t allocated_size() const { return allocated_size_; }
+  uint64_t allocated_size() const { return allocated_size_; }
 
   ::heap::base::Stack* stack() final;
 
@@ -259,9 +260,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   // Used size of objects. Reported to V8's regular heap growing strategy.
   std::atomic<size_t> used_size_{0};
-  // Total bytes allocated since the last GC. Monotonically increasing value.
-  // Used to approximate allocation rate.
-  size_t allocated_size_ = 0;
+  // Total bytes allocated. Monotonically increasing value. Used to
+  // approximate allocation rate.
+  uint64_t allocated_size_ = 0;
   // Limit for |allocated_size| in bytes to avoid checking for starting a GC
   // on each increment.
   size_t allocated_size_limit_for_check_ = 0;

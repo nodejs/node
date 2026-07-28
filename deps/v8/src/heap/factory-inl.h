@@ -10,20 +10,17 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
-// TODO(all): Remove the heap-inl.h include below.
 #include "src/common/globals.h"
-#include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
-#include "src/objects/feedback-cell.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string-table-inl.h"
-#include "src/strings/string-hasher.h"
+#include "src/objects/tagged-field-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -93,8 +90,8 @@ HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
     AllocationType allocation) {
-  return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                allocation);
+  return NewJSArrayWithElements(elements, elements_kind,
+                                elements->ulength().value(), allocation);
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
@@ -119,18 +116,13 @@ template <ExternalPointerTag tag>
 Handle<Foreign> Factory::NewForeign(Address addr,
                                     AllocationType allocation_type) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Foreign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *foreign_map();
   Tagged<Foreign> foreign = Cast<Foreign>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
   DisallowGarbageCollection no_gc;
   foreign->init_foreign_address<tag>(isolate(), addr);
   return handle(foreign, isolate());
-}
-
-DirectHandle<Object> Factory::NewURIError() {
-  return NewError(isolate()->uri_error_function(),
-                  MessageTemplate::kURIMalformed);
 }
 
 ReadOnlyRoots Factory::read_only_roots() const {
@@ -147,7 +139,7 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
 }
 
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
-    Handle<TrustedObject> interpreter_data) {
+    Handle<UnionOf<BytecodeArray, InterpreterData>> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.
   DCHECK(IsInterpreterData(*interpreter_data) ||
          IsBytecodeArray(*interpreter_data));

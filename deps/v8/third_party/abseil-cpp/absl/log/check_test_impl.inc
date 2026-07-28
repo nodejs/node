@@ -727,11 +727,9 @@ void AbslStringify(Sink& sink, const PointerIsStringifiable* var) {
 TEST(CHECKDeathTest, TestPointerPrintedAsNumberDespiteAbslStringify) {
   const auto* p = reinterpret_cast<const PointerIsStringifiable*>(0x1234);
 
-  EXPECT_DEATH(
-      ABSL_TEST_CHECK_EQ(p, nullptr),
-      AnyOf(
-          HasSubstr("Check failed: p == nullptr (0000000000001234 vs. (null))"),
-          HasSubstr("Check failed: p == nullptr (0x1234 vs. (null))")));
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(p, nullptr),
+               ContainsRegex(
+                   "Check failed: p == nullptr \\(0+x?1234 vs. \\(null\\)\\)"));
 }
 
 // An uncopyable object with operator<<.

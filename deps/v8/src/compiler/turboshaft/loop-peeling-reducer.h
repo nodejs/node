@@ -79,7 +79,7 @@ class LoopPeelingReducer : public Next {
 
 #if V8_ENABLE_WEBASSEMBLY
   V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
-      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
+      V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
     if (ShouldSkipOptimizationStep() || !IsEmittingPeeledIteration()) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
     }

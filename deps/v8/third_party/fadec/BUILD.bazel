@@ -1,0 +1,38 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+genrule(
+    name = "generate_fadec_tables",
+    srcs = ["src/instrs.txt"],
+    outs = [
+        "src/fadec-decode-public.inc",
+        "src/fadec-decode-private.inc",
+    ],
+    cmd = "python3 $(execpath src/parseinstrs.py) --64 decode $(location src/instrs.txt) $(location src/fadec-decode-public.inc) $(location src/fadec-decode-private.inc)",
+    tools = ["src/parseinstrs.py"],
+)
+
+cc_library(
+    name = "fadec",
+    srcs = [
+        "src/decode.c",
+        ":generate_fadec_tables",
+    ],
+    hdrs = [
+        "src/fadec.h",
+    ],
+    includes = [
+        "src",
+    ],
+    copts = select({
+        "@v8//bazel/config:is_clang": [
+            "-Wno-unused-parameter",
+            "-std=c99",
+        ],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

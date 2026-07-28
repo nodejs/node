@@ -18,8 +18,11 @@
 #ifndef ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_
 #define ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_
 
+#include <atomic>
+
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
+#include "absl/base/internal/thread_identity.h"
 #include "absl/base/macros.h"
 
 // The following two declarations exist so SchedulingGuard may friend them with
@@ -64,7 +67,6 @@ class SchedulingGuard {
   SchedulingGuard(const SchedulingGuard&) = delete;
   SchedulingGuard& operator=(const SchedulingGuard&) = delete;
 
- private:
   // Disable cooperative rescheduling of the calling thread.  It may still
   // initiate scheduling operations (e.g. wake-ups), however, it may not itself
   // reschedule.  Nestable.  The returned result is opaque, clients should not
@@ -96,13 +98,6 @@ class SchedulingGuard {
    private:
     int scheduling_disabled_depth_;
   };
-
-  // Access to SchedulingGuard is explicitly permitted.
-  friend class absl::CondVar;
-  friend class absl::Mutex;
-  friend class SchedulingHelper;
-  friend class SpinLock;
-  friend int absl::synchronization_internal::MutexDelay(int32_t c, int mode);
 };
 
 //------------------------------------------------------------------------------
@@ -110,21 +105,88 @@ class SchedulingGuard {
 //------------------------------------------------------------------------------
 
 inline bool SchedulingGuard::ReschedulingIsAllowed() {
-  return false;
+  ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+  if (identity != nullptr) {
+    ThreadIdentity::SchedulerState* state = &identity->scheduler_state;
+    // For a thread to be eligible for re-scheduling it must have a bound
+    // schedulable (otherwise it's not cooperative) and not be within a
+    // SchedulerGuard region.
+    return state->bound_schedulable.load(std::memory_order_relaxed) !=
+               nullptr &&
+           state->scheduling_disabled_depth.load(std::memory_order_relaxed) ==
+               0;
+  } else {
+    // Cooperative threads always have a ThreadIdentity.
+    return false;
+  }
 }
 
+// We don't use [[nodiscard]] here as some clients (e.g.
+// FinishPotentiallyBlockingRegion()) cannot yet properly consume it.
 inline bool SchedulingGuard::DisableRescheduling() {
-  return false;
+  ThreadIdentity* identity;
+  identity = CurrentThreadIdentityIfPresent();
+  if (identity != nullptr) {
+    // The depth is accessed concurrently from other threads, so it must be
+    // atomic, but it's only mutated from this thread, so we don't need an
+    // atomic increment.
+    int old_val = identity->scheduler_state.scheduling_disabled_depth.load(
+        std::memory_order_relaxed);
+    identity->scheduler_state.scheduling_disabled_depth.store(
+        old_val + 1, std::memory_order_relaxed);
+    return true;
+  } else {
+    return false;
+  }
 }
 
-inline void SchedulingGuard::EnableRescheduling(bool /* disable_result */) {
-  return;
+inline void SchedulingGuard::EnableRescheduling(bool disable_result) {
+  if (!disable_result) {
+    // There was no installed thread identity at the time that scheduling was
+    // disabled, so we have nothing to do.  This is an implementation detail
+    // that may change in the future, clients may not depend on it.
+    // EnableRescheduling() must always be called.
+    return;
+  }
+
+  ThreadIdentity* identity;
+  // A thread identity exists, see above
+  identity = CurrentThreadIdentityIfPresent();
+  // The depth is accessed concurrently from other threads, so it must be
+  // atomic, but it's only mutated from this thread, so we don't need an atomic
+  // decrement.
+  int old_val = identity->scheduler_state.scheduling_disabled_depth.load(
+      std::memory_order_relaxed);
+  identity->scheduler_state.scheduling_disabled_depth.store(
+      old_val - 1, std::memory_order_relaxed);
 }
 
-inline SchedulingGuard::ScopedEnable::ScopedEnable()
-    : scheduling_disabled_depth_(0) {}
+inline SchedulingGuard::ScopedEnable::ScopedEnable() {
+  ThreadIdentity* identity;
+  identity = CurrentThreadIdentityIfPresent();
+  if (identity != nullptr) {
+    scheduling_disabled_depth_ =
+        identity->scheduler_state.scheduling_disabled_depth.load(
+            std::memory_order_relaxed);
+    if (scheduling_disabled_depth_ != 0) {
+      // The store below does not need to be compare_exchange because
+      // the value is never modified concurrently (only accessed).
+      identity->scheduler_state.scheduling_disabled_depth.store(
+          0, std::memory_order_relaxed);
+    }
+  } else {
+    scheduling_disabled_depth_ = 0;
+  }
+}
+
 inline SchedulingGuard::ScopedEnable::~ScopedEnable() {
-  ABSL_RAW_CHECK(scheduling_disabled_depth_ == 0, "disable unused warning");
+  if (scheduling_disabled_depth_ == 0) {
+    return;
+  }
+  ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+  // itentity is guaranteed to exist, see the constructor above.
+  identity->scheduler_state.scheduling_disabled_depth.store(
+      scheduling_disabled_depth_, std::memory_order_relaxed);
 }
 
 }  // namespace base_internal

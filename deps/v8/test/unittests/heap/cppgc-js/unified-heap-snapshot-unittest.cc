@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <cstring>
+#include <string_view>
+#include <vector>
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/common.h"
@@ -15,15 +18,16 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/macros.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/object-allocator.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/profiler/heap-snapshot-utils.h"
 
 namespace cppgc {
 
@@ -59,12 +63,117 @@ struct CompactableHolder : public cppgc::GarbageCollected<CompactableHolder> {
   cppgc::subtle::UncompressedMember<CompactableGCed> object = nullptr;
 };
 
+struct EphemeronKey final : public cppgc::GarbageCollected<EphemeronKey> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const {}
+};
+
+struct EphemeronValue final : public cppgc::GarbageCollected<EphemeronValue> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const {}
+};
+
+struct EphemeronContainerBacking final
+    : public cppgc::GarbageCollected<EphemeronContainerBacking> {
+ public:
+  static constexpr size_t kEphemeronCount = 3;
+  using EphemeronPair = cppgc::EphemeronPair<EphemeronKey, EphemeronValue>;
+
+  EphemeronContainerBacking()
+      : ephemeron_pairs_{EphemeronPair{nullptr, nullptr},
+                         EphemeronPair{nullptr, nullptr},
+                         EphemeronPair{nullptr, nullptr}} {}
+
+  void SetEphemeronPair(size_t index, EphemeronKey* key,
+                        EphemeronValue* value) {
+    CHECK_LT(index, kEphemeronCount);
+    ephemeron_pairs_[index].key = key;
+    ephemeron_pairs_[index].value = value;
+  }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    TraceStrongifiedEphemerons(visitor);
+  }
+
+  static void TraceStrong(cppgc::Visitor* visitor, const void* self) {
+    static_cast<const EphemeronContainerBacking*>(self)->Trace(visitor);
+  }
+
+  static void TraceWeak(cppgc::Visitor* visitor, const void* self) {
+    static_cast<const EphemeronContainerBacking*>(self)->TraceWeakEphemerons(
+        visitor);
+  }
+
+  EphemeronKey* key(size_t index) const {
+    return ephemeron_pairs_[index].key.Get();
+  }
+  EphemeronValue* value(size_t index) const {
+    return ephemeron_pairs_[index].value.Get();
+  }
+
+  static void ClearCallback(const cppgc::LivenessBroker& broker,
+                            const void* data) {
+    auto* backing =
+        static_cast<EphemeronContainerBacking*>(const_cast<void*>(data));
+    for (auto& ephemeron_pair : backing->ephemeron_pairs_) {
+      ephemeron_pair.ClearKeyAndValueIfKeyIsDead(broker);
+    }
+  }
+
+ private:
+  void TraceStrongifiedEphemerons(cppgc::Visitor* visitor) const {
+    for (const auto& ephemeron_pair : ephemeron_pairs_) {
+      visitor->TraceStrongly(ephemeron_pair.key);
+      visitor->TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value);
+    }
+  }
+
+  void TraceWeakEphemerons(cppgc::Visitor* visitor) const {
+    for (const auto& ephemeron_pair : ephemeron_pairs_) {
+      visitor->Trace(ephemeron_pair);
+    }
+  }
+
+  std::array<EphemeronPair, kEphemeronCount> ephemeron_pairs_;
+};
+
+class EphemeronContainer : public cppgc::GarbageCollected<EphemeronContainer> {
+ public:
+  explicit EphemeronContainer(EphemeronContainerBacking* backing)
+      : backing_(backing) {}
+
+  void Trace(cppgc::Visitor* visitor) const {
+    visitor->TraceWeakContainer(backing_.Get(),
+                                EphemeronContainerBacking::ClearCallback,
+                                backing_.Get());
+  }
+
+  EphemeronContainerBacking* backing() const { return backing_.Get(); }
+  EphemeronKey* key(size_t index) const { return backing_->key(index); }
+  EphemeronValue* value(size_t index) const { return backing_->value(index); }
+
+ private:
+  cppgc::UntracedMember<EphemeronContainerBacking> backing_;
+};
+
 }  // namespace v8::internal
 
 namespace cppgc {
 template <>
 struct SpaceTrait<v8::internal::CompactableGCed> {
   using Space = CompactableCustomSpace;
+};
+
+template <>
+struct TraceTrait<v8::internal::EphemeronContainerBacking>
+    : public internal::TraceTraitBase<v8::internal::EphemeronContainerBacking> {
+  static TraceDescriptor GetTraceDescriptor(const void* self) {
+    return {self, v8::internal::EphemeronContainerBacking::TraceStrong};
+  }
+
+  static TraceDescriptor GetWeakTraceDescriptor(const void* self) {
+    return {self, v8::internal::EphemeronContainerBacking::TraceWeak};
+  }
 };
 }  // namespace cppgc
 
@@ -162,6 +271,23 @@ bool ContainsRetainingPath(const v8::HeapSnapshot& snapshot,
   return true;
 }
 
+EphemeronContainer* CreateEphemeronContainer(
+    std::vector<cppgc::Persistent<EphemeronKey>>& keys,
+    cppgc::AllocationHandle& allocation_handle) {
+  auto* backing =
+      cppgc::MakeGarbageCollected<EphemeronContainerBacking>(allocation_handle);
+  keys.reserve(EphemeronContainerBacking::kEphemeronCount);
+  for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
+    auto* key = cppgc::MakeGarbageCollected<EphemeronKey>(allocation_handle);
+    auto* value =
+        cppgc::MakeGarbageCollected<EphemeronValue>(allocation_handle);
+    keys.emplace_back(key);
+    backing->SetEphemeronPair(i, key, value);
+  }
+  return cppgc::MakeGarbageCollected<EphemeronContainer>(allocation_handle,
+                                                         backing);
+}
+
 class BaseWithoutName : public cppgc::GarbageCollected<BaseWithoutName> {
  public:
   static constexpr const char kExpectedName[] =
@@ -187,11 +313,14 @@ class GCed final : public BaseWithoutName, public cppgc::NameProvider {
 // static
 constexpr const char GCed::kExpectedName[];
 
+static constexpr const char kExpectedGCRootsName[] = "(GC roots)";
 static constexpr const char kExpectedCppRootsName[] = "C++ Persistent roots";
 static constexpr const char kExpectedCppCrossThreadRootsName[] =
     "C++ CrossThreadPersistent roots";
 static constexpr const char kExpectedCppStackRootsName[] =
     "C++ native stack roots";
+static constexpr const char kExpectedCppStackTracedHandlesName[] =
+    "C++ native stack traced handles";
 
 template <typename T>
 constexpr const char* GetExpectedName() {
@@ -244,7 +373,8 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByCppRoot) {
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, GetExpectedName<GCed>()}));
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName, GetExpectedName<GCed>()}));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, ConsistentId) {
@@ -363,7 +493,8 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByCppCrossThreadRoot) {
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppCrossThreadRootsName, GetExpectedName<GCed>()}));
+      *snapshot, {kExpectedGCRootsName, kExpectedCppCrossThreadRootsName,
+                  GetExpectedName<GCed>()}));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainedByStackRoots) {
@@ -372,8 +503,174 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByStackRoots) {
       TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppStackRootsName, GetExpectedName<GCed>()}));
+      *snapshot, {kExpectedGCRootsName, kExpectedCppStackRootsName,
+                  GetExpectedName<GCed>()}));
   EXPECT_STREQ(gced->GetHumanReadableName(), GetExpectedName<GCed>());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
+  // Keep keys alive in case we trigger GC during CreateEphemeronContainer.
+  std::vector<cppgc::Persistent<EphemeronKey>> keys;
+  EphemeronContainer* container =
+      CreateEphemeronContainer(keys, allocation_handle());
+  EphemeronContainerBacking* backing = container->backing();
+
+  // Here we want to clear the vector of Persistents to demonstrate the keys are
+  // kept alive just from the backing pointer on the stack.
+  keys.clear();
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  ASSERT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+
+  const HeapEntry* backing_entry =
+      GetEntryFor(isolate(), heap_snapshot, backing);
+  ASSERT_NE(nullptr, backing_entry);
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *backing_entry));
+  // Because the backing is reachable from stack, the backing object has an edge
+  // to each key in it, as well as an ephemeron edge to each value.
+  EXPECT_EQ(static_cast<int>(2 * EphemeronContainerBacking::kEphemeronCount),
+            backing_entry->children_count());
+
+  for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
+    const HeapEntry* key_entry =
+        GetEntryFor(isolate(), heap_snapshot, container->key(i));
+    ASSERT_NE(nullptr, key_entry);
+    const HeapEntry* value_entry =
+        GetEntryFor(isolate(), heap_snapshot, container->value(i));
+    ASSERT_NE(nullptr, value_entry);
+
+    // The ephemeron container backing is reachable from stack, so the container
+    // has an edge to all keys.
+    const HeapGraphEdge* backing_to_key =
+        FindFirstEdgeTo(*backing_entry, *key_entry);
+    ASSERT_NE(nullptr, backing_to_key);
+    EXPECT_EQ(HeapGraphEdge::kElement, backing_to_key->type());
+
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
+
+    // Each key has an edge to its linked ephemeron value.
+    const HeapGraphEdge* key_to_value =
+        FindFirstEdgeTo(*key_entry, *value_entry);
+    ASSERT_NE(nullptr, key_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
+  }
+}
+
+TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerNotReachableFromStack) {
+  std::vector<cppgc::Persistent<EphemeronKey>> keys;
+  cppgc::Persistent<EphemeronContainer> container(
+      CreateEphemeronContainer(keys, allocation_handle()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  EXPECT_EQ(nullptr, GetEntryByName(heap_snapshot, kExpectedCppStackRootsName));
+
+  const HeapEntry* backing_entry =
+      GetEntryFor(isolate(), heap_snapshot, container->backing());
+  ASSERT_NE(nullptr, backing_entry);
+  // The ephemeron container backing now gets ephemeron edges to values even
+  // when not reachable from stack.
+  EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
+            backing_entry->children_count());
+
+  for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
+    const HeapEntry* key_entry =
+        GetEntryFor(isolate(), heap_snapshot, container->key(i));
+    ASSERT_NE(nullptr, key_entry);
+    const HeapEntry* value_entry =
+        GetEntryFor(isolate(), heap_snapshot, container->value(i));
+    ASSERT_NE(nullptr, value_entry);
+
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
+
+    // Each key has an edge to its linked ephemeron value.
+    const HeapGraphEdge* key_to_value =
+        FindFirstEdgeTo(*key_entry, *value_entry);
+    ASSERT_NE(nullptr, key_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
+  }
+}
+
+TEST_F(UnifiedHeapSnapshotTest, RetainedByCppStackRootTracedReference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  v8::TracedReference<v8::Object> traced(v8_isolate(),
+                                         v8::Object::New(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppStackTracedHandlesName, "Object"}));
+}
+
+namespace {
+
+class GCedWithTracedReference
+    : public cppgc::GarbageCollected<GCedWithTracedReference> {
+ public:
+  void Trace(cppgc::Visitor* v) const { v->Trace(v8_object_); }
+
+  v8::TracedReference<v8::Object> v8_object_;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, NoWeakTracedReference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  auto* volatile gced =
+      cppgc::MakeGarbageCollected<GCedWithTracedReference>(allocation_handle());
+  gced->v8_object_.Reset(v8_isolate(), v8::Object::New(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_FALSE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppStackTracedHandlesName, "Object"}));
+  EXPECT_FALSE(ContainsRetainingPath(
+      *snapshot, {kExpectedGCRootsName, "(Traced handles)", "Object"}));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithInternalDetails) {
@@ -382,7 +679,8 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithInternalDetails) {
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, GetExpectedName<BaseWithoutName>()}));
+      *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName,
+                  GetExpectedName<BaseWithoutName>()}));
   CheckSize(snapshot, GetExpectedName<BaseWithoutName>(),
             GetCppSize(base_without_name.Get()));
   EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
@@ -395,11 +693,12 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithoutInternalDetails) {
       TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers,
                        v8::HeapProfiler::HeapSnapshotMode::kRegular);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  EXPECT_FALSE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName}));
-  EXPECT_FALSE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, GetExpectedName<BaseWithoutName>()}));
-  EXPECT_EQ(GetCppSize(base_without_name.Get()), GetExtraNativeBytes(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName,
+                  GetExpectedName<BaseWithoutName>()}));
+  CheckSize(snapshot, GetExpectedName<BaseWithoutName>(),
+            GetCppSize(base_without_name.Get()));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingNamedThroughUnnamed) {
@@ -412,12 +711,14 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingNamedThroughUnnamed) {
                        v8::HeapProfiler::HeapSnapshotMode::kRegular);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName,
-                  GetExpectedName<GCed>()}));
-  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       GetExpectedName<BaseWithoutName>(), GetExpectedName<GCed>()}));
+  CheckSize(snapshot, GetExpectedName<BaseWithoutName>(),
+            GetCppSize(base_without_name.Get()));
   CheckSize(snapshot, GetExpectedName<GCed>(),
             GetCppSize(base_without_name->next.Get()));
-  EXPECT_EQ(GetCppSize(base_without_name.Get()), GetExtraNativeBytes(snapshot));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
@@ -445,12 +746,13 @@ TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
                        v8::HeapProfiler::HeapSnapshotMode::kRegular);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName,
-                  cppgc::NameProvider::kHiddenName, GetExpectedName<GCed>()}));
-  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       GetExpectedName<BaseWithoutName>(), GetExpectedName<BaseWithoutName>(),
+       GetExpectedName<GCed>()}));
+  CheckSize(snapshot, GetExpectedName<BaseWithoutName>(), GetCppSize(first));
   CheckSize(snapshot, GetExpectedName<GCed>(), GetCppSize(third));
-  EXPECT_EQ(GetCppSize(first) + GetCppSize(second),
-            GetExtraNativeBytes(snapshot));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, ReferenceToFinishedSCC) {
@@ -484,9 +786,10 @@ TEST_F(UnifiedHeapSnapshotTest, ReferenceToFinishedSCC) {
                        v8::HeapProfiler::HeapSnapshotMode::kRegular);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName,
-                  cppgc::NameProvider::kHiddenName,
-                  cppgc::NameProvider::kHiddenName, GetExpectedName<GCed>()}));
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       GetExpectedName<BaseWithoutName>(), GetExpectedName<BaseWithoutName>(),
+       GetExpectedName<BaseWithoutName>(), GetExpectedName<GCed>()}));
 }
 
 namespace {
@@ -566,10 +869,11 @@ TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
       TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers,
                        v8::HeapProfiler::HeapSnapshotMode::kRegular);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot,
-      {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName, "LeafJSObject"},
-      true));
+  EXPECT_TRUE(
+      ContainsRetainingPath(*snapshot,
+                            {kExpectedGCRootsName, kExpectedCppRootsName,
+                             GetExpectedName<GCedWithJSRef>(), "LeafJSObject"},
+                            true));
 }
 
 template <typename TMixin>
@@ -597,22 +901,15 @@ void WithUnifiedHeapSnapshot<TMixin>::TestMergedWrapperNode(
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot(
       cppgc::EmbedderStackState::kMayContainHeapPointers, snapshot_mode);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  const char* kExpectedName =
-      snapshot_mode == v8::HeapProfiler::HeapSnapshotMode::kExposeInternals
-          ? GetExpectedName<GCedWithJSRef>()
-          : cppgc::NameProvider::kHiddenName;
+  const char* kExpectedName = GetExpectedName<GCedWithJSRef>();
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot,
-      {kExpectedCppRootsName, kExpectedName,
+      {kExpectedGCRootsName, kExpectedCppRootsName, kExpectedName,
        // GCedWithJSRef is merged into MergedObject, replacing its name.
        "NextObject"}));
   const size_t js_size = Utils::OpenDirectHandle(*wrapper_object)->Size();
-  if (snapshot_mode == v8::HeapProfiler::HeapSnapshotMode::kExposeInternals) {
-    const size_t cpp_size = GetCppSize(gc_w_js_ref.Get());
-    CheckSize(snapshot, kExpectedName, cpp_size + js_size);
-  } else {
-    CheckSize(snapshot, kExpectedName, js_size);
-  }
+  const size_t cpp_size = GetCppSize(gc_w_js_ref.Get());
+  CheckSize(snapshot, kExpectedName, cpp_size + js_size);
 }
 
 TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNodeWithInternalDetails) {
@@ -707,6 +1004,7 @@ TEST_F(UnifiedHeapSnapshotTest, NoTriggerForStandAloneTracedReference) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(
       ContainsRetainingPath(*snapshot, {
+                                           kExpectedGCRootsName,
                                            kExpectedCppRootsName,
                                            GetExpectedName<GCedWithJSRef>(),
                                        }));
@@ -732,6 +1030,7 @@ TEST_F(UnifiedHeapSnapshotTest, TriggerDetachednessCallbackSettingAttached) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(
       ContainsRetainingPath(*snapshot, {
+                                           kExpectedGCRootsName,
                                            kExpectedCppRootsName,
                                            GetExpectedName<GCedWithJSRef>(),
                                        }));
@@ -757,6 +1056,7 @@ TEST_F(UnifiedHeapSnapshotTest, TriggerDetachednessCallbackSettingDetached) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(
       ContainsRetainingPath(*snapshot, {
+                                           kExpectedGCRootsName,
                                            kExpectedCppRootsName,
                                            GetExpectedName<GCedWithJSRef>(),
                                        }));
@@ -839,9 +1139,9 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot,
-      {kExpectedCppRootsName, wrapped->GetHumanReadableName(),
-       "system / NativeContext", "system / EmbedderDataArray",
-       wrapped->GetHumanReadableName()},
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       wrapped->GetHumanReadableName(), "system / NativeContext",
+       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
       true));
 
   wrapped->set_detachedness(v8::EmbedderGraph::Node::Detachedness::kDetached);
@@ -850,9 +1150,9 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot,
-      {kExpectedCppRootsName, wrapped->GetHumanReadableName(),
-       "system / NativeContext", "system / EmbedderDataArray",
-       wrapped->GetHumanReadableName()},
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       wrapped->GetHumanReadableName(), "system / NativeContext",
+       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
       true));
   ForEachEntryWithName(
       snapshot, wrapped->GetHumanReadableName(), [](const HeapEntry& entry) {
@@ -898,12 +1198,14 @@ TEST_F(UnifiedHeapSnapshotTest, DynamicName) {
   EXPECT_EQ(static_name, std::string("static name"));
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  EXPECT_TRUE(ContainsRetainingPath(*snapshot,
-                                    {kExpectedCppRootsName, "dynamic name 0"}));
-  EXPECT_TRUE(ContainsRetainingPath(*snapshot,
-                                    {kExpectedCppRootsName, "dynamic name 1"}));
-  EXPECT_FALSE(
-      ContainsRetainingPath(*snapshot, {kExpectedCppRootsName, "static name"}));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName, "dynamic name 0"}));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppRootsName, "dynamic name 1"}));
+  EXPECT_FALSE(ContainsRetainingPath(
+      *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName, "static name"}));
 }
 
 namespace {
@@ -914,6 +1216,19 @@ class ExternalData final : public cppgc::GarbageCollected<ExternalData> {
       "v8::internal::(anonymous namespace)::ExternalData";
 
   void Trace(cppgc::Visitor* v) const {}
+};
+
+class ExternalDataWithJSRef final
+    : public cppgc::GarbageCollected<ExternalDataWithJSRef> {
+ public:
+  void Trace(cppgc::Visitor* v) const { v->Trace(wrapper_); }
+
+  void SetWrapper(v8::Isolate* isolate, v8::Local<v8::Object> wrapper) {
+    wrapper_.Reset(isolate, wrapper);
+  }
+
+ private:
+  TracedReference<v8::Object> wrapper_;
 };
 
 class GCedWithCppHeapExternalJSRef final
@@ -941,14 +1256,133 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternal) {
   v8::Global<v8::CppHeapExternal> cpp_heap_external(
       v8_isolate(),
       v8::CppHeapExternal::New<ExternalData>(
-          v8_isolate(), cpp_object, v8::CppHeapPointerTag::kDefaultTag));
+          v8_isolate(), cpp_object, v8::CppHeapPointerTag::kTagForTesting));
   USE(cpp_heap_external);
   const v8::HeapSnapshot* snapshot =
       TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
-      *snapshot, {"(GC roots)", "(Handle scope)", "system / CppHeapExternal",
-                  GetExpectedName<ExternalData>()}));
+      *snapshot,
+      {kExpectedGCRootsName, "(Global handles)", "system / CppHeapExternal",
+       GetExpectedName<ExternalData>()}));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, JSApiWrapperObject) {
+  auto* cpp_object =
+      cppgc::MakeGarbageCollected<ExternalData>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(),
+      WrapperHelper::CreateWrapper(v8_context(), cpp_object, "MyJSApiWrapper"));
+  USE(wrapper);
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(
+      ContainsRetainingPath(*snapshot,
+                            {kExpectedGCRootsName, "(Global handles)",
+                             "MyJSApiWrapper", GetExpectedName<ExternalData>()},
+                            true));
+
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  v8::SnapshotObjectId id =
+      v8_isolate()->GetHeapProfiler()->GetObjectId(wrapper.Get(v8_isolate()));
+  const HeapEntry* wrapper_entry = heap_snapshot->GetEntryById(id);
+  ASSERT_NE(nullptr, wrapper_entry);
+  EXPECT_STREQ("MyJSApiWrapper", wrapper_entry->name());
+
+  const HeapGraphEdge* edge = GetNamedEdge(*wrapper_entry, "cppgc_object");
+  ASSERT_TRUE(edge);
+  EXPECT_STREQ(edge->to()->name(), GetExpectedName<ExternalData>());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergeNodeDoesNotHaveCppgcObject) {
+  cppgc::Persistent<ExternalDataWithJSRef> cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "MergedJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), wrapper.Get(v8_isolate()));
+  wrapper.Get(v8_isolate())
+      ->Set(v8_context(),
+            v8::String::NewFromUtf8(v8_isolate(), "link").ToLocalChecked(),
+            v8::Object::New(v8_isolate()))
+      .ToChecked();
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  v8::SnapshotObjectId wrapper_id =
+      v8_isolate()->GetHeapProfiler()->GetObjectId(wrapper.Get(v8_isolate()));
+  const HeapEntry* wrapper_entry = heap_snapshot->GetEntryById(wrapper_id);
+  ASSERT_NE(nullptr, wrapper_entry);
+  EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
+  EXPECT_TRUE(HasNamedEdge(*wrapper_entry, "link"));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, NonMergedWrapperPointsToMergedNode) {
+  cppgc::Persistent<ExternalDataWithJSRef> cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "MergedJSApiWrapper"));
+  v8::Global<v8::Object> non_merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "NonMergedJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), merged_wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*merged_wrapper.Get(v8_isolate())));
+  const HeapEntry* non_merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*non_merged_wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, merged_wrapper_entry);
+  ASSERT_NE(nullptr, non_merged_wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*merged_wrapper_entry, "cppgc_object"));
+  // Multiple JS objects may point to the same cppgc object, e.g. with
+  // non-main-world wrapper pairs. The main world will be a proper merged
+  // wrapper pair but non-main world wrapper (those that lack the direct back
+  // reference from cppgc) should point to the merged node.
+  const HeapGraphEdge* edge =
+      GetNamedEdge(*non_merged_wrapper_entry, "cppgc_object");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(merged_wrapper_entry, edge->to());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergedNodeRetainedByCppStack) {
+  auto* volatile cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object,
+                                                 "MergedStackJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* wrapper_entry =
+      GetEntryFor(isolate(), heap_snapshot,
+                  *v8::Utils::OpenDirectHandle(*wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
+  // Stack iteration already knows about wrappers, so reaching the cppgc object
+  // from the stack must retain the merged wrapper entry.
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *wrapper_entry));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
@@ -960,14 +1394,60 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
       v8::CppHeapExternal::New<ExternalData>(
           v8_isolate(),
           cppgc::MakeGarbageCollected<ExternalData>(allocation_handle()),
-          v8::CppHeapPointerTag::kDefaultTag));
+          v8::CppHeapPointerTag::kTagForTesting));
   const v8::HeapSnapshot* snapshot =
       TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot,
-      {kExpectedCppRootsName, GetExpectedName<GCedWithCppHeapExternalJSRef>(),
+      {kExpectedGCRootsName, kExpectedCppRootsName,
+       GetExpectedName<GCedWithCppHeapExternalJSRef>(),
        "system / CppHeapExternal", GetExpectedName<ExternalData>()}));
+}
+
+class GCedWithWeakMember final
+    : public cppgc::GarbageCollected<GCedWithWeakMember>,
+      public cppgc::NameProvider {
+ public:
+  static constexpr const char kExpectedName[] = "GCedWithWeakMember";
+
+  explicit GCedWithWeakMember(cppgc::AllocationHandle& allocation_handle) {}
+
+  void Trace(cppgc::Visitor* v) const { v->Trace(weak_member); }
+  const char* GetHumanReadableName() const final {
+    return "GCedWithWeakMember";
+  }
+
+  cppgc::WeakMember<GCed> weak_member;
+};
+
+TEST_F(UnifiedHeapSnapshotTest, WeakMember) {
+  cppgc::Persistent<GCedWithWeakMember> holder =
+      cppgc::MakeGarbageCollected<GCedWithWeakMember>(allocation_handle(),
+                                                      allocation_handle());
+  cppgc::Persistent<GCed> target =
+      cppgc::MakeGarbageCollected<GCed>(allocation_handle());
+
+  holder->weak_member = target.Get();
+
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+
+  const HeapEntry* holder_entry =
+      GetEntryFor(isolate(), heap_snapshot, holder.Get());
+  const HeapEntry* target_entry =
+      GetEntryFor(isolate(), heap_snapshot, target.Get());
+
+  ASSERT_NE(nullptr, holder_entry);
+  ASSERT_NE(nullptr, target_entry);
+
+  const HeapGraphEdge* edge = GetNamedEdge(*holder_entry, "1");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(HeapGraphEdge::kWeak, edge->type());
+  EXPECT_EQ(target_entry, edge->to());
 }
 
 }  // namespace internal

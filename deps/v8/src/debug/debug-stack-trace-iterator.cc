@@ -15,6 +15,8 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -104,12 +106,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
         *isolate_->factory()->this_string());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     DirectHandle<Object> value(context->GetNoCell(slot_index), isolate_);
-    if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
+    if (IsTheHole(*value)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
   DirectHandle<Object> value = frame_inspector_->GetReceiver();
-  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
+  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value))) {
     return Utils::ToLocal(value);
   }
   return v8::MaybeLocal<v8::Value>();
@@ -162,16 +164,18 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
 #if V8_ENABLE_DRUMBRAKE
   if (iterator_.frame()->is_wasm_interpreter_entry()) {
     auto frame = WasmInterpreterEntryFrame::cast(iterator_.frame());
-    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate_);
-    auto offset =
-        instance->module()->functions[frame->function_index(0)].code.offset();
+    const wasm::WasmModule* module = frame->trusted_instance_data()->module();
+    auto offset = module->functions[frame->function_index(0)].code.offset();
     return v8::debug::Location(inlined_frame_index_, offset);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
   if (iterator_.frame()->is_wasm()) {
     auto frame = WasmFrame::cast(iterator_.frame());
     const wasm::WasmModule* module = frame->trusted_instance_data()->module();
-    auto offset = module->functions[frame->function_index()].code.offset();
+    uint32_t func_index = FrameSummary::Get(frame, inlined_frame_index_)
+                              .AsWasm()
+                              .function_index();
+    auto offset = module->functions[func_index].code.offset();
     return v8::debug::Location(0, offset);
   }
 #endif

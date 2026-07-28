@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+// https://tc39.es/ecma262/#sec-functiondeclarations-in-ifstatement-statement-clauses
 // Annex B 3.4 FunctionDeclarations in IfStatement Statement Clauses
 // In sloppy mode, function declarations in if statements act like
 // they have a block around them. Prohibited in strict mode.

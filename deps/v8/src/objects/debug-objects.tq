@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class BreakPoint extends Struct {
   id: Smi;
   condition: String;
 }
 
+@cppObjectLayoutDefinition
 extern class BreakPointInfo extends Struct {
   // The position in the source for the break position.
   source_position: Smi;
@@ -14,6 +16,7 @@ extern class BreakPointInfo extends Struct {
   break_points: FixedArray|BreakPoint|Undefined;
 }
 
+@cppScope('DebugInfo')
 bitfield struct DebugInfoFlags extends uint31 {
   has_break_info: bool: 1 bit;
   prepared_for_debug_execution: bool: 1 bit;
@@ -23,6 +26,7 @@ bitfield struct DebugInfoFlags extends uint31 {
   debug_execution_mode: bool: 1 bit;
 }
 
+@cppScope('DebugInfo')
 bitfield struct DebuggerHints extends uint31 {
   side_effect_state: int32: 2 bit;
   debug_is_blackboxed: bool: 1 bit;
@@ -30,7 +34,8 @@ bitfield struct DebuggerHints extends uint31 {
   debugging_id: int32: 20 bit;
 }
 
-extern class DebugInfo extends Struct {
+@cppObjectLayoutDefinition
+extern class DebugInfo extends ExposedTrustedObject {
   shared: SharedFunctionInfo;
   // Bit field containing various information collected for debugging.
   debugger_hints: SmiTagged<DebuggerHints>;
@@ -42,11 +47,11 @@ extern class DebugInfo extends Struct {
   // The original uninstrumented bytecode array for functions with break
   // points - the instrumented bytecode is held in the shared function info.
   // Can contain Smi::zero() if cleared.
-  original_bytecode_array: TrustedPointer<BytecodeArray>;
+  original_bytecode_array: ProtectedPointer<BytecodeArray>;
   // The debug instrumented bytecode array for functions with break points
   // - also pointed to by the shared function info.
   // Can contain Smi::zero() if cleared.
-  debug_bytecode_array: TrustedPointer<BytecodeArray>;
+  debug_bytecode_array: ProtectedPointer<BytecodeArray>;
 }
 
 @export
@@ -59,16 +64,18 @@ struct CoverageInfoSlot {
 
 // CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
 // not contain any HeapObject fields.
+@cppObjectLayoutDefinition
 extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;
 }
 
+@cppScope('StackFrameInfo')
 bitfield struct StackFrameInfoFlags extends uint31 {
   is_constructor: bool: 1 bit;
-  bytecode_offset_or_source_position: int32: 30 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class StackFrameInfo extends Struct {
   // In case this field holds a SharedFunctionInfo, the
   // |bytecode_offset_or_source_position| part of the
@@ -79,8 +86,10 @@ extern class StackFrameInfo extends Struct {
   shared_or_script: SharedFunctionInfo|Script;
   function_name: String;
   flags: SmiTagged<StackFrameInfoFlags>;
+  bytecode_offset_or_source_position: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class StackTraceInfo extends Struct {
   // Unique ID of this stack trace.
   id: Smi;
@@ -101,11 +110,12 @@ extern class StackTraceInfo extends Struct {
 //     property was not yet formatted.
 // (2) A valid JavaScript object and StackTraceInfo once
 //     error.stack was accessed.
+@cppObjectLayoutDefinition
 extern class ErrorStackData extends Struct {
-  // This holds either the FixedArray of CallSiteInfo instances or
-  // the formatted stack value (usually a string) that's returned
-  // from the error.stack property.
-  call_site_infos_or_formatted_stack: FixedArray|JSAny;
+  // This holds either the FixedArray of raw data for constructing the
+  // CallSiteInfo instances or the formatted stack value (usually a string)
+  // that's returned from the error.stack property.
+  raw_data_for_call_site_infos_or_formatted_stack: FixedArray|JSAny;
   // This holds the StackTraceInfo for inspector stack trace.
   stack_trace: StackTraceInfo;
 }

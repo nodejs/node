@@ -34,7 +34,7 @@ void BM_FastIntToBuffer(benchmark::State& state) {
   char buf[absl::numbers_internal::kFastToBufferSize];
   // Use the unsigned type to increment to take advantage of well-defined
   // modular arithmetic.
-  typename std::make_unsigned<T>::type x = 0;
+  std::make_unsigned_t<T> x = 0;
   for (auto _ : state) {
     absl::numbers_internal::FastIntToBuffer(static_cast<T>(x), buf);
     x += inc;

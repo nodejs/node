@@ -19,6 +19,7 @@
 #include <cassert>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -35,7 +36,7 @@ namespace container_internal {
 // Like remove_const but propagates the removal through std::pair.
 template <typename T>
 struct remove_pair_const {
-  using type = typename std::remove_const<T>::type;
+  using type = std::remove_const_t<T>;
 };
 template <typename T, typename U>
 struct remove_pair_const<std::pair<T, U> > {

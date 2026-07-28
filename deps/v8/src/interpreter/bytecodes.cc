@@ -212,6 +212,7 @@ bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
     case Bytecode::kCreateCatchContext:
     case Bytecode::kCreateRegExpLiteral:
     case Bytecode::kGetIterator:
+    case Bytecode::kArrayDestructure:
       return true;
     default:
       return false;

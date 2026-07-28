@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/value-helper.js');
 
@@ -199,5 +197,52 @@ d8.file.execute('test/mjsunit/value-helper.js');
       const result = BigInt.asUintN(64, wasm.simd(...args));
       assertEquals(expected, result);
     }
+  }
+})();
+
+function TestI8x16Shuffle(config) {
+  print(config.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const store_offset = 32;
+  builder.addFunction('shuffle', kSig_v_v)
+    .addBody([
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kSimdPrefix, kExprS128LoadMem, 0, 0,
+      kExprI32Const, 0,
+      kSimdPrefix, kExprS128LoadMem, 0, 16,
+      kSimdPrefix, kExprI8x16Shuffle, ...config.shuffle,
+      kSimdPrefix, kExprS128StoreMem, 0, store_offset,
+    ])
+    .exportFunc();
+
+  const module = builder.instantiate();
+  const memory = new Uint8Array(module.exports.memory.buffer);
+
+  const src = new Uint8Array(64);
+  for (let i = 0; i < 64; ++i) {
+    src[i] = int8_array[i % int8_array.length];
+  }
+  memory.set(src, 0);
+  module.exports.shuffle();
+
+  const result = new Uint8Array(memory.buffer, store_offset, 16);
+  const expected = config.shuffle.map(i => src[i]);
+  for (let i = 0; i < expected.length; ++i) {
+    assertEquals(expected[i], result[i]);
+  }
+}
+
+(function I8x16Shuffles() {
+  const configs = [
+    { name: "I8x16TopBottomInterleave",
+      shuffle: [ 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ],
+    },
+  ];
+  for (let config of configs) {
+    TestI8x16Shuffle(config);
   }
 })();

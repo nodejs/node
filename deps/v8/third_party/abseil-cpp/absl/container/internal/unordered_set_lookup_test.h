@@ -51,9 +51,9 @@ TYPED_TEST_P(LookupTest, Find) {
   m.insert(values.begin(), values.end());
   for (const auto& v : values) {
     typename TypeParam::iterator it = m.find(v);
-    static_assert(std::is_same<const typename TypeParam::value_type&,
-                               decltype(*it)>::value,
-                  "");
+    static_assert(
+        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>,
+        "");
     static_assert(std::is_same<const typename TypeParam::value_type*,
                                decltype(it.operator->())>::value,
                   "");

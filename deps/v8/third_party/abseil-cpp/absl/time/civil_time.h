@@ -509,6 +509,13 @@ void AbslStringify(Sink& sink, CivilYear c) {
 //   absl::CivilDay d;
 //   bool ok = absl::ParseCivilTime("2018-01-02", &d); // OK
 //
+// Parsing tolerates the following variations from the standard format:
+// * Leading and trailing whitespace is ignored.
+// * The year component may be negative (prefixed with '-') and may contain
+//   an arbitrary number of digits.
+// * Sub-year components (month, day, hour, minute, second) may consist of
+//   either one or two digits.
+//
 // Note that parsing will fail if the string's format does not match the
 // expected type exactly. `ParseLenientCivilTime()` below is more lenient.
 //
@@ -521,9 +528,12 @@ bool ParseCivilTime(absl::string_view s, CivilYear* c);
 
 // ParseLenientCivilTime()
 //
-// Parses any of the formats accepted by `absl::ParseCivilTime()`, but is more
-// lenient if the format of the string does not exactly match the associated
-// type.
+// Parses any of the formats accepted by `absl::ParseCivilTime()`. Unlike
+// `ParseCivilTime()`, the input string format does not need to match the
+// target civil-time type. Discrepancies are resolved as follows:
+// * Extra components in the input string are ignored.
+// * Missing components are defaulted to their minimum valid values.
+// This behavior is consistent with civil-time converting constructors.
 //
 // Example:
 //

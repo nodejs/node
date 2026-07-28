@@ -1,0 +1,133 @@
+python_version: "3.11"
+
+wheel: <
+  name: "infra/python/wheels/pyyaml/${vpython_platform}"
+  version: "version:5.4.1.chromium.1"
+>
+
+wheel: <
+  name: "infra/python/wheels/tabulate-py3"
+  version: "version:0.9.0"
+>
+
+wheel: <
+  name: "infra/python/wheels/platformdirs-py3"
+  version: "version:4.9.2"
+>
+
+wheel: <
+  name: "infra/python/wheels/mcp-py3"
+  version: "version:1.9.4"
+>
+wheel: <
+  name: "infra/python/wheels/pydantic-py3"
+  version: "version:2.11.7"
+>
+wheel: <
+  name: "infra/python/wheels/starlette-py3"
+  version: "version:0.47.1"
+>
+wheel: <
+  name: "infra/python/wheels/anyio-py3"
+  version: "version:4.9.0"
+>
+wheel: <
+  name: "infra/python/wheels/sniffio-py3"
+  version: "version:1.3.0"
+>
+wheel: <
+  name: "infra/python/wheels/idna-py3"
+  version: "version:3.4"
+>
+wheel: <
+  name: "infra/python/wheels/typing-extensions-py3"
+  version: "version:4.13.2"
+>
+wheel: <
+  name: "infra/python/wheels/httpx_sse-py3"
+  version: "version:0.4.1"
+>
+wheel: <
+  name: "infra/python/wheels/httpx-py3"
+  version: "version:0.28.1"
+>
+wheel: <
+  name: "infra/python/wheels/certifi-py3"
+  version: "version:2025.4.26"
+>
+wheel: <
+  name: "infra/python/wheels/httpcore-py3"
+  version: "version:1.0.9"
+>
+wheel: <
+  name: "infra/python/wheels/h11-py3"
+  version: "version:0.16.0"
+>
+wheel: <
+  name: "infra/python/wheels/pydantic-settings-py3"
+  version: "version:2.10.1"
+>
+wheel: <
+  name: "infra/python/wheels/python-multipart-py3"
+  version: "version:0.0.20"
+>
+wheel: <
+  name: "infra/python/wheels/sse-starlette-py3"
+  version: "version:2.4.1"
+>
+wheel: <
+  name: "infra/python/wheels/uvicorn-py3"
+  version: "version:0.35.0"
+>
+wheel: <
+  name: "infra/python/wheels/annotated-types-py3"
+  version: "version:0.7.0"
+>
+wheel: <
+  name: "infra/python/wheels/pydantic_core/${vpython_platform}"
+  version: "version:2.33.2"
+>
+wheel: <
+  name: "infra/python/wheels/typing-inspection-py3"
+  version: "version:0.4.1"
+>
+wheel: <
+  name: "infra/python/wheels/python-dotenv-py3"
+  version: "version:1.1.1"
+>
+wheel: <
+  name: "infra/python/wheels/click-py3"
+  version: "version:8.0.3"
+>
+wheel: <
+  name: "infra/python/wheels/perfetto-py3"
+  version: "version:0.16.0"
+>
+wheel: <
+  name: "infra/python/wheels/protobuf-py3"
+  version: "version:6.33.5"
+>
+wheel: <
+  name: "infra/python/wheels/pandas/${vpython_platform}"
+  version: "version:2.2.3.chromium.1"
+>
+wheel: <
+  name: "infra/python/wheels/numpy/${vpython_platform}"
+  version: "version:1.23.5.chromium.4"
+>
+wheel: <
+  name: "infra/python/wheels/python-dateutil-py2_py3"
+  version: "version:2.9.0"
+>
+wheel: <
+  name: "infra/python/wheels/pytz-py2_py3"
+  version: "version:2025.2"
+>
+wheel: <
+  name: "infra/python/wheels/six-py2_py3"
+  version: "version:1.17.0"
+>
+wheel: <
+  name: "infra/python/wheels/tzdata-py2_py3"
+  version: "version:2025.2"
+>

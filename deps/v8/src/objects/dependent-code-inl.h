@@ -9,7 +9,6 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-layout-inl.h"
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/tagged.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,8 +16,6 @@
 
 namespace v8 {
 namespace internal {
-
-OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 
 // static
 template <typename ObjectT>

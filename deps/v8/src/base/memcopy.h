@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <atomic>
 
 #include "include/v8config.h"
@@ -213,38 +214,6 @@ inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
 #undef COPY_LOOP
 }
 #endif
-
-template <typename T>
-V8_INLINE bool TryTrivialCopy(const T* src_begin, const T* src_end, T* dest) {
-  DCHECK_LE(src_begin, src_end);
-  if constexpr (std::is_trivially_copyable_v<T>) {
-    const size_t count = src_end - src_begin;
-    base::MemCopy(dest, src_begin, count * sizeof(T));
-    return true;
-  }
-  return false;
-}
-
-template <typename T>
-V8_INLINE bool TryTrivialMove(const T* src_begin, const T* src_end, T* dest) {
-  DCHECK_LE(src_begin, src_end);
-  if constexpr (std::is_trivially_copyable_v<T>) {
-    const size_t count = src_end - src_begin;
-    base::MemMove(dest, src_begin, count * sizeof(T));
-    return true;
-  }
-  return false;
-}
-
-// Fills `destination` with `count` `value`s.
-template <typename T, typename U>
-constexpr void Memset(T* destination, U value, size_t count)
-  requires std::is_trivially_assignable_v<T&, U>
-{
-  for (size_t i = 0; i < count; i++) {
-    destination[i] = value;
-  }
-}
 
 // Fills `destination` with `count` `value`s.
 template <typename T>

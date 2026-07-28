@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 
 #if !CPPGC_IS_STANDALONE

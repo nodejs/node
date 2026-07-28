@@ -24,9 +24,9 @@ class WasmAddressReassociationTest : public GraphTest {
         jsgraph_(isolate(), graph(), common(), &javascript_, nullptr,
                  &machine_),
         ar_(&jsgraph_, zone()),
-        protected_load_op_(machine()->ProtectedLoad(MachineType::Int32())),
-        protected_store_op_(
-            machine()->ProtectedStore(MachineRepresentation::kWord32)),
+        trapping_load_op_(machine()->TrappingLoad(MachineType::Int32())),
+        trapping_store_op_(
+            machine()->TrappingStore(MachineRepresentation::kWord32)),
         base_(graph()->NewNode(common()->Parameter(0), graph()->start())),
         offset_(graph()->NewNode(common()->Parameter(1), graph()->start())) {}
 
@@ -51,12 +51,12 @@ class WasmAddressReassociationTest : public GraphTest {
     Node* add = Int32Add(lhs, rhs);
     return graph()->NewNode(machine()->ChangeUint32ToUint64(), add);
   }
-  Node* ProtectedLoad(Node* base, Node* offset, Node* effect, Node* control) {
-    return graph()->NewNode(protected_load_op_, base, offset, effect, control);
+  Node* TrappingLoad(Node* base, Node* offset, Node* effect, Node* control) {
+    return graph()->NewNode(trapping_load_op_, base, offset, effect, control);
   }
-  Node* ProtectedStore(Node* base, Node* offset, Node* val, Node* effect,
-                       Node* control) {
-    return graph()->NewNode(protected_store_op_, base, offset, val, effect,
+  Node* TrappingStore(Node* base, Node* offset, Node* val, Node* effect,
+                      Node* control) {
+    return graph()->NewNode(trapping_store_op_, base, offset, val, effect,
                             control);
   }
   void CheckEffectChain(Node* effect_op, Node* end,
@@ -76,8 +76,8 @@ class WasmAddressReassociationTest : public GraphTest {
         effect_nodes.push_back(NodeProperties::GetEffectInput(effect_op, i));
       }
 
-      if (effect_op->opcode() == IrOpcode::kProtectedLoad ||
-          effect_op->opcode() == IrOpcode::kProtectedStore) {
+      if (effect_op->opcode() == IrOpcode::kTrappingLoad ||
+          effect_op->opcode() == IrOpcode::kTrappingStore) {
         Node* add = effect_op->InputAt(0);
         EXPECT_EQ(add->opcode(), IrOpcode::kInt64Add);
         EXPECT_TRUE(add->InputAt(0) == base_);
@@ -101,13 +101,13 @@ class WasmAddressReassociationTest : public GraphTest {
   JSOperatorBuilder javascript_;
   JSGraph jsgraph_;
   WasmAddressReassociation ar_;
-  const Operator* protected_load_op_;
-  const Operator* protected_store_op_;
+  const Operator* trapping_load_op_;
+  const Operator* trapping_store_op_;
   Node* base_;
   Node* offset_;
 };
 
-TEST_F(WasmAddressReassociationTest, ProtectedBase) {
+TEST_F(WasmAddressReassociationTest, TrappingBase) {
   if (machine()->Is32()) return;
 
   Node* control = graph()->start();
@@ -116,10 +116,10 @@ TEST_F(WasmAddressReassociationTest, ProtectedBase) {
   for (unsigned i = 0; i < 3; ++i) {
     Node* index = Int64Constant((i + 1) * 8);
     Node* object = Int64Add(base(), index);
-    Node* load = ProtectedLoad(object, offset(), effect, control);
-    Node* store = ProtectedStore(object, offset(), load, load, control);
-    ar()->VisitProtectedMemOp(load, effect_id);
-    ar()->VisitProtectedMemOp(store, effect_id);
+    Node* load = TrappingLoad(object, offset(), effect, control);
+    Node* store = TrappingStore(object, offset(), load, load, control);
+    ar()->VisitTrappingMemOp(load, effect_id);
+    ar()->VisitTrappingMemOp(store, effect_id);
     effect = store;
   }
   graph()->end()->InsertInput(zone(), 0, effect);
@@ -128,7 +128,7 @@ TEST_F(WasmAddressReassociationTest, ProtectedBase) {
   CheckEffectChain(effect, graph()->start(), offsets);
 }
 
-TEST_F(WasmAddressReassociationTest, ProtectedIndex) {
+TEST_F(WasmAddressReassociationTest, TrappingIndex) {
   if (machine()->Is32()) return;
 
   Node* control = graph()->start();
@@ -137,10 +137,10 @@ TEST_F(WasmAddressReassociationTest, ProtectedIndex) {
   for (int64_t i = 0; i < 3; ++i) {
     Node* index = Int64Constant((i + 1) * -8);
     Node* add = Int64Add(offset(), index);
-    Node* load = ProtectedLoad(base(), add, effect, control);
-    Node* store = ProtectedStore(base(), add, load, load, control);
-    ar()->VisitProtectedMemOp(load, effect_id);
-    ar()->VisitProtectedMemOp(store, effect_id);
+    Node* load = TrappingLoad(base(), add, effect, control);
+    Node* store = TrappingStore(base(), add, load, load, control);
+    ar()->VisitTrappingMemOp(load, effect_id);
+    ar()->VisitTrappingMemOp(store, effect_id);
     effect = store;
   }
   graph()->end()->InsertInput(zone(), 0, effect);
@@ -149,7 +149,7 @@ TEST_F(WasmAddressReassociationTest, ProtectedIndex) {
   CheckEffectChain(effect, graph()->start(), offsets);
 }
 
-TEST_F(WasmAddressReassociationTest, ProtectedBaseIndex) {
+TEST_F(WasmAddressReassociationTest, TrappingBaseIndex) {
   if (machine()->Is32()) return;
 
   Node* control = graph()->start();
@@ -158,10 +158,10 @@ TEST_F(WasmAddressReassociationTest, ProtectedBaseIndex) {
   for (unsigned i = 0; i < 3; ++i) {
     Node* base_add = Int64Add(base(), Int64Constant(i * 4));
     Node* index_add = Int64Add(offset(), Int64Constant((i + 1) * 8));
-    Node* load = ProtectedLoad(base_add, index_add, effect, control);
-    Node* store = ProtectedStore(base_add, index_add, load, load, control);
-    ar()->VisitProtectedMemOp(load, effect_id);
-    ar()->VisitProtectedMemOp(store, effect_id);
+    Node* load = TrappingLoad(base_add, index_add, effect, control);
+    Node* store = TrappingStore(base_add, index_add, load, load, control);
+    ar()->VisitTrappingMemOp(load, effect_id);
+    ar()->VisitTrappingMemOp(store, effect_id);
     effect = store;
   }
   graph()->end()->InsertInput(zone(), 0, effect);
@@ -170,7 +170,7 @@ TEST_F(WasmAddressReassociationTest, ProtectedBaseIndex) {
   CheckEffectChain(effect, graph()->start(), offsets);
 }
 
-TEST_F(WasmAddressReassociationTest, ProtectedExtendIndex) {
+TEST_F(WasmAddressReassociationTest, TrappingExtendIndex) {
   if (machine()->Is32()) return;
 
   Node* control = graph()->start();
@@ -179,10 +179,10 @@ TEST_F(WasmAddressReassociationTest, ProtectedExtendIndex) {
   for (unsigned i = 0; i < 3; ++i) {
     Node* index = Int32Constant(8);
     Node* add = ExtendAdd(offset(), index);
-    Node* load = ProtectedLoad(base(), add, effect, control);
-    Node* store = ProtectedStore(base(), add, load, load, control);
-    ar()->VisitProtectedMemOp(load, effect_id);
-    ar()->VisitProtectedMemOp(store, effect_id);
+    Node* load = TrappingLoad(base(), add, effect, control);
+    Node* store = TrappingStore(base(), add, load, load, control);
+    ar()->VisitTrappingMemOp(load, effect_id);
+    ar()->VisitTrappingMemOp(store, effect_id);
     effect = store;
   }
   graph()->end()->InsertInput(zone(), 0, effect);
@@ -212,8 +212,8 @@ TEST_F(WasmAddressReassociationTest, Diamond) {
     for (unsigned i = 0; i < N; ++i) {
       size_t current_offset = 8 * (i + 1);
       Node* add = Int64Add(base(), Int64Constant(current_offset));
-      Node* load = ProtectedLoad(add, offset(), effect_chain, control_in);
-      ar()->VisitProtectedMemOp(load, effect_region_id);
+      Node* load = TrappingLoad(add, offset(), effect_chain, control_in);
+      ar()->VisitTrappingMemOp(load, effect_region_id);
       effect_chain = load;
     }
     return effect_chain;
@@ -224,8 +224,8 @@ TEST_F(WasmAddressReassociationTest, Diamond) {
     for (unsigned i = 0; i < N; ++i) {
       size_t current_offset = 8 * (i + 1);
       Node* add = Int64Add(offset(), Int64Constant(current_offset));
-      Node* store = ProtectedStore(base(), add, add, effect_chain, control_in);
-      ar()->VisitProtectedMemOp(store, effect_region_id);
+      Node* store = TrappingStore(base(), add, add, effect_chain, control_in);
+      ar()->VisitTrappingMemOp(store, effect_region_id);
       effect_chain = store;
     }
     return effect_chain;

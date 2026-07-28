@@ -301,7 +301,12 @@ macro StringToSlice(string: String): never labels OneByte(ConstSlice<char8>),
         string = Flatten(s);
       }
       case (s: SlicedString): {
-        offset += Convert<intptr>(s.offset);
+        // Clamp accumulated offsets using 32-bit wrapping arithmetic to prevent
+        // out-of-sandbox reads under memory corruption (see b/519768343).
+        const slicedOffset: int32 =
+            TruncateIntPtrToInt32(Convert<intptr>(s.offset));
+        const newOffset: int32 = TruncateIntPtrToInt32(offset) + slicedOffset;
+        offset = Convert<intptr>(Unsigned(newOffset));
         string = s.parent;
       }
       case (s: ExternalOneByteString): {

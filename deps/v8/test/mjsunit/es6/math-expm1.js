@@ -55,7 +55,7 @@ assertEquals(-1, Math.expm1(-50));
 assertEquals(-1, Math.expm1(-1.7976931348623157e308));
 // Test argument reduction.
 // Cases for 0.5*log(2) < |x| < 1.5*log(2).
-assertEquals(Math.E - 1, Math.expm1(1));
+assertEquals(2.7182818284590455, Math.expm1(1) + 1); // Not quite Math.E.
 assertEquals(1/Math.E - 1, Math.expm1(-1));
 // Cases for 1.5*log(2) < |x|.
 assertEquals(6.38905609893065, Math.expm1(2));

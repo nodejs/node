@@ -254,6 +254,10 @@ class OperandGenerator : public turboshaft::OperationMatcher {
     return UnallocatedOperand(UnallocatedOperand::SAME_AS_INPUT, vreg);
   }
 
+  InstructionOperand DefineSameAsInputForVreg(int vreg, int input_index) {
+    return UnallocatedOperand(vreg, input_index);
+  }
+
   InstructionOperand DefineAsRegistertForVreg(int vreg) {
     return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg);
   }
@@ -393,6 +397,12 @@ class OperandGenerator : public turboshaft::OperationMatcher {
           return Constant(RelocatablePtrConstantInfo(
               base::checked_cast<int32_t>(constant->integral()),
               RelocInfo::WASM_CANONICAL_SIG_ID));
+        case Kind::kRelocatableWasmCodePointer: {
+          using constant_type = std::conditional_t<Is64(), int64_t, int32_t>;
+          return Constant(RelocatablePtrConstantInfo(
+              base::checked_cast<constant_type>(constant->integral()),
+              RelocInfo::WASM_CODE_POINTER));
+        }
         case Kind::kRelocatableWasmIndirectCallTarget:
           uint64_t value = constant->integral();
           return Constant(RelocatablePtrConstantInfo(

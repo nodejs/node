@@ -42,7 +42,7 @@ struct MockSingleOverload;
 // The underlying KeyT must match the KeyT constructed by DistributionCaller.
 template <typename DistrT, typename ValidatorT, typename Ret, typename... Args>
 struct MockSingleOverload<DistrT, ValidatorT, Ret(MockingBitGen&, Args...)> {
-  static_assert(std::is_same<typename DistrT::result_type, Ret>::value,
+  static_assert(std::is_same_v<typename DistrT::result_type, Ret>,
                 "Overload signature must have return type matching the "
                 "distribution result_type.");
   using KeyT = Ret(DistrT, std::tuple<Args...>);
@@ -51,7 +51,7 @@ struct MockSingleOverload<DistrT, ValidatorT, Ret(MockingBitGen&, Args...)> {
   auto gmock_Call(MockURBG& gen, const ::testing::Matcher<Args>&... matchers)
       -> decltype(MockHelpers::MockFor<KeyT>(gen, ValidatorT())
                       .gmock_Call(matchers...)) {
-    static_assert(std::is_base_of<MockingBitGen, MockURBG>::value,
+    static_assert(std::is_base_of_v<MockingBitGen, MockURBG>,
                   "Mocking requires an absl::MockingBitGen");
     return MockHelpers::MockFor<KeyT>(gen, ValidatorT())
         .gmock_Call(matchers...);
@@ -62,7 +62,7 @@ template <typename DistrT, typename ValidatorT, typename Ret, typename Arg,
           typename... Args>
 struct MockSingleOverload<DistrT, ValidatorT,
                           Ret(Arg, MockingBitGen&, Args...)> {
-  static_assert(std::is_same<typename DistrT::result_type, Ret>::value,
+  static_assert(std::is_same_v<typename DistrT::result_type, Ret>,
                 "Overload signature must have return type matching the "
                 "distribution result_type.");
   using KeyT = Ret(DistrT, std::tuple<Arg, Args...>);
@@ -72,7 +72,7 @@ struct MockSingleOverload<DistrT, ValidatorT,
                   const ::testing::Matcher<Args>&... matchers)
       -> decltype(MockHelpers::MockFor<KeyT>(gen, ValidatorT())
                       .gmock_Call(matcher, matchers...)) {
-    static_assert(std::is_base_of<MockingBitGen, MockURBG>::value,
+    static_assert(std::is_base_of_v<MockingBitGen, MockURBG>,
                   "Mocking requires an absl::MockingBitGen");
     return MockHelpers::MockFor<KeyT>(gen, ValidatorT())
         .gmock_Call(matcher, matchers...);

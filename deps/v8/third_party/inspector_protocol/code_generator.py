@@ -574,6 +574,12 @@ class Protocol(object):
   def generate_type(self, domain, typename):
     return domain + "." + typename in self.used_types
 
+  def should_pass_associated_data(self, domain, command):
+    if not self.config.protocol.options:
+      return False
+    return self.check_options(self.config.protocol.options, domain, command,
+                              "pass_associated_data", None, False)
+
   def is_async_command(self, domain, command):
     if not self.config.protocol.options:
       return False

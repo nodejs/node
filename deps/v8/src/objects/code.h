@@ -9,6 +9,8 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
+#include "src/objects/trusted-pointer.h"
+#include "src/sandbox/code-entrypoint-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -60,7 +62,7 @@ enum class LazyDeoptimizeReason : uint8_t;
 // When the sandbox is enabled, Code objects are allocated outside the sandbox
 // and referenced through indirect pointers, so they need to inherit from
 // ExposedTrustedObject.
-class Code : public ExposedTrustedObject {
+V8_OBJECT class Code : public ExposedTrustedObject {
  public:
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -155,10 +157,16 @@ class Code : public ExposedTrustedObject {
 
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  inline Tagged<TrustedObject> bytecode_or_interpreter_data() const;
+  inline Tagged<UnionOf<BytecodeArray, InterpreterData>>
+  bytecode_or_interpreter_data() const;
   inline void set_bytecode_or_interpreter_data(
-      Tagged<TrustedObject> value,
+      Tagged<UnionOf<BytecodeArray, InterpreterData>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Returns the bytecode array for baseline code. It's allowed to be called
+  // only for baseline code.
+  inline Tagged<BytecodeArray> GetBaselineBytecodeArray() const;
+
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<TrustedByteArray>)
@@ -308,9 +316,6 @@ class Code : public ExposedTrustedObject {
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   // Support for short builtin calls END.
 
-  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
-  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
-
   void SetMarkedForDeoptimization(Isolate* isolate,
                                   LazyDeoptimizeReason reason);
   void TraceMarkForDeoptimization(Isolate* isolate,
@@ -411,12 +416,7 @@ class Code : public ExposedTrustedObject {
   V(kInstructionStreamOffset, kTaggedSize)                                     \
   V(kEndOfStrongFieldsOffset, 0)                                               \
   /* Untagged data not directly visited by GC starts here. */                  \
-  /* When the sandbox is off, the instruction_start field contains a raw */    \
-  /* pointer to the first instruction of this Code. */                         \
-  /* If the sandbox is on, this field does not exist. Instead, the */          \
-  /* instruction_start is stored in this Code's code pointer table entry */    \
-  /* referenced via the kSelfIndirectPointerOffset field */                    \
-  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize)  \
+  V(kInstructionStartOffset, kSystemPointerSize)                               \
   /* The serializer needs to copy bytes starting from here verbatim. */        \
   V(kDispatchHandleOffset, kJSDispatchHandleSize)                              \
   V(kFlagsOffset, kUInt32Size)                                                 \
@@ -440,8 +440,7 @@ class Code : public ExposedTrustedObject {
   /* Total size. */                                                            \
   V(kSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize,
-                                CODE_DATA_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(sizeof(ExposedTrustedObject), CODE_DATA_FIELDS)
 
 #undef CODE_DATA_FIELDS
 
@@ -486,6 +485,7 @@ class Code : public ExposedTrustedObject {
   static const int kArgumentsBits = 16;
   // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
   // on the call nodes without overflowing the uint16_t input_count.
+  // TODO(375937549): Convert to use uint32_t.
   static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:
@@ -515,8 +515,7 @@ class Code : public ExposedTrustedObject {
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
 
-  OBJECT_CONSTRUCTORS(Code, ExposedTrustedObject);
-};
+} V8_OBJECT_END;
 
 // A Code object when used in situations where gc might be in progress. The
 // underlying pointer is guaranteed to be a Code object.
@@ -536,12 +535,8 @@ class Code : public ExposedTrustedObject {
 // Note that both the underlying Code object and the associated
 // InstructionStream may be forwarding pointers, thus type checks and normal
 // (checked) casts do not work on GcSafeCode.
-class GcSafeCode : public HeapObject {
+V8_OBJECT class GcSafeCode : public HeapObject {
  public:
-  // Use with care, this casts away knowledge that we're dealing with a
-  // special-semantics object.
-  inline Tagged<Code> UnsafeCastToCode() const;
-
   // Safe accessors (these just forward to Code methods).
   inline Address instruction_start() const;
   inline Address instruction_end() const;
@@ -567,39 +562,33 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
-  inline Tagged<Object> raw_instruction_stream(
-      PtrComprCageBase code_cage_base) const;
   // The two following accessors repurpose the InlinedBytecodeSize field, see
   // comment in code-inl.h.
   inline uint16_t wasm_js_tagged_parameter_count() const;
   inline uint16_t wasm_js_first_tagged_parameter() const;
 
  private:
-  OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
-};
+  // Use with care, this casts away knowledge that we're dealing with a
+  // special-semantics object.
+  inline const Code* UnsafeCastToCode() const;
+  inline Code* UnsafeCastToCode();
+} V8_OBJECT_END;
 
 // A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
 // for example when a reference to a Code needs to be stored along other tagged
 // pointers inside an array or similar container datastructure.
-class CodeWrapper : public Struct {
+V8_OBJECT class CodeWrapper : public Struct {
  public:
   DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_PRINTER(CodeWrapper)
   DECL_VERIFIER(CodeWrapper)
 
-#define FIELD_LIST(V)              \
-  V(kCodeOffset, kCodePointerSize) \
-  V(kHeaderSize, 0)                \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(CodeWrapper, Struct);
-};
+ public:
+  TrustedPointerMember<Code, kCodeIndirectPointerTag> code_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

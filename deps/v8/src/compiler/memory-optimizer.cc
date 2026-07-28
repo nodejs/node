@@ -38,9 +38,9 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadFromObject:
     case IrOpcode::kLoadImmutableFromObject:
     case IrOpcode::kMemoryBarrier:
-    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kTrappingLoad:
     case IrOpcode::kLoadTrapOnNull:
-    case IrOpcode::kProtectedStore:
+    case IrOpcode::kTrappingStore:
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
@@ -238,10 +238,10 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state,
       return VisitLoadElement(node, state, effect_chain);
     case IrOpcode::kLoadField:
       return VisitLoadField(node, state, effect_chain);
-    case IrOpcode::kProtectedLoad:
-      return VisitProtectedLoad(node, state, effect_chain);
-    case IrOpcode::kProtectedStore:
-      return VisitProtectedStore(node, state, effect_chain);
+    case IrOpcode::kTrappingLoad:
+      return VisitTrappingLoad(node, state, effect_chain);
+    case IrOpcode::kTrappingStore:
+      return VisitTrappingStore(node, state, effect_chain);
     case IrOpcode::kStoreToObject:
     case IrOpcode::kInitializeImmutableInObject:
       return VisitStoreToObject(node, state, effect_chain);
@@ -376,24 +376,24 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state,
   }
 }
 
-void MemoryOptimizer::VisitProtectedLoad(Node* node,
-                                         AllocationState const* state,
-                                         NodeId effect_chain) {
-  DCHECK_EQ(IrOpcode::kProtectedLoad, node->opcode());
+void MemoryOptimizer::VisitTrappingLoad(Node* node,
+                                        AllocationState const* state,
+                                        NodeId effect_chain) {
+  DCHECK_EQ(IrOpcode::kTrappingLoad, node->opcode());
   if (v8_flags.turbo_wasm_address_reassociation) {
-    wasm_address_reassociation()->VisitProtectedMemOp(node, effect_chain);
+    wasm_address_reassociation()->VisitTrappingMemOp(node, effect_chain);
     EnqueueUses(node, state, effect_chain);
   } else {
     VisitOtherEffect(node, state, effect_chain);
   }
 }
 
-void MemoryOptimizer::VisitProtectedStore(Node* node,
-                                          AllocationState const* state,
-                                          NodeId effect_chain) {
-  DCHECK_EQ(IrOpcode::kProtectedStore, node->opcode());
+void MemoryOptimizer::VisitTrappingStore(Node* node,
+                                         AllocationState const* state,
+                                         NodeId effect_chain) {
+  DCHECK_EQ(IrOpcode::kTrappingStore, node->opcode());
   if (v8_flags.turbo_wasm_address_reassociation) {
-    wasm_address_reassociation()->VisitProtectedMemOp(node, effect_chain);
+    wasm_address_reassociation()->VisitTrappingMemOp(node, effect_chain);
     EnqueueUses(node, state, effect_chain);
   } else {
     VisitOtherEffect(node, state, effect_chain);

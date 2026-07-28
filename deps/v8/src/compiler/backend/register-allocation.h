@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_BACKEND_REGISTER_ALLOCATION_H_
 #define V8_COMPILER_BACKEND_REGISTER_ALLOCATION_H_
 
+#include "src/base/logging.h"
 #include "src/codegen/register-configuration.h"
 #include "src/zone/zone.h"
 
@@ -24,6 +25,7 @@ inline int GetRegisterCount(const RegisterConfiguration* config,
     case RegisterKind::kSimd128:
       return config->num_simd128_registers();
   }
+  UNREACHABLE();
 }
 
 inline int GetAllocatableRegisterCount(const RegisterConfiguration* config,
@@ -36,6 +38,7 @@ inline int GetAllocatableRegisterCount(const RegisterConfiguration* config,
     case RegisterKind::kSimd128:
       return config->num_allocatable_simd128_registers();
   }
+  UNREACHABLE();
 }
 
 inline const int* GetAllocatableRegisterCodes(
@@ -48,6 +51,7 @@ inline const int* GetAllocatableRegisterCodes(
     case RegisterKind::kSimd128:
       return config->allocatable_simd128_codes();
   }
+  UNREACHABLE();
 }
 
 inline int ByteWidthForStackSlot(MachineRepresentation rep) {
@@ -81,6 +85,7 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace compiler

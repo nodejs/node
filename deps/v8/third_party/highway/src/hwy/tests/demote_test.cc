@@ -511,8 +511,8 @@ class TestReorderDemote2To {
       const auto sum_expected = ReduceSum(d32, Add(f0, f1));
       const auto sum_actual = ReduceSum(d32, Add(promoted0, promoted1));
 
-      HWY_ASSERT(sum_expected - 1E-4 <= sum_actual &&
-                 sum_actual <= sum_expected + 1E-4);
+      HWY_ASSERT(sum_expected - 1E-4f <= sum_actual &&
+                 sum_actual <= sum_expected + 1E-4f);
 
       // Ensure values are the same after sorting to undo the Reorder
       Store(f0, d32, expected.get() + 0);
@@ -573,7 +573,12 @@ class TestIntegerReorderDemote2To {
       for (size_t i = 0; i < twiceN; ++i) {
         const uint64_t bits = rng();
         CopyBytes<sizeof(T)>(&bits, &from[i]);  // not same size
-        expected[i] = static_cast<TN>(HWY_MIN(HWY_MAX(min, from[i]), max));
+        T val = from[i];
+        // Workaround for GCC 15 bug: 'clamps' 73 to 255.
+#if HWY_COMPILER_GCC_ACTUAL
+        asm volatile("" : "+r"(val) : : "memory");
+#endif
+        expected[i] = static_cast<TN>(HWY_MIN(HWY_MAX(min, val), max));
       }
 
       const auto in_1 = Load(d, from.get());
@@ -582,7 +587,7 @@ class TestIntegerReorderDemote2To {
       Store(demoted_vect, dn, actual.get());
       Sort(actual.get(), twiceN);
       Sort(expected.get(), twiceN);
-      HWY_ASSERT_VEC_EQ(dn, expected.get(), Load(dn, actual.get()));
+      HWY_ASSERT_ARRAY_EQ(expected.get(), actual.get(), twiceN);
     }
 
     for (size_t rep = 0; rep < AdjustedReps(1000); ++rep) {
@@ -602,7 +607,7 @@ class TestIntegerReorderDemote2To {
       Store(demoted_vect, dn, actual.get());
       Sort(actual.get(), twiceN);
       Sort(expected.get(), twiceN);
-      HWY_ASSERT_VEC_EQ(dn, expected.get(), Load(dn, actual.get()));
+      HWY_ASSERT_ARRAY_EQ(expected.get(), actual.get(), twiceN);
     }
   }
 #endif
@@ -719,7 +724,12 @@ class TestIntegerOrderedDemote2To {
       for (size_t i = 0; i < twiceN; ++i) {
         const uint64_t bits = rng();
         CopyBytes<sizeof(T)>(&bits, &from[i]);  // not same size
-        expected[i] = static_cast<TN>(HWY_MIN(HWY_MAX(min, from[i]), max));
+        T val = from[i];
+        // Workaround for GCC 15 bug: 'clamps' 73 to 255.
+#if HWY_COMPILER_GCC_ACTUAL
+        asm volatile("" : "+r"(val) : : "memory");
+#endif
+        expected[i] = static_cast<TN>(HWY_MIN(HWY_MAX(min, val), max));
       }
 
       const auto in_1 = Load(d, from.get());

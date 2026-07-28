@@ -22,16 +22,23 @@ using ExternalPointerTypeTag = uint16_t;
 
 constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
 
+enum InternalExternalPointerTypeTag : uint16_t {
+  kFirstInternalExternalPointerTypeTag = V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+  kDictionaryValueTag = kFirstInternalExternalPointerTypeTag,
+  kLastInternalExternalPointerTypeTag = kDictionaryValueTag,
+};
+
+static_assert(kLastInternalExternalPointerTypeTag ==
+                  V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+              "Internal external pointer tags must be the last tags in the "
+              "range below V8_EXTERNAL_POINTER_TAG_COUNT.");
+
 /**
  * A JavaScript value that wraps a C++ void*. This type of value is mainly used
  * to associate C++ data structures with JavaScript objects.
  */
 class V8_EXPORT External : public Value {
  public:
-  V8_DEPRECATED("Use the version with the type tag.")
-  static Local<External> New(Isolate* isolate, void* value) {
-    return New(isolate, value, kExternalPointerTypeTagDefault);
-  }
   /**
    * Creates a new External object.
    *
@@ -50,9 +57,6 @@ class V8_EXPORT External : public Value {
 #endif
     return static_cast<External*>(value);
   }
-
-  V8_DEPRECATED("Use the version with the type tag.")
-  void* Value() const { return Value(kExternalPointerTypeTagDefault); }
 
   /**
    * Returns the value of the external pointer.

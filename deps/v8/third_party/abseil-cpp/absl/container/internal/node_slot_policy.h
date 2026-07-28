@@ -47,10 +47,9 @@ namespace container_internal {
 
 template <class Reference, class Policy>
 struct node_slot_policy {
-  static_assert(std::is_lvalue_reference<Reference>::value, "");
+  static_assert(std::is_lvalue_reference_v<Reference>, "");
 
-  using slot_type = typename std::remove_cv<
-      typename std::remove_reference<Reference>::type>::type*;
+  using slot_type = std::remove_cv_t<std::remove_reference_t<Reference>>*;
 
   template <class Alloc, class... Args>
   static void construct(Alloc* alloc, slot_type* slot, Args&&... args) {

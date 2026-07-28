@@ -31,6 +31,8 @@ constexpr Register kGpReturnRegisters[] = {eax, edx};
 constexpr DoubleRegister kFpParamRegisters[] = {xmm1, xmm2, xmm3,
                                                 xmm4, xmm5, xmm6};
 constexpr DoubleRegister kFpReturnRegisters[] = {xmm1, xmm2};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_X64
 // ===========================================================================
@@ -41,6 +43,8 @@ constexpr Register kGpReturnRegisters[] = {rax, rdx};
 constexpr DoubleRegister kFpParamRegisters[] = {xmm1, xmm2, xmm3,
                                                 xmm4, xmm5, xmm6};
 constexpr DoubleRegister kFpReturnRegisters[] = {xmm1, xmm2};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_ARM
 // ===========================================================================
@@ -51,6 +55,8 @@ constexpr Register kGpReturnRegisters[] = {r0, r1};
 // ARM d-registers must be in even/odd D-register pairs for correct allocation.
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d1, d2, d3, d4, d5, d6, d7};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
@@ -60,6 +66,8 @@ constexpr Register kGpParamRegisters[] = {x7, x0, x2, x3, x4, x5, x6};
 constexpr Register kGpReturnRegisters[] = {x0, x1};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d1, d2, d3, d4, d5, d6, d7};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================
@@ -69,6 +77,8 @@ constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {v0, v1};
 constexpr DoubleRegister kFpParamRegisters[] = {f2, f4, f6, f8, f10, f12, f14};
 constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_LOONG64
 // ===========================================================================
@@ -78,6 +88,8 @@ constexpr Register kGpParamRegisters[] = {a7, a0, a2, a3, a4, a5, a6};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {f0, f1, f2, f3, f4, f5, f6, f7};
 constexpr DoubleRegister kFpReturnRegisters[] = {f0, f1};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
@@ -87,6 +99,8 @@ constexpr Register kGpParamRegisters[] = {r10, r3, r5, r6, r7, r8, r9};
 constexpr Register kGpReturnRegisters[] = {r3, r4};
 constexpr DoubleRegister kFpParamRegisters[] = {d1, d2, d3, d4, d5, d6, d7, d8};
 constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
+constexpr std::array kSimd128ParamRegisters = {v1, v2, v3, v4, v5, v6, v7, v8};
+constexpr std::array kSimd128ReturnRegisters = {v1, v2};
 
 #elif V8_TARGET_ARCH_S390X
 // ===========================================================================
@@ -96,6 +110,8 @@ constexpr Register kGpParamRegisters[] = {r6, r2, r4, r5};
 constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2, d4, d6};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 // ===========================================================================
@@ -108,6 +124,9 @@ constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
                                                 fa4, fa5, fa6, fa7};
 constexpr DoubleRegister kFpReturnRegisters[] = {fa0, fa1};
+constexpr std::array kSimd128ParamRegisters = {v8,  v9,  v10, v11,
+                                               v12, v13, v14, v15};
+constexpr std::array kSimd128ReturnRegisters = {v8};
 
 #else
 // ===========================================================================
@@ -118,6 +137,8 @@ constexpr Register kGpParamRegisters[] = {};
 constexpr Register kGpReturnRegisters[] = {};
 constexpr DoubleRegister kFpParamRegisters[] = {};
 constexpr DoubleRegister kFpReturnRegisters[] = {};
+constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
+constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
 
 #endif
 
@@ -147,14 +168,15 @@ static_assert(kWasmImplicitArgRegister ==
 
 class LinkageAllocator {
  public:
-  template <size_t kNumGpRegs, size_t kNumFpRegs>
-  constexpr LinkageAllocator(const Register (&gp)[kNumGpRegs],
-                             const DoubleRegister (&fp)[kNumFpRegs])
-      : LinkageAllocator(gp, kNumGpRegs, fp, kNumFpRegs) {}
-
   constexpr LinkageAllocator(const Register* gp, int gpc,
-                             const DoubleRegister* fp, int fpc)
-      : gp_count_(gpc), gp_regs_(gp), fp_count_(fpc), fp_regs_(fp) {}
+                             const DoubleRegister* fp, int fpc,
+                             const Simd128Register* simd128, int simd128c)
+      : gp_count_(gpc),
+        gp_regs_(gp),
+        fp_count_(fpc),
+        fp_regs_(fp),
+        simd128_count_(simd128c),
+        simd128_regs_(simd128) {}
 
   bool CanAllocateGP() const { return gp_offset_ < gp_count_; }
   bool CanAllocateFP(MachineRepresentation rep) const {
@@ -181,6 +203,9 @@ class LinkageAllocator {
 #else
     return fp_offset_ < fp_count_;
 #endif
+  }
+  bool CanAllocateSimd128(MachineRepresentation rep) const {
+    return simd128_offset_ < simd128_count_;
   }
 
   int NextGpReg() {
@@ -220,6 +245,13 @@ class LinkageAllocator {
 #endif
   }
 
+  bool HasSimd128Regs() const { return simd128_count_ > 0; }
+
+  int NextSimd128Reg() {
+    DCHECK_LT(simd128_offset_, simd128_count_);
+    return simd128_regs_[simd128_offset_++].code();
+  }
+
   // Stackslots are counted upwards starting from 0 (or the offset set by
   // {SetStackOffset}. If {type} needs more than one stack slot, the lowest
   // used stack slot is returned.
@@ -257,21 +289,33 @@ class LinkageAllocator {
 #endif
   const DoubleRegister* const fp_regs_;
 
+  const int simd128_count_;
+  int simd128_offset_ = 0;
+  const Simd128Register* const simd128_regs_;
+
   AlignedSlotAllocator slot_allocator_;
 };
 
-// Helper for allocating either an GP or FP reg, or the next stack slot.
+// Helper for allocating either a GP, FP or Simd128 reg, or the next stack slot.
 class LinkageLocationAllocator {
  public:
-  template <size_t kNumGpRegs, size_t kNumFpRegs>
-  constexpr LinkageLocationAllocator(const Register (&gp)[kNumGpRegs],
-                                     const DoubleRegister (&fp)[kNumFpRegs],
-                                     int slot_offset)
-      : allocator_(LinkageAllocator(gp, fp)), slot_offset_(slot_offset) {}
+  template <size_t kNumGpRegs, size_t kNumFpRegs, size_t kNumSimd128Regs>
+  constexpr LinkageLocationAllocator(
+      const Register (&gp)[kNumGpRegs], const DoubleRegister (&fp)[kNumFpRegs],
+      const std::array<Simd128Register, kNumSimd128Regs>& simd128,
+      int slot_offset)
+      : allocator_(LinkageAllocator(gp, kNumGpRegs, fp, kNumFpRegs,
+                                    simd128.data(), kNumSimd128Regs)),
+        slot_offset_(slot_offset) {}
 
   LinkageLocation Next(MachineRepresentation rep) {
     MachineType type = MachineType::TypeForRepresentation(rep);
-    if (IsFloatingPoint(rep)) {
+    if (IsSimd128(rep) && allocator_.HasSimd128Regs()) {
+      if (allocator_.CanAllocateSimd128(rep)) {
+        int reg_code = allocator_.NextSimd128Reg();
+        return LinkageLocation::ForRegister(reg_code, type);
+      }
+    } else if (IsFloatingPoint(rep)) {
       if (allocator_.CanAllocateFP(rep)) {
         int reg_code = allocator_.NextFpReg(rep);
         return LinkageLocation::ForRegister(reg_code, type);

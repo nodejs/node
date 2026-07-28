@@ -128,7 +128,7 @@ namespace numbers_internal {
 
 template <typename int_type>
 constexpr bool is_signed() {
-  if constexpr (std::is_arithmetic<int_type>::value) {
+  if constexpr (std::is_arithmetic_v<int_type>) {
     // Use std::numeric_limits<T>::is_signed where it's defined to work.
     return std::numeric_limits<int_type>::is_signed;
   }
@@ -177,6 +177,10 @@ bool safe_strtou128_base(absl::string_view text,
 inline constexpr int kFastToBuffer128Size = 41;
 inline constexpr int kFastToBufferSize = 32;
 inline constexpr int kSixDigitsToBufferSize = 16;
+
+// Helper function used to implement absl::HighPrecision().
+char* absl_nonnull RoundTripDoubleToBuffer(double d, char* absl_nonnull buffer);
+char* absl_nonnull RoundTripFloatToBuffer(float f, char* absl_nonnull buffer);
 
 // Helper function for fast formatting of floating-point values.
 // The result is the same as printf's "%g", a.k.a. "%.6g"; that is, six
@@ -244,7 +248,7 @@ template <typename int_type>
   static_assert(sizeof(*out) == 1 || sizeof(*out) == 2 || sizeof(*out) == 4 ||
                     sizeof(*out) == 8,
                 "SimpleAtoi works only with 8, 16, 32, or 64-bit integers.");
-  static_assert(!std::is_floating_point<int_type>::value,
+  static_assert(!std::is_floating_point_v<int_type>,
                 "Use SimpleAtof or SimpleAtod instead.");
   bool parsed;
   // These conditions are constexpr bools to suppress MSVC warning C4127.

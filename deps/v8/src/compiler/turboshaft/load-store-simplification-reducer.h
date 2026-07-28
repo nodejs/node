@@ -83,8 +83,9 @@ class LoadStoreSimplificationReducer : public Next,
 
   OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     SimplifyLoadStore(base, index, kind, offset, element_size_log2,
@@ -104,10 +105,10 @@ class LoadStoreSimplificationReducer : public Next,
         return OpIndex::Invalid();
       }
     }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+    return Next::ReduceStore(
+        base, index, value, kind, stored_rep, write_barrier, memory_order,
+        offset, element_size_log2, maybe_initializing_or_transitioning,
+        maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicWord32Pair)(V<WordPtr> base, OptionalV<WordPtr> index,
@@ -131,64 +132,6 @@ class LoadStoreSimplificationReducer : public Next,
                                         expected_low, expected_high, kind,
                                         offset);
   }
-
-#if V8_ENABLE_SANDBOX
-  V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
-                                       bool is_immutable,
-                                       IndirectPointerTagRange tag_range) {
-    // We need to disable GVN in this function so that the `Load` isn't GVNed
-    // (because it's actually load a pointer but isn't marked as such (because
-    // the pointer it loads needs to be decoded before it can be used, so the GC
-    // wouldn't know how to interpret it)), and the Word64BitwiseAnd that
-    // follows also produces a pointer but once again isn't marked as such
-    // (because there is currently no way in Turboshaft to mark a WordBinop as
-    // producing a Tagged result). Either of those operation getting GVNed could
-    // lead to stale pointers, depending on GC timings.
-    // TODO(dmercadier,mliedtke): this DisableValueNumbering is actually a bit
-    // brittle, because if we ever do the lowering earlier in the pipeline, or
-    // if we introduce a later phase with a GVN, then the problem will come
-    // back. Cleaner solutions are mentioned in
-    // https://crbug.com/471363817#comment8.
-    DisableValueNumbering disabled_gvn(this);
-    V<Word32> table_index =
-        __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
-    V<Word64> table_offset = __ ChangeUint32ToUint64(
-        __ Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
-    LoadOp::Kind kind = LoadOp::Kind::RawAligned();
-    if (is_immutable) kind = kind.Immutable();
-    V<WordPtr> decoded_ptr =
-        __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
-
-    if (IsFastIndirectPointerTagRange(tag_range)) {
-      uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
-      decoded_ptr = __ WordPtrBitwiseAnd(decoded_ptr, mask);
-    } else {
-      V<Word32> tag = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
-          decoded_ptr, kTrustedPointerTableTagShift));
-
-      V<Word32> is_valid;
-      if (tag_range.Size() == 1) {
-        is_valid = __ Word32Equal(tag, tag_range.first);
-      } else {
-        V<Word32> diff = __ Word32Sub(tag, tag_range.first);
-        is_valid =
-            __ Uint32LessThanOrEqual(diff, tag_range.last - tag_range.first);
-      }
-
-      // Return an invalid pointer (nullptr) on tag mismatch.
-      decoded_ptr =
-          __ Select(is_valid, decoded_ptr, __ IntPtrConstant(0),
-                    RegisterRepresentation::WordPtr(), BranchHint::kTrue,
-                    SelectOp::Implementation::kForceCMove);
-
-      decoded_ptr =
-          __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
-    }
-
-    // Bitcast to tagged to this gets scanned by the GC properly.
-    return __ BitcastWordPtrToTagged(decoded_ptr);
-  }
-#endif
 
  private:
   bool CanEncodeOffset(int32_t offset, bool tagged_base) const {

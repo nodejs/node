@@ -44,11 +44,12 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
@@ -78,7 +79,7 @@ constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 template <typename T, size_t N = kFixedArrayUseDefault,
           typename A = std::allocator<T>>
 class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
-  static_assert(!std::is_array<T>::value || std::extent<T>::value > 0,
+  static_assert(!std::is_array_v<T> || std::extent_v<T> > 0,
                 "Arrays with unknown bounds cannot be used with FixedArray.");
 
   static constexpr size_t kInlineBytesDefault = 256;
@@ -88,15 +89,15 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   using EnableIfInputIterator =
       std::enable_if_t<base_internal::IsAtLeastInputIterator<Iterator>::value>;
   static constexpr bool NoexceptCopyable() {
-    return std::is_nothrow_copy_constructible<StorageElement>::value &&
+    return std::is_nothrow_copy_constructible_v<StorageElement> &&
            absl::allocator_is_nothrow<allocator_type>::value;
   }
   static constexpr bool NoexceptMovable() {
-    return std::is_nothrow_move_constructible<StorageElement>::value &&
+    return std::is_nothrow_move_constructible_v<StorageElement> &&
            absl::allocator_is_nothrow<allocator_type>::value;
   }
   static constexpr bool DefaultConstructorIsNonTrivial() {
-    return !absl::is_trivially_default_constructible<StorageElement>::value;
+    return !std::is_trivially_default_constructible_v<StorageElement>;
   }
 
  public:
@@ -222,7 +223,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // Returns a reference the ith element of the fixed array.
   // REQUIRES: 0 <= i < size()
   reference operator[](size_type i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(i < size());
+    absl::base_internal::HardeningAssertLT(i, size());
     return data()[i];
   }
 
@@ -230,7 +231,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // ith element of the fixed array.
   // REQUIRES: 0 <= i < size()
   const_reference operator[](size_type i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(i < size());
+    absl::base_internal::HardeningAssertLT(i, size());
     return data()[i];
   }
 
@@ -240,7 +241,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // array, or throws std::out_of_range
   reference at(size_type i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }
@@ -249,7 +250,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // of the fixed array.
   const_reference at(size_type i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
+      ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];
   }
@@ -258,14 +259,14 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   //
   // Returns a reference to the first element of the fixed array.
   reference front() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return data()[0];
   }
 
   // Overload of FixedArray::front() to return a reference to the first element
   // of a fixed array of const values.
   const_reference front() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return data()[0];
   }
 
@@ -273,14 +274,14 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   //
   // Returns a reference to the last element of the fixed array.
   reference back() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return data()[size() - 1];
   }
 
   // Overload of FixedArray::back() to return a reference to the last element
   // of a fixed array of const values.
   const_reference back() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return data()[size() - 1];
   }
 
@@ -414,15 +415,15 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   //     error: call to int __builtin___sprintf_chk(etc...)
   //     will always overflow destination buffer [-Werror]
   //
-  template <typename OuterT, typename InnerT = absl::remove_extent_t<OuterT>,
-            size_t InnerN = std::extent<OuterT>::value>
+  template <typename OuterT, typename InnerT = std::remove_extent_t<OuterT>,
+            size_t InnerN = std::extent_v<OuterT>>
   struct StorageElementWrapper {
     InnerT array[InnerN];
   };
 
   using StorageElement =
-      absl::conditional_t<std::is_array<value_type>::value,
-                          StorageElementWrapper<value_type>, value_type>;
+      std::conditional_t<std::is_array_v<value_type>,
+                         StorageElementWrapper<value_type>, value_type>;
 
   static pointer AsValueType(pointer ptr) { return ptr; }
   static pointer AsValueType(StorageElementWrapper<value_type>* ptr) {
@@ -458,7 +459,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   };
 
   using InlinedStorage =
-      absl::conditional_t<inline_elements == 0, EmptyInlinedStorage,
+      std::conditional_t<inline_elements == 0, EmptyInlinedStorage,
                           NonEmptyInlinedStorage>;
 
   // Storage

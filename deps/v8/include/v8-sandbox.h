@@ -29,6 +29,8 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstTag = 0,
   kNullTag = 0,
 
+  kFirstObjectWrappableTag = 1,
+
   /**
    * The lower type ids are reserved for the embedder to assign. For that, the
    * main requirement is that all (transitive) child classes of a given parent
@@ -53,8 +55,21 @@ enum class CppHeapPointerTag : uint16_t {
    * SUB with a single AND).
    */
 
-  kDefaultTag = 0x7000,
+  kFirstV8InternalTag = 0x6000,
+  // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
+  kTagForTesting,
+  kInspectorV8ConsoleTag,
+  kInspectorTaskInfoTag,
+  kMicrotaskQueueTag,
+  kWasmMemoryMapDescriptorTag,
+  kLastV8InternalTag,
 
+#if !V8_ENABLE_SANDBOX
+  // Embedders that use the sandbox should use specific tags for each type.
+  kDefaultTag,
+#endif  // !V8_ENABLE_SANDBOX
+
+  kLastObjectWrappableTag = 0x7ffc,
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
   kFreeEntryTag = 0x7fff,
@@ -62,10 +77,28 @@ enum class CppHeapPointerTag : uint16_t {
   kLastTag = 0x7fff,
 };
 
+static_assert(static_cast<uint16_t>(CppHeapPointerTag::kLastV8InternalTag) <
+              static_cast<uint16_t>(CppHeapPointerTag::kZappedEntryTag));
+
 using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 
 constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
-    CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kLastTag);
+    CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kZappedEntryTag);
+
+// All tags that are used with v8::Object::Wrappable have to be within this
+// tag range. The reason is that in some cases, an APIWrapper object has to be
+// unwrapped to access the v8::Object::Wrappable base class, e.g. to get type
+// information.
+constexpr CppHeapPointerTagRange kObjectWrappableTagRange(
+    CppHeapPointerTag::kFirstObjectWrappableTag,
+    CppHeapPointerTag::kLastObjectWrappableTag);
+
+constexpr CppHeapPointerTagRange kV8InternalTagRange(
+    CppHeapPointerTag::kFirstV8InternalTag,
+    CppHeapPointerTag::kLastV8InternalTag);
+
+static_assert(kObjectWrappableTagRange.Contains(kV8InternalTagRange),
+              "V8Internal tag range must be within kObjectWrappableTagRange");
 
 /**
  * Hardware support for the V8 Sandbox.
@@ -98,7 +131,7 @@ template <typename T>
 V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
                                             Address heap_object_ptr, int offset,
                                             CppHeapPointerTagRange tag_range) {
-  // This is a specialized version of the the CppHeapPointerTable accessors
+  // This is a specialized version of the CppHeapPointerTable accessors
   // which (1) allows the code to be inlined into the callers for performance
   // and (2) is optimized for code size as there are a huge number of callers
   // from auto-generated bindings code.
@@ -125,8 +158,10 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   constexpr int kTagShift = internal::kCppHeapPointerTagShift;
   uint32_t first_tag = static_cast<uint32_t>(tag_range.first) << kTagShift;
   uint32_t last_tag = (static_cast<uint32_t>(tag_range.last) << kTagShift) + 1;
-  if (V8_LIKELY(actual_tag >= first_tag && actual_tag <= last_tag)) {
-    entry = entry >> kCppHeapPointerPayloadShift;
+  // Avoid DCE of the entry logic using volatile.
+  volatile Address safe_entry;
+  if (actual_tag >= first_tag && actual_tag <= last_tag) [[likely]] {
+    safe_entry = entry >> kCppHeapPointerPayloadShift;
   } else {
     // If the type check failed, we simply return nullptr here. That way:
     //  1. The null handle always results in nullptr being returned here, which
@@ -147,9 +182,9 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
     //     `csel x0, x10, x8, lo` instruction.
     //  3. The machine code sequence ends up being pretty short, which is
     //     important here as this code will be inlined into a lot of functions.
-    entry = 0;
+    safe_entry = 0;
   }
-  return reinterpret_cast<T*>(entry);
+  return reinterpret_cast<T*>(safe_entry);
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(
       Internals::ReadRawField<Address>(heap_object_ptr, offset));

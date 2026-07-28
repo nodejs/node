@@ -1,0 +1,65 @@
+Tests the lifetime of pending Runtime.evaluate requests.
+
+Running test: testPromiseIsKeptAlive
+Using replMode:
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Using awaitPromise:
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+
+Running test: testObjectGroupReleaseMakesPromiseCollectible
+Using replMode:
+{
+    error : {
+        code : -32000
+        message : Promise was collected
+    }
+    id : <messageId>
+}
+Using awaitPromise:
+{
+    error : {
+        code : -32000
+        message : Promise was collected
+    }
+    id : <messageId>
+}
+
+Running test: testContextDestructionDiscardsPromise
+Using replMode:
+{
+    error : {
+        code : -32000
+        message : Execution context was destroyed.
+    }
+    id : <messageId>
+}
+Using awaitPromise:
+{
+    error : {
+        code : -32000
+        message : Execution context was destroyed.
+    }
+    id : <messageId>
+}
+
+Running test: testSessionDestructionMakesPromiseCollectible
+Promise is alive before disconnect: true
+Promise is alive after disconnect: false

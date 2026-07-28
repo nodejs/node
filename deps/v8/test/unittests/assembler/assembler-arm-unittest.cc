@@ -3615,7 +3615,7 @@ TEST_F(AssemblerArmTest, macro_float_minmax_f64) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, CodeObjectRequired{true});
 
   struct Inputs {
     double left_;
@@ -3685,7 +3685,7 @@ TEST_F(AssemblerArmTest, macro_float_minmax_f32) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, CodeObjectRequired{true});
 
   struct Inputs {
     float left_;

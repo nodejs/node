@@ -95,8 +95,8 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
 // This is the same as Factory::NewFixedArray, except it doesn't retry
 // on allocation failure.
 AllocationResult HeapTester::AllocateFixedArrayForTest(
-    Heap* heap, int length, AllocationType allocation) {
-  DCHECK(length >= 0 && length <= FixedArray::kMaxLength);
+    Heap* heap, uint32_t length, AllocationType allocation) {
+  DCHECK_LE(length, FixedArray::kMaxLength);
   int size = FixedArray::SizeFor(length);
   Tagged<HeapObject> obj;
   {
@@ -131,7 +131,7 @@ HEAP_TEST(MarkCompactCollector) {
   AllocationResult allocation;
   if (!v8_flags.single_generation) {
     // keep allocating garbage in new space until it fails
-    const int arraysize = 100;
+    const uint32_t arraysize = 100;
     do {
       allocation =
           AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);

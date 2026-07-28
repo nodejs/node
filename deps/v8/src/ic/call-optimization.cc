@@ -121,7 +121,7 @@ void CallOptimization::Initialize(
   api_call_info_ = function_template_info;
 
   Tagged<HeapObject> signature = function_template_info->signature();
-  if (!IsUndefined(signature, isolate)) {
+  if (!IsUndefined(signature)) {
     expected_receiver_type_ =
         handle(Cast<FunctionTemplateInfo>(signature), isolate);
   }

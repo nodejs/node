@@ -31,6 +31,10 @@ namespace cord_internal {
 ABSL_CONST_INIT std::atomic<bool> shallow_subcords_enabled(
     kCordShallowSubcordsDefault);
 
+void RefcountAndFlags::IncrementOverflow() {
+  ABSL_INTERNAL_LOG(FATAL, "refcount is too large and vulnerable to overflow");
+}
+
 void LogFatalNodeType(CordRep* rep) {
   ABSL_INTERNAL_LOG(FATAL, absl::StrCat("Unexpected node type: ",
                                         static_cast<int>(rep->tag)));

@@ -30,6 +30,7 @@ namespace interpreter {
   V(CopyDataPropertiesWithExcludedPropertiesOnStack,                   \
     copy_data_properties_with_excluded_properties_on_stack, -1)        \
   V(CreateIterResultObject, create_iter_result_object, 2)              \
+  V(GeneratorYieldResult, generator_yield_result, 2)                   \
   V(CreateAsyncFromSyncIterator, create_async_from_sync_iterator, 1)
 
 class IntrinsicsHelper {

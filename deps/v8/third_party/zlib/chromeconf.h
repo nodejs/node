@@ -45,16 +45,20 @@
 #define adler32_z Cr_z_adler32_z
 #define compress Cr_z_compress
 #define compress2 Cr_z_compress2
+#define compress_z Cr_z_compress_z
+#define compress2_z Cr_z_compress2_z
 #define compressBound Cr_z_compressBound
+#define compressBound_z Cr_z_compressBound_z
 #define crc32 Cr_z_crc32
 #define crc32_combine Cr_z_crc32_combine
 #define crc32_combine64 Cr_z_crc32_combine64
-#define crc32_combine_gen64 Cr_z_crc32_combine_gen64
 #define crc32_combine_gen Cr_z_crc32_combine_gen
+#define crc32_combine_gen64 Cr_z_crc32_combine_gen64
 #define crc32_combine_op Cr_z_crc32_combine_op
 #define crc32_z Cr_z_crc32_z
 #define deflate Cr_z_deflate
 #define deflateBound Cr_z_deflateBound
+#define deflateBound_z Cr_z_deflateBound_z
 #define deflateCopy Cr_z_deflateCopy
 #define deflateEnd Cr_z_deflateEnd
 #define deflateGetDictionary Cr_z_deflateGetDictionary
@@ -70,6 +74,7 @@
 #define deflateSetDictionary Cr_z_deflateSetDictionary
 #define deflateSetHeader Cr_z_deflateSetHeader
 #define deflateTune Cr_z_deflateTune
+#define deflateUsed Cr_z_deflateUsed
 #define deflate_copyright Cr_z_deflate_copyright
 #define get_crc_table Cr_z_get_crc_table
 #define gz_error Cr_z_gz_error
@@ -135,8 +140,11 @@
 #define inflate_copyright Cr_z_inflate_copyright
 #define inflate_fast Cr_z_inflate_fast
 #define inflate_table Cr_z_inflate_table
+#define inflate_fixed Cr_z_inflate_fixed
 #define uncompress Cr_z_uncompress
 #define uncompress2 Cr_z_uncompress2
+#define uncompress_z Cr_z_uncompress_z
+#define uncompress2_z Cr_z_uncompress2_z
 #define zError Cr_z_zError
 #define zcalloc Cr_z_zcalloc
 #define zcfree Cr_z_zcfree
@@ -199,8 +207,5 @@
 /* Symbols added by cpu_features.c */
 #define cpu_check_features Cr_z_cpu_check_features
 #define x86_cpu_enable_sse2 Cr_z_x86_cpu_enable_sse2
-#define x86_cpu_enable_avx512 Cr_z_x86_cpu_enable_avx512
-#define riscv_cpu_enable_rvv Cr_z_riscv_cpu_enable_rvv
-#define riscv_cpu_enable_vclmul Cr_z_riscv_cpu_enable_vclmul
 
 #endif /* THIRD_PARTY_ZLIB_CHROMECONF_H_ */

@@ -530,29 +530,20 @@ const char* absl_nullable CheckstrcasecmpfalseImpl(
 // NOLINTBEGIN(runtime/int)
 // NOLINTBEGIN(google-runtime-int)
 template <typename T>
-inline constexpr const T& GetReferenceableValue(const T& t) {
+constexpr const T& GetReferenceableValue(const T& t) {
   return t;
 }
-inline constexpr char GetReferenceableValue(char t) { return t; }
-inline constexpr unsigned char GetReferenceableValue(unsigned char t) {
-  return t;
-}
-inline constexpr signed char GetReferenceableValue(signed char t) { return t; }
-inline constexpr short GetReferenceableValue(short t) { return t; }
-inline constexpr unsigned short GetReferenceableValue(unsigned short t) {
-  return t;
-}
-inline constexpr int GetReferenceableValue(int t) { return t; }
-inline constexpr unsigned int GetReferenceableValue(unsigned int t) {
-  return t;
-}
-inline constexpr long GetReferenceableValue(long t) { return t; }
-inline constexpr unsigned long GetReferenceableValue(unsigned long t) {
-  return t;
-}
-inline constexpr long long GetReferenceableValue(long long t) { return t; }
-inline constexpr unsigned long long GetReferenceableValue(
-    unsigned long long t) {
+constexpr char GetReferenceableValue(char t) { return t; }
+constexpr unsigned char GetReferenceableValue(unsigned char t) { return t; }
+constexpr signed char GetReferenceableValue(signed char t) { return t; }
+constexpr short GetReferenceableValue(short t) { return t; }
+constexpr unsigned short GetReferenceableValue(unsigned short t) { return t; }
+constexpr int GetReferenceableValue(int t) { return t; }
+constexpr unsigned int GetReferenceableValue(unsigned int t) { return t; }
+constexpr long GetReferenceableValue(long t) { return t; }
+constexpr unsigned long GetReferenceableValue(unsigned long t) { return t; }
+constexpr long long GetReferenceableValue(long long t) { return t; }
+constexpr unsigned long long GetReferenceableValue(unsigned long long t) {
   return t;
 }
 // NOLINTEND(google-runtime-int)

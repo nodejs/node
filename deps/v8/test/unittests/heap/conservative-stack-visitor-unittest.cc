@@ -40,8 +40,9 @@ class RecordingVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot current = start; current != end; ++current) {
-      for (int i = 0; i < kNumberOfObjects; ++i)
+      for (int i = 0; i < kNumberOfObjects; ++i) {
         if ((*current).ptr() == the_object_[i].ptr()) found_[i] = true;
+      }
     }
   }
 
@@ -83,15 +84,17 @@ class RecordingVisitor final : public RootVisitor {
     return the_object_[index];
   }
 
-  Tagged<FixedArray> AllocateRegularObject(Isolate* isolate, int size) {
+  Tagged<FixedArray> AllocateRegularObject(Isolate* isolate, uint32_t size) {
     return *isolate->factory()->NewFixedArray(size, AllocationType::kOld);
   }
 
-  Tagged<InstructionStream> AllocateCodeObject(Isolate* isolate, int size) {
+  Tagged<InstructionStream> AllocateCodeObject(Isolate* isolate,
+                                               uint32_t size) {
     Assembler assm(isolate->allocator(), AssemblerOptions{});
 
-    for (int i = 0; i < size; ++i)
+    for (uint32_t i = 0; i < size; ++i) {
       assm.nop();  // supported on all architectures
+    }
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -100,7 +103,8 @@ class RecordingVisitor final : public RootVisitor {
     return code->instruction_stream();
   }
 
-  Tagged<TrustedFixedArray> AllocateTrustedObject(Isolate* isolate, int size) {
+  Tagged<TrustedFixedArray> AllocateTrustedObject(Isolate* isolate,
+                                                  uint32_t size) {
     return *isolate->factory()->NewTrustedFixedArray(size);
   }
 

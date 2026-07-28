@@ -126,10 +126,11 @@ bool InspectedContext::isReported(int sessionId) const {
 }
 
 void InspectedContext::setReported(int sessionId, bool reported) {
-  if (reported)
+  if (reported) {
     m_reportedSessionIds.insert(sessionId);
-  else
+  } else {
     m_reportedSessionIds.erase(sessionId);
+  }
 }
 
 InjectedScript* InspectedContext::getInjectedScript(int sessionId) {

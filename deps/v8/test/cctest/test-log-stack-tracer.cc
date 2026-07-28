@@ -35,6 +35,7 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "test/cctest/cctest.h"

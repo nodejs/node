@@ -74,12 +74,10 @@ void DisassembleFunctionImpl(const WasmModule* module, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
   AccountingAllocator allocator;
   Zone zone(&allocator, "Wasm disassembler");
-  bool shared = module->type(func.sig_index).is_shared;
   WasmDetectedFeatures detected;
-  FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
-                             func.sig, function_body.begin(),
-                             function_body.end(), func.code.offset(),
-                             module_bytes, names);
+  FunctionBodyDisassembler d(&zone, module, func_index, &detected, func.sig,
+                             function_body.begin(), function_body.end(),
+                             func.code.offset(), module_bytes, names);
   d.DecodeAsWat(sb, {0, 2}, FunctionBodyDisassembler::kPrintHeader);
   const bool print_offsets = false;
   sb.WriteTo(os, print_offsets, offsets);
@@ -236,7 +234,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   uint32_t locals_length = DecodeLocals(pc_);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
-    out << "Failed to decode locals\n";
+    out << "Failed to decode locals: " << error().message() << '\n';
     return;
   }
   for (uint32_t i = static_cast<uint32_t>(sig_->parameter_count());
@@ -492,6 +490,24 @@ class ImmediatesPrinter {
   }
 
   void MemoryAccess(MemoryAccessImmediate& imm) {
+    if (imm.mem_index != 0) {
+      out_ << " ";
+      names()->PrintMemoryName(out_, imm.mem_index);
+    }
+    if (WasmOpcodes::ExtractPrefix(owner_->current_opcode_) == kAtomicPrefix) {
+      switch (imm.memory_order) {
+        case AtomicMemoryOrder::kAcqRel:
+          out_ << " acqrel";
+          break;
+        case AtomicMemoryOrder::kSeqCst:
+          // This is the default. Skip printing it, so that existing operations
+          // are disassembled in the same way as before.
+          break;
+        default:
+          out_ << " INVALID(" << static_cast<int>(imm.memory_order) << ')';
+          break;
+      }
+    }
     if (imm.offset != 0) out_ << " offset=" << imm.offset;
     if (imm.alignment != GetDefaultAlignment(owner_->current_opcode_)) {
       out_ << " align=" << (1u << imm.alignment);
@@ -556,7 +572,8 @@ class ImmediatesPrinter {
 
   void MemoryIndex(MemoryIndexImmediate& imm) {
     if (imm.index == 0) return;
-    out_ << " " << imm.index;
+    out_ << " ";
+    names()->PrintMemoryName(out_, imm.index);
   }
 
   void DataSegmentIndex(IndexImmediate& imm) {
@@ -752,7 +769,7 @@ void OffsetsProvider::CollectOffsets(const WasmModule* module,
   recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
   WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes, kWasmOrigin,
+  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes,
                             &unused_detected_features, this};
   constexpr bool kNoVerifyFunctions = false;
   decoder.DecodeModule(kNoVerifyFunctions);
@@ -1071,9 +1088,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     names_->PrintValueType(out_, elem.type);
 
     WasmDetectedFeatures unused_detected_features;
-    ModuleDecoderImpl decoder(
-        WasmEnabledFeatures::All(), wire_bytes_.module_bytes(),
-        ModuleOrigin::kWasmOrigin, &unused_detected_features);
+    ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
+                              wire_bytes_.module_bytes(),
+                              &unused_detected_features);
     decoder.consume_bytes(elem.elements_wire_bytes_offset);
     for (size_t j = 0; j < elem.element_count; j++) {
       ConstantExpression entry = decoder.consume_element_segment_entry(
@@ -1103,10 +1120,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
-    bool shared = module_->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
-    FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
+    FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
                                wire_bytes_, names_);
     uint32_t first_instruction_offset;
@@ -1224,8 +1240,8 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmDetectedFeatures detected;
-      FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
-                                 start, end, ref.offset(), wire_bytes_, names_);
+      FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
+                                 end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }

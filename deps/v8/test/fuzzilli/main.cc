@@ -35,15 +35,22 @@ void expect_failure(const char* code) {
   }
 }
 
-int main(int argc, char** argv) {
+bool run_test_suite(const char* d8_path, bool bundle) {
   ctx = reprl_create_context();
+  if (ctx == nullptr) {
+    printf("Failed to create REPRL context\n");
+    return false;
+  }
 
   const char* env[] = {nullptr};
-  const char* d8_path = argc > 1 ? argv[1] : "./out.gn/x64.debug/d8";
-  const char* args[] = {d8_path, nullptr};
+  const char* args_normal[] = {d8_path, nullptr};
+  const char* args_bundle[] = {d8_path, "--bundle", nullptr};
+  const char** args = bundle ? args_bundle : args_normal;
+
   if (reprl_initialize_context(ctx, args, env, 1, 1) != 0) {
     printf("REPRL initialization failed\n");
-    return -1;
+    reprl_destroy_context(ctx);
+    return false;
   }
 
   // Basic functionality test
@@ -52,11 +59,16 @@ int main(int argc, char** argv) {
         "Script execution failed, is %s the path to d8 built with "
         "v8_fuzzilli=true?\n",
         d8_path);
-    return -1;
+    reprl_destroy_context(ctx);
+    return false;
   }
 
-  // Verify that runtime exceptions can be detected
   expect_failure("throw 'failure';");
+
+  if (bundle) {
+    // Verify that bundle exceptions can be detected
+    expect_failure("// JS_BUNDLE_SCRIPT\nthrow 'failure';");
+  }
 
   // Verify that existing state is property reset between executions
   expect_success("globalProp = 42; Object.prototype.foo = \"bar\";");
@@ -67,6 +79,23 @@ int main(int argc, char** argv) {
   expect_failure("async function fail() { throw 42; }; fail()");
   expect_success("42");
   expect_failure("async function fail() { throw 42; }; fail()");
+
+  reprl_destroy_context(ctx);
+  return true;
+}
+
+int main(int argc, char** argv) {
+  const char* d8_path = argc > 1 ? argv[1] : "./out.gn/x64.debug/d8";
+
+  // Run normal tests (unrelated changes removed by default here)
+  if (!run_test_suite(d8_path, false)) {
+    return -1;
+  }
+
+  // Run bundle tests
+  if (!run_test_suite(d8_path, true)) {
+    return -1;
+  }
 
   puts("OK");
   return 0;

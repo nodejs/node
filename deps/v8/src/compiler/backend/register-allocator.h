@@ -590,9 +590,10 @@ class DoubleEndedSplitVector {
   }
 
   void push_front(Zone* zone, const T& value) {
-    EnsureOneMoreCapacityAt<kFront>(zone);
-    --data_begin_;
-    *data_begin_ = value;
+    if (V8_UNLIKELY(space_at_front() == 0)) {
+      return GrowAndPushFront(zone, value);
+    }
+    push_front_unchecked(value);
   }
   void pop_front() {
     DCHECK(!empty());
@@ -716,6 +717,17 @@ class DoubleEndedSplitVector {
 
   size_t space_at_front() const { return data_begin_ - storage_begin_; }
   size_t space_at_back() const { return storage_end_ - data_end_; }
+
+  V8_INLINE void push_front_unchecked(const T& value) {
+    --data_begin_;
+    *data_begin_ = value;
+  }
+
+  V8_NOINLINE V8_PRESERVE_MOST void GrowAndPushFront(Zone* zone,
+                                                     const T& value) {
+    GrowAt<kFront>(zone, capacity() * 2);
+    push_front_unchecked(value);
+  }
 
   template <GrowthDirection direction>
   V8_INLINE void EnsureOneMoreCapacityAt(Zone* zone) {

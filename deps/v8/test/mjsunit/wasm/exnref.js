@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-staging
+// Flags: --allow-natives-syntax
 
 // This file is for the most parts a direct port of
 // test/mjsunit/wasm/exceptions.js using the new exception handling proposal.
@@ -670,4 +670,31 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate({m: {i: () => {}}});
   assertThrows(instance.exports.call_import);
   assertThrows(instance.exports.export);
+})();
+
+(function TestSmiExnrefAsNonNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImport("m", "throw", makeSig([], []));
+  builder.addFunction("crash", makeSig([], []))
+      .addBody([
+          kExprBlock, kExnRefCode,
+              kExprTryTable, kWasmVoid, 1,
+                  kCatchAllRef, 0,
+                  kExprCallFunction, 0,
+              kExprEnd,
+              kExprReturn,
+          kExprEnd,
+          kExprRefAsNonNull,
+          kExprThrowRef,
+      ])
+      .exportAs("crash");
+
+  let instance = builder.instantiate({m: {throw: () => { throw 42; }}});
+  try {
+    instance.exports.crash();
+    assertUnreachable();
+  } catch (e) {
+    assertEquals(42, e);
+  }
 })();

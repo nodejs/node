@@ -56,7 +56,7 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   }
   i::FlagList::ResolveContradictionsWhenFuzzing();
 
-  v8::V8::InitializeICUDefaultLocation((*argv)[0]);
+  CHECK(v8::V8::InitializeICUDefaultLocation((*argv)[0]));
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());

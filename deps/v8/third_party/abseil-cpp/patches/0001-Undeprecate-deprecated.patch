@@ -1,0 +1,183 @@
+Deprecated abseil api that is still used by some third party libraries.
+When possible, this patch should be reduced!
+This patch is currently relied on by grpc, protobuf, and nearby libraries.
+---
+diff --git a/third_party/abseil-cpp/absl/synchronization/mutex.h b/third_party/abseil-cpp/absl/synchronization/mutex.h
+index ad156d443d6c5..13e8e3ff58775 100644
+--- a/third_party/abseil-cpp/absl/synchronization/mutex.h
++++ b/third_party/abseil-cpp/absl/synchronization/mutex.h
+@@ -630,7 +630,6 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
+   // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
+   // guaranteed to be locked when this object is constructed. Requires that
+   // `mu` be dereferenceable.
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+       : MutexLock(*mu) {}
+@@ -672,7 +672,6 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
+     mu.lock_shared();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
+       : ReaderMutexLock(*mu) {}
+@@ -712,7 +711,6 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
+     mu.lock();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit WriterMutexLock(Mutex* absl_nonnull mu)
+       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+@@ -1148,7 +1147,6 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
+     this->mu_->lock();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
+       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+diff --git a/third_party/abseil-cpp/absl/strings/escaping.h b/third_party/abseil-cpp/absl/strings/escaping.h
+index aaacc2899a28a..213a0ff23b96e 100644
+--- a/third_party/abseil-cpp/absl/strings/escaping.h
++++ b/third_party/abseil-cpp/absl/strings/escaping.h
+@@ -127,9 +127,7 @@ std::string Utf8SafeCHexEscape(absl::string_view src);
+ // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
+ // 2045.
+ std::string Base64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "Base64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = Base64Escape(src);
+ }
+@@ -138,9 +138,7 @@ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+ // outputs '-' instead of '+' and '_' instead of '/', and does not pad 'dest'.
+ // This function conforms with RFC 4648 section 5 (base64url).
+ std::string WebSafeBase64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "WebSafeBase64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = WebSafeBase64Escape(src);
+ }
+diff --git a/third_party/abseil-cpp/absl/types/variant.h b/third_party/abseil-cpp/absl/types/variant.h
+index 49f3e24a86e7e..a6e5187fa2f48 100644
+--- a/third_party/abseil-cpp/absl/types/variant.h
++++ b/third_party/abseil-cpp/absl/types/variant.h
+@@ -38,13 +38,13 @@ using bad_variant_access ABSL_REFACTOR_INLINE
+     = std::bad_variant_access;
+ 
+ template <size_t I, typename... Args>
+-[[deprecated]] constexpr auto get(Args&&... args)
++constexpr auto get(Args&&... args)
+     -> decltype(std::get<I>(std::forward<Args>(args)...)) {
+   return std::get<I>(std::forward<Args>(args)...);
+ }
+ 
+ template <typename T, typename... Args>
+-[[deprecated]] constexpr decltype(std::get<T>(std::declval<Args>()...)) get(
++constexpr decltype(std::get<T>(std::declval<Args>()...)) get(
+     Args&&... args) {
+   return std::get<T>(std::forward<Args>(args)...);
+ }
+@@ -62,7 +62,7 @@ get_if(Args&&... args) {
+ }
+ 
+ template <typename T, typename... Args>
+-[[deprecated]] constexpr decltype(std::holds_alternative<T>(
++constexpr decltype(std::holds_alternative<T>(
+     std::declval<Args>()...))
+ holds_alternative(Args&&... args) {
+   return std::holds_alternative<T>(std::forward<Args>(args)...);
+diff --git a/third_party/abseil-cpp/absl/meta/type_traits.h b/third_party/abseil-cpp/absl/meta/type_traits.h
+index 7d68b4d690cca..e77112fcb3d81 100644
+--- a/third_party/abseil-cpp/absl/meta/type_traits.h
++++ b/third_party/abseil-cpp/absl/meta/type_traits.h
+@@ -151,8 +151,7 @@ template <class T>
+ using decay_t ABSL_DEPRECATE_AND_INLINE() = std::decay_t<T>;
+ 
+ template <bool C, class T = void>
+-using enable_if_t [[deprecated("Use std::enable_if_t instead.")]] =
+-    std::enable_if_t<C, T>;
++using enable_if_t ABSL_DEPRECATE_AND_INLINE() = std::enable_if_t<C, T>;
+ 
+ template <class... T>
+ using disjunction ABSL_DEPRECATE_AND_INLINE() = std::disjunction<T...>;
+diff --git a/third_party/abseil-cpp/absl/utility/utility.h b/third_party/abseil-cpp/absl/utility/utility.h
+index 3cb6940f182e7..dd699d4900ad6 100644
+--- a/third_party/abseil-cpp/absl/utility/utility.h
++++ b/third_party/abseil-cpp/absl/utility/utility.h
+@@ -71,12 +71,10 @@ inline constexpr const std::in_place_t& in_place ABSL_DEPRECATE_AND_INLINE() =
+ 
+ template <size_t I>
+ inline constexpr const std::in_place_index_t<I>& in_place_index
+-    [[deprecated("Use std::in_place_index<I> instead.")]] =
+-        std::in_place_index<I>;
++ABSL_DEPRECATE_AND_INLINE() = std::in_place_index<I>;
+ 
+ template <size_t I>
+-using in_place_index_t [[deprecated("Use std::in_place_index_t<I> instead.")]] =
+-    std::in_place_index_t<I>;
++using in_place_index_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_index_t<I>;
+ 
+ using in_place_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_t;
+ 
+@@ -88,17 +86,15 @@ template <class T>
+ using in_place_type_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_type_t<T>;
+ 
+ template <size_t... I>
+-using index_sequence [[deprecated("Use std::index_sequence instead.")]] =
+-    std::index_sequence<I...>;
++using index_sequence ABSL_DEPRECATE_AND_INLINE() = std::index_sequence<I...>;
+ 
+ template <class T, T... I>
+-using integer_sequence [[deprecated("Use std::integer_sequence instead.")]] =
++using integer_sequence ABSL_DEPRECATE_AND_INLINE() =
+     std::integer_sequence<T, I...>;
+ 
+ template <class... T>
+-using index_sequence_for
+-    [[deprecated("Use std::index_sequence_for instead.")]] =
+-        std::index_sequence_for<T...>;
++using index_sequence_for ABSL_DEPRECATE_AND_INLINE() =
++    std::index_sequence_for<T...>;
+ 
+ template <class T, class Tuple>
+ ABSL_DEPRECATE_AND_INLINE()
+@@ -109,14 +105,12 @@ ABSL_DEPRECATE_AND_INLINE()
+ }
+ 
+ template <size_t N>
+-using make_index_sequence
+-    [[deprecated("Use std::make_index_sequence instead.")]] =
+-        std::make_index_sequence<N>;
++using make_index_sequence ABSL_DEPRECATE_AND_INLINE() =
++    std::make_index_sequence<N>;
+ 
+ template <class T, T N>
+-using make_integer_sequence
+-    [[deprecated("Use std::make_integer_sequence instead.")]] =
+-        std::make_integer_sequence<T, N>;
++using make_integer_sequence ABSL_DEPRECATE_AND_INLINE() =
++    std::make_integer_sequence<T, N>;
+ 
+ template <class It, class OutIt>
+ [[deprecated("Use std::move instead.")]]
+diff --git a/third_party/abseil-cpp/absl/meta/type_traits.h b/third_party/abseil-cpp/absl/meta/type_traits.h
+index 60b40c3bd4f3f..9d582702ebd5f 100644
+--- a/third_party/abseil-cpp/absl/meta/type_traits.h
++++ b/third_party/abseil-cpp/absl/meta/type_traits.h
+@@ -109,8 +109,7 @@ struct is_detected : is_detected_impl<void, Op, Args...>::type {};
+ // appear duplicated (and thus invalid) to the compiler prior to substitution
+ // taking place. Whenever possible, use `std::void_t` instead.
+ template <typename... Ts>
+-using void_t [[deprecated("Use std::void_t instead.")]] =
+-    typename type_traits_internal::VoidTImpl<Ts...>::type;
++using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
+ 
+ // Historical note: Abseil once provided implementations of these type traits
+ // for platforms that lacked full support. New code should prefer to use the

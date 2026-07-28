@@ -9,7 +9,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const kHeapObjectTag = 1;
 const kWeakHeapObjectTag = 3;
 
-const kWasmTableObjectTrustedDispatchTableOffset = 0x1c;
+const kWasmTableType = Sandbox.getInstanceTypeIdFor('WASM_TABLE_OBJECT_TYPE');
+const kWasmTableObjectTrustedDispatchTableOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'trusted_dispatch_table');
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
@@ -176,4 +178,9 @@ function sig_write(ofs, val) {
 let ll = sig_read(0x30n);   // ll from params     @ reps_[2:4]
 sig_write(0x28n, ll);       // overwrite sl to ll @ reps_[0:2]
 
-write64(0x424242424242n, 0x4343434343434343n);
+try {
+  write64(0x424242424242n, 0x4343434343434343n);
+} catch (e) {
+  // The generic wrapper CHECK-fails, compiled wrappers throw this error:
+  assertEquals("type incompatibility when transforming from/to JS", e.message);
+}

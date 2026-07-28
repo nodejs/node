@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining-call-indirect
-// Flags: --experimental-wasm-type-reflection
 // Flags: --no-wasm-tier-up --wasm-dynamic-tiering --allow-natives-syntax
 
 // These tests check if functions are speculatively inlined as expected. We do
@@ -196,14 +195,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
 })();
 
-// Check that we handle WasmJSFunctions properly and do not inline them, both
-// in the monomorphic and polymorphic case.
-(function CallRefWasmJsFunction() {
+// Check that we handle JS functions imported into Wasm properly and do not
+// inline them, both in the monomorphic and polymorphic case.
+(function CallRefJSFunction() {
   print(arguments.callee.name);
 
-  let f1 = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f1 = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                     x => x + 1);
-  let f2 = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f2 = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                     x => x * 2);
 
   let main = null;
@@ -277,10 +276,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, instance2.exports.main(0));
 })();
 
-(function CallIndirectWasmJsFunction() {
+(function CallIndirectJSFunction() {
   print(arguments.callee.name);
 
-  let f_js = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f_js = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                       x => x + 1);
 
   let instance = function() {

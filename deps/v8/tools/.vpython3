@@ -135,3 +135,9 @@ wheel: <
   name: "infra/python/wheels/pyfakefs-py3"
   version: "version:5.7.3"
 >
+
+# We need the markdown library:
+wheel: <
+  name: "infra/python/wheels/markdown-py3"
+  version: "version:3.4.1"
+>

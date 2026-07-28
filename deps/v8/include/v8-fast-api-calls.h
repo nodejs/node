@@ -379,7 +379,7 @@ union V8_TRIVIAL_ABI AnyCType {
 static_assert(
     sizeof(AnyCType) == 8,
     "The union AnyCType should have size == 64 bits, as this is assumed "
-    "by EffectControlLinearizer.");
+    "by FastApiCallLoweringReducer.");
 
 class V8_EXPORT CFunction {
  public:

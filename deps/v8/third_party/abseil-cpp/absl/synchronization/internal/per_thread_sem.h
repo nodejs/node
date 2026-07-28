@@ -31,6 +31,10 @@
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 
+namespace gloop_do_not_use {
+struct SynchronizationBenchmarkPeer;
+}  // namespace gloop_do_not_use
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
@@ -77,6 +81,7 @@ class PerThreadSem {
   // Permitted callers.
   friend class PerThreadSemTest;
   friend class absl::Mutex;
+  friend struct ::gloop_do_not_use::SynchronizationBenchmarkPeer;
   friend void OneTimeInitThreadIdentity(absl::base_internal::ThreadIdentity*);
 };
 

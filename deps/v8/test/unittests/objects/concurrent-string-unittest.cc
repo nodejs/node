@@ -24,8 +24,14 @@ namespace {
 
 #define DOUBLE_VALUE 28.123456789
 #define STRING_VALUE "28.123456789"
-#define ARRAY_VALUE \
-  { '2', '8', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9' }
+// Two-byte tests must use content that genuinely requires two-byte
+// representation, since internalization is now content-aware and
+// migrates ASCII-content two-byte strings to one-byte. We prepend
+// U+2028 (LINE SEPARATOR), which JS Number conversion treats as
+// leading whitespace, so the parsed double still equals DOUBLE_VALUE.
+#define TWO_BYTE_ARRAY_VALUE \
+  {0x2028, '2', '8', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+#define TWO_BYTE_ARRAY_LENGTH 13
 
 // Adapted from cctest/test-api.cc, and
 // test/cctest/heap/test-external-string-tracker.cc.
@@ -149,12 +155,10 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
   auto factory = i_isolate()->factory();
   HandleScope handle_scope(i_isolate());
 
-  // Crate an internalized two-byte string.
-  // TODO(solanes): Can we have only one raw string?
-  const char* raw_string = STRING_VALUE;
-  // TODO(solanes): Is this the best way to create a two byte string from chars?
-  const int kLength = 12;
-  const uint16_t two_byte_array[kLength] = ARRAY_VALUE;
+  // Create an internalized two-byte string. Content includes a non-ASCII
+  // char to keep the two-byte representation through internalization.
+  const int kLength = TWO_BYTE_ARRAY_LENGTH;
+  const uint16_t two_byte_array[kLength] = TWO_BYTE_ARRAY_VALUE;
   Handle<String> two_bytes_string;
   {
     Handle<SeqTwoByteString> raw =
@@ -181,9 +185,14 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
 
   sema_started.Wait();
 
-  // Externalize it to a two-bytes external string.
+  // Externalize it to a two-bytes external string. The resource needs to
+  // match the string content so we copy the array into a NUL-terminated
+  // heap buffer that the resource takes ownership of.
+  uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
+  std::copy_n(two_byte_array, kLength, resource_data);
+  resource_data[kLength] = 0;
   EXPECT_TRUE(two_bytes_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
+      i_isolate(), new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*two_bytes_string));
   EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
@@ -263,12 +272,10 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   auto factory = i_isolate()->factory();
   HandleScope handle_scope(i_isolate());
 
-  // Crate an internalized two-byte string.
-  // TODO(solanes): Can we have only one raw string?
-  const char* raw_string = STRING_VALUE;
-  // TODO(solanes): Is this the best way to create a two byte string from chars?
-  const int kLength = 12;
-  const uint16_t two_byte_array[kLength] = ARRAY_VALUE;
+  // Create an internalized two-byte string. Content includes a non-ASCII
+  // char to keep the two-byte representation through internalization.
+  const int kLength = TWO_BYTE_ARRAY_LENGTH;
+  const uint16_t two_byte_array[kLength] = TWO_BYTE_ARRAY_VALUE;
   Handle<String> thin_string;
   {
     Handle<SeqTwoByteString> raw =
@@ -297,9 +304,14 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
 
   sema_started.Wait();
 
-  // Externalize it to a two-bytes external string.
+  // Externalize it to a two-bytes external string. The resource needs to
+  // match the string content so we copy the array into a NUL-terminated
+  // heap buffer that the resource takes ownership of.
+  uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
+  std::copy_n(two_byte_array, kLength, resource_data);
+  resource_data[kLength] = 0;
   EXPECT_TRUE(internalized_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
+      i_isolate(), new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 

@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 
 namespace v8::internal::wasm {
@@ -31,22 +32,39 @@ enum class WellKnownImport : uint8_t {
   // https://github.com/WebAssembly/js-string-builtins
   // TODO(14179): Rename some of these to reflect the new import names.
   kStringCast = kFirstCompileTimeImport,
+  kStringCastShared,
   kStringCharCodeAt,
+  kStringCharCodeAtShared,
   kStringCodePointAt,
+  kStringCodePointAtShared,
   kStringCompare,
+  kStringCompareShared,
   kStringConcat,
+  kStringConcatShared,
   kStringEquals,
+  kStringEqualsShared,
   kStringFromCharCode,
+  kStringFromCharCodeShared,
   kStringFromCodePoint,
+  kStringFromCodePointShared,
   kStringFromUtf8Array,
+  kStringFromUtf8ArrayShared,
   kStringFromWtf16Array,
+  kStringFromWtf16ArrayShared,
   kStringIntoUtf8Array,
+  kStringIntoUtf8ArrayShared,
   kStringLength,
+  kStringLengthShared,
   kStringMeasureUtf8,
+  kStringMeasureUtf8Shared,
   kStringSubstring,
+  kStringSubstringShared,
   kStringTest,
+  kStringTestShared,
   kStringToUtf8Array,
+  kStringToUtf8ArrayShared,
   kStringToWtf16Array,
+  kStringToWtf16ArrayShared,
 
   // JS Prototypes setup (Custom Descriptors proposal)
   kConfigureAllPrototypes,
@@ -121,7 +139,9 @@ inline bool IsCompileTimeImport(WellKnownImport wki) {
 
 class WellKnownImportsList {
  public:
-  enum class UpdateResult : bool { kFoundIncompatibility, kOK };
+  using UpdateResult = base::StrongAlias<struct UpdateResultTag, bool>;
+  static constexpr UpdateResult kFoundIncompatibility{false};
+  static constexpr UpdateResult kOK{true};
 
   WellKnownImportsList() = default;
 

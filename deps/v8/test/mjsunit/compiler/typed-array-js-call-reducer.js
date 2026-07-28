@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --track-array-buffer-views
+// Flags: --allow-natives-syntax --turbofan --track-array-buffer-views
 
 // Helper to force optimization (best effort)
 function optimize(fn, ...args) {

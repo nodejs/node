@@ -38,6 +38,16 @@ static inline V ReadUnalignedValue(const char p[sizeof(V)]) {
 }
 
 template <typename V>
+static inline V ReadUnalignedValue(const int8_t p[sizeof(V)]) {
+  return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
+}
+
+template <typename V>
+static inline V ReadUnalignedValue(const uint8_t p[sizeof(V)]) {
+  return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
+}
+
+template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
   memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));

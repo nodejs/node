@@ -182,6 +182,12 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kIsNull:
         ProcessIsNull(op.Cast<IsNullOp>());
         break;
+      case Opcode::kAnyConvertExtern:
+        ProcessAnyConvertExtern(op.Cast<AnyConvertExternOp>());
+        break;
+      case Opcode::kExternConvertAny:
+        ProcessExternConvertAny(op.Cast<ExternConvertAnyOp>());
+        break;
       case Opcode::kParameter:
         ProcessParameter(op.Cast<ParameterOp>());
         break;
@@ -250,7 +256,49 @@ void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
   input_type_map_[graph_.Index(is_null)] = GetResolvedType(is_null.object());
 }
 
+void WasmGCTypeAnalyzer::ProcessAnyConvertExtern(const AnyConvertExternOp& op) {
+  wasm::ValueType input_type = GetResolvedType(op.object());
+  input_type_map_[graph_.Index(op)] = input_type;
+  DCHECK(input_type.is_ref() || input_type.is_bottom() ||
+         input_type == wasm::ValueType());
+  if (input_type == wasm::ValueType()) return;
+  wasm::ValueType result_type =
+      input_type.is_uninhabited()
+          ? wasm::kWasmBottom
+          : wasm::ValueType::Generic(wasm::GenericKind::kAny,
+                                     input_type.nullability(), op.is_shared);
+  RefineTypeKnowledge(graph_.Index(op), result_type, op);
+}
+
+void WasmGCTypeAnalyzer::ProcessExternConvertAny(const ExternConvertAnyOp& op) {
+  wasm::ValueType input_type = GetResolvedType(op.object());
+  input_type_map_[graph_.Index(op)] = input_type;
+  DCHECK(input_type.is_ref() || input_type.is_bottom() ||
+         input_type == wasm::ValueType());
+  if (input_type == wasm::ValueType()) return;
+  wasm::ValueType result_type =
+      input_type.is_uninhabited()
+          ? wasm::kWasmBottom
+          : wasm::ValueType::Generic(wasm::GenericKind::kExtern,
+                                     input_type.nullability(),
+                                     input_type.is_shared());
+  RefineTypeKnowledge(graph_.Index(op), result_type, op);
+}
+
+// In the JS-to-Wasm inlining pipeline, the entry-point is a JS function, so
+// `signature_` (the Wasm signature of the compiled function) is null.
+// The ParameterOp nodes represent the outer JS arguments, not the inlined
+// Wasm function's parameters (which have been replaced by the arguments
+// passed at the inlined call sites). Therefore, we cannot type the outer JS
+// parameters using a Wasm signature, and we skip them. Type information
+// will instead propagate from typed operations inside the inlined Wasm
+// bodies (like casts, struct.get, etc.).
 void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {
+  if (!signature_) {
+    DCHECK_EQ(data_->pipeline_kind(), TurboshaftPipelineKind::kJS);
+    DCHECK(v8_flags.wasm_in_js_inlining_opt);
+    return;
+  }
   if (parameter.parameter_index != wasm::kWasmInstanceDataParameterIndex) {
     RefineTypeKnowledge(graph_.Index(parameter),
                         signature_->GetParam(parameter.parameter_index - 1),
@@ -321,49 +369,15 @@ void WasmGCTypeAnalyzer::ProcessAllocateArray(
                       wasm::ValueType::Ref(module_->heap_type(type_index)),
                       allocate_array);
 }
-
 void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     const WasmAllocateStructOp& allocate_struct) {
-  Operation& rtt = graph_.Get(allocate_struct.rtt());
-  wasm::ModuleTypeIndex type_index;
-  if (RttCanonOp* canon = rtt.TryCast<RttCanonOp>()) {
-    type_index = canon->type_index;
-  } else if (LoadOp* load = rtt.TryCast<LoadOp>()) {
-    DCHECK(load->kind.tagged_base && load->offset == WasmStruct::kHeaderSize);
-    OpIndex descriptor = load->base();
-    wasm::ValueType desc_type = types_table_.Get(descriptor);
-    if (!desc_type.has_index()) {
-      // We hope that this happens rarely or never. If there is evidence that
-      // we get this case a lot, we should store the original struct.new
-      // operation's type index immediate on the {WasmAllocateStructOp} to
-      // use it as a better upper bound than "structref" here.
-      RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmStructRef,
-                          allocate_struct);
-      return;
-    }
-    const wasm::TypeDefinition& desc_typedef =
-        module_->type(desc_type.ref_index());
-    if (!desc_typedef.is_descriptor()) {
-      // This can only happen in unreachable code.
-      RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmBottom,
-                          allocate_struct);
-      return;
-    }
-    type_index = desc_typedef.describes;
-  } else {
-    // While the graph builder only emits the two patterns above, other
-    // graph modifications (e.g. loop unrolling) can create other situations
-    // (e.g. Phi nodes).
-    // Similar to the comment above, we could be smarter here if the AllocateOp
-    // knew its own type index. Having dedicated "LoadRttOp" would likely
-    // also be helpful, e.g. by enabling us to type Phis that hold RTTs.
-    RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmStructRef,
-                        allocate_struct);
-    return;
-  }
-  RefineTypeKnowledge(graph_.Index(allocate_struct),
-                      wasm::ValueType::Ref(module_->heap_type(type_index)),
-                      allocate_struct);
+  RefineTypeKnowledge(
+      graph_.Index(allocate_struct),
+      wasm::ValueType::Ref(allocate_struct.type_index,
+                           allocate_struct.struct_type->is_shared(),
+                           wasm::RefTypeKind::kStruct)
+          .AsExact(),
+      allocate_struct);
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,

@@ -34,8 +34,8 @@ void AddTypeAssertionsImpl::Run() {
 void AddTypeAssertionsImpl::ProcessBlock(BasicBlock* block) {
   // To keep things simple, this only inserts type assertions for nodes that are
   // followed by an effectful operation in the same basic block. We could build
-  // a proper new effect chain like in the EffectControlLinearizer, but right
-  // now, this doesn't quite seem worth the effort.
+  // a proper new effect chain like in the former EffectControlLinearizer, but
+  // right now, this doesn't quite seem worth the effort.
   std::vector<Node*> pending;
   bool inside_of_region = false;
   for (Node* node : *block) {
