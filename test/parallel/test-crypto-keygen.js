@@ -89,6 +89,21 @@ const isBoringSSL = process.features.openssl_is_boringssl;
     message: 'The "options" argument must be of type object. ' +
       'Received type number (0)'
   });
+
+  for (const type of ['rsa', 'ed25519']) {
+    assert.throws(() => generateKeyPairSync(type, null), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be of type object. ' +
+        'Received null'
+    });
+    assert.throws(() => generateKeyPair(type, null, common.mustNotCall()), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options" argument must be of type object. ' +
+        'Received null'
+    });
+  }
 }
 
 {
