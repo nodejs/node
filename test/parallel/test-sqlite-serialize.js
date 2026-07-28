@@ -190,6 +190,23 @@ suite('DatabaseSync.prototype.deserialize()', () => {
     });
   });
 
+  test('throws if called while in a callback', (t) => {
+    const source = new DatabaseSync(':memory:');
+    const serialized = source.serialize();
+    source.close();
+
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.function('deserialize_database', () => db.deserialize(serialized));
+    const stmt = db.prepare('SELECT deserialize_database()');
+
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: 'database cannot be deserialized while in a callback',
+    });
+    t.assert.strictEqual(db.isOpen, true);
+  });
+
   test('throws if buffer argument is not a Uint8Array', (t) => {
     const db = new DatabaseSync(':memory:');
     t.assert.throws(() => {
