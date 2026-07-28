@@ -1858,6 +1858,10 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      db->IsInCallback(),
+      "database cannot be deserialized while in a callback");
 
   if (!args[0]->IsUint8Array()) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),

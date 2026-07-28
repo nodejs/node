@@ -629,8 +629,10 @@ added:
 Loads a serialized database into this connection, replacing the current
 database. The deserialized database is writable. Existing prepared statements
 are finalized before deserialization is attempted, even if the operation
-subsequently fails. This method is a wrapper around
-[`sqlite3_deserialize()`][].
+subsequently fails. An [`ERR_INVALID_STATE`][] error is thrown if the method is
+called while a database callback is on the stack, for example a user-defined
+function, an aggregate function, an authorizer, or a changeset filter or conflict
+handler. This method is a wrapper around [`sqlite3_deserialize()`][].
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
@@ -1796,6 +1798,7 @@ callback function to indicate what type of operation is being authorized.
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
+[`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
